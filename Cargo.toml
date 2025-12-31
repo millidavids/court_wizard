@@ -1,0 +1,21 @@
+[package]
+name = "the_game"
+version = "0.1.0"
+edition = "2024"
+default-run = "the_game"
+
+[dependencies]
+bevy = "0.17.3"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+
+# Windows-specific dependencies
+[target.'cfg(windows)'.dependencies]
+
+# Build configuration for Windows target
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true

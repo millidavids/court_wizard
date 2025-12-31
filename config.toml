@@ -1,0 +1,14 @@
+[window]
+width = 1280
+height = 720
+mode = "windowed"
+vsync = "on"
+scale_factor = 1.0
+
+[audio]
+master_volume = 1.0
+music_volume = 0.8
+sfx_volume = 0.8
+
+[game]
+difficulty = "Normal"
