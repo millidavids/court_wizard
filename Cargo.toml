@@ -8,6 +8,8 @@ default-run = "the_game"
 bevy = "0.17.3"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+thiserror = "2.0"
+anyhow = "1.0"
 
 # Windows-specific dependencies
 [target.'cfg(windows)'.dependencies]

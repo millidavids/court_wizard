@@ -5,8 +5,8 @@ impl Default for WindowConfig {
         Self {
             width: 1280,
             height: 720,
-            mode: "windowed".to_string(),
-            vsync: "on".to_string(),
+            mode: WindowMode::default(),
+            vsync: VsyncMode::default(),
             scale_factor: Some(1.0),
         }
     }
