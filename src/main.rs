@@ -3,7 +3,10 @@ use bevy::window::{PresentMode, Window, WindowPlugin, WindowResolution};
 use std::fs;
 
 mod config;
+mod state;
+
 use config::{ConfigFile, ConfigPlugin, VsyncMode};
+use state::GameState;
 
 /// Main entry point for the game.
 ///
@@ -33,6 +36,7 @@ fn main() {
             }),
         )
         .add_plugins(ConfigPlugin::default())
+        .init_state::<GameState>()
         .add_systems(Startup, setup)
         .run();
 }
