@@ -40,22 +40,66 @@ pub enum VsyncMode {
     Adaptive,
 }
 
+/// Resolution settings for a specific window mode
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Resolution {
+    /// Window width in pixels
+    pub width: u32,
+    /// Window height in pixels
+    pub height: u32,
+    /// Aspect ratio (e.g., "16:9", "16:10", "4:3", "21:9")
+    pub aspect_ratio: String,
+}
+
+impl Default for Resolution {
+    fn default() -> Self {
+        Self {
+            width: 1280,
+            height: 720,
+            aspect_ratio: "16:9".to_string(),
+        }
+    }
+}
+
 /// Window settings for serialization to/from TOML.
 ///
 /// During runtime, Bevy's `Window` component is the source of truth.
 /// This struct is only used for persistence to/from the config file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowConfig {
-    /// Window width in pixels
-    pub width: u32,
-    /// Window height in pixels
-    pub height: u32,
+    /// Resolution for windowed mode
+    pub windowed_resolution: Resolution,
+    /// Resolution for borderless fullscreen mode
+    pub borderless_resolution: Resolution,
+    /// Resolution for fullscreen mode
+    pub fullscreen_resolution: Resolution,
     /// Display mode (windowed, borderless, or fullscreen)
     pub mode: WindowMode,
     /// VSync mode (on, off, or adaptive)
     pub vsync: VsyncMode,
     /// Scale factor override (None uses OS default)
     pub scale_factor: Option<f64>,
+}
+
+impl Default for WindowConfig {
+    fn default() -> Self {
+        Self {
+            windowed_resolution: Resolution::default(),
+            borderless_resolution: Resolution {
+                width: 1920,
+                height: 1080,
+                aspect_ratio: "16:9".to_string(),
+            },
+            fullscreen_resolution: Resolution {
+                width: 1920,
+                height: 1080,
+                aspect_ratio: "16:9".to_string(),
+            },
+            mode: WindowMode::default(),
+            vsync: VsyncMode::default(),
+            scale_factor: Some(1.0),
+        }
+    }
 }
 
 /// Audio settings for serialization to/from TOML.
@@ -70,6 +114,16 @@ pub struct AudioConfig {
     pub music_volume: f32,
     /// Sound effects volume level (0.0 = muted, 1.0 = full volume)
     pub sfx_volume: f32,
+}
+
+impl Default for AudioConfig {
+    fn default() -> Self {
+        Self {
+            master_volume: 1.0,
+            music_volume: 0.8,
+            sfx_volume: 0.8,
+        }
+    }
 }
 
 /// Game difficulty levels.
@@ -117,3 +171,112 @@ pub struct GameConfig {
 /// absolute or relative path to the configuration file on disk.
 #[derive(Resource)]
 pub struct ConfigPath(pub std::path::PathBuf);
+
+/// Message that triggers saving the current configuration to disk.
+///
+/// Send this message when you want to manually persist the current
+/// window and game config state to the config file.
+#[derive(Message)]
+pub struct SaveConfigEvent;
+
+/// Resource that tracks debounce timer for automatic config saving.
+///
+/// This prevents excessive file writes during window resizing by waiting
+/// for a period of inactivity before saving to disk.
+#[derive(Resource)]
+pub struct SaveDebounceTimer {
+    /// Timer that counts down after a window resize event
+    pub timer: Timer,
+    /// Whether a save is pending after the timer expires
+    pub pending: bool,
+}
+
+impl Default for SaveDebounceTimer {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(0.5, TimerMode::Once),
+            pending: false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_file_serialization() {
+        let config = ConfigFile::default();
+        let toml_str = toml::to_string(&config).expect("Failed to serialize");
+
+        // Verify the TOML structure is correct
+        assert!(toml_str.contains("[window]"));
+        assert!(toml_str.contains("[audio]"));
+        assert!(toml_str.contains("[game]"));
+        assert!(toml_str.contains("[window.windowed_resolution]"));
+    }
+
+    #[test]
+    fn test_config_file_deserialization() {
+        let toml_str = r#"
+            [window]
+            mode = "Fullscreen"
+            vsync = "Off"
+            scale_factor = 2.0
+
+            [window.windowed_resolution]
+            width = 1280
+            height = 720
+            aspect_ratio = "16:9"
+
+            [window.borderless_resolution]
+            width = 1920
+            height = 1080
+            aspect_ratio = "16:9"
+
+            [window.fullscreen_resolution]
+            width = 1920
+            height = 1080
+            aspect_ratio = "16:9"
+
+            [audio]
+            master_volume = 0.5
+            music_volume = 0.6
+            sfx_volume = 0.7
+
+            [game]
+            difficulty = "Hard"
+        "#;
+
+        let config: ConfigFile = toml::from_str(toml_str).expect("Failed to deserialize");
+
+        // Verify values were parsed correctly
+        assert_eq!(config.window.windowed_resolution.width, 1280);
+        assert_eq!(config.window.windowed_resolution.aspect_ratio, "16:9");
+        assert_eq!(config.window.mode, WindowMode::Fullscreen);
+        assert_eq!(config.window.vsync, VsyncMode::Off);
+        assert_eq!(config.window.scale_factor, Some(2.0));
+        assert_eq!(config.audio.master_volume, 0.5);
+        assert_eq!(config.game.difficulty, Difficulty::Hard);
+    }
+
+    #[test]
+    fn test_config_file_round_trip() {
+        let original = ConfigFile::default();
+        let toml_str = toml::to_string(&original).expect("Failed to serialize");
+        let deserialized: ConfigFile = toml::from_str(&toml_str).expect("Failed to deserialize");
+
+        // Verify serialization and deserialization are symmetrical
+        assert_eq!(
+            original.window.windowed_resolution.width,
+            deserialized.window.windowed_resolution.width
+        );
+        assert_eq!(
+            original.window.windowed_resolution.aspect_ratio,
+            deserialized.window.windowed_resolution.aspect_ratio
+        );
+        assert_eq!(original.window.mode, deserialized.window.mode);
+        assert_eq!(original.window.vsync, deserialized.window.vsync);
+        assert_eq!(original.game.difficulty, deserialized.game.difficulty);
+    }
+}

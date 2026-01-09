@@ -4,9 +4,11 @@ use std::fs;
 
 mod config;
 mod state;
+mod ui;
 
 use config::{ConfigFile, ConfigPlugin, VsyncMode};
 use state::GameState;
+use ui::UIPlugin;
 
 /// Main entry point for the game.
 ///
@@ -16,12 +18,19 @@ fn main() {
     // Pre-load config for initial window setup
     let config = load_initial_config();
 
+    // Get the appropriate resolution based on the configured window mode
+    let resolution = match config.window.mode {
+        config::WindowMode::Windowed => &config.window.windowed_resolution,
+        config::WindowMode::Borderless => &config.window.borderless_resolution,
+        config::WindowMode::Fullscreen => &config.window.fullscreen_resolution,
+    };
+
     App::new()
         .add_plugins(
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "The Game".into(),
-                    resolution: WindowResolution::new(config.window.width, config.window.height)
+                    resolution: WindowResolution::new(resolution.width, resolution.height)
                         .with_scale_factor_override(
                             config.window.scale_factor.unwrap_or(1.0) as f32
                         ),
@@ -36,6 +45,7 @@ fn main() {
             }),
         )
         .add_plugins(ConfigPlugin::default())
+        .add_plugins(UIPlugin)
         .init_state::<GameState>()
         .add_systems(Startup, setup)
         .run();

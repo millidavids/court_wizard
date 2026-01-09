@@ -1,3 +1,3 @@
 mod states;
 
-pub use states::GameState;
+pub use states::{GameState, MenuState};

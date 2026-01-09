@@ -27,6 +27,7 @@ use bevy::prelude::*;
 /// }
 /// ```
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+#[allow(dead_code)]
 pub enum GameState {
     /// Initial start menu where players begin.
     ///
@@ -46,4 +47,17 @@ pub enum GameState {
     /// Game logic is suspended while in this state.
     /// Players can resume, adjust settings, or return to the start menu.
     PauseMenu,
+}
+
+/// Tracks which menu screen is currently displayed within the StartMenu state.
+///
+/// This resource is used to manage navigation between the main menu and its submenus
+/// (like settings) without changing the overall GameState.
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MenuState {
+    /// Main menu with Start, Settings, Exit buttons
+    #[default]
+    Main,
+    /// Settings submenu with configuration options
+    Settings,
 }

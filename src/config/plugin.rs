@@ -10,7 +10,7 @@ use super::systems::*;
 /// - Loads configuration from a TOML file at startup
 /// - Applies window settings to Bevy's `Window` component
 /// - Provides a `GameConfig` resource that can be modified at runtime
-/// - Automatically persists changes to disk when window is resized or `GameConfig` changes
+/// - Persists changes to disk when `SaveConfigEvent` is sent
 ///
 /// # Architecture
 ///
@@ -18,6 +18,20 @@ use super::systems::*;
 /// 1. **ConfigFile** - TOML serialization layer (disk ↔ memory)
 /// 2. **Bevy Components** - Runtime source of truth for window/audio settings
 /// 3. **GameConfig Resource** - Runtime source of truth for game-specific settings
+///
+/// # Manual Saving
+///
+/// Configuration changes are NOT automatically saved. To persist changes to disk,
+/// send a `SaveConfigEvent`:
+///
+/// ```
+/// use bevy::prelude::*;
+/// use the_game::config::SaveConfigEvent;
+///
+/// fn save_settings(mut save_events: EventWriter<SaveConfigEvent>) {
+///     save_events.send(SaveConfigEvent);
+/// }
+/// ```
 ///
 /// # Examples
 ///
@@ -63,16 +77,21 @@ impl Default for ConfigPlugin {
 
 impl Plugin for ConfigPlugin {
     fn build(&self, app: &mut App) {
-        // Insert the config path resource
+        // Insert resources
         app.insert_resource(ConfigPath(self.config_path.clone()));
+        app.init_resource::<super::resources::SaveDebounceTimer>();
+
+        // Add message for manual config saving
+        app.add_message::<super::resources::SaveConfigEvent>();
 
         // Add systems
         app.add_systems(Startup, load_and_apply_config);
         app.add_systems(
             Update,
             (
-                persist_window_on_resize,
-                persist_game_config_on_change.run_if(resource_changed::<GameConfig>),
+                mark_save_pending_on_resize,
+                save_config_on_debounce_timer,
+                save_config_on_event,
             ),
         );
     }
