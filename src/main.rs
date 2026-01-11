@@ -1,74 +1,33 @@
 use bevy::prelude::*;
-use bevy::window::{PresentMode, Window, WindowPlugin, WindowResolution};
-use std::fs;
+use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 mod config;
-mod state;
-mod ui;
 
-use config::{ConfigFile, ConfigPlugin, VsyncMode};
-use state::GameState;
-use ui::UIPlugin;
+use config::ConfigPlugin;
 
 /// Main entry point for the game.
 ///
-/// Pre-loads the configuration file to set initial window properties,
-/// then initializes the Bevy app with the config plugin.
+/// Initializes the Bevy app with default window settings and the config plugin.
+/// The ConfigPlugin will load saved settings from localStorage at startup and
+/// apply them to the window.
 fn main() {
-    // Pre-load config for initial window setup
-    let config = load_initial_config();
-
-    // Get the appropriate resolution based on the configured window mode
-    let resolution = match config.window.mode {
-        config::WindowMode::Windowed => &config.window.windowed_resolution,
-        config::WindowMode::Borderless => &config.window.borderless_resolution,
-        config::WindowMode::Fullscreen => &config.window.fullscreen_resolution,
-    };
-
     App::new()
-        .add_plugins(
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "The Game".into(),
-                    resolution: WindowResolution::new(resolution.width, resolution.height)
-                        .with_scale_factor_override(
-                            config.window.scale_factor.unwrap_or(1.0) as f32
-                        ),
-                    present_mode: match config.window.vsync {
-                        VsyncMode::Off => PresentMode::AutoNoVsync,
-                        VsyncMode::Adaptive => PresentMode::AutoVsync,
-                        VsyncMode::On => PresentMode::AutoVsync,
-                    },
-                    ..default()
-                }),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "The Game".into(),
+                // Default resolution - ConfigPlugin will update at Startup
+                resolution: WindowResolution::new(1920, 1080),
+                canvas: Some("#bevy-canvas".to_string()),
+                fit_canvas_to_parent: true,
+                prevent_default_event_handling: true,
                 ..default()
             }),
-        )
+            ..default()
+        }))
         .add_plugins(ConfigPlugin::default())
-        .add_plugins(UIPlugin)
-        .init_state::<GameState>()
+        .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)))
         .add_systems(Startup, setup)
         .run();
-}
-
-/// Loads the configuration file before App initialization.
-///
-/// This function is called before Bevy's app is created to allow the
-/// initial window properties to be set from the config file. If the
-/// config file doesn't exist or cannot be parsed, defaults are used.
-///
-/// # Returns
-///
-/// The loaded `ConfigFile` or defaults if loading fails.
-fn load_initial_config() -> ConfigFile {
-    let config_path = "config.toml";
-    if std::path::Path::new(config_path).exists()
-        && let Ok(contents) = fs::read_to_string(config_path)
-        && let Ok(config) = toml::from_str::<ConfigFile>(&contents)
-    {
-        return config;
-    }
-    ConfigFile::default()
 }
 
 /// Sets up the initial game scene.

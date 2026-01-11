@@ -1,2 +1,8 @@
 /target
 .claude/
+
+# WASM build outputs
+/web/*.wasm
+/web/*.js
+/web/*_bg.wasm
+/web/*.d.ts

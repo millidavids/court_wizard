@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// Root configuration file structure for TOML serialization.
+/// Temporary structure for TOML serialization only.
 ///
-/// This is the complete file format that gets serialized to/from `config.toml`.
-/// It is not a runtime resource - it's only used as a data transfer object
-/// between the disk and Bevy's runtime components/resources.
+/// This is NOT a runtime resource. It only exists during:
+/// 1. Startup: Load from localStorage → apply to Bevy components
+/// 2. Save: Read from Bevy components → serialize to localStorage
+///
+/// During runtime, Bevy components are the single source of truth.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ConfigFile {
     /// Window configuration settings
@@ -165,19 +167,35 @@ pub struct GameConfig {
     // Future: Add more game-specific settings here
 }
 
-/// Resource holding the path to the config file.
-///
-/// This resource is inserted by the `ConfigPlugin` and stores the
-/// absolute or relative path to the configuration file on disk.
-#[derive(Resource)]
-pub struct ConfigPath(pub std::path::PathBuf);
-
-/// Message that triggers saving the current configuration to disk.
+/// Message that triggers saving the current configuration to localStorage.
 ///
 /// Send this message when you want to manually persist the current
-/// window and game config state to the config file.
+/// config state immediately, bypassing the debounce timer.
 #[derive(Message)]
 pub struct SaveConfigEvent;
+
+/// Message that triggers debounced config save.
+///
+/// Send this message whenever any configuration changes that should be
+/// persisted to localStorage. The ConfigPlugin will debounce these messages
+/// and save after 0.5s of inactivity.
+///
+/// # Examples
+///
+/// ```
+/// use bevy::prelude::*;
+/// use the_game::config::{ConfigChanged, GameConfig, Difficulty};
+///
+/// fn change_difficulty(
+///     mut config: ResMut<GameConfig>,
+///     mut events: MessageWriter<ConfigChanged>,
+/// ) {
+///     config.difficulty = Difficulty::Hard;
+///     events.write(ConfigChanged);  // Trigger debounced save
+/// }
+/// ```
+#[derive(Message)]
+pub struct ConfigChanged;
 
 /// Resource that tracks debounce timer for automatic config saving.
 ///
@@ -194,7 +212,7 @@ pub struct SaveDebounceTimer {
 impl Default for SaveDebounceTimer {
     fn default() -> Self {
         Self {
-            timer: Timer::from_seconds(0.5, TimerMode::Once),
+            timer: Timer::from_seconds(2.0, TimerMode::Once),
             pending: false,
         }
     }

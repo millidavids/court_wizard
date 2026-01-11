@@ -4,9 +4,9 @@ vsync = "Adaptive"
 scale_factor = 1.0
 
 [window.windowed_resolution]
-width = 855
-height = 405
-aspect_ratio = "19:9"
+width = 3066
+height = 1401
+aspect_ratio = "1022:467"
 
 [window.borderless_resolution]
 width = 5120

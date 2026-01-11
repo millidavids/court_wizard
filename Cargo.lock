@@ -4256,6 +4256,8 @@ dependencies = [
  "serde",
  "thiserror 2.0.17",
  "toml",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

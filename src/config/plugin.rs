@@ -1,95 +1,92 @@
 use bevy::prelude::*;
-use std::path::PathBuf;
 
-use super::resources::*;
 use super::systems::*;
 
-/// Configuration plugin for managing game settings.
+/// Configuration plugin for managing game settings in browser localStorage.
 ///
 /// This plugin provides a complete configuration system that:
-/// - Loads configuration from a TOML file at startup
-/// - Applies window settings to Bevy's `Window` component
-/// - Provides a `GameConfig` resource that can be modified at runtime
-/// - Persists changes to disk when `SaveConfigEvent` is sent
+/// - Loads configuration from browser localStorage at startup
+/// - Applies settings to Bevy components (Window, GameConfig, etc.)
+/// - **Bevy components are the single source of truth** (no duplicate state)
+/// - Implements unified debouncing for all config changes
+/// - Persists changes to localStorage after 0.5s of inactivity
 ///
-/// # Architecture
-///
-/// The plugin uses a three-layer architecture:
-/// 1. **ConfigFile** - TOML serialization layer (disk ↔ memory)
-/// 2. **Bevy Components** - Runtime source of truth for window/audio settings
-/// 3. **GameConfig Resource** - Runtime source of truth for game-specific settings
-///
-/// # Manual Saving
-///
-/// Configuration changes are NOT automatically saved. To persist changes to disk,
-/// send a `SaveConfigEvent`:
+/// # Architecture: Single Source of Truth
 ///
 /// ```
+/// localStorage (persistent)
+///     ↕ (load/save only)
+/// ConfigFile (temporary, serialization only)
+///     ↕ (apply at startup, build at save)
+/// Bevy Components (single source of truth)
+///     - Window component (window settings)
+///     - GameConfig resource (game settings)
+/// ```
+///
+/// **ConfigFile is NOT a runtime resource.** It only exists briefly during:
+/// 1. Startup: Load TOML → apply to Bevy components → discard
+/// 2. Save: Read Bevy components → build ConfigFile → serialize → save → discard
+///
+/// # Debouncing
+///
+/// All config changes trigger a unified 0.5s debounce timer via the
+/// `ConfigChanged` message. Any system can trigger a debounced save:
+///
+/// ```rust
+/// use bevy::prelude::*;
+/// use the_game::config::ConfigChanged;
+///
+/// fn my_system(mut events: MessageWriter<ConfigChanged>) {
+///     // ... modify Bevy components ...
+///     events.write(ConfigChanged);  // Trigger debounced save
+/// }
+/// ```
+///
+/// Built-in triggers:
+/// - Window resize events
+/// - GameConfig resource changes
+///
+/// Future triggers can easily be added by sending ConfigChanged.
+///
+/// After 0.5s of inactivity, current state is saved to localStorage.
+///
+/// # Manual Save
+///
+/// Send `SaveConfigEvent` to bypass debounce and save immediately:
+///
+/// ```rust
 /// use bevy::prelude::*;
 /// use the_game::config::SaveConfigEvent;
 ///
-/// fn save_settings(mut save_events: EventWriter<SaveConfigEvent>) {
-///     save_events.send(SaveConfigEvent);
-/// }
-/// ```
-///
-/// # Examples
-///
-/// ```
-/// use bevy::prelude::*;
-/// use the_game::config::ConfigPlugin;
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins(ConfigPlugin::default()) // Uses "config.toml"
-///         .run();
-/// }
-/// ```
-///
-/// Using a custom config path:
-///
-/// ```
-/// use bevy::prelude::*;
-/// use the_game::config::ConfigPlugin;
-/// use std::path::PathBuf;
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins(ConfigPlugin {
-///             config_path: PathBuf::from("settings/game.toml"),
-///         })
-///         .run();
+/// fn save_on_quit(mut events: MessageWriter<SaveConfigEvent>) {
+///     events.write(SaveConfigEvent);
 /// }
 /// ```
 #[allow(clippy::needless_doctest_main)]
-pub struct ConfigPlugin {
-    /// Path to the configuration file (relative or absolute)
-    pub config_path: PathBuf,
-}
-
-impl Default for ConfigPlugin {
-    fn default() -> Self {
-        Self {
-            config_path: PathBuf::from("config.toml"),
-        }
-    }
-}
+#[derive(Default)]
+pub struct ConfigPlugin;
 
 impl Plugin for ConfigPlugin {
     fn build(&self, app: &mut App) {
         // Insert resources
-        app.insert_resource(ConfigPath(self.config_path.clone()));
         app.init_resource::<super::resources::SaveDebounceTimer>();
+        // NOTE: ConfigFile is NOT a resource - it's only used for serialization
 
-        // Add message for manual config saving
+        // Add messages
         app.add_message::<super::resources::SaveConfigEvent>();
+        app.add_message::<super::resources::ConfigChanged>();
 
         // Add systems
         app.add_systems(Startup, load_and_apply_config);
         app.add_systems(
             Update,
             (
-                mark_save_pending_on_resize,
+                // Bridge systems (translate events → ConfigChanged)
+                bridge_window_resize_to_config_changed,
+                bridge_game_config_to_config_changed,
+                // Unified debounce trigger
+                mark_save_on_config_changed,
+                // Save systems
                 save_config_on_debounce_timer,
                 save_config_on_event,
             ),
