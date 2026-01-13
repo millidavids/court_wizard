@@ -2,8 +2,10 @@ use bevy::prelude::*;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 mod config;
+mod state;
 
 use config::ConfigPlugin;
+use state::StatePlugin;
 
 /// Main entry point for the game.
 ///
@@ -24,7 +26,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(ConfigPlugin::default())
+        .add_plugins((ConfigPlugin::default(), StatePlugin::default()))
         .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)))
         .add_systems(Startup, setup)
         .run();
