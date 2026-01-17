@@ -126,7 +126,7 @@ pub struct GameConfig {
     pub sfx_volume: f32,
     /// Game difficulty setting
     pub difficulty: Difficulty,
-    /// Global brightness multiplier (0.0 = black, 1.0 = normal brightness, 2.0 = max)
+    /// Global brightness multiplier (0.1 = darkest to prevent soft-lock, 1.0 = normal, 2.0 = brightest)
     pub brightness: f32,
 }
 

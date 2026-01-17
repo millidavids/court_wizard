@@ -63,7 +63,7 @@ pub fn load_and_apply_config(
         music_volume: config_file.audio.music_volume,
         sfx_volume: config_file.audio.sfx_volume,
         difficulty: config_file.game.difficulty,
-        brightness: config_file.game.brightness,
+        brightness: config_file.game.brightness.max(0.1), // Ensure minimum 10% to prevent soft-lock
     };
     commands.insert_resource(game_config);
 
