@@ -2,4 +2,4 @@ mod plugin;
 mod states;
 
 pub use plugin::StatePlugin;
-pub use states::{AppState, MenuState};
+pub use states::{AppState, InGameState, MenuState, PauseMenuState};

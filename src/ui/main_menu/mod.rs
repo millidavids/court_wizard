@@ -4,6 +4,6 @@
 
 mod landing;
 mod plugin;
-mod settings;
+pub mod settings;
 
 pub use plugin::MainMenuPlugin;
