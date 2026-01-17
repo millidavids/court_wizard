@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::view::ColorGrading;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 mod config;
@@ -36,46 +35,68 @@ fn main() {
         .run();
 }
 
+/// Marker component for the brightness overlay.
+#[derive(Component)]
+struct BrightnessOverlay;
+
 /// Sets up the initial game scene.
 ///
-/// Spawns the primary 2D camera with color grading for global brightness control.
+/// Spawns the primary 2D camera and brightness overlay.
 ///
 /// # Arguments
 ///
 /// * `commands` - Bevy command buffer for spawning entities
 fn setup(mut commands: Commands) {
-    commands.spawn((Camera2d, ColorGrading::default()));
+    commands.spawn(Camera2d);
+
+    // Spawn brightness overlay (a fullscreen node that adjusts screen brightness)
+    commands.spawn((
+        BrightnessOverlay,
+        Node {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+        BackgroundColor(Color::BLACK.with_alpha(0.0)),
+        GlobalZIndex(1000), // On top of everything
+        Pickable::IGNORE,   // Don't block pointer events
+    ));
 }
 
-/// Applies global brightness setting to all cameras via color grading exposure.
+/// Applies global brightness setting via overlay opacity.
 ///
-/// This system updates camera exposure when the brightness setting changes,
-/// affecting everything rendered on screen (UI, game objects, etc.).
+/// This system updates the brightness overlay when the brightness setting changes.
+/// Uses a black overlay with varying opacity to darken the screen, or a white overlay
+/// to brighten it.
 ///
-/// Brightness is mapped to exposure as follows:
-/// - brightness 0.0 → exposure -5.0 (very dark)
-/// - brightness 1.0 → exposure 0.0 (normal)
-/// - brightness 2.0 → exposure 1.0 (brighter)
+/// Brightness mapping:
+/// - brightness 0.1 → black overlay at 90% opacity (darkest, minimum to prevent soft-lock)
+/// - brightness 1.0 → no overlay (normal)
+/// - brightness 2.0 → white overlay at 50% opacity (brightest)
 fn apply_global_brightness(
     config: Res<GameConfig>,
-    mut cameras: Query<&mut ColorGrading, With<Camera>>,
+    mut overlay: Query<&mut BackgroundColor, With<BrightnessOverlay>>,
 ) {
     if !config.is_changed() {
         return;
     }
 
-    let brightness = config.brightness.clamp(0.0, 2.0);
+    let brightness = config.brightness.clamp(0.1, 2.0);
 
-    // Map brightness to exposure
-    // brightness 0.0-1.0 → exposure -5.0 to 0.0
-    // brightness 1.0-2.0 → exposure 0.0 to 1.0
-    let exposure = if brightness <= 1.0 {
-        (brightness - 1.0) * 5.0
-    } else {
-        brightness - 1.0
-    };
-
-    for mut color_grading in cameras.iter_mut() {
-        color_grading.global.exposure = exposure;
+    if let Ok(mut bg) = overlay.single_mut() {
+        if brightness < 1.0 {
+            // Darken: black overlay with alpha based on how far below 1.0
+            // At 0.1 brightness, alpha = 0.9 (90% dark)
+            let alpha = 1.0 - brightness;
+            *bg = BackgroundColor(Color::BLACK.with_alpha(alpha));
+        } else if brightness > 1.0 {
+            // Brighten: white overlay with alpha based on how far above 1.0
+            let alpha = (brightness - 1.0) * 0.5; // Max 50% white overlay at brightness 2.0
+            *bg = BackgroundColor(Color::WHITE.with_alpha(alpha));
+        } else {
+            // Normal brightness: transparent overlay
+            *bg = BackgroundColor(Color::BLACK.with_alpha(0.0));
+        }
     }
 }

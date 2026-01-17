@@ -5,9 +5,9 @@ use bevy::prelude::*;
 use crate::state::MenuState;
 
 use super::systems::{
-    button_action, button_hover, button_press, cleanup, handle_scroll, keyboard_input, setup,
-    ui_brightness_button_action, update_selected_options, update_ui_brightness_text,
-    update_volume_sliders, update_volume_text, volume_button_action, volume_slider_interaction,
+    button_hover, button_press, cleanup, handle_scroll, keyboard_input, option_button_action,
+    settings_button_action, setup, slider_button_action, slider_interaction,
+    update_selected_options, update_slider_text, update_sliders,
 };
 
 /// Plugin that manages the settings menu UI.
@@ -16,8 +16,7 @@ use super::systems::{
 /// - Settings menu setup and cleanup
 /// - Keyboard input handling
 /// - Button interaction and actions
-/// - Volume control updates
-/// - UI brightness control updates
+/// - Unified slider controls for all config values
 /// - Selected option highlighting
 #[derive(Default)]
 pub struct SettingsPlugin;
@@ -33,13 +32,12 @@ impl Plugin for SettingsPlugin {
                     handle_scroll,
                     button_hover,
                     button_press,
-                    button_action,
-                    volume_button_action,
-                    volume_slider_interaction,
-                    ui_brightness_button_action,
-                    update_volume_text,
-                    update_volume_sliders,
-                    update_ui_brightness_text,
+                    settings_button_action,
+                    option_button_action,
+                    slider_button_action,
+                    slider_interaction,
+                    update_slider_text,
+                    update_sliders,
                     update_selected_options,
                 )
                     .run_if(in_state(MenuState::Settings)),

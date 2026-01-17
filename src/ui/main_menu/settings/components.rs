@@ -14,23 +14,38 @@ pub struct OnSettingsScreen;
 #[derive(Component)]
 pub struct ScrollableContainer;
 
+/// Identifies which config option a button series controls.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Component)]
+pub enum OptionButtonValue {
+    /// VSync mode option
+    VsyncMode(VsyncMode),
+    /// Difficulty option
+    Difficulty(Difficulty),
+}
+
+impl OptionButtonValue {
+    /// Get the current value from GameConfig.
+    pub fn is_selected(&self, config: &crate::config::GameConfig) -> bool {
+        match self {
+            OptionButtonValue::VsyncMode(mode) => config.vsync == *mode,
+            OptionButtonValue::Difficulty(difficulty) => config.difficulty == *difficulty,
+        }
+    }
+
+    /// Set the value in GameConfig.
+    pub fn apply(&self, config: &mut crate::config::GameConfig) {
+        match self {
+            OptionButtonValue::VsyncMode(mode) => config.vsync = *mode,
+            OptionButtonValue::Difficulty(difficulty) => config.difficulty = *difficulty,
+        }
+    }
+}
+
 /// Button action types for settings menu interactions.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsButtonAction {
     /// Button to return to the landing screen
     Back,
-    /// Button to enable VSync
-    SetVsyncOn,
-    /// Button to disable VSync
-    SetVsyncOff,
-    /// Button to enable adaptive VSync
-    SetVsyncAdaptive,
-    /// Button to set difficulty to Easy
-    SetDifficultyEasy,
-    /// Button to set difficulty to Normal
-    SetDifficultyNormal,
-    /// Button to set difficulty to Hard
-    SetDifficultyHard,
 }
 
 /// Colors for different button states.
@@ -47,77 +62,105 @@ pub struct ButtonColors {
 #[derive(Component)]
 pub struct SelectedOption;
 
-/// Component that tracks which VSync mode a button represents.
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
-pub struct VsyncModeButton(pub VsyncMode);
-
-/// Component that tracks which difficulty a button represents.
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
-pub struct DifficultyButton(pub Difficulty);
-
-/// Component for volume slider value display text.
-#[derive(Component)]
-pub struct VolumeText {
-    /// Which volume this text displays (Master, Music, or SFX)
-    pub volume_type: VolumeType,
+/// Identifies which config value a slider controls.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Component)]
+pub enum SliderValue {
+    /// Master volume (0.0-1.0)
+    MasterVolume,
+    /// Music volume (0.0-1.0)
+    MusicVolume,
+    /// SFX volume (0.0-1.0)
+    SfxVolume,
+    /// UI brightness (0.1-2.0, minimum 10% to prevent soft-lock)
+    UiBrightness,
 }
 
-/// Types of volume controls.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum VolumeType {
-    /// Master volume control
-    Master,
-    /// Music volume control
-    Music,
-    /// Sound effects volume control
-    Sfx,
+impl SliderValue {
+    /// Get the current value from GameConfig.
+    pub fn get(&self, config: &crate::config::GameConfig) -> f32 {
+        match self {
+            SliderValue::MasterVolume => config.master_volume,
+            SliderValue::MusicVolume => config.music_volume,
+            SliderValue::SfxVolume => config.sfx_volume,
+            SliderValue::UiBrightness => config.brightness,
+        }
+    }
+
+    /// Set the value in GameConfig.
+    pub fn set(&self, config: &mut crate::config::GameConfig, value: f32) {
+        match self {
+            SliderValue::MasterVolume => config.master_volume = value,
+            SliderValue::MusicVolume => config.music_volume = value,
+            SliderValue::SfxVolume => config.sfx_volume = value,
+            SliderValue::UiBrightness => config.brightness = value,
+        }
+    }
+
+    /// Get the minimum value for this slider.
+    pub fn min_value(&self) -> f32 {
+        match self {
+            SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 0.0,
+            SliderValue::UiBrightness => 0.1, // 10% minimum to prevent soft-lock
+        }
+    }
+
+    /// Get the maximum value for this slider.
+    pub fn max_value(&self) -> f32 {
+        match self {
+            SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 1.0,
+            SliderValue::UiBrightness => 2.0,
+        }
+    }
+
+    /// Get the step size for increment/decrement buttons.
+    pub fn step(&self) -> f32 {
+        match self {
+            SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 0.01,
+            SliderValue::UiBrightness => 0.1,
+        }
+    }
 }
 
-/// Button to decrease volume.
+/// Component for slider value display text.
 #[derive(Component)]
-pub struct VolumeDownButton {
-    /// Which volume to decrease
-    pub volume_type: VolumeType,
+pub struct SliderText {
+    /// Which config value this text displays
+    pub value: SliderValue,
 }
 
-/// Button to increase volume.
+/// Button to decrease a slider value.
 #[derive(Component)]
-pub struct VolumeUpButton {
-    /// Which volume to increase
-    pub volume_type: VolumeType,
+pub struct SliderDownButton {
+    /// Which value to decrease
+    pub value: SliderValue,
 }
 
-/// Component for volume slider track.
+/// Button to increase a slider value.
 #[derive(Component)]
-pub struct VolumeSliderTrack {
-    /// Which volume this slider controls
-    pub volume_type: VolumeType,
+pub struct SliderUpButton {
+    /// Which value to increase
+    pub value: SliderValue,
 }
 
-/// Component for volume slider fill (the filled portion of the track).
+/// Component for slider track.
 #[derive(Component)]
-pub struct VolumeSliderFill {
-    /// Which volume this fill represents
-    pub volume_type: VolumeType,
+pub struct SliderTrack {
+    /// Which value this slider controls
+    pub value: SliderValue,
 }
 
-/// Component for volume slider handle (the draggable knob).
+/// Component for slider fill (the filled portion of the track).
 #[derive(Component)]
-pub struct VolumeSliderHandle {
-    /// Which volume this handle controls
-    pub volume_type: VolumeType,
+pub struct SliderFill {
+    /// Which value this fill represents
+    pub value: SliderValue,
+}
+
+/// Component for slider handle (the draggable knob).
+#[derive(Component)]
+pub struct SliderHandle {
+    /// Which value this handle controls
+    pub value: SliderValue,
     /// Whether this handle is currently being dragged
     pub is_dragging: bool,
 }
-
-/// Component for UI brightness slider value display text.
-#[derive(Component)]
-pub struct UiBrightnessText;
-
-/// Button to decrease UI brightness.
-#[derive(Component)]
-pub struct UiBrightnessDownButton;
-
-/// Button to increase UI brightness.
-#[derive(Component)]
-pub struct UiBrightnessUpButton;
