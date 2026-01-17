@@ -25,14 +25,14 @@ pub fn save_config(config_toml: &str) -> ConfigResult<()> {
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
         .local_storage()
-        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to get localStorage"))?
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
         .ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
         })?;
 
-    storage.set_item(CONFIG_KEY, config_toml).map_err(|_| {
-        std::io::Error::new(std::io::ErrorKind::Other, "Failed to save to localStorage")
-    })?;
+    storage
+        .set_item(CONFIG_KEY, config_toml)
+        .map_err(|_| std::io::Error::other("Failed to save to localStorage"))?;
     Ok(())
 }
 
@@ -54,19 +54,14 @@ pub fn load_config() -> ConfigResult<String> {
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
         .local_storage()
-        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to get localStorage"))?
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
         .ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
         })?;
 
     let config = storage
         .get_item(CONFIG_KEY)
-        .map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to read from localStorage",
-            )
-        })?
+        .map_err(|_| std::io::Error::other("Failed to read from localStorage"))?
         .ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -95,13 +90,13 @@ pub fn clear_config() -> ConfigResult<()> {
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
         .local_storage()
-        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to get localStorage"))?
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
         .ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
         })?;
 
-    storage.remove_item(CONFIG_KEY).map_err(|_| {
-        std::io::Error::new(std::io::ErrorKind::Other, "Failed to clear localStorage")
-    })?;
+    storage
+        .remove_item(CONFIG_KEY)
+        .map_err(|_| std::io::Error::other("Failed to clear localStorage"))?;
     Ok(())
 }
