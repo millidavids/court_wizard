@@ -1,10 +1,6 @@
 use bevy::prelude::*;
-use bevy::window::{
-    MonitorSelection, PresentMode, PrimaryWindow, VideoModeSelection, Window as BevyWindow,
-    WindowMode as BevyWindowMode, WindowResized,
-};
+use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowResized};
 
-use super::helper::calculate_aspect_ratio;
 use super::resources::*;
 use super::storage;
 
@@ -53,77 +49,53 @@ pub fn load_and_apply_config(
         }
     };
 
-    // Apply window config to Bevy's Window
+    // Apply VSync to Bevy's Window
     let Ok(mut window) = windows.single_mut() else {
         warn!("Could not find primary window to apply config");
         return;
     };
-    apply_window_config(&config_file.window, &mut window);
+    apply_vsync_config(config_file.window.vsync, &mut window);
 
-    // Insert GameConfig resource (single source of truth for game settings)
-    commands.insert_resource(config_file.game);
+    // Create GameConfig resource from config file
+    let game_config = GameConfig {
+        vsync: config_file.window.vsync,
+        master_volume: config_file.audio.master_volume,
+        music_volume: config_file.audio.music_volume,
+        sfx_volume: config_file.audio.sfx_volume,
+        difficulty: config_file.game.difficulty,
+        brightness: config_file.game.brightness,
+    };
+    commands.insert_resource(game_config);
 
-    // ConfigFile is now discarded - Bevy components are the source of truth
+    // ConfigFile is now discarded - GameConfig is the source of truth
 }
 
-/// Applies window configuration settings to Bevy's Window component.
+/// Applies VSync configuration to Bevy's Window component.
 ///
 /// # Arguments
 ///
-/// * `config` - Window configuration from the config file
+/// * `vsync` - VSync mode from config
 /// * `window` - Mutable reference to Bevy's Window component
-fn apply_window_config(config: &WindowConfig, window: &mut BevyWindow) {
-    // Get the appropriate resolution based on window mode
-    let resolution = match config.mode {
-        WindowMode::Windowed => &config.windowed_resolution,
-        WindowMode::Borderless => &config.borderless_resolution,
-        WindowMode::Fullscreen => &config.fullscreen_resolution,
-    };
-
-    // Apply resolution
-    window
-        .resolution
-        .set(resolution.width as f32, resolution.height as f32);
-
-    // Apply scale factor override
-    if let Some(scale) = config.scale_factor {
-        window
-            .resolution
-            .set_scale_factor_override(Some(scale as f32));
-    }
-
-    // Apply window mode
-    window.mode = match config.mode {
-        WindowMode::Fullscreen => {
-            BevyWindowMode::Fullscreen(MonitorSelection::Current, VideoModeSelection::Current)
-        }
-        WindowMode::Borderless => BevyWindowMode::BorderlessFullscreen(MonitorSelection::Current),
-        WindowMode::Windowed => BevyWindowMode::Windowed,
-    };
-
-    // Apply VSync
-    window.present_mode = match config.vsync {
+fn apply_vsync_config(vsync: VsyncMode, window: &mut BevyWindow) {
+    window.present_mode = match vsync {
         VsyncMode::Off => PresentMode::AutoNoVsync,
         VsyncMode::Adaptive => PresentMode::AutoVsync,
         VsyncMode::On => PresentMode::AutoVsync,
     };
 
-    info!(
-        "Applied window config: {}x{} {:?}",
-        resolution.width, resolution.height, window.mode
-    );
+    info!("Applied VSync config: {:?}", vsync);
 }
 
-/// Bridges WindowResized events to ConfigChanged messages.
+/// Detects window resize events and triggers config save.
 ///
-/// This system translates Bevy's WindowResized event into our unified
-/// ConfigChanged message, triggering the debounce timer.
+/// This system monitors Bevy's WindowResized events and emits a ConfigChanged
+/// message to trigger the debounce timer for saving.
 ///
 /// # Arguments
 ///
 /// * `resize_events` - Message reader for window resize events
 /// * `config_changed` - Message writer for config changed messages
-pub fn bridge_window_resize_to_config_changed(
+pub fn detect_window_resize(
     mut resize_events: MessageReader<WindowResized>,
     mut config_changed: MessageWriter<ConfigChanged>,
 ) {
@@ -134,16 +106,16 @@ pub fn bridge_window_resize_to_config_changed(
     config_changed.write(ConfigChanged);
 }
 
-/// Bridges GameConfig changes to ConfigChanged messages.
+/// Detects GameConfig changes and triggers config save.
 ///
-/// This system detects changes to the GameConfig resource and sends
-/// a ConfigChanged message to trigger the debounce timer.
+/// This system monitors the GameConfig resource for changes and emits
+/// a ConfigChanged message to trigger the debounce timer for saving.
 ///
 /// # Arguments
 ///
 /// * `game_config` - Game configuration resource
 /// * `config_changed` - Message writer for config changed messages
-pub fn bridge_game_config_to_config_changed(
+pub fn detect_game_config_changes(
     game_config: Res<GameConfig>,
     mut config_changed: MessageWriter<ConfigChanged>,
 ) {
@@ -194,7 +166,6 @@ pub fn mark_save_on_config_changed(
 pub fn save_config_on_debounce_timer(
     time: Res<Time>,
     mut debounce_timer: ResMut<SaveDebounceTimer>,
-    windows: Query<&BevyWindow, With<PrimaryWindow>>,
     game_config: Res<GameConfig>,
 ) {
     if !debounce_timer.pending {
@@ -204,7 +175,7 @@ pub fn save_config_on_debounce_timer(
     debounce_timer.timer.tick(time.delta());
 
     if debounce_timer.timer.is_finished() {
-        persist_config(windows, game_config);
+        persist_config(&game_config);
         debounce_timer.pending = false;
     }
 }
@@ -222,20 +193,21 @@ pub fn save_config_on_debounce_timer(
 /// * `game_config` - Game configuration resource
 pub fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigEvent>,
-    windows: Query<&BevyWindow, With<PrimaryWindow>>,
     game_config: Res<GameConfig>,
 ) {
     if save_events.read().count() == 0 {
         return;
     }
 
-    persist_config(windows, game_config);
+    persist_config(&game_config);
 }
 
 /// Saves current state to localStorage by reading from Bevy components.
 ///
 /// This function reads the current state from:
 /// - Bevy's Window component (window settings)
+/// - WindowConfig resource (window mode and vsync settings)
+/// - AudioConfig resource (volume settings)
 /// - GameConfig resource (game settings)
 ///
 /// Then builds a temporary ConfigFile, serializes to TOML, and saves to localStorage.
@@ -243,15 +215,12 @@ pub fn save_config_on_event(
 /// # Arguments
 ///
 /// * `windows` - Query for the primary window
+/// * `window_config` - Window configuration resource
+/// * `audio_config` - Audio configuration resource
 /// * `game_config` - Game configuration resource
-fn persist_config(windows: Query<&BevyWindow, With<PrimaryWindow>>, game_config: Res<GameConfig>) {
-    let Ok(window) = windows.single() else {
-        error!("Could not find primary window to save config");
-        return;
-    };
-
-    // Build ConfigFile from current Bevy component state
-    let config_file = build_config_from_components(window, &game_config);
+fn persist_config(game_config: &GameConfig) {
+    // Build ConfigFile from current state
+    let config_file = build_config_from_game_config(game_config);
 
     // Serialize and save
     match toml::to_string_pretty(&config_file) {
@@ -269,112 +238,42 @@ fn persist_config(windows: Query<&BevyWindow, With<PrimaryWindow>>, game_config:
     }
 }
 
-/// Builds ConfigFile from current Bevy component state.
+/// Builds ConfigFile from current GameConfig.
 ///
-/// This function reads the current state from Bevy components and constructs
-/// a temporary ConfigFile for serialization. The ConfigFile is immediately
-/// discarded after serialization - it's not kept in memory.
+/// This function constructs a temporary ConfigFile for serialization.
+/// The ConfigFile is immediately discarded after serialization - it's not kept in memory.
 ///
 /// # Arguments
 ///
-/// * `window` - Reference to Bevy's Window component
 /// * `game_config` - Reference to the GameConfig resource
 ///
 /// # Returns
 ///
-/// A ConfigFile struct populated with current Bevy component state
-fn build_config_from_components(window: &BevyWindow, game_config: &GameConfig) -> ConfigFile {
-    // Determine current window mode
-    let mode = match window.mode {
-        BevyWindowMode::Windowed => WindowMode::Windowed,
-        BevyWindowMode::BorderlessFullscreen(_) => WindowMode::Borderless,
-        BevyWindowMode::Fullscreen(_, _) => WindowMode::Fullscreen,
-    };
-
-    // Get current resolution
-    let width = window.resolution.physical_width();
-    let height = window.resolution.physical_height();
-    let current_resolution = Resolution {
-        width,
-        height,
-        aspect_ratio: calculate_aspect_ratio(width, height),
-    };
-
-    // Determine VSync mode
-    let vsync = match window.present_mode {
-        PresentMode::AutoNoVsync => VsyncMode::Off,
-        PresentMode::AutoVsync => VsyncMode::Adaptive,
-        _ => VsyncMode::On,
-    };
-
-    let scale_factor = window.resolution.scale_factor_override().map(|f| f as f64);
-
-    // Build window config, preserving resolutions for other window modes
-    let window_config =
-        build_window_config_preserving_other_modes(mode, current_resolution, vsync, scale_factor);
-
-    ConfigFile {
-        window: window_config,
-        audio: AudioConfig::default(), // TODO: Read from Bevy audio when implemented
-        game: game_config.clone(),
-    }
-}
-
-/// Builds WindowConfig while preserving resolutions for other window modes.
-///
-/// This loads the existing config from localStorage to preserve resolution
-/// settings for window modes we're not currently in. For example, if we're
-/// in windowed mode, we want to preserve the fullscreen and borderless resolutions.
-///
-/// # Arguments
-///
-/// * `current_mode` - The current window mode
-/// * `current_resolution` - The current window resolution
-/// * `vsync` - The current VSync mode
-/// * `scale_factor` - The current scale factor override
-///
-/// # Returns
-///
-/// A WindowConfig with current mode's resolution updated, others preserved
-fn build_window_config_preserving_other_modes(
-    current_mode: WindowMode,
-    current_resolution: Resolution,
-    vsync: VsyncMode,
-    scale_factor: Option<f64>,
-) -> WindowConfig {
-    // Load existing config to preserve other modes' resolutions
-    let existing = match storage::load_config() {
+/// A ConfigFile struct populated with current settings
+fn build_config_from_game_config(game_config: &GameConfig) -> ConfigFile {
+    // Load existing config to preserve window settings we don't modify (resolution, etc.)
+    let existing_window = match storage::load_config() {
         Ok(contents) => toml::from_str::<ConfigFile>(&contents)
             .map(|c| c.window)
             .unwrap_or_default(),
         Err(_) => WindowConfig::default(),
     };
 
-    // Update only the current mode's resolution
-    let (windowed_res, borderless_res, fullscreen_res) = match current_mode {
-        WindowMode::Windowed => (
-            current_resolution,
-            existing.borderless_resolution,
-            existing.fullscreen_resolution,
-        ),
-        WindowMode::Borderless => (
-            existing.windowed_resolution,
-            current_resolution,
-            existing.fullscreen_resolution,
-        ),
-        WindowMode::Fullscreen => (
-            existing.windowed_resolution,
-            existing.borderless_resolution,
-            current_resolution,
-        ),
+    // Update only the VSync setting, preserve everything else
+    let window_config = WindowConfig {
+        vsync: game_config.vsync,
+        ..existing_window
     };
 
-    WindowConfig {
-        windowed_resolution: windowed_res,
-        borderless_resolution: borderless_res,
-        fullscreen_resolution: fullscreen_res,
-        mode: current_mode,
-        vsync,
-        scale_factor,
+    let audio_config = AudioConfig {
+        master_volume: game_config.master_volume,
+        music_volume: game_config.music_volume,
+        sfx_volume: game_config.sfx_volume,
+    };
+
+    ConfigFile {
+        window: window_config,
+        audio: audio_config,
+        game: game_config.clone(),
     }
 }

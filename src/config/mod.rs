@@ -1,5 +1,4 @@
 mod error;
-mod helper;
 mod plugin;
 mod resources;
 mod storage;
@@ -11,6 +10,6 @@ pub use error::{ConfigError, ConfigResult};
 pub use plugin::ConfigPlugin;
 #[allow(unused_imports)]
 pub use resources::{
-    ConfigChanged, ConfigFile, Difficulty, GameConfig, Resolution, SaveConfigEvent,
-    SaveDebounceTimer, VsyncMode, WindowConfig, WindowMode,
+    AudioConfig, ConfigChanged, ConfigFile, Difficulty, GameConfig, SaveConfigEvent,
+    SaveDebounceTimer, VsyncMode, WindowConfig,
 };
