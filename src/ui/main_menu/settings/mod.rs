@@ -2,7 +2,7 @@
 //!
 //! Contains the settings menu screen.
 
-mod components;
+pub mod components;
 pub(super) mod plugin;
-mod styles;
-mod systems;
+pub mod styles;
+pub mod systems;

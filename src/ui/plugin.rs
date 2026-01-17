@@ -6,7 +6,9 @@ use bevy::prelude::*;
 use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
 
+use super::in_game::plugin::InGamePlugin;
 use super::main_menu::MainMenuPlugin;
+use super::pause_menu::plugin::PauseMenuPlugin;
 
 /// Top-level UI plugin that manages all UI systems.
 ///
@@ -17,11 +19,8 @@ pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(MainMenuPlugin)
+        app.add_plugins((MainMenuPlugin, InGamePlugin, PauseMenuPlugin))
             .add_systems(Update, update_ui_scale);
-        // Future plugins will be added here:
-        // app.add_plugins(PauseMenuPlugin);
-        // app.add_plugins(GameOverPlugin);
     }
 }
 
