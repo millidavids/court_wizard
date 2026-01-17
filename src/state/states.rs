@@ -14,6 +14,7 @@ use bevy::prelude::*;
 /// - `GameOver` → `MainMenu`: Player returns to main menu
 /// - `Paused` → `MainMenu`: Player quits to main menu
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+#[allow(dead_code)] // Variants will be used as game features are implemented
 pub enum AppState {
     /// Main menu state - game is not running.
     #[default]
@@ -38,13 +39,14 @@ pub enum AppState {
 ///
 /// When AppState changes from MainMenu to any other state, MenuState is
 /// automatically removed. When returning to MainMenu, MenuState starts at
-/// its default (Main).
+/// its default (Landing).
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::MainMenu)]
+#[allow(dead_code)] // Variants will be used as menu screens are implemented
 pub enum MenuState {
-    /// Main menu screen.
+    /// Landing screen with Start Game and Settings buttons.
     #[default]
-    Main,
+    Landing,
 
     /// Settings submenu.
     Settings,

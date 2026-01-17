@@ -2,7 +2,6 @@ use thiserror::Error;
 
 /// Errors that can occur when working with configuration files.
 #[derive(Error, Debug)]
-#[allow(dead_code)] // Error types reserved for future use
 pub enum ConfigError {
     /// Failed to read the configuration file from disk.
     #[error("Failed to read config file: {0}")]
@@ -18,5 +17,4 @@ pub enum ConfigError {
 }
 
 /// Type alias for Results that can return ConfigError.
-#[allow(dead_code)] // Reserved for future use
 pub type ConfigResult<T> = Result<T, ConfigError>;

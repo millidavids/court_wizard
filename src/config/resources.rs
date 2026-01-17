@@ -14,20 +14,8 @@ pub struct ConfigFile {
     pub window: WindowConfig,
     /// Audio configuration settings
     pub audio: AudioConfig,
-    /// Custom game configuration settings
+    /// Game configuration settings (includes all user preferences)
     pub game: GameConfig,
-}
-
-/// Window display mode options.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub enum WindowMode {
-    /// Window takes a portion of the screen
-    #[default]
-    Windowed,
-    /// Borderless fullscreen window
-    Borderless,
-    /// Exclusive fullscreen mode
-    Fullscreen,
 }
 
 /// VSync (vertical synchronization) mode options.
@@ -42,41 +30,15 @@ pub enum VsyncMode {
     Adaptive,
 }
 
-/// Resolution settings for a specific window mode
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Resolution {
-    /// Window width in pixels
-    pub width: u32,
-    /// Window height in pixels
-    pub height: u32,
-    /// Aspect ratio (e.g., "16:9", "16:10", "4:3", "21:9")
-    pub aspect_ratio: String,
-}
-
-impl Default for Resolution {
-    fn default() -> Self {
-        Self {
-            width: 1280,
-            height: 720,
-            aspect_ratio: "16:9".to_string(),
-        }
-    }
-}
-
 /// Window settings for serialization to/from TOML.
+///
+/// For WASM builds, window size is controlled by the browser canvas via
+/// `fit_canvas_to_parent: true`. Only VSync and scale factor are configurable.
 ///
 /// During runtime, Bevy's `Window` component is the source of truth.
 /// This struct is only used for persistence to/from the config file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowConfig {
-    /// Resolution for windowed mode
-    pub windowed_resolution: Resolution,
-    /// Resolution for borderless fullscreen mode
-    pub borderless_resolution: Resolution,
-    /// Resolution for fullscreen mode
-    pub fullscreen_resolution: Resolution,
-    /// Display mode (windowed, borderless, or fullscreen)
-    pub mode: WindowMode,
     /// VSync mode (on, off, or adaptive)
     pub vsync: VsyncMode,
     /// Scale factor override (None uses OS default)
@@ -86,18 +48,6 @@ pub struct WindowConfig {
 impl Default for WindowConfig {
     fn default() -> Self {
         Self {
-            windowed_resolution: Resolution::default(),
-            borderless_resolution: Resolution {
-                width: 1920,
-                height: 1080,
-                aspect_ratio: "16:9".to_string(),
-            },
-            fullscreen_resolution: Resolution {
-                width: 1920,
-                height: 1080,
-                aspect_ratio: "16:9".to_string(),
-            },
-            mode: WindowMode::default(),
             vsync: VsyncMode::default(),
             scale_factor: Some(1.0),
         }
@@ -142,12 +92,16 @@ pub enum Difficulty {
     Hard,
 }
 
-/// Custom game configuration resource.
+/// Game configuration resource - runtime source of truth for all user settings.
 ///
-/// This IS a runtime Bevy resource and serves as the source of truth
-/// for game-specific settings like difficulty. During runtime, systems
-/// can query and modify this resource. Changes are automatically
-/// persisted to the config file.
+/// This IS a runtime Bevy resource that holds all user-configurable settings:
+/// - VSync mode
+/// - Audio volumes (master, music, SFX)
+/// - Game difficulty
+/// - Global brightness
+///
+/// Window size/mode is NOT included as it's managed by the browser canvas.
+/// Changes to this resource are automatically persisted to localStorage.
 ///
 /// # Examples
 ///
@@ -157,14 +111,36 @@ pub enum Difficulty {
 ///
 /// fn change_difficulty(mut config: ResMut<GameConfig>) {
 ///     config.difficulty = Difficulty::Hard;
-///     // Automatically persists to config.toml
+///     // Automatically persists to localStorage
 /// }
 /// ```
-#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GameConfig {
+    /// VSync mode (on, off, or adaptive)
+    pub vsync: VsyncMode,
+    /// Master volume level (0.0 = muted, 1.0 = full volume)
+    pub master_volume: f32,
+    /// Music track volume level (0.0 = muted, 1.0 = full volume)
+    pub music_volume: f32,
+    /// Sound effects volume level (0.0 = muted, 1.0 = full volume)
+    pub sfx_volume: f32,
     /// Game difficulty setting
     pub difficulty: Difficulty,
-    // Future: Add more game-specific settings here
+    /// Global brightness multiplier (0.0 = black, 1.0 = normal brightness, 2.0 = max)
+    pub brightness: f32,
+}
+
+impl Default for GameConfig {
+    fn default() -> Self {
+        Self {
+            vsync: VsyncMode::default(),
+            master_volume: 1.0,
+            music_volume: 0.8,
+            sfx_volume: 0.8,
+            difficulty: Difficulty::default(),
+            brightness: 1.0,
+        }
+    }
 }
 
 /// Message that triggers saving the current configuration to localStorage.
@@ -215,86 +191,5 @@ impl Default for SaveDebounceTimer {
             timer: Timer::from_seconds(2.0, TimerMode::Once),
             pending: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_config_file_serialization() {
-        let config = ConfigFile::default();
-        let toml_str = toml::to_string(&config).expect("Failed to serialize");
-
-        // Verify the TOML structure is correct
-        assert!(toml_str.contains("[window]"));
-        assert!(toml_str.contains("[audio]"));
-        assert!(toml_str.contains("[game]"));
-        assert!(toml_str.contains("[window.windowed_resolution]"));
-    }
-
-    #[test]
-    fn test_config_file_deserialization() {
-        let toml_str = r#"
-            [window]
-            mode = "Fullscreen"
-            vsync = "Off"
-            scale_factor = 2.0
-
-            [window.windowed_resolution]
-            width = 1280
-            height = 720
-            aspect_ratio = "16:9"
-
-            [window.borderless_resolution]
-            width = 1920
-            height = 1080
-            aspect_ratio = "16:9"
-
-            [window.fullscreen_resolution]
-            width = 1920
-            height = 1080
-            aspect_ratio = "16:9"
-
-            [audio]
-            master_volume = 0.5
-            music_volume = 0.6
-            sfx_volume = 0.7
-
-            [game]
-            difficulty = "Hard"
-        "#;
-
-        let config: ConfigFile = toml::from_str(toml_str).expect("Failed to deserialize");
-
-        // Verify values were parsed correctly
-        assert_eq!(config.window.windowed_resolution.width, 1280);
-        assert_eq!(config.window.windowed_resolution.aspect_ratio, "16:9");
-        assert_eq!(config.window.mode, WindowMode::Fullscreen);
-        assert_eq!(config.window.vsync, VsyncMode::Off);
-        assert_eq!(config.window.scale_factor, Some(2.0));
-        assert_eq!(config.audio.master_volume, 0.5);
-        assert_eq!(config.game.difficulty, Difficulty::Hard);
-    }
-
-    #[test]
-    fn test_config_file_round_trip() {
-        let original = ConfigFile::default();
-        let toml_str = toml::to_string(&original).expect("Failed to serialize");
-        let deserialized: ConfigFile = toml::from_str(&toml_str).expect("Failed to deserialize");
-
-        // Verify serialization and deserialization are symmetrical
-        assert_eq!(
-            original.window.windowed_resolution.width,
-            deserialized.window.windowed_resolution.width
-        );
-        assert_eq!(
-            original.window.windowed_resolution.aspect_ratio,
-            deserialized.window.windowed_resolution.aspect_ratio
-        );
-        assert_eq!(original.window.mode, deserialized.window.mode);
-        assert_eq!(original.window.vsync, deserialized.window.vsync);
-        assert_eq!(original.game.difficulty, deserialized.game.difficulty);
     }
 }

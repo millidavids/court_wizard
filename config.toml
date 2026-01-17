@@ -1,22 +1,6 @@
 [window]
-mode = "Windowed"
 vsync = "Adaptive"
 scale_factor = 1.0
-
-[window.windowed_resolution]
-width = 3066
-height = 1401
-aspect_ratio = "1022:467"
-
-[window.borderless_resolution]
-width = 5120
-height = 1440
-aspect_ratio = "32:9"
-
-[window.fullscreen_resolution]
-width = 1920
-height = 1080
-aspect_ratio = "16:9"
 
 [audio]
 master_volume = 1.0
@@ -25,3 +9,4 @@ sfx_volume = 0.800000011920929
 
 [game]
 difficulty = "Normal"
+brightness = 1.0

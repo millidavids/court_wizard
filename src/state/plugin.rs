@@ -95,9 +95,9 @@ fn log_app_state_transitions(app_state: Res<State<AppState>>) {
 /// Only enabled in debug builds.
 #[cfg(debug_assertions)]
 fn log_menu_state_transitions(menu_state: Option<Res<State<MenuState>>>) {
-    if let Some(state) = menu_state {
-        if state.is_changed() {
-            info!("MenuState changed to: {:?}", state.get());
-        }
+    if let Some(state) = menu_state
+        && state.is_changed()
+    {
+        info!("MenuState changed to: {:?}", state.get());
     }
 }

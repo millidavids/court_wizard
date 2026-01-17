@@ -1,55 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Game</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #000;
-            overflow: hidden;
-        }
-
-        #canvas-container {
-            width: 100%;
-            /* Height calculated as 100% / (16/9) = 56.25% for 16:9 aspect ratio */
-            padding-bottom: 56.25%;
-            position: relative;
-        }
-
-        #bevy-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
-</head>
-<body>
-    <div id="canvas-container">
-        <canvas id="bevy-canvas"></canvas>
-    </div>
-
-    <script type="module">
-        import init from './the_game.js';
-
-        init().catch((error) => {
-            if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
-                throw error;
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>The Game</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
-        });
-    </script>
-</body>
+
+            body {
+                width: 100%;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: #000;
+                overflow: hidden;
+            }
+
+            #canvas-container {
+                /* Container will be sized by JavaScript to maintain aspect ratio */
+                position: relative;
+            }
+
+            #bevy-canvas {
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="canvas-container">
+            <canvas id="bevy-canvas"></canvas>
+        </div>
+
+        <script type="module">
+            import init from "./the_game.js";
+
+            // Maintain 16:9 aspect ratio, constrained by both width and height
+            function resizeCanvas() {
+                const container = document.getElementById("canvas-container");
+                const canvas = document.getElementById("bevy-canvas");
+
+                const targetAspectRatio = 16 / 9;
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+                const windowAspectRatio = windowWidth / windowHeight;
+
+                let canvasWidth, canvasHeight;
+
+                if (windowAspectRatio > targetAspectRatio) {
+                    // Window is too wide - constrain by height
+                    canvasHeight = windowHeight;
+                    canvasWidth = canvasHeight * targetAspectRatio;
+                } else {
+                    // Window is too tall - constrain by width
+                    canvasWidth = windowWidth;
+                    canvasHeight = canvasWidth / targetAspectRatio;
+                }
+
+                container.style.width = `${canvasWidth}px`;
+                container.style.height = `${canvasHeight}px`;
+                // Set canvas CSS size (not canvas internal resolution)
+                canvas.style.width = `${canvasWidth}px`;
+                canvas.style.height = `${canvasHeight}px`;
+            }
+
+            // Resize on load and window resize
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+
+            init().catch((error) => {
+                if (
+                    !error.message.startsWith(
+                        "Using exceptions for control flow, don't mind me. This isn't actually an error!",
+                    )
+                ) {
+                    throw error;
+                }
+            });
+        </script>
+    </body>
 </html>

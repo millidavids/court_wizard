@@ -81,9 +81,9 @@ impl Plugin for ConfigPlugin {
         app.add_systems(
             Update,
             (
-                // Bridge systems (translate events → ConfigChanged)
-                bridge_window_resize_to_config_changed,
-                bridge_game_config_to_config_changed,
+                // Change detection systems (emit ConfigChanged)
+                detect_window_resize,
+                detect_game_config_changes,
                 // Unified debounce trigger
                 mark_save_on_config_changed,
                 // Save systems
