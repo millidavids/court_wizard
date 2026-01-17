@@ -7,6 +7,7 @@ use crate::config::{Difficulty, VsyncMode};
 /// Marker component for entities that belong to the settings screen.
 ///
 /// Used for cleanup when exiting the settings state.
+/// This is used by both main menu and pause menu settings.
 #[derive(Component)]
 pub struct OnSettingsScreen;
 

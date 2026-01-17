@@ -1,23 +1,21 @@
 //! Pause menu settings plugin.
+//!
+//! This plugin reuses the main menu settings UI systems but with
+//! pause menu specific state transitions.
 
 use bevy::prelude::*;
 
 use crate::state::PauseMenuState;
-
-use super::systems::{
-    button_hover, button_press, cleanup, handle_scroll, keyboard_input, option_button_action,
-    settings_button_action, setup, slider_button_action, slider_interaction,
+use crate::ui::main_menu::settings::systems::{
+    button_hover, button_press, cleanup, handle_scroll, option_button_action, pause_keyboard_input,
+    pause_settings_button_action, setup, slider_button_action, slider_interaction,
     update_selected_options, update_slider_text, update_sliders,
 };
 
 /// Plugin that manages the pause menu settings UI.
 ///
-/// Registers systems for:
-/// - Pause menu settings setup and cleanup
-/// - Keyboard input handling
-/// - Button interaction and actions
-/// - Unified slider controls for all config values
-/// - Selected option highlighting
+/// Reuses all main menu settings systems except for keyboard input
+/// and button actions, which are replaced with pause menu specific versions.
 #[derive(Default)]
 pub struct PauseSettingsPlugin;
 
@@ -28,11 +26,11 @@ impl Plugin for PauseSettingsPlugin {
             .add_systems(
                 Update,
                 (
-                    keyboard_input,
+                    pause_keyboard_input,
                     handle_scroll,
                     button_hover,
                     button_press,
-                    settings_button_action,
+                    pause_settings_button_action,
                     option_button_action,
                     slider_button_action,
                     slider_interaction,
