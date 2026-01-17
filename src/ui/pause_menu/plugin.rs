@@ -7,7 +7,8 @@ use super::settings::plugin::PauseSettingsPlugin;
 
 /// Plugin that manages all pause menu UI.
 ///
-/// This plugin coordinates the pause menu main screen and settings screen.
+/// This plugin coordinates the pause menu main screen and shared settings screen.
+/// The settings screen reuses the main menu settings UI with pause-specific state transitions.
 #[derive(Default)]
 pub struct PauseMenuPlugin;
 

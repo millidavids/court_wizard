@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
 use crate::config::{Difficulty, GameConfig, VsyncMode};
-use crate::state::MenuState;
+use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
 
 use super::components::{
@@ -551,7 +551,7 @@ pub fn cleanup(mut commands: Commands, settings_items: Query<Entity, With<OnSett
     }
 }
 
-/// Handles keyboard input in the settings menu.
+/// Handles keyboard input in the settings menu from main menu.
 ///
 /// - Escape: Returns to Landing screen
 ///
@@ -565,6 +565,23 @@ pub fn keyboard_input(
 ) {
     if keyboard.just_pressed(KeyCode::Escape) {
         next_menu_state.set(MenuState::Landing);
+    }
+}
+
+/// Handles keyboard input in the settings menu from pause menu.
+///
+/// - Escape: Returns to pause menu main screen
+///
+/// # Arguments
+///
+/// * `keyboard` - Keyboard input resource
+/// * `next_pause_menu_state` - Resource for transitioning the `PauseMenuState`
+pub fn pause_keyboard_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        next_pause_menu_state.set(PauseMenuState::Main);
     }
 }
 
@@ -610,7 +627,7 @@ pub fn button_press(
     }
 }
 
-/// Handles settings button actions when clicked.
+/// Handles settings button actions when clicked from main menu.
 pub fn settings_button_action(
     interactions: Query<(&Interaction, &SettingsButtonAction), Changed<Interaction>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
@@ -620,6 +637,22 @@ pub fn settings_button_action(
             match action {
                 SettingsButtonAction::Back => {
                     next_menu_state.set(MenuState::Landing);
+                }
+            }
+        }
+    }
+}
+
+/// Handles settings button actions when clicked from pause menu.
+pub fn pause_settings_button_action(
+    interactions: Query<(&Interaction, &SettingsButtonAction), Changed<Interaction>>,
+    mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
+) {
+    for (interaction, action) in &interactions {
+        if *interaction == Interaction::Pressed {
+            match action {
+                SettingsButtonAction::Back => {
+                    next_pause_menu_state.set(PauseMenuState::Main);
                 }
             }
         }
