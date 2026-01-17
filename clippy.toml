@@ -1,0 +1,5 @@
+# Clippy configuration for the_game
+
+# Allow complex query types in Bevy systems
+# Bevy systems often have complex query types and this is idiomatic
+type-complexity-threshold = 500

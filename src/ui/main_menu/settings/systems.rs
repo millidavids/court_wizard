@@ -311,6 +311,20 @@ fn spawn_option_button(
     });
 }
 
+/// Configuration for spawning a slider row.
+struct SliderRowConfig<'a, TText, TDownButton, TUpButton, TSliderTrack, TSliderFill, TSliderHandle>
+{
+    label: &'a str,
+    current_value: f32,
+    max_value: f32,
+    text_component: TText,
+    down_button: TDownButton,
+    up_button: TUpButton,
+    slider_track: TSliderTrack,
+    slider_fill: TSliderFill,
+    slider_handle: TSliderHandle,
+}
+
 /// Helper function to spawn a slider row with decrease/increase buttons, slider, and value display.
 fn spawn_slider_row<
     TText: Component,
@@ -321,16 +335,27 @@ fn spawn_slider_row<
     TSliderHandle: Component,
 >(
     parent: &mut ChildSpawnerCommands,
-    label: &str,
-    current_value: f32,
-    max_value: f32,
-    text_component: TText,
-    down_button: TDownButton,
-    up_button: TUpButton,
-    slider_track: TSliderTrack,
-    slider_fill: TSliderFill,
-    slider_handle: TSliderHandle,
+    config: SliderRowConfig<
+        '_,
+        TText,
+        TDownButton,
+        TUpButton,
+        TSliderTrack,
+        TSliderFill,
+        TSliderHandle,
+    >,
 ) {
+    let SliderRowConfig {
+        label,
+        current_value,
+        max_value,
+        text_component,
+        down_button,
+        up_button,
+        slider_track,
+        slider_fill,
+        slider_handle,
+    } = config;
     parent
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -512,27 +537,29 @@ fn spawn_slider_control(
 
     spawn_slider_row(
         parent,
-        label,
-        current_value,
-        max_value,
-        SliderText {
-            value: slider_value,
-        },
-        SliderDownButton {
-            value: slider_value,
-        },
-        SliderUpButton {
-            value: slider_value,
-        },
-        SliderTrack {
-            value: slider_value,
-        },
-        SliderFill {
-            value: slider_value,
-        },
-        SliderHandle {
-            value: slider_value,
-            is_dragging: false,
+        SliderRowConfig {
+            label,
+            current_value,
+            max_value,
+            text_component: SliderText {
+                value: slider_value,
+            },
+            down_button: SliderDownButton {
+                value: slider_value,
+            },
+            up_button: SliderUpButton {
+                value: slider_value,
+            },
+            slider_track: SliderTrack {
+                value: slider_value,
+            },
+            slider_fill: SliderFill {
+                value: slider_value,
+            },
+            slider_handle: SliderHandle {
+                value: slider_value,
+                is_dragging: false,
+            },
         },
     );
 }
@@ -809,25 +836,25 @@ pub fn slider_interaction(
     if buttons.just_pressed(bevy::input::mouse::MouseButton::Left) {
         for (interaction, cursor_pos, track) in &slider_tracks {
             // Check if track or its children are being interacted with
-            if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
-                if let Some(pos) = cursor_pos.normalized {
-                    // RelativeCursorPosition.normalized has center at (0,0)
-                    // So left edge = -0.5, right edge = 0.5
-                    // Convert to 0-1 range by adding 0.5
-                    let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
+            if matches!(*interaction, Interaction::Pressed | Interaction::Hovered)
+                && let Some(pos) = cursor_pos.normalized
+            {
+                // RelativeCursorPosition.normalized has center at (0,0)
+                // So left edge = -0.5, right edge = 0.5
+                // Convert to 0-1 range by adding 0.5
+                let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
 
-                    // Scale to the appropriate range for this value
-                    let min = track.value.min_value();
-                    let max = track.value.max_value();
-                    let range = max - min;
-                    let new_value = (min + normalized * range).clamp(min, max);
-                    track.value.set(&mut game_config, new_value);
+                // Scale to the appropriate range for this value
+                let min = track.value.min_value();
+                let max = track.value.max_value();
+                let range = max - min;
+                let new_value = (min + normalized * range).clamp(min, max);
+                track.value.set(&mut game_config, new_value);
 
-                    // Start dragging the corresponding handle
-                    for (_handle_interaction, mut slider_handle) in &mut slider_handles {
-                        if slider_handle.value == track.value {
-                            slider_handle.is_dragging = true;
-                        }
+                // Start dragging the corresponding handle
+                for (_handle_interaction, mut slider_handle) in &mut slider_handles {
+                    if slider_handle.value == track.value {
+                        slider_handle.is_dragging = true;
                     }
                 }
             }
