@@ -7,12 +7,12 @@
 //! - Unit movement and targeting
 //! - Simple collision-based combat
 
-pub mod attacker;
-pub mod battlefield;
+mod attacker;
+mod battlefield;
 mod components;
-pub mod defender;
+mod defender;
 mod plugin;
 mod shared_systems;
-pub mod wizard;
+mod wizard;
 
 pub use plugin::GamePlugin;
