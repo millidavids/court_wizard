@@ -2,10 +2,12 @@ use bevy::prelude::*;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 mod config;
+mod game;
 mod state;
 mod ui;
 
 use config::{ConfigPlugin, GameConfig};
+use game::GamePlugin;
 use state::StatePlugin;
 use ui::UiPlugin;
 
@@ -28,7 +30,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins((ConfigPlugin, StatePlugin, UiPlugin))
+        .add_plugins((ConfigPlugin, StatePlugin, UiPlugin, GamePlugin))
         .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)))
         .add_systems(Startup, setup)
         .add_systems(Update, apply_global_brightness)
@@ -41,13 +43,20 @@ struct BrightnessOverlay;
 
 /// Sets up the initial game scene.
 ///
-/// Spawns the primary 2D camera and brightness overlay.
+/// Spawns the primary 3D perspective camera positioned above the castle
+/// looking toward the horizon, and brightness overlay.
 ///
 /// # Arguments
 ///
 /// * `commands` - Bevy command buffer for spawning entities
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    // 3D perspective camera pulled way back to see the entire battlefield
+    // We can adjust this later once everything is positioned correctly
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(0.0, 2000.0, 2000.0) // Far back and high up
+            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y), // Looking at origin
+    ));
 
     // Spawn brightness overlay (a fullscreen node that adjusts screen brightness)
     commands.spawn((
