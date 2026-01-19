@@ -54,7 +54,7 @@ fn setup(mut commands: Commands) {
     // We can adjust this later once everything is positioned correctly
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(0.0, 2000.0, 2000.0) // Far back and high up
+        Transform::from_xyz(-800.0, 2000.0, 2000.0) // Far back and high up, shifted left
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y), // Looking at origin
     ));
 
