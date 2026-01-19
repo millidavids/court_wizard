@@ -23,8 +23,8 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn battlefield as ground plane at origin
-    let battlefield_mesh = Plane3d::default().mesh().size(3000.0, 3000.0);
+    // Spawn battlefield as ground plane at origin (twice as large: 6000x6000)
+    let battlefield_mesh = Plane3d::default().mesh().size(6000.0, 6000.0);
 
     commands.spawn((
         Mesh3d(meshes.add(battlefield_mesh)),
@@ -38,8 +38,8 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn castle as a raised platform (Plane3d) above the battlefield
-    let castle_plane = Plane3d::default().mesh().size(400.0, 300.0);
+    // Spawn castle as a raised platform (Plane3d) above the battlefield (3x longer: 300x2000)
+    let castle_plane = Plane3d::default().mesh().size(300.0, 2000.0);
 
     commands.spawn((
         Mesh3d(meshes.add(castle_plane)),
@@ -48,7 +48,8 @@ pub fn setup_battlefield(
             unlit: true,
             ..default()
         })),
-        Transform::from_xyz(-1100.0, 500.0, 1100.0), // Bottom-left corner, raised high above ground
+        Transform::from_xyz(-1300.0, 1200.0, 1300.0) // Bottom-left corner, raised high above ground
+            .with_rotation(Quat::from_rotation_y(45.0_f32.to_radians())), // Rotate 45 degrees
         Castle,
         OnGameplayScreen,
     ));

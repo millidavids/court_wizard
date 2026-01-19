@@ -3,12 +3,14 @@ use bevy::prelude::*;
 use super::components::*;
 use super::styles::*;
 use crate::game::components::{OnGameplayScreen, Velocity};
-use crate::game::wizard::components::Wizard;
+
+// Defender spawn position that attackers will target
+const DEFENDER_SPAWN_POSITION: Vec3 = Vec3::new(-1000.0, 50.0, 1000.0);
 
 /// Spawns attacker units periodically.
 ///
 /// Uses a local timer to spawn attackers every SPAWN_INTERVAL seconds.
-/// Attackers spawn far away (at the horizon) and move toward the castle.
+/// Attackers spawn far away (at the horizon) and move toward the defender spawn.
 pub fn spawn_attackers(
     mut commands: Commands,
     time: Res<Time>,
@@ -43,20 +45,12 @@ pub fn spawn_attackers(
     }
 }
 
-/// Updates attacker velocities to target the wizard.
+/// Updates attacker velocities to target the defender spawn position.
 ///
-/// Attackers move in 3D space toward the wizard's position.
-pub fn update_attacker_targets(
-    mut attackers: Query<(&Transform, &mut Velocity), With<Attacker>>,
-    wizard_query: Query<&Transform, With<Wizard>>,
-) {
-    let Some(wizard_transform) = wizard_query.iter().next() else {
-        return; // No wizard, no target
-    };
-
+/// Attackers move in 3D space toward the defender spawn point.
+pub fn update_attacker_targets(mut attackers: Query<(&Transform, &mut Velocity), With<Attacker>>) {
     for (att_transform, mut att_velocity) in &mut attackers {
-        let direction =
-            (wizard_transform.translation - att_transform.translation).normalize_or_zero();
+        let direction = (DEFENDER_SPAWN_POSITION - att_transform.translation).normalize_or_zero();
         att_velocity.x = direction.x * UNIT_SPEED;
         att_velocity.y = direction.y * UNIT_SPEED;
         att_velocity.z = direction.z * UNIT_SPEED;

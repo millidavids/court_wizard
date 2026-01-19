@@ -27,7 +27,7 @@ pub fn setup_wizard(
             unlit: true,
             ..default()
         })),
-        Transform::from_xyz(-1100.0, 501.0, 1100.0), // On castle platform, slightly above it
+        Transform::from_xyz(-1150.0, 1230.0, 1400.0), // On castle platform, slightly above it
         Wizard,
         OnGameplayScreen,
     ));
