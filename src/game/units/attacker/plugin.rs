@@ -9,7 +9,6 @@ use super::systems;
 /// Registers systems for:
 /// - Initial spawn of attackers on game start
 /// - Updating attacker targeting toward nearest defender
-/// - Combat between attackers and defenders
 pub struct AttackerPlugin;
 
 impl Plugin for AttackerPlugin {
@@ -17,8 +16,7 @@ impl Plugin for AttackerPlugin {
         app.add_systems(OnEnter(AppState::InGame), systems::spawn_initial_attackers)
             .add_systems(
                 Update,
-                (systems::update_attacker_targets, systems::combat)
-                    .run_if(in_state(InGameState::Running)),
+                systems::update_attacker_targets.run_if(in_state(InGameState::Running)),
             );
     }
 }

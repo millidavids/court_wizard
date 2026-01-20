@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
 use super::components::{Acceleration, Velocity};
+use super::constants::*;
 use super::plugin::GlobalAttackCycle;
-use super::units::components::{Health, Hitbox, MovementSpeed, Team};
+use super::units::components::{AttackTiming, Health, Hitbox, MovementSpeed, Team};
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -27,13 +28,7 @@ pub fn apply_separation(
         &Hitbox,
     )>,
 ) {
-    // Flocking parameters
-    const NEIGHBOR_DISTANCE: f32 = 100.0;
-    const SEPARATION_DISTANCE: f32 = 35.0;
-    const SEPARATION_STRENGTH: f32 = 50.0;
-    const ALIGNMENT_STRENGTH: f32 = 1.0;
-    const COHESION_STRENGTH: f32 = 0.0;
-    const MAX_OVERLAP_PERCENT: f32 = 0.0; // No overlap allowed
+    // Flocking parameters are defined in constants.rs
 
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
@@ -50,7 +45,7 @@ pub fn apply_separation(
 
     // First pass: enforce hard collision constraint (no overlap allowed)
     // Use multiple iterations to resolve stacked collisions
-    for _iteration in 0..4 {
+    for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
             .map(|(entity, transform, _, _, hitbox)| (entity, transform.translation, *hitbox))
@@ -72,7 +67,7 @@ pub fn apply_separation(
                 let min_distance =
                     (hitbox.radius + other_hitbox.radius) * (1.0 - MAX_OVERLAP_PERCENT);
 
-                if distance < min_distance && distance > 0.01 {
+                if distance < min_distance && distance > MIN_DISTANCE_THRESHOLD {
                     // Calculate how much to push apart
                     let overlap = min_distance - distance;
                     let push_direction = diff / distance;
@@ -106,7 +101,7 @@ pub fn apply_separation(
             let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
 
             // Check if within neighbor distance
-            if distance < NEIGHBOR_DISTANCE && distance > 0.01 {
+            if distance < NEIGHBOR_DISTANCE && distance > MIN_DISTANCE_THRESHOLD {
                 // Separation: steer away from close neighbors
                 let separation_dist = (hitbox.radius + other_hitbox.radius) + SEPARATION_DISTANCE;
                 if distance < separation_dist {
@@ -163,10 +158,7 @@ pub fn move_units(
         &Team,
     )>,
 ) {
-    const DAMPING: f32 = 0.85; // Reduces velocity each frame to prevent excessive momentum
-    const MIN_SPEED_MULTIPLIER: f32 = 0.1; // Minimum speed when touching enemy (10%)
-    const MAX_SPEED_MULTIPLIER: f32 = 1.0; // Maximum speed when far from enemies (100%)
-    const SLOWDOWN_DISTANCE_MULTIPLIER: f32 = 1.2; // Start slowing at 1.2x combined hitbox radius
+    // Movement parameters are defined in constants.rs
 
     // Collect snapshot of all unit positions BEFORE moving any units
     // This ensures symmetric movement - all units use the same frame's positions
@@ -187,9 +179,9 @@ pub fn move_units(
         velocity.z += acceleration.z * time.delta_secs();
 
         // Apply damping to reduce momentum
-        velocity.x *= DAMPING;
-        velocity.y *= DAMPING;
-        velocity.z *= DAMPING;
+        velocity.x *= VELOCITY_DAMPING;
+        velocity.y *= VELOCITY_DAMPING;
+        velocity.z *= VELOCITY_DAMPING;
 
         // Calculate speed multiplier based on proximity to nearest enemy
         let mut speed_multiplier = MAX_SPEED_MULTIPLIER;
@@ -239,6 +231,58 @@ pub fn move_units(
 
         // Reset acceleration for next frame
         acceleration.reset();
+    }
+}
+
+/// Unified combat system for all units.
+///
+/// Units attack the nearest enemy within range. Attacks are time-based using the global
+/// attack cycle to naturally stagger attacks across all units.
+pub fn combat(
+    attack_cycle: Res<GlobalAttackCycle>,
+    mut all_units: Query<(Entity, &Transform, &Hitbox, &Team, &mut AttackTiming)>,
+    mut health_query: Query<&mut Health>,
+) {
+    let current_time = attack_cycle.current_time;
+    let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
+
+    // Collect snapshot of all units for enemy detection
+    let units_snapshot: Vec<_> = all_units
+        .iter()
+        .map(|(entity, transform, hitbox, team, _)| (entity, transform.translation, *hitbox, *team))
+        .collect();
+
+    // Process each unit's combat
+    for (attacker_entity, attacker_transform, attacker_hitbox, attacker_team, mut attack_timing) in
+        &mut all_units
+    {
+        // Find nearest enemy within attack range
+        if let Some((target_entity, _, _)) = units_snapshot
+            .iter()
+            .filter(|(entity, _, _, team)| {
+                // Skip self and only consider enemies (different teams)
+                *entity != attacker_entity && *team != *attacker_team
+            })
+            .filter_map(|(entity, target_pos, target_hitbox, _)| {
+                let distance = attacker_transform.translation.distance(*target_pos);
+                let attack_range =
+                    (attacker_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+                if distance <= attack_range {
+                    Some((entity, target_pos, distance))
+                } else {
+                    None
+                }
+            })
+            .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
+        {
+            // Attack if we're in the unit's attack window
+            if attack_timing.can_attack(current_time, last_time) {
+                if let Ok(mut target_health) = health_query.get_mut(*target_entity) {
+                    target_health.take_damage(ATTACK_DAMAGE);
+                    attack_timing.record_attack(current_time);
+                }
+            }
+        }
     }
 }
 
