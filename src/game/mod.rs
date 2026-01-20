@@ -8,10 +8,10 @@
 //! - Simple collision-based combat
 
 mod battlefield;
-mod components;
+pub mod components;
 pub mod constants;
 mod plugin;
 mod shared_systems;
-mod units;
+pub mod units;
 
 pub use plugin::GamePlugin;

@@ -276,12 +276,11 @@ pub fn combat(
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
         {
             // Attack if we're in the unit's attack window
-            if attack_timing.can_attack(current_time, last_time) {
-                if let Ok(mut target_health) = health_query.get_mut(*target_entity) {
+            if attack_timing.can_attack(current_time, last_time)
+                && let Ok(mut target_health) = health_query.get_mut(*target_entity) {
                     target_health.take_damage(ATTACK_DAMAGE);
                     attack_timing.record_attack(current_time);
                 }
-            }
         }
     }
 }

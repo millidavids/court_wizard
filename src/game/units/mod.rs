@@ -1,10 +1,9 @@
 //! Units plugin module.
 //!
-//! Contains all game unit types: wizard, defenders, and attackers.
+//! Contains all game unit types: wizard and infantry.
 
-pub mod attacker;
 pub mod components;
-pub mod defender;
+pub mod infantry;
 pub mod wizard;
 
 mod plugin;

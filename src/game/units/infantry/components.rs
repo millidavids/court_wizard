@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-/// Marker component for defender units (friendly).
+/// Marker component for infantry units.
 #[derive(Component)]
-pub struct Defender;
+pub struct Infantry;
 
 /// Resource tracking whether defenders should be active.
 ///
