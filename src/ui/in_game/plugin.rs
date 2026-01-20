@@ -2,22 +2,25 @@
 
 use bevy::prelude::*;
 
-use crate::state::InGameState;
+use crate::state::{AppState, InGameState};
 
-use super::systems::keyboard_input;
+use super::systems;
 
 /// Plugin that manages in-game UI and input handling.
 ///
 /// Registers systems for:
+/// - HUD spawning and updates
 /// - Keyboard input during active gameplay (e.g., pause on Escape)
 #[derive(Default)]
 pub struct InGamePlugin;
 
 impl Plugin for InGamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            keyboard_input.run_if(in_state(InGameState::Running)),
-        );
+        app.add_systems(OnEnter(AppState::InGame), systems::spawn_hud)
+            .add_systems(
+                Update,
+                (systems::keyboard_input, systems::update_mana_bar)
+                    .run_if(in_state(InGameState::Running)),
+            );
     }
 }

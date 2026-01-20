@@ -37,7 +37,16 @@ pub fn setup_wizard(
         hitbox,
         Health::new(100.0),
         MovementSpeed::new(0.0), // Wizard doesn't move
+        Mana::new(100.0),
+        ManaRegen::new(10.0), // 10 mana per second
         Wizard,
         OnGameplayScreen,
     ));
+}
+
+/// Regenerates wizard mana over time.
+pub fn regenerate_mana(time: Res<Time>, mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>) {
+    for (mut mana, regen) in &mut wizards {
+        mana.regenerate(regen.rate * time.delta_secs());
+    }
 }

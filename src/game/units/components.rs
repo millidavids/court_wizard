@@ -5,8 +5,8 @@ use bevy::prelude::*;
 /// Determines which side a unit is on. Units attack members of opposing teams.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Team {
-    Player,
-    Enemy,
+    Defenders,
+    Attackers,
 }
 
 /// Health component for all units.

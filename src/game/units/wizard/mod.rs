@@ -1,9 +1,10 @@
 //! Wizard plugin module.
 //!
-//! Handles the wizard entity and castle setup.
+//! Handles the wizard entity, castle setup, and spells.
 
 pub mod components;
 mod plugin;
+pub mod spells;
 mod styles;
 mod systems;
 
