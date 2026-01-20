@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::state::{AppState, InGameState};
 
 use super::battlefield::BattlefieldPlugin;
+use super::constants::ATTACK_CYCLE_DURATION;
 use super::shared_systems;
 use super::units::UnitsPlugin;
 
@@ -23,7 +24,7 @@ impl Default for GlobalAttackCycle {
     fn default() -> Self {
         Self {
             current_time: 0.0,
-            cycle_duration: 2.0, // 2 second cycle
+            cycle_duration: ATTACK_CYCLE_DURATION,
         }
     }
 }
@@ -55,6 +56,7 @@ impl Plugin for GamePlugin {
                     // Separation runs after targeting but before movement
                     shared_systems::apply_separation,
                     shared_systems::move_units,
+                    shared_systems::combat,
                     shared_systems::despawn_dead_units,
                 )
                     .chain()

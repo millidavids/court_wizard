@@ -8,7 +8,7 @@ pub struct OnGameplayScreen;
 ///
 /// Represents the unit's movement speed in 3D space (units per second).
 /// Z velocity controls depth movement (toward/away from camera).
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Velocity {
     pub x: f32,
     pub y: f32,

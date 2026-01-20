@@ -4,7 +4,6 @@ use super::components::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::attacker::components::Attacker;
 use crate::game::units::components::{AttackTiming, Health, Hitbox, MovementSpeed, Team};
 
@@ -18,15 +17,17 @@ pub fn spawn_initial_defenders(
 ) {
     for i in 0..INITIAL_DEFENDER_COUNT {
         // Define defender hitbox (cylinder) - this determines sprite size
-        let hitbox = Hitbox::new(UNIT_RADIUS, 25.0);
+        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
 
         // Spawn defender as a circle billboard sized to match the hitbox
         let circle = Circle::new(hitbox.radius);
 
-        // Spawn all defenders within 100 pixels of each other
-        let offset = i as f32 * 0.31415;
-        let spawn_x = DEFENDER_SPAWN_X_MIN + (offset.sin() * 50.0 + 50.0);
-        let spawn_z = DEFENDER_SPAWN_Z_MIN + (offset.cos() * 50.0 + 50.0);
+        // Distribute spawns in a circular pattern
+        let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
+        let spawn_x = DEFENDER_SPAWN_X_MIN
+            + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
+        let spawn_z = DEFENDER_SPAWN_Z_MIN
+            + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
 
         commands.spawn((
             Mesh3d(meshes.add(circle)),
@@ -36,15 +37,11 @@ pub fn spawn_initial_defenders(
                 ..default()
             })),
             Transform::from_xyz(spawn_x, UNIT_Y_POSITION, spawn_z),
-            Velocity {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
+            Velocity::default(),
             Acceleration::new(),
             hitbox,
-            Health::new(50.0),
-            MovementSpeed::new(200.0),
+            Health::new(UNIT_HEALTH),
+            MovementSpeed::new(UNIT_MOVEMENT_SPEED),
             AttackTiming::new(),
             Team::Player,
             Defender,
@@ -65,8 +62,7 @@ pub fn update_defender_targets(
     attackers: Query<(&Transform, &Hitbox), With<Attacker>>,
     mut defenders_activated: ResMut<DefendersActivated>,
 ) {
-    const STEERING_FORCE: f32 = 500.0;
-    const MELEE_RANDOM_FORCE: f32 = 150.0;
+    // Targeting parameters are defined in constants.rs
 
     // Check if any attacker is within activation distance of any defender
     if !defenders_activated.active {
@@ -114,46 +110,6 @@ pub fn update_defender_targets(
 
                 let steering = diff.normalize_or_zero() * STEERING_FORCE;
                 def_acceleration.add_force(steering);
-            }
-        }
-    }
-}
-
-/// Handles combat between defenders and attackers.
-///
-/// Defenders attack the nearest attacker within range (1.5x combined hitbox radius).
-/// Attacks are time-based: each defender attacks at a specific time offset in the global
-/// attack cycle, naturally staggering attacks across all defenders.
-pub fn combat(
-    attack_cycle: Res<GlobalAttackCycle>,
-    mut defenders: Query<(&Transform, &Hitbox, &mut AttackTiming), With<Defender>>,
-    mut attackers: Query<(Entity, &Transform, &Hitbox, &mut Health), With<Attacker>>,
-) {
-    let current_time = attack_cycle.current_time;
-    let last_time = (current_time - 0.016).max(0.0); // Approximate last frame time
-
-    for (def_transform, def_hitbox, mut def_attack_timing) in &mut defenders {
-        // Find the nearest attacker within attack range
-        if let Some((_, _, _, mut target_health)) = attackers
-            .iter_mut()
-            .filter(|(_, att_transform, att_hitbox, _)| {
-                let distance = def_transform
-                    .translation
-                    .distance(att_transform.translation);
-                let attack_range =
-                    (def_hitbox.radius + att_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
-                distance <= attack_range
-            })
-            .min_by(|(_, a_transform, _, _), (_, b_transform, _, _)| {
-                let dist_a = def_transform.translation.distance(a_transform.translation);
-                let dist_b = def_transform.translation.distance(b_transform.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            })
-        {
-            // Attack if we're in the unit's attack window
-            if def_attack_timing.can_attack(current_time, last_time) {
-                target_health.take_damage(ATTACK_DAMAGE);
-                def_attack_timing.record_attack(current_time);
             }
         }
     }
