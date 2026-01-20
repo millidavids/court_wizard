@@ -2,34 +2,63 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
-use super::attacker::AttackerPlugin;
 use super::battlefield::BattlefieldPlugin;
-use super::defender::DefenderPlugin;
 use super::shared_systems;
-use super::wizard::WizardPlugin;
+use super::units::UnitsPlugin;
+
+/// Global attack cycle timer resource.
+///
+/// Cycles from 0.0 to CYCLE_DURATION seconds. Units track which time offset
+/// in the cycle they last attacked and can only attack again when the timer
+/// cycles back to that offset. This naturally staggers attacks across all units.
+#[derive(Resource)]
+pub struct GlobalAttackCycle {
+    /// Current time in the cycle (0.0 to CYCLE_DURATION)
+    pub current_time: f32,
+    /// Duration of one complete cycle in seconds
+    pub cycle_duration: f32,
+}
+
+impl Default for GlobalAttackCycle {
+    fn default() -> Self {
+        Self {
+            current_time: 0.0,
+            cycle_duration: 2.0, // 2 second cycle
+        }
+    }
+}
+
+impl GlobalAttackCycle {
+    /// Advances the cycle timer by delta time, wrapping back to 0 after cycle_duration.
+    pub fn tick(&mut self, delta: f32) {
+        self.current_time = (self.current_time + delta) % self.cycle_duration;
+    }
+}
 
 /// Main game plugin that coordinates all gameplay sub-plugins.
 ///
 /// Registers sub-plugins for:
 /// - Battlefield and castle setup (BattlefieldPlugin)
-/// - Wizard entity (WizardPlugin)
-/// - Defender units (DefenderPlugin)
-/// - Attacker units (AttackerPlugin)
+/// - All units: wizard, defenders, attackers (UnitsPlugin)
 /// - Shared movement and cleanup systems
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            BattlefieldPlugin,
-            WizardPlugin,
-            DefenderPlugin,
-            AttackerPlugin,
-        ))
-        .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
-        .add_systems(
-            Update,
-            shared_systems::move_units.run_if(in_state(InGameState::Running)),
-        );
+        app.init_resource::<GlobalAttackCycle>()
+            .add_plugins((BattlefieldPlugin, UnitsPlugin))
+            .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
+            .add_systems(
+                Update,
+                (
+                    shared_systems::tick_attack_cycle,
+                    // Separation runs after targeting but before movement
+                    shared_systems::apply_separation,
+                    shared_systems::move_units,
+                    shared_systems::despawn_dead_units,
+                )
+                    .chain()
+                    .run_if(in_state(InGameState::Running)),
+            );
     }
 }

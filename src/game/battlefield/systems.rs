@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::*;
 
 /// Sets up the battlefield and castle when entering the InGame state.
 ///
@@ -23,8 +24,10 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn battlefield as ground plane at origin (twice as large: 6000x6000)
-    let battlefield_mesh = Plane3d::default().mesh().size(6000.0, 6000.0);
+    // Spawn battlefield as ground plane at origin
+    let battlefield_mesh = Plane3d::default()
+        .mesh()
+        .size(BATTLEFIELD_SIZE, BATTLEFIELD_SIZE);
 
     commands.spawn((
         Mesh3d(meshes.add(battlefield_mesh)),
@@ -38,8 +41,8 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn castle as a raised platform (Plane3d) above the battlefield (3x longer: 300x2000)
-    let castle_plane = Plane3d::default().mesh().size(300.0, 2000.0);
+    // Spawn castle as a raised platform (Plane3d) above the battlefield
+    let castle_plane = Plane3d::default().mesh().size(CASTLE_WIDTH, CASTLE_DEPTH);
 
     commands.spawn((
         Mesh3d(meshes.add(castle_plane)),
@@ -48,8 +51,8 @@ pub fn setup_battlefield(
             unlit: true,
             ..default()
         })),
-        Transform::from_xyz(-1300.0, 1200.0, 1300.0) // Bottom-left corner, raised high above ground
-            .with_rotation(Quat::from_rotation_y(45.0_f32.to_radians())), // Rotate 45 degrees
+        Transform::from_translation(CASTLE_POSITION)
+            .with_rotation(Quat::from_rotation_y(CASTLE_ROTATION_DEGREES.to_radians())),
         Castle,
         OnGameplayScreen,
     ));
