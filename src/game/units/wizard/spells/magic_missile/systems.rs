@@ -2,50 +2,119 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::*;
+use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
+use crate::game::input::events::{SpacebarHeld, SpacebarReleased};
 use crate::game::units::components::{Health, Team};
 use crate::game::units::infantry::components::Infantry;
-use crate::game::units::wizard::components::{Mana, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, Wizard};
 
-/// Mana cost for casting a magic missile.
-const MAGIC_MISSILE_MANA_COST: f32 = 10.0;
-
-/// Casts a magic missile when spacebar is pressed.
+/// Handles magic missile casting with spacebar.
 ///
-/// Spawns a pink projectile above the wizard with varied launch trajectory.
-/// Requires and consumes mana.
-pub fn cast_magic_missile(
+/// Spacebar starts cast. Must hold for full cast time.
+/// After cast completes, enters channeling state where missiles spawn continuously.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_magic_missile_casting(
+    time: Res<Time>,
+    mut spacebar_held: MessageReader<SpacebarHeld>,
+    mut spacebar_released: MessageReader<SpacebarReleased>,
     mut commands: Commands,
-    keyboard: Res<ButtonInput<KeyCode>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<&mut Mana, With<Wizard>>,
+    mut wizard_query: Query<(&mut CastingState, &mut Mana), With<Wizard>>,
+    camera_query: Query<&GlobalTransform, With<Camera>>,
 ) {
-    if !keyboard.just_pressed(KeyCode::Space) {
-        return;
-    }
-
-    // Check if wizard has enough mana
-    let Ok(mut mana) = wizard_query.single_mut() else {
+    let Ok((mut casting_state, mut mana)) = wizard_query.single_mut() else {
         return;
     };
 
-    if !mana.consume(MAGIC_MISSILE_MANA_COST) {
-        // Not enough mana
+    // Check for release event
+    if spacebar_released.read().next().is_some() {
+        // Cancel cast/channel on release
+        casting_state.cancel();
         return;
     }
 
+    // Check for hold event
+    if spacebar_held.read().next().is_none() {
+        return;
+    }
+
+    // Mouse is held - handle casting or channeling based on state
+    match *casting_state {
+        CastingState::Channeling { .. } => {
+            // Already channeling - advance channel time
+            casting_state.advance_channel(time.delta_secs());
+
+            // Check if enough time has passed to spawn another missile
+            if casting_state.should_channel(
+                constants::INITIAL_CHANNEL_INTERVAL,
+                constants::MIN_CHANNEL_INTERVAL,
+                constants::CHANNEL_RAMP_TIME,
+            ) {
+                // Try to spawn missile if we have mana
+                if mana.consume(constants::MANA_COST) {
+                    spawn_magic_missile(&mut commands, &mut meshes, &mut materials, &camera_query);
+                    casting_state.reset_channel_interval();
+                } else {
+                    // Out of mana - cancel channeling
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Casting { .. } => {
+            // Currently casting - advance cast time
+            casting_state.advance(time.delta_secs());
+
+            // Check if cast is complete
+            if casting_state.is_complete(constants::CAST_TIME) {
+                // Cast complete - transition to channeling and spawn first missile
+                if mana.consume(constants::MANA_COST) {
+                    spawn_magic_missile(&mut commands, &mut meshes, &mut materials, &camera_query);
+                    casting_state.start_channeling();
+                } else {
+                    // Out of mana - cancel cast
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Resting => {
+            // Not casting or channeling - start new cast
+            casting_state.start_cast();
+        }
+    }
+}
+
+/// Spawns a single magic missile projectile.
+///
+/// Helper function for spawning missiles with random trajectories that arc towards camera.
+fn spawn_magic_missile(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    camera_query: &Query<&GlobalTransform, With<Camera>>,
+) {
     // Spawn position: above the wizard
-    let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, 100.0, 0.0);
+    let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
     // Random initial velocity: varied launch paths (up and to the sides, never down)
     let mut rng = rand::thread_rng();
-    let horizontal_x = rng.gen_range(-200.0..200.0);
-    let horizontal_z = rng.gen_range(-200.0..200.0);
-    let vertical = rng.gen_range(300.0..500.0); // Always upward
-    let initial_velocity = Vec3::new(horizontal_x, vertical, horizontal_z);
+    let horizontal_x = rng.gen_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
+    let horizontal_z = rng.gen_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
+    let vertical = rng.gen_range(constants::VERTICAL_VEL_MIN..constants::VERTICAL_VEL_MAX);
+    let mut initial_velocity = Vec3::new(horizontal_x, vertical, horizontal_z);
+
+    // Add arc towards camera (so sprites appear to grow before arcing down)
+    if let Ok(camera_transform) = camera_query.single() {
+        let camera_pos = camera_transform.translation();
+        let to_camera = (camera_pos - spawn_pos).normalize_or_zero();
+        let camera_arc_speed =
+            rng.gen_range(constants::CAMERA_ARC_SPEED_MIN..constants::CAMERA_ARC_SPEED_MAX);
+        let camera_arc = to_camera * camera_arc_speed;
+        initial_velocity += camera_arc;
+    }
 
     // Random wobble offset for this missile
     let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
@@ -94,13 +163,11 @@ pub fn move_magic_missiles(
 
             // Calculate proximity-based speed (slow down near target to avoid overshooting)
             let base_max_speed = missile.current_max_speed();
-            let min_speed = 300.0; // 1.5x infantry movement speed (200 * 1.5)
-            let slowdown_distance = 300.0; // Start slowing within this distance
 
-            let proximity_speed_multiplier = if distance_to_target < slowdown_distance {
+            let proximity_speed_multiplier = if distance_to_target < constants::SLOWDOWN_DISTANCE {
                 // Linearly interpolate from 1.0 (far) to min_speed/base_max_speed (near)
-                let t = (distance_to_target / slowdown_distance).clamp(0.0, 1.0);
-                let min_multiplier = min_speed / base_max_speed;
+                let t = (distance_to_target / constants::SLOWDOWN_DISTANCE).clamp(0.0, 1.0);
+                let min_multiplier = constants::MIN_PROXIMITY_SPEED / base_max_speed;
                 min_multiplier + (1.0 - min_multiplier) * t
             } else {
                 1.0 // Full speed when far from target
@@ -120,15 +187,15 @@ pub fn move_magic_missiles(
 
             // Add wobble for variation (sine wave in multiple directions)
             // Only apply wobble before perfect tracking kicks in
-            let wobble = if missile.time_alive < 5.0 {
-                let wobble_freq = 3.0;
-                let wobble_amplitude = 30.0;
-                let t = missile.time_alive * wobble_freq + missile.wobble_offset;
+            let wobble = if missile.time_alive < constants::PERFECT_TRACKING_TIME {
+                let t = missile.time_alive * constants::WOBBLE_FREQUENCY + missile.wobble_offset;
 
                 Vec3::new(
-                    t.sin() * wobble_amplitude,
-                    (t * 1.3).cos() * wobble_amplitude * 0.5, // Less vertical wobble
-                    (t * 0.7).sin() * wobble_amplitude,
+                    t.sin() * constants::WOBBLE_AMPLITUDE,
+                    (t * constants::WOBBLE_Y_FREQ_MULTIPLIER).cos()
+                        * constants::WOBBLE_AMPLITUDE
+                        * constants::WOBBLE_Y_AMPLITUDE_MULTIPLIER,
+                    (t * constants::WOBBLE_Z_FREQ_MULTIPLIER).sin() * constants::WOBBLE_AMPLITUDE,
                 )
             } else {
                 Vec3::ZERO // No wobble during perfect tracking
@@ -192,12 +259,10 @@ pub fn despawn_distant_magic_missiles(
     mut commands: Commands,
     missiles: Query<(Entity, &Transform), With<MagicMissile>>,
 ) {
-    const MAX_DISTANCE: f32 = 10000.0;
-
     for (entity, transform) in &missiles {
         let distance_from_origin = transform.translation.length();
 
-        if distance_from_origin > MAX_DISTANCE {
+        if distance_from_origin > constants::MAX_DISTANCE {
             commands.entity(entity).despawn();
         }
     }

@@ -7,3 +7,7 @@ pub struct HudRoot;
 /// Marker component for the mana bar fill element.
 #[derive(Component)]
 pub struct ManaBarFill;
+
+/// Marker component for the cast bar fill element.
+#[derive(Component)]
+pub struct CastBarFill;

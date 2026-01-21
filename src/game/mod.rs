@@ -10,6 +10,7 @@
 mod battlefield;
 pub mod components;
 pub mod constants;
+pub mod input;
 mod plugin;
 mod shared_systems;
 pub mod units;

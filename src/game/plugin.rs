@@ -4,6 +4,7 @@ use crate::state::{AppState, InGameState};
 
 use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
+use super::input::InputPlugin;
 use super::shared_systems;
 use super::units::UnitsPlugin;
 
@@ -39,6 +40,7 @@ impl GlobalAttackCycle {
 /// Main game plugin that coordinates all gameplay sub-plugins.
 ///
 /// Registers sub-plugins for:
+/// - Input handling (InputPlugin)
 /// - Battlefield and castle setup (BattlefieldPlugin)
 /// - All units: wizard, defenders, attackers (UnitsPlugin)
 /// - Shared movement and cleanup systems
@@ -47,7 +49,7 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GlobalAttackCycle>()
-            .add_plugins((BattlefieldPlugin, UnitsPlugin))
+            .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin))
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             .add_systems(
                 Update,

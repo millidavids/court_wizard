@@ -16,7 +16,7 @@ pub const BATTLEFIELD_HALF_SIZE: f32 = BATTLEFIELD_SIZE / 2.0;
 // ===== Castle Positioning =====
 
 /// Castle position in 3D space.
-pub const CASTLE_POSITION: Vec3 = Vec3::new(-1300.0, 1200.0, 1300.0);
+pub const CASTLE_POSITION: Vec3 = Vec3::new(-1550.0, 1200.0, 1550.0);
 
 /// Castle rotation in degrees.
 pub const CASTLE_ROTATION_DEGREES: f32 = 45.0;
@@ -24,6 +24,9 @@ pub const CASTLE_ROTATION_DEGREES: f32 = 45.0;
 /// Castle dimensions (width, depth).
 pub const CASTLE_WIDTH: f32 = 300.0;
 pub const CASTLE_DEPTH: f32 = 2000.0;
+
+/// Wizard offset from castle position.
+const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 
 // ===== Spawn Areas =====
 
@@ -48,7 +51,12 @@ pub const ATTACKER_SPAWN_Z_MIN: f32 = -BATTLEFIELD_HALF_SIZE;
 pub const UNIT_Y_POSITION: f32 = 50.0;
 
 /// Wizard position in 3D space (on castle platform).
-pub const WIZARD_POSITION: Vec3 = Vec3::new(-1150.0, 1230.0, 1400.0);
+/// Calculated as castle position plus offset.
+pub const WIZARD_POSITION: Vec3 = Vec3::new(
+    CASTLE_POSITION.x + WIZARD_OFFSET.x,
+    CASTLE_POSITION.y + WIZARD_OFFSET.y,
+    CASTLE_POSITION.z + WIZARD_OFFSET.z,
+);
 
 // ===== Gameplay Constants =====
 
