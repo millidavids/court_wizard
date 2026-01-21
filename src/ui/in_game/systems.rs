@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::components::{Mana, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, Wizard};
 use crate::state::InGameState;
 
 /// Handles keyboard input during active gameplay.
@@ -25,6 +25,7 @@ pub fn keyboard_input(
 ///
 /// Creates a HUD with margins around screen edges containing:
 /// - Mana bar in bottom right corner
+/// - Cast bar below mana bar
 pub fn spawn_hud(mut commands: Commands) {
     // Root HUD container (fullscreen with margins)
     commands
@@ -36,6 +37,7 @@ pub fn spawn_hud(mut commands: Commands) {
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::FlexEnd, // Align to bottom
                 align_items: AlignItems::FlexEnd,         // Align to right
+                row_gap: HUD_ELEMENT_GAP,
                 ..default()
             },
             HudRoot,
@@ -66,6 +68,31 @@ pub fn spawn_hud(mut commands: Commands) {
                         ManaBarFill,
                     ));
                 });
+
+            // Cast bar container (background)
+            parent
+                .spawn((
+                    Node {
+                        width: CAST_BAR_WIDTH,
+                        height: CAST_BAR_HEIGHT,
+                        border: UiRect::all(Val::Px(2.0)),
+                        justify_content: JustifyContent::FlexEnd, // Fill from right
+                        ..default()
+                    },
+                    BackgroundColor(CAST_BAR_BG_COLOR),
+                ))
+                .with_children(|parent| {
+                    // Cast bar fill (starts at 0%)
+                    parent.spawn((
+                        Node {
+                            width: Val::Percent(0.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(CAST_BAR_FILL_COLOR),
+                        CastBarFill,
+                    ));
+                });
         });
 }
 
@@ -79,5 +106,23 @@ pub fn update_mana_bar(
     {
         let mana_percent = mana.percentage() * 100.0;
         node.width = Val::Percent(mana_percent);
+    }
+}
+
+/// Updates the cast bar width based on current wizard casting progress.
+///
+/// Cast time is currently hardcoded to match magic missile (1 second).
+pub fn update_cast_bar(
+    wizard_query: Query<&CastingState, With<Wizard>>,
+    mut cast_bar_query: Query<&mut Node, With<CastBarFill>>,
+) {
+    if let Ok(casting_state) = wizard_query.single()
+        && let Ok(mut node) = cast_bar_query.single_mut()
+    {
+        // Magic missile cast time
+        const CAST_TIME: f32 = 1.0;
+
+        let progress_percent = casting_state.progress(CAST_TIME) * 100.0;
+        node.width = Val::Percent(progress_percent);
     }
 }

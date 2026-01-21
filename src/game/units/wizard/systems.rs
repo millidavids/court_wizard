@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
 use super::components::*;
+use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::*;
+use crate::game::constants::WIZARD_POSITION;
 use crate::game::units::components::{Health, Hitbox, MovementSpeed};
 
 /// Sets up the wizard when entering the InGame state.
@@ -15,7 +16,7 @@ pub fn setup_wizard(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Define wizard hitbox (cylinder) - this determines sprite size
-    let hitbox = Hitbox::new(30.0, 60.0); // radius: 30, height: 60
+    let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
 
     // Spawn wizard as a triangle billboard sized to match the hitbox
     let wizard_width = hitbox.sprite_width();
@@ -35,10 +36,11 @@ pub fn setup_wizard(
         })),
         Transform::from_translation(WIZARD_POSITION),
         hitbox,
-        Health::new(100.0),
+        Health::new(constants::HEALTH),
         MovementSpeed::new(0.0), // Wizard doesn't move
-        Mana::new(100.0),
-        ManaRegen::new(10.0), // 10 mana per second
+        Mana::new(constants::MANA),
+        ManaRegen::new(constants::MANA_REGEN),
+        CastingState::new(),
         Wizard,
         OnGameplayScreen,
     ));

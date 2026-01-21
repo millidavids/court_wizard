@@ -7,7 +7,7 @@ use super::systems;
 /// Plugin that handles magic missile spell casting and behavior.
 ///
 /// Registers systems for:
-/// - Casting magic missiles on spacebar press
+/// - Casting magic missiles with mouse button and cast time
 /// - Magic missile homing movement with wobble
 /// - Collision detection and damage
 /// - Cleanup for distant missiles
@@ -18,7 +18,7 @@ impl Plugin for MagicMissilePlugin {
         app.add_systems(
             Update,
             (
-                systems::cast_magic_missile,
+                systems::handle_magic_missile_casting,
                 systems::move_magic_missiles,
                 systems::check_magic_missile_collisions,
                 systems::despawn_distant_magic_missiles,

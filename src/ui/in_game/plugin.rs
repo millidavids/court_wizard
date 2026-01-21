@@ -19,7 +19,11 @@ impl Plugin for InGamePlugin {
         app.add_systems(OnEnter(AppState::InGame), systems::spawn_hud)
             .add_systems(
                 Update,
-                (systems::keyboard_input, systems::update_mana_bar)
+                (
+                    systems::keyboard_input,
+                    systems::update_mana_bar,
+                    systems::update_cast_bar,
+                )
                     .run_if(in_state(InGameState::Running)),
             );
     }

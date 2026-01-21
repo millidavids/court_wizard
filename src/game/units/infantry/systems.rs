@@ -5,6 +5,7 @@ use super::styles::*;
 use crate::game::components::{Acceleration, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::units::components::{AttackTiming, Health, Hitbox, MovementSpeed, Team};
+use crate::game::units::constants as unit_constants;
 
 /// Spawns initial defenders when entering the game.
 ///
@@ -167,10 +168,16 @@ pub fn update_defender_targets(
                 if distance < melee_range {
                     // Add random movement in melee to simulate combat chaos
                     // Use multiple frequency components for more natural randomness
-                    let seed =
-                        def_transform.translation.x * 0.1 + def_transform.translation.z * 0.13;
+                    let seed = def_transform.translation.x
+                        * unit_constants::MELEE_RANDOM_SEED_X_MULTIPLIER
+                        + def_transform.translation.z
+                            * unit_constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
                     let t = time.elapsed_secs();
-                    let random_angle = (t * 3.7 + seed).sin() * 2.0 + (t * 2.3 + seed * 1.7).cos();
+                    let random_angle = (t * unit_constants::MELEE_RANDOM_FREQ_PRIMARY + seed).sin()
+                        * unit_constants::MELEE_RANDOM_AMPLITUDE_PRIMARY
+                        + (t * unit_constants::MELEE_RANDOM_FREQ_SECONDARY
+                            + seed * unit_constants::MELEE_RANDOM_SEED_FREQ_MULTIPLIER)
+                            .cos();
                     let random_x = random_angle.sin() * MELEE_RANDOM_FORCE * time.delta_secs();
                     let random_z = random_angle.cos() * MELEE_RANDOM_FORCE * time.delta_secs();
                     def_acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
@@ -229,9 +236,15 @@ pub fn update_attacker_targets(
             if distance < melee_range {
                 // Add random movement in melee to simulate combat chaos
                 // Use multiple frequency components for more natural randomness
-                let seed = att_transform.translation.x * 0.1 + att_transform.translation.z * 0.13;
+                let seed = att_transform.translation.x
+                    * unit_constants::MELEE_RANDOM_SEED_X_MULTIPLIER
+                    + att_transform.translation.z * unit_constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
                 let t = time.elapsed_secs();
-                let random_angle = (t * 3.7 + seed).sin() * 2.0 + (t * 2.3 + seed * 1.7).cos();
+                let random_angle = (t * unit_constants::MELEE_RANDOM_FREQ_PRIMARY + seed).sin()
+                    * unit_constants::MELEE_RANDOM_AMPLITUDE_PRIMARY
+                    + (t * unit_constants::MELEE_RANDOM_FREQ_SECONDARY
+                        + seed * unit_constants::MELEE_RANDOM_SEED_FREQ_MULTIPLIER)
+                        .cos();
                 let random_x = random_angle.sin() * MELEE_RANDOM_FORCE * time.delta_secs();
                 let random_z = random_angle.cos() * MELEE_RANDOM_FORCE * time.delta_secs();
                 att_acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
