@@ -25,6 +25,26 @@ pub struct MouseLeftHeld {
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseLeftReleased;
 
+/// Event fired when the right mouse button is pressed.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct MouseRightPressed {
+    /// Cursor position in window coordinates (if available).
+    #[allow(dead_code)]
+    pub cursor_position: Option<Vec2>,
+}
+
+/// Event fired when the right mouse button is held down.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct MouseRightHeld {
+    /// Cursor position in window coordinates (if available).
+    #[allow(dead_code)]
+    pub cursor_position: Option<Vec2>,
+}
+
+/// Event fired when the right mouse button is released.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct MouseRightReleased;
+
 /// Event fired when the spacebar is pressed.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct SpacebarPressed;

@@ -10,12 +10,16 @@ use super::events::*;
 /// Detects mouse button input and sends events.
 ///
 /// Runs once per frame to query mouse state and fire appropriate events.
+#[allow(clippy::too_many_arguments)]
 pub fn detect_mouse_input(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     mut left_pressed: MessageWriter<MouseLeftPressed>,
     mut left_held: MessageWriter<MouseLeftHeld>,
     mut left_released: MessageWriter<MouseLeftReleased>,
+    mut right_pressed: MessageWriter<MouseRightPressed>,
+    mut right_held: MessageWriter<MouseRightHeld>,
+    mut right_released: MessageWriter<MouseRightReleased>,
 ) {
     // Get cursor position from primary window
     let cursor_position = windows
@@ -34,6 +38,19 @@ pub fn detect_mouse_input(
 
     if mouse.just_released(MouseButton::Left) {
         left_released.write(MouseLeftReleased);
+    }
+
+    // Check right mouse button state
+    if mouse.just_pressed(MouseButton::Right) {
+        right_pressed.write(MouseRightPressed { cursor_position });
+    }
+
+    if mouse.pressed(MouseButton::Right) {
+        right_held.write(MouseRightHeld { cursor_position });
+    }
+
+    if mouse.just_released(MouseButton::Right) {
+        right_released.write(MouseRightReleased);
     }
 }
 
