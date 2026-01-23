@@ -254,15 +254,24 @@ pub fn check_magic_missile_collisions(
     }
 }
 
-/// Despawns magic missiles that are too far from the battlefield.
+/// Despawns magic missiles that exit the wizard's spell range.
 pub fn despawn_distant_magic_missiles(
     mut commands: Commands,
     missiles: Query<(Entity, &Transform), With<MagicMissile>>,
+    wizard_query: Query<(&Transform, &Wizard), Without<MagicMissile>>,
 ) {
-    for (entity, transform) in &missiles {
-        let distance_from_origin = transform.translation.length();
+    // Get wizard position and spell range
+    let Ok((wizard_transform, wizard)) = wizard_query.single() else {
+        return;
+    };
 
-        if distance_from_origin > constants::MAX_DISTANCE {
+    let wizard_pos = wizard_transform.translation;
+    let spell_range = wizard.spell_range;
+
+    for (entity, transform) in &missiles {
+        let distance_from_wizard = transform.translation.distance(wizard_pos);
+
+        if distance_from_wizard > spell_range {
             commands.entity(entity).despawn();
         }
     }

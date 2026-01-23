@@ -26,7 +26,7 @@ pub fn handle_disintegrate_casting(
     mut right_held: MessageReader<MouseRightHeld>,
     mut right_released: MessageReader<MouseRightReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana), With<Wizard>>,
+    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &Wizard)>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut existing_beam: Query<&mut DisintegrateBeam>,
@@ -34,7 +34,7 @@ pub fn handle_disintegrate_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let Ok((wizard_entity, mut casting_state, mut mana)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, mut casting_state, mut mana, wizard)) = wizard_query.single_mut() else {
         return;
     };
 
@@ -75,13 +75,27 @@ pub fn handle_disintegrate_casting(
                 if let Some(target_pos) = get_cursor_world_position(&camera_query, &window_query) {
                     let beam_origin =
                         WIZARD_POSITION + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
-                    let direction = (target_pos - beam_origin).normalize();
+
+                    // Clamp target position to spell range
+                    let to_target = target_pos - beam_origin;
+                    let distance = to_target.length();
+                    let clamped_target = if distance > wizard.spell_range {
+                        beam_origin + to_target.normalize() * wizard.spell_range
+                    } else {
+                        target_pos
+                    };
+
+                    let direction = (clamped_target - beam_origin).normalize();
+                    let beam_length = (clamped_target - beam_origin)
+                        .length()
+                        .min(constants::BEAM_LENGTH);
 
                     // Update existing beam or spawn new one
                     if let Some(mut beam) = existing_beam.iter_mut().next() {
                         // Update existing beam (preserves damage timer)
                         beam.origin = beam_origin;
                         beam.direction = direction;
+                        beam.length = beam_length;
                     } else {
                         // No beam exists, spawn new one with mesh
                         spawn_beam(
@@ -90,6 +104,7 @@ pub fn handle_disintegrate_casting(
                             &mut materials,
                             beam_origin,
                             direction,
+                            beam_length,
                         );
                     }
                 }
@@ -121,7 +136,20 @@ pub fn handle_disintegrate_casting(
                 if let Some(target_pos) = get_cursor_world_position(&camera_query, &window_query) {
                     let beam_origin =
                         WIZARD_POSITION + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
-                    let direction = (target_pos - beam_origin).normalize();
+
+                    // Clamp target position to spell range
+                    let to_target = target_pos - beam_origin;
+                    let distance = to_target.length();
+                    let clamped_target = if distance > wizard.spell_range {
+                        beam_origin + to_target.normalize() * wizard.spell_range
+                    } else {
+                        target_pos
+                    };
+
+                    let direction = (clamped_target - beam_origin).normalize();
+                    let beam_length = (clamped_target - beam_origin)
+                        .length()
+                        .min(constants::BEAM_LENGTH);
 
                     spawn_beam(
                         &mut commands,
@@ -129,6 +157,7 @@ pub fn handle_disintegrate_casting(
                         &mut materials,
                         beam_origin,
                         direction,
+                        beam_length,
                     );
                 }
             }
@@ -219,16 +248,17 @@ fn spawn_beam(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     origin: Vec3,
     direction: Vec3,
+    length: f32,
 ) {
     // Calculate midpoint for the beam billboard
-    let midpoint = origin + direction * (constants::BEAM_LENGTH / 2.0);
+    let midpoint = origin + direction * (length / 2.0);
 
     // Create a rectangle mesh for the beam
     // We'll use a standard size and scale it later
     let rectangle = Rectangle::new(constants::BEAM_WIDTH, constants::BEAM_WIDTH);
 
     commands.spawn((
-        DisintegrateBeam::new(origin, direction, constants::BEAM_LENGTH),
+        DisintegrateBeam::new(origin, direction, length),
         Mesh3d(meshes.add(rectangle)),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: constants::BEAM_COLOR,

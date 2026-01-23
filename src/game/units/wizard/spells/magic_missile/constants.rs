@@ -53,9 +53,6 @@ pub const DAMAGE: f32 = 50.0;
 /// Collision radius for magic missiles.
 pub const COLLISION_RADIUS: f32 = 10.0;
 
-/// Maximum distance before magic missiles despawn.
-pub const MAX_DISTANCE: f32 = 10000.0;
-
 /// Wobble frequency for magic missiles.
 pub const WOBBLE_FREQUENCY: f32 = 3.0;
 
