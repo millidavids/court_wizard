@@ -1,8 +1,18 @@
 use bevy::prelude::*;
 
-/// Marker component for the wizard entity.
+/// Wizard component with spell casting range.
 #[derive(Component)]
-pub struct Wizard;
+pub struct Wizard {
+    /// Maximum distance from wizard position that spells can be cast (in units).
+    pub spell_range: f32,
+}
+
+impl Wizard {
+    /// Creates a new Wizard with the given spell range.
+    pub const fn new(spell_range: f32) -> Self {
+        Self { spell_range }
+    }
+}
 
 /// Mana component for the wizard.
 ///

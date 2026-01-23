@@ -2,7 +2,7 @@
 //!
 //! Handles the battlefield ground plane, castle platform, and lighting.
 
-pub mod components;
+mod components;
 mod plugin;
 mod styles;
 mod systems;

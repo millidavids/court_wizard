@@ -41,7 +41,7 @@ pub fn setup_wizard(
         Mana::new(constants::MANA),
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),
-        Wizard,
+        Wizard::new(constants::DEFAULT_SPELL_RANGE),
         OnGameplayScreen,
     ));
 }
