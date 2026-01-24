@@ -7,6 +7,7 @@ mod in_game;
 mod main_menu;
 mod pause_menu;
 mod plugin;
+mod spell_book;
 mod styles;
 
 pub use plugin::UiPlugin;

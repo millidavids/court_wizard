@@ -59,6 +59,8 @@ pub enum MenuState {
 ///
 /// - `Running` → `Paused`: Player presses Escape
 /// - `Paused` → `Running`: Player selects Continue from pause menu
+/// - `Running` → `SpellBook`: Player clicks Spells button
+/// - `SpellBook` → `Running`: Player selects a spell or closes spell book
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::InGame)]
 pub enum InGameState {
@@ -68,6 +70,9 @@ pub enum InGameState {
 
     /// Game is paused.
     Paused,
+
+    /// Spell selection screen.
+    SpellBook,
 }
 
 /// Pause menu navigation state.

@@ -11,3 +11,16 @@ pub struct ManaBarFill;
 /// Marker component for the cast bar fill element.
 #[derive(Component)]
 pub struct CastBarFill;
+
+/// Actions that can be triggered by HUD buttons.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HudButtonAction {
+    OpenSpellBook,
+}
+
+/// Component storing original button colors for hover/pressed effects.
+#[derive(Component)]
+pub struct ButtonColors {
+    pub background: Color,
+    pub border: Color,
+}

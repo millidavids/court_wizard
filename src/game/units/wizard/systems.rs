@@ -42,6 +42,7 @@ pub fn setup_wizard(
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),
         Wizard::new(constants::DEFAULT_SPELL_RANGE),
+        PrimedSpell::new(SpellType::MagicMissile),
         OnGameplayScreen,
     ));
 }
