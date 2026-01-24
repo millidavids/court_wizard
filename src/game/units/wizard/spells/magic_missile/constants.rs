@@ -6,16 +6,16 @@
 pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
 
 /// Minimum horizontal velocity for magic missile spawn.
-pub const HORIZONTAL_VEL_MIN: f32 = -200.0;
+pub const HORIZONTAL_VEL_MIN: f32 = -2000.0;
 
 /// Maximum horizontal velocity for magic missile spawn.
-pub const HORIZONTAL_VEL_MAX: f32 = 200.0;
+pub const HORIZONTAL_VEL_MAX: f32 = 2000.0;
 
 /// Minimum vertical velocity for magic missile spawn.
-pub const VERTICAL_VEL_MIN: f32 = 300.0;
+pub const VERTICAL_VEL_MIN: f32 = -2000.0;
 
 /// Maximum vertical velocity for magic missile spawn.
-pub const VERTICAL_VEL_MAX: f32 = 500.0;
+pub const VERTICAL_VEL_MAX: f32 = 2000.0;
 
 /// Minimum camera arc speed for magic missiles.
 pub const CAMERA_ARC_SPEED_MIN: f32 = 3200.0;
@@ -48,7 +48,7 @@ pub const MIN_PROXIMITY_SPEED: f32 = 300.0;
 pub const SLOWDOWN_DISTANCE: f32 = 300.0;
 
 /// Damage dealt by each magic missile.
-pub const DAMAGE: f32 = 50.0;
+pub const DAMAGE: f32 = 5.0;
 
 /// Collision radius for magic missiles.
 pub const COLLISION_RADIUS: f32 = 10.0;
@@ -69,7 +69,7 @@ pub const WOBBLE_Z_FREQ_MULTIPLIER: f32 = 0.7;
 pub const WOBBLE_Y_AMPLITUDE_MULTIPLIER: f32 = 0.5;
 
 /// Mana cost for casting a magic missile.
-pub const MANA_COST: f32 = 10.0;
+pub const MANA_COST: f32 = 1.0;
 
 /// Cast time for magic missile in seconds.
 pub const CAST_TIME: f32 = 1.0;

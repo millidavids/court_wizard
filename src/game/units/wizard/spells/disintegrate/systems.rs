@@ -3,9 +3,9 @@ use bevy::window::PrimaryWindow;
 
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::input::events::{MouseRightHeld, MouseRightReleased};
+use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::Health;
-use crate::game::units::wizard::components::{CastingState, Mana, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, SpellType, Wizard};
 
 use super::components::DisintegrateBeam;
 use super::constants;
@@ -18,15 +18,16 @@ pub struct DisintegrateCaster;
 
 /// System that handles disintegrate beam casting.
 ///
-/// Right-click starts cast. Must hold for full cast time.
+/// Left-click starts cast. Must hold for full cast time.
 /// After cast completes, enters channeling state where beam is continuously active.
+/// Only casts when Disintegrate is the primed spell.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_disintegrate_casting(
     time: Res<Time>,
-    mut right_held: MessageReader<MouseRightHeld>,
-    mut right_released: MessageReader<MouseRightReleased>,
+    mut left_held: MessageReader<MouseLeftHeld>,
+    mut left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &Wizard)>,
+    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard)>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut existing_beam: Query<&mut DisintegrateBeam>,
@@ -34,12 +35,19 @@ pub fn handle_disintegrate_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let Ok((wizard_entity, mut casting_state, mut mana, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell, wizard)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
 
+    // Only respond to left-click if Disintegrate is primed
+    if primed_spell.spell != SpellType::Disintegrate {
+        return;
+    }
+
     // Check for release event
-    if right_released.read().next().is_some() {
+    if left_released.read().next().is_some() {
         // Cancel cast/channel on release
         casting_state.cancel();
 
@@ -57,11 +65,11 @@ pub fn handle_disintegrate_casting(
     }
 
     // Check for hold event
-    if right_held.read().next().is_none() {
+    if left_held.read().next().is_none() {
         return;
     }
 
-    // Right mouse is held - handle casting or channeling based on state
+    // Left mouse is held - handle casting or channeling based on state
     match *casting_state {
         CastingState::Channeling { .. } => {
             // Already channeling - advance channel time

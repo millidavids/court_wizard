@@ -4,7 +4,7 @@ use super::constants;
 
 /// Component for magic missile projectiles.
 ///
-/// Magic missiles always seek the closest attacker with an arcing trajectory.
+/// Magic missiles lock onto a target when launched and track it until it despawns.
 #[derive(Component)]
 pub struct MagicMissile {
     /// Current velocity of the missile.
@@ -19,6 +19,8 @@ pub struct MagicMissile {
     pub time_alive: f32,
     /// Random offset for this specific missile's wobble pattern.
     pub wobble_offset: f32,
+    /// Locked target entity (retargets only if this despawns).
+    pub target: Option<Entity>,
 }
 
 impl MagicMissile {
@@ -28,7 +30,8 @@ impl MagicMissile {
     ///
     /// * `initial_velocity` - Starting velocity vector
     /// * `wobble_offset` - Random offset for wobble pattern
-    pub fn new(initial_velocity: Vec3, wobble_offset: f32) -> Self {
+    /// * `target` - Initial target entity to lock onto
+    pub fn new(initial_velocity: Vec3, wobble_offset: f32, target: Option<Entity>) -> Self {
         Self {
             velocity: initial_velocity,
             base_homing_strength: constants::BASE_HOMING_STRENGTH,
@@ -36,6 +39,7 @@ impl MagicMissile {
             radius: constants::COLLISION_RADIUS,
             time_alive: 0.0,
             wobble_offset,
+            target,
         }
     }
 

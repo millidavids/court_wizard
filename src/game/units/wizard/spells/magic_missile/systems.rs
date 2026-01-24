@@ -6,39 +6,46 @@ use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::input::events::{SpacebarHeld, SpacebarReleased};
+use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{Health, Team};
 use crate::game::units::infantry::components::Infantry;
-use crate::game::units::wizard::components::{CastingState, Mana, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, SpellType, Wizard};
 
-/// Handles magic missile casting with spacebar.
+/// Handles magic missile casting with left-click.
 ///
-/// Spacebar starts cast. Must hold for full cast time.
+/// Left-click starts cast. Must hold for full cast time.
 /// After cast completes, enters channeling state where missiles spawn continuously.
+/// Only casts when Magic Missile is the primed spell.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_magic_missile_casting(
     time: Res<Time>,
-    mut spacebar_held: MessageReader<SpacebarHeld>,
-    mut spacebar_released: MessageReader<SpacebarReleased>,
+    mut mouse_left_held: MessageReader<MouseLeftHeld>,
+    mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana), With<Wizard>>,
+    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell, &Wizard), With<Wizard>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
+    targets: Query<(Entity, &Transform, &Team), Without<MagicMissile>>,
 ) {
-    let Ok((mut casting_state, mut mana)) = wizard_query.single_mut() else {
+    let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
         return;
     };
 
+    // Only respond to left-click if Magic Missile is primed
+    if primed_spell.spell != SpellType::MagicMissile {
+        return;
+    }
+
     // Check for release event
-    if spacebar_released.read().next().is_some() {
+    if mouse_left_released.read().next().is_some() {
         // Cancel cast/channel on release
         casting_state.cancel();
         return;
     }
 
     // Check for hold event
-    if spacebar_held.read().next().is_none() {
+    if mouse_left_held.read().next().is_none() {
         return;
     }
 
@@ -56,7 +63,14 @@ pub fn handle_magic_missile_casting(
             ) {
                 // Try to spawn missile if we have mana
                 if mana.consume(constants::MANA_COST) {
-                    spawn_magic_missile(&mut commands, &mut meshes, &mut materials, &camera_query);
+                    spawn_magic_missile(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        &camera_query,
+                        &targets,
+                        wizard.spell_range,
+                    );
                     casting_state.reset_channel_interval();
                 } else {
                     // Out of mana - cancel channeling
@@ -72,7 +86,14 @@ pub fn handle_magic_missile_casting(
             if casting_state.is_complete(constants::CAST_TIME) {
                 // Cast complete - transition to channeling and spawn first missile
                 if mana.consume(constants::MANA_COST) {
-                    spawn_magic_missile(&mut commands, &mut meshes, &mut materials, &camera_query);
+                    spawn_magic_missile(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        &camera_query,
+                        &targets,
+                        wizard.spell_range,
+                    );
                     casting_state.start_channeling();
                 } else {
                     // Out of mana - cancel cast
@@ -90,17 +111,49 @@ pub fn handle_magic_missile_casting(
 /// Spawns a single magic missile projectile.
 ///
 /// Helper function for spawning missiles with random trajectories that arc towards camera.
+/// Selects a random target within spell range, or falls back to closest target.
 fn spawn_magic_missile(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     camera_query: &Query<&GlobalTransform, With<Camera>>,
+    targets: &Query<(Entity, &Transform, &Team), Without<MagicMissile>>,
+    spell_range: f32,
 ) {
     // Spawn position: above the wizard
     let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
-    // Random initial velocity: varied launch paths (up and to the sides, never down)
+    // Select target: random attacker within range, or closest attacker
     let mut rng = rand::thread_rng();
+
+    let attackers_in_range: Vec<Entity> = targets
+        .iter()
+        .filter(|(_, _, team)| **team == Team::Attackers)
+        .filter(|(_, transform, _)| {
+            let distance = spawn_pos.distance(transform.translation);
+            distance <= spell_range
+        })
+        .map(|(entity, _, _)| entity)
+        .collect();
+
+    let target = if !attackers_in_range.is_empty() {
+        // Pick a random target within range
+        let index = rng.gen_range(0..attackers_in_range.len());
+        Some(attackers_in_range[index])
+    } else {
+        // No targets in range, find the closest attacker anywhere
+        targets
+            .iter()
+            .filter(|(_, _, team)| **team == Team::Attackers)
+            .min_by(|a, b| {
+                let dist_a = spawn_pos.distance(a.1.translation);
+                let dist_b = spawn_pos.distance(b.1.translation);
+                dist_a.partial_cmp(&dist_b).unwrap()
+            })
+            .map(|(entity, _, _)| entity)
+    };
+
+    // Random initial velocity: varied launch paths (up and to the sides, never down)
     let horizontal_x = rng.gen_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
     let horizontal_z = rng.gen_range(constants::HORIZONTAL_VEL_MIN..constants::HORIZONTAL_VEL_MAX);
     let vertical = rng.gen_range(constants::VERTICAL_VEL_MIN..constants::VERTICAL_VEL_MAX);
@@ -130,33 +183,76 @@ fn spawn_magic_missile(
             ..default()
         })),
         Transform::from_translation(spawn_pos),
-        MagicMissile::new(initial_velocity, wobble_offset),
+        MagicMissile::new(initial_velocity, wobble_offset, target),
         OnGameplayScreen,
     ));
 }
 
 /// Updates magic missile movement with homing and wobble.
 ///
-/// Missiles always seek the closest attacker each frame.
+/// Missiles lock onto their initial target and only retarget if it despawns.
 pub fn move_magic_missiles(
     time: Res<Time>,
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
-    targets: Query<(&Transform, &Team), (With<Infantry>, Without<MagicMissile>)>,
+    targets: Query<(Entity, &Transform, &Team), Without<MagicMissile>>,
+    wizard_query: Query<&Wizard>,
 ) {
+    let Ok(wizard) = wizard_query.single() else {
+        return;
+    };
+    let spell_range = wizard.spell_range;
+
     for (mut missile_transform, mut missile) in &mut missiles {
         missile.time_alive += time.delta_secs();
 
-        // Find nearest attacker each frame
-        let nearest_target = targets
-            .iter()
-            .filter(|(_, team)| **team == Team::Attackers)
-            .min_by(|a, b| {
-                let dist_a = missile_transform.translation.distance(a.0.translation);
-                let dist_b = missile_transform.translation.distance(b.0.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            });
+        // Check if current target still exists
+        let target_exists = missile
+            .target
+            .and_then(|target_entity| targets.get(target_entity).ok())
+            .is_some();
 
-        if let Some((target_transform, _)) = nearest_target {
+        // Retarget if current target despawned
+        if !target_exists {
+            // Select new target: random attacker within range, or closest attacker
+            let mut rng = rand::thread_rng();
+
+            let attackers_in_range: Vec<Entity> = targets
+                .iter()
+                .filter(|(_, _, team)| **team == Team::Attackers)
+                .filter(|(_, transform, _)| {
+                    let distance = missile_transform
+                        .translation
+                        .distance(transform.translation);
+                    distance <= spell_range
+                })
+                .map(|(entity, _, _)| entity)
+                .collect();
+
+            missile.target = if !attackers_in_range.is_empty() {
+                // Pick a random target within range
+                let index = rng.gen_range(0..attackers_in_range.len());
+                Some(attackers_in_range[index])
+            } else {
+                // No targets in range, find the closest attacker anywhere
+                targets
+                    .iter()
+                    .filter(|(_, _, team)| **team == Team::Attackers)
+                    .min_by(|a, b| {
+                        let dist_a = missile_transform.translation.distance(a.1.translation);
+                        let dist_b = missile_transform.translation.distance(b.1.translation);
+                        dist_a.partial_cmp(&dist_b).unwrap()
+                    })
+                    .map(|(entity, _, _)| entity)
+            };
+        }
+
+        // Get current target's transform
+        let target_transform = missile
+            .target
+            .and_then(|target_entity| targets.get(target_entity).ok())
+            .map(|(_, transform, _)| transform);
+
+        if let Some(target_transform) = target_transform {
             let to_target = target_transform.translation - missile_transform.translation;
             let distance_to_target = to_target.length();
             let current_homing_strength = missile.current_homing_strength();
