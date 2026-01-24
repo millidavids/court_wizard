@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::ui::components::ButtonStyle;
+
 /// Text color for the title and buttons.
 pub const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 
@@ -28,3 +30,14 @@ pub const BUTTON_BORDER: Color = Color::srgb(0.4, 0.4, 0.4);
 
 /// Spacing between UI elements.
 pub const MARGIN: f32 = 20.0;
+
+/// Button style configuration for the pause menu.
+pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
+    font_size: BUTTON_FONT_SIZE,
+    background: BUTTON_BACKGROUND,
+    border: BUTTON_BORDER,
+    text_color: TEXT_COLOR,
+};

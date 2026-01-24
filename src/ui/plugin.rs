@@ -10,6 +10,7 @@ use super::in_game::plugin::InGamePlugin;
 use super::main_menu::MainMenuPlugin;
 use super::pause_menu::plugin::PauseMenuPlugin;
 use super::spell_book::SpellBookPlugin;
+use super::systems;
 
 /// Top-level UI plugin that manages all UI systems.
 ///
@@ -26,7 +27,7 @@ impl Plugin for UiPlugin {
             PauseMenuPlugin,
             SpellBookPlugin,
         ))
-        .add_systems(Update, update_ui_scale);
+        .add_systems(Update, (update_ui_scale, systems::button_interaction));
     }
 }
 

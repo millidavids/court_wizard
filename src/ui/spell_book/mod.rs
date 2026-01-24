@@ -4,7 +4,7 @@
 
 mod components;
 mod plugin;
-mod styles;
+mod constants;
 mod systems;
 
 pub use plugin::SpellBookPlugin;

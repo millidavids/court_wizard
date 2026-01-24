@@ -4,10 +4,11 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use super::components::*;
-use super::styles::*;
+use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::components::{CastingState, Mana, Wizard};
 use crate::state::InGameState;
+use crate::ui::systems::spawn_button;
 
 /// Handles keyboard input during active gameplay.
 ///
@@ -52,35 +53,12 @@ pub fn spawn_hud(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|row| {
-                    row.spawn((
-                        Button,
-                        Node {
-                            width: Val::Px(BUTTON_WIDTH),
-                            height: Val::Px(BUTTON_HEIGHT),
-                            border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BorderColor::all(BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(8.0)),
-                        BackgroundColor(BUTTON_BACKGROUND),
-                        ButtonColors {
-                            background: BUTTON_BACKGROUND,
-                            border: BUTTON_BORDER,
-                        },
+                    spawn_button(
+                        row,
+                        "Spells",
                         HudButtonAction::OpenSpellBook,
-                    ))
-                    .with_children(|button| {
-                        button.spawn((
-                            Text::new("Spells"),
-                            TextFont {
-                                font_size: BUTTON_FONT_SIZE,
-                                ..default()
-                            },
-                            TextColor(BUTTON_TEXT_COLOR),
-                        ));
-                    });
+                        &BUTTON_STYLE,
+                    );
                 });
 
             // Bottom-right bars container
@@ -141,38 +119,6 @@ pub fn spawn_hud(mut commands: Commands) {
                     });
                 });
         });
-}
-
-/// Handles HUD button visual states (hover/pressed).
-pub fn hud_button_interaction(
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &ButtonColors,
-            &mut BackgroundColor,
-            &mut BorderColor,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, colors, mut bg_color, mut border_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                use crate::ui::styles::item_pressed;
-                *bg_color = item_pressed(colors.background).into();
-                *border_color = BorderColor::all(item_pressed(colors.border));
-            }
-            Interaction::Hovered => {
-                use crate::ui::styles::item_hovered;
-                *bg_color = item_hovered(colors.background).into();
-                *border_color = BorderColor::all(item_hovered(colors.border));
-            }
-            Interaction::None => {
-                *bg_color = colors.background.into();
-                *border_color = BorderColor::all(colors.border);
-            }
-        }
-    }
 }
 
 /// Handles HUD button click actions.

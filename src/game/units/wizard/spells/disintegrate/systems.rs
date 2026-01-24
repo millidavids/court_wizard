@@ -30,8 +30,7 @@ pub fn handle_disintegrate_casting(
     mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard)>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut existing_beam: Query<&mut DisintegrateBeam>,
-    beam_entities: Query<Entity, With<DisintegrateBeam>>,
+    mut beams: Query<(Entity, &mut DisintegrateBeam)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -57,7 +56,7 @@ pub fn handle_disintegrate_casting(
             .remove::<DisintegrateCaster>();
 
         // Despawn any existing beam
-        for entity in beam_entities.iter() {
+        for (entity, _) in beams.iter() {
             commands.entity(entity).despawn();
         }
 
@@ -99,7 +98,7 @@ pub fn handle_disintegrate_casting(
                         .min(constants::BEAM_LENGTH);
 
                     // Update existing beam or spawn new one
-                    if let Some(mut beam) = existing_beam.iter_mut().next() {
+                    if let Some((_, mut beam)) = beams.iter_mut().next() {
                         // Update existing beam (preserves damage timer)
                         beam.origin = beam_origin;
                         beam.direction = direction;
@@ -126,7 +125,7 @@ pub fn handle_disintegrate_casting(
                     .remove::<DisintegrateCaster>();
 
                 // Despawn beam
-                for entity in beam_entities.iter() {
+                for (entity, _) in beams.iter() {
                     commands.entity(entity).despawn();
                 }
             }

@@ -15,7 +15,7 @@ use super::components::{
     SettingsButtonAction, SliderDownButton, SliderFill, SliderHandle, SliderText, SliderTrack,
     SliderUpButton, SliderValue,
 };
-use super::styles::{
+use super::constants::{
     BACK_BUTTON_HEIGHT, BACK_BUTTON_WIDTH, BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
     BUTTON_FONT_SIZE, LABEL_FONT_SIZE, MARGIN, MARGIN_SMALL, OPTION_BUTTON_HEIGHT,
     OPTION_BUTTON_WIDTH, SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR,

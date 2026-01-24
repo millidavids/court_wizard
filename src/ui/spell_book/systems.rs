@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use super::styles::*;
+use super::constants::*;
 use crate::game::units::wizard::components::{PrimedSpell, SpellType, Wizard};
 use crate::state::InGameState;
-use crate::ui::styles::{item_hovered, item_pressed};
+use crate::ui::systems::spawn_button;
 
 /// Spawns the spell book UI when entering the SpellBook state.
 pub fn spawn_spell_book_ui(mut commands: Commands) {
@@ -45,75 +45,22 @@ pub fn spawn_spell_book_ui(mut commands: Commands) {
                         buttons,
                         "Magic Missile",
                         SpellBookButtonAction::MagicMissile,
+                        &BUTTON_STYLE,
                     );
-                    spawn_button(buttons, "Disintegrate", SpellBookButtonAction::Disintegrate);
-                    spawn_button(buttons, "Close", SpellBookButtonAction::Close);
+                    spawn_button(
+                        buttons,
+                        "Disintegrate",
+                        SpellBookButtonAction::Disintegrate,
+                        &BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        buttons,
+                        "Close",
+                        SpellBookButtonAction::Close,
+                        &BUTTON_STYLE,
+                    );
                 });
         });
-}
-
-/// Spawns a single button with the given text and action.
-fn spawn_button(parent: &mut ChildSpawnerCommands, text: &str, action: SpellBookButtonAction) {
-    parent
-        .spawn((
-            Button,
-            Node {
-                width: Val::Px(BUTTON_WIDTH),
-                height: Val::Px(BUTTON_HEIGHT),
-                border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BorderColor::all(BUTTON_BORDER),
-            BorderRadius::all(Val::Px(8.0)),
-            BackgroundColor(BUTTON_BACKGROUND),
-            ButtonColors {
-                background: BUTTON_BACKGROUND,
-                border: BUTTON_BORDER,
-            },
-            action,
-        ))
-        .with_children(|button| {
-            button.spawn((
-                Text::new(text),
-                TextFont {
-                    font_size: BUTTON_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(TEXT_COLOR),
-            ));
-        });
-}
-
-/// Handles button visual states (hover/pressed).
-pub fn button_interaction(
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &ButtonColors,
-            &mut BackgroundColor,
-            &mut BorderColor,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, colors, mut bg_color, mut border_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = item_pressed(colors.background).into();
-                *border_color = BorderColor::all(item_pressed(colors.border));
-            }
-            Interaction::Hovered => {
-                *bg_color = item_hovered(colors.background).into();
-                *border_color = BorderColor::all(item_hovered(colors.border));
-            }
-            Interaction::None => {
-                *bg_color = colors.background.into();
-                *border_color = BorderColor::all(colors.border);
-            }
-        }
-    }
 }
 
 /// Handles button click actions.

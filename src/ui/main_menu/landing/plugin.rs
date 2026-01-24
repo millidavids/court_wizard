@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::state::MenuState;
 
-use super::systems::{button_action, button_interaction, cleanup, keyboard_input, setup};
+use super::systems::{button_action, cleanup, keyboard_input, setup};
 
 /// Plugin that manages the landing screen UI.
 ///
@@ -21,7 +21,7 @@ impl Plugin for LandingPlugin {
             .add_systems(OnExit(MenuState::Landing), cleanup)
             .add_systems(
                 Update,
-                (button_interaction, button_action, keyboard_input)
+                (button_action, keyboard_input)
                     .run_if(in_state(MenuState::Landing)),
             );
     }

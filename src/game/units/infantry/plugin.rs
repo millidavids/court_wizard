@@ -23,8 +23,7 @@ impl Plugin for InfantryPlugin {
             )
             .add_systems(
                 Update,
-                (systems::update_defender_targets, systems::update_attacker_targets)
-                    .run_if(in_state(InGameState::Running)),
+                systems::update_infantry_targets.run_if(in_state(InGameState::Running)),
             );
     }
 }

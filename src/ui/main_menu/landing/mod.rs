@@ -4,5 +4,5 @@
 
 mod components;
 pub(super) mod plugin;
-mod styles;
+mod constants;
 mod systems;

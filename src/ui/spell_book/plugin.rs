@@ -19,11 +19,7 @@ impl Plugin for SpellBookPlugin {
         )
         .add_systems(
             Update,
-            (
-                systems::button_interaction,
-                systems::button_action,
-                systems::keyboard_input,
-            )
+            (systems::button_action, systems::keyboard_input)
                 .run_if(in_state(InGameState::SpellBook)),
         );
     }
