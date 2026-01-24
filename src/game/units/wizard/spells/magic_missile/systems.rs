@@ -8,7 +8,6 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{Health, Team};
-use crate::game::units::infantry::components::Infantry;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, SpellType, Wizard};
 
 /// Handles magic missile casting with left-click.
@@ -327,7 +326,7 @@ pub fn move_magic_missiles(
 pub fn check_magic_missile_collisions(
     mut commands: Commands,
     missiles: Query<(Entity, &Transform, &MagicMissile)>,
-    mut attackers: Query<(&Transform, &mut Health, &Team), With<Infantry>>,
+    mut attackers: Query<(&Transform, &mut Health, &Team), Without<MagicMissile>>,
 ) {
     for (missile_entity, missile_transform, missile) in &missiles {
         for (attacker_transform, mut health, team) in &mut attackers {

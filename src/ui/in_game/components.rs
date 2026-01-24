@@ -17,10 +17,3 @@ pub struct CastBarFill;
 pub enum HudButtonAction {
     OpenSpellBook,
 }
-
-/// Component storing original button colors for hover/pressed effects.
-#[derive(Component)]
-pub struct ButtonColors {
-    pub background: Color,
-    pub border: Color,
-}

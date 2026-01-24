@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::ui::components::ButtonStyle;
+
 /// Screen margin for HUD elements (invisible padding from edges).
 pub const HUD_MARGIN: Val = Val::Px(20.0);
 
@@ -32,3 +34,14 @@ pub const BUTTON_BACKGROUND: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const BUTTON_BORDER: Color = Color::srgb(0.4, 0.4, 0.4);
 pub const BUTTON_TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 pub const BUTTON_FONT_SIZE: f32 = 24.0;
+
+/// Button style configuration for the in-game HUD.
+pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
+    font_size: BUTTON_FONT_SIZE,
+    background: BUTTON_BACKGROUND,
+    border: BUTTON_BORDER,
+    text_color: BUTTON_TEXT_COLOR,
+};

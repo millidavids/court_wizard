@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::ui::components::ButtonStyle;
+
 /// Background color for landing screen buttons.
 pub const BUTTON_BACKGROUND: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
 
@@ -28,3 +30,14 @@ pub const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 
 /// Margin between landing screen UI elements in pixels.
 pub const MARGIN: f32 = 20.0;
+
+/// Button style configuration for the landing screen.
+pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
+    font_size: BUTTON_FONT_SIZE,
+    background: BUTTON_BACKGROUND,
+    border: BUTTON_BORDER,
+    text_color: TEXT_COLOR,
+};

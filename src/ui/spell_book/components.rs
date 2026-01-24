@@ -11,10 +11,3 @@ pub enum SpellBookButtonAction {
 /// Marker component for entities that should be cleaned up when exiting spell book.
 #[derive(Component)]
 pub struct OnSpellBookScreen;
-
-/// Component storing original button colors for hover/pressed effects.
-#[derive(Component)]
-pub struct ButtonColors {
-    pub background: Color,
-    pub border: Color,
-}

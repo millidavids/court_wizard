@@ -93,152 +93,73 @@ pub fn spawn_initial_attackers(
     }
 }
 
-/// Updates defender targeting to apply steering force toward nearest attacker.
+/// Updates infantry targeting to apply steering force toward nearest enemy.
 ///
-/// Uses boids-style steering: applies a force toward the target instead of directly setting velocity.
-/// All defenders share activation - once ANY attacker is within range of ANY defender,
+/// Uses boids-style steering: applies a force toward the target instead of directly setting
+/// velocity. Defenders share activation - once any attacker is within range of any defender,
 /// all defenders activate and start moving.
 /// Adds random movement when in melee range to simulate combat chaos.
-pub fn update_defender_targets(
+pub fn update_infantry_targets(
     time: Res<Time>,
-    mut defenders: Query<
-        (
-            &Transform,
-            &mut Acceleration,
-            &MovementSpeed,
-            &Hitbox,
-            &Team,
-        ),
-        With<Infantry>,
-    >,
-    attackers: Query<(&Transform, &Hitbox, &Team), With<Infantry>>,
+    mut units: Query<(&Transform, &mut Acceleration, &Hitbox, &Team), With<Infantry>>,
     mut defenders_activated: ResMut<DefendersActivated>,
 ) {
-    // Collect defender and attacker data
-    let defender_positions: Vec<_> = defenders
+    // First pass: collect position/hitbox data for both teams
+    let attackers: Vec<(Vec3, f32)> = units
         .iter()
-        .filter(|(_, _, _, _, team)| **team == Team::Defenders)
-        .map(|(t, _, _, _, _)| t)
+        .filter(|(_, _, _, team)| **team == Team::Attackers)
+        .map(|(transform, _, hitbox, _)| (transform.translation, hitbox.radius))
         .collect();
 
-    let attacker_data: Vec<_> = attackers
+    let defenders: Vec<(Vec3, f32)> = units
         .iter()
-        .filter(|(_, _, team)| **team == Team::Attackers)
+        .filter(|(_, _, _, team)| **team == Team::Defenders)
+        .map(|(transform, _, hitbox, _)| (transform.translation, hitbox.radius))
         .collect();
 
-    // Check if any attacker is within activation distance of any defender
+    // Check defender activation
     if !defenders_activated.active {
-        for def_transform in &defender_positions {
-            for (attacker_transform, _, _) in &attacker_data {
-                let distance = def_transform
-                    .translation
-                    .distance(attacker_transform.translation);
-                if distance < DEFENDER_ACTIVATION_DISTANCE {
+        'activation: for &(def_pos, _) in &defenders {
+            for &(att_pos, _) in &attackers {
+                if def_pos.distance(att_pos) < DEFENDER_ACTIVATION_DISTANCE {
                     defenders_activated.active = true;
-                    break;
+                    break 'activation;
                 }
-            }
-            if defenders_activated.active {
-                break;
             }
         }
     }
 
-    // If defenders are activated, apply steering force toward nearest attacker
-    if defenders_activated.active {
-        for (def_transform, mut def_acceleration, _movement_speed, def_hitbox, def_team) in
-            &mut defenders
-        {
-            // Only process defenders
-            if *def_team != Team::Defenders {
-                continue;
-            }
-
-            if let Some((nearest_attacker, att_hitbox, _)) = attacker_data.iter().min_by(|a, b| {
-                let dist_a = def_transform.translation.distance(a.0.translation);
-                let dist_b = def_transform.translation.distance(b.0.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            }) {
-                let diff = nearest_attacker.translation - def_transform.translation;
-                let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
-
-                // Check if in melee range (within attack range)
-                let melee_range = (def_hitbox.radius + att_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
-
-                if distance < melee_range {
-                    // Add random movement in melee to simulate combat chaos
-                    // Use multiple frequency components for more natural randomness
-                    let seed = def_transform.translation.x
-                        * unit_constants::MELEE_RANDOM_SEED_X_MULTIPLIER
-                        + def_transform.translation.z
-                            * unit_constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
-                    let t = time.elapsed_secs();
-                    let random_angle = (t * unit_constants::MELEE_RANDOM_FREQ_PRIMARY + seed).sin()
-                        * unit_constants::MELEE_RANDOM_AMPLITUDE_PRIMARY
-                        + (t * unit_constants::MELEE_RANDOM_FREQ_SECONDARY
-                            + seed * unit_constants::MELEE_RANDOM_SEED_FREQ_MULTIPLIER)
-                            .cos();
-                    let random_x = random_angle.sin() * MELEE_RANDOM_FORCE * time.delta_secs();
-                    let random_z = random_angle.cos() * MELEE_RANDOM_FORCE * time.delta_secs();
-                    def_acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
+    // Second pass: apply steering and melee forces
+    for (transform, mut acceleration, hitbox, team) in &mut units {
+        let enemies = match *team {
+            Team::Defenders => {
+                if !defenders_activated.active {
+                    continue;
                 }
-
-                let steering = diff.normalize_or_zero() * STEERING_FORCE;
-                def_acceleration.add_force(steering);
+                &attackers
             }
-        }
-    }
-}
+            Team::Attackers => &defenders,
+        };
 
-/// Updates attacker targeting to apply steering force toward nearest defender.
-///
-/// Uses boids-style steering: applies a force toward the target instead of directly setting velocity.
-/// Adds random movement when in melee range to simulate combat chaos.
-pub fn update_attacker_targets(
-    time: Res<Time>,
-    mut attackers: Query<
-        (
-            &Transform,
-            &mut Acceleration,
-            &MovementSpeed,
-            &Hitbox,
-            &Team,
-        ),
-        With<Infantry>,
-    >,
-    defenders: Query<(&Transform, &Hitbox, &Team), With<Infantry>>,
-) {
-    for (att_transform, mut att_acceleration, _movement_speed, att_hitbox, att_team) in
-        &mut attackers
-    {
-        // Only process attackers
-        if *att_team != Team::Attackers {
-            continue;
-        }
+        // Find nearest enemy
+        let nearest = enemies.iter().min_by(|a, b| {
+            let dist_a = transform.translation.distance(a.0);
+            let dist_b = transform.translation.distance(b.0);
+            dist_a.partial_cmp(&dist_b).unwrap()
+        });
 
-        // Find nearest defender
-        let nearest_defender = defenders
-            .iter()
-            .filter(|(_, _, def_team)| **def_team == Team::Defenders)
-            .min_by(|a, b| {
-                let dist_a = att_transform.translation.distance(a.0.translation);
-                let dist_b = att_transform.translation.distance(b.0.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            });
-
-        if let Some((nearest_defender_transform, def_hitbox, _)) = nearest_defender {
-            let diff = nearest_defender_transform.translation - att_transform.translation;
+        if let Some(&(enemy_pos, enemy_radius)) = nearest {
+            let diff = enemy_pos - transform.translation;
             let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
 
             // Check if in melee range (within attack range)
-            let melee_range = (att_hitbox.radius + def_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+            let melee_range = (hitbox.radius + enemy_radius) * ATTACK_RANGE_MULTIPLIER;
 
             if distance < melee_range {
                 // Add random movement in melee to simulate combat chaos
-                // Use multiple frequency components for more natural randomness
-                let seed = att_transform.translation.x
+                let seed = transform.translation.x
                     * unit_constants::MELEE_RANDOM_SEED_X_MULTIPLIER
-                    + att_transform.translation.z * unit_constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
+                    + transform.translation.z * unit_constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
                 let t = time.elapsed_secs();
                 let random_angle = (t * unit_constants::MELEE_RANDOM_FREQ_PRIMARY + seed).sin()
                     * unit_constants::MELEE_RANDOM_AMPLITUDE_PRIMARY
@@ -247,11 +168,11 @@ pub fn update_attacker_targets(
                         .cos();
                 let random_x = random_angle.sin() * MELEE_RANDOM_FORCE * time.delta_secs();
                 let random_z = random_angle.cos() * MELEE_RANDOM_FORCE * time.delta_secs();
-                att_acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
+                acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
             }
 
             let steering = diff.normalize_or_zero() * STEERING_FORCE;
-            att_acceleration.add_force(steering);
+            acceleration.add_force(steering);
         }
     }
 }

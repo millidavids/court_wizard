@@ -21,7 +21,6 @@ impl Plugin for InGamePlugin {
                 Update,
                 (
                     systems::keyboard_input,
-                    systems::hud_button_interaction,
                     systems::hud_button_action,
                     systems::update_mana_bar,
                     systems::update_cast_bar,
