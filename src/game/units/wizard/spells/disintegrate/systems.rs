@@ -170,11 +170,14 @@ pub fn handle_disintegrate_casting(
             }
         }
         CastingState::Resting => {
-            // Not casting or channeling - start new cast
-            casting_state.start_cast();
+            // Not casting or channeling - check mana before starting cast
+            // Need enough mana for at least 0.1 seconds of channeling
+            if mana.can_afford(constants::MANA_COST_PER_SECOND * 0.1) {
+                casting_state.start_cast();
 
-            // Add caster marker to wizard
-            commands.entity(wizard_entity).insert(DisintegrateCaster);
+                // Add caster marker to wizard
+                commands.entity(wizard_entity).insert(DisintegrateCaster);
+            }
         }
     }
 }

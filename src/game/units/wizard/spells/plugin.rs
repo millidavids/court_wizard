@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 
+use super::chain_lightning::ChainLightningPlugin;
 use super::disintegrate::DisintegratePlugin;
 use super::fireball::FireballPlugin;
 use super::guardian_circle::GuardianCirclePlugin;
@@ -15,6 +16,7 @@ use super::systems;
 /// - Disintegrate beam spell (DisintegratePlugin)
 /// - Fireball spell (FireballPlugin)
 /// - Guardian Circle spell (GuardianCirclePlugin)
+/// - Chain Lightning spell (ChainLightningPlugin)
 /// - Projectile movement
 /// - Projectile collision detection
 /// - Spell effect lifetime management
@@ -28,6 +30,7 @@ impl Plugin for SpellsPlugin {
             DisintegratePlugin,
             FireballPlugin,
             GuardianCirclePlugin,
+            ChainLightningPlugin,
         ))
         .add_systems(
             Update,

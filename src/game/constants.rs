@@ -33,17 +33,19 @@ const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 /// Size of the spawn area at battlefield edges (in pixels).
 pub const EDGE_SPAWN_AREA_SIZE: f32 = 200.0;
 
-/// Defender spawn area (bottom-left edge of battlefield).
-/// X range: -BATTLEFIELD_HALF_SIZE to -BATTLEFIELD_HALF_SIZE + EDGE_SPAWN_AREA_SIZE
-/// Z range: BATTLEFIELD_HALF_SIZE - EDGE_SPAWN_AREA_SIZE to BATTLEFIELD_HALF_SIZE
-pub const DEFENDER_SPAWN_X_MIN: f32 = -BATTLEFIELD_HALF_SIZE;
-pub const DEFENDER_SPAWN_Z_MIN: f32 = BATTLEFIELD_HALF_SIZE - EDGE_SPAWN_AREA_SIZE;
+/// Defender spawn area (closer to center for faster clash with attackers).
+/// Spawn defenders to meet attackers near the center of the battlefield.
+/// X range: -1000 to -500
+/// Z range: 0 to 500
+pub const DEFENDER_SPAWN_X_MIN: f32 = -1000.0;
+pub const DEFENDER_SPAWN_Z_MIN: f32 = 0.0;
 
-/// Attacker spawn area (top-right edge of battlefield).
-/// X range: BATTLEFIELD_HALF_SIZE - EDGE_SPAWN_AREA_SIZE to BATTLEFIELD_HALF_SIZE
-/// Z range: -BATTLEFIELD_HALF_SIZE to -BATTLEFIELD_HALF_SIZE + EDGE_SPAWN_AREA_SIZE
-pub const ATTACKER_SPAWN_X_MIN: f32 = BATTLEFIELD_HALF_SIZE - EDGE_SPAWN_AREA_SIZE;
-pub const ATTACKER_SPAWN_Z_MIN: f32 = -BATTLEFIELD_HALF_SIZE;
+/// Attacker spawn area (closer to wizard for faster testing).
+/// Spawn attackers within wizard's spell range for immediate testing.
+/// X range: 500 to 1000
+/// Z range: -500 to 0
+pub const ATTACKER_SPAWN_X_MIN: f32 = 500.0;
+pub const ATTACKER_SPAWN_Z_MIN: f32 = -500.0;
 
 // ===== Unit Positioning =====
 

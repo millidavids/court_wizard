@@ -101,8 +101,10 @@ pub fn handle_magic_missile_casting(
             }
         }
         CastingState::Resting => {
-            // Not casting or channeling - start new cast
-            casting_state.start_cast();
+            // Not casting or channeling - check mana before starting cast
+            if mana.can_afford(constants::MANA_COST) {
+                casting_state.start_cast();
+            }
         }
     }
 }
@@ -123,6 +125,7 @@ fn spawn_magic_missile(
     let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
     // Select target: random attacker within range, or closest attacker
+    // Magic Missile specifically targets attackers (unlike other AOE spells)
     let mut rng = rand::thread_rng();
 
     let attackers_in_range: Vec<Entity> = targets
@@ -213,6 +216,7 @@ pub fn move_magic_missiles(
         // Retarget if current target despawned
         if !target_exists {
             // Select new target: random attacker within range, or closest attacker
+            // Magic Missile specifically targets attackers (unlike other AOE spells)
             let mut rng = rand::thread_rng();
 
             let attackers_in_range: Vec<Entity> = targets
@@ -338,7 +342,7 @@ pub fn check_magic_missile_collisions(
 ) {
     for (missile_entity, missile_transform, missile) in &missiles {
         for (attacker_transform, mut health, mut temp_hp, team) in &mut attackers {
-            // Only damage attackers
+            // Magic Missile specifically targets attackers (unlike other AOE spells)
             if *team != Team::Attackers {
                 continue;
             }
