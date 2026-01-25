@@ -5,6 +5,7 @@
 pub mod components;
 mod constants;
 pub mod infantry;
+mod systems;
 pub mod wizard;
 
 mod plugin;

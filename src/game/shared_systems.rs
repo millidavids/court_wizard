@@ -3,7 +3,9 @@ use bevy::prelude::*;
 use super::components::{Acceleration, Velocity};
 use super::constants::*;
 use super::plugin::GlobalAttackCycle;
-use super::units::components::{AttackTiming, Health, Hitbox, MovementSpeed, Team};
+use super::units::components::{
+    AttackTiming, Health, Hitbox, MovementSpeed, Team, TemporaryHitPoints, apply_damage_to_unit,
+};
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -241,7 +243,7 @@ pub fn move_units(
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
     mut all_units: Query<(Entity, &Transform, &Hitbox, &Team, &mut AttackTiming)>,
-    mut health_query: Query<&mut Health>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -277,9 +279,9 @@ pub fn combat(
         {
             // Attack if we're in the unit's attack window
             if attack_timing.can_attack(current_time, last_time)
-                && let Ok(mut target_health) = health_query.get_mut(*target_entity)
+                && let Ok((mut target_health, mut temp_hp)) = health_query.get_mut(*target_entity)
             {
-                target_health.take_damage(ATTACK_DAMAGE);
+                apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), ATTACK_DAMAGE);
                 attack_timing.record_attack(current_time);
             }
         }

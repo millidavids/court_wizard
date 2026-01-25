@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::game::units::components::{Health, Team};
+use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::infantry::components::Infantry;
 
 /// Updates all projectile positions based on their direction and speed.
@@ -22,10 +22,18 @@ pub fn move_projectiles(
 pub fn check_projectile_collisions(
     mut commands: Commands,
     projectiles: Query<(Entity, &Transform, &Projectile), With<Projectile>>,
-    mut enemies: Query<(&Transform, &mut Health, &Team), With<Infantry>>,
+    mut enemies: Query<
+        (
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            &Team,
+        ),
+        With<Infantry>,
+    >,
 ) {
     for (projectile_entity, proj_transform, projectile) in &projectiles {
-        for (enemy_transform, mut health, team) in &mut enemies {
+        for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
             // Only damage attackers (projectiles are from defenders/wizard)
             if *team != Team::Attackers {
                 continue;
@@ -37,7 +45,7 @@ pub fn check_projectile_collisions(
 
             // Check if projectile hit the enemy
             if distance < projectile.radius {
-                health.take_damage(projectile.damage);
+                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), projectile.damage);
                 commands.entity(projectile_entity).despawn();
                 break; // Projectile is destroyed, stop checking
             }

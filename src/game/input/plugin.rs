@@ -26,6 +26,7 @@ impl Plugin for InputPlugin {
             .add_message::<SpacebarPressed>()
             .add_message::<SpacebarHeld>()
             .add_message::<SpacebarReleased>()
+            .add_message::<BlockSpellInput>()
             // Add input detection systems
             .add_systems(
                 Update,

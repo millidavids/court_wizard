@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::input::events::BlockSpellInput;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
@@ -116,16 +117,22 @@ pub fn spawn_hud(mut commands: Commands) {
         });
 }
 
-/// Handles HUD button click actions.
+/// Handles HUD button click actions and sends spell input blocker message.
+///
+/// Sends BlockSpellInput message when a button is clicked to prevent spell casting.
 pub fn hud_button_action(
     interaction_query: Query<
         (&Interaction, &HudButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
+    mut block_spell_input: MessageWriter<BlockSpellInput>,
 ) {
     for (interaction, action) in &interaction_query {
         if *interaction == Interaction::Pressed {
+            // Send message to block spell input when clicking UI buttons
+            block_spell_input.write(BlockSpellInput);
+
             match action {
                 HudButtonAction::OpenSpellBook => {
                     next_in_game_state.set(InGameState::SpellBook);

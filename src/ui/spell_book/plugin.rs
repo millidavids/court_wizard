@@ -9,18 +9,25 @@ pub struct SpellBookPlugin;
 
 impl Plugin for SpellBookPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(InGameState::SpellBook),
-            systems::spawn_spell_book_ui,
-        )
-        .add_systems(
-            OnExit(InGameState::SpellBook),
-            systems::despawn_spell_book_ui,
-        )
-        .add_systems(
-            Update,
-            (systems::button_action, systems::keyboard_input)
-                .run_if(in_state(InGameState::SpellBook)),
-        );
+        app.init_resource::<systems::JustEnteredSpellBook>()
+            .add_systems(
+                OnEnter(InGameState::SpellBook),
+                (systems::set_just_entered_flag, systems::spawn_spell_book_ui).chain(),
+            )
+            .add_systems(
+                OnExit(InGameState::SpellBook),
+                systems::despawn_spell_book_ui,
+            )
+            .add_systems(
+                Update,
+                (systems::button_action, systems::keyboard_input)
+                    .run_if(in_state(InGameState::SpellBook)),
+            )
+            .add_systems(
+                Update,
+                systems::clear_just_entered_flag
+                    .run_if(in_state(InGameState::SpellBook))
+                    .run_if(resource_exists::<systems::JustEnteredSpellBook>),
+            );
     }
 }

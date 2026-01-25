@@ -6,6 +6,44 @@ pub enum Spell {
     MagicMissile,
     Disintegrate,
     Fireball,
+    GuardianCircle,
+}
+
+impl Spell {
+    /// Returns all available spells in order.
+    pub const fn all() -> &'static [Spell] {
+        &[
+            Spell::MagicMissile,
+            Spell::Disintegrate,
+            Spell::Fireball,
+            Spell::GuardianCircle,
+        ]
+    }
+
+    /// Returns the display name for this spell.
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Spell::MagicMissile => "Magic Missile",
+            Spell::Disintegrate => "Disintegrate",
+            Spell::Fireball => "Fireball",
+            Spell::GuardianCircle => "Guardian Circle",
+        }
+    }
+
+    /// Returns the PrimedSpell configuration for this spell.
+    pub const fn primed_config(self) -> PrimedSpell {
+        use crate::game::units::wizard::spells::{
+            disintegrate_constants, fireball_constants, guardian_circle_constants,
+            magic_missile_constants,
+        };
+
+        match self {
+            Spell::MagicMissile => magic_missile_constants::PRIMED_MAGIC_MISSILE,
+            Spell::Disintegrate => disintegrate_constants::PRIMED_DISINTEGRATE,
+            Spell::Fireball => fireball_constants::PRIMED_FIREBALL,
+            Spell::GuardianCircle => guardian_circle_constants::PRIMED_GUARDIAN_CIRCLE,
+        }
+    }
 }
 
 /// Component tracking which spell is currently primed for casting.
@@ -16,6 +54,13 @@ pub struct PrimedSpell {
     pub spell: Spell,
     /// Time required to cast this spell before it activates (in seconds).
     pub cast_time: f32,
+}
+
+/// Message sent to prime a spell for casting.
+/// Used by UI systems to request spell changes without direct component access.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct PrimeSpellMessage {
+    pub spell: PrimedSpell,
 }
 
 /// Wizard component with spell casting range.

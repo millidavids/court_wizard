@@ -4,7 +4,7 @@ use bevy::window::PrimaryWindow;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
-use crate::game::units::components::Health;
+use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 use super::components::DisintegrateBeam;
@@ -212,7 +212,10 @@ fn get_cursor_world_position(
 /// but not the wizard.
 pub fn apply_disintegrate_damage(
     mut beam_query: Query<&mut DisintegrateBeam>,
-    mut target_query: Query<(&Transform, &mut Health), Without<Wizard>>,
+    mut target_query: Query<
+        (&Transform, &mut Health, Option<&mut TemporaryHitPoints>),
+        Without<Wizard>,
+    >,
     time: Res<Time>,
 ) {
     for mut beam in beam_query.iter_mut() {
@@ -221,10 +224,14 @@ pub fn apply_disintegrate_damage(
 
         if beam.should_damage() {
             // Deal damage to all units in the beam (except wizard)
-            for (transform, mut health) in target_query.iter_mut() {
+            for (transform, mut health, mut temp_hp) in target_query.iter_mut() {
                 let position = transform.translation;
                 if beam.contains_point(position) {
-                    health.take_damage(constants::DAMAGE_PER_TICK);
+                    apply_damage_to_unit(
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        constants::DAMAGE_PER_TICK,
+                    );
                 }
             }
 

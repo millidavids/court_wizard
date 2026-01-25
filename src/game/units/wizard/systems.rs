@@ -54,3 +54,16 @@ pub fn regenerate_mana(time: Res<Time>, mut wizards: Query<(&mut Mana, &ManaRege
         mana.regenerate(regen.rate * time.delta_secs());
     }
 }
+
+/// Handles PrimeSpellMessage to update the wizard's primed spell.
+/// This allows UI systems to request spell changes without directly accessing components.
+pub fn handle_prime_spell_messages(
+    mut messages: MessageReader<PrimeSpellMessage>,
+    mut wizard_query: Query<&mut PrimedSpell, With<Wizard>>,
+) {
+    for message in messages.read() {
+        if let Ok(mut primed_spell) = wizard_query.single_mut() {
+            *primed_spell = message.spell;
+        }
+    }
+}
