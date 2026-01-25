@@ -78,8 +78,10 @@ pub fn handle_fireball_casting(
             }
         }
         CastingState::Resting => {
-            // Not casting - start new cast
-            casting_state.start_cast();
+            // Not casting - check mana before starting cast
+            if mana.can_afford(constants::MANA_COST) {
+                casting_state.start_cast();
+            }
         }
     }
 }

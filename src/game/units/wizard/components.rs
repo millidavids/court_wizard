@@ -7,6 +7,7 @@ pub enum Spell {
     Disintegrate,
     Fireball,
     GuardianCircle,
+    ChainLightning,
 }
 
 impl Spell {
@@ -17,6 +18,7 @@ impl Spell {
             Spell::Disintegrate,
             Spell::Fireball,
             Spell::GuardianCircle,
+            Spell::ChainLightning,
         ]
     }
 
@@ -27,14 +29,15 @@ impl Spell {
             Spell::Disintegrate => "Disintegrate",
             Spell::Fireball => "Fireball",
             Spell::GuardianCircle => "Guardian Circle",
+            Spell::ChainLightning => "Chain Lightning",
         }
     }
 
     /// Returns the PrimedSpell configuration for this spell.
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{
-            disintegrate_constants, fireball_constants, guardian_circle_constants,
-            magic_missile_constants,
+            chain_lightning_constants, disintegrate_constants, fireball_constants,
+            guardian_circle_constants, magic_missile_constants,
         };
 
         match self {
@@ -42,6 +45,7 @@ impl Spell {
             Spell::Disintegrate => disintegrate_constants::PRIMED_DISINTEGRATE,
             Spell::Fireball => fireball_constants::PRIMED_FIREBALL,
             Spell::GuardianCircle => guardian_circle_constants::PRIMED_GUARDIAN_CIRCLE,
+            Spell::ChainLightning => chain_lightning_constants::PRIMED_CHAIN_LIGHTNING,
         }
     }
 }

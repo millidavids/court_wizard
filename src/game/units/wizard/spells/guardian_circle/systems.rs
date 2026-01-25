@@ -113,9 +113,9 @@ pub fn handle_guardian_circle_casting(
     // Mouse is held - handle casting based on state
     match *casting_state {
         CastingState::Resting => {
-            // Only start a new cast if we don't have a caster marker
+            // Only start a new cast if we don't have a caster marker and have enough mana
             // (the marker persists after cast completion until mouse release)
-            if caster_query.single().is_err() {
+            if caster_query.single().is_err() && mana.can_afford(constants::MANA_COST) {
                 // Start casting - spawn circle indicator
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
