@@ -7,7 +7,7 @@ use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
-use crate::game::units::components::{Health, Team};
+use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 /// Handles fireball casting with left-click.
@@ -247,7 +247,7 @@ pub fn update_explosions(
 /// Targets closer to the center stay in the explosion longer and take more damage.
 pub fn apply_explosion_damage(
     mut explosions: Query<&mut FireballExplosion>,
-    mut targets: Query<(&Transform, &mut Health)>,
+    mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
     for mut explosion in &mut explosions {
         // Check if it's time for a damage tick
@@ -257,11 +257,15 @@ pub fn apply_explosion_damage(
             let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
 
             // Apply damage to all units within the current explosion radius
-            for (transform, mut health) in &mut targets {
+            for (transform, mut health, mut temp_hp) in &mut targets {
                 let distance = explosion.origin.distance(transform.translation);
 
                 if distance <= current_radius {
-                    health.take_damage(explosion.damage_per_tick);
+                    apply_damage_to_unit(
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        explosion.damage_per_tick,
+                    );
                 }
             }
         }

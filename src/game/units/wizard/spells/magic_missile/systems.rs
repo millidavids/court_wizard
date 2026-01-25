@@ -7,7 +7,7 @@ use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
-use crate::game::units::components::{Health, Team};
+use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 /// Handles magic missile casting with left-click.
@@ -326,10 +326,18 @@ pub fn move_magic_missiles(
 pub fn check_magic_missile_collisions(
     mut commands: Commands,
     missiles: Query<(Entity, &Transform, &MagicMissile)>,
-    mut attackers: Query<(&Transform, &mut Health, &Team), Without<MagicMissile>>,
+    mut attackers: Query<
+        (
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            &Team,
+        ),
+        Without<MagicMissile>,
+    >,
 ) {
     for (missile_entity, missile_transform, missile) in &missiles {
-        for (attacker_transform, mut health, team) in &mut attackers {
+        for (attacker_transform, mut health, mut temp_hp, team) in &mut attackers {
             // Only damage attackers
             if *team != Team::Attackers {
                 continue;
@@ -341,7 +349,7 @@ pub fn check_magic_missile_collisions(
 
             // Check collision
             if distance < missile.radius {
-                health.take_damage(missile.damage);
+                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), missile.damage);
                 commands.entity(missile_entity).despawn();
                 break; // Missile destroyed, stop checking
             }

@@ -56,3 +56,8 @@ pub struct SpacebarHeld;
 /// Event fired when the spacebar is released.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct SpacebarReleased;
+
+/// Message sent by UI systems to block spell input for one frame.
+/// Prevents spells from casting when UI buttons are clicked.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct BlockSpellInput;

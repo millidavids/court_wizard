@@ -138,6 +138,48 @@ impl Hitbox {
     }
 }
 
+/// Temporary hit points that absorb damage before real health.
+///
+/// Expires after a duration and is consumed before health when taking damage.
+/// Multiple applications of temporary HP do not stack - only the maximum is kept.
+#[derive(Component)]
+pub struct TemporaryHitPoints {
+    /// Current amount of temporary HP.
+    pub amount: f32,
+    /// Time remaining before temp HP expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl TemporaryHitPoints {
+    /// Creates new temporary hit points with a duration.
+    pub const fn new(amount: f32, duration: f32) -> Self {
+        Self {
+            amount,
+            time_remaining: duration,
+        }
+    }
+
+    /// Absorbs damage from temporary HP, returning overflow damage.
+    ///
+    /// Returns the amount of damage that wasn't absorbed (overflow to real HP).
+    pub fn absorb_damage(&mut self, damage: f32) -> f32 {
+        if self.amount >= damage {
+            self.amount -= damage;
+            0.0 // All damage absorbed
+        } else {
+            let overflow = damage - self.amount;
+            self.amount = 0.0;
+            overflow // This much damage overflows to real HP
+        }
+    }
+
+    /// Updates the timer, returning true if expired.
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0 || self.amount <= 0.0
+    }
+}
+
 #[allow(dead_code)]
 impl Health {
     /// Creates a new Health component with the given maximum health.
@@ -165,4 +207,29 @@ impl Health {
     pub fn heal(&mut self, amount: f32) {
         self.current = (self.current + amount).min(self.max);
     }
+}
+
+/// Applies damage to a unit, absorbing with temporary HP first.
+///
+/// This function should be used instead of directly calling `health.take_damage()`
+/// when temporary hit points should be respected. Damage is first absorbed by
+/// temporary HP (if present), and any overflow damage is applied to real health.
+///
+/// # Arguments
+///
+/// * `health` - The unit's Health component
+/// * `temp_hp` - Optional TemporaryHitPoints component
+/// * `damage` - Amount of damage to apply
+pub fn apply_damage_to_unit(
+    health: &mut Health,
+    temp_hp: Option<&mut TemporaryHitPoints>,
+    damage: f32,
+) {
+    let overflow = if let Some(temp) = temp_hp {
+        temp.absorb_damage(damage)
+    } else {
+        damage
+    };
+
+    health.take_damage(overflow);
 }

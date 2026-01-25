@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
+use crate::game::units::wizard::components::Spell;
+
 /// Actions that can be triggered by spell book buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpellBookButtonAction {
-    MagicMissile,
-    Disintegrate,
-    Fireball,
+    SelectSpell(Spell),
     Close,
 }
 
