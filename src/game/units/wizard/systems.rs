@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants;
+use super::spells::magic_missile_constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
@@ -42,7 +43,7 @@ pub fn setup_wizard(
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),
         Wizard::new(constants::DEFAULT_SPELL_RANGE),
-        PrimedSpell::new(SpellType::MagicMissile),
+        magic_missile_constants::PRIMED_MAGIC_MISSILE,
         OnGameplayScreen,
     ));
 }

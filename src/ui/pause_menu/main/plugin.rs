@@ -21,8 +21,7 @@ impl Plugin for PauseMainPlugin {
             .add_systems(OnExit(PauseMenuState::Main), cleanup)
             .add_systems(
                 Update,
-                (button_action, keyboard_input)
-                    .run_if(in_state(PauseMenuState::Main)),
+                (button_action, keyboard_input).run_if(in_state(PauseMenuState::Main)),
             );
     }
 }

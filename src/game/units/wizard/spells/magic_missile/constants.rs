@@ -2,6 +2,14 @@
 //!
 //! Contains all hardcoded values for magic missile behavior.
 
+use crate::game::units::wizard::components::{PrimedSpell, Spell};
+
+/// PrimedSpell constant for Magic Missile.
+pub const PRIMED_MAGIC_MISSILE: PrimedSpell = PrimedSpell {
+    spell: Spell::MagicMissile,
+    cast_time: CAST_TIME,
+};
+
 /// Height offset above wizard for magic missile spawn.
 pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
 

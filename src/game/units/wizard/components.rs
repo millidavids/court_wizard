@@ -1,23 +1,21 @@
 use bevy::prelude::*;
 
-/// Available spell types.
+/// Available spells.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component)]
-pub enum SpellType {
+pub enum Spell {
     MagicMissile,
     Disintegrate,
+    Fireball,
 }
 
 /// Component tracking which spell is currently primed for casting.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component)]
+///
+/// Contains both the spell type and its associated properties like cast time.
+#[derive(Debug, Clone, Copy, PartialEq, Component)]
 pub struct PrimedSpell {
-    pub spell: SpellType,
-}
-
-impl PrimedSpell {
-    /// Creates a new PrimedSpell with the given spell type.
-    pub const fn new(spell: SpellType) -> Self {
-        Self { spell }
-    }
+    pub spell: Spell,
+    /// Time required to cast this spell before it activates (in seconds).
+    pub cast_time: f32,
 }
 
 /// Wizard component with spell casting range.

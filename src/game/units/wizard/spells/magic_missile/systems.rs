@@ -8,7 +8,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{Health, Team};
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, SpellType, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 /// Handles magic missile casting with left-click.
 ///
@@ -32,7 +32,7 @@ pub fn handle_magic_missile_casting(
     };
 
     // Only respond to left-click if Magic Missile is primed
-    if primed_spell.spell != SpellType::MagicMissile {
+    if primed_spell.spell != Spell::MagicMissile {
         return;
     }
 
@@ -82,7 +82,7 @@ pub fn handle_magic_missile_casting(
             casting_state.advance(time.delta_secs());
 
             // Check if cast is complete
-            if casting_state.is_complete(constants::CAST_TIME) {
+            if casting_state.is_complete(primed_spell.cast_time) {
                 // Cast complete - transition to channeling and spawn first missile
                 if mana.consume(constants::MANA_COST) {
                     spawn_magic_missile(

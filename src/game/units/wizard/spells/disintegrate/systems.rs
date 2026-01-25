@@ -5,7 +5,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::Health;
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, SpellType, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 use super::components::DisintegrateBeam;
 use super::constants;
@@ -41,7 +41,7 @@ pub fn handle_disintegrate_casting(
     };
 
     // Only respond to left-click if Disintegrate is primed
-    if primed_spell.spell != SpellType::Disintegrate {
+    if primed_spell.spell != Spell::Disintegrate {
         return;
     }
 
@@ -135,7 +135,7 @@ pub fn handle_disintegrate_casting(
             casting_state.advance(time.delta_secs());
 
             // Check if cast is complete
-            if casting_state.is_complete(constants::CAST_TIME) {
+            if casting_state.is_complete(primed_spell.cast_time) {
                 // Cast complete - transition to channeling and spawn first beam
                 casting_state.start_channeling();
 

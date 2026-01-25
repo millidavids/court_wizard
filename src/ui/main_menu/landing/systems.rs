@@ -44,10 +44,20 @@ pub fn setup(mut commands: Commands) {
             ));
 
             // Start Game button
-            spawn_button(parent, "Start Game", MenuButtonAction::StartGame, &BUTTON_STYLE);
+            spawn_button(
+                parent,
+                "Start Game",
+                MenuButtonAction::StartGame,
+                &BUTTON_STYLE,
+            );
 
             // Settings button
-            spawn_button(parent, "Settings", MenuButtonAction::Settings, &BUTTON_STYLE);
+            spawn_button(
+                parent,
+                "Settings",
+                MenuButtonAction::Settings,
+                &BUTTON_STYLE,
+            );
         });
 }
 

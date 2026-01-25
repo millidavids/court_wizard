@@ -47,13 +47,28 @@ pub fn setup(mut commands: Commands) {
             ));
 
             // Continue button
-            spawn_button(parent, "Continue", PauseMenuButtonAction::Continue, &BUTTON_STYLE);
+            spawn_button(
+                parent,
+                "Continue",
+                PauseMenuButtonAction::Continue,
+                &BUTTON_STYLE,
+            );
 
             // Settings button
-            spawn_button(parent, "Settings", PauseMenuButtonAction::Settings, &BUTTON_STYLE);
+            spawn_button(
+                parent,
+                "Settings",
+                PauseMenuButtonAction::Settings,
+                &BUTTON_STYLE,
+            );
 
             // Exit button
-            spawn_button(parent, "Exit to Menu", PauseMenuButtonAction::Exit, &BUTTON_STYLE);
+            spawn_button(
+                parent,
+                "Exit to Menu",
+                PauseMenuButtonAction::Exit,
+                &BUTTON_STYLE,
+            );
         });
 }
 
