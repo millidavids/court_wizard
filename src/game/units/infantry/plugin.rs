@@ -1,4 +1,3 @@
-
 use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
@@ -19,7 +18,10 @@ impl Plugin for InfantryPlugin {
         app.init_resource::<DefendersActivated>()
             .add_systems(
                 OnEnter(AppState::InGame),
-                (systems::spawn_initial_defenders, systems::spawn_initial_attackers),
+                (
+                    systems::spawn_initial_defenders,
+                    systems::spawn_initial_attackers,
+                ),
             )
             .add_systems(
                 Update,

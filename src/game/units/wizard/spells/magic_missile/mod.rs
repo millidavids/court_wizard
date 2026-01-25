@@ -3,7 +3,7 @@
 //! Handles magic missile projectiles that home in on attackers.
 
 mod components;
-mod constants;
+pub mod constants;
 mod plugin;
 mod styles;
 mod systems;

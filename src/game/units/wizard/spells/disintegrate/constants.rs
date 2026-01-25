@@ -2,6 +2,14 @@
 
 use bevy::prelude::*;
 
+use crate::game::units::wizard::components::{PrimedSpell, Spell};
+
+/// PrimedSpell constant for Disintegrate.
+pub const PRIMED_DISINTEGRATE: PrimedSpell = PrimedSpell {
+    spell: Spell::Disintegrate,
+    cast_time: CAST_TIME,
+};
+
 /// Damage dealt per tick to entities in the beam.
 pub const DAMAGE_PER_TICK: f32 = 5.0;
 

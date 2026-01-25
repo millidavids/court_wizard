@@ -2,7 +2,10 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use crate::game::units::wizard::components::{PrimedSpell, SpellType, Wizard};
+use crate::game::units::wizard::components::{PrimedSpell, Wizard};
+use crate::game::units::wizard::spells::{
+    disintegrate_constants, fireball_constants, magic_missile_constants,
+};
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
 
@@ -55,6 +58,12 @@ pub fn spawn_spell_book_ui(mut commands: Commands) {
                     );
                     spawn_button(
                         buttons,
+                        "Fireball",
+                        SpellBookButtonAction::Fireball,
+                        &BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        buttons,
                         "Close",
                         SpellBookButtonAction::Close,
                         &BUTTON_STYLE,
@@ -77,13 +86,19 @@ pub fn button_action(
             match action {
                 SpellBookButtonAction::MagicMissile => {
                     if let Ok(mut primed_spell) = wizard_query.single_mut() {
-                        primed_spell.spell = SpellType::MagicMissile;
+                        *primed_spell = magic_missile_constants::PRIMED_MAGIC_MISSILE;
                     }
                     next_in_game_state.set(InGameState::Running);
                 }
                 SpellBookButtonAction::Disintegrate => {
                     if let Ok(mut primed_spell) = wizard_query.single_mut() {
-                        primed_spell.spell = SpellType::Disintegrate;
+                        *primed_spell = disintegrate_constants::PRIMED_DISINTEGRATE;
+                    }
+                    next_in_game_state.set(InGameState::Running);
+                }
+                SpellBookButtonAction::Fireball => {
+                    if let Ok(mut primed_spell) = wizard_query.single_mut() {
+                        *primed_spell = fireball_constants::PRIMED_FIREBALL;
                     }
                     next_in_game_state.set(InGameState::Running);
                 }

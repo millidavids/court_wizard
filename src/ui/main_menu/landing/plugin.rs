@@ -21,8 +21,7 @@ impl Plugin for LandingPlugin {
             .add_systems(OnExit(MenuState::Landing), cleanup)
             .add_systems(
                 Update,
-                (button_action, keyboard_input)
-                    .run_if(in_state(MenuState::Landing)),
+                (button_action, keyboard_input).run_if(in_state(MenuState::Landing)),
             );
     }
 }

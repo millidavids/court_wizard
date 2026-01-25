@@ -5,6 +5,7 @@ use bevy::prelude::*;
 pub enum SpellBookButtonAction {
     MagicMissile,
     Disintegrate,
+    Fireball,
     Close,
 }
 

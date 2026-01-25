@@ -157,8 +157,7 @@ pub fn update_infantry_targets(
 
             if distance < melee_range {
                 // Add random movement in melee to simulate combat chaos
-                let seed = transform.translation.x
-                    * unit_constants::MELEE_RANDOM_SEED_X_MULTIPLIER
+                let seed = transform.translation.x * unit_constants::MELEE_RANDOM_SEED_X_MULTIPLIER
                     + transform.translation.z * unit_constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
                 let t = time.elapsed_secs();
                 let random_angle = (t * unit_constants::MELEE_RANDOM_FREQ_PRIMARY + seed).sin()

@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::components::{CastingState, Mana, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
 
@@ -53,12 +53,7 @@ pub fn spawn_hud(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|row| {
-                    spawn_button(
-                        row,
-                        "Spells",
-                        HudButtonAction::OpenSpellBook,
-                        &BUTTON_STYLE,
-                    );
+                    spawn_button(row, "Spells", HudButtonAction::OpenSpellBook, &BUTTON_STYLE);
                 });
 
             // Bottom-right bars container
@@ -155,18 +150,15 @@ pub fn update_mana_bar(
 
 /// Updates the cast bar width based on current wizard casting progress.
 ///
-/// Cast time is currently hardcoded to match magic missile (1 second).
+/// Uses the cast time from the currently primed spell.
 pub fn update_cast_bar(
-    wizard_query: Query<&CastingState, With<Wizard>>,
+    wizard_query: Query<(&CastingState, &PrimedSpell), With<Wizard>>,
     mut cast_bar_query: Query<&mut Node, With<CastBarFill>>,
 ) {
-    if let Ok(casting_state) = wizard_query.single()
+    if let Ok((casting_state, primed_spell)) = wizard_query.single()
         && let Ok(mut node) = cast_bar_query.single_mut()
     {
-        // Magic missile cast time
-        const CAST_TIME: f32 = 1.0;
-
-        let progress_percent = casting_state.progress(CAST_TIME) * 100.0;
+        let progress_percent = casting_state.progress(primed_spell.cast_time) * 100.0;
         node.width = Val::Percent(progress_percent);
     }
 }

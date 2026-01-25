@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::state::InGameState;
 
 use super::disintegrate::DisintegratePlugin;
+use super::fireball::FireballPlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::systems;
 
@@ -11,6 +12,7 @@ use super::systems;
 /// Registers systems for:
 /// - Magic missile spell (MagicMissilePlugin)
 /// - Disintegrate beam spell (DisintegratePlugin)
+/// - Fireball spell (FireballPlugin)
 /// - Projectile movement
 /// - Projectile collision detection
 /// - Spell effect lifetime management
@@ -19,7 +21,7 @@ pub struct SpellsPlugin;
 
 impl Plugin for SpellsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((MagicMissilePlugin, DisintegratePlugin))
+        app.add_plugins((MagicMissilePlugin, DisintegratePlugin, FireballPlugin))
             .add_systems(
                 Update,
                 (
