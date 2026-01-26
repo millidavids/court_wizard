@@ -10,9 +10,6 @@ use bevy::prelude::*;
 /// Size of the battlefield (width and depth).
 pub const BATTLEFIELD_SIZE: f32 = 6000.0;
 
-/// Half size of the battlefield (for calculating edges).
-pub const BATTLEFIELD_HALF_SIZE: f32 = BATTLEFIELD_SIZE / 2.0;
-
 // ===== Castle Positioning =====
 
 /// Castle position in 3D space.
@@ -29,9 +26,6 @@ pub const CASTLE_DEPTH: f32 = 2000.0;
 const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 
 // ===== Spawn Areas =====
-
-/// Size of the spawn area at battlefield edges (in pixels).
-pub const EDGE_SPAWN_AREA_SIZE: f32 = 200.0;
 
 /// Defender spawn area (closer to center for faster clash with attackers).
 /// Spawn defenders to meet attackers near the center of the battlefield.
