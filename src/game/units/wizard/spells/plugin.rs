@@ -4,6 +4,7 @@ use crate::state::InGameState;
 
 use super::chain_lightning::ChainLightningPlugin;
 use super::disintegrate::DisintegratePlugin;
+use super::finger_of_death::FingerOfDeathPlugin;
 use super::fireball::FireballPlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::magic_missile::MagicMissilePlugin;
@@ -17,6 +18,7 @@ use super::systems;
 /// - Fireball spell (FireballPlugin)
 /// - Guardian Circle spell (GuardianCirclePlugin)
 /// - Chain Lightning spell (ChainLightningPlugin)
+/// - Finger of Death spell (FingerOfDeathPlugin)
 /// - Projectile movement
 /// - Projectile collision detection
 /// - Spell effect lifetime management
@@ -31,6 +33,7 @@ impl Plugin for SpellsPlugin {
             FireballPlugin,
             GuardianCirclePlugin,
             ChainLightningPlugin,
+            FingerOfDeathPlugin,
         ))
         .add_systems(
             Update,

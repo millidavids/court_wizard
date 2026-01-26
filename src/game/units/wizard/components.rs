@@ -8,6 +8,7 @@ pub enum Spell {
     Fireball,
     GuardianCircle,
     ChainLightning,
+    FingerOfDeath,
 }
 
 impl Spell {
@@ -19,6 +20,7 @@ impl Spell {
             Spell::Fireball,
             Spell::GuardianCircle,
             Spell::ChainLightning,
+            Spell::FingerOfDeath,
         ]
     }
 
@@ -30,14 +32,15 @@ impl Spell {
             Spell::Fireball => "Fireball",
             Spell::GuardianCircle => "Guardian Circle",
             Spell::ChainLightning => "Chain Lightning",
+            Spell::FingerOfDeath => "Finger of Death",
         }
     }
 
     /// Returns the PrimedSpell configuration for this spell.
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{
-            chain_lightning_constants, disintegrate_constants, fireball_constants,
-            guardian_circle_constants, magic_missile_constants,
+            chain_lightning_constants, disintegrate_constants, finger_of_death_constants,
+            fireball_constants, guardian_circle_constants, magic_missile_constants,
         };
 
         match self {
@@ -46,6 +49,7 @@ impl Spell {
             Spell::Fireball => fireball_constants::PRIMED_FIREBALL,
             Spell::GuardianCircle => guardian_circle_constants::PRIMED_GUARDIAN_CIRCLE,
             Spell::ChainLightning => chain_lightning_constants::PRIMED_CHAIN_LIGHTNING,
+            Spell::FingerOfDeath => finger_of_death_constants::PRIMED_FINGER_OF_DEATH,
         }
     }
 }
