@@ -242,6 +242,12 @@ pub fn apply_damage_to_unit(
 #[derive(Component)]
 pub struct Corpse;
 
+/// Marker component for permanent corpses that cannot be resurrected.
+///
+/// Applied to undead corpses to prevent them from being raised again.
+#[derive(Component)]
+pub struct PermanentCorpse;
+
 /// Component that slows units walking over rough terrain (corpses).
 ///
 /// Applied to corpses to create a movement penalty for living units that walk over them.

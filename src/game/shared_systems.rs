@@ -202,6 +202,7 @@ pub fn apply_rough_terrain_slowdown(
 
 /// Updates units following the boids algorithm pattern.
 ///
+/// Also applies infantry steering forces toward nearest enemy and melee randomness.
 /// Acceleration changes velocity, velocity changes position.
 /// Acceleration is reset each frame after being applied.
 /// Includes damping to reduce momentum and make units more responsive.
@@ -217,6 +218,8 @@ pub fn move_units(
         &Hitbox,
         &Team,
     )>,
+    infantry_query: Query<Entity, With<super::units::infantry::components::Infantry>>,
+    mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
     corpse_query: Query<Entity, With<Corpse>>,
 ) {
     // Movement parameters are defined in constants.rs
@@ -230,10 +233,91 @@ pub fn move_units(
         })
         .collect();
 
+    // Check defender activation (infantry-specific logic)
+    if !defenders_activated.active {
+        'activation: for &(_, pos_a, _, team_a) in &unit_snapshot {
+            if team_a != Team::Defenders {
+                continue;
+            }
+            for &(_, pos_b, _, team_b) in &unit_snapshot {
+                if team_b == Team::Attackers && pos_a.distance(pos_b) < DEFENDER_ACTIVATION_DISTANCE
+                {
+                    defenders_activated.active = true;
+                    break 'activation;
+                }
+            }
+        }
+    }
+
     // Process all units
     for (entity, mut transform, mut velocity, mut acceleration, movement_speed, hitbox, team) in
         &mut all_units
     {
+        // Infantry-specific: Add steering force toward nearest enemy
+        if infantry_query.contains(entity) {
+            // Skip inactive defenders
+            if *team == Team::Defenders && !defenders_activated.active {
+                // Don't add steering, but continue to process movement/damping
+            } else {
+                // Find nearest enemy for this infantry unit
+                let nearest_enemy = unit_snapshot
+                    .iter()
+                    .filter(|(other_entity, _, _, other_team)| {
+                        *other_entity != entity
+                            && match (*team, other_team) {
+                                (Team::Undead, Team::Undead) => false,
+                                (Team::Undead, _) => true,
+                                (_, Team::Undead) => true,
+                                _ => other_team != team,
+                            }
+                    })
+                    .min_by(|a, b| {
+                        let dist_a = (transform.translation.x - a.1.x).powi(2)
+                            + (transform.translation.z - a.1.z).powi(2);
+                        let dist_b = (transform.translation.x - b.1.x).powi(2)
+                            + (transform.translation.z - b.1.z).powi(2);
+                        dist_a
+                            .partial_cmp(&dist_b)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
+
+                if let Some(&(_, enemy_pos, enemy_hitbox, _)) = nearest_enemy {
+                    let diff_xz = Vec3::new(
+                        enemy_pos.x - transform.translation.x,
+                        0.0,
+                        enemy_pos.z - transform.translation.z,
+                    );
+                    let distance = (diff_xz.x * diff_xz.x + diff_xz.z * diff_xz.z).sqrt();
+                    let melee_range =
+                        (hitbox.radius + enemy_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+
+                    // Add random movement in melee range
+                    if distance < melee_range {
+                        let seed = transform.translation.x
+                            * super::units::constants::MELEE_RANDOM_SEED_X_MULTIPLIER
+                            + transform.translation.z
+                                * super::units::constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
+                        let t = time.elapsed_secs();
+                        let random_angle = (t * super::units::constants::MELEE_RANDOM_FREQ_PRIMARY
+                            + seed)
+                            .sin()
+                            * super::units::constants::MELEE_RANDOM_AMPLITUDE_PRIMARY
+                            + (t * super::units::constants::MELEE_RANDOM_FREQ_SECONDARY
+                                + seed
+                                    * super::units::constants::MELEE_RANDOM_SEED_FREQ_MULTIPLIER)
+                                .cos();
+                        let random_x = random_angle.sin() * MELEE_RANDOM_FORCE * time.delta_secs();
+                        let random_z = random_angle.cos() * MELEE_RANDOM_FORCE * time.delta_secs();
+                        acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
+                    }
+
+                    // Add steering force toward enemy
+                    let steering = diff_xz.normalize_or_zero() * STEERING_FORCE;
+                    acceleration.add_force(steering);
+                }
+            }
+        }
+
         // Apply acceleration to velocity (only XZ plane - units don't move vertically)
         velocity.x += acceleration.x * time.delta_secs();
         velocity.z += acceleration.z * time.delta_secs();
@@ -362,11 +446,11 @@ pub fn combat(
 /// and converts the unit into a corpse that slows living units walking over it.
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
-    query: Query<(Entity, &Health, &Team), Without<Corpse>>,
+    query: Query<(Entity, &Health, &Team, &Transform), Without<Corpse>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     material_query: Query<&MeshMaterial3d<StandardMaterial>>,
 ) {
-    for (entity, health, team) in &query {
+    for (entity, health, team, transform) in &query {
         if health.is_dead() {
             // Get existing material handle and gray out the sprite based on team
             if let Ok(material_handle) = material_query.get(entity)
@@ -379,13 +463,27 @@ pub fn convert_dead_to_corpses(
                 };
             }
 
+            // Create a new transform for the corpse: lay flat on ground at Y=1
+            // Rotate -90 degrees around X axis to make it face upward
+            let corpse_transform =
+                Transform::from_xyz(transform.translation.x, 1.0, transform.translation.z)
+                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
+
             // Add corpse marker and rough terrain effect
-            commands
-                .entity(entity)
+            let mut entity_commands = commands.entity(entity);
+            entity_commands
                 .insert(Corpse)
+                .insert(corpse_transform)
                 .insert(RoughTerrain {
                     slowdown_factor: 0.6,
-                }) // 40% speed reduction
+                }); // 40% speed reduction
+
+            // Mark undead corpses as permanent (cannot be resurrected)
+            if *team == Team::Undead {
+                entity_commands.insert(super::units::components::PermanentCorpse);
+            }
+
+            entity_commands
                 .remove::<Velocity>() // Stop moving
                 .remove::<Acceleration>() // No forces
                 .remove::<MovementSpeed>() // Can't move
