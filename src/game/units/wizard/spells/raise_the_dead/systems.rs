@@ -7,7 +7,7 @@ use crate::game::components::{Acceleration, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{
-    AttackTiming, Corpse, Health, Hitbox, MovementSpeed, RoughTerrain, Team,
+    AttackTiming, Corpse, Health, Hitbox, MovementSpeed, PermanentCorpse, RoughTerrain, Team,
 };
 use crate::game::units::infantry::components::Infantry;
 
@@ -29,7 +29,7 @@ pub fn handle_raise_the_dead_casting(
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell)>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    corpse_query: Query<(Entity, &Transform, &Team), With<Corpse>>,
+    corpse_query: Query<(Entity, &Transform, &Team), (With<Corpse>, Without<PermanentCorpse>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     material_query: Query<&MeshMaterial3d<StandardMaterial>>,
 ) {
@@ -129,12 +129,12 @@ pub fn handle_raise_the_dead_casting(
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
-    corpse_query: &Query<(Entity, &Transform, &Team), With<Corpse>>,
+    corpse_query: &Query<(Entity, &Transform, &Team), (With<Corpse>, Without<PermanentCorpse>)>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     material_query: &Query<&MeshMaterial3d<StandardMaterial>>,
 ) {
     // Find nearest corpse within radius
-    if let Some((corpse_entity, _, _)) = corpse_query
+    if let Some((corpse_entity, corpse_transform, _)) = corpse_query
         .iter()
         .filter(|(_, transform, _)| {
             target_pos.distance(transform.translation) <= RESURRECTION_RADIUS
@@ -152,18 +152,28 @@ fn resurrect_nearest_corpse(
             material.base_color = UNDEAD_COLOR; // Bright green
         }
 
+        // Calculate upright position: bottom edge 1 unit above battlefield
+        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+        let spawn_y = hitbox.height / 2.0 + 1.0;
+        let upright_transform = Transform::from_xyz(
+            corpse_transform.translation.x,
+            spawn_y,
+            corpse_transform.translation.z,
+        );
+
         // Restore combat components but change team
         commands
             .entity(corpse_entity)
             .remove::<Corpse>()
             .remove::<RoughTerrain>()
+            .insert(upright_transform) // Stand upright
             .insert(Team::Undead)
             .insert(Health::new(UNIT_HEALTH)) // Full health restoration
             .insert(Velocity::default())
             .insert(Acceleration::new())
             .insert(MovementSpeed::new(UNIT_MOVEMENT_SPEED * 0.5)) // Half speed
             .insert(AttackTiming::new())
-            .insert(Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT)) // Restore collision
+            .insert(hitbox) // Restore collision
             .insert(Infantry) // Add infantry marker for movement systems
             .insert(RaisedUndead); // Marker for tracking
     }
