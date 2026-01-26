@@ -4,7 +4,8 @@ use super::components::{Acceleration, Velocity};
 use super::constants::*;
 use super::plugin::GlobalAttackCycle;
 use super::units::components::{
-    AttackTiming, Health, Hitbox, MovementSpeed, Team, TemporaryHitPoints, apply_damage_to_unit,
+    AttackTiming, Corpse, Health, Hitbox, MovementSpeed, RoughTerrain, Team, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 
 /// Advances the global attack cycle timer each game frame.
@@ -22,13 +23,16 @@ pub fn tick_attack_cycle(time: Res<Time>, mut attack_cycle: ResMut<GlobalAttackC
 /// Alignment - Units steer to match the velocity of nearby neighbors
 /// Cohesion - Units steer toward the average position of nearby neighbors
 pub fn apply_separation(
-    mut units: Query<(
-        Entity,
-        &mut Transform,
-        &Velocity,
-        &mut Acceleration,
-        &Hitbox,
-    )>,
+    mut units: Query<
+        (
+            Entity,
+            &mut Transform,
+            &Velocity,
+            &mut Acceleration,
+            &Hitbox,
+        ),
+        Without<Corpse>,
+    >,
 ) {
     // Flocking parameters are defined in constants.rs
 
@@ -62,7 +66,12 @@ pub fn apply_separation(
                     continue;
                 }
 
-                let diff = transform.translation - *other_pos;
+                // Calculate difference on XZ plane only (ignore Y)
+                let diff = Vec3::new(
+                    transform.translation.x - other_pos.x,
+                    0.0,
+                    transform.translation.z - other_pos.z,
+                );
                 let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
 
                 // Calculate minimum allowed distance (90% of combined radii = 10% max overlap)
@@ -70,7 +79,7 @@ pub fn apply_separation(
                     (hitbox.radius + other_hitbox.radius) * (1.0 - MAX_OVERLAP_PERCENT);
 
                 if distance < min_distance && distance > MIN_DISTANCE_THRESHOLD {
-                    // Calculate how much to push apart
+                    // Calculate how much to push apart (XZ plane only)
                     let overlap = min_distance - distance;
                     let push_direction = diff / distance;
                     // Push the full overlap distance (don't split it 50/50)
@@ -80,7 +89,10 @@ pub fn apply_separation(
             }
 
             if overlap_count > 0 {
-                transform.translation += total_correction / overlap_count as f32;
+                let correction = total_correction / overlap_count as f32;
+                // Apply correction only on XZ plane (preserve Y position)
+                transform.translation.x += correction.x;
+                transform.translation.z += correction.z;
             }
         }
     }
@@ -99,7 +111,12 @@ pub fn apply_separation(
                 continue;
             }
 
-            let diff = transform.translation - *other_pos;
+            // Calculate difference on XZ plane only (ignore Y difference)
+            let diff = Vec3::new(
+                transform.translation.x - other_pos.x,
+                0.0,
+                transform.translation.z - other_pos.z,
+            );
             let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
 
             // Check if within neighbor distance
@@ -113,11 +130,11 @@ pub fn apply_separation(
                     separation_count += 1;
                 }
 
-                // Alignment: match velocity of neighbors
+                // Alignment: match velocity of neighbors (already 2D)
                 alignment += *other_velocity;
 
-                // Cohesion: steer toward average position
-                cohesion += *other_pos;
+                // Cohesion: steer toward average position (XZ only)
+                cohesion += Vec3::new(other_pos.x, 0.0, other_pos.z);
 
                 neighbor_count += 1;
             }
@@ -134,10 +151,51 @@ pub fn apply_separation(
             alignment /= neighbor_count as f32;
             acceleration.add_force(alignment * ALIGNMENT_STRENGTH);
 
-            // Cohesion force
+            // Cohesion force (XZ plane only)
             cohesion /= neighbor_count as f32;
-            let cohesion_direction = cohesion - transform.translation;
+            let cohesion_direction = Vec3::new(
+                cohesion.x - transform.translation.x,
+                0.0,
+                cohesion.z - transform.translation.z,
+            );
             acceleration.add_force(cohesion_direction * COHESION_STRENGTH);
+        }
+    }
+}
+
+/// Applies movement slowdown to units standing on rough terrain (corpses).
+///
+/// Units walking over corpses have their movement speed temporarily reduced.
+/// This creates a tactical element where corpses affect battlefield movement.
+pub fn apply_rough_terrain_slowdown(
+    mut units: Query<
+        (&Transform, &Hitbox, &mut MovementSpeed),
+        (
+            Without<Corpse>,
+            Without<super::units::wizard::components::Wizard>,
+        ),
+    >,
+    corpses: Query<(&Transform, &Hitbox, &RoughTerrain), With<Corpse>>,
+) {
+    for (unit_transform, unit_hitbox, mut movement_speed) in &mut units {
+        let mut max_slowdown: f32 = 1.0; // No slowdown by default
+
+        // Check all corpses for overlap
+        for (corpse_transform, corpse_hitbox, rough_terrain) in &corpses {
+            let distance = unit_transform
+                .translation
+                .distance(corpse_transform.translation);
+            let overlap_threshold = unit_hitbox.radius + corpse_hitbox.radius;
+
+            if distance < overlap_threshold {
+                // Apply slowdown from this corpse
+                max_slowdown = max_slowdown.min(rough_terrain.slowdown_factor);
+            }
+        }
+
+        // Apply the worst slowdown encountered
+        if max_slowdown < 1.0 {
+            movement_speed.speed *= max_slowdown;
         }
     }
 }
@@ -159,6 +217,7 @@ pub fn move_units(
         &Hitbox,
         &Team,
     )>,
+    corpse_query: Query<Entity, With<Corpse>>,
 ) {
     // Movement parameters are defined in constants.rs
 
@@ -175,14 +234,12 @@ pub fn move_units(
     for (entity, mut transform, mut velocity, mut acceleration, movement_speed, hitbox, team) in
         &mut all_units
     {
-        // Apply acceleration to velocity
+        // Apply acceleration to velocity (only XZ plane - units don't move vertically)
         velocity.x += acceleration.x * time.delta_secs();
-        velocity.y += acceleration.y * time.delta_secs();
         velocity.z += acceleration.z * time.delta_secs();
 
         // Apply damping to reduce momentum
         velocity.x *= VELOCITY_DAMPING;
-        velocity.y *= VELOCITY_DAMPING;
         velocity.z *= VELOCITY_DAMPING;
 
         // Calculate speed multiplier based on proximity to nearest enemy
@@ -191,8 +248,10 @@ pub fn move_units(
         if let Some((_, nearest_pos, nearest_hitbox, _)) = unit_snapshot
             .iter()
             .filter(|(other_entity, _, _, other_team)| {
-                // Skip self and only consider enemies (units on different teams)
-                *other_entity != entity && *other_team != *team
+                // Skip self, only consider enemies (units on different teams), and exclude corpses
+                *other_entity != entity
+                    && *other_team != *team
+                    && !corpse_query.contains(*other_entity)
             })
             .min_by(|a, b| {
                 let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -226,9 +285,8 @@ pub fn move_units(
             velocity.z *= scale;
         }
 
-        // Apply velocity to position
+        // Apply velocity to position (only XZ plane - Y stays fixed at spawn height)
         transform.translation.x += velocity.x * time.delta_secs();
-        transform.translation.y += velocity.y * time.delta_secs();
         transform.translation.z += velocity.z * time.delta_secs();
 
         // Reset acceleration for next frame
@@ -262,8 +320,18 @@ pub fn combat(
         if let Some((target_entity, _, _)) = units_snapshot
             .iter()
             .filter(|(entity, _, _, team)| {
-                // Skip self and only consider enemies (different teams)
-                *entity != attacker_entity && *team != *attacker_team
+                // Skip self and apply team-based targeting logic
+                *entity != attacker_entity
+                    && match (attacker_team, team) {
+                        // Undead don't attack each other
+                        (Team::Undead, Team::Undead) => false,
+                        // Undead attack living
+                        (Team::Undead, _) => true,
+                        // Living attack undead
+                        (_, Team::Undead) => true,
+                        // Normal team logic
+                        _ => *team != *attacker_team,
+                    }
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
                 let distance = attacker_transform.translation.distance(*target_pos);
@@ -288,14 +356,41 @@ pub fn combat(
     }
 }
 
-/// Despawns units when their health reaches zero.
+/// Converts dead units to corpses instead of despawning them.
 ///
-/// This system checks all units with Health components and removes them from the game
-/// when their current health is zero or below.
-pub fn despawn_dead_units(mut commands: Commands, query: Query<(Entity, &Health)>) {
-    for (entity, health) in &query {
+/// When a unit's health reaches zero, this system grays out the sprite based on team
+/// and converts the unit into a corpse that slows living units walking over it.
+pub fn convert_dead_to_corpses(
+    mut commands: Commands,
+    query: Query<(Entity, &Health, &Team), Without<Corpse>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    material_query: Query<&MeshMaterial3d<StandardMaterial>>,
+) {
+    for (entity, health, team) in &query {
         if health.is_dead() {
-            commands.entity(entity).despawn();
+            // Get existing material handle and gray out the sprite based on team
+            if let Ok(material_handle) = material_query.get(entity)
+                && let Some(material) = materials.get_mut(&material_handle.0)
+            {
+                material.base_color = match team {
+                    Team::Defenders => Color::srgb(0.6, 0.6, 0.4), // Grayish yellow
+                    Team::Attackers => Color::srgb(0.6, 0.4, 0.4), // Grayish red
+                    Team::Undead => Color::srgb(0.4, 0.5, 0.4),    // Grayish green
+                };
+            }
+
+            // Add corpse marker and rough terrain effect
+            commands
+                .entity(entity)
+                .insert(Corpse)
+                .insert(RoughTerrain {
+                    slowdown_factor: 0.6,
+                }) // 40% speed reduction
+                .remove::<Velocity>() // Stop moving
+                .remove::<Acceleration>() // No forces
+                .remove::<MovementSpeed>() // Can't move
+                .remove::<AttackTiming>() // Can't attack
+                .remove::<Hitbox>(); // Remove collision
         }
     }
 }

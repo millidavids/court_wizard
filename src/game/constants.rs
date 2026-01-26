@@ -43,9 +43,6 @@ pub const ATTACKER_SPAWN_Z_MIN: f32 = -500.0;
 
 // ===== Unit Positioning =====
 
-/// Y position for units moving on the battlefield.
-pub const UNIT_Y_POSITION: f32 = 50.0;
-
 /// Wizard position in 3D space (on castle platform).
 /// Calculated as castle position plus offset.
 pub const WIZARD_POSITION: Vec3 = Vec3::new(

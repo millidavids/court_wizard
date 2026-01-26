@@ -9,6 +9,7 @@ pub enum Spell {
     GuardianCircle,
     ChainLightning,
     FingerOfDeath,
+    RaiseTheDead,
 }
 
 impl Spell {
@@ -21,6 +22,7 @@ impl Spell {
             Spell::GuardianCircle,
             Spell::ChainLightning,
             Spell::FingerOfDeath,
+            Spell::RaiseTheDead,
         ]
     }
 
@@ -33,6 +35,7 @@ impl Spell {
             Spell::GuardianCircle => "Guardian Circle",
             Spell::ChainLightning => "Chain Lightning",
             Spell::FingerOfDeath => "Finger of Death",
+            Spell::RaiseTheDead => "Raise The Dead",
         }
     }
 
@@ -41,6 +44,7 @@ impl Spell {
         use crate::game::units::wizard::spells::{
             chain_lightning_constants, disintegrate_constants, finger_of_death_constants,
             fireball_constants, guardian_circle_constants, magic_missile_constants,
+            raise_the_dead_constants,
         };
 
         match self {
@@ -50,6 +54,7 @@ impl Spell {
             Spell::GuardianCircle => guardian_circle_constants::PRIMED_GUARDIAN_CIRCLE,
             Spell::ChainLightning => chain_lightning_constants::PRIMED_CHAIN_LIGHTNING,
             Spell::FingerOfDeath => finger_of_death_constants::PRIMED_FINGER_OF_DEATH,
+            Spell::RaiseTheDead => raise_the_dead_constants::PRIMED_RAISE_THE_DEAD,
         }
     }
 }

@@ -29,6 +29,9 @@ pub fn spawn_initial_defenders(
         let spawn_z = DEFENDER_SPAWN_Z_MIN
             + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
 
+        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+        let spawn_y = hitbox.height / 2.0 + 1.0;
+
         commands.spawn((
             Mesh3d(meshes.add(circle)),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -36,7 +39,7 @@ pub fn spawn_initial_defenders(
                 unlit: true,
                 ..default()
             })),
-            Transform::from_xyz(spawn_x, UNIT_Y_POSITION, spawn_z),
+            Transform::from_xyz(spawn_x, spawn_y, spawn_z),
             Velocity::default(),
             Acceleration::new(),
             hitbox,
@@ -72,6 +75,9 @@ pub fn spawn_initial_attackers(
         let spawn_z = ATTACKER_SPAWN_Z_MIN
             + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
 
+        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+        let spawn_y = hitbox.height / 2.0 + 1.0;
+
         commands.spawn((
             Mesh3d(meshes.add(circle)),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -79,7 +85,7 @@ pub fn spawn_initial_attackers(
                 unlit: true,
                 ..default()
             })),
-            Transform::from_xyz(spawn_x, UNIT_Y_POSITION, spawn_z),
+            Transform::from_xyz(spawn_x, spawn_y, spawn_z),
             Velocity::default(),
             Acceleration::new(),
             hitbox,
@@ -99,12 +105,14 @@ pub fn spawn_initial_attackers(
 /// velocity. Defenders share activation - once any attacker is within range of any defender,
 /// all defenders activate and start moving.
 /// Adds random movement when in melee range to simulate combat chaos.
+/// Corpses are automatically excluded since they don't have Hitbox components.
 pub fn update_infantry_targets(
     time: Res<Time>,
     mut units: Query<(&Transform, &mut Acceleration, &Hitbox, &Team), With<Infantry>>,
     mut defenders_activated: ResMut<DefendersActivated>,
 ) {
-    // First pass: collect position/hitbox data for both teams
+    // First pass: collect position/hitbox data for all teams
+    // Corpses are automatically excluded because they don't have Hitbox
     let attackers: Vec<(Vec3, f32)> = units
         .iter()
         .filter(|(_, _, _, team)| **team == Team::Attackers)
@@ -114,6 +122,12 @@ pub fn update_infantry_targets(
     let defenders: Vec<(Vec3, f32)> = units
         .iter()
         .filter(|(_, _, _, team)| **team == Team::Defenders)
+        .map(|(transform, _, hitbox, _)| (transform.translation, hitbox.radius))
+        .collect();
+
+    let undead: Vec<(Vec3, f32)> = units
+        .iter()
+        .filter(|(_, _, _, team)| **team == Team::Undead)
         .map(|(transform, _, hitbox, _)| (transform.translation, hitbox.radius))
         .collect();
 
@@ -131,26 +145,47 @@ pub fn update_infantry_targets(
 
     // Second pass: apply steering and melee forces
     for (transform, mut acceleration, hitbox, team) in &mut units {
-        let enemies = match *team {
+        // Combine appropriate enemy lists based on team
+        let mut combined_enemies: Vec<&(Vec3, f32)> = Vec::new();
+
+        match *team {
             Team::Defenders => {
                 if !defenders_activated.active {
                     continue;
                 }
-                &attackers
+                combined_enemies.extend(&attackers);
+                combined_enemies.extend(&undead); // Defenders attack undead too
             }
-            Team::Attackers => &defenders,
-        };
+            Team::Attackers => {
+                combined_enemies.extend(&defenders);
+                combined_enemies.extend(&undead); // Attackers attack undead too
+            }
+            Team::Undead => {
+                combined_enemies.extend(&defenders);
+                combined_enemies.extend(&attackers); // Undead attack both teams
+            }
+        }
 
-        // Find nearest enemy
-        let nearest = enemies.iter().min_by(|a, b| {
-            let dist_a = transform.translation.distance(a.0);
-            let dist_b = transform.translation.distance(b.0);
-            dist_a.partial_cmp(&dist_b).unwrap()
+        // Find nearest enemy (using XZ distance only)
+        let nearest = combined_enemies.iter().min_by(|a, b| {
+            // Calculate XZ distance only (ignore Y)
+            let dist_a_sq = (transform.translation.x - a.0.x).powi(2)
+                + (transform.translation.z - a.0.z).powi(2);
+            let dist_b_sq = (transform.translation.x - b.0.x).powi(2)
+                + (transform.translation.z - b.0.z).powi(2);
+            dist_a_sq
+                .partial_cmp(&dist_b_sq)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         if let Some(&(enemy_pos, enemy_radius)) = nearest {
-            let diff = enemy_pos - transform.translation;
-            let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
+            // Calculate difference on XZ plane only (ignore Y difference between unit heights)
+            let diff_xz = Vec3::new(
+                enemy_pos.x - transform.translation.x,
+                0.0,
+                enemy_pos.z - transform.translation.z,
+            );
+            let distance = (diff_xz.x * diff_xz.x + diff_xz.z * diff_xz.z).sqrt();
 
             // Check if in melee range (within attack range)
             let melee_range = (hitbox.radius + enemy_radius) * ATTACK_RANGE_MULTIPLIER;
@@ -170,7 +205,7 @@ pub fn update_infantry_targets(
                 acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
             }
 
-            let steering = diff.normalize_or_zero() * STEERING_FORCE;
+            let steering = diff_xz.normalize_or_zero() * STEERING_FORCE;
             acceleration.add_force(steering);
         }
     }

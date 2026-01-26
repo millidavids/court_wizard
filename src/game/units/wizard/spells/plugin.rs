@@ -8,6 +8,7 @@ use super::finger_of_death::FingerOfDeathPlugin;
 use super::fireball::FireballPlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::magic_missile::MagicMissilePlugin;
+use super::raise_the_dead::RaiseTheDeadPlugin;
 use super::systems;
 
 /// Plugin that handles wizard spells and projectiles.
@@ -19,6 +20,7 @@ use super::systems;
 /// - Guardian Circle spell (GuardianCirclePlugin)
 /// - Chain Lightning spell (ChainLightningPlugin)
 /// - Finger of Death spell (FingerOfDeathPlugin)
+/// - Raise The Dead spell (RaiseTheDeadPlugin)
 /// - Projectile movement
 /// - Projectile collision detection
 /// - Spell effect lifetime management
@@ -34,6 +36,7 @@ impl Plugin for SpellsPlugin {
             GuardianCirclePlugin,
             ChainLightningPlugin,
             FingerOfDeathPlugin,
+            RaiseTheDeadPlugin,
         ))
         .add_systems(
             Update,

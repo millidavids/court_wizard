@@ -6,43 +6,38 @@ pub struct OnGameplayScreen;
 
 /// Velocity component for moving units.
 ///
-/// Represents the unit's movement speed in 3D space (units per second).
+/// Represents the unit's movement speed on the XZ plane (units per second).
+/// Units don't move vertically - they stay at their spawn height.
 /// Z velocity controls depth movement (toward/away from camera).
 #[derive(Component, Default)]
 pub struct Velocity {
     pub x: f32,
-    pub y: f32,
     pub z: f32,
 }
 
 /// Acceleration component for units using boids flocking.
 ///
-/// Represents forces applied to the unit. Acceleration is reset each frame.
+/// Represents forces applied to the unit on the XZ plane. Acceleration is reset each frame.
+/// Units don't accelerate vertically - they stay at their spawn height.
 #[derive(Component)]
 pub struct Acceleration {
     pub x: f32,
-    pub y: f32,
     pub z: f32,
 }
 
 impl Acceleration {
     pub const fn new() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
+        Self { x: 0.0, z: 0.0 }
     }
 
     pub fn reset(&mut self) {
         self.x = 0.0;
-        self.y = 0.0;
         self.z = 0.0;
     }
 
     pub fn add_force(&mut self, force: Vec3) {
         self.x += force.x;
-        self.y += force.y;
         self.z += force.z;
+        // Ignore Y component - units only move on XZ plane
     }
 }

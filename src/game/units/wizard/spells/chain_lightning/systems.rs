@@ -7,7 +7,9 @@ use super::styles::arc_color;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
-use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{
+    Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
+};
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 /// Handles chain lightning casting with left-click.
@@ -26,7 +28,7 @@ pub fn handle_chain_lightning_casting(
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<Wizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    enemies_query: Query<(Entity, &Transform, &Team)>,
+    enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
     let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
@@ -145,28 +147,28 @@ fn get_cursor_world_position(
 }
 
 /// Finds the closest enemy near the given position within TARGETING_RADIUS.
-/// Note: position should be at Y=0 (battlefield plane), and is adjusted to unit Y-level for comparison.
+/// Note: position should be at Y=0 (battlefield plane). Uses XZ distance for targeting.
+/// Targets all living units (defenders, attackers, and undead) but excludes corpses.
 fn find_target_near_position(
     position: Vec3,
-    enemies: &Query<(Entity, &Transform, &Team)>,
+    enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
 ) -> Option<(Entity, Vec3)> {
-    // Adjust cursor position to unit Y-level for distance calculation
-    let target_pos = Vec3::new(
-        position.x,
-        crate::game::constants::UNIT_Y_POSITION,
-        position.z,
-    );
+    // Use XZ distance only (ignore Y difference) for targeting
+    let target_pos_2d = Vec3::new(position.x, 0.0, position.z);
 
     enemies
         .iter()
         // No team filter - spell damages ALL units indiscriminately
         .filter(|(_, transform, _)| {
-            let distance = target_pos.distance(transform.translation);
+            let unit_pos_2d = Vec3::new(transform.translation.x, 0.0, transform.translation.z);
+            let distance = target_pos_2d.distance(unit_pos_2d);
             distance <= constants::TARGETING_RADIUS
         })
         .min_by(|a, b| {
-            let dist_a = target_pos.distance(a.1.translation);
-            let dist_b = target_pos.distance(b.1.translation);
+            let a_pos_2d = Vec3::new(a.1.translation.x, 0.0, a.1.translation.z);
+            let b_pos_2d = Vec3::new(b.1.translation.x, 0.0, b.1.translation.z);
+            let dist_a = target_pos_2d.distance(a_pos_2d);
+            let dist_b = target_pos_2d.distance(b_pos_2d);
             dist_a.partial_cmp(&dist_b).unwrap()
         })
         .map(|(entity, transform, _)| (entity, transform.translation))
@@ -211,19 +213,23 @@ fn spawn_arc(
 }
 
 /// Processes chain lightning bounces to nearby enemies.
+/// Targets all living units (defenders, attackers, and undead) but excludes corpses.
 pub fn process_chain_lightning_bounces(
     time: Res<Time>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut bolts: Query<(Entity, &mut ChainLightningBolt)>,
-    mut enemies: Query<(
-        Entity,
-        &Transform,
-        &Team,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-    )>,
+    mut enemies: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        Without<Corpse>,
+    >,
 ) {
     for (bolt_entity, mut bolt) in &mut bolts {
         // Decrement bounce delay timer
@@ -269,16 +275,20 @@ pub fn process_chain_lightning_bounces(
 }
 
 /// Finds the closest enemy within bounce range that hasn't been hit yet.
+/// Targets all living units (defenders, attackers, and undead) but excludes corpses.
 fn find_next_bounce_target(
     origin: Vec3,
     hit_entities: &[Entity],
-    enemies: &Query<(
-        Entity,
-        &Transform,
-        &Team,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-    )>,
+    enemies: &Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        Without<Corpse>,
+    >,
 ) -> Option<(Entity, Vec3)> {
     enemies
         .iter()
