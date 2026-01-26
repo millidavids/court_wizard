@@ -7,6 +7,7 @@ use bevy::prelude::*;
 pub enum Team {
     Defenders,
     Attackers,
+    Undead,
 }
 
 /// Health component for all units.
@@ -232,4 +233,21 @@ pub fn apply_damage_to_unit(
     };
 
     health.take_damage(overflow);
+}
+
+/// Marker component for dead units (corpses).
+///
+/// Dead units remain on the battlefield as corpses that affect living units.
+/// Corpses don't move, attack, or collide, but they slow down units walking over them.
+#[derive(Component)]
+pub struct Corpse;
+
+/// Component that slows units walking over rough terrain (corpses).
+///
+/// Applied to corpses to create a movement penalty for living units that walk over them.
+#[derive(Component)]
+pub struct RoughTerrain {
+    /// Movement speed multiplier (0.0 = no movement, 1.0 = full speed).
+    /// For example, 0.6 means units move at 60% of their normal speed.
+    pub slowdown_factor: f32,
 }

@@ -57,9 +57,11 @@ impl Plugin for GamePlugin {
                     shared_systems::tick_attack_cycle,
                     // Separation runs after targeting but before movement
                     shared_systems::apply_separation,
+                    // Apply rough terrain slowdown before movement
+                    shared_systems::apply_rough_terrain_slowdown,
                     shared_systems::move_units,
                     shared_systems::combat,
-                    shared_systems::despawn_dead_units,
+                    shared_systems::convert_dead_to_corpses,
                 )
                     .chain()
                     .run_if(in_state(InGameState::Running)),
