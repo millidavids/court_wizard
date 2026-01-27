@@ -10,6 +10,7 @@ pub enum Spell {
     ChainLightning,
     FingerOfDeath,
     RaiseTheDead,
+    Teleport,
 }
 
 impl Spell {
@@ -23,6 +24,7 @@ impl Spell {
             Spell::ChainLightning,
             Spell::FingerOfDeath,
             Spell::RaiseTheDead,
+            Spell::Teleport,
         ]
     }
 
@@ -36,6 +38,7 @@ impl Spell {
             Spell::ChainLightning => "Chain Lightning",
             Spell::FingerOfDeath => "Finger of Death",
             Spell::RaiseTheDead => "Raise The Dead",
+            Spell::Teleport => "Teleport",
         }
     }
 
@@ -44,7 +47,7 @@ impl Spell {
         use crate::game::units::wizard::spells::{
             chain_lightning_constants, disintegrate_constants, finger_of_death_constants,
             fireball_constants, guardian_circle_constants, magic_missile_constants,
-            raise_the_dead_constants,
+            raise_the_dead_constants, teleport_constants,
         };
 
         match self {
@@ -55,6 +58,7 @@ impl Spell {
             Spell::ChainLightning => chain_lightning_constants::PRIMED_CHAIN_LIGHTNING,
             Spell::FingerOfDeath => finger_of_death_constants::PRIMED_FINGER_OF_DEATH,
             Spell::RaiseTheDead => raise_the_dead_constants::PRIMED_RAISE_THE_DEAD,
+            Spell::Teleport => teleport_constants::PRIMED_TELEPORT,
         }
     }
 }

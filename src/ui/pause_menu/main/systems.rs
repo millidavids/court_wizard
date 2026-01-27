@@ -9,6 +9,10 @@ use crate::ui::systems::spawn_button;
 use super::components::{OnPauseMainScreen, PauseMenuButtonAction};
 use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 
+/// Marker component to track that a button was pressed down.
+#[derive(Component)]
+pub(super) struct ButtonPressedDown;
+
 /// Sets up the pause menu main screen UI.
 ///
 /// Spawns the root UI node containing the title and menu buttons.
@@ -85,25 +89,48 @@ pub fn cleanup(mut commands: Commands, main_items: Query<Entity, With<OnPauseMai
 ///
 /// Triggers state transitions based on the button's `PauseMenuButtonAction` component.
 pub fn button_action(
+    mut commands: Commands,
     interaction_query: Query<
-        (&Interaction, &PauseMenuButtonAction),
+        (
+            Entity,
+            &Interaction,
+            &PauseMenuButtonAction,
+            Option<&ButtonPressedDown>,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
 ) {
-    for (interaction, action) in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            match action {
-                PauseMenuButtonAction::Continue => {
-                    next_in_game_state.set(InGameState::Running);
+    for (entity, interaction, action, pressed_down) in &interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                // Mark button as pressed down
+                commands.entity(entity).insert(ButtonPressedDown);
+            }
+            Interaction::Hovered => {
+                // Only trigger action if button was previously pressed
+                if pressed_down.is_some() {
+                    commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    match action {
+                        PauseMenuButtonAction::Continue => {
+                            next_in_game_state.set(InGameState::Running);
+                        }
+                        PauseMenuButtonAction::Settings => {
+                            next_pause_menu_state.set(PauseMenuState::Settings);
+                        }
+                        PauseMenuButtonAction::Exit => {
+                            next_app_state.set(AppState::MainMenu);
+                        }
+                    }
                 }
-                PauseMenuButtonAction::Settings => {
-                    next_pause_menu_state.set(PauseMenuState::Settings);
-                }
-                PauseMenuButtonAction::Exit => {
-                    next_app_state.set(AppState::MainMenu);
+            }
+            Interaction::None => {
+                // Clear marker if mouse leaves button
+                if pressed_down.is_some() {
+                    commands.entity(entity).remove::<ButtonPressedDown>();
                 }
             }
         }

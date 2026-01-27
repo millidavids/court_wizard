@@ -29,6 +29,7 @@ impl Plugin for WizardPlugin {
                     systems::handle_prime_spell_messages,
                 )
                     .run_if(in_state(InGameState::Running)),
-            );
+            )
+            .add_systems(OnExit(InGameState::Running), systems::cancel_active_casts);
     }
 }

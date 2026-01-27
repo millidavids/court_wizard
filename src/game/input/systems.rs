@@ -5,7 +5,7 @@
 
 use bevy::prelude::*;
 
-use super::events::*;
+use super::{components::MouseButtonState, events::*};
 
 /// Detects mouse button input and sends events.
 ///
@@ -14,6 +14,7 @@ use super::events::*;
 pub fn detect_mouse_input(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
+    mut mouse_state: ResMut<MouseButtonState>,
     mut left_pressed: MessageWriter<MouseLeftPressed>,
     mut left_held: MessageWriter<MouseLeftHeld>,
     mut left_released: MessageWriter<MouseLeftReleased>,
@@ -38,6 +39,7 @@ pub fn detect_mouse_input(
 
     if mouse.just_released(MouseButton::Left) {
         left_released.write(MouseLeftReleased);
+        mouse_state.left_consumed = false; // Reset for next press
     }
 
     // Check right mouse button state

@@ -4,7 +4,9 @@ use super::components::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::units::components::{AttackTiming, Health, Hitbox, MovementSpeed, Team};
+use crate::game::units::components::{
+    AttackTiming, Health, Hitbox, MovementSpeed, Team, Teleportable,
+};
 
 /// Spawns initial defenders when entering the game.
 ///
@@ -47,6 +49,7 @@ pub fn spawn_initial_defenders(
             AttackTiming::new(),
             Team::Defenders,
             Infantry,
+            Teleportable,
             OnGameplayScreen,
         ));
     }
@@ -93,6 +96,7 @@ pub fn spawn_initial_attackers(
             AttackTiming::new(),
             Team::Attackers,
             Infantry,
+            Teleportable,
             OnGameplayScreen,
         ));
     }

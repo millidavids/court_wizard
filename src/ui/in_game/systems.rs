@@ -11,6 +11,26 @@ use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wi
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
 
+/// Marker component to track that a button was pressed down.
+#[derive(Component)]
+pub(super) struct ButtonPressedDown;
+
+/// Blocks spell input when any button is being interacted with.
+///
+/// This system runs before spell systems to prevent casting when clicking UI buttons.
+pub fn block_spell_input_on_button_interaction(
+    button_query: Query<&Interaction, With<Button>>,
+    mut block_spell_input: MessageWriter<BlockSpellInput>,
+) {
+    // Block spell input if any button is pressed or hovered
+    for interaction in &button_query {
+        if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
+            block_spell_input.write(BlockSpellInput);
+            return; // Only need to send once
+        }
+    }
+}
+
 /// Handles keyboard input during active gameplay.
 ///
 /// - Escape: Pause the game, transitioning to `InGameState::Paused`
@@ -117,25 +137,44 @@ pub fn spawn_hud(mut commands: Commands) {
         });
 }
 
-/// Handles HUD button click actions and sends spell input blocker message.
+/// Handles HUD button click actions.
 ///
-/// Sends BlockSpellInput message when a button is clicked to prevent spell casting.
+/// Uses a marker component to ensure buttons only trigger on release after being pressed.
 pub fn hud_button_action(
+    mut commands: Commands,
     interaction_query: Query<
-        (&Interaction, &HudButtonAction),
+        (
+            Entity,
+            &Interaction,
+            &HudButtonAction,
+            Option<&ButtonPressedDown>,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
-    mut block_spell_input: MessageWriter<BlockSpellInput>,
 ) {
-    for (interaction, action) in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            // Send message to block spell input when clicking UI buttons
-            block_spell_input.write(BlockSpellInput);
+    for (entity, interaction, action, pressed_down) in &interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                // Mark button as pressed down
+                commands.entity(entity).insert(ButtonPressedDown);
+            }
+            Interaction::Hovered => {
+                // Only trigger action if button was previously pressed
+                if pressed_down.is_some() {
+                    commands.entity(entity).remove::<ButtonPressedDown>();
 
-            match action {
-                HudButtonAction::OpenSpellBook => {
-                    next_in_game_state.set(InGameState::SpellBook);
+                    match action {
+                        HudButtonAction::OpenSpellBook => {
+                            next_in_game_state.set(InGameState::SpellBook);
+                        }
+                    }
+                }
+            }
+            Interaction::None => {
+                // Clear marker if mouse leaves button
+                if pressed_down.is_some() {
+                    commands.entity(entity).remove::<ButtonPressedDown>();
                 }
             }
         }
