@@ -4,22 +4,28 @@ set -e
 # Check for --release flag
 RELEASE_FLAG=""
 BUILD_TYPE="debug"
+OUT_DIR="./web"
 if [ "$1" = "--release" ]; then
     RELEASE_FLAG="--release"
     BUILD_TYPE="release"
-    echo "Building for WASM (RELEASE MODE)..."
+    OUT_DIR="./docs"
+    echo "Building for WASM (RELEASE MODE - for GitHub Pages)..."
 else
-    echo "Building for WASM (debug mode)..."
+    echo "Building for WASM (debug mode - for local testing)..."
 fi
 
 cargo build --target wasm32-unknown-unknown $RELEASE_FLAG
 
 echo "Running wasm-bindgen..."
 wasm-bindgen \
-  --out-dir ./docs \
+  --out-dir $OUT_DIR \
   --out-name the_game \
   --target web \
   ./target/wasm32-unknown-unknown/$BUILD_TYPE/the_game.wasm
 
-echo "WASM build complete! Files are in ./docs/"
-echo "Open docs/index.html in your browser to run the game."
+if [ "$1" = "--release" ]; then
+    echo "WASM build complete! Release files are in ./docs/ for GitHub Pages deployment."
+else
+    echo "WASM build complete! Debug files are in ./web/ for local testing."
+    echo "Run ./serve.sh to test locally."
+fi
