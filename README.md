@@ -4,7 +4,7 @@ A 3D wizard tower defense game built with Rust and Bevy, playable in the browser
 
 ## About
 
-Play as a powerful wizard defending your castle from waves of attackers. Use an arsenal of 8 unique spells to protect your castle's defenders and turn the tide of battle.
+Play as a powerful wizard defending your castle from waves of attackers.
 
 ## Gameplay
 
@@ -29,7 +29,7 @@ Play as a powerful wizard defending your castle from waves of attackers. Use an 
 
 ## Play
 
-The game is deployed at: https://davidov541.github.io/the_game/
+The game is deployed at: https://millidavids.github.io/court_wizard/
 
 ## Development
 
