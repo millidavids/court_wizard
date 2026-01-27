@@ -100,6 +100,111 @@ When implementing Bevy features (states, messages, events, systems, queries, com
 - Bridge pattern: External events → Bridge systems → Unified messages
 - Example: `ConfigChanged` message for unified debounced config saves
 
+**System Run Conditions (`run_if`) - CRITICAL PERFORMANCE PATTERN:**
+
+Systems with expensive queries MUST use `run_if` conditions instead of early returns to skip query preparation entirely when conditions aren't met.
+
+**Why This Matters:**
+- Early returns still prepare queries (expensive archetype iteration)
+- `run_if` conditions skip the system entirely, avoiding query preparation
+- Critical for systems with complex queries that run every frame
+
+**When to Use `run_if`:**
+- Systems that check multiple boolean conditions before executing
+- Systems with expensive queries (multiple components, complex filters)
+- Systems that only run under specific circumstances
+- Any system that would otherwise early-return >50% of the time
+
+**Pattern for MessageReader-Based Conditions:**
+
+MessageReaders are consuming, so cannot be used directly in `run_if` conditions. Use the resource-based state tracking pattern:
+
+1. **Create tracking resources** (in appropriate `components.rs`):
+```rust
+#[derive(Resource, Default)]
+pub struct SomeEventOccurredThisFrame {
+    pub occurred: bool,
+}
+```
+
+2. **Create update system** to consume messages and populate resources:
+```rust
+pub fn update_state_for_run_conditions(
+    mut event_reader: MessageReader<SomeEvent>,
+    mut state: ResMut<SomeEventOccurredThisFrame>,
+) {
+    state.occurred = event_reader.read().next().is_some();
+}
+```
+
+3. **Register resources and ensure system ordering**:
+```rust
+app.init_resource::<SomeEventOccurredThisFrame>()
+   .add_systems(Update, update_state_for_run_conditions);
+// Update system must run BEFORE systems that use the run_if conditions
+```
+
+4. **Create reusable run condition functions** (in `run_conditions.rs` module):
+```rust
+pub fn some_event_occurred(state: Res<SomeEventOccurredThisFrame>) -> bool {
+    state.occurred
+}
+
+pub fn complex_condition(
+    query: Query<&Component, With<Marker>>,
+    resource: Res<SomeResource>,
+) -> bool {
+    // Combine multiple checks
+    !resource.is_blocked && query.iter().any(|c| c.is_valid())
+}
+```
+
+5. **Apply to systems**:
+```rust
+app.add_systems(
+    Update,
+    my_expensive_system
+        .run_if(some_event_occurred)
+        .run_if(complex_condition)
+        .run_if(in_state(GameState::Running)),
+);
+```
+
+**Example - Spell Casting Systems:**
+
+See `src/game/units/wizard/spells/` for reference implementation:
+- `run_conditions.rs` - Reusable condition functions
+- `src/game/input/components.rs` - Tracking resources (`SpellInputBlockedThisFrame`, `MouseLeftHeldThisFrame`)
+- `src/game/input/systems.rs` - `update_input_state_for_run_conditions()`
+- All spell plugins use `run_if` chains instead of early returns
+
+**Critical Rules:**
+1. NEVER set `mouse_state.left_consumed = true` in release handlers - only set it when operations complete successfully
+2. For systems that need to run during casting/channeling AND on release, use compound conditions like `mouse_held_or_wizard_casting`
+3. Always remove early-return checks that are now handled by `run_if` to avoid redundant checks
+4. Remove unused parameters after refactoring early returns to `run_if`
+
+**Anti-Pattern (DO NOT USE):**
+```rust
+pub fn my_system(
+    query: Query<...>, // Query prepared every frame
+) {
+    if !some_condition { return; } // Early return after query prep
+    // Do work
+}
+```
+
+**Correct Pattern (USE THIS):**
+```rust
+pub fn my_system(
+    query: Query<...>, // Query only prepared when condition is true
+) {
+    // Do work (no early returns for conditions)
+}
+
+// In plugin:
+app.add_systems(Update, my_system.run_if(some_condition_fn));
+
 ## Code Quality
 
 **Linting and Warnings**
