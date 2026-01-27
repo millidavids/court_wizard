@@ -4,6 +4,13 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct OnGameplayScreen;
 
+/// Marker component for entities that should always face the camera (billboard effect).
+///
+/// Entities with this component will have their rotation updated each frame to face the camera,
+/// rotating around the Y axis to remain perpendicular to the camera's forward direction on the XZ plane.
+#[derive(Component)]
+pub struct Billboard;
+
 /// Velocity component for moving units.
 ///
 /// Represents the unit's movement speed on the XZ plane (units per second).

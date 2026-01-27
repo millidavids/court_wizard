@@ -6,6 +6,7 @@ use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
 use super::shared_systems;
+use super::systems;
 use super::units::UnitsPlugin;
 
 /// Global attack cycle timer resource.
@@ -63,6 +64,8 @@ impl Plugin for GamePlugin {
                     shared_systems::move_units,
                     shared_systems::combat,
                     shared_systems::convert_dead_to_corpses,
+                    // Update billboards to face camera
+                    systems::update_billboards,
                 )
                     .chain()
                     .run_if(in_state(InGameState::Running)),
