@@ -4,8 +4,8 @@ use super::components::{Acceleration, Velocity};
 use super::constants::*;
 use super::plugin::GlobalAttackCycle;
 use super::units::components::{
-    AttackTiming, Corpse, Health, Hitbox, MovementSpeed, RoughTerrain, Team, TemporaryHitPoints,
-    apply_damage_to_unit,
+    AttackTiming, Corpse, Effectiveness, Health, Hitbox, MovementSpeed, RoughTerrain, Team,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
 
 /// Advances the global attack cycle timer each game frame.
@@ -14,6 +14,63 @@ use super::units::components::{
 /// schedule for unit attacks that is consistent across different frame rates.
 pub fn tick_attack_cycle(time: Res<Time>, mut attack_cycle: ResMut<GlobalAttackCycle>) {
     attack_cycle.tick(time.delta_secs());
+}
+
+/// Calculates effectiveness for all units based on melee proximity.
+///
+/// Effectiveness is modified by:
+/// - Number of allies in melee range (positive effect: +10% per ally)
+/// - Number of enemies in melee range (negative effect: -15% per enemy)
+///
+/// The effectiveness coefficient is applied to both movement speed and attack damage
+/// in their respective systems. This encourages tactical positioning and rewards
+/// units that fight together while penalizing isolated units.
+pub fn calculate_effectiveness(
+    mut units: Query<(Entity, &Transform, &Hitbox, &Team, &mut Effectiveness), Without<Corpse>>,
+) {
+    // Collect snapshot for symmetric calculations
+    let unit_data: Vec<_> = units
+        .iter()
+        .map(|(entity, transform, hitbox, team, _)| (entity, transform.translation, *hitbox, *team))
+        .collect();
+
+    // Calculate effectiveness for each unit
+    for (entity, transform, hitbox, team, mut effectiveness) in units.iter_mut() {
+        let mut ally_count = 0;
+        let mut enemy_count = 0;
+
+        for (other_entity, other_pos, other_hitbox, other_team) in &unit_data {
+            if *other_entity == entity {
+                continue;
+            }
+
+            // Calculate XZ plane distance
+            let dx = transform.translation.x - other_pos.x;
+            let dz = transform.translation.z - other_pos.z;
+            let distance = (dx * dx + dz * dz).sqrt();
+
+            // Use same melee range formula as combat
+            let melee_range = (hitbox.radius + other_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+
+            if distance <= melee_range {
+                // Team logic matches combat system
+                let is_enemy = match (*team, *other_team) {
+                    (Team::Undead, Team::Undead) => false,
+                    (Team::Undead, _) => true,
+                    (_, Team::Undead) => true,
+                    _ => other_team != team,
+                };
+
+                if is_enemy {
+                    enemy_count += 1;
+                } else {
+                    ally_count += 1;
+                }
+            }
+        }
+
+        effectiveness.recalculate(ally_count, enemy_count);
+    }
 }
 
 /// Applies flocking behavior and enforces zero hitbox overlap.
@@ -207,6 +264,7 @@ pub fn apply_rough_terrain_slowdown(
 /// Acceleration is reset each frame after being applied.
 /// Includes damping to reduce momentum and make units more responsive.
 /// Units slow down when near enemies (100% speed at 1.2x hitbox distance, 10% when touching).
+/// Movement speed is modified by the unit's effectiveness coefficient.
 pub fn move_units(
     time: Res<Time>,
     mut all_units: Query<(
@@ -217,6 +275,7 @@ pub fn move_units(
         &MovementSpeed,
         &Hitbox,
         &Team,
+        &Effectiveness,
     )>,
     infantry_query: Query<Entity, With<super::units::infantry::components::Infantry>>,
     mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
@@ -228,7 +287,7 @@ pub fn move_units(
     // This ensures symmetric movement - all units use the same frame's positions
     let unit_snapshot: Vec<_> = all_units
         .iter()
-        .map(|(entity, transform, _, _, _, hitbox, team)| {
+        .map(|(entity, transform, _, _, _, hitbox, team, _)| {
             (entity, transform.translation, *hitbox, *team)
         })
         .collect();
@@ -250,8 +309,16 @@ pub fn move_units(
     }
 
     // Process all units
-    for (entity, mut transform, mut velocity, mut acceleration, movement_speed, hitbox, team) in
-        &mut all_units
+    for (
+        entity,
+        mut transform,
+        mut velocity,
+        mut acceleration,
+        movement_speed,
+        hitbox,
+        team,
+        effectiveness,
+    ) in &mut all_units
     {
         // Infantry-specific: Add steering force toward nearest enemy
         if infantry_query.contains(entity) {
@@ -360,8 +427,9 @@ pub fn move_units(
             }
         }
 
-        // Limit velocity to max speed with proximity multiplier
-        let max_speed = movement_speed.speed * speed_multiplier;
+        // Limit velocity to max speed with proximity multiplier and effectiveness
+        let base_max_speed = movement_speed.speed * speed_multiplier;
+        let max_speed = base_max_speed * effectiveness.multiplier();
         let horizontal_velocity = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
         if horizontal_velocity > max_speed {
             let scale = max_speed / horizontal_velocity;
@@ -382,9 +450,17 @@ pub fn move_units(
 ///
 /// Units attack the nearest enemy within range. Attacks are time-based using the global
 /// attack cycle to naturally stagger attacks across all units.
+/// Damage is modified by the attacker's effectiveness coefficient.
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
-    mut all_units: Query<(Entity, &Transform, &Hitbox, &Team, &mut AttackTiming)>,
+    mut all_units: Query<(
+        Entity,
+        &Transform,
+        &Hitbox,
+        &Team,
+        &mut AttackTiming,
+        &Effectiveness,
+    )>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -393,12 +469,20 @@ pub fn combat(
     // Collect snapshot of all units for enemy detection
     let units_snapshot: Vec<_> = all_units
         .iter()
-        .map(|(entity, transform, hitbox, team, _)| (entity, transform.translation, *hitbox, *team))
+        .map(|(entity, transform, hitbox, team, _, _)| {
+            (entity, transform.translation, *hitbox, *team)
+        })
         .collect();
 
     // Process each unit's combat
-    for (attacker_entity, attacker_transform, attacker_hitbox, attacker_team, mut attack_timing) in
-        &mut all_units
+    for (
+        attacker_entity,
+        attacker_transform,
+        attacker_hitbox,
+        attacker_team,
+        mut attack_timing,
+        effectiveness,
+    ) in &mut all_units
     {
         // Find nearest enemy within attack range
         if let Some((target_entity, _, _)) = units_snapshot
@@ -433,7 +517,9 @@ pub fn combat(
             if attack_timing.can_attack(current_time, last_time)
                 && let Ok((mut target_health, mut temp_hp)) = health_query.get_mut(*target_entity)
             {
-                apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), ATTACK_DAMAGE);
+                // Apply effectiveness multiplier to damage
+                let modified_damage = ATTACK_DAMAGE * effectiveness.multiplier();
+                apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.record_attack(current_time);
             }
         }

@@ -56,6 +56,8 @@ impl Plugin for GamePlugin {
                 Update,
                 (
                     shared_systems::tick_attack_cycle,
+                    // Calculate effectiveness based on nearby allies/enemies
+                    shared_systems::calculate_effectiveness,
                     // Separation adds flocking forces
                     shared_systems::apply_separation,
                     // Apply rough terrain slowdown before movement
