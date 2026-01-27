@@ -2,7 +2,11 @@
 
 ## Game Development
 
-This game was created by David.
+This game was created by David Yurek.
+
+### Development Assistance
+
+Significant portions of this game's code were developed with assistance from [Claude](https://claude.ai/), an AI assistant created by [Anthropic](https://www.anthropic.com/).
 
 ## Built With
 
@@ -30,6 +34,7 @@ For complete license information, see the `Cargo.lock` file which lists all depe
 
 ## Special Thanks
 
+- **Anthropic** and **Claude** for AI-assisted development and code generation
 - The Bevy community for their excellent documentation and examples
 - The Rust community for creating an amazing language and ecosystem
 
