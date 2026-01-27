@@ -223,4 +223,26 @@ Use zsh as the default shell for this project to ensure cargo and rust toolchain
 The build script:
 1. Compiles for `wasm32-unknown-unknown` target
 2. Runs `wasm-bindgen` to generate JavaScript bindings
-3. Outputs to `./web/` directory
+3. Outputs to `./docs/` directory
+
+## GitHub Pages Deployment
+
+**CRITICAL**: Before running `git add` and `git commit` to deploy changes, ALWAYS build the release version:
+
+```bash
+./build_wasm.sh --release
+```
+
+**Why Release Build is Required:**
+- Debug builds are ~98MB (too large for GitHub Pages)
+- Release builds are significantly smaller and optimized
+- The `docs/` folder is served directly by GitHub Pages
+- Users will download the WASM file, so size matters
+
+**Deployment Workflow:**
+1. Make code changes
+2. Test locally with `./build_wasm.sh` (debug mode is fine for testing)
+3. When ready to deploy: `./build_wasm.sh --release`
+4. Then: `git add -A && git commit -m "..." && git push`
+
+**NEVER commit without building release first, or users will get a massive slow debug build.**
