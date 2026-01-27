@@ -5,7 +5,10 @@
 
 use bevy::prelude::*;
 
-use super::{components::MouseButtonState, events::*};
+use super::{
+    components::{MouseButtonState, MouseLeftHeldThisFrame, SpellInputBlockedThisFrame},
+    events::*,
+};
 
 /// Detects mouse button input and sends events.
 ///
@@ -77,4 +80,18 @@ pub fn detect_keyboard_input(
     if keyboard.just_released(KeyCode::Space) {
         spacebar_released.write(SpacebarReleased);
     }
+}
+
+/// Updates frame-based input state resources for run conditions.
+///
+/// This system consumes input messages and stores their state in resources
+/// that can be safely queried by run_if conditions. Must run BEFORE spell systems.
+pub fn update_input_state_for_run_conditions(
+    mut block_spell_input: MessageReader<BlockSpellInput>,
+    mut mouse_left_held: MessageReader<MouseLeftHeld>,
+    mut spell_blocked: ResMut<SpellInputBlockedThisFrame>,
+    mut mouse_held: ResMut<MouseLeftHeldThisFrame>,
+) {
+    spell_blocked.blocked = block_spell_input.read().next().is_some();
+    mouse_held.held = mouse_left_held.read().next().is_some();
 }

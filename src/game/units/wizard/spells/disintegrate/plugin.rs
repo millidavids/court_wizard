@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-use crate::state::InGameState;
-
+use super::super::super::components::Spell;
+use super::super::run_conditions::*;
 use super::systems;
+use crate::state::InGameState;
 
 /// Plugin that handles disintegrate spell casting and behavior.
 ///
@@ -18,7 +19,11 @@ impl Plugin for DisintegratePlugin {
         app.add_systems(
             Update,
             (
-                systems::handle_disintegrate_casting,
+                systems::handle_disintegrate_casting
+                    .run_if(spell_is_primed(Spell::Disintegrate))
+                    .run_if(spell_input_not_blocked)
+                    .run_if(mouse_left_not_consumed)
+                    .run_if(mouse_held_or_wizard_casting),
                 systems::update_beam_visuals,
                 systems::apply_disintegrate_damage,
                 systems::cleanup_beams_on_cancel,
