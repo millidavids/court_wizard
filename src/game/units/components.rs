@@ -248,6 +248,12 @@ pub struct Corpse;
 #[derive(Component)]
 pub struct PermanentCorpse;
 
+/// Marker component for units that can be teleported.
+///
+/// Applied to all combat units (defenders, attackers, undead) but not the wizard.
+#[derive(Component)]
+pub struct Teleportable;
+
 /// Component that slows units walking over rough terrain (corpses).
 ///
 /// Applied to corpses to create a movement penalty for living units that walk over them.

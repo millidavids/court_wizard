@@ -6,6 +6,7 @@ use super::spells::magic_missile_constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
+use crate::game::input::MouseButtonState;
 use crate::game::units::components::{Health, Hitbox, MovementSpeed};
 
 /// Sets up the wizard when entering the InGame state.
@@ -66,4 +67,21 @@ pub fn handle_prime_spell_messages(
             *primed_spell = message.spell;
         }
     }
+}
+
+/// Cancels any active casting when leaving the Running state.
+///
+/// Prevents spells from continuing to cast when entering menus or paused state.
+/// Also resets the mouse button state to prevent lingering input.
+pub fn cancel_active_casts(
+    mut wizard_query: Query<&mut CastingState, With<Wizard>>,
+    mut mouse_state: ResMut<MouseButtonState>,
+) {
+    if let Ok(mut casting_state) = wizard_query.single_mut()
+        && !matches!(*casting_state, CastingState::Resting)
+    {
+        casting_state.cancel();
+    }
+    // Reset mouse state when exiting running state
+    mouse_state.left_consumed = false;
 }

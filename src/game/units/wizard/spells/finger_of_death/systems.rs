@@ -6,7 +6,8 @@ use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
+use crate::game::input::MouseButtonState;
+use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
@@ -18,6 +19,8 @@ use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Sp
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finger_of_death_casting(
     time: Res<Time>,
+    mouse_state: Res<MouseButtonState>,
+    mut block_spell_input: MessageReader<BlockSpellInput>,
     mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
@@ -37,6 +40,16 @@ pub fn handle_finger_of_death_casting(
 
     // Only respond to left-click if Finger of Death is primed
     if primed_spell.spell != Spell::FingerOfDeath {
+        return;
+    }
+
+    // Don't cast if spell input is blocked
+    if block_spell_input.read().next().is_some() {
+        return;
+    }
+
+    // Don't cast if mouse hold is consumed
+    if mouse_state.left_consumed {
         return;
     }
 
@@ -215,10 +228,10 @@ fn spawn_beam(
 /// Drains wizard's entire mana bar and cancels casting state.
 /// Adds AwaitingFingerOfDeathRelease component to prevent immediate recast.
 pub fn apply_finger_of_death_damage(
-    mut commands: Commands,
+    mut mouse_state: ResMut<MouseButtonState>,
     mut beams: Query<&mut FingerOfDeathBeam>,
     mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>), Without<Wizard>>,
-    mut wizard_query: Query<(Entity, &mut Mana, &mut CastingState), With<Wizard>>,
+    mut wizard_query: Query<(&mut Mana, &mut CastingState), With<Wizard>>,
 ) {
     for mut beam in beams.iter_mut() {
         // Only apply damage if cast is complete and hasn't fired yet
@@ -237,14 +250,12 @@ pub fn apply_finger_of_death_damage(
         }
 
         // Drain entire mana bar, cancel casting state, and add awaiting release marker
-        if let Ok((wizard_entity, mut mana, mut casting_state)) = wizard_query.single_mut() {
+        if let Ok((mut mana, mut casting_state)) = wizard_query.single_mut() {
             mana.current = 0.0;
             casting_state.cancel(); // Return to Resting immediately
 
-            // Add marker to prevent immediate recast until mouse is released
-            commands
-                .entity(wizard_entity)
-                .insert(AwaitingFingerOfDeathRelease);
+            // Mark mouse hold as consumed to prevent immediate recast
+            mouse_state.left_consumed = true;
         }
     }
 }

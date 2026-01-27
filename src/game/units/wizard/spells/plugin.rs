@@ -10,6 +10,7 @@ use super::guardian_circle::GuardianCirclePlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
 use super::systems;
+use super::teleport::TeleportPlugin;
 
 /// Plugin that handles wizard spells and projectiles.
 ///
@@ -37,6 +38,7 @@ impl Plugin for SpellsPlugin {
             ChainLightningPlugin,
             FingerOfDeathPlugin,
             RaiseTheDeadPlugin,
+            TeleportPlugin,
         ))
         .add_systems(
             Update,

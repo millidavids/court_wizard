@@ -5,9 +5,11 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::{Acceleration, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
-use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
+use crate::game::input::MouseButtonState;
+use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{
     AttackTiming, Corpse, Health, Hitbox, MovementSpeed, PermanentCorpse, RoughTerrain, Team,
+    Teleportable,
 };
 use crate::game::units::infantry::components::Infantry;
 
@@ -23,6 +25,8 @@ use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Sp
 #[allow(clippy::too_many_arguments)]
 pub fn handle_raise_the_dead_casting(
     time: Res<Time>,
+    mut mouse_state: ResMut<MouseButtonState>,
+    mut block_spell_input: MessageReader<BlockSpellInput>,
     mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
@@ -42,10 +46,21 @@ pub fn handle_raise_the_dead_casting(
         return;
     }
 
+    // Don't cast if spell input is blocked
+    if block_spell_input.read().next().is_some() {
+        return;
+    }
+
+    // Don't cast if mouse hold is consumed
+    if mouse_state.left_consumed {
+        return;
+    }
+
     // Check for release event
     if mouse_left_released.read().next().is_some() {
         // Cancel cast/channel on release
         casting_state.cancel();
+        mouse_state.left_consumed = true; // Consume when channeling ends
         return;
     }
 
@@ -175,6 +190,7 @@ fn resurrect_nearest_corpse(
             .insert(AttackTiming::new())
             .insert(hitbox) // Restore collision
             .insert(Infantry) // Add infantry marker for movement systems
+            .insert(Teleportable) // Can be teleported
             .insert(RaisedUndead); // Marker for tracking
     }
 }

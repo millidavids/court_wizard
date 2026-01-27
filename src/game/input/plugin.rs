@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 
-use super::{events::*, systems};
+use super::{components::MouseButtonState, events::*, systems};
 
 /// Plugin that handles all game input detection.
 ///
@@ -16,6 +16,8 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app
+            // Initialize input resources
+            .init_resource::<MouseButtonState>()
             // Register input events
             .add_message::<MouseLeftPressed>()
             .add_message::<MouseLeftHeld>()

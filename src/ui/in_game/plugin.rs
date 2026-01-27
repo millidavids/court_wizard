@@ -20,6 +20,7 @@ impl Plugin for InGamePlugin {
             .add_systems(
                 Update,
                 (
+                    systems::block_spell_input_on_button_interaction,
                     systems::keyboard_input,
                     systems::hud_button_action,
                     systems::update_mana_bar,

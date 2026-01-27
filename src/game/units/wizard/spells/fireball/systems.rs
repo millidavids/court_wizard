@@ -6,7 +6,8 @@ use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::input::events::{MouseLeftHeld, MouseLeftReleased};
+use crate::game::input::MouseButtonState;
+use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
@@ -18,6 +19,8 @@ use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Sp
 #[allow(clippy::too_many_arguments)]
 pub fn handle_fireball_casting(
     time: Res<Time>,
+    mut mouse_state: ResMut<MouseButtonState>,
+    mut block_spell_input: MessageReader<BlockSpellInput>,
     mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
@@ -33,6 +36,16 @@ pub fn handle_fireball_casting(
 
     // Only respond to left-click if Fireball is primed
     if primed_spell.spell != Spell::Fireball {
+        return;
+    }
+
+    // Don't cast if spell input is blocked
+    if block_spell_input.read().next().is_some() {
+        return;
+    }
+
+    // Don't cast if mouse hold is consumed
+    if mouse_state.left_consumed {
         return;
     }
 
@@ -75,6 +88,7 @@ pub fn handle_fireball_casting(
                 }
                 // Return to resting state (no channeling for fireball)
                 casting_state.cancel();
+                mouse_state.left_consumed = true; // Require release before next cast
             }
         }
         CastingState::Resting => {
