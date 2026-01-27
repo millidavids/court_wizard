@@ -20,3 +20,21 @@ pub struct MouseButtonState {
     /// - A channeling spell ends
     pub left_consumed: bool,
 }
+
+/// Tracks whether spell input is blocked this frame.
+///
+/// Used for run_if conditions to avoid consuming MessageReader in conditions.
+/// Updated each frame by `update_input_state_for_run_conditions` system.
+#[derive(Resource, Default)]
+pub struct SpellInputBlockedThisFrame {
+    pub blocked: bool,
+}
+
+/// Tracks whether mouse left held event occurred this frame.
+///
+/// Used for run_if conditions to avoid consuming MessageReader in conditions.
+/// Updated each frame by `update_input_state_for_run_conditions` system.
+#[derive(Resource, Default)]
+pub struct MouseLeftHeldThisFrame {
+    pub held: bool,
+}

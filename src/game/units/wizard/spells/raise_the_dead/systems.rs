@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use super::super::super::components::{CastingState, Mana, PrimedSpell};
 use super::components::*;
 use super::constants::*;
 use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
-use crate::game::input::MouseButtonState;
-use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
+use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{
     AttackTiming, Corpse, Health, Hitbox, MovementSpeed, PermanentCorpse, RoughTerrain, Team,
     Teleportable,
@@ -15,19 +15,17 @@ use crate::game::units::infantry::components::Infantry;
 
 /// Unit radius for infantry hitboxes (matches infantry/styles.rs::UNIT_RADIUS)
 const UNIT_RADIUS: f32 = 8.0;
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell};
 
 /// Handles Raise The Dead spell casting and channeling.
 ///
 /// Left-click starts cast. Must hold for full cast time.
 /// After cast completes, enters channeling state where corpses are resurrected continuously.
 /// Only casts when Raise The Dead is the primed spell.
+///
+/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_raise_the_dead_casting(
     time: Res<Time>,
-    mut mouse_state: ResMut<MouseButtonState>,
-    mut block_spell_input: MessageReader<BlockSpellInput>,
-    mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell)>,
@@ -41,31 +39,10 @@ pub fn handle_raise_the_dead_casting(
         return;
     };
 
-    // Only respond to left-click if Raise The Dead is primed
-    if primed_spell.spell != Spell::RaiseTheDead {
-        return;
-    }
-
-    // Don't cast if spell input is blocked
-    if block_spell_input.read().next().is_some() {
-        return;
-    }
-
-    // Don't cast if mouse hold is consumed
-    if mouse_state.left_consumed {
-        return;
-    }
-
-    // Check for release event
+    // Check for release event - this is spell-specific logic
     if mouse_left_released.read().next().is_some() {
         // Cancel cast/channel on release
         casting_state.cancel();
-        mouse_state.left_consumed = true; // Consume when channeling ends
-        return;
-    }
-
-    // Check for hold event
-    if mouse_left_held.read().next().is_none() {
         return;
     }
 

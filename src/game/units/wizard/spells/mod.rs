@@ -11,6 +11,7 @@ mod guardian_circle;
 mod magic_missile;
 mod plugin;
 mod raise_the_dead;
+pub mod run_conditions;
 mod systems;
 mod teleport;
 

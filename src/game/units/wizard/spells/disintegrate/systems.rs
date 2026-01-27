@@ -1,15 +1,13 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use crate::game::components::OnGameplayScreen;
-use crate::game::constants::WIZARD_POSITION;
-use crate::game::input::MouseButtonState;
-use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
-use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
-
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
 use super::components::DisintegrateBeam;
 use super::constants;
+use crate::game::components::OnGameplayScreen;
+use crate::game::constants::WIZARD_POSITION;
+use crate::game::input::events::MouseLeftReleased;
+use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
 
 /// Marker component for disintegrate spell when it's actively being cast/channeled.
 ///
@@ -22,12 +20,11 @@ pub struct DisintegrateCaster;
 /// Left-click starts cast. Must hold for full cast time.
 /// After cast completes, enters channeling state where beam is continuously active.
 /// Only casts when Disintegrate is the primed spell.
+///
+/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_disintegrate_casting(
     time: Res<Time>,
-    mut mouse_state: ResMut<MouseButtonState>,
-    mut block_spell_input: MessageReader<BlockSpellInput>,
-    mut left_held: MessageReader<MouseLeftHeld>,
     mut left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard)>,
@@ -43,26 +40,10 @@ pub fn handle_disintegrate_casting(
         return;
     };
 
-    // Only respond to left-click if Disintegrate is primed
-    if primed_spell.spell != Spell::Disintegrate {
-        return;
-    }
-
-    // Don't cast if spell input is blocked
-    if block_spell_input.read().next().is_some() {
-        return;
-    }
-
-    // Don't cast if mouse hold is consumed
-    if mouse_state.left_consumed {
-        return;
-    }
-
-    // Check for release event
+    // Check for release event - this is spell-specific logic
     if left_released.read().next().is_some() {
         // Cancel cast/channel on release
         casting_state.cancel();
-        mouse_state.left_consumed = true; // Consume when channeling ends
 
         // Remove caster marker from wizard
         commands
@@ -74,11 +55,6 @@ pub fn handle_disintegrate_casting(
             commands.entity(entity).despawn();
         }
 
-        return;
-    }
-
-    // Check for hold event
-    if left_held.read().next().is_none() {
         return;
     }
 

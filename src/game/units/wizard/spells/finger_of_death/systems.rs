@@ -2,26 +2,25 @@ use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
 use bevy::window::PrimaryWindow;
 
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
 use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
+use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 /// Handles Finger of Death casting with left-click.
 ///
 /// Left-click starts cast (if mana > 0). Beam spawns immediately and grows during cast.
 /// After 2s cast completes, beam fires instantly dealing massive damage.
 /// Only casts when Finger of Death is the primed spell.
+///
+/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finger_of_death_casting(
     time: Res<Time>,
-    mouse_state: Res<MouseButtonState>,
-    mut block_spell_input: MessageReader<BlockSpellInput>,
-    mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -38,22 +37,7 @@ pub fn handle_finger_of_death_casting(
         return;
     };
 
-    // Only respond to left-click if Finger of Death is primed
-    if primed_spell.spell != Spell::FingerOfDeath {
-        return;
-    }
-
-    // Don't cast if spell input is blocked
-    if block_spell_input.read().next().is_some() {
-        return;
-    }
-
-    // Don't cast if mouse hold is consumed
-    if mouse_state.left_consumed {
-        return;
-    }
-
-    // Check for release event
+    // Check for release event - this is spell-specific logic
     if mouse_left_released.read().next().is_some() {
         // Remove awaiting release marker (allows next cast)
         commands
@@ -68,11 +52,6 @@ pub fn handle_finger_of_death_casting(
             commands.entity(beam_entity).despawn();
         }
 
-        return;
-    }
-
-    // Check for hold event
-    if mouse_left_held.read().next().is_none() {
         return;
     }
 

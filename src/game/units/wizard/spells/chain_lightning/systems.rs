@@ -1,29 +1,29 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
 use super::components::*;
 use super::constants;
 use super::styles::arc_color;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
+use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, Wizard};
 
 /// Handles chain lightning casting with left-click.
 ///
 /// Left-click starts cast. Must hold for full cast time.
 /// After cast completes, finds enemy under cursor and spawns chain lightning bolt.
 /// Only casts when ChainLightning is the primed spell.
+///
+/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_chain_lightning_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
-    mut block_spell_input: MessageReader<BlockSpellInput>,
-    mut mouse_left_held: MessageReader<MouseLeftHeld>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -38,30 +38,10 @@ pub fn handle_chain_lightning_casting(
         return;
     };
 
-    // Only respond to left-click if ChainLightning is primed
-    if primed_spell.spell != Spell::ChainLightning {
-        return;
-    }
-
-    // Don't cast if spell input is blocked
-    if block_spell_input.read().next().is_some() {
-        return;
-    }
-
-    // Don't cast if mouse hold is consumed
-    if mouse_state.left_consumed {
-        return;
-    }
-
-    // Check for release event
+    // Check for release event - this is spell-specific logic
     if mouse_left_released.read().next().is_some() {
         // Cancel cast on release
         casting_state.cancel();
-        return;
-    }
-
-    // Check for hold event
-    if mouse_left_held.read().next().is_none() {
         return;
     }
 
