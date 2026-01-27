@@ -1,5 +1,5 @@
 /target
 .claude/
 
-# Allow web/ folder for GitHub Pages
-# Only gitignore is kept, all other files will be committed
+# Allow docs/ folder for GitHub Pages deployment
+# All WASM build files in docs/ will be committed

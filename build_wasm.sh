@@ -16,10 +16,10 @@ cargo build --target wasm32-unknown-unknown $RELEASE_FLAG
 
 echo "Running wasm-bindgen..."
 wasm-bindgen \
-  --out-dir ./web \
+  --out-dir ./docs \
   --out-name the_game \
   --target web \
   ./target/wasm32-unknown-unknown/$BUILD_TYPE/the_game.wasm
 
-echo "WASM build complete! Files are in ./web/"
-echo "Open web/index.html in your browser to run the game."
+echo "WASM build complete! Files are in ./docs/"
+echo "Open docs/index.html in your browser to run the game."
