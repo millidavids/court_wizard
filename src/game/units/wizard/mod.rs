@@ -8,6 +8,6 @@ mod plugin;
 mod spell_range_indicator;
 pub mod spells;
 mod styles;
-mod systems;
+pub mod systems;
 
 pub use plugin::WizardPlugin;

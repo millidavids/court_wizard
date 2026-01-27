@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::game::run_conditions;
 use crate::state::{AppState, InGameState};
 
 use super::systems;
@@ -10,6 +11,7 @@ use super::systems;
 ///
 /// Registers systems for:
 /// - HUD spawning and updates
+/// - Re-spawning HUD when entering Running from GameOver (for replay)
 /// - Keyboard input during active gameplay (e.g., pause on Escape)
 #[derive(Default)]
 pub struct InGamePlugin;
@@ -17,6 +19,10 @@ pub struct InGamePlugin;
 impl Plugin for InGamePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::InGame), systems::spawn_hud)
+            .add_systems(
+                OnEnter(InGameState::Running),
+                systems::spawn_hud.run_if(run_conditions::coming_from_game_over),
+            )
             .add_systems(
                 Update,
                 (

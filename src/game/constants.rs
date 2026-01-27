@@ -90,8 +90,8 @@ pub const SPAWN_DISTRIBUTION_RADIUS: f32 = 50.0;
 /// Velocity damping coefficient (reduces velocity each frame to prevent excessive momentum).
 pub const VELOCITY_DAMPING: f32 = 0.85;
 
-/// Minimum speed multiplier when units are touching enemies (10% of normal speed).
-pub const MIN_SPEED_MULTIPLIER: f32 = 0.1;
+/// Minimum speed multiplier when units are touching enemies (5% of normal speed).
+pub const MIN_SPEED_MULTIPLIER: f32 = 0.05;
 
 /// Maximum speed multiplier when units are far from enemies (100% of normal speed).
 pub const MAX_SPEED_MULTIPLIER: f32 = 1.0;

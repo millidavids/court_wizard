@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::run_conditions;
 use crate::state::{AppState, InGameState};
 
 use super::components::PrimeSpellMessage;
@@ -11,6 +12,7 @@ use super::systems;
 ///
 /// Registers systems for:
 /// - Wizard entity setup on entering InGame state
+/// - Re-setup when entering Running state from GameOver (for replay)
 /// - Mana regeneration during gameplay
 /// - Spell priming via messages
 /// - Spell casting and projectile management (via SpellsPlugin)
@@ -22,6 +24,10 @@ impl Plugin for WizardPlugin {
         app.add_message::<PrimeSpellMessage>()
             .add_plugins((SpellsPlugin, SpellRangeIndicatorPlugin))
             .add_systems(OnEnter(AppState::InGame), systems::setup_wizard)
+            .add_systems(
+                OnEnter(InGameState::Running),
+                systems::setup_wizard.run_if(run_conditions::coming_from_game_over),
+            )
             .add_systems(
                 Update,
                 (
