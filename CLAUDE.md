@@ -44,44 +44,6 @@ Bevy Components (single source of truth at runtime)
 - No duplicate state that can diverge
 - Changes are detected on Bevy components, not config structs
 
-**Unified Debouncing with Bridge Pattern**
-
-All configuration changes use unified message-based debouncing:
-
-```
-Bevy Component Changes → Bridge Systems → ConfigChanged message →
-Unified Debounce (2s) → Save (reads from components)
-```
-
-**Bridge Systems:**
-- `bridge_window_resize_to_config_changed()` - WindowResized → ConfigChanged
-- `bridge_game_config_to_config_changed()` - GameConfig changes → ConfigChanged
-
-**Benefits:**
-- Scalable: Adding new config types just requires sending ConfigChanged
-- Unified: Single debounce timer for ALL config changes
-- Clean: Clear separation between external events and internal changes
-
-**Adding New Config Types:**
-
-To add a new config type (e.g., audio settings):
-1. Create/use a Bevy resource for the settings
-2. Create a bridge system that detects changes and sends ConfigChanged
-3. Update `build_config_from_components()` to read from the new resource
-4. Update `apply_X_config()` to apply settings at startup
-
-Example:
-```rust
-fn bridge_audio_to_config_changed(
-    audio: Res<AudioSettings>,
-    mut config_changed: MessageWriter<ConfigChanged>,
-) {
-    if audio.is_changed() {
-        config_changed.write(ConfigChanged);
-    }
-}
-```
-
 ## Bevy Best Practices
 
 **Always query Context7 for Bevy-specific patterns and APIs.**
@@ -97,8 +59,7 @@ When implementing Bevy features (states, messages, events, systems, queries, com
 
 **Message-Based Architecture:**
 - Use Bevy Messages (Events) for cross-plugin communication
-- Bridge pattern: External events → Bridge systems → Unified messages
-- Example: `ConfigChanged` message for unified debounced config saves
+- Systems can send messages to communicate across plugins without tight coupling
 
 **System Run Conditions (`run_if`) - CRITICAL PERFORMANCE PATTERN:**
 
