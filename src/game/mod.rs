@@ -12,8 +12,10 @@ pub mod components;
 pub mod constants;
 pub mod input;
 mod plugin;
+pub mod resources;
 mod shared_systems;
 mod systems;
 pub mod units;
+mod win_lose_systems;
 
 pub use plugin::GamePlugin;

@@ -4,6 +4,7 @@
 //! organized by menu/screen type.
 
 mod components;
+mod game_over;
 mod in_game;
 mod main_menu;
 mod pause_menu;
