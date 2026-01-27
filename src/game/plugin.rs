@@ -57,6 +57,13 @@ impl Plugin for GamePlugin {
             .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin))
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             .add_systems(
+                OnExit(InGameState::GameOver),
+                (
+                    shared_systems::cleanup_for_replay,
+                    shared_systems::reset_resources_for_replay,
+                ),
+            )
+            .add_systems(
                 Update,
                 (
                     shared_systems::tick_attack_cycle,

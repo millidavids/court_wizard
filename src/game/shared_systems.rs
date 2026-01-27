@@ -565,8 +565,8 @@ pub fn convert_dead_to_corpses(
                 .insert(Corpse)
                 .insert(corpse_transform)
                 .insert(RoughTerrain {
-                    slowdown_factor: 0.6,
-                }); // 40% speed reduction
+                    slowdown_factor: 0.4,
+                }); // 60% speed reduction
 
             // Mark undead corpses as permanent (cannot be resurrected)
             if *team == Team::Undead {
@@ -592,4 +592,29 @@ pub fn cleanup_game(
     for entity in &query {
         commands.entity(entity).despawn();
     }
+}
+
+/// Cleans up game entities when replaying (transitioning from GameOver to Running).
+///
+/// This system runs on OnExit(InGameState::GameOver) and despawns all game entities
+/// in preparation for re-spawning them fresh.
+pub fn cleanup_for_replay(
+    mut commands: Commands,
+    gameplay_entities: Query<Entity, With<super::components::OnGameplayScreen>>,
+) {
+    for entity in &gameplay_entities {
+        commands.entity(entity).despawn();
+    }
+}
+
+/// Resets game resources when replaying (transitioning from GameOver to Running).
+///
+/// This system runs on OnExit(InGameState::GameOver) and resets resources like
+/// the attack cycle timer and defender activation status.
+pub fn reset_resources_for_replay(
+    mut attack_cycle: ResMut<super::plugin::GlobalAttackCycle>,
+    mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
+) {
+    attack_cycle.current_time = 0.0;
+    defenders_activated.active = false;
 }
