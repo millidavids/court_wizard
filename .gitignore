@@ -1,8 +1,5 @@
 /target
 .claude/
 
-# WASM build outputs
-/web/*.wasm
-/web/*.js
-/web/*_bg.wasm
-/web/*.d.ts
+# Allow web/ folder for GitHub Pages
+# Only gitignore is kept, all other files will be committed
