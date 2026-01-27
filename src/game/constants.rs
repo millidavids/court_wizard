@@ -146,3 +146,17 @@ pub const ATTACK_DAMAGE: f32 = 10.0;
 
 /// Duration of one complete attack cycle in seconds.
 pub const ATTACK_CYCLE_DURATION: f32 = 2.0;
+
+// ===== Effectiveness System =====
+
+/// Bonus to effectiveness per ally in melee range (+10% each).
+pub const EFFECTIVENESS_ALLY_BONUS_PER_UNIT: f32 = 0.10;
+
+/// Penalty to effectiveness per enemy in melee range (-15% each).
+pub const EFFECTIVENESS_ENEMY_PENALTY_PER_UNIT: f32 = -0.15;
+
+/// Minimum effectiveness cap (10% of base).
+pub const EFFECTIVENESS_MIN: f32 = 0.1;
+
+/// Maximum effectiveness cap (200% of base).
+pub const EFFECTIVENESS_MAX: f32 = 2.0;

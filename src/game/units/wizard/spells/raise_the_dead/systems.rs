@@ -8,8 +8,8 @@ use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Health, Hitbox, MovementSpeed, PermanentCorpse, RoughTerrain, Team,
-    Teleportable,
+    AttackTiming, Corpse, Effectiveness, Health, Hitbox, MovementSpeed, PermanentCorpse,
+    RoughTerrain, Team, Teleportable,
 };
 use crate::game::units::infantry::components::Infantry;
 
@@ -165,6 +165,7 @@ fn resurrect_nearest_corpse(
             .insert(Acceleration::new())
             .insert(MovementSpeed::new(UNIT_MOVEMENT_SPEED * 0.5)) // Half speed
             .insert(AttackTiming::new())
+            .insert(Effectiveness::new())
             .insert(Billboard)
             .insert(hitbox) // Restore collision
             .insert(Infantry) // Add infantry marker for movement systems
