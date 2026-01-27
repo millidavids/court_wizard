@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Favicon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Wizard Tower Defense - Favicon Generator</h1>
+    <p>This will generate a simple wizard hat favicon for your game.</p>
+
+    <canvas id="favicon" width="64" height="64"></canvas>
+
+    <div>
+        <button onclick="generateFavicon()">Generate Favicon</button>
+        <button onclick="downloadFavicon()">Download favicon.ico</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('favicon');
+        const ctx = canvas.getContext('2d');
+
+        function generateFavicon() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, 64, 64);
+
+            // Draw wizard hat (triangle)
+            ctx.fillStyle = '#6b4ce6'; // Purple hat
+            ctx.beginPath();
+            ctx.moveTo(32, 10); // Top point
+            ctx.lineTo(12, 45); // Bottom left
+            ctx.lineTo(52, 45); // Bottom right
+            ctx.closePath();
+            ctx.fill();
+
+            // Hat brim
+            ctx.fillStyle = '#9b7cf5'; // Lighter purple
+            ctx.fillRect(8, 45, 48, 8);
+
+            // Add sparkle/star
+            ctx.fillStyle = '#ffd700'; // Gold
+            ctx.beginPath();
+            ctx.arc(38, 22, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Another sparkle
+            ctx.beginPath();
+            ctx.arc(28, 30, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function downloadFavicon() {
+            // For .ico format, we'd need a library, so let's download as PNG
+            // Users can convert PNG to ICO online at: https://convertio.co/png-ico/
+            const link = document.createElement('a');
+            link.download = 'favicon.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            alert('Downloaded as PNG. Convert to .ico at https://convertio.co/png-ico/ or use the PNG directly (modern browsers support it)');
+        }
+
+        // Generate on load
+        generateFavicon();
+    </script>
+</body>
+</html>
