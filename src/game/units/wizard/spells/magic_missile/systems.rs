@@ -8,7 +8,9 @@ use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::events::MouseLeftReleased;
-use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{
+    Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
+};
 
 /// Handles magic missile casting with left-click.
 ///
@@ -26,7 +28,7 @@ pub fn handle_magic_missile_casting(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell, &Wizard), With<Wizard>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
-    targets: Query<(Entity, &Transform, &Team), Without<MagicMissile>>,
+    targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
 ) {
     let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
         return;
@@ -109,19 +111,18 @@ fn spawn_magic_missile(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     camera_query: &Query<&GlobalTransform, With<Camera>>,
-    targets: &Query<(Entity, &Transform, &Team), Without<MagicMissile>>,
+    targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     spell_range: f32,
 ) {
     // Spawn position: above the wizard
     let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
-    // Select target: random attacker within range, or closest attacker
-    // Magic Missile specifically targets attackers (unlike other AOE spells)
+    // Select target: random enemy (Attacker or Undead) within range, or closest enemy
     let mut rng = rand::thread_rng();
 
-    let attackers_in_range: Vec<Entity> = targets
+    let enemies_in_range: Vec<Entity> = targets
         .iter()
-        .filter(|(_, _, team)| **team == Team::Attackers)
+        .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
         .filter(|(_, transform, _)| {
             let distance = spawn_pos.distance(transform.translation);
             distance <= spell_range
@@ -129,15 +130,15 @@ fn spawn_magic_missile(
         .map(|(entity, _, _)| entity)
         .collect();
 
-    let target = if !attackers_in_range.is_empty() {
+    let target = if !enemies_in_range.is_empty() {
         // Pick a random target within range
-        let index = rng.gen_range(0..attackers_in_range.len());
-        Some(attackers_in_range[index])
+        let index = rng.gen_range(0..enemies_in_range.len());
+        Some(enemies_in_range[index])
     } else {
-        // No targets in range, find the closest attacker anywhere
+        // No targets in range, find the closest enemy anywhere
         targets
             .iter()
-            .filter(|(_, _, team)| **team == Team::Attackers)
+            .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
             .min_by(|a, b| {
                 let dist_a = spawn_pos.distance(a.1.translation);
                 let dist_b = spawn_pos.distance(b.1.translation);
@@ -187,7 +188,7 @@ fn spawn_magic_missile(
 pub fn move_magic_missiles(
     time: Res<Time>,
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
-    targets: Query<(Entity, &Transform, &Team), Without<MagicMissile>>,
+    targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     wizard_query: Query<&Wizard>,
 ) {
     let Ok(wizard) = wizard_query.single() else {
@@ -206,13 +207,12 @@ pub fn move_magic_missiles(
 
         // Retarget if current target despawned
         if !target_exists {
-            // Select new target: random attacker within range, or closest attacker
-            // Magic Missile specifically targets attackers (unlike other AOE spells)
+            // Select new target: random enemy (Attacker or Undead) within range, or closest enemy
             let mut rng = rand::thread_rng();
 
-            let attackers_in_range: Vec<Entity> = targets
+            let enemies_in_range: Vec<Entity> = targets
                 .iter()
-                .filter(|(_, _, team)| **team == Team::Attackers)
+                .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
                 .filter(|(_, transform, _)| {
                     let distance = missile_transform
                         .translation
@@ -222,15 +222,15 @@ pub fn move_magic_missiles(
                 .map(|(entity, _, _)| entity)
                 .collect();
 
-            missile.target = if !attackers_in_range.is_empty() {
+            missile.target = if !enemies_in_range.is_empty() {
                 // Pick a random target within range
-                let index = rng.gen_range(0..attackers_in_range.len());
-                Some(attackers_in_range[index])
+                let index = rng.gen_range(0..enemies_in_range.len());
+                Some(enemies_in_range[index])
             } else {
-                // No targets in range, find the closest attacker anywhere
+                // No targets in range, find the closest enemy anywhere
                 targets
                     .iter()
-                    .filter(|(_, _, team)| **team == Team::Attackers)
+                    .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
                     .min_by(|a, b| {
                         let dist_a = missile_transform.translation.distance(a.1.translation);
                         let dist_b = missile_transform.translation.distance(b.1.translation);
@@ -309,38 +309,38 @@ pub fn move_magic_missiles(
             // Apply velocity to position
             missile_transform.translation += missile.velocity * time.delta_secs();
         } else {
-            // No attackers left, just continue with current velocity
+            // No enemies left, just continue with current velocity
             missile_transform.translation += missile.velocity * time.delta_secs();
         }
     }
 }
 
-/// Checks for magic missile collisions with attackers.
+/// Checks for magic missile collisions with enemies (Attackers and Undead).
 ///
-/// When a missile hits an attacker, it deals 50 damage and despawns.
+/// When a missile hits an enemy, it deals 50 damage and despawns.
 pub fn check_magic_missile_collisions(
     mut commands: Commands,
     missiles: Query<(Entity, &Transform, &MagicMissile)>,
-    mut attackers: Query<
+    mut enemies: Query<
         (
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             &Team,
         ),
-        Without<MagicMissile>,
+        (Without<MagicMissile>, Without<Corpse>),
     >,
 ) {
     for (missile_entity, missile_transform, missile) in &missiles {
-        for (attacker_transform, mut health, mut temp_hp, team) in &mut attackers {
-            // Magic Missile specifically targets attackers (unlike other AOE spells)
-            if *team != Team::Attackers {
+        for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
+            // Magic Missile targets Attackers and Undead
+            if *team != Team::Attackers && *team != Team::Undead {
                 continue;
             }
 
             let distance = missile_transform
                 .translation
-                .distance(attacker_transform.translation);
+                .distance(enemy_transform.translation);
 
             // Check collision
             if distance < missile.radius {

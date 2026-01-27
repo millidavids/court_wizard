@@ -8,9 +8,7 @@ use bevy::prelude::*;
 /// # State Transitions
 ///
 /// - `MainMenu` → `InGame`: Player starts a new game
-/// - `InGame` → `MainMenu`: Player quits to main menu from pause
-/// - `InGame` → `GameOver`: Player loses all lives or completes the game
-/// - `GameOver` → `MainMenu`: Player returns to main menu
+/// - `InGame` → `MainMenu`: Player quits to main menu from pause or game over
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 #[allow(dead_code)] // Variants will be used as game features are implemented
 pub enum AppState {
@@ -20,9 +18,6 @@ pub enum AppState {
 
     /// Active gameplay state.
     InGame,
-
-    /// Game over screen (win or lose).
-    GameOver,
 }
 
 /// Menu navigation state.
@@ -61,6 +56,8 @@ pub enum MenuState {
 /// - `Paused` → `Running`: Player selects Continue from pause menu
 /// - `Running` → `SpellBook`: Player clicks Spells button
 /// - `SpellBook` → `Running`: Player selects a spell or closes spell book
+/// - `Running` → `GameOver`: Game ends (win or lose)
+/// - `GameOver` → `Running`: Player clicks Play Again
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::InGame)]
 pub enum InGameState {
@@ -73,6 +70,9 @@ pub enum InGameState {
 
     /// Spell selection screen.
     SpellBook,
+
+    /// Game over screen (win or lose).
+    GameOver,
 }
 
 /// Pause menu navigation state.

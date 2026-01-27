@@ -530,14 +530,18 @@ pub fn combat(
 ///
 /// When a unit's health reaches zero, this system grays out the sprite based on team
 /// and converts the unit into a corpse that slows living units walking over it.
+/// Also records the kill in the kill statistics resource.
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
+    mut kill_stats: ResMut<super::resources::KillStats>,
     query: Query<(Entity, &Health, &Team, &Transform), Without<Corpse>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     material_query: Query<&MeshMaterial3d<StandardMaterial>>,
 ) {
     for (entity, health, team, transform) in &query {
         if health.is_dead() {
+            // Record the kill
+            kill_stats.record_kill(*team);
             // Get existing material handle and gray out the sprite based on team
             if let Ok(material_handle) = material_query.get(entity)
                 && let Some(material) = materials.get_mut(&material_handle.0)

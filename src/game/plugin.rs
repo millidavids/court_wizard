@@ -5,9 +5,11 @@ use crate::state::{AppState, InGameState};
 use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
+use super::resources::{GameOutcome, KillStats};
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
+use super::win_lose_systems;
 
 /// Global attack cycle timer resource.
 ///
@@ -50,6 +52,8 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GlobalAttackCycle>()
+            .init_resource::<KillStats>()
+            .insert_resource(GameOutcome::Victory)
             .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin))
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             .add_systems(
@@ -68,6 +72,8 @@ impl Plugin for GamePlugin {
                     shared_systems::convert_dead_to_corpses,
                     // Update billboards to face camera
                     systems::update_billboards,
+                    // Check win/lose conditions
+                    win_lose_systems::check_win_lose_conditions,
                 )
                     .chain()
                     .run_if(in_state(InGameState::Running)),
