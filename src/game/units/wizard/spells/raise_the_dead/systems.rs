@@ -3,7 +3,7 @@ use bevy::window::PrimaryWindow;
 
 use super::components::*;
 use super::constants::*;
-use crate::game::components::{Acceleration, Velocity};
+use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::MouseButtonState;
 use crate::game::input::events::{BlockSpellInput, MouseLeftHeld, MouseLeftReleased};
@@ -188,6 +188,7 @@ fn resurrect_nearest_corpse(
             .insert(Acceleration::new())
             .insert(MovementSpeed::new(UNIT_MOVEMENT_SPEED * 0.5)) // Half speed
             .insert(AttackTiming::new())
+            .insert(Billboard)
             .insert(hitbox) // Restore collision
             .insert(Infantry) // Add infantry marker for movement systems
             .insert(Teleportable) // Can be teleported

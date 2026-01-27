@@ -13,6 +13,7 @@ pub mod constants;
 pub mod input;
 mod plugin;
 mod shared_systems;
+mod systems;
 pub mod units;
 
 pub use plugin::GamePlugin;

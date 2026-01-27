@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::styles::*;
-use crate::game::components::{Acceleration, OnGameplayScreen, Velocity};
+use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::units::components::{
     AttackTiming, Health, Hitbox, MovementSpeed, Team, Teleportable,
@@ -50,6 +50,7 @@ pub fn spawn_initial_defenders(
             Team::Defenders,
             Infantry,
             Teleportable,
+            Billboard,
             OnGameplayScreen,
         ));
     }
@@ -97,6 +98,7 @@ pub fn spawn_initial_attackers(
             Team::Attackers,
             Infantry,
             Teleportable,
+            Billboard,
             OnGameplayScreen,
         ));
     }

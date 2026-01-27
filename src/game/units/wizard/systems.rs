@@ -4,7 +4,7 @@ use super::components::*;
 use super::constants;
 use super::spells::magic_missile_constants;
 use super::styles::*;
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::units::components::{Health, Hitbox, MovementSpeed};
@@ -45,6 +45,7 @@ pub fn setup_wizard(
         CastingState::new(),
         Wizard::new(constants::DEFAULT_SPELL_RANGE),
         magic_missile_constants::PRIMED_MAGIC_MISSILE,
+        Billboard,
         OnGameplayScreen,
     ));
 }

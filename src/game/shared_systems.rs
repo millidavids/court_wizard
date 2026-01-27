@@ -488,7 +488,8 @@ pub fn convert_dead_to_corpses(
                 .remove::<Acceleration>() // No forces
                 .remove::<MovementSpeed>() // Can't move
                 .remove::<AttackTiming>() // Can't attack
-                .remove::<Hitbox>(); // Remove collision
+                .remove::<Hitbox>() // Remove collision
+                .remove::<crate::game::components::Billboard>(); // Remove billboard so corpse stays flat
         }
     }
 }
