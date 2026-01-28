@@ -14,10 +14,10 @@ pub const PRIMED_FIREBALL: PrimedSpell = PrimedSpell {
 pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
 
 /// Cast time for fireball in seconds.
-pub const CAST_TIME: f32 = 1.5;
+pub const CAST_TIME: f32 = 3.0;
 
 /// Mana cost for casting a fireball.
-pub const MANA_COST: f32 = 30.0;
+pub const MANA_COST: f32 = 60.0;
 
 /// Speed of the fireball projectile in units per second.
 pub const PROJECTILE_SPEED: f32 = 3000.0;

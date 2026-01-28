@@ -417,10 +417,11 @@ pub struct InMelee(pub Team);
 /// Targeting velocity toward target, set by the targeting system.
 ///
 /// The targeting system calculates this based on the nearest enemy.
-/// This is a normalized direction vector.
+/// This is a normalized direction vector with distance information for weighting.
 #[derive(Component, Default)]
 pub struct TargetingVelocity {
     pub velocity: Vec3,
+    pub distance_to_target: f32,
 }
 
 /// Flocking velocity from separation, alignment, and cohesion forces.
