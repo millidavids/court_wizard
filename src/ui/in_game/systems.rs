@@ -5,8 +5,10 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::events::BlockSpellInput;
+use crate::game::resources::CurrentLevel;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
@@ -47,9 +49,14 @@ pub fn keyboard_input(
 ///
 /// Creates a HUD with margins around screen edges containing:
 /// - Spell book button in top left corner
+/// - Level indicator and past victory in top right corner
 /// - Mana bar in bottom right corner
 /// - Cast bar below mana bar
-pub fn spawn_hud(mut commands: Commands) {
+pub fn spawn_hud(
+    mut commands: Commands,
+    current_level: Res<CurrentLevel>,
+    config: Res<GameConfig>,
+) {
     // Root HUD container (fullscreen with margins)
     commands
         .spawn((
@@ -66,15 +73,63 @@ pub fn spawn_hud(mut commands: Commands) {
             OnGameplayScreen,
         ))
         .with_children(|parent| {
-            // Spell book button (top-left)
+            // Top row (spell book button on left, level on right)
             parent
                 .spawn(Node {
                     width: Val::Percent(100.0),
-                    justify_content: JustifyContent::FlexStart,
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::FlexStart,
                     ..default()
                 })
                 .with_children(|row| {
+                    // Spell book button (top-left)
                     spawn_button(row, "Spells", HudButtonAction::OpenSpellBook, &BUTTON_STYLE);
+
+                    // Level and past victory display (top-right)
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::FlexEnd,
+                        row_gap: Val::Px(5.0),
+                        ..default()
+                    })
+                    .with_children(|level_container| {
+                        // Level display
+                        level_container.spawn((
+                            Text::new(format!("Level: {}", current_level.0)),
+                            TextFont {
+                                font_size: 30.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                            LevelDisplay,
+                        ));
+
+                        // Past victory display (if exists)
+                        if let Some(past_efficiency) =
+                            config.efficiency_ratios.get(&current_level.0.to_string())
+                        {
+                            level_container.spawn((
+                                Text::new(format!("Best: {:.1}%", past_efficiency * 100.0)),
+                                TextFont {
+                                    font_size: 20.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgba(0.8, 0.8, 0.8, 0.9)),
+                                PastVictoryDisplay,
+                            ));
+                        } else {
+                            // Spawn empty placeholder so the component exists
+                            level_container.spawn((
+                                Text::new(""),
+                                TextFont {
+                                    font_size: 20.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgba(0.8, 0.8, 0.8, 0.9)),
+                                PastVictoryDisplay,
+                            ));
+                        }
+                    });
                 });
 
             // Bottom-right bars container
@@ -206,5 +261,34 @@ pub fn update_cast_bar(
     {
         let progress_percent = casting_state.progress(primed_spell.cast_time) * 100.0;
         node.width = Val::Percent(progress_percent);
+    }
+}
+
+/// Updates the level display text when the current level changes.
+pub fn update_level_display(
+    current_level: Res<CurrentLevel>,
+    mut level_display_query: Query<&mut Text, With<LevelDisplay>>,
+) {
+    if current_level.is_changed()
+        && let Ok(mut text) = level_display_query.single_mut()
+    {
+        **text = format!("Level: {}", current_level.0);
+    }
+}
+
+/// Updates the past victory display text when the current level changes.
+pub fn update_past_victory_display(
+    current_level: Res<CurrentLevel>,
+    config: Res<GameConfig>,
+    mut past_victory_query: Query<&mut Text, With<PastVictoryDisplay>>,
+) {
+    if current_level.is_changed()
+        && let Ok(mut text) = past_victory_query.single_mut()
+    {
+        if let Some(past_efficiency) = config.efficiency_ratios.get(&current_level.0.to_string()) {
+            **text = format!("Best: {:.1}%", past_efficiency * 100.0);
+        } else {
+            **text = String::new();
+        }
     }
 }

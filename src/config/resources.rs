@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Temporary structure for TOML serialization only.
 ///
@@ -92,6 +93,21 @@ pub enum Difficulty {
     Hard,
 }
 
+/// Default current level for serde deserialization.
+fn default_current_level() -> u32 {
+    1
+}
+
+/// Default highest level achieved for serde deserialization.
+fn default_highest_level() -> u32 {
+    1
+}
+
+/// Default empty efficiency ratios map for serde deserialization.
+fn default_efficiency_ratios() -> HashMap<String, f32> {
+    HashMap::new()
+}
+
 /// Game configuration resource - runtime source of truth for all user settings.
 ///
 /// This IS a runtime Bevy resource that holds all user-configurable settings:
@@ -128,6 +144,16 @@ pub struct GameConfig {
     pub difficulty: Difficulty,
     /// Global brightness multiplier (0.1 = darkest to prevent soft-lock, 1.0 = normal, 2.0 = brightest)
     pub brightness: f32,
+    /// Current level - restored on game start after page reload
+    #[serde(default = "default_current_level")]
+    pub current_level: u32,
+    /// Highest level achieved across all playthroughs (high score marker)
+    #[serde(default = "default_highest_level")]
+    pub highest_level_achieved: u32,
+    /// Efficiency ratios per level (defenders lost / total defenders at start)
+    /// Key: level number as string, Value: efficiency ratio (0.0 = all defenders lost, 1.0 = no defenders lost)
+    #[serde(default = "default_efficiency_ratios")]
+    pub efficiency_ratios: HashMap<String, f32>,
 }
 
 impl Default for GameConfig {
@@ -139,6 +165,9 @@ impl Default for GameConfig {
             sfx_volume: 0.8,
             difficulty: Difficulty::default(),
             brightness: 1.0,
+            current_level: 1,
+            highest_level_achieved: 1,
+            efficiency_ratios: HashMap::new(),
         }
     }
 }

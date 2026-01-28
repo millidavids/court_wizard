@@ -3,7 +3,11 @@ use bevy::prelude::*;
 use super::components::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
-use crate::game::constants::*;
+use crate::game::constants::{
+    calculate_archer_groups, calculate_formation_grid_position, calculate_group_size_bonus,
+    calculate_infantry_groups, *,
+};
+use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, MovementSpeed,
     TargetingVelocity, Team, Teleportable,
@@ -241,24 +245,37 @@ pub fn infantry_movement(
 ///
 /// Spawns attackers in a 2×2 grid formation in the northeast corner.
 /// Infantry spawn at the 3 closest points to defenders (leftmost points).
-/// Distributes units evenly across the 3 front-line spawn points.
+/// Spawns infantry in formation groups based on level.
+/// Level 1: 3 groups of 10
+/// Every odd level: +1 group
+/// Every even level: +1 unit per group
 pub fn spawn_initial_attackers(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    current_level: Res<CurrentLevel>,
 ) {
-    // Infantry spawn at 3 front-line points (closest to defenders = leftmost)
-    // Skip index 1 which is (1600, -1600) - the back-right point from camera view
-    let infantry_spawn_points = [
-        ATTACKER_SPAWN_POINTS[0], // (1200, -1600) - front-left
-        ATTACKER_SPAWN_POINTS[2], // (1200, -1200) - back-left
-        ATTACKER_SPAWN_POINTS[3], // (1600, -1200) - front-right
-    ];
+    let level = current_level.0;
 
-    let units_per_point = INITIAL_ATTACKER_COUNT / infantry_spawn_points.len() as u32;
+    // Calculate number of infantry groups and group size based on level
+    let num_infantry_groups = calculate_infantry_groups(level);
+    let base_group_size = 20;
+    let group_size = base_group_size + (calculate_group_size_bonus(level) * 2);
 
-    for &(spawn_x, spawn_z) in &infantry_spawn_points {
-        for i in 0..units_per_point {
+    // Calculate total number of archer groups to offset infantry positioning
+    let num_archer_groups = calculate_archer_groups(level);
+
+    // Total groups for pushback calculation
+    let total_groups = num_archer_groups + num_infantry_groups;
+
+    // Spawn each infantry group
+    for group_idx in 0..num_infantry_groups {
+        // Infantry groups come after archer groups in the grid
+        let grid_position = group_idx + num_archer_groups;
+        let (spawn_x, spawn_z) = calculate_formation_grid_position(grid_position, total_groups);
+
+        // Spawn all units in this group
+        for i in 0..group_size {
             // Define attacker hitbox (cylinder) - this determines sprite size
             let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
 

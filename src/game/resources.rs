@@ -32,3 +32,14 @@ pub enum GameOutcome {
     Victory, // Player wins (all attackers and undead eliminated)
     Defeat,  // Player loses (all defenders eliminated)
 }
+
+/// Current difficulty level - scales enemy spawn counts.
+/// Level 1 is base difficulty, higher levels spawn more attackers.
+#[derive(Resource)]
+pub struct CurrentLevel(pub u32);
+
+impl Default for CurrentLevel {
+    fn default() -> Self {
+        Self(1)
+    }
+}

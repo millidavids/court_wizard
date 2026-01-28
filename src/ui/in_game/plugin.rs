@@ -31,6 +31,8 @@ impl Plugin for InGamePlugin {
                     systems::hud_button_action,
                     systems::update_mana_bar,
                     systems::update_cast_bar,
+                    systems::update_level_display,
+                    systems::update_past_victory_display,
                 )
                     .run_if(in_state(InGameState::Running)),
             );

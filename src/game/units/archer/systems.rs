@@ -5,8 +5,12 @@ use super::components::*;
 use super::constants::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
-use crate::game::constants::*;
+use crate::game::constants::{
+    calculate_archer_groups, calculate_formation_grid_position, calculate_group_size_bonus,
+    calculate_infantry_groups, *,
+};
 use crate::game::plugin::GlobalAttackCycle;
+use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Corpse, Effectiveness, FlockingVelocity, Health, Hitbox, MovementSpeed,
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
@@ -68,60 +72,78 @@ pub fn spawn_initial_defender_archers(
     }
 }
 
-/// Spawns initial attacker archers when entering the game.
-/// Archers spawn at the furthest back spawn point (back-right, away from defenders).
+/// Spawns attacker archers in formation groups based on level.
+/// Archers spawn in the back rows of the formation grid.
+/// Level 1-3: 1 group of 5
+/// Level 4+: +1 group every 4 levels
+/// Every even level: +1 unit per group
 pub fn spawn_initial_attacker_archers(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    current_level: Res<CurrentLevel>,
 ) {
-    // Archers spawn at the back spawn point only (index 1: back-right from camera view)
-    // Back-right = furthest from defenders (most positive X) + back from camera (most negative Z)
-    let (spawn_x, spawn_z) = ATTACKER_SPAWN_POINTS[1]; // (1600, -1600)
+    let level = current_level.0;
 
-    for i in 0..INITIAL_ARCHER_ATTACKER_COUNT {
-        let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
-        let circle = Circle::new(hitbox.radius);
+    // Calculate number of archer groups and group size based on level
+    let num_archer_groups = calculate_archer_groups(level);
+    let base_group_size = 10;
+    let group_size = base_group_size + calculate_group_size_bonus(level);
 
-        // Distribute spawns in a circular pattern around this spawn point
-        let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-        let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
-        let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+    // Calculate total groups for pushback calculation (need infantry count too)
+    let num_infantry_groups = calculate_infantry_groups(level);
+    let total_groups = num_archer_groups + num_infantry_groups;
 
-        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
-        let spawn_y = hitbox.height / 2.0 + 1.0;
+    // Spawn each archer group
+    for group_idx in 0..num_archer_groups {
+        // Archer groups go first (in the back rows)
+        let (spawn_x, spawn_z) = calculate_formation_grid_position(group_idx, total_groups);
 
-        commands
-            .spawn((
-                Mesh3d(meshes.add(circle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: ATTACKER_ARCHER_COLOR,
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_xyz(final_x, spawn_y, final_z),
-                Velocity::default(),
-                Acceleration::new(),
-                hitbox,
-                Health::new(UNIT_HEALTH),
-                MovementSpeed::new(ARCHER_MOVEMENT_SPEED),
-                AttackTiming::new(),
-                Effectiveness::new(),
-                Team::Attackers,
-                Archer,
-            ))
-            .insert((
-                AttackRange {
-                    min_range: ARCHER_MIN_RANGE,
-                    max_range: ARCHER_MAX_RANGE,
-                },
-                ArcherMovementTimer::new(),
-                TargetingVelocity::default(),
-                FlockingVelocity::default(),
-                Teleportable,
-                Billboard,
-                OnGameplayScreen,
-            ));
+        // Spawn all units in this group
+        for i in 0..group_size {
+            let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
+            let circle = Circle::new(hitbox.radius);
+
+            // Distribute spawns in a circular pattern around this spawn point
+            let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
+            let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
+            let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+
+            // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(meshes.add(circle)),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: ATTACKER_ARCHER_COLOR,
+                        unlit: true,
+                        ..default()
+                    })),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed::new(ARCHER_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Attackers,
+                    Archer,
+                ))
+                .insert((
+                    AttackRange {
+                        min_range: ARCHER_MIN_RANGE,
+                        max_range: ARCHER_MAX_RANGE,
+                    },
+                    ArcherMovementTimer::new(),
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+        }
     }
 }
 

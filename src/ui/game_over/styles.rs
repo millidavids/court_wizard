@@ -10,7 +10,7 @@ pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: 250.0,
     height: 65.0,
     border_width: 3.0,
-    font_size: 28.0,
+    font_size: 20.0,
     background: Color::hsla(0.0, 0.0, 0.15, 1.0),
     border: Color::hsla(0.0, 0.0, 0.3, 1.0),
     text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),

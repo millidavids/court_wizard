@@ -64,6 +64,9 @@ pub fn load_and_apply_config(
         sfx_volume: config_file.audio.sfx_volume,
         difficulty: config_file.game.difficulty,
         brightness: config_file.game.brightness.max(0.1), // Ensure minimum 10% to prevent soft-lock
+        current_level: config_file.game.current_level,
+        highest_level_achieved: config_file.game.highest_level_achieved,
+        efficiency_ratios: config_file.game.efficiency_ratios,
     };
     commands.insert_resource(game_config);
 
