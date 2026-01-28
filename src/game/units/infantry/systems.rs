@@ -11,55 +11,67 @@ use crate::game::units::components::{
 
 /// Spawns initial defenders when entering the game.
 ///
-/// Spawns defenders clustered together, letting collision resolution push them apart.
+/// Spawns defenders in a 2×2 grid formation under the castle.
+/// Infantry spawn at the 3 closest points to attackers (rightmost points).
+/// Distributes units evenly across the 3 front-line spawn points.
 pub fn spawn_initial_defenders(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for i in 0..INITIAL_DEFENDER_COUNT {
-        // Define defender hitbox (cylinder) - this determines sprite size
-        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+    // Infantry spawn at 3 front-line points (closest to attackers = rightmost)
+    // Skip index 2 which is (-1750, 1550) - the back-left point
+    let infantry_spawn_points = [
+        DEFENDER_SPAWN_POINTS[0], // (-1750, 1150) - front-left
+        DEFENDER_SPAWN_POINTS[1], // (-1350, 1150) - front-right
+        DEFENDER_SPAWN_POINTS[3], // (-1350, 1550) - back-right
+    ];
 
-        // Spawn defender as a circle billboard sized to match the hitbox
-        let circle = Circle::new(hitbox.radius);
+    let units_per_point = INITIAL_DEFENDER_COUNT / infantry_spawn_points.len() as u32;
 
-        // Distribute spawns in a circular pattern
-        let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-        let spawn_x = DEFENDER_SPAWN_X_MIN
-            + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
-        let spawn_z = DEFENDER_SPAWN_Z_MIN
-            + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
+    for &(spawn_x, spawn_z) in &infantry_spawn_points {
+        for i in 0..units_per_point {
+            // Define defender hitbox (cylinder) - this determines sprite size
+            let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
 
-        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
-        let spawn_y = hitbox.height / 2.0 + 1.0;
+            // Spawn defender as a circle billboard sized to match the hitbox
+            let circle = Circle::new(hitbox.radius);
 
-        commands
-            .spawn((
-                Mesh3d(meshes.add(circle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: DEFENDER_COLOR,
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_xyz(spawn_x, spawn_y, spawn_z),
-                Velocity::default(),
-                Acceleration::new(),
-                hitbox,
-                Health::new(UNIT_HEALTH),
-                MovementSpeed::new(UNIT_MOVEMENT_SPEED),
-                AttackTiming::new(),
-                Effectiveness::new(),
-                Team::Defenders,
-                Infantry,
-            ))
-            .insert((
-                TargetingVelocity::default(),
-                FlockingVelocity::default(),
-                Teleportable,
-                Billboard,
-                OnGameplayScreen,
-            ));
+            // Distribute spawns in a circular pattern around this spawn point
+            let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
+            let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
+            let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+
+            // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(meshes.add(circle)),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: DEFENDER_COLOR,
+                        unlit: true,
+                        ..default()
+                    })),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed::new(UNIT_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Defenders,
+                    Infantry,
+                ))
+                .insert((
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+        }
     }
 }
 
@@ -118,8 +130,11 @@ pub fn update_infantry_targeting(
             let direction = (target_pos - transform.translation).normalize_or_zero();
             targeting_velocity.velocity = Vec3::new(direction.x, 0.0, direction.z);
 
-            // Check if enemy is in melee range
+            // Store distance for formation weighting
             let distance = transform.translation.distance(target_pos);
+            targeting_velocity.distance_to_target = distance;
+
+            // Check if enemy is in melee range
             if distance < MELEE_SLOWDOWN_DISTANCE {
                 commands
                     .entity(entity)
@@ -131,6 +146,7 @@ pub fn update_infantry_targeting(
             }
         } else {
             targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = f32::MAX;
             commands
                 .entity(entity)
                 .remove::<crate::game::units::components::InMelee>();
@@ -173,12 +189,21 @@ pub fn infantry_movement(
         in_melee,
     ) in &mut infantry_units
     {
-        // Combine targeting and flocking velocities as acceleration forces
-        let desired_direction =
-            (targeting_velocity.velocity + flocking_velocity.velocity).normalize_or_zero();
+        // Weight targeting vs flocking based on distance to target
+        // When far from target: prioritize flocking (stay in formation)
+        // When close to target: prioritize targeting (engage enemy)
+        // Transition happens around 500 units distance
+        let targeting_weight =
+            (1.0 - (targeting_velocity.distance_to_target / 500.0).min(1.0)).max(0.2); // Minimum 20% targeting weight
+        let flocking_weight = 1.0 - targeting_weight;
+
+        // Combine targeting and flocking velocities with distance-based weighting
+        let weighted_direction = (targeting_velocity.velocity * targeting_weight
+            + flocking_velocity.velocity * flocking_weight)
+            .normalize_or_zero();
 
         // Apply as acceleration force
-        acceleration.add_force(desired_direction * STEERING_FORCE);
+        acceleration.add_force(weighted_direction * STEERING_FORCE);
 
         // Apply acceleration to velocity
         velocity.x += acceleration.x * delta;
@@ -214,54 +239,66 @@ pub fn infantry_movement(
 
 /// Spawns initial attackers when entering the game.
 ///
-/// Spawns attackers clustered together, letting collision resolution push them apart.
+/// Spawns attackers in a 2×2 grid formation in the northeast corner.
+/// Infantry spawn at the 3 closest points to defenders (leftmost points).
+/// Distributes units evenly across the 3 front-line spawn points.
 pub fn spawn_initial_attackers(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for i in 0..INITIAL_ATTACKER_COUNT {
-        // Define attacker hitbox (cylinder) - this determines sprite size
-        let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
+    // Infantry spawn at 3 front-line points (closest to defenders = leftmost)
+    // Skip index 1 which is (1600, -1600) - the back-right point from camera view
+    let infantry_spawn_points = [
+        ATTACKER_SPAWN_POINTS[0], // (1200, -1600) - front-left
+        ATTACKER_SPAWN_POINTS[2], // (1200, -1200) - back-left
+        ATTACKER_SPAWN_POINTS[3], // (1600, -1200) - front-right
+    ];
 
-        // Spawn attacker as a circle billboard sized to match the hitbox
-        let circle = Circle::new(hitbox.radius);
+    let units_per_point = INITIAL_ATTACKER_COUNT / infantry_spawn_points.len() as u32;
 
-        // Distribute spawns in a circular pattern
-        let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-        let spawn_x = ATTACKER_SPAWN_X_MIN
-            + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
-        let spawn_z = ATTACKER_SPAWN_Z_MIN
-            + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
+    for &(spawn_x, spawn_z) in &infantry_spawn_points {
+        for i in 0..units_per_point {
+            // Define attacker hitbox (cylinder) - this determines sprite size
+            let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
 
-        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
-        let spawn_y = hitbox.height / 2.0 + 1.0;
+            // Spawn attacker as a circle billboard sized to match the hitbox
+            let circle = Circle::new(hitbox.radius);
 
-        commands
-            .spawn((
-                Mesh3d(meshes.add(circle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: ATTACKER_COLOR,
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_xyz(spawn_x, spawn_y, spawn_z),
-                Velocity::default(),
-                Acceleration::new(),
-                hitbox,
-                Health::new(UNIT_HEALTH),
-                MovementSpeed::new(UNIT_MOVEMENT_SPEED),
-                AttackTiming::new(),
-                Effectiveness::new(),
-                Team::Attackers,
-                Infantry,
-            ))
-            .insert((
-                TargetingVelocity::default(),
-                FlockingVelocity::default(),
-                Teleportable,
-                Billboard,
-                OnGameplayScreen,
-            ));
+            // Distribute spawns in a circular pattern around this spawn point
+            let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
+            let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
+            let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+
+            // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(meshes.add(circle)),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: ATTACKER_COLOR,
+                        unlit: true,
+                        ..default()
+                    })),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed::new(UNIT_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Attackers,
+                    Infantry,
+                ))
+                .insert((
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+        }
     }
 }

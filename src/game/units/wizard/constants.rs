@@ -15,7 +15,7 @@ pub const HEALTH: f32 = 100.0;
 pub const MANA: f32 = 100.0;
 
 /// Wizard mana regeneration per second.
-pub const MANA_REGEN: f32 = 10.0;
+pub const MANA_REGEN: f32 = 5.0;
 
 /// Wizard default spell range (units from wizard).
 pub const DEFAULT_SPELL_RANGE: f32 = 3000.0;

@@ -27,19 +27,26 @@ const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 
 // ===== Spawn Areas =====
 
-/// Defender spawn area (closer to center for faster clash with attackers).
-/// Spawn defenders to meet attackers near the center of the battlefield.
-/// X range: -1000 to -500
-/// Z range: 0 to 500
-pub const DEFENDER_SPAWN_X_MIN: f32 = -1000.0;
-pub const DEFENDER_SPAWN_Z_MIN: f32 = 0.0;
+/// Defender spawn points in a 2×2 grid under the castle.
+/// Castle is at (-1550, 1550). These points form a formation directly below it.
+/// Grid spacing: 400 units between points
+pub const DEFENDER_SPAWN_POINTS: [(f32, f32); 4] = [
+    (-1750.0, 1150.0), // Southwest
+    (-1350.0, 1150.0), // Southeast
+    (-1750.0, 1550.0), // Northwest
+    (-1350.0, 1550.0), // Northeast
+];
 
-/// Attacker spawn area (closer to wizard for faster testing).
-/// Spawn attackers within wizard's spell range for immediate testing.
-/// X range: 500 to 1000
-/// Z range: -500 to 0
-pub const ATTACKER_SPAWN_X_MIN: f32 = 500.0;
-pub const ATTACKER_SPAWN_Z_MIN: f32 = -500.0;
+/// Attacker spawn points in a 2×2 grid in the top-right area (positive X, negative Z).
+/// From camera view at (-1000, 2500, 2500), this appears in the upper-right of the screen.
+/// Positioned closer to bring battle within wizard's spell range (3000 units from -1425, 1550).
+/// Grid spacing: 400 units between points
+pub const ATTACKER_SPAWN_POINTS: [(f32, f32); 4] = [
+    (1200.0, -1600.0), // Bottom-left of attacker formation
+    (1600.0, -1600.0), // Bottom-right of attacker formation
+    (1200.0, -1200.0), // Top-left of attacker formation
+    (1600.0, -1200.0), // Top-right of attacker formation
+];
 
 // ===== Unit Positioning =====
 

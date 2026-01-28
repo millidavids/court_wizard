@@ -13,21 +13,23 @@ use crate::game::units::components::{
 };
 
 /// Spawns initial defender archers when entering the game.
+/// Archers spawn at the furthest back spawn point (back-left, away from attackers).
 pub fn spawn_initial_defender_archers(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    // Archers spawn at the back spawn point only (index 2: back-left)
+    let (spawn_x, spawn_z) = DEFENDER_SPAWN_POINTS[2]; // (-1750, 1550)
+
     for i in 0..INITIAL_ARCHER_DEFENDER_COUNT {
         let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
         let circle = Circle::new(hitbox.radius);
 
-        // Distribute spawns in a circular pattern (behind infantry)
+        // Distribute spawns in a circular pattern around this spawn point
         let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-        let spawn_x = DEFENDER_SPAWN_X_MIN - 100.0
-            + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
-        let spawn_z = DEFENDER_SPAWN_Z_MIN
-            + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
+        let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
+        let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
 
         // Position unit so bottom edge is 1 unit above battlefield (Y=0)
         let spawn_y = hitbox.height / 2.0 + 1.0;
@@ -40,7 +42,7 @@ pub fn spawn_initial_defender_archers(
                     unlit: true,
                     ..default()
                 })),
-                Transform::from_xyz(spawn_x, spawn_y, spawn_z),
+                Transform::from_xyz(final_x, spawn_y, final_z),
                 Velocity::default(),
                 Acceleration::new(),
                 hitbox,
@@ -67,22 +69,24 @@ pub fn spawn_initial_defender_archers(
 }
 
 /// Spawns initial attacker archers when entering the game.
+/// Archers spawn at the furthest back spawn point (back-right, away from defenders).
 pub fn spawn_initial_attacker_archers(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    // Archers spawn at the back spawn point only (index 1: back-right from camera view)
+    // Back-right = furthest from defenders (most positive X) + back from camera (most negative Z)
+    let (spawn_x, spawn_z) = ATTACKER_SPAWN_POINTS[1]; // (1600, -1600)
+
     for i in 0..INITIAL_ARCHER_ATTACKER_COUNT {
         let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
         let circle = Circle::new(hitbox.radius);
 
-        // Distribute spawns in a circular pattern (behind infantry)
+        // Distribute spawns in a circular pattern around this spawn point
         let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-        let spawn_x = ATTACKER_SPAWN_X_MIN
-            + 100.0
-            + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
-        let spawn_z = ATTACKER_SPAWN_Z_MIN
-            + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS + SPAWN_DISTRIBUTION_RADIUS);
+        let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
+        let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
 
         // Position unit so bottom edge is 1 unit above battlefield (Y=0)
         let spawn_y = hitbox.height / 2.0 + 1.0;
@@ -95,7 +99,7 @@ pub fn spawn_initial_attacker_archers(
                     unlit: true,
                     ..default()
                 })),
-                Transform::from_xyz(spawn_x, spawn_y, spawn_z),
+                Transform::from_xyz(final_x, spawn_y, final_z),
                 Velocity::default(),
                 Acceleration::new(),
                 hitbox,
@@ -510,6 +514,9 @@ pub fn update_archer_targeting(
             let diff = target_pos - transform.translation;
             let distance = (diff.x.powi(2) + diff.z.powi(2)).sqrt();
 
+            // Store distance for formation weighting
+            targeting_velocity.distance_to_target = distance;
+
             // Set InMelee component if enemy is in melee range
             let in_melee_range = distance < MELEE_SLOWDOWN_DISTANCE;
             if in_melee_range {
@@ -536,6 +543,7 @@ pub fn update_archer_targeting(
             }
         } else {
             targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = f32::MAX;
             commands
                 .entity(entity)
                 .remove::<crate::game::units::components::InMelee>();
@@ -578,12 +586,21 @@ pub fn archer_movement(
         in_melee,
     ) in &mut archer_units
     {
-        // Combine targeting and flocking velocities as acceleration forces
-        let desired_direction =
-            (targeting_velocity.velocity + flocking_velocity.velocity).normalize_or_zero();
+        // Weight targeting vs flocking based on distance to target
+        // When far from target: prioritize flocking (stay in formation)
+        // When close to target: prioritize targeting (engage enemy)
+        // Transition happens around 500 units distance
+        let targeting_weight =
+            (1.0 - (targeting_velocity.distance_to_target / 500.0).min(1.0)).max(0.2); // Minimum 20% targeting weight
+        let flocking_weight = 1.0 - targeting_weight;
+
+        // Combine targeting and flocking velocities with distance-based weighting
+        let weighted_direction = (targeting_velocity.velocity * targeting_weight
+            + flocking_velocity.velocity * flocking_weight)
+            .normalize_or_zero();
 
         // Apply as acceleration force
-        acceleration.add_force(desired_direction * STEERING_FORCE);
+        acceleration.add_force(weighted_direction * STEERING_FORCE);
 
         // Apply acceleration to velocity
         velocity.x += acceleration.x * delta;
