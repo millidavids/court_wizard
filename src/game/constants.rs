@@ -37,17 +37,6 @@ pub const DEFENDER_SPAWN_POINTS: [(f32, f32); 4] = [
     (-1350.0, 1550.0), // Northeast
 ];
 
-/// Attacker spawn points in a 2×2 grid in the top-right area (positive X, negative Z).
-/// From camera view at (-1000, 2500, 2500), this appears in the upper-right of the screen.
-/// Positioned closer to bring battle within wizard's spell range (3000 units from -1425, 1550).
-/// Grid spacing: 400 units between points
-pub const ATTACKER_SPAWN_POINTS: [(f32, f32); 4] = [
-    (1200.0, -1600.0), // Bottom-left of attacker formation
-    (1600.0, -1600.0), // Bottom-right of attacker formation
-    (1200.0, -1200.0), // Top-left of attacker formation
-    (1600.0, -1200.0), // Top-right of attacker formation
-];
-
 // ===== Unit Positioning =====
 
 /// Wizard position in 3D space (on castle platform).
@@ -62,9 +51,6 @@ pub const WIZARD_POSITION: Vec3 = Vec3::new(
 
 /// Initial number of defenders spawned at game start.
 pub const INITIAL_DEFENDER_COUNT: u32 = 100;
-
-/// Initial number of attackers spawned at game start.
-pub const INITIAL_ATTACKER_COUNT: u32 = 100;
 
 // ===== Unit Stats =====
 
@@ -160,3 +146,112 @@ pub const EFFECTIVENESS_MIN: f32 = 0.1;
 
 /// Maximum effectiveness cap (200% of base).
 pub const EFFECTIVENESS_MAX: f32 = 2.0;
+
+// ===== Formation Grid Constants =====
+
+/// Starting position for attacker formations (back-right corner from camera view)
+/// Grid expands forward (toward camera, +Z) and left (toward defenders, -X) as more groups are added
+/// Positioned so front diagonal is just beyond wizard's spell range (3000 units from wizard)
+/// Wizard is at (-1425, 1550)
+pub const FORMATION_GRID_START_X: f32 = 1200.0;
+pub const FORMATION_GRID_START_Z: f32 = 0.0;
+
+/// Distance to push back each diagonal row to maintain consistent meeting point
+/// As more diagonals are added, they spawn progressively further back
+pub const DIAGONAL_PUSHBACK_DISTANCE: f32 = 400.0;
+
+/// Spacing between formation groups in the grid
+pub const FORMATION_GRID_SPACING: f32 = 300.0;
+
+// ===== Level-Based Spawn Calculations =====
+
+/// Calculates the number of infantry groups based on level.
+/// Level 1: 3 groups
+/// Every odd level (3, 5, 7, ...): add 1 group
+pub const fn calculate_infantry_groups(level: u32) -> u32 {
+    3 + (level - 1) / 2
+}
+
+/// Calculates the number of archer groups based on level.
+/// Level 1-3: 1 group
+/// Level 4+: 1 + level/4
+pub const fn calculate_archer_groups(level: u32) -> u32 {
+    1 + (level.saturating_sub(1)) / 4
+}
+
+/// Calculates the size of each group based on level.
+/// Level 1: base size (10 infantry, 5 archers)
+/// Every even level (2, 4, 6, ...): +1 to group size
+pub const fn calculate_group_size_bonus(level: u32) -> u32 {
+    (level - 1) / 2
+}
+
+/// Calculates a grid position for a formation group.
+/// Groups are placed in a grid starting from back-right, expanding forward and left.
+/// Archers are placed in the back rows.
+///
+/// # Arguments
+/// * `group_index` - Index of the group (0-based)
+/// * `total_groups` - Total number of groups (used to calculate global pushback)
+///
+/// # Returns
+/// Tuple of (x, z) coordinates for the group's spawn point
+pub fn calculate_formation_grid_position(group_index: u32, total_groups: u32) -> (f32, f32) {
+    // Diagonal pyramid pattern starting from back-right corner
+    // Position 0: (0, 0) - back-right corner
+    // Positions 1-2: (1, 0), (0, 1) - diagonal 1
+    // Positions 3-5: (2, 0), (1, 1), (0, 2) - diagonal 2
+    // Positions 6-9: (3, 0), (2, 1), (1, 2), (0, 3) - diagonal 3
+    // Each diagonal n has (n+1) elements
+
+    // Find which diagonal this group_index falls on
+    // Total elements up to diagonal n: (n+1)(n+2)/2
+    let mut diagonal = 0u32;
+    let mut cumulative = 0u32;
+    loop {
+        let next_cumulative = cumulative + diagonal + 1;
+        if group_index < next_cumulative {
+            break;
+        }
+        cumulative = next_cumulative;
+        diagonal += 1;
+    }
+
+    // Position within this diagonal
+    let position_in_diagonal = group_index - cumulative;
+
+    // Find the maximum diagonal actually used (not the minimum diagonal that COULD fit)
+    // We want the diagonal of the last group, not the theoretical minimum
+    let mut last_diagonal = 0u32;
+    let mut cumulative_for_max = 0u32;
+    loop {
+        let next_cumulative = cumulative_for_max + last_diagonal + 1;
+        if next_cumulative >= total_groups {
+            break;
+        }
+        cumulative_for_max = next_cumulative;
+        last_diagonal += 1;
+    }
+    let max_diagonal = last_diagonal;
+
+    // Push back ALL positions based on max_diagonal (not individual diagonal)
+    // This ensures all groups move back together when a new diagonal is needed
+    // Push toward back-right corner: more positive X (right) and more negative Z (back)
+    let global_pushback = max_diagonal as f32 * DIAGONAL_PUSHBACK_DISTANCE;
+
+    // On diagonal n, positions expand from back-right toward front-left (camera perspective)
+    // position_in_diagonal = 0 -> n steps left, 0 steps forward
+    // position_in_diagonal = k -> (n-k) steps left, k steps forward
+    // Camera at (-1000, 2500, 2500), so forward = +Z, left = -X
+    let steps_left = diagonal - position_in_diagonal;
+    let steps_forward = position_in_diagonal;
+
+    // Apply pushback diagonally toward back-right corner (positive X, negative Z)
+    let x = FORMATION_GRID_START_X - (steps_left as f32 * FORMATION_GRID_SPACING) + global_pushback
+        - 1300.0;
+    let z = FORMATION_GRID_START_Z + (steps_forward as f32 * FORMATION_GRID_SPACING)
+        - global_pushback
+        - 100.0;
+
+    (x, z)
+}

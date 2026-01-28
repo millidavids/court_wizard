@@ -1,8 +1,11 @@
 use bevy::prelude::*;
 
+use crate::config::GameConfig;
+
 use super::components::{Acceleration, Velocity};
 use super::constants::*;
 use super::plugin::GlobalAttackCycle;
+use super::resources::CurrentLevel;
 use super::units::components::{
     AttackTiming, Corpse, Effectiveness, Health, Hitbox, MovementSpeed, RoughTerrain, Team,
     TemporaryHitPoints, apply_damage_to_unit,
@@ -14,6 +17,14 @@ use super::units::components::{
 /// schedule for unit attacks that is consistent across different frame rates.
 pub fn tick_attack_cycle(time: Res<Time>, mut attack_cycle: ResMut<GlobalAttackCycle>) {
     attack_cycle.tick(time.delta_secs());
+}
+
+/// Initializes the current level from saved config.
+///
+/// This system runs on OnEnter(AppState::InGame) to restore the player's
+/// current level from their last session.
+pub fn init_level_from_config(mut current_level: ResMut<CurrentLevel>, config: Res<GameConfig>) {
+    current_level.0 = config.current_level;
 }
 
 /// Calculates effectiveness for all units based on melee proximity.
@@ -407,6 +418,7 @@ pub fn cleanup_game(
     mut commands: Commands,
     query: Query<Entity, With<super::components::OnGameplayScreen>>,
 ) {
+    // Don't reset level - it persists between sessions via config
     for entity in &query {
         commands.entity(entity).despawn();
     }

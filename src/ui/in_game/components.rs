@@ -17,3 +17,11 @@ pub struct CastBarFill;
 pub enum HudButtonAction {
     OpenSpellBook,
 }
+
+/// Marker component for the level display text.
+#[derive(Component)]
+pub struct LevelDisplay;
+
+/// Marker component for the past victory display text.
+#[derive(Component)]
+pub struct PastVictoryDisplay;

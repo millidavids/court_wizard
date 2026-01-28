@@ -20,4 +20,3 @@ pub const ARROW_ANGLE_VARIATION_DEGREES: f32 = 1.0; // ±1 degree angle variatio
 
 // Spawn counts (for initial testing)
 pub const INITIAL_ARCHER_DEFENDER_COUNT: u32 = 20;
-pub const INITIAL_ARCHER_ATTACKER_COUNT: u32 = 20;

@@ -5,7 +5,7 @@ use crate::state::{AppState, InGameState};
 use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
-use super::resources::{GameOutcome, KillStats};
+use super::resources::{CurrentLevel, GameOutcome, KillStats};
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -70,8 +70,13 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GlobalAttackCycle>()
             .init_resource::<KillStats>()
+            .init_resource::<CurrentLevel>()
             .insert_resource(GameOutcome::Victory)
             .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin))
+            .add_systems(
+                OnEnter(AppState::InGame),
+                shared_systems::init_level_from_config,
+            )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             .add_systems(
                 OnExit(InGameState::GameOver),
