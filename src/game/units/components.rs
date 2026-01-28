@@ -405,3 +405,29 @@ mod tests {
         assert_eq!(eff.multiplier(), eff.current);
     }
 }
+
+/// Component indicating a unit is currently engaged in melee combat with a specific team.
+///
+/// A unit is considered in melee when there is an enemy within melee range.
+/// This is used by archers to avoid friendly fire - they won't target units in melee
+/// with someone on their own team.
+#[derive(Component)]
+pub struct InMelee(pub Team);
+
+/// Targeting velocity toward target, set by the targeting system.
+///
+/// The targeting system calculates this based on the nearest enemy.
+/// This is a normalized direction vector.
+#[derive(Component, Default)]
+pub struct TargetingVelocity {
+    pub velocity: Vec3,
+}
+
+/// Flocking velocity from separation, alignment, and cohesion forces.
+///
+/// The flocking system calculates this based on nearby allies.
+/// This is a normalized direction vector.
+#[derive(Component, Default)]
+pub struct FlockingVelocity {
+    pub velocity: Vec3,
+}

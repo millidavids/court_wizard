@@ -40,6 +40,23 @@ impl GlobalAttackCycle {
     }
 }
 
+/// System set for velocity calculation systems.
+///
+/// These systems use immutable queries to calculate velocities and accelerations:
+/// - Targeting: Sets TargetingVelocity based on nearest enemy
+/// - Flocking/Separation: Adds forces to Acceleration
+///
+/// All systems in this set can run in parallel since they only read Transform.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VelocitySystemSet;
+
+/// System set for unit movement systems.
+///
+/// Movement systems query their specific unit type (mutable Transform) and apply velocities.
+/// This set runs after velocity calculations to ensure all velocities are computed first.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MovementSystemSet;
+
 /// Main game plugin that coordinates all gameplay sub-plugins.
 ///
 /// Registers sub-plugins for:
@@ -63,18 +80,47 @@ impl Plugin for GamePlugin {
                     shared_systems::reset_resources_for_replay,
                 ),
             )
+            .configure_sets(
+                Update,
+                (
+                    VelocitySystemSet.run_if(in_state(InGameState::Running)),
+                    MovementSystemSet
+                        .run_if(in_state(InGameState::Running))
+                        .after(VelocitySystemSet),
+                ),
+            )
+            .add_systems(
+                Update,
+                shared_systems::tick_attack_cycle.run_if(in_state(InGameState::Running)),
+            )
             .add_systems(
                 Update,
                 (
-                    shared_systems::tick_attack_cycle,
+                    // Separation adds flocking forces (immutable queries)
+                    // Unit-specific targeting systems registered in their respective plugins
+                    shared_systems::apply_separation,
+                )
+                    .in_set(VelocitySystemSet),
+            )
+            .add_systems(
+                Update,
+                (
                     // Calculate effectiveness based on nearby allies/enemies
                     shared_systems::calculate_effectiveness,
-                    // Separation adds flocking forces
-                    shared_systems::apply_separation,
                     // Apply rough terrain slowdown before movement
                     shared_systems::apply_rough_terrain_slowdown,
-                    // Movement applies all accumulated forces (includes infantry steering)
-                    shared_systems::move_units,
+                )
+                    .chain()
+                    .run_if(in_state(InGameState::Running))
+                    .after(VelocitySystemSet)
+                    .before(MovementSystemSet),
+            )
+            .add_systems(
+                Update,
+                (
+                    // Unit-specific movement systems run in parallel as a set
+                    // (infantry_movement and archer_movement registered in their respective plugins)
+                    // They read from TargetingVelocity set by update_targeting
                     shared_systems::combat,
                     shared_systems::convert_dead_to_corpses,
                     // Update billboards to face camera
@@ -83,7 +129,8 @@ impl Plugin for GamePlugin {
                     win_lose_systems::check_win_lose_conditions,
                 )
                     .chain()
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(in_state(InGameState::Running))
+                    .after(MovementSystemSet),
             );
     }
 }

@@ -53,10 +53,6 @@ pub const WIZARD_POSITION: Vec3 = Vec3::new(
 
 // ===== Gameplay Constants =====
 
-/// Distance at which defenders activate and start moving.
-/// Based on battlefield size with a multiplier.
-pub const DEFENDER_ACTIVATION_DISTANCE: f32 = BATTLEFIELD_SIZE * (8000.0 / 6000.0);
-
 /// Initial number of defenders spawned at game start.
 pub const INITIAL_DEFENDER_COUNT: u32 = 100;
 
@@ -69,7 +65,7 @@ pub const INITIAL_ATTACKER_COUNT: u32 = 100;
 pub const UNIT_HEALTH: f32 = 50.0;
 
 /// Default movement speed for all units (units per second).
-pub const UNIT_MOVEMENT_SPEED: f32 = 200.0;
+pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
 
 /// Hitbox height for defender units.
 pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0;
@@ -90,14 +86,14 @@ pub const SPAWN_DISTRIBUTION_RADIUS: f32 = 50.0;
 /// Velocity damping coefficient (reduces velocity each frame to prevent excessive momentum).
 pub const VELOCITY_DAMPING: f32 = 0.85;
 
-/// Minimum speed multiplier when units are touching enemies (5% of normal speed).
-pub const MIN_SPEED_MULTIPLIER: f32 = 0.05;
+/// Steering force strength for acceleration-based movement.
+pub const STEERING_FORCE: f32 = 500.0;
 
-/// Maximum speed multiplier when units are far from enemies (100% of normal speed).
-pub const MAX_SPEED_MULTIPLIER: f32 = 1.0;
+/// Movement speed multiplier when in melee combat (slows units down to prevent running around).
+pub const MELEE_SLOWDOWN_FACTOR: f32 = 0.3;
 
-/// Distance multiplier for proximity slowdown (units start slowing at 1.2x combined hitbox radius).
-pub const SLOWDOWN_DISTANCE_MULTIPLIER: f32 = 1.2;
+/// Distance threshold to be considered "in melee" for slowdown purposes.
+pub const MELEE_SLOWDOWN_DISTANCE: f32 = 50.0;
 
 /// Approximate frame time for attack window detection (in seconds).
 pub const APPROX_FRAME_TIME: f32 = 0.016;
@@ -108,16 +104,19 @@ pub const APPROX_FRAME_TIME: f32 = 0.016;
 pub const NEIGHBOR_DISTANCE: f32 = 100.0;
 
 /// Distance threshold for separation force to apply.
-pub const SEPARATION_DISTANCE: f32 = 35.0;
+/// Units only separate when they're very close to colliding (just beyond hitbox radius).
+pub const SEPARATION_DISTANCE: f32 = 5.0;
 
 /// Strength of the separation force (pushes units apart).
-pub const SEPARATION_STRENGTH: f32 = 50.0;
+/// Since we're using normalized directions, this should be small (0-1 range).
+pub const SEPARATION_STRENGTH: f32 = 0.05;
 
 /// Strength of the alignment force (matches neighbor velocities).
-pub const ALIGNMENT_STRENGTH: f32 = 1.0;
+/// Since we're using normalized directions, this should be small (0-1 range).
+pub const ALIGNMENT_STRENGTH: f32 = 0.1;
 
 /// Strength of the cohesion force (pulls units toward group center). Set to 0.0 to disable.
-pub const COHESION_STRENGTH: f32 = 0.0;
+pub const COHESION_STRENGTH: f32 = 0.2;
 
 /// Maximum allowed overlap between hitboxes as a percentage. 0.0 = no overlap allowed.
 pub const MAX_OVERLAP_PERCENT: f32 = 0.0;
@@ -129,12 +128,6 @@ pub const MIN_DISTANCE_THRESHOLD: f32 = 0.01;
 pub const COLLISION_ITERATIONS: u32 = 4;
 
 // ===== Targeting Constants =====
-
-/// Force applied to steer units toward their targets.
-pub const STEERING_FORCE: f32 = 500.0;
-
-/// Random force applied during melee combat to create chaos.
-pub const MELEE_RANDOM_FORCE: f32 = 150.0;
 
 // ===== Combat Constants =====
 

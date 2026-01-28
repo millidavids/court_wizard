@@ -32,6 +32,14 @@ impl Plugin for InfantryPlugin {
                     systems::spawn_initial_attackers,
                 )
                     .run_if(run_conditions::coming_from_game_over),
+            )
+            .add_systems(
+                Update,
+                systems::update_infantry_targeting.in_set(crate::game::plugin::VelocitySystemSet),
+            )
+            .add_systems(
+                Update,
+                systems::infantry_movement.in_set(crate::game::plugin::MovementSystemSet),
             );
     }
 }

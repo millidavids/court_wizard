@@ -114,10 +114,10 @@ pub fn handle_raise_the_dead_casting(
     }
 }
 
-/// Resurrects the nearest corpse to the target position.
+/// Resurrects the nearest corpse to the target position as infantry.
 ///
 /// Searches for corpses within RESURRECTION_RADIUS and resurrects the closest one.
-/// Changes sprite to green, restores health and combat components, sets team to Undead.
+/// All raised undead are infantry units.
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
@@ -137,11 +137,11 @@ fn resurrect_nearest_corpse(
             dist_a.partial_cmp(&dist_b).unwrap()
         })
     {
-        // Change sprite to green
+        // Change sprite color to undead green
         if let Ok(material_handle) = material_query.get(corpse_entity)
             && let Some(material) = materials.get_mut(&material_handle.0)
         {
-            material.base_color = UNDEAD_COLOR; // Bright green
+            material.base_color = UNDEAD_COLOR;
         }
 
         // Calculate upright position: bottom edge 1 unit above battlefield
@@ -168,9 +168,11 @@ fn resurrect_nearest_corpse(
             .insert(Effectiveness::new())
             .insert(Billboard)
             .insert(hitbox) // Restore collision
-            .insert(Infantry) // Add infantry marker for movement systems
             .insert(Teleportable) // Can be teleported
-            .insert(RaisedUndead); // Marker for tracking
+            .insert(RaisedUndead) // Marker for tracking
+            .insert(Infantry)
+            .insert(crate::game::units::components::TargetingVelocity::default())
+            .insert(crate::game::units::components::FlockingVelocity::default());
     }
 }
 

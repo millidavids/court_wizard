@@ -23,6 +23,16 @@ wasm-bindgen \
   --target web \
   ./target/wasm32-unknown-unknown/$BUILD_TYPE/the_game.wasm
 
+# Run wasm-opt AFTER wasm-bindgen (not before) to avoid 'env' import issues
+if [ "$1" = "--release" ]; then
+    if command -v wasm-opt &> /dev/null; then
+        echo "Running wasm-opt for size optimization..."
+        wasm-opt -Oz $OUT_DIR/the_game_bg.wasm -o $OUT_DIR/the_game_bg.wasm
+    else
+        echo "Warning: wasm-opt not found, skipping optimization"
+    fi
+fi
+
 if [ "$1" = "--release" ]; then
     echo "WASM build complete! Release files are in ./docs/ for GitHub Pages deployment."
 else
