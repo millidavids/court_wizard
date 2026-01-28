@@ -8,7 +8,15 @@ pub struct Infantry;
 ///
 /// Defenders share activation - once any attacker gets within range,
 /// all defenders activate and start moving.
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct DefendersActivated {
     pub active: bool,
+}
+
+impl Default for DefendersActivated {
+    fn default() -> Self {
+        Self {
+            active: true, // Start active for now (activation system was removed)
+        }
+    }
 }

@@ -75,7 +75,7 @@ pub fn calculate_effectiveness(
 
 /// Applies flocking behavior and enforces zero hitbox overlap.
 ///
-/// First enforces hard collision constraint (no overlap allowed), then applies flocking forces.
+/// First enforces hard collision constraint (no overlap allowed), then calculates flocking velocity.
 /// Separation - Units steer away from neighbors that are too close
 /// Alignment - Units steer to match the velocity of nearby neighbors
 /// Cohesion - Units steer toward the average position of nearby neighbors
@@ -85,7 +85,7 @@ pub fn apply_separation(
             Entity,
             &mut Transform,
             &Velocity,
-            &mut Acceleration,
+            &mut super::units::components::FlockingVelocity,
             &Hitbox,
         ),
         Without<Corpse>,
@@ -154,8 +154,8 @@ pub fn apply_separation(
         }
     }
 
-    // Second pass: apply flocking forces
-    for (entity, transform, _velocity, mut acceleration, hitbox) in units.iter_mut() {
+    // Second pass: calculate flocking velocity
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox) in units.iter_mut() {
         let mut separation = Vec3::ZERO;
         let mut alignment = Vec3::ZERO;
         let mut cohesion = Vec3::ZERO;
@@ -197,26 +197,38 @@ pub fn apply_separation(
             }
         }
 
-        // Calculate and apply final forces
+        // Combine and normalize flocking directions
+        let mut combined_direction = Vec3::ZERO;
+
         if separation_count > 0 {
             separation /= separation_count as f32;
-            acceleration.add_force(separation * SEPARATION_STRENGTH);
+            combined_direction += separation.normalize_or_zero() * SEPARATION_STRENGTH;
         }
 
         if neighbor_count > 0 {
-            // Alignment force
+            // Alignment direction
             alignment /= neighbor_count as f32;
-            acceleration.add_force(alignment * ALIGNMENT_STRENGTH);
+            combined_direction += alignment.normalize_or_zero() * ALIGNMENT_STRENGTH;
 
-            // Cohesion force (XZ plane only)
+            // Cohesion direction (XZ plane only)
             cohesion /= neighbor_count as f32;
             let cohesion_direction = Vec3::new(
                 cohesion.x - transform.translation.x,
                 0.0,
                 cohesion.z - transform.translation.z,
             );
-            acceleration.add_force(cohesion_direction * COHESION_STRENGTH);
+
+            // Diminish cohesion based on distance to group center
+            // Closer to center = less cohesion pull
+            let distance_to_center = cohesion_direction.length();
+            let cohesion_factor = (distance_to_center / NEIGHBOR_DISTANCE).min(1.0);
+
+            combined_direction +=
+                cohesion_direction.normalize_or_zero() * COHESION_STRENGTH * cohesion_factor;
         }
+
+        // Set flocking velocity as normalized combined direction
+        flocking_velocity.velocity = combined_direction.normalize_or_zero();
     }
 }
 
@@ -257,200 +269,6 @@ pub fn apply_rough_terrain_slowdown(
     }
 }
 
-/// Updates units following the boids algorithm pattern.
-///
-/// Also applies infantry steering forces toward nearest enemy and melee randomness.
-/// Acceleration changes velocity, velocity changes position.
-/// Acceleration is reset each frame after being applied.
-/// Includes damping to reduce momentum and make units more responsive.
-/// Units slow down when near enemies (100% speed at 1.2x hitbox distance, 10% when touching).
-/// Movement speed is modified by the unit's effectiveness coefficient.
-pub fn move_units(
-    time: Res<Time>,
-    mut all_units: Query<(
-        Entity,
-        &mut Transform,
-        &mut Velocity,
-        &mut Acceleration,
-        &MovementSpeed,
-        &Hitbox,
-        &Team,
-        &Effectiveness,
-    )>,
-    infantry_query: Query<Entity, With<super::units::infantry::components::Infantry>>,
-    mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
-    corpse_query: Query<Entity, With<Corpse>>,
-) {
-    // Movement parameters are defined in constants.rs
-
-    // Collect snapshot of all unit positions BEFORE moving any units
-    // This ensures symmetric movement - all units use the same frame's positions
-    let unit_snapshot: Vec<_> = all_units
-        .iter()
-        .map(|(entity, transform, _, _, _, hitbox, team, _)| {
-            (entity, transform.translation, *hitbox, *team)
-        })
-        .collect();
-
-    // Check defender activation (infantry-specific logic)
-    if !defenders_activated.active {
-        'activation: for &(_, pos_a, _, team_a) in &unit_snapshot {
-            if team_a != Team::Defenders {
-                continue;
-            }
-            for &(_, pos_b, _, team_b) in &unit_snapshot {
-                if team_b == Team::Attackers && pos_a.distance(pos_b) < DEFENDER_ACTIVATION_DISTANCE
-                {
-                    defenders_activated.active = true;
-                    break 'activation;
-                }
-            }
-        }
-    }
-
-    // Process all units
-    for (
-        entity,
-        mut transform,
-        mut velocity,
-        mut acceleration,
-        movement_speed,
-        hitbox,
-        team,
-        effectiveness,
-    ) in &mut all_units
-    {
-        // Infantry-specific: Add steering force toward nearest enemy
-        if infantry_query.contains(entity) {
-            // Skip inactive defenders
-            if *team == Team::Defenders && !defenders_activated.active {
-                // Don't add steering, but continue to process movement/damping
-            } else {
-                // Find nearest enemy for this infantry unit
-                let nearest_enemy = unit_snapshot
-                    .iter()
-                    .filter(|(other_entity, _, _, other_team)| {
-                        *other_entity != entity
-                            && match (*team, other_team) {
-                                (Team::Undead, Team::Undead) => false,
-                                (Team::Undead, _) => true,
-                                (_, Team::Undead) => true,
-                                _ => other_team != team,
-                            }
-                    })
-                    .min_by(|a, b| {
-                        let dist_a = (transform.translation.x - a.1.x).powi(2)
-                            + (transform.translation.z - a.1.z).powi(2);
-                        let dist_b = (transform.translation.x - b.1.x).powi(2)
-                            + (transform.translation.z - b.1.z).powi(2);
-                        dist_a
-                            .partial_cmp(&dist_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    });
-
-                if let Some(&(_, enemy_pos, enemy_hitbox, _)) = nearest_enemy {
-                    let diff_xz = Vec3::new(
-                        enemy_pos.x - transform.translation.x,
-                        0.0,
-                        enemy_pos.z - transform.translation.z,
-                    );
-                    let distance = (diff_xz.x * diff_xz.x + diff_xz.z * diff_xz.z).sqrt();
-                    let melee_range =
-                        (hitbox.radius + enemy_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
-
-                    // Add random movement in melee range
-                    if distance < melee_range {
-                        let seed = transform.translation.x
-                            * super::units::constants::MELEE_RANDOM_SEED_X_MULTIPLIER
-                            + transform.translation.z
-                                * super::units::constants::MELEE_RANDOM_SEED_Z_MULTIPLIER;
-                        let t = time.elapsed_secs();
-                        let random_angle = (t * super::units::constants::MELEE_RANDOM_FREQ_PRIMARY
-                            + seed)
-                            .sin()
-                            * super::units::constants::MELEE_RANDOM_AMPLITUDE_PRIMARY
-                            + (t * super::units::constants::MELEE_RANDOM_FREQ_SECONDARY
-                                + seed
-                                    * super::units::constants::MELEE_RANDOM_SEED_FREQ_MULTIPLIER)
-                                .cos();
-                        let random_x = random_angle.sin() * MELEE_RANDOM_FORCE * time.delta_secs();
-                        let random_z = random_angle.cos() * MELEE_RANDOM_FORCE * time.delta_secs();
-                        acceleration.add_force(Vec3::new(random_x, 0.0, random_z));
-                    }
-
-                    // Add steering force toward enemy
-                    let steering = diff_xz.normalize_or_zero() * STEERING_FORCE;
-                    acceleration.add_force(steering);
-                }
-            }
-        }
-
-        // Apply acceleration to velocity (only XZ plane - units don't move vertically)
-        velocity.x += acceleration.x * time.delta_secs();
-        velocity.z += acceleration.z * time.delta_secs();
-
-        // Apply damping to reduce momentum
-        velocity.x *= VELOCITY_DAMPING;
-        velocity.z *= VELOCITY_DAMPING;
-
-        // Calculate speed multiplier based on proximity to nearest enemy
-        let mut speed_multiplier = MAX_SPEED_MULTIPLIER;
-
-        if let Some((_, nearest_pos, nearest_hitbox, _)) = unit_snapshot
-            .iter()
-            .filter(|(other_entity, _, _, other_team)| {
-                // Skip self, only consider enemies (units on different teams), and exclude corpses
-                *other_entity != entity
-                    && *other_team != *team
-                    && !corpse_query.contains(*other_entity)
-            })
-            .min_by(|a, b| {
-                let dist_a = (transform.translation.x - a.1.x).powi(2)
-                    + (transform.translation.z - a.1.z).powi(2);
-                let dist_b = (transform.translation.x - b.1.x).powi(2)
-                    + (transform.translation.z - b.1.z).powi(2);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            })
-        {
-            let diff_x = transform.translation.x - nearest_pos.x;
-            let diff_z = transform.translation.z - nearest_pos.z;
-            let distance = (diff_x * diff_x + diff_z * diff_z).sqrt();
-            let combined_radius = hitbox.radius + nearest_hitbox.radius;
-            let slowdown_distance = combined_radius * SLOWDOWN_DISTANCE_MULTIPLIER;
-
-            if distance < slowdown_distance {
-                // Linearly interpolate from MAX to MIN as distance goes from slowdown_distance to combined_radius
-                let t = ((distance - combined_radius) / (slowdown_distance - combined_radius))
-                    .clamp(0.0, 1.0);
-                speed_multiplier =
-                    MIN_SPEED_MULTIPLIER + (MAX_SPEED_MULTIPLIER - MIN_SPEED_MULTIPLIER) * t;
-            }
-        }
-
-        // Limit velocity to max speed with proximity multiplier and effectiveness
-        let base_max_speed = movement_speed.speed * speed_multiplier;
-        let max_speed = base_max_speed * effectiveness.multiplier();
-        let horizontal_velocity = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
-        if horizontal_velocity > max_speed {
-            let scale = max_speed / horizontal_velocity;
-            velocity.x *= scale;
-            velocity.z *= scale;
-        }
-
-        // Apply velocity to position (only XZ plane - Y stays fixed at spawn height)
-        transform.translation.x += velocity.x * time.delta_secs();
-        transform.translation.z += velocity.z * time.delta_secs();
-
-        // Reset acceleration for next frame
-        acceleration.reset();
-    }
-}
-
-/// Unified combat system for all units.
-///
-/// Units attack the nearest enemy within range. Attacks are time-based using the global
-/// attack cycle to naturally stagger attacks across all units.
-/// Damage is modified by the attacker's effectiveness coefficient.
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
     mut all_units: Query<(
