@@ -19,7 +19,7 @@ pub fn setup_spell_range_indicator(
 
         if wizard_height < spell_range {
             let circle_radius = (spell_range * spell_range - wizard_height * wizard_height).sqrt();
-            spawn_dotted_circle(
+            spawn_range_circle(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
@@ -49,7 +49,7 @@ pub fn update_spell_range_indicator(
 
         if wizard_height < spell_range {
             let circle_radius = (spell_range * spell_range - wizard_height * wizard_height).sqrt();
-            spawn_dotted_circle(
+            spawn_range_circle(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
@@ -59,20 +59,29 @@ pub fn update_spell_range_indicator(
         }
     }
 }
-
-/// Rotates the spell range circle over time.
-pub fn rotate_spell_range_indicator(
+/// Pulses the opacity of the spell range circle between 10% and 30%.
+pub fn pulse_spell_range_indicator(
     time: Res<Time>,
-    mut circle_query: Query<&mut Transform, With<SpellRangeCircle>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    circle_query: Query<&MeshMaterial3d<StandardMaterial>, With<SpellRangeCircle>>,
 ) {
-    let rotation_delta = ROTATION_SPEED * time.delta_secs();
-    for mut transform in circle_query.iter_mut() {
-        transform.rotate_y(rotation_delta);
+    // Pulse with a 2-second period (1 second fade in, 1 second fade out)
+    let pulse_frequency = 0.5; // Hz (cycles per second)
+    let alpha = ((time.elapsed_secs() * pulse_frequency * std::f32::consts::TAU).sin() + 1.0) / 2.0;
+    let alpha = alpha * 0.2 + 0.1; // Scale to 0.1 - 0.3 range (10% - 30%)
+
+    for material_handle in circle_query.iter() {
+        if let Some(material) = materials.get_mut(material_handle) {
+            let mut color = RANGE_DOT_COLOR;
+            color.set_alpha(alpha);
+            material.base_color = color;
+            material.alpha_mode = AlphaMode::Blend;
+        }
     }
 }
 
-/// Spawns a dotted circle made of individual plane meshes.
-fn spawn_dotted_circle(
+/// Spawns a solid circle ring using a torus mesh.
+fn spawn_range_circle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -80,37 +89,28 @@ fn spawn_dotted_circle(
     radius: f32,
 ) {
     let material = materials.add(StandardMaterial {
-        base_color: RANGE_DOT_COLOR,
+        base_color: RANGE_DOT_COLOR.with_alpha(0.0), // Start at 0% opacity
         unlit: true,
+        alpha_mode: AlphaMode::Blend,
         ..default()
     });
 
-    let dot_plane = Plane3d::default().mesh().size(DOT_SIZE, DOT_SIZE);
-    let dot_mesh = meshes.add(dot_plane);
-    let angle_per_dot = std::f32::consts::TAU / NUM_DOTS as f32;
+    // Create a torus (donut shape) - a thin ring on the ground
+    // major_radius = distance from center to ring center = spell range radius
+    // minor_radius = thickness of the ring itself
+    let torus = Torus {
+        major_radius: radius,
+        minor_radius: 2.5, // Thin ring, 5 units wide (half of previous 10)
+    };
+    let torus_mesh = meshes.add(torus);
 
-    let parent_id = commands
-        .spawn((
-            Transform::from_xyz(center_pos.x, 1.0, center_pos.z),
-            SpellRangeCircle,
-            OnGameplayScreen,
-        ))
-        .id();
-
-    for i in 0..NUM_DOTS {
-        let angle = i as f32 * angle_per_dot;
-        let x = radius * angle.cos();
-        let z = radius * angle.sin();
-
-        let dot_id = commands
-            .spawn((
-                Mesh3d(dot_mesh.clone()),
-                MeshMaterial3d(material.clone()),
-                Transform::from_translation(Vec3::new(x, 0.0, z)),
-                SpellRangeDash,
-            ))
-            .id();
-
-        commands.entity(parent_id).add_child(dot_id);
-    }
+    commands.spawn((
+        Mesh3d(torus_mesh),
+        MeshMaterial3d(material),
+        // Torus is oriented around Y-axis by default, which is vertical
+        // We want it flat on the ground (XZ plane), so no rotation needed
+        Transform::from_xyz(center_pos.x, 1.0, center_pos.z),
+        SpellRangeCircle,
+        OnGameplayScreen,
+    ));
 }
