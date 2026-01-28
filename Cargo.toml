@@ -23,4 +23,5 @@ opt-level = 1
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "thin"  # Use thin LTO instead of full LTO to avoid WASM table issues
+strip = true  # Strip debug symbols to reduce size
