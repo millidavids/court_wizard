@@ -16,7 +16,7 @@ impl Plugin for SpellRangeIndicatorPlugin {
             (
                 systems::setup_spell_range_indicator,
                 systems::update_spell_range_indicator,
-                systems::rotate_spell_range_indicator,
+                systems::pulse_spell_range_indicator,
             )
                 .run_if(in_state(InGameState::Running)),
         );
