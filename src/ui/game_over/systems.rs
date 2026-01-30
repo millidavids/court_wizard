@@ -53,7 +53,7 @@ pub fn update_level_after_display(
                 config.highest_level_achieved = current_level.0;
             }
         }
-        GameOutcome::Defeat => {
+        GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
             // Drop one level, minimum 1
             current_level.0 = current_level.0.saturating_sub(1).max(1);
         }
@@ -108,7 +108,7 @@ pub fn setup_game_over_screen(
                     // Victory/Defeat title
                     let title_text = match *game_outcome {
                         GameOutcome::Victory => "VICTORY",
-                        GameOutcome::Defeat => "DEFEAT",
+                        GameOutcome::Defeat | GameOutcome::DefeatKingDied => "DEFEAT",
                     };
 
                     buttons.spawn((
@@ -120,12 +120,24 @@ pub fn setup_game_over_screen(
                         TextColor(TITLE_COLOR),
                     ));
 
+                    // Subtext for King death
+                    if *game_outcome == GameOutcome::DefeatKingDied {
+                        buttons.spawn((
+                            Text::new("The King died!"),
+                            TextFont {
+                                font_size: 24.0,
+                                ..default()
+                            },
+                            TextColor(TEXT_COLOR),
+                        ));
+                    }
+
                     // Play Again button with level progression indicator
                     let button_text = match *game_outcome {
                         GameOutcome::Victory => {
                             format!("Advance to Level {}", current_level.0 + 1)
                         }
-                        GameOutcome::Defeat => {
+                        GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
                             let next_level = current_level.0.saturating_sub(1).max(1);
                             if next_level < current_level.0 {
                                 format!("Drop to Level {}", next_level)

@@ -243,6 +243,40 @@ The build script:
 1. Make code changes
 2. Test locally with `./build_wasm.sh` (debug mode is fine for testing)
 3. When ready to deploy: `./build_wasm.sh --release`
-4. Then: `git add -A && git commit -m "..." && git push`
+4. **Update CHANGELOG.md** with user-facing changes (see Changelog section below)
+5. Then: `git add -A && git commit -m "..." && git push`
 
 **NEVER commit without building release first, or users will get a massive slow debug build.**
+
+## Changelog Maintenance
+
+**CRITICAL**: Before EVERY commit, update `CHANGELOG.md` with user-facing changes.
+
+**Changelog Guidelines:**
+- Add entries under the current version (format: `## [vX.Y.Z] - YYYY-MM-DD`)
+- Use bullet points organized by category: Added, Changed, Fixed, Removed
+- Write from the player's perspective - focus on gameplay impact, not technical implementation
+- Be concise but descriptive enough for players to understand what changed
+- Include only changes that affect gameplay, UI, or player experience
+- Omit internal refactoring, code cleanup, or technical changes unless they impact performance
+
+**Example Entry:**
+```markdown
+## [v0.0.4] - 2025-01-30
+
+### Added
+- New frost spell that slows enemies in an area
+
+### Changed
+- Increased wizard mana regeneration rate
+- Spell book UI now shows cooldown timers
+
+### Fixed
+- Teleport spell no longer cancels when moving mouse quickly
+```
+
+**When to Update:**
+- Before every `git commit`
+- After completing any feature, bug fix, or gameplay change
+- Group related changes under appropriate categories
+- Always use the version number from `Cargo.toml`

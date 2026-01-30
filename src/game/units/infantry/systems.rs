@@ -9,73 +9,67 @@ use crate::game::constants::{
 };
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, MovementSpeed,
-    TargetingVelocity, Team, Teleportable,
+    AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
+    MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 
 /// Spawns initial defenders when entering the game.
 ///
-/// Spawns defenders in a 2×2 grid formation under the castle.
-/// Infantry spawn at the 3 closest points to attackers (rightmost points).
-/// Distributes units evenly across the 3 front-line spawn points.
+/// Spawns defenders in one group in front of the King.
 pub fn spawn_initial_defenders(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Infantry spawn at 3 front-line points (closest to attackers = rightmost)
-    // Skip index 2 which is (-1750, 1550) - the back-left point
-    let infantry_spawn_points = [
-        DEFENDER_SPAWN_POINTS[0], // (-1750, 1150) - front-left
-        DEFENDER_SPAWN_POINTS[1], // (-1350, 1150) - front-right
-        DEFENDER_SPAWN_POINTS[3], // (-1350, 1550) - back-right
-    ];
+    // Calculate King's centroid position
+    let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0; // = -1550
+    let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0; // = 1350
 
-    let units_per_point = INITIAL_DEFENDER_COUNT / infantry_spawn_points.len() as u32;
+    // Spawn all infantry in one group in front of the King (positive X direction from King)
+    let spawn_x = centroid_x + 100.0; // 100 units forward from King
+    let spawn_z = centroid_z;
 
-    for &(spawn_x, spawn_z) in &infantry_spawn_points {
-        for i in 0..units_per_point {
-            // Define defender hitbox (cylinder) - this determines sprite size
-            let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+    for i in 0..INITIAL_DEFENDER_COUNT {
+        // Define defender hitbox (cylinder) - this determines sprite size
+        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
 
-            // Spawn defender as a circle billboard sized to match the hitbox
-            let circle = Circle::new(hitbox.radius);
+        // Spawn defender as a circle billboard sized to match the hitbox
+        let circle = Circle::new(hitbox.radius);
 
-            // Distribute spawns in a circular pattern around this spawn point
-            let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-            let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
-            let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+        // Distribute spawns in a circular pattern around this spawn point
+        let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
+        let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
+        let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
 
-            // Position unit so bottom edge is 1 unit above battlefield (Y=0)
-            let spawn_y = hitbox.height / 2.0 + 1.0;
+        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+        let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            commands
-                .spawn((
-                    Mesh3d(meshes.add(circle)),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: DEFENDER_COLOR,
-                        unlit: true,
-                        ..default()
-                    })),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
-                    Acceleration::new(),
-                    hitbox,
-                    Health::new(UNIT_HEALTH),
-                    MovementSpeed::new(UNIT_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    Team::Defenders,
-                    Infantry,
-                ))
-                .insert((
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    Teleportable,
-                    Billboard,
-                    OnGameplayScreen,
-                ));
-        }
+        commands
+            .spawn((
+                Mesh3d(meshes.add(circle)),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: DEFENDER_COLOR,
+                    unlit: true,
+                    ..default()
+                })),
+                Transform::from_xyz(final_x, spawn_y, final_z),
+                Velocity::default(),
+                Acceleration::new(),
+                hitbox,
+                Health::new(UNIT_HEALTH),
+                MovementSpeed(UNIT_MOVEMENT_SPEED),
+                AttackTiming::new(),
+                Effectiveness::new(),
+                Team::Defenders,
+                Infantry,
+            ))
+            .insert((
+                TargetingVelocity::default(),
+                FlockingVelocity::default(),
+                Teleportable,
+                Billboard,
+                OnGameplayScreen,
+            ));
     }
 }
 
@@ -175,6 +169,8 @@ pub fn infantry_movement(
             &TargetingVelocity,
             &FlockingVelocity,
             Option<&crate::game::units::components::InMelee>,
+            Option<&KingAuraSpeedModifier>,
+            Option<&RoughTerrainModifier>,
         ),
         With<Infantry>,
     >,
@@ -191,6 +187,8 @@ pub fn infantry_movement(
         targeting_velocity,
         flocking_velocity,
         in_melee,
+        aura_modifier,
+        terrain_modifier,
     ) in &mut infantry_units
     {
         // Weight targeting vs flocking based on distance to target
@@ -206,8 +204,14 @@ pub fn infantry_movement(
             + flocking_velocity.velocity * flocking_weight)
             .normalize_or_zero();
 
-        // Apply as acceleration force
-        acceleration.add_force(weighted_direction * STEERING_FORCE);
+        // Calculate speed modifiers early to apply to acceleration
+        let aura_percentage = aura_modifier.map_or(0.0, |m| m.0);
+        let terrain_percentage = terrain_modifier.map_or(0.0, |m| m.0);
+        let total_percentage = aura_percentage + terrain_percentage;
+        let speed_multiplier = 1.0 + total_percentage;
+
+        // Apply as acceleration force with speed modifiers
+        acceleration.add_force(weighted_direction * STEERING_FORCE * speed_multiplier);
 
         // Apply acceleration to velocity
         velocity.x += acceleration.x * delta;
@@ -217,8 +221,8 @@ pub fn infantry_movement(
         velocity.x *= VELOCITY_DAMPING;
         velocity.z *= VELOCITY_DAMPING;
 
-        // Calculate max speed with melee slowdown
-        let mut max_speed = movement_speed.speed * effectiveness.multiplier();
+        // Calculate max speed with effectiveness, modifiers (aura + terrain), and melee slowdown
+        let mut max_speed = movement_speed.0 * effectiveness.multiplier() * speed_multiplier;
         if in_melee.is_some() {
             max_speed *= MELEE_SLOWDOWN_FACTOR;
         }
@@ -303,7 +307,7 @@ pub fn spawn_initial_attackers(
                     Acceleration::new(),
                     hitbox,
                     Health::new(UNIT_HEALTH),
-                    MovementSpeed::new(UNIT_MOVEMENT_SPEED),
+                    MovementSpeed(UNIT_MOVEMENT_SPEED),
                     AttackTiming::new(),
                     Effectiveness::new(),
                     Team::Attackers,

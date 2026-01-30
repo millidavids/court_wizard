@@ -12,5 +12,6 @@ mod plugin;
 mod spell_book;
 mod styles;
 mod systems;
+mod version;
 
 pub use plugin::UiPlugin;

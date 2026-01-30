@@ -6,7 +6,10 @@
 use bevy::prelude::*;
 
 use super::{
-    components::{MouseButtonState, MouseLeftHeldThisFrame, SpellInputBlockedThisFrame},
+    components::{
+        MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame,
+        SpellInputBlockedThisFrame,
+    },
     events::*,
 };
 
@@ -42,7 +45,11 @@ pub fn detect_mouse_input(
 
     if mouse.just_released(MouseButton::Left) {
         left_released.write(MouseLeftReleased);
-        mouse_state.left_consumed = false; // Reset for next press
+    }
+
+    // Only clear consumed flag when button is completely idle (not pressed, not released this frame)
+    if !mouse.pressed(MouseButton::Left) && !mouse.just_released(MouseButton::Left) {
+        mouse_state.left_consumed = false;
     }
 
     // Check right mouse button state
@@ -89,9 +96,12 @@ pub fn detect_keyboard_input(
 pub fn update_input_state_for_run_conditions(
     mut block_spell_input: MessageReader<BlockSpellInput>,
     mut mouse_left_held: MessageReader<MouseLeftHeld>,
+    mut mouse_right_held: MessageReader<MouseRightHeld>,
     mut spell_blocked: ResMut<SpellInputBlockedThisFrame>,
-    mut mouse_held: ResMut<MouseLeftHeldThisFrame>,
+    mut mouse_left_held_state: ResMut<MouseLeftHeldThisFrame>,
+    mut mouse_right_held_state: ResMut<MouseRightHeldThisFrame>,
 ) {
     spell_blocked.blocked = block_spell_input.read().next().is_some();
-    mouse_held.held = mouse_left_held.read().next().is_some();
+    mouse_left_held_state.held = mouse_left_held.read().next().is_some();
+    mouse_right_held_state.held = mouse_right_held.read().next().is_some();
 }

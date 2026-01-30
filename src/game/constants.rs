@@ -29,12 +29,12 @@ const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 
 /// Defender spawn points in a 2×2 grid under the castle.
 /// Castle is at (-1550, 1550). These points form a formation directly below it.
-/// Grid spacing: 400 units between points
+/// Grid spacing: 300 units between points (reduced from 400 for tighter formation)
 pub const DEFENDER_SPAWN_POINTS: [(f32, f32); 4] = [
-    (-1750.0, 1150.0), // Southwest
-    (-1350.0, 1150.0), // Southeast
-    (-1750.0, 1550.0), // Northwest
-    (-1350.0, 1550.0), // Northeast
+    (-1700.0, 1200.0), // Southwest (was -1750, 1150)
+    (-1400.0, 1200.0), // Southeast (was -1350, 1150)
+    (-1700.0, 1500.0), // Northwest (was -1750, 1550)
+    (-1400.0, 1500.0), // Northeast (was -1350, 1550)
 ];
 
 // ===== Unit Positioning =====
@@ -109,7 +109,7 @@ pub const SEPARATION_STRENGTH: f32 = 0.05;
 pub const ALIGNMENT_STRENGTH: f32 = 0.1;
 
 /// Strength of the cohesion force (pulls units toward group center). Set to 0.0 to disable.
-pub const COHESION_STRENGTH: f32 = 0.2;
+pub const COHESION_STRENGTH: f32 = 0.1;
 
 /// Maximum allowed overlap between hitboxes as a percentage. 0.0 = no overlap allowed.
 pub const MAX_OVERLAP_PERCENT: f32 = 0.0;

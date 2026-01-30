@@ -1,6 +1,24 @@
 #!/bin/bash
 set -e
 
+# Bump patch version in Cargo.toml (always, for every build)
+echo "Bumping version..."
+CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+
+# Parse semantic version
+MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+
+# Increment patch version
+NEW_PATCH=$((PATCH + 1))
+NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+# Update Cargo.toml
+sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
+
+echo "Version bumped: $CURRENT_VERSION -> $NEW_VERSION"
+
 # Check for --release flag
 RELEASE_FLAG=""
 BUILD_TYPE="debug"
