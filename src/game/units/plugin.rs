@@ -4,6 +4,7 @@ use crate::state::InGameState;
 
 use super::archer::ArcherPlugin;
 use super::infantry::InfantryPlugin;
+use super::king::KingPlugin;
 use super::systems;
 use super::wizard::WizardPlugin;
 
@@ -13,6 +14,7 @@ use super::wizard::WizardPlugin;
 /// - Wizard entity (WizardPlugin)
 /// - Infantry units on both teams (InfantryPlugin)
 /// - Archer units on both teams (ArcherPlugin)
+/// - King unit (defender only) (KingPlugin)
 ///
 /// Also registers global unit systems for:
 /// - Temporary hit points expiration
@@ -20,7 +22,7 @@ pub struct UnitsPlugin;
 
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((WizardPlugin, InfantryPlugin, ArcherPlugin))
+        app.add_plugins((WizardPlugin, InfantryPlugin, ArcherPlugin, KingPlugin))
             .add_systems(
                 Update,
                 systems::update_temporary_hit_points.run_if(in_state(InGameState::Running)),

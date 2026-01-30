@@ -38,3 +38,12 @@ pub struct SpellInputBlockedThisFrame {
 pub struct MouseLeftHeldThisFrame {
     pub held: bool,
 }
+
+/// Tracks whether mouse right held event occurred this frame.
+///
+/// Used for run_if conditions to avoid consuming MessageReader in conditions.
+/// Updated each frame by `update_input_state_for_run_conditions` system.
+#[derive(Resource, Default)]
+pub struct MouseRightHeldThisFrame {
+    pub held: bool,
+}

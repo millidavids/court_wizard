@@ -39,7 +39,7 @@ pub fn setup_wizard(
         Transform::from_translation(WIZARD_POSITION),
         hitbox,
         Health::new(constants::HEALTH),
-        MovementSpeed::new(0.0), // Wizard doesn't move
+        MovementSpeed(0.0), // Wizard doesn't move
         Mana::new(constants::MANA),
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),

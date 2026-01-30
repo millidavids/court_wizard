@@ -24,16 +24,31 @@ pub struct Health {
 ///
 /// Determines how fast a unit moves in units per second.
 #[derive(Component, Clone, Copy)]
-pub struct MovementSpeed {
-    pub speed: f32,
-}
+pub struct MovementSpeed(pub f32);
 
-impl MovementSpeed {
-    /// Creates a new MovementSpeed component.
-    pub const fn new(speed: f32) -> Self {
-        Self { speed }
-    }
-}
+/// Damage bonus as a percentage.
+///
+/// Used by special units and buffs to modify damage output.
+/// Examples: 0.5 = +50% damage, 1.0 = +100% damage (double), -0.4 = -40% damage.
+/// Combat system applies this as: damage * (1.0 + percentage).
+#[derive(Component)]
+pub struct DamageMultiplier(pub f32);
+
+/// Movement speed modifier from King's aura as a percentage.
+///
+/// Applied to defenders within the King's aura range.
+/// Examples: 0.25 = +25% speed from King's aura.
+/// Movement systems apply this as: speed * (1.0 + sum_of_all_modifiers).
+#[derive(Component)]
+pub struct KingAuraSpeedModifier(pub f32);
+
+/// Movement speed modifier from rough terrain as a percentage.
+///
+/// Applied to units walking over corpses.
+/// Examples: -0.6 = -60% speed (0.4x multiplier).
+/// Movement systems apply this as: speed * (1.0 + sum_of_all_modifiers).
+#[derive(Component)]
+pub struct RoughTerrainModifier(pub f32);
 
 /// Attack timing component for all units.
 ///

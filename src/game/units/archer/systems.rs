@@ -12,8 +12,9 @@ use crate::game::constants::{
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingVelocity, Health, Hitbox, MovementSpeed,
-    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
+    AttackTiming, Corpse, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
+    MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 
 /// Spawns initial defender archers when entering the game.
@@ -51,7 +52,7 @@ pub fn spawn_initial_defender_archers(
                 Acceleration::new(),
                 hitbox,
                 Health::new(UNIT_HEALTH),
-                MovementSpeed::new(ARCHER_MOVEMENT_SPEED),
+                MovementSpeed(ARCHER_MOVEMENT_SPEED),
                 AttackTiming::new(),
                 Effectiveness::new(),
                 Team::Defenders,
@@ -125,7 +126,7 @@ pub fn spawn_initial_attacker_archers(
                     Acceleration::new(),
                     hitbox,
                     Health::new(UNIT_HEALTH),
-                    MovementSpeed::new(ARCHER_MOVEMENT_SPEED),
+                    MovementSpeed(ARCHER_MOVEMENT_SPEED),
                     AttackTiming::new(),
                     Effectiveness::new(),
                     Team::Attackers,
@@ -590,6 +591,8 @@ pub fn archer_movement(
             &TargetingVelocity,
             &crate::game::units::components::FlockingVelocity,
             Option<&crate::game::units::components::InMelee>,
+            Option<&KingAuraSpeedModifier>,
+            Option<&RoughTerrainModifier>,
         ),
         With<Archer>,
     >,
@@ -606,6 +609,8 @@ pub fn archer_movement(
         targeting_velocity,
         flocking_velocity,
         in_melee,
+        aura_modifier,
+        terrain_modifier,
     ) in &mut archer_units
     {
         // Weight targeting vs flocking based on distance to target
@@ -621,8 +626,14 @@ pub fn archer_movement(
             + flocking_velocity.velocity * flocking_weight)
             .normalize_or_zero();
 
-        // Apply as acceleration force
-        acceleration.add_force(weighted_direction * STEERING_FORCE);
+        // Calculate speed modifiers early to apply to acceleration
+        let aura_percentage = aura_modifier.map_or(0.0, |m| m.0);
+        let terrain_percentage = terrain_modifier.map_or(0.0, |m| m.0);
+        let total_percentage = aura_percentage + terrain_percentage;
+        let speed_multiplier = 1.0 + total_percentage;
+
+        // Apply as acceleration force with speed modifiers
+        acceleration.add_force(weighted_direction * STEERING_FORCE * speed_multiplier);
 
         // Apply acceleration to velocity
         velocity.x += acceleration.x * delta;
@@ -632,8 +643,8 @@ pub fn archer_movement(
         velocity.x *= VELOCITY_DAMPING;
         velocity.z *= VELOCITY_DAMPING;
 
-        // Calculate max speed based on state
-        let mut max_speed = movement_speed.speed * effectiveness.multiplier();
+        // Calculate max speed based on state with modifiers (aura + terrain)
+        let mut max_speed = movement_speed.0 * effectiveness.multiplier() * speed_multiplier;
 
         if in_melee.is_some() {
             // In melee - slow down like infantry

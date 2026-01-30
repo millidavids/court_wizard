@@ -7,9 +7,10 @@ use super::constants::*;
 use super::plugin::GlobalAttackCycle;
 use super::resources::CurrentLevel;
 use super::units::components::{
-    AttackTiming, Corpse, Effectiveness, Health, Hitbox, MovementSpeed, RoughTerrain, Team,
-    TemporaryHitPoints, apply_damage_to_unit,
+    AttackTiming, Corpse, DamageMultiplier, Effectiveness, Health, Hitbox, MovementSpeed,
+    RoughTerrain, RoughTerrainModifier, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use super::units::king::components::KingSpawned;
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -248,8 +249,9 @@ pub fn apply_separation(
 /// Units walking over corpses have their movement speed temporarily reduced.
 /// This creates a tactical element where corpses affect battlefield movement.
 pub fn apply_rough_terrain_slowdown(
-    mut units: Query<
-        (&Transform, &Hitbox, &mut MovementSpeed),
+    mut commands: Commands,
+    units: Query<
+        (Entity, &Transform, &Hitbox, Option<&RoughTerrainModifier>),
         (
             Without<Corpse>,
             Without<super::units::wizard::components::Wizard>,
@@ -257,7 +259,7 @@ pub fn apply_rough_terrain_slowdown(
     >,
     corpses: Query<(&Transform, &Hitbox, &RoughTerrain), With<Corpse>>,
 ) {
-    for (unit_transform, unit_hitbox, mut movement_speed) in &mut units {
+    for (entity, unit_transform, unit_hitbox, _speed_modifier) in &units {
         let mut max_slowdown: f32 = 1.0; // No slowdown by default
 
         // Check all corpses for overlap
@@ -273,9 +275,16 @@ pub fn apply_rough_terrain_slowdown(
             }
         }
 
-        // Apply the worst slowdown encountered
+        // Apply the worst slowdown encountered as a RoughTerrainModifier component
+        // slowdown_factor of 0.4 means 60% slower = -0.6 (negative 60%)
         if max_slowdown < 1.0 {
-            movement_speed.speed *= max_slowdown;
+            let slowdown_percentage = max_slowdown - 1.0; // e.g., 0.4 - 1.0 = -0.6
+            commands
+                .entity(entity)
+                .insert(RoughTerrainModifier(slowdown_percentage));
+        } else {
+            // Not on rough terrain - remove slowdown component if it exists
+            commands.entity(entity).remove::<RoughTerrainModifier>();
         }
     }
 }
@@ -289,6 +298,7 @@ pub fn combat(
         &Team,
         &mut AttackTiming,
         &Effectiveness,
+        Option<&DamageMultiplier>,
     )>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
@@ -298,7 +308,7 @@ pub fn combat(
     // Collect snapshot of all units for enemy detection
     let units_snapshot: Vec<_> = all_units
         .iter()
-        .map(|(entity, transform, hitbox, team, _, _)| {
+        .map(|(entity, transform, hitbox, team, _, _, _)| {
             (entity, transform.translation, *hitbox, *team)
         })
         .collect();
@@ -311,6 +321,7 @@ pub fn combat(
         attacker_team,
         mut attack_timing,
         effectiveness,
+        damage_mult,
     ) in &mut all_units
     {
         // Find nearest enemy within attack range
@@ -346,8 +357,13 @@ pub fn combat(
             if attack_timing.can_attack(current_time, last_time)
                 && let Ok((mut target_health, mut temp_hp)) = health_query.get_mut(*target_entity)
             {
-                // Apply effectiveness multiplier to damage
-                let modified_damage = ATTACK_DAMAGE * effectiveness.multiplier();
+                // Apply effectiveness and damage percentage
+                // DamageMultiplier stores percentage bonus (0.5 = +50%, 1.0 = +100%)
+                // Convert to multiplier: damage * (1.0 + percentage)
+                let damage_percentage = damage_mult.map_or(0.0, |d| d.0);
+                let damage_multiplier = 1.0 + damage_percentage;
+                let modified_damage =
+                    ATTACK_DAMAGE * effectiveness.multiplier() * damage_multiplier;
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.record_attack(current_time);
             }
@@ -444,7 +460,9 @@ pub fn cleanup_for_replay(
 pub fn reset_resources_for_replay(
     mut attack_cycle: ResMut<super::plugin::GlobalAttackCycle>,
     mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
+    mut king_spawned: ResMut<KingSpawned>,
 ) {
     attack_cycle.current_time = 0.0;
     defenders_activated.active = false;
+    king_spawned.0 = false;
 }

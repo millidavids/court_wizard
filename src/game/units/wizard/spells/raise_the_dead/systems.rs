@@ -163,7 +163,7 @@ fn resurrect_nearest_corpse(
             .insert(Health::new(UNIT_HEALTH)) // Full health restoration
             .insert(Velocity::default())
             .insert(Acceleration::new())
-            .insert(MovementSpeed::new(UNIT_MOVEMENT_SPEED * 0.5)) // Half speed
+            .insert(MovementSpeed(UNIT_MOVEMENT_SPEED * 0.5)) // Half speed
             .insert(AttackTiming::new())
             .insert(Effectiveness::new())
             .insert(Billboard)

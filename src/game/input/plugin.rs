@@ -5,7 +5,10 @@ use bevy::prelude::*;
 use crate::state::InGameState;
 
 use super::{
-    components::{MouseButtonState, MouseLeftHeldThisFrame, SpellInputBlockedThisFrame},
+    components::{
+        MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame,
+        SpellInputBlockedThisFrame,
+    },
     events::*,
     systems,
 };
@@ -24,6 +27,7 @@ impl Plugin for InputPlugin {
             .init_resource::<MouseButtonState>()
             .init_resource::<SpellInputBlockedThisFrame>()
             .init_resource::<MouseLeftHeldThisFrame>()
+            .init_resource::<MouseRightHeldThisFrame>()
             // Register input events
             .add_message::<MouseLeftPressed>()
             .add_message::<MouseLeftHeld>()

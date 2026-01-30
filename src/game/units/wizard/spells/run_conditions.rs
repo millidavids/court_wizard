@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::components::{CastingState, PrimedSpell, Spell, Wizard};
 use crate::game::input::components::{
-    MouseButtonState, MouseLeftHeldThisFrame, SpellInputBlockedThisFrame,
+    MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame, SpellInputBlockedThisFrame,
 };
 
 /// Check if specific spell is primed
@@ -41,4 +41,10 @@ pub fn mouse_held_or_wizard_casting(
     wizard_query: Query<&CastingState, With<Wizard>>,
 ) -> bool {
     mouse_held.held || wizard_is_casting_or_channeling(wizard_query)
+}
+
+/// Check if right mouse button is NOT held
+/// Used to prevent spell casting while right-clicking
+pub fn mouse_right_not_held(mouse_right_held: Res<MouseRightHeldThisFrame>) -> bool {
+    !mouse_right_held.held
 }
