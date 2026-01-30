@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.6] - 2025-01-30
+
+### Added
+- GitHub link icon in top-right corner of webpage
+
+### Changed
+- Simplified build process: single index.html maintained in web/ folder, automatically copied to docs/ on release builds
+
 ## [v0.0.3] - 2025-01-30
 
 ### Added
