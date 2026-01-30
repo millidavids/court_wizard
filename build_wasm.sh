@@ -53,6 +53,9 @@ wasm-bindgen \
 # fi
 
 if [ "$1" = "--release" ]; then
+    # Copy index.html from web/ to docs/ for release
+    echo "Copying index.html to docs/..."
+    cp ./web/index.html ./docs/index.html
     echo "WASM build complete! Release files are in ./docs/ for GitHub Pages deployment."
 else
     echo "WASM build complete! Debug files are in ./web/ for local testing."
