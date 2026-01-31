@@ -13,7 +13,7 @@ use crate::ui::main_menu::landing::constants::TEXT_COLOR;
 const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
 const BUTTON_HOVER_COLOR: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
 
-const CHANGELOG_TEXT: &str = include_str!("../../../../docs/CHANGELOG.md");
+const CHANGELOG_TEXT: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Spawns the changelog screen UI.
 pub fn setup(mut commands: Commands) {

@@ -31,7 +31,7 @@ Play as a powerful wizard defending your castle from waves of attackers.
 
 The game is deployed at: https://millidavids.github.io/court_wizard/
 
-[View Changelog](docs/CHANGELOG.md)
+[View Changelog](CHANGELOG.md)
 
 ## Development
 
