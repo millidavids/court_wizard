@@ -52,6 +52,12 @@ pub const WIZARD_POSITION: Vec3 = Vec3::new(
 /// Initial number of defenders spawned at game start.
 pub const INITIAL_DEFENDER_COUNT: u32 = 100;
 
+/// Number of King's Guard units spawned at game start.
+pub const KINGS_GUARD_COUNT: u32 = 10;
+
+/// Radius of the orbit circle for King's Guard around the King.
+pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 30.0;
+
 // ===== Unit Stats =====
 
 /// Default health for all units.

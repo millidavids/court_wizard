@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.65] - 2025-01-31
+
+### Added
+- King's Guard: 10 gold-colored infantry units that orbit the King and move with him
+- Guards are individually targetable and killable
+
+### Changed
+- King now moves at full infantry speed
+- King no longer has a movement speed cap
+
 ## [v0.0.58] - 2025-01-31
 
 ### Changed

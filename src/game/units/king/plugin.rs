@@ -29,6 +29,12 @@ impl Plugin for KingPlugin {
                     .after(apply_separation)
                     .before(MovementSystemSet)
                     .run_if(in_state(InGameState::Running)),
+            )
+            .add_systems(
+                Update,
+                systems::snap_kings_guard_to_king
+                    .in_set(MovementSystemSet)
+                    .after(systems::king_movement),
             );
     }
 }
