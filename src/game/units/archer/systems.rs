@@ -6,15 +6,15 @@ use super::constants::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    calculate_archer_groups, calculate_formation_grid_position, calculate_group_size_bonus,
-    calculate_infantry_groups, *,
+    calculate_grid_cell_position, calculate_spawn_cells, calculate_total_archers,
+    calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
 };
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
-    MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
-    apply_damage_to_unit,
+    AttackTiming, Corpse, Effectiveness, FlockingModifier, FlockingVelocity, Health, Hitbox,
+    KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team,
+    Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 
 /// Spawns initial defender archers when entering the game.
@@ -66,6 +66,7 @@ pub fn spawn_initial_defender_archers(
                 ArcherMovementTimer::new(),
                 TargetingVelocity::default(),
                 FlockingVelocity::default(),
+                FlockingModifier::new(1.0, 1.0, 0.0),
                 Teleportable,
                 Billboard,
                 OnGameplayScreen,
@@ -86,22 +87,21 @@ pub fn spawn_initial_attacker_archers(
 ) {
     let level = current_level.0;
 
-    // Calculate number of archer groups and group size based on level
-    let num_archer_groups = calculate_archer_groups(level);
-    let base_group_size = 10;
-    let group_size = base_group_size + calculate_group_size_bonus(level);
+    let total_archers = calculate_total_archers(level);
+    let total_infantry = calculate_total_infantry(level);
+    let num_archer_cells = cells_needed(total_archers);
+    let num_infantry_cells = cells_needed(total_infantry);
+    let (_, archer_cells) = calculate_spawn_cells(num_infantry_cells, num_archer_cells);
+    let units_per_cell = distribute_units_to_cells(total_archers);
 
-    // Calculate total groups for pushback calculation (need infantry count too)
-    let num_infantry_groups = calculate_infantry_groups(level);
-    let total_groups = num_archer_groups + num_infantry_groups;
+    // Spawn each archer cell
+    for (cell_idx, (row, col)) in archer_cells.iter().enumerate() {
+        let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
 
-    // Spawn each archer group
-    for group_idx in 0..num_archer_groups {
-        // Archer groups go first (in the back rows)
-        let (spawn_x, spawn_z) = calculate_formation_grid_position(group_idx, total_groups);
+        let cell_count = units_per_cell.get(cell_idx).copied().unwrap_or(0);
 
-        // Spawn all units in this group
-        for i in 0..group_size {
+        // Spawn all units in this cell
+        for i in 0..cell_count {
             let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
             let circle = Circle::new(hitbox.radius);
 
@@ -113,6 +113,18 @@ pub fn spawn_initial_attacker_archers(
             // Position unit so bottom edge is 1 unit above battlefield (Y=0)
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
+            // Start with velocity toward castle
+            let to_castle = Vec3::new(
+                CASTLE_POSITION.x - final_x,
+                0.0,
+                CASTLE_POSITION.z - final_z,
+            )
+            .normalize_or_zero();
+            let initial_velocity = Velocity {
+                x: to_castle.x * ARCHER_MOVEMENT_SPEED,
+                z: to_castle.z * ARCHER_MOVEMENT_SPEED,
+            };
+
             commands
                 .spawn((
                     Mesh3d(meshes.add(circle)),
@@ -122,7 +134,7 @@ pub fn spawn_initial_attacker_archers(
                         ..default()
                     })),
                     Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
+                    initial_velocity,
                     Acceleration::new(),
                     hitbox,
                     Health::new(UNIT_HEALTH),

@@ -4,8 +4,8 @@ use super::components::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    calculate_archer_groups, calculate_formation_grid_position, calculate_group_size_bonus,
-    calculate_infantry_groups, *,
+    calculate_grid_cell_position, calculate_spawn_cells, calculate_total_archers,
+    calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
 };
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
@@ -262,25 +262,20 @@ pub fn spawn_initial_attackers(
 ) {
     let level = current_level.0;
 
-    // Calculate number of infantry groups and group size based on level
-    let num_infantry_groups = calculate_infantry_groups(level);
-    let base_group_size = 20;
-    let group_size = base_group_size + (calculate_group_size_bonus(level) * 2);
+    let total_infantry = calculate_total_infantry(level);
+    let total_archers = calculate_total_archers(level);
+    let num_infantry_cells = cells_needed(total_infantry);
+    let num_archer_cells = cells_needed(total_archers);
+    let (infantry_cells, _) = calculate_spawn_cells(num_infantry_cells, num_archer_cells);
+    let units_per_cell = distribute_units_to_cells(total_infantry);
 
-    // Calculate total number of archer groups to offset infantry positioning
-    let num_archer_groups = calculate_archer_groups(level);
+    // Spawn each infantry cell
+    for (cell_idx, (row, col)) in infantry_cells.iter().enumerate() {
+        let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
+        let cell_count = units_per_cell.get(cell_idx).copied().unwrap_or(0);
 
-    // Total groups for pushback calculation
-    let total_groups = num_archer_groups + num_infantry_groups;
-
-    // Spawn each infantry group
-    for group_idx in 0..num_infantry_groups {
-        // Infantry groups come after archer groups in the grid
-        let grid_position = group_idx + num_archer_groups;
-        let (spawn_x, spawn_z) = calculate_formation_grid_position(grid_position, total_groups);
-
-        // Spawn all units in this group
-        for i in 0..group_size {
+        // Spawn all units in this cell
+        for i in 0..cell_count {
             // Define attacker hitbox (cylinder) - this determines sprite size
             let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
 
@@ -295,6 +290,18 @@ pub fn spawn_initial_attackers(
             // Position unit so bottom edge is 1 unit above battlefield (Y=0)
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
+            // Start with velocity toward castle
+            let to_castle = Vec3::new(
+                CASTLE_POSITION.x - final_x,
+                0.0,
+                CASTLE_POSITION.z - final_z,
+            )
+            .normalize_or_zero();
+            let initial_velocity = Velocity {
+                x: to_castle.x * UNIT_MOVEMENT_SPEED,
+                z: to_castle.z * UNIT_MOVEMENT_SPEED,
+            };
+
             commands
                 .spawn((
                     Mesh3d(meshes.add(circle)),
@@ -304,7 +311,7 @@ pub fn spawn_initial_attackers(
                         ..default()
                     })),
                     Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
+                    initial_velocity,
                     Acceleration::new(),
                     hitbox,
                     Health::new(UNIT_HEALTH),

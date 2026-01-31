@@ -5,9 +5,9 @@ use super::constants::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::units::components::{
-    AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingVelocity, Health, Hitbox,
-    KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team,
-    Teleportable,
+    AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
+    Health, Hitbox, KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity,
+    Team, Teleportable,
 };
 
 /// Spawns the King unit at the exact center of all defender spawn points.
@@ -25,11 +25,9 @@ pub fn spawn_king(
     let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0; // = -1550
     let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0; // = 1350
 
-    // Move King 100 units back away from attackers (diagonal: -X and +Z direction)
-    // Attackers come from positive X, so moving back is negative X and positive Z
-    let offset = 100.0 / 2.0f32.sqrt(); // 70.71 in each direction for 100 unit diagonal
-    let spawn_x = centroid_x - offset; // More negative X (away from attackers)
-    let spawn_z = centroid_z + offset; // More positive Z (towards castle)
+    // Spawn King in the middle of infantry (which spawns at centroid_x + 100)
+    let spawn_x = centroid_x + 100.0;
+    let spawn_z = centroid_z;
 
     // Define King hitbox (larger than standard units)
     let hitbox = Hitbox::new(KING_RADIUS, KING_HITBOX_HEIGHT);
@@ -65,6 +63,7 @@ pub fn spawn_king(
             TargetingVelocity::default(),
             FlockingVelocity::default(),
             Teleportable,
+            FlockingModifier::new(1.0, 1.0, 0.0),
             Billboard,
             OnGameplayScreen,
         ))
