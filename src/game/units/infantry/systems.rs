@@ -157,6 +157,7 @@ pub fn update_infantry_targeting(
 /// Uses acceleration-based physics with maximum speed capping.
 /// TargetingVelocity and FlockingVelocity are treated as acceleration forces.
 /// Units slow down when in melee to prevent erratic movement.
+#[allow(clippy::type_complexity)]
 pub fn infantry_movement(
     time: Res<Time>,
     mut infantry_units: Query<

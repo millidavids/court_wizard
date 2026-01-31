@@ -62,6 +62,14 @@ pub fn setup(mut commands: Commands) {
                 MenuButtonAction::Settings,
                 &BUTTON_STYLE,
             );
+
+            // Changelog button
+            spawn_button(
+                parent,
+                "Changelog",
+                MenuButtonAction::Changelog,
+                &BUTTON_STYLE,
+            );
         });
 }
 
@@ -109,6 +117,9 @@ pub fn button_action(
                         }
                         MenuButtonAction::Settings => {
                             next_menu_state.set(MenuState::Settings);
+                        }
+                        MenuButtonAction::Changelog => {
+                            next_menu_state.set(MenuState::Changelog);
                         }
                     }
                 }

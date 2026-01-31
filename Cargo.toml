@@ -1,6 +1,6 @@
 [package]
 name = "the_game"
-version = "0.0.6"
+version = "0.0.25"
 edition = "2024"
 default-run = "the_game"
 repository = "https://github.com/millidavids/court_wizard"

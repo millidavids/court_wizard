@@ -2,9 +2,7 @@
 .claude/
 
 # Ignore web/ folder (debug builds for local testing)
-/web/*.wasm
-/web/*.js
-/web/*.d.ts
+/web/*
 
 # Allow docs/ folder for GitHub Pages deployment (release builds only)
 # All WASM build files in docs/ will be committed
