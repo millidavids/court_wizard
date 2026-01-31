@@ -13,32 +13,32 @@ jobs:
       - name: Extract latest changelog entry
         id: changelog
         run: |
-          # Extract version title (first ## [...] line)
-          version=$(sed -n '/^## \[/{p;q}' CHANGELOG.md)
+          # Extract version title (first ## [...] line), strip markdown formatting
+          version=$(sed -n '/^## \[/{s/^## \[//;s/\]//;p;q}' CHANGELOG.md)
 
           # Extract body between first and second ## [ headers
           body=$(sed -n '/^## \[/{n; :a; /^## \[/q; p; n; ba}' CHANGELOG.md)
 
-          # Trim leading/trailing whitespace
+          # Trim leading/trailing blank lines
           body=$(echo "$body" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/d;N;ba')
 
-          # Escape for JSON (newlines, quotes, backslashes)
-          body=$(echo "$body" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk '{printf "%s\\n", $0}')
-
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "body=$body" >> "$GITHUB_OUTPUT"
+
+          # Multiline output requires delimiter syntax
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "body<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$body" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
 
       - name: Post to Discord
         if: env.DISCORD_WEBHOOK_URL != ''
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VERSION: ${{ steps.changelog.outputs.version }}
+          BODY: ${{ steps.changelog.outputs.body }}
         run: |
-          curl -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"${{ steps.changelog.outputs.version }}\",
-                \"description\": \"${{ steps.changelog.outputs.body }}\",
-                \"color\": 16744448
-              }]
-            }" \
-            "$DISCORD_WEBHOOK_URL"
+          payload=$(jq -n \
+            --arg title "$VERSION" \
+            --arg desc "$BODY" \
+            '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
