@@ -6,8 +6,8 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    Health, Hitbox, KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity,
-    Team, Teleportable,
+    Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed, RoughTerrainModifier,
+    TargetingVelocity, Team, Teleportable,
 };
 
 /// Spawns the King unit at the exact center of all defender spawn points.
@@ -63,7 +63,7 @@ pub fn spawn_king(
             TargetingVelocity::default(),
             FlockingVelocity::default(),
             Teleportable,
-            FlockingModifier::new(1.0, 1.0, 0.0),
+            FlockingModifier::new(1.0, 0.0, 0.0),
             Billboard,
             OnGameplayScreen,
         ))
@@ -240,9 +240,6 @@ pub fn king_movement(
             max_speed *= MELEE_SLOWDOWN_FACTOR;
         }
 
-        // King's absolute speed cap - 90% of standard unit movement speed
-        max_speed = max_speed.min(UNIT_MOVEMENT_SPEED * 0.9);
-
         // Cap velocity to maximum speed
         let velocity_vec = Vec3::new(velocity.x, 0.0, velocity.z);
         let current_speed = velocity_vec.length();
@@ -347,4 +344,24 @@ pub fn king_cohesion_aura(
     commands
         .entity(king_entity)
         .insert(KingAuraSpeedModifier(KING_AURA_SPEED_PERCENTAGE));
+}
+
+/// Snaps King's Guard units to fixed positions around the King each frame.
+///
+/// Guards orbit the King at a fixed radius. Their positions are set directly
+/// rather than using velocity/acceleration, so they stay locked to the King.
+pub fn snap_kings_guard_to_king(
+    king_query: Query<&Transform, (With<King>, Without<Corpse>)>,
+    mut guards: Query<(&KingsGuard, &mut Transform), (Without<King>, Without<Corpse>)>,
+) {
+    let Ok(king_transform) = king_query.single() else {
+        return;
+    };
+    let king_pos = king_transform.translation;
+
+    for (guard, mut transform) in &mut guards {
+        let angle = guard.0 as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
+        transform.translation.x = king_pos.x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
+        transform.translation.z = king_pos.z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+    }
 }

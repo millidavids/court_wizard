@@ -23,6 +23,7 @@ impl Plugin for InfantryPlugin {
                 (
                     systems::spawn_initial_defenders,
                     systems::spawn_initial_attackers,
+                    systems::spawn_kings_guard,
                 ),
             )
             .add_systems(
@@ -30,6 +31,7 @@ impl Plugin for InfantryPlugin {
                 (
                     systems::spawn_initial_defenders,
                     systems::spawn_initial_attackers,
+                    systems::spawn_kings_guard,
                 )
                     .run_if(run_conditions::coming_from_game_over),
             )

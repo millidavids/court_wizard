@@ -460,6 +460,10 @@ impl FlockingModifier {
     }
 }
 
+/// King's Guard unit. Stores the slot index for positioning around the King.
+#[derive(Component)]
+pub struct KingsGuard(pub u32);
+
 /// Flocking velocity from separation, alignment, and cohesion forces.
 ///
 /// The flocking system calculates this based on nearby allies.

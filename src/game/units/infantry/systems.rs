@@ -10,7 +10,7 @@ use crate::game::constants::{
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
-    MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    KingsGuard, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 
 /// Spawns initial defenders when entering the game.
@@ -329,5 +329,51 @@ pub fn spawn_initial_attackers(
                     OnGameplayScreen,
                 ));
         }
+    }
+}
+
+/// Spawns King's Guard units at the King's position.
+///
+/// These are defender infantry locked to fixed positions around the King.
+/// They have no movement components — a separate system snaps them to the King each frame.
+pub fn spawn_kings_guard(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // King spawns at centroid_x + 100, centroid_z
+    let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0;
+    let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0;
+    let spawn_x = centroid_x + 100.0;
+    let spawn_z = centroid_z;
+
+    for i in 0..KINGS_GUARD_COUNT {
+        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+        let circle = Circle::new(hitbox.radius);
+        let spawn_y = hitbox.height / 2.0 + 1.0;
+
+        // Initial position at King's location; snap system will position them each frame
+        let angle = i as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
+        let final_x = spawn_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
+        let final_z = spawn_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+
+        commands
+            .spawn((
+                Mesh3d(meshes.add(circle)),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: KINGS_GUARD_COLOR,
+                    unlit: true,
+                    ..default()
+                })),
+                Transform::from_xyz(final_x, spawn_y, final_z),
+                hitbox,
+                Health::new(UNIT_HEALTH),
+                AttackTiming::new(),
+                Effectiveness::new(),
+                Team::Defenders,
+                Infantry,
+                KingsGuard(i),
+            ))
+            .insert((Teleportable, Billboard, OnGameplayScreen));
     }
 }
