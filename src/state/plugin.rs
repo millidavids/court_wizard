@@ -13,7 +13,7 @@ use super::states::{AppState, InGameState, MenuState, PauseMenuState};
 ///
 /// ```rust
 /// use bevy::prelude::*;
-/// use the_game::state::{AppState, MenuState};
+/// use court_wizard::state::{AppState, MenuState};
 ///
 /// fn start_game(mut next_state: ResMut<NextState<AppState>>) {
 ///     next_state.set(AppState::InGame);
@@ -30,7 +30,7 @@ use super::states::{AppState, InGameState, MenuState, PauseMenuState};
 ///
 /// ```rust
 /// use bevy::prelude::*;
-/// use the_game::state::AppState;
+/// use court_wizard::state::AppState;
 ///
 /// fn game_logic() {
 ///     // This system only runs when AppState::InGame is active
@@ -46,7 +46,7 @@ use super::states::{AppState, InGameState, MenuState, PauseMenuState};
 ///
 /// ```rust
 /// use bevy::prelude::*;
-/// use the_game::state::AppState;
+/// use court_wizard::state::AppState;
 ///
 /// fn setup_game(mut commands: Commands) {
 ///     // Spawn game entities

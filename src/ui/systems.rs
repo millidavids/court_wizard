@@ -80,6 +80,7 @@ pub fn spawn_button(
                     ..default()
                 },
                 TextColor(style.text_color),
+                TextLayout::new_with_justify(Justify::Center),
             ));
         });
 }

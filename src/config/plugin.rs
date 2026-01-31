@@ -34,7 +34,7 @@ use super::systems::*;
 ///
 /// ```rust
 /// use bevy::prelude::*;
-/// use the_game::config::ConfigChanged;
+/// use court_wizard::config::ConfigChanged;
 ///
 /// fn my_system(mut events: MessageWriter<ConfigChanged>) {
 ///     // ... modify Bevy components ...
@@ -56,7 +56,7 @@ use super::systems::*;
 ///
 /// ```rust
 /// use bevy::prelude::*;
-/// use the_game::config::SaveConfigEvent;
+/// use court_wizard::config::SaveConfigEvent;
 ///
 /// fn save_on_quit(mut events: MessageWriter<SaveConfigEvent>) {
 ///     events.write(SaveConfigEvent);

@@ -2,7 +2,7 @@ use web_sys::window;
 
 use super::error::ConfigResult;
 
-const CONFIG_KEY: &str = "the_game_config";
+const CONFIG_KEY: &str = "court_wizard_config";
 
 /// Saves config string to browser localStorage.
 ///

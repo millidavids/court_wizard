@@ -1927,6 +1927,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "court_wizard"
+version = "0.0.42"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "getrandom 0.2.17",
+ "rand 0.8.5",
+ "serde",
+ "thiserror 2.0.17",
+ "toml",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "cpal"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4282,21 +4297,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "the_game"
-version = "0.0.25"
-dependencies = [
- "anyhow",
- "bevy",
- "getrandom 0.2.17",
- "rand 0.8.5",
- "serde",
- "thiserror 2.0.17",
- "toml",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]

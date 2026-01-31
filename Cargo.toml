@@ -1,8 +1,8 @@
 [package]
-name = "the_game"
-version = "0.0.25"
+name = "court_wizard"
+version = "0.0.42"
 edition = "2024"
-default-run = "the_game"
+default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
 
 [dependencies]

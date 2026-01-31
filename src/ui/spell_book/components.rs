@@ -12,3 +12,7 @@ pub enum SpellBookButtonAction {
 /// Marker component for entities that should be cleaned up when exiting spell book.
 #[derive(Component)]
 pub struct OnSpellBookScreen;
+
+/// Marker component for the horizontally scrollable spell container.
+#[derive(Component)]
+pub struct ScrollableSpellContainer;

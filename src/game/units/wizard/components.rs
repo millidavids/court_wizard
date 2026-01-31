@@ -42,6 +42,46 @@ impl Spell {
         }
     }
 
+    /// Returns the description for this spell.
+    pub const fn description(&self) -> &'static str {
+        match self {
+            Spell::MagicMissile => {
+                "Fires homing missiles that seek nearby units. Channels faster over time."
+            }
+            Spell::Disintegrate => {
+                "Projects a beam toward the cursor, dealing continuous damage to units in its path."
+            }
+            Spell::Fireball => {
+                "Launches an explosive fireball at the cursor that deals area damage on impact."
+            }
+            Spell::GuardianCircle => {
+                "Creates a protective circle at the cursor that gives units extra temporary health."
+            }
+            Spell::ChainLightning => {
+                "Strikes the nearest unit with lightning that chains to nearby targets."
+            }
+            Spell::FingerOfDeath => {
+                "Fires a deadly beam at the cursor, dealing heavy damage to units in its path."
+            }
+            Spell::RaiseTheDead => "Resurrects corpses near the cursor.",
+            Spell::Teleport => "Teleports all units near the cursor to a chosen destination.",
+        }
+    }
+
+    /// Returns the control instructions for this spell.
+    pub const fn instructions(&self) -> &'static str {
+        match self {
+            Spell::MagicMissile => "Click and hold to channel",
+            Spell::Disintegrate => "Click and hold to channel",
+            Spell::Fireball => "Click and hold to cast",
+            Spell::GuardianCircle => "Click and hold to place",
+            Spell::ChainLightning => "Click and hold to cast",
+            Spell::FingerOfDeath => "Click and hold to cast",
+            Spell::RaiseTheDead => "Click and hold to channel",
+            Spell::Teleport => "Click to place destination, then click and hold to cast",
+        }
+    }
+
     /// Returns the PrimedSpell configuration for this spell.
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{

@@ -1,4 +1,4 @@
-# Clippy configuration for the_game
+# Clippy configuration for court_wizard
 
 # Allow complex query types in Bevy systems
 # Bevy systems often have complex query types and this is idiomatic

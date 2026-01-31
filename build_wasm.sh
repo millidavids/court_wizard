@@ -15,7 +15,7 @@ NEW_PATCH=$((PATCH + 1))
 NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
 
 # Update Cargo.toml
-sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
+perl -pi -e "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
 
 echo "Version bumped: $CURRENT_VERSION -> $NEW_VERSION"
 
@@ -37,16 +37,16 @@ cargo build --target wasm32-unknown-unknown $RELEASE_FLAG
 echo "Running wasm-bindgen..."
 wasm-bindgen \
   --out-dir $OUT_DIR \
-  --out-name the_game \
+  --out-name court_wizard \
   --target web \
-  ./target/wasm32-unknown-unknown/$BUILD_TYPE/the_game.wasm
+  ./target/wasm32-unknown-unknown/$BUILD_TYPE/court_wizard.wasm
 
 # Skip wasm-opt for now - it's causing feature validation issues
 # The thin LTO in Cargo.toml provides sufficient optimization
 # if [ "$1" = "--release" ]; then
 #     if command -v wasm-opt &> /dev/null; then
 #         echo "Running wasm-opt for size optimization..."
-#         wasm-opt -Oz --enable-bulk-memory --enable-reference-types $OUT_DIR/the_game_bg.wasm -o $OUT_DIR/the_game_bg.wasm
+#         wasm-opt -Oz --enable-bulk-memory --enable-reference-types $OUT_DIR/court_wizard_bg.wasm -o $OUT_DIR/court_wizard_bg.wasm
 #     else
 #         echo "Warning: wasm-opt not found, skipping optimization"
 #     fi
