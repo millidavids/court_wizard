@@ -268,13 +268,114 @@ pub fn apply_explosion_damage(
     }
 }
 
-/// Cleans up explosions that have finished animating.
+/// Cleans up explosions that have finished animating and spawns residual fire.
 pub fn cleanup_finished_explosions(
     mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     explosions: Query<(Entity, &FireballExplosion)>,
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= constants::EXPLOSION_DURATION {
+            // Spawn residual fire at explosion origin
+            let circle = Circle::new(constants::RESIDUAL_DAMAGE_RADIUS);
+            commands.spawn((
+                Mesh3d(meshes.add(circle)),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: RESIDUAL_FIRE_COLOR,
+                    unlit: true,
+                    alpha_mode: bevy::prelude::AlphaMode::Blend,
+                    cull_mode: None,
+                    ..default()
+                })),
+                Transform::from_xyz(explosion.origin.x, 5.0, explosion.origin.z)
+                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+                ResidualAreaDamageEffect::new(
+                    explosion.origin,
+                    constants::RESIDUAL_DAMAGE_RADIUS,
+                    constants::RESIDUAL_DAMAGE_PER_TICK,
+                    constants::RESIDUAL_TICK_INTERVAL,
+                    constants::RESIDUAL_DURATION,
+                ),
+                OnGameplayScreen,
+            ));
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Applies periodic damage to units within residual fire effects.
+pub fn apply_residual_area_damage(
+    time: Res<Time>,
+    mut effects: Query<&mut ResidualAreaDamageEffect>,
+    mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>)>,
+) {
+    let delta = time.delta_secs();
+
+    for mut effect in &mut effects {
+        effect.time_alive += delta;
+        effect.time_since_last_tick += delta;
+
+        if effect.time_since_last_tick >= effect.tick_interval {
+            effect.time_since_last_tick = 0.0;
+
+            for (transform, mut health, mut temp_hp) in &mut targets {
+                let distance = Vec3::new(
+                    effect.origin.x - transform.translation.x,
+                    0.0,
+                    effect.origin.z - transform.translation.z,
+                )
+                .length();
+
+                if distance <= effect.radius {
+                    apply_damage_to_unit(
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        effect.damage_per_tick,
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Applies flickering fire visual and fades out residual fire effects over the last second.
+pub fn fade_residual_effects(
+    effects: Query<(&ResidualAreaDamageEffect, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (effect, material_handle) in &effects {
+        let Some(material) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        // Flicker using layered sine waves for organic fire look
+        let t = effect.time_alive;
+        let flicker =
+            0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
+
+        // Fade out over the last second
+        let remaining = effect.duration - t;
+        let fade = if remaining < constants::RESIDUAL_FADE_DURATION {
+            (remaining / constants::RESIDUAL_FADE_DURATION).max(0.0)
+        } else {
+            1.0
+        };
+
+        let base_alpha = 0.4 * fade * flicker;
+        // Shift color slightly between orange and yellow-orange with flicker
+        let green = 0.5 + 0.15 * (t * 11.0).sin();
+        material.base_color = Color::srgba(1.0, green, 0.0, base_alpha);
+    }
+}
+
+/// Despawns residual fire effects that have expired.
+pub fn cleanup_residual_effects(
+    mut commands: Commands,
+    effects: Query<(Entity, &ResidualAreaDamageEffect)>,
+) {
+    for (entity, effect) in &effects {
+        if effect.time_alive >= effect.duration {
             commands.entity(entity).despawn();
         }
     }

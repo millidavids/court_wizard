@@ -31,6 +31,9 @@ impl Plugin for FireballPlugin {
                 systems::update_explosions,
                 systems::apply_explosion_damage,
                 systems::cleanup_finished_explosions,
+                systems::apply_residual_area_damage,
+                systems::fade_residual_effects,
+                systems::cleanup_residual_effects,
             )
                 .chain()
                 .run_if(in_state(InGameState::Running)),

@@ -12,3 +12,6 @@ pub const FIREBALL_RADIUS: f32 = 10.0;
 
 /// Color of the explosion sphere (red-orange).
 pub const EXPLOSION_COLOR: Color = Color::srgb(1.0, 0.3, 0.0);
+
+/// Color of the residual fire ground effect (translucent orange).
+pub const RESIDUAL_FIRE_COLOR: Color = Color::srgba(1.0, 0.5, 0.0, 0.4);
