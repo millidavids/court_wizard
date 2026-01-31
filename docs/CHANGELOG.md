@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.44] - 2025-01-31
+
+### Added
+- Tamper-resistant progress storage with signed verification
+
 ## [v0.0.42] - 2025-01-31
 
 ### Changed

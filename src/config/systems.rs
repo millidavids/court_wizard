@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowResized};
 
+use super::progress;
 use super::resources::*;
 use super::storage;
 
@@ -57,7 +58,7 @@ pub fn load_and_apply_config(
     apply_vsync_config(config_file.window.vsync, &mut window);
 
     // Create GameConfig resource from config file
-    let game_config = GameConfig {
+    let mut game_config = GameConfig {
         vsync: config_file.window.vsync,
         master_volume: config_file.audio.master_volume,
         music_volume: config_file.audio.music_volume,
@@ -68,6 +69,22 @@ pub fn load_and_apply_config(
         highest_level_achieved: config_file.game.highest_level_achieved,
         efficiency_ratios: config_file.game.efficiency_ratios,
     };
+    // Verify progress against signed copy in localStorage
+    match progress::load_verified_progress() {
+        Some(verified) => {
+            game_config.current_level = verified.current_level;
+            game_config.highest_level_achieved = verified.highest_level_achieved;
+            game_config.efficiency_ratios = verified.efficiency_ratios;
+            info!("Loaded verified progress from signed storage");
+        }
+        None => {
+            warn!("No valid signed progress found, resetting progress to defaults");
+            game_config.current_level = 1;
+            game_config.highest_level_achieved = 1;
+            game_config.efficiency_ratios = std::collections::HashMap::new();
+        }
+    }
+
     commands.insert_resource(game_config);
 
     // ConfigFile is now discarded - GameConfig is the source of truth
@@ -239,6 +256,9 @@ fn persist_config(game_config: &GameConfig) {
             error!("Failed to serialize config: {}", e);
         }
     }
+
+    // Also save signed progress
+    progress::save_signed_progress(game_config);
 }
 
 /// Builds ConfigFile from current GameConfig.
