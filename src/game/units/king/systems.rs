@@ -170,6 +170,7 @@ pub fn update_king_targeting(
 /// Uses acceleration-based physics with maximum speed capping.
 /// TargetingVelocity and FlockingVelocity are treated as acceleration forces.
 /// King slows down when in melee to prevent erratic movement.
+#[allow(clippy::type_complexity)]
 pub fn king_movement(
     time: Res<Time>,
     mut king_units: Query<

@@ -579,6 +579,7 @@ pub fn update_archer_targeting(
 /// Uses acceleration-based physics with maximum speed capping.
 /// TargetingVelocity and FlockingVelocity are treated as acceleration forces.
 /// Units slow down when in melee to prevent erratic movement.
+#[allow(clippy::type_complexity)]
 pub fn archer_movement(
     time: Res<Time>,
     mut archer_units: Query<

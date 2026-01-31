@@ -18,7 +18,7 @@ use super::{
 /// Runs once per frame to query mouse state and fire appropriate events.
 #[allow(clippy::too_many_arguments)]
 pub fn detect_mouse_input(
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut mouse: ResMut<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut left_pressed: MessageWriter<MouseLeftPressed>,
@@ -35,6 +35,18 @@ pub fn detect_mouse_input(
         .and_then(|window| window.cursor_position());
 
     // Check left mouse button state
+    // If button is pressed but we're not getting a just_pressed event, it's stuck from losing focus
+    if mouse.pressed(MouseButton::Left) && !mouse.just_pressed(MouseButton::Left) {
+        // Check if we're about to send held events - if so, button is legitimately held
+        // If not, it's stuck and we should clear it
+        if cursor_position.is_none() {
+            // No cursor means window doesn't have focus, clear the stuck state
+            mouse.clear();
+            mouse_state.left_consumed = false;
+            return;
+        }
+    }
+
     if mouse.just_pressed(MouseButton::Left) {
         left_pressed.write(MouseLeftPressed { cursor_position });
     }

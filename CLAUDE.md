@@ -243,14 +243,14 @@ The build script:
 1. Make code changes
 2. Test locally with `./build_wasm.sh` (debug mode is fine for testing)
 3. When ready to deploy: `./build_wasm.sh --release`
-4. **Update CHANGELOG.md** with user-facing changes (see Changelog section below)
+4. **Update docs/CHANGELOG.md** with user-facing changes (see Changelog section below)
 5. Then: `git add -A && git commit -m "..." && git push`
 
 **NEVER commit without building release first, or users will get a massive slow debug build.**
 
 ## Changelog Maintenance
 
-**CRITICAL**: Before EVERY commit, update `CHANGELOG.md` with user-facing changes.
+**CRITICAL**: Before EVERY commit, update `docs/CHANGELOG.md` with user-facing changes.
 
 **Changelog Guidelines:**
 - Add entries under the current version (format: `## [vX.Y.Z] - YYYY-MM-DD`)

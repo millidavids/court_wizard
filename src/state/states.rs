@@ -41,6 +41,9 @@ pub enum MenuState {
     /// Settings submenu.
     Settings,
 
+    /// Changelog screen.
+    Changelog,
+
     /// Credits screen.
     Credits,
 }

@@ -19,4 +19,7 @@ pub enum MenuButtonAction {
 
     /// Open the settings menu, transitioning to `MenuState::Settings`.
     Settings,
+
+    /// Open the changelog screen, transitioning to `MenuState::Changelog`.
+    Changelog,
 }
