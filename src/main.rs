@@ -20,7 +20,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "The Game".into(),
+                title: "Court Wizard".into(),
                 // Default resolution - ConfigPlugin will update at Startup
                 resolution: WindowResolution::new(1920, 1080),
                 canvas: Some("#bevy-canvas".to_string()),

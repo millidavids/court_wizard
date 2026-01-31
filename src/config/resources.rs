@@ -123,7 +123,7 @@ fn default_efficiency_ratios() -> HashMap<String, f32> {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use the_game::config::{GameConfig, Difficulty};
+/// use court_wizard::config::{GameConfig, Difficulty};
 ///
 /// fn change_difficulty(mut config: ResMut<GameConfig>) {
 ///     config.difficulty = Difficulty::Hard;
@@ -189,7 +189,7 @@ pub struct SaveConfigEvent;
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use the_game::config::{ConfigChanged, GameConfig, Difficulty};
+/// use court_wizard::config::{ConfigChanged, GameConfig, Difficulty};
 ///
 /// fn change_difficulty(
 ///     mut config: ResMut<GameConfig>,

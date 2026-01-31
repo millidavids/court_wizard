@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.42] - 2025-01-31
+
+### Changed
+- Renamed game from "The Game" to "Court Wizard" throughout
+- Redesigned spellbook UI: spells now display in a horizontally scrollable list with buttons, instructions, and descriptions
+- Spell buttons dynamically scale font size to fit spell names
+- Spellbook scroll area now has a visible border frame
+- Each spell now shows control instructions (e.g. "Click and hold to cast") and a gameplay description
+- Build script now works on both macOS and WSL2/Linux
+
 ## [v0.0.23] - 2025-01-30
 
 ### Added

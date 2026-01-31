@@ -35,7 +35,7 @@ pub fn setup(mut commands: Commands) {
         .with_children(|parent| {
             // Title text
             parent.spawn((
-                Text::new("The Game"),
+                Text::new("Court Wizard"),
                 TextFont {
                     font_size: TITLE_FONT_SIZE,
                     ..default()
