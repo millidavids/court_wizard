@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.69] - 2025-01-31
+
+### Changed
+- King's Guard units now lock to fixed orbital positions around the King instead of using cohesion forces
+- Moved changelog to project root (no longer duplicated in docs/ and web/)
+
 ## [v0.0.65] - 2025-01-31
 
 ### Added
