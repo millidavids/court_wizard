@@ -1,5 +1,6 @@
 mod error;
 mod plugin;
+pub(crate) mod progress;
 mod resources;
 mod storage;
 mod systems;

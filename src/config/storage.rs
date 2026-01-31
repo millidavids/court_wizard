@@ -72,6 +72,49 @@ pub fn load_config() -> ConfigResult<String> {
     Ok(config)
 }
 
+const PROGRESS_KEY: &str = "court_wizard_progress";
+
+/// Saves signed progress string to browser localStorage.
+pub fn save_progress(data: &str) -> ConfigResult<()> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    storage
+        .set_item(PROGRESS_KEY, data)
+        .map_err(|_| std::io::Error::other("Failed to save progress to localStorage"))?;
+    Ok(())
+}
+
+/// Loads signed progress string from browser localStorage.
+pub fn load_progress() -> ConfigResult<String> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    let data = storage
+        .get_item(PROGRESS_KEY)
+        .map_err(|_| std::io::Error::other("Failed to read progress from localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No progress found in localStorage",
+            )
+        })?;
+
+    Ok(data)
+}
+
 /// Clears config from localStorage.
 ///
 /// # Returns
