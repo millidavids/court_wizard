@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.74] - 2025-01-31
+
+### Added
+- Fireball now leaves a burning ground effect after the explosion, dealing damage over 5 seconds to units standing in the fire
+- Burning ground effect flickers like fire and fades out over its last second
+
+### Changed
+- Fireball mana cost reduced from 60 to 30
+- Fireball initial explosion damage reduced from 50 to 25
+- Fireball total damage (explosion + residual fire) now totals 100
+
 ## [v0.0.69] - 2025-01-31
 
 ### Changed

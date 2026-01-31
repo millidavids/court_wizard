@@ -66,3 +66,45 @@ impl FireballExplosion {
         self.max_radius * growth_factor
     }
 }
+
+/// Persistent area damage effect left on the ground.
+///
+/// Deals periodic damage to all units within its radius for a set duration.
+/// Reusable for any spell that leaves a damaging zone.
+#[derive(Component)]
+pub struct ResidualAreaDamageEffect {
+    /// Center position of the effect.
+    pub origin: Vec3,
+    /// Damage radius.
+    pub radius: f32,
+    /// Damage dealt each tick.
+    pub damage_per_tick: f32,
+    /// Time between damage ticks (seconds).
+    pub tick_interval: f32,
+    /// Total lifetime (seconds).
+    pub duration: f32,
+    /// Elapsed time (seconds).
+    pub time_alive: f32,
+    /// Accumulator for tick timing.
+    pub time_since_last_tick: f32,
+}
+
+impl ResidualAreaDamageEffect {
+    pub fn new(
+        origin: Vec3,
+        radius: f32,
+        damage_per_tick: f32,
+        tick_interval: f32,
+        duration: f32,
+    ) -> Self {
+        Self {
+            origin,
+            radius,
+            damage_per_tick,
+            tick_interval,
+            duration,
+            time_alive: 0.0,
+            time_since_last_tick: 0.0,
+        }
+    }
+}
