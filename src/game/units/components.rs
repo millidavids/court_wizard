@@ -439,6 +439,27 @@ pub struct TargetingVelocity {
     pub distance_to_target: f32,
 }
 
+/// Per-unit multipliers for flocking forces.
+///
+/// Units without this component default to 1.0 for all forces.
+/// Set individual fields to 0.0 to disable that force for a unit.
+#[derive(Component)]
+pub struct FlockingModifier {
+    pub separation: f32,
+    pub alignment: f32,
+    pub cohesion: f32,
+}
+
+impl FlockingModifier {
+    pub const fn new(separation: f32, alignment: f32, cohesion: f32) -> Self {
+        Self {
+            separation,
+            alignment,
+            cohesion,
+        }
+    }
+}
+
 /// Flocking velocity from separation, alignment, and cohesion forces.
 ///
 /// The flocking system calculates this based on nearby allies.

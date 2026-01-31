@@ -149,109 +149,151 @@ pub const EFFECTIVENESS_MAX: f32 = 2.0;
 
 // ===== Formation Grid Constants =====
 
-/// Starting position for attacker formations (back-right corner from camera view)
-/// Grid expands forward (toward camera, +Z) and left (toward defenders, -X) as more groups are added
-/// Positioned so front diagonal is just beyond wizard's spell range (3000 units from wizard)
-/// Wizard is at (-1425, 1550)
-pub const FORMATION_GRID_START_X: f32 = 1200.0;
-pub const FORMATION_GRID_START_Z: f32 = 0.0;
+/// Number of columns in the attacker spawn grid.
+pub const GRID_COLS: u32 = 6;
 
-/// Distance to push back each diagonal row to maintain consistent meeting point
-/// As more diagonals are added, they spawn progressively further back
-pub const DIAGONAL_PUSHBACK_DISTANCE: f32 = 400.0;
+/// Number of rows in the attacker spawn grid.
+pub const GRID_ROWS: u32 = 6;
 
-/// Spacing between formation groups in the grid
-pub const FORMATION_GRID_SPACING: f32 = 300.0;
+/// Center angle from wizard toward spawn area (radians).
+/// atan2(0 - 1550, 1200 - (-1425)) ≈ -0.53 rad
+pub const GRID_CENTER_ANGLE: f32 = -0.70;
+
+/// Angular spacing between columns (radians). ~0.1 rad ≈ 274 units at range 2736.
+pub const GRID_ANGULAR_SPACING: f32 = 0.1;
+
+/// Radial depth of each row (distance between row centers).
+pub const GRID_ROW_DEPTH: f32 = 300.0;
+
+/// Ground-plane spell range: sqrt(3000² - 1230²) ≈ 2736.
+pub const GRID_GROUND_RANGE: f32 = 3236.0;
 
 // ===== Level-Based Spawn Calculations =====
 
-/// Calculates the number of infantry groups based on level.
-/// Level 1: 3 groups
-/// Every odd level (3, 5, 7, ...): add 1 group
-pub const fn calculate_infantry_groups(level: u32) -> u32 {
-    3 + (level - 1) / 2
+/// Maximum units per grid cell before spilling to the next cell.
+pub const MAX_UNITS_PER_CELL: u32 = 10;
+
+/// Base infantry count at level 1.
+pub const BASE_INFANTRY_COUNT: u32 = 60;
+
+/// Infantry added per level after level 1.
+pub const INFANTRY_PER_LEVEL: u32 = 5;
+
+/// Base archer count at level 1.
+pub const BASE_ARCHER_COUNT: u32 = 10;
+
+/// Archers added per level after level 1.
+pub const ARCHERS_PER_LEVEL: u32 = 2;
+
+/// Calculates total infantry for a given level.
+pub const fn calculate_total_infantry(level: u32) -> u32 {
+    BASE_INFANTRY_COUNT + (level - 1) * INFANTRY_PER_LEVEL
 }
 
-/// Calculates the number of archer groups based on level.
-/// Level 1-3: 1 group
-/// Level 4+: 1 + level/4
-pub const fn calculate_archer_groups(level: u32) -> u32 {
-    1 + (level.saturating_sub(1)) / 4
+/// Calculates total archers for a given level.
+pub const fn calculate_total_archers(level: u32) -> u32 {
+    BASE_ARCHER_COUNT + (level - 1) * ARCHERS_PER_LEVEL
 }
 
-/// Calculates the size of each group based on level.
-/// Level 1: base size (10 infantry, 5 archers)
-/// Every even level (2, 4, 6, ...): +1 to group size
-pub const fn calculate_group_size_bonus(level: u32) -> u32 {
-    (level - 1) / 2
+/// Calculates the number of cells needed for a unit count (ceil division by MAX_UNITS_PER_CELL).
+pub const fn cells_needed(total_units: u32) -> u32 {
+    total_units.div_ceil(MAX_UNITS_PER_CELL)
 }
 
-/// Calculates a grid position for a formation group.
-/// Groups are placed in a grid starting from back-right, expanding forward and left.
-/// Archers are placed in the back rows.
+/// Returns a Vec of unit counts per cell, distributing units evenly.
+/// Each cell gets up to MAX_UNITS_PER_CELL, with remainder spread across first cells.
+pub fn distribute_units_to_cells(total_units: u32) -> Vec<u32> {
+    let num_cells = cells_needed(total_units);
+    if num_cells == 0 {
+        return vec![];
+    }
+    let base_per_cell = total_units / num_cells;
+    let remainder = total_units % num_cells;
+    (0..num_cells)
+        .map(|i| {
+            if i < remainder {
+                base_per_cell + 1
+            } else {
+                base_per_cell
+            }
+        })
+        .collect()
+}
+
+/// Calculates the world position of a grid cell.
+///
+/// The grid is a 6x6 radial arc centered on the wizard's spell range ring.
+/// Row 0 is closest to the wizard (near edge tangent to range ring).
+/// Columns fan out angularly around the center angle.
 ///
 /// # Arguments
-/// * `group_index` - Index of the group (0-based)
-/// * `total_groups` - Total number of groups (used to calculate global pushback)
+/// * `row` - Row index (0 = closest to wizard)
+/// * `col` - Column index (0-5, centered around center angle)
 ///
 /// # Returns
-/// Tuple of (x, z) coordinates for the group's spawn point
-pub fn calculate_formation_grid_position(group_index: u32, total_groups: u32) -> (f32, f32) {
-    // Diagonal pyramid pattern starting from back-right corner
-    // Position 0: (0, 0) - back-right corner
-    // Positions 1-2: (1, 0), (0, 1) - diagonal 1
-    // Positions 3-5: (2, 0), (1, 1), (0, 2) - diagonal 2
-    // Positions 6-9: (3, 0), (2, 1), (1, 2), (0, 3) - diagonal 3
-    // Each diagonal n has (n+1) elements
-
-    // Find which diagonal this group_index falls on
-    // Total elements up to diagonal n: (n+1)(n+2)/2
-    let mut diagonal = 0u32;
-    let mut cumulative = 0u32;
-    loop {
-        let next_cumulative = cumulative + diagonal + 1;
-        if group_index < next_cumulative {
-            break;
-        }
-        cumulative = next_cumulative;
-        diagonal += 1;
-    }
-
-    // Position within this diagonal
-    let position_in_diagonal = group_index - cumulative;
-
-    // Find the maximum diagonal actually used (not the minimum diagonal that COULD fit)
-    // We want the diagonal of the last group, not the theoretical minimum
-    let mut last_diagonal = 0u32;
-    let mut cumulative_for_max = 0u32;
-    loop {
-        let next_cumulative = cumulative_for_max + last_diagonal + 1;
-        if next_cumulative >= total_groups {
-            break;
-        }
-        cumulative_for_max = next_cumulative;
-        last_diagonal += 1;
-    }
-    let max_diagonal = last_diagonal;
-
-    // Push back ALL positions based on max_diagonal (not individual diagonal)
-    // This ensures all groups move back together when a new diagonal is needed
-    // Push toward back-right corner: more positive X (right) and more negative Z (back)
-    let global_pushback = max_diagonal as f32 * DIAGONAL_PUSHBACK_DISTANCE;
-
-    // On diagonal n, positions expand from back-right toward front-left (camera perspective)
-    // position_in_diagonal = 0 -> n steps left, 0 steps forward
-    // position_in_diagonal = k -> (n-k) steps left, k steps forward
-    // Camera at (-1000, 2500, 2500), so forward = +Z, left = -X
-    let steps_left = diagonal - position_in_diagonal;
-    let steps_forward = position_in_diagonal;
-
-    // Apply pushback diagonally toward back-right corner (positive X, negative Z)
-    let x = FORMATION_GRID_START_X - (steps_left as f32 * FORMATION_GRID_SPACING) + global_pushback
-        - 1300.0;
-    let z = FORMATION_GRID_START_Z + (steps_forward as f32 * FORMATION_GRID_SPACING)
-        - global_pushback
-        - 100.0;
-
+/// Tuple of (x, z) world coordinates for the cell center
+pub fn calculate_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
+    let col_offset = col as f32 - 2.5; // centers 6 columns: -2.5 .. 2.5
+    let angle = GRID_CENTER_ANGLE + col_offset * GRID_ANGULAR_SPACING;
+    let radius = GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let x = WIZARD_POSITION.x + radius * angle.cos();
+    let z = WIZARD_POSITION.z + radius * angle.sin();
     (x, z)
+}
+
+/// Computes Dijkstra distance for a cell from the bottom-center of the grid.
+/// Distance = row + |col - 2.5| rounded: min(|col - 2|, |col - 3|) + row
+fn grid_cell_distance(row: u32, col: u32) -> u32 {
+    let col_dist = if col <= 2 { 2 - col } else { col - 3 };
+    row + col_dist
+}
+
+/// Generates the ordered list of cells for infantry and archer spawns.
+///
+/// Infantry cells are sorted by Dijkstra distance from bottom-center (row 0, cols 2-3).
+/// Archers fill the row directly behind the last infantry row, in middle-out column order.
+///
+/// # Returns
+/// (infantry_cells, archer_cells) - each is a Vec of (row, col) tuples
+pub fn calculate_spawn_cells(
+    num_infantry_cells: u32,
+    num_archer_cells: u32,
+) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
+    // Build all cells sorted by distance, then by column proximity to center
+    let mut all_cells: Vec<(u32, u32, u32)> = Vec::new(); // (distance, row, col)
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            all_cells.push((grid_cell_distance(row, col), row, col));
+        }
+    }
+    // Sort by distance, then by row (closer first), then by column proximity to center
+    all_cells.sort_by(|a, b| {
+        a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then({
+            // Tie-break: columns closer to center first
+            let a_col_dist = if a.2 <= 2 { 2 - a.2 } else { a.2 - 3 };
+            let b_col_dist = if b.2 <= 2 { 2 - b.2 } else { b.2 - 3 };
+            a_col_dist.cmp(&b_col_dist)
+        })
+    });
+
+    // Take infantry cells
+    let infantry_count = (num_infantry_cells as usize).min(all_cells.len());
+    let infantry_cells: Vec<(u32, u32)> = all_cells[..infantry_count]
+        .iter()
+        .map(|&(_, r, c)| (r, c))
+        .collect();
+
+    // Find the last infantry row
+    let last_infantry_row = infantry_cells.iter().map(|&(r, _)| r).max().unwrap_or(0);
+
+    // Archers go in the row directly behind the last infantry row
+    let archer_row = last_infantry_row + 1;
+    let col_fill_order: [u32; 6] = [2, 3, 1, 4, 0, 5];
+    let archer_cells: Vec<(u32, u32)> = col_fill_order
+        .iter()
+        .take(num_archer_cells as usize)
+        .map(|&col| (archer_row, col))
+        .collect();
+
+    (infantry_cells, archer_cells)
 }

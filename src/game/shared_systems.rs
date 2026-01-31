@@ -99,6 +99,7 @@ pub fn apply_separation(
             &Velocity,
             &mut super::units::components::FlockingVelocity,
             &Hitbox,
+            Option<&super::units::components::FlockingModifier>,
         ),
         Without<Corpse>,
     >,
@@ -108,7 +109,7 @@ pub fn apply_separation(
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
         .iter()
-        .map(|(entity, transform, velocity, _, hitbox)| {
+        .map(|(entity, transform, velocity, _, hitbox, _)| {
             (
                 entity,
                 transform.translation,
@@ -123,10 +124,10 @@ pub fn apply_separation(
     for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
-            .map(|(entity, transform, _, _, hitbox)| (entity, transform.translation, *hitbox))
+            .map(|(entity, transform, _, _, hitbox, _)| (entity, transform.translation, *hitbox))
             .collect();
 
-        for (entity, mut transform, _, _, hitbox) in units.iter_mut() {
+        for (entity, mut transform, _, _, hitbox, _) in units.iter_mut() {
             let mut total_correction = Vec3::ZERO;
             let mut overlap_count = 0;
 
@@ -167,7 +168,8 @@ pub fn apply_separation(
     }
 
     // Second pass: calculate flocking velocity
-    for (entity, transform, _velocity, mut flocking_velocity, hitbox) in units.iter_mut() {
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox, flock_mod) in units.iter_mut()
+    {
         let mut separation = Vec3::ZERO;
         let mut alignment = Vec3::ZERO;
         let mut cohesion = Vec3::ZERO;
@@ -212,15 +214,19 @@ pub fn apply_separation(
         // Combine and normalize flocking directions
         let mut combined_direction = Vec3::ZERO;
 
+        let sep_mult = flock_mod.map_or(1.0, |m| m.separation);
+        let align_mult = flock_mod.map_or(1.0, |m| m.alignment);
+        let coh_mult = flock_mod.map_or(1.0, |m| m.cohesion);
+
         if separation_count > 0 {
             separation /= separation_count as f32;
-            combined_direction += separation.normalize_or_zero() * SEPARATION_STRENGTH;
+            combined_direction += separation.normalize_or_zero() * SEPARATION_STRENGTH * sep_mult;
         }
 
         if neighbor_count > 0 {
             // Alignment direction
             alignment /= neighbor_count as f32;
-            combined_direction += alignment.normalize_or_zero() * ALIGNMENT_STRENGTH;
+            combined_direction += alignment.normalize_or_zero() * ALIGNMENT_STRENGTH * align_mult;
 
             // Cohesion direction (XZ plane only)
             cohesion /= neighbor_count as f32;
@@ -235,8 +241,10 @@ pub fn apply_separation(
             let distance_to_center = cohesion_direction.length();
             let cohesion_factor = (distance_to_center / NEIGHBOR_DISTANCE).min(1.0);
 
-            combined_direction +=
-                cohesion_direction.normalize_or_zero() * COHESION_STRENGTH * cohesion_factor;
+            combined_direction += cohesion_direction.normalize_or_zero()
+                * COHESION_STRENGTH
+                * cohesion_factor
+                * coh_mult;
         }
 
         // Set flocking velocity as normalized combined direction

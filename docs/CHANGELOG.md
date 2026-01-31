@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.58] - 2025-01-31
+
+### Changed
+- Attacker spawn system redesigned: enemies now spawn in a radial 6x6 grid arc along the wizard's spell range ring
+- Spawn grid fills from center outward and close to far, with archers always behind the last infantry row
+- Level scaling simplified: fixed number of infantry and archers added per level, spilling into new grid cells when exceeding 10 units per cell
+- Attackers now start moving toward the castle immediately on spawn
+- King unit no longer clusters with archers (zero cohesion)
+
 ## [v0.0.44] - 2025-01-31
 
 ### Added
