@@ -1,6 +1,6 @@
-pub mod components;
-pub mod plugin;
-pub mod styles;
-pub mod systems;
+mod components;
+mod plugin;
+mod styles;
+mod systems;
 
 pub use plugin::GameOverPlugin;

@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::ui::ComputedNode;
 
 use super::components::{BackButton, OnChangelogScreen, ScrollableChangelogContainer};
+use crate::game::input::events::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::main_menu::landing::constants::TEXT_COLOR;
 
@@ -16,7 +17,7 @@ const BUTTON_HOVER_COLOR: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
 const CHANGELOG_TEXT: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Spawns the changelog screen UI.
-pub fn setup(mut commands: Commands) {
+pub(super) fn setup(mut commands: Commands) {
     commands
         .spawn((
             Node {
@@ -112,19 +113,20 @@ pub fn setup(mut commands: Commands) {
 }
 
 /// Handles back button interactions.
-pub fn handle_back_button(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<BackButton>)>,
+pub(super) fn handle_back_button(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&BackButton>,
     mut next_state: ResMut<NextState<MenuState>>,
 ) {
-    for interaction in &interaction_query {
-        if *interaction == Interaction::Pressed {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
             next_state.set(MenuState::Landing);
         }
     }
 }
 
 /// Updates button colors on hover.
-pub fn update_button_colors(
+pub(super) fn update_button_colors(
     mut button_query: Query<
         (&Interaction, &mut BackgroundColor, &mut BorderColor),
         (Changed<Interaction>, With<Button>),

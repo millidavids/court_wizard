@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.97] - 2025-02-01
+
+### Changed
+- Improved codebase encapsulation: restricted visibility of internal modules and functions throughout config/ and state/ directories
+- Reduced public API surface area by over 150+ items, following Rust best practices for minimal exposure
+
 ## [v0.0.88] - 2025-01-31
 
 ### Fixed

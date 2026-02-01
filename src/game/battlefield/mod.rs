@@ -5,6 +5,6 @@
 mod components;
 mod plugin;
 mod styles;
-pub mod systems;
+mod systems;
 
 pub use plugin::BattlefieldPlugin;

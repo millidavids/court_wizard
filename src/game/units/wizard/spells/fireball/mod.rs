@@ -3,9 +3,9 @@
 //! Handles fireball projectiles that explode on impact.
 
 mod components;
-pub mod constants;
+pub(in crate::game::units::wizard) mod constants;
 mod plugin;
 mod styles;
 mod systems;
 
-pub use plugin::FireballPlugin;
+pub(super) use plugin::FireballPlugin;

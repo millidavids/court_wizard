@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::state::InGameState;
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems::*;
 
@@ -20,7 +21,9 @@ impl Plugin for GameOverPlugin {
         .add_systems(OnExit(InGameState::GameOver), cleanup_game_over_screen)
         .add_systems(
             Update,
-            handle_button_actions.run_if(in_state(InGameState::GameOver)),
+            handle_button_actions
+                .in_set(ButtonActionSet)
+                .run_if(in_state(InGameState::GameOver)),
         );
     }
 }

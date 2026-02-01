@@ -7,12 +7,9 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
 use crate::config::{Difficulty, GameConfig, VsyncMode};
+use crate::game::input::events::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
-
-/// Marker component to track that a button was pressed down.
-#[derive(Component)]
-pub(crate) struct ButtonPressedDown;
 
 use super::components::{
     ButtonColors, OnSettingsScreen, OptionButtonValue, ScrollableContainer, SelectedOption,
@@ -660,43 +657,15 @@ pub fn button_press(
 
 /// Handles settings button actions when clicked from main menu.
 pub fn settings_button_action(
-    mut commands: Commands,
-    interactions: Query<
-        (
-            Entity,
-            &Interaction,
-            &SettingsButtonAction,
-            Option<&ButtonPressedDown>,
-        ),
-        Changed<Interaction>,
-    >,
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&SettingsButtonAction>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
 ) {
-    for (entity, interaction, action, pressed_down) in &interactions {
-        match *interaction {
-            Interaction::Pressed => {
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        SettingsButtonAction::Back => {
-                            next_menu_state.set(MenuState::Landing);
-                        }
-                    }
-                }
-            }
-            Interaction::None => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        SettingsButtonAction::Back => {
-                            next_menu_state.set(MenuState::Landing);
-                        }
-                    }
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                SettingsButtonAction::Back => {
+                    next_menu_state.set(MenuState::Landing);
                 }
             }
         }
@@ -705,43 +674,15 @@ pub fn settings_button_action(
 
 /// Handles settings button actions when clicked from pause menu.
 pub fn pause_settings_button_action(
-    mut commands: Commands,
-    interactions: Query<
-        (
-            Entity,
-            &Interaction,
-            &SettingsButtonAction,
-            Option<&ButtonPressedDown>,
-        ),
-        Changed<Interaction>,
-    >,
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&SettingsButtonAction>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
 ) {
-    for (entity, interaction, action, pressed_down) in &interactions {
-        match *interaction {
-            Interaction::Pressed => {
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        SettingsButtonAction::Back => {
-                            next_pause_menu_state.set(PauseMenuState::Main);
-                        }
-                    }
-                }
-            }
-            Interaction::None => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        SettingsButtonAction::Back => {
-                            next_pause_menu_state.set(PauseMenuState::Main);
-                        }
-                    }
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                SettingsButtonAction::Back => {
+                    next_pause_menu_state.set(PauseMenuState::Main);
                 }
             }
         }
@@ -750,35 +691,13 @@ pub fn pause_settings_button_action(
 
 /// Handles option button clicks.
 pub fn option_button_action(
-    mut commands: Commands,
-    interactions: Query<
-        (
-            Entity,
-            &Interaction,
-            &OptionButtonValue,
-            Option<&ButtonPressedDown>,
-        ),
-        Changed<Interaction>,
-    >,
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&OptionButtonValue>,
     mut game_config: ResMut<GameConfig>,
 ) {
-    for (entity, interaction, value, pressed_down) in &interactions {
-        match *interaction {
-            Interaction::Pressed => {
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-                    value.apply(&mut game_config);
-                }
-            }
-            Interaction::None => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-                    value.apply(&mut game_config);
-                }
-            }
+    for event in button_clicked.read() {
+        if let Ok(value) = button_query.get(event.button) {
+            value.apply(&mut game_config);
         }
     }
 }
@@ -840,84 +759,27 @@ pub fn handle_scroll(
 
 /// Handles slider button clicks for increment/decrement.
 pub fn slider_button_action(
-    mut commands: Commands,
-    down_buttons: Query<
-        (
-            Entity,
-            &Interaction,
-            &SliderDownButton,
-            Option<&ButtonPressedDown>,
-        ),
-        Changed<Interaction>,
-    >,
-    up_buttons: Query<
-        (
-            Entity,
-            &Interaction,
-            &SliderUpButton,
-            Option<&ButtonPressedDown>,
-        ),
-        Changed<Interaction>,
-    >,
+    mut button_clicked: MessageReader<MouseClicked>,
+    down_buttons: Query<&SliderDownButton>,
+    up_buttons: Query<&SliderUpButton>,
     mut game_config: ResMut<GameConfig>,
 ) {
-    for (entity, interaction, button, pressed_down) in &down_buttons {
-        match *interaction {
-            Interaction::Pressed => {
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    let current = button.value.get(&game_config);
-                    let step = button.value.step();
-                    let min = button.value.min_value();
-                    let new_value = (current - step).max(min);
-                    button.value.set(&mut game_config, new_value);
-                }
-            }
-            Interaction::None => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    let current = button.value.get(&game_config);
-                    let step = button.value.step();
-                    let min = button.value.min_value();
-                    let new_value = (current - step).max(min);
-                    button.value.set(&mut game_config, new_value);
-                }
-            }
+    for event in button_clicked.read() {
+        // Check if it's a down button
+        if let Ok(button) = down_buttons.get(event.button) {
+            let current = button.value.get(&game_config);
+            let step = button.value.step();
+            let min = button.value.min_value();
+            let new_value = (current - step).max(min);
+            button.value.set(&mut game_config, new_value);
         }
-    }
-
-    for (entity, interaction, button, pressed_down) in &up_buttons {
-        match *interaction {
-            Interaction::Pressed => {
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    let current = button.value.get(&game_config);
-                    let step = button.value.step();
-                    let max = button.value.max_value();
-                    let new_value = (current + step).min(max);
-                    button.value.set(&mut game_config, new_value);
-                }
-            }
-            Interaction::None => {
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    let current = button.value.get(&game_config);
-                    let step = button.value.step();
-                    let max = button.value.max_value();
-                    let new_value = (current + step).min(max);
-                    button.value.set(&mut game_config, new_value);
-                }
-            }
+        // Check if it's an up button
+        else if let Ok(button) = up_buttons.get(event.button) {
+            let current = button.value.get(&game_config);
+            let step = button.value.step();
+            let max = button.value.max_value();
+            let new_value = (current + step).min(max);
+            button.value.set(&mut game_config, new_value);
         }
     }
 }

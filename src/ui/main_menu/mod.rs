@@ -5,6 +5,6 @@
 mod changelog;
 mod landing;
 mod plugin;
-pub mod settings;
+pub(super) mod settings;
 
 pub use plugin::MainMenuPlugin;

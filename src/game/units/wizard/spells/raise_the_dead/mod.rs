@@ -1,6 +1,6 @@
-pub mod components;
-pub mod constants;
-pub mod plugin;
-pub mod systems;
+mod components;
+pub(in crate::game::units::wizard) mod constants;
+mod plugin;
+mod systems;
 
-pub use plugin::RaiseTheDeadPlugin;
+pub(super) use plugin::RaiseTheDeadPlugin;

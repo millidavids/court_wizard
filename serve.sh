@@ -13,4 +13,4 @@ echo "Open http://localhost:8000 in your browser"
 echo "Press Ctrl+C to stop the server"
 echo ""
 
-cd $SERVE_DIR && python3 -m http.server 8000
+cd $SERVE_DIR && python3 -m http.server 8000 --bind 0.0.0.0

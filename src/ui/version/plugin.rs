@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use super::systems;
 use crate::state::{AppState, InGameState};
+use crate::ui::plugin::ButtonActionSet;
 
 /// Plugin that displays the version number and GitHub link in the bottom-left corner.
 pub struct VersionPlugin;
@@ -16,10 +17,8 @@ impl Plugin for VersionPlugin {
             .add_systems(OnExit(InGameState::Paused), systems::cleanup)
             .add_systems(
                 Update,
-                (
-                    systems::handle_github_button,
-                    systems::update_github_button_style,
-                ),
-            );
+                systems::handle_github_button.in_set(ButtonActionSet),
+            )
+            .add_systems(Update, systems::update_github_button_style);
     }
 }

@@ -24,7 +24,7 @@ use super::storage;
 ///
 /// This system is designed to never fail. If the config cannot be loaded
 /// or parsed, it falls back to sensible defaults and logs a warning.
-pub fn load_and_apply_config(
+pub(super) fn load_and_apply_config(
     mut commands: Commands,
     mut windows: Query<&mut BevyWindow, With<PrimaryWindow>>,
 ) {
@@ -115,7 +115,7 @@ fn apply_vsync_config(vsync: VsyncMode, window: &mut BevyWindow) {
 ///
 /// * `resize_events` - Message reader for window resize events
 /// * `config_changed` - Message writer for config changed messages
-pub fn detect_window_resize(
+pub(super) fn detect_window_resize(
     mut resize_events: MessageReader<WindowResized>,
     mut config_changed: MessageWriter<ConfigChanged>,
 ) {
@@ -135,7 +135,7 @@ pub fn detect_window_resize(
 ///
 /// * `game_config` - Game configuration resource
 /// * `config_changed` - Message writer for config changed messages
-pub fn detect_game_config_changes(
+pub(super) fn detect_game_config_changes(
     game_config: Res<GameConfig>,
     mut config_changed: MessageWriter<ConfigChanged>,
 ) {
@@ -158,7 +158,7 @@ pub fn detect_game_config_changes(
 ///
 /// * `config_events` - Message reader for config changed messages
 /// * `debounce_timer` - Debounce timer resource
-pub fn mark_save_on_config_changed(
+pub(super) fn mark_save_on_config_changed(
     mut config_events: MessageReader<ConfigChanged>,
     mut debounce_timer: ResMut<SaveDebounceTimer>,
 ) {
@@ -183,7 +183,7 @@ pub fn mark_save_on_config_changed(
 /// * `debounce_timer` - Debounce timer resource
 /// * `windows` - Query for the primary window
 /// * `game_config` - Game configuration resource
-pub fn save_config_on_debounce_timer(
+pub(super) fn save_config_on_debounce_timer(
     time: Res<Time>,
     mut debounce_timer: ResMut<SaveDebounceTimer>,
     game_config: Res<GameConfig>,
@@ -211,7 +211,7 @@ pub fn save_config_on_debounce_timer(
 /// * `save_events` - Message reader for save config events
 /// * `windows` - Query for the primary window
 /// * `game_config` - Game configuration resource
-pub fn save_config_on_event(
+pub(super) fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigEvent>,
     game_config: Res<GameConfig>,
 ) {

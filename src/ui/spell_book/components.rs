@@ -4,15 +4,15 @@ use crate::game::units::wizard::components::Spell;
 
 /// Actions that can be triggered by spell book buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SpellBookButtonAction {
+pub(super) enum SpellBookButtonAction {
     SelectSpell(Spell),
     Close,
 }
 
 /// Marker component for entities that should be cleaned up when exiting spell book.
 #[derive(Component)]
-pub struct OnSpellBookScreen;
+pub(super) struct OnSpellBookScreen;
 
 /// Marker component for the horizontally scrollable spell container.
 #[derive(Component)]
-pub struct ScrollableSpellContainer;
+pub(super) struct ScrollableSpellContainer;

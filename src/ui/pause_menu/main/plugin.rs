@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::state::PauseMenuState;
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems::{button_action, cleanup, keyboard_input, setup};
 
@@ -21,7 +22,13 @@ impl Plugin for PauseMainPlugin {
             .add_systems(OnExit(PauseMenuState::Main), cleanup)
             .add_systems(
                 Update,
-                (button_action, keyboard_input).run_if(in_state(PauseMenuState::Main)),
+                button_action
+                    .in_set(ButtonActionSet)
+                    .run_if(in_state(PauseMenuState::Main)),
+            )
+            .add_systems(
+                Update,
+                keyboard_input.run_if(in_state(PauseMenuState::Main)),
             );
     }
 }

@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::state::MenuState;
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems::{
     button_hover, button_press, cleanup, handle_scroll, keyboard_input, option_button_action,
@@ -28,13 +29,20 @@ impl Plugin for SettingsPlugin {
             .add_systems(
                 Update,
                 (
+                    settings_button_action,
+                    option_button_action,
+                    slider_button_action,
+                )
+                    .in_set(ButtonActionSet)
+                    .run_if(in_state(MenuState::Settings)),
+            )
+            .add_systems(
+                Update,
+                (
                     keyboard_input,
                     handle_scroll,
                     button_hover,
                     button_press,
-                    settings_button_action,
-                    option_button_action,
-                    slider_button_action,
                     slider_interaction,
                     update_slider_text,
                     update_sliders,

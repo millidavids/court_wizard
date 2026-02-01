@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::config::{ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
+use crate::game::input::events::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::state::{AppState, InGameState};
@@ -14,7 +15,7 @@ use super::styles::*;
 ///
 /// This system runs on OnEnter(InGameState::GameOver) BEFORE setup_game_over_screen
 /// to save efficiency, but DOES NOT update the level yet (that happens after UI displays).
-pub fn save_efficiency_to_config(
+pub(super) fn save_efficiency_to_config(
     current_level: Res<CurrentLevel>,
     mut config: ResMut<GameConfig>,
     kill_stats: Res<KillStats>,
@@ -38,7 +39,7 @@ pub fn save_efficiency_to_config(
 ///
 /// This system runs AFTER setup_game_over_screen so the UI shows the correct
 /// level that was just played, not the next level.
-pub fn update_level_after_display(
+pub(super) fn update_level_after_display(
     mut current_level: ResMut<CurrentLevel>,
     mut config: ResMut<GameConfig>,
     game_outcome: Res<GameOutcome>,
@@ -66,7 +67,7 @@ pub fn update_level_after_display(
     config_events.write(ConfigChanged);
 }
 
-pub fn setup_game_over_screen(
+pub(super) fn setup_game_over_screen(
     mut commands: Commands,
     game_outcome: Res<GameOutcome>,
     kill_stats: Res<KillStats>,
@@ -263,17 +264,15 @@ pub fn setup_game_over_screen(
         });
 }
 
-pub fn handle_button_actions(
+pub(super) fn handle_button_actions(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&GameOverButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut kill_stats: ResMut<KillStats>,
-    interaction_query: Query<
-        (&Interaction, &GameOverButtonAction),
-        (Changed<Interaction>, With<Button>),
-    >,
 ) {
-    for (interaction, action) in &interaction_query {
-        if *interaction == Interaction::Pressed {
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
             match action {
                 GameOverButtonAction::PlayAgain => {
                     // Reset stats and return to Running state
@@ -291,7 +290,7 @@ pub fn handle_button_actions(
     }
 }
 
-pub fn cleanup_game_over_screen(
+pub(super) fn cleanup_game_over_screen(
     mut commands: Commands,
     query: Query<Entity, With<OnGameOverScreen>>,
 ) {

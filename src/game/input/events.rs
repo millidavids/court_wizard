@@ -61,3 +61,10 @@ pub struct SpacebarReleased;
 /// Prevents spells from casting when UI buttons are clicked.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct BlockSpellInput;
+
+/// Message sent when a UI button is clicked (mouse/touch pressed and released).
+#[derive(Message, Debug, Clone, Copy)]
+pub struct MouseClicked {
+    /// The entity of the button that was clicked.
+    pub button: Entity,
+}

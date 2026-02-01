@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// Errors that can occur when working with configuration files.
 #[derive(Error, Debug)]
-pub enum ConfigError {
+pub(crate) enum ConfigError {
     /// Failed to read the configuration file from disk.
     #[error("Failed to read config file: {0}")]
     Read(#[from] std::io::Error),
@@ -17,4 +17,4 @@ pub enum ConfigError {
 }
 
 /// Type alias for Results that can return ConfigError.
-pub type ConfigResult<T> = Result<T, ConfigError>;
+pub(crate) type ConfigResult<T> = Result<T, ConfigError>;

@@ -7,20 +7,16 @@ use super::components::*;
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::input::events::BlockSpellInput;
+use crate::game::input::events::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
 
-/// Marker component to track that a button was pressed down.
-#[derive(Component)]
-pub(super) struct ButtonPressedDown;
-
 /// Blocks spell input when any button is being interacted with.
 ///
 /// This system runs before spell systems to prevent casting when clicking UI buttons.
-pub fn block_spell_input_on_button_interaction(
+pub(super) fn block_spell_input_on_button_interaction(
     button_query: Query<&Interaction, With<Button>>,
     mut block_spell_input: MessageWriter<BlockSpellInput>,
 ) {
@@ -36,7 +32,7 @@ pub fn block_spell_input_on_button_interaction(
 /// Handles keyboard input during active gameplay.
 ///
 /// - Escape: Pause the game, transitioning to `InGameState::Paused`
-pub fn keyboard_input(
+pub(super) fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
@@ -52,7 +48,7 @@ pub fn keyboard_input(
 /// - Level indicator and past victory in top right corner
 /// - Mana bar in bottom right corner
 /// - Cast bar below mana bar
-pub fn spawn_hud(
+pub(super) fn spawn_hud(
     mut commands: Commands,
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
@@ -193,43 +189,16 @@ pub fn spawn_hud(
 }
 
 /// Handles HUD button click actions.
-///
-/// Uses a marker component to ensure buttons only trigger on release after being pressed.
-pub fn hud_button_action(
-    mut commands: Commands,
-    interaction_query: Query<
-        (
-            Entity,
-            &Interaction,
-            &HudButtonAction,
-            Option<&ButtonPressedDown>,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
+pub(super) fn hud_button_action(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&HudButtonAction>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
-    for (entity, interaction, action, pressed_down) in &interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                // Mark button as pressed down
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                // Only trigger action if button was previously pressed
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        HudButtonAction::OpenSpellBook => {
-                            next_in_game_state.set(InGameState::SpellBook);
-                        }
-                    }
-                }
-            }
-            Interaction::None => {
-                // Clear marker if mouse leaves button
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                HudButtonAction::OpenSpellBook => {
+                    next_in_game_state.set(InGameState::SpellBook);
                 }
             }
         }
@@ -237,7 +206,7 @@ pub fn hud_button_action(
 }
 
 /// Updates the mana bar width based on current wizard mana.
-pub fn update_mana_bar(
+pub(super) fn update_mana_bar(
     wizard_query: Query<&Mana, With<Wizard>>,
     mut mana_bar_query: Query<&mut Node, With<ManaBarFill>>,
 ) {
@@ -252,7 +221,7 @@ pub fn update_mana_bar(
 /// Updates the cast bar width based on current wizard casting progress.
 ///
 /// Uses the cast time from the currently primed spell.
-pub fn update_cast_bar(
+pub(super) fn update_cast_bar(
     wizard_query: Query<(&CastingState, &PrimedSpell), With<Wizard>>,
     mut cast_bar_query: Query<&mut Node, With<CastBarFill>>,
 ) {
@@ -265,7 +234,7 @@ pub fn update_cast_bar(
 }
 
 /// Updates the level display text when the current level changes.
-pub fn update_level_display(
+pub(super) fn update_level_display(
     current_level: Res<CurrentLevel>,
     mut level_display_query: Query<&mut Text, With<LevelDisplay>>,
 ) {
@@ -277,7 +246,7 @@ pub fn update_level_display(
 }
 
 /// Updates the past victory display text when the current level changes.
-pub fn update_past_victory_display(
+pub(super) fn update_past_victory_display(
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
     mut past_victory_query: Query<&mut Text, With<PastVictoryDisplay>>,

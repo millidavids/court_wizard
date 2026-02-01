@@ -2,13 +2,13 @@
 //!
 //! Contains all game unit types: wizard, infantry, and archers.
 
-pub mod archer;
-pub mod components;
-pub mod constants;
-pub mod infantry;
-pub mod king;
+pub(crate) mod archer;
+pub(crate) mod components;
+pub(crate) mod constants;
+pub(super) mod infantry;
+pub(super) mod king;
 mod systems;
-pub mod wizard;
+pub(crate) mod wizard;
 
 mod plugin;
 

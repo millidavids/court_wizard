@@ -3,9 +3,9 @@
 //! Handles magic missile projectiles that home in on attackers.
 
 mod components;
-pub mod constants;
+pub(in crate::game::units::wizard) mod constants;
 mod plugin;
 mod styles;
 mod systems;
 
-pub use plugin::MagicMissilePlugin;
+pub(super) use plugin::MagicMissilePlugin;

@@ -3,8 +3,8 @@
 //! Handles disintegrate beam spell that damages enemies in a continuous line.
 
 mod components;
-pub mod constants;
+pub(in crate::game::units::wizard) mod constants;
 mod plugin;
 mod systems;
 
-pub use plugin::DisintegratePlugin;
+pub(super) use plugin::DisintegratePlugin;

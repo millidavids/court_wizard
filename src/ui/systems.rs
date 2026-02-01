@@ -4,6 +4,49 @@ use bevy::prelude::*;
 
 use super::components::{ButtonColors, ButtonStyle};
 use super::styles::{item_hovered, item_pressed};
+use crate::game::input::events::MouseClicked;
+
+/// Marker component to track that a button was pressed down.
+#[derive(Component)]
+pub struct ButtonPressedDown;
+
+/// Run condition that returns true if there are any MouseClicked messages.
+pub fn on_message<M: Message>(mut reader: MessageReader<M>) -> bool {
+    reader.read().next().is_some()
+}
+
+/// Tracks button press state and sends click events.
+///
+/// This system handles the core button click detection:
+/// - Marks buttons as pressed when interaction becomes Pressed
+/// - Sends MouseClicked event when interaction changes from Pressed to non-Pressed (either Hovered or None)
+/// - Only sends click event if the button was previously marked as pressed down
+///
+/// This works for both mouse (Pressed → Hovered → None) and touch (Pressed → None).
+pub fn button_click_detection(
+    mut commands: Commands,
+    mut interaction_query: Query<
+        (Entity, &Interaction, Option<&ButtonPressedDown>),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut button_clicked: MessageWriter<MouseClicked>,
+) {
+    for (entity, interaction, pressed_down) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                // Mark button as pressed down
+                commands.entity(entity).insert(ButtonPressedDown);
+            }
+            Interaction::Hovered | Interaction::None => {
+                // If button was pressed down and is now released, send click event
+                if pressed_down.is_some() {
+                    commands.entity(entity).remove::<ButtonPressedDown>();
+                    button_clicked.write(MouseClicked { button: entity });
+                }
+            }
+        }
+    }
+}
 
 /// Handles button interaction visual feedback for all buttons with `ButtonColors`.
 ///

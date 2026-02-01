@@ -3,15 +3,12 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
+use crate::game::input::events::MouseClicked;
 use crate::state::{AppState, MenuState};
 use crate::ui::systems::spawn_button;
 
 use super::components::{MenuButtonAction, OnLandingScreen};
 use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
-
-/// Marker component to track that a button was pressed down.
-#[derive(Component)]
-pub(super) struct ButtonPressedDown;
 
 /// Sets up the landing screen UI.
 ///
@@ -85,61 +82,23 @@ pub fn cleanup(mut commands: Commands, landing_items: Query<Entity, With<OnLandi
 /// Handles menu button actions.
 ///
 /// Triggers state transitions based on the button's `MenuButtonAction` component.
-/// Uses a marker component to ensure buttons only trigger on release after being pressed.
 pub fn button_action(
-    mut commands: Commands,
-    interaction_query: Query<
-        (
-            Entity,
-            &Interaction,
-            &MenuButtonAction,
-            Option<&ButtonPressedDown>,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&MenuButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
 ) {
-    for (entity, interaction, action, pressed_down) in &interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                // Mark button as pressed down
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                // Only trigger action if button was previously pressed
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        MenuButtonAction::StartGame => {
-                            next_app_state.set(AppState::InGame);
-                        }
-                        MenuButtonAction::Settings => {
-                            next_menu_state.set(MenuState::Settings);
-                        }
-                        MenuButtonAction::Changelog => {
-                            next_menu_state.set(MenuState::Changelog);
-                        }
-                    }
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                MenuButtonAction::StartGame => {
+                    next_app_state.set(AppState::InGame);
                 }
-            }
-            Interaction::None => {
-                // Trigger action on release (touch goes Pressed → None, skipping Hovered)
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        MenuButtonAction::StartGame => {
-                            next_app_state.set(AppState::InGame);
-                        }
-                        MenuButtonAction::Settings => {
-                            next_menu_state.set(MenuState::Settings);
-                        }
-                        MenuButtonAction::Changelog => {
-                            next_menu_state.set(MenuState::Changelog);
-                        }
-                    }
+                MenuButtonAction::Settings => {
+                    next_menu_state.set(MenuState::Settings);
+                }
+                MenuButtonAction::Changelog => {
+                    next_menu_state.set(MenuState::Changelog);
                 }
             }
         }

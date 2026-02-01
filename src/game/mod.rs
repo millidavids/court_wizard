@@ -8,15 +8,15 @@
 //! - Simple collision-based combat
 
 mod battlefield;
-pub mod components;
-pub mod constants;
-pub mod input;
+pub(crate) mod components;
+pub(crate) mod constants;
+pub(crate) mod input;
 mod plugin;
-pub mod resources;
-pub mod run_conditions;
-mod shared_systems;
+pub(crate) mod resources;
+pub(crate) mod run_conditions;
+pub(crate) mod shared_systems;
 mod systems;
-pub mod units;
+pub(crate) mod units;
 mod win_lose_systems;
 
 pub use plugin::GamePlugin;

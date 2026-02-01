@@ -1,7 +1,7 @@
-pub mod components;
-pub mod constants;
-pub mod plugin;
-pub mod styles;
-pub mod systems;
+pub(super) mod components;
+pub(crate) mod constants;
+mod plugin;
+mod styles;
+mod systems;
 
 pub use plugin::ArcherPlugin;

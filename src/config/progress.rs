@@ -13,10 +13,10 @@ const KEY_B: u64 = 0x6A09_E667_F3BC_C908;
 
 /// Player progress data that gets signed and verified.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ProgressData {
-    pub current_level: u32,
-    pub highest_level_achieved: u32,
-    pub efficiency_ratios: HashMap<String, f32>,
+pub(crate) struct ProgressData {
+    pub(crate) current_level: u32,
+    pub(crate) highest_level_achieved: u32,
+    pub(crate) efficiency_ratios: HashMap<String, f32>,
 }
 
 /// Signed progress container with data and its signature.
@@ -144,7 +144,7 @@ fn compute_signature(data: &ProgressData) -> String {
 }
 
 /// Saves signed progress to localStorage.
-pub fn save_signed_progress(config: &GameConfig) {
+pub(crate) fn save_signed_progress(config: &GameConfig) {
     let data = ProgressData {
         current_level: config.current_level,
         highest_level_achieved: config.highest_level_achieved,
@@ -168,7 +168,7 @@ pub fn save_signed_progress(config: &GameConfig) {
 
 /// Loads and verifies progress from localStorage.
 /// Returns None if missing, tampered, or invalid.
-pub fn load_verified_progress() -> Option<ProgressData> {
+pub(crate) fn load_verified_progress() -> Option<ProgressData> {
     let contents = storage::load_progress().ok()?;
     let signed: SignedProgress = toml::from_str(&contents).ok()?;
 

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 ///
 /// During runtime, Bevy components are the single source of truth.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ConfigFile {
+pub(crate) struct ConfigFile {
     /// Window configuration settings
     pub window: WindowConfig,
     /// Audio configuration settings
@@ -39,7 +39,7 @@ pub enum VsyncMode {
 /// During runtime, Bevy's `Window` component is the source of truth.
 /// This struct is only used for persistence to/from the config file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WindowConfig {
+pub(crate) struct WindowConfig {
     /// VSync mode (on, off, or adaptive)
     pub vsync: VsyncMode,
     /// Scale factor override (None uses OS default)
@@ -60,7 +60,7 @@ impl Default for WindowConfig {
 /// During runtime, Bevy's audio resources are the source of truth.
 /// This struct is only used for persistence to/from the config file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AudioConfig {
+pub(crate) struct AudioConfig {
     /// Master volume level (0.0 = muted, 1.0 = full volume)
     pub master_volume: f32,
     /// Music track volume level (0.0 = muted, 1.0 = full volume)
@@ -177,7 +177,7 @@ impl Default for GameConfig {
 /// Send this message when you want to manually persist the current
 /// config state immediately, bypassing the debounce timer.
 #[derive(Message)]
-pub struct SaveConfigEvent;
+pub(crate) struct SaveConfigEvent;
 
 /// Message that triggers debounced config save.
 ///
@@ -207,7 +207,7 @@ pub struct ConfigChanged;
 /// This prevents excessive file writes during window resizing by waiting
 /// for a period of inactivity before saving to disk.
 #[derive(Resource)]
-pub struct SaveDebounceTimer {
+pub(crate) struct SaveDebounceTimer {
     /// Timer that counts down after a window resize event
     pub timer: Timer,
     /// Whether a save is pending after the timer expires

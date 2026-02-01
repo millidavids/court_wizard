@@ -1,5 +1,5 @@
 //! Pause menu UI.
 
-pub mod main;
-pub mod plugin;
-pub mod settings;
+mod main;
+pub(super) mod plugin;
+pub(super) mod settings;

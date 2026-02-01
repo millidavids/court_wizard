@@ -11,6 +11,7 @@ use crate::ui::main_menu::settings::systems::{
     pause_settings_button_action, setup, slider_button_action, slider_interaction,
     update_selected_options, update_slider_text, update_sliders,
 };
+use crate::ui::plugin::ButtonActionSet;
 
 /// Plugin that manages the pause menu settings UI.
 ///
@@ -26,13 +27,20 @@ impl Plugin for PauseSettingsPlugin {
             .add_systems(
                 Update,
                 (
+                    pause_settings_button_action,
+                    option_button_action,
+                    slider_button_action,
+                )
+                    .in_set(ButtonActionSet)
+                    .run_if(in_state(PauseMenuState::Settings)),
+            )
+            .add_systems(
+                Update,
+                (
                     pause_keyboard_input,
                     handle_scroll,
                     button_hover,
                     button_press,
-                    pause_settings_button_action,
-                    option_button_action,
-                    slider_button_action,
                     slider_interaction,
                     update_slider_text,
                     update_sliders,

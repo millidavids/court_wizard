@@ -13,6 +13,12 @@ use super::pause_menu::plugin::PauseMenuPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
 use super::version::VersionPlugin;
+use crate::game::input::events::MouseClicked;
+
+/// System set for all button action handlers.
+/// Systems in this set only run when a MouseClicked message exists.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ButtonActionSet;
 
 /// Top-level UI plugin that manages all UI systems.
 ///
@@ -31,7 +37,18 @@ impl Plugin for UiPlugin {
             GameOverPlugin,
             VersionPlugin,
         ))
-        .add_systems(Update, (update_ui_scale, systems::button_interaction));
+        .configure_sets(
+            Update,
+            ButtonActionSet.run_if(systems::on_message::<MouseClicked>),
+        )
+        .add_systems(
+            Update,
+            (
+                update_ui_scale,
+                systems::button_click_detection,
+                systems::button_interaction,
+            ),
+        );
     }
 }
 

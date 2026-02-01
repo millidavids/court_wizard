@@ -1,4 +1,4 @@
-pub mod components;
-pub mod constants;
-pub mod plugin;
-pub mod systems;
+pub(in crate::game) mod components;
+pub(in crate::game::units::wizard) mod constants;
+pub(super) mod plugin;
+mod systems;

@@ -6,14 +6,14 @@ use bevy::prelude::*;
 ///
 /// Used for cleanup when exiting the landing state.
 #[derive(Component)]
-pub struct OnLandingScreen;
+pub(super) struct OnLandingScreen;
 
 /// Actions that can be triggered by menu buttons.
 ///
 /// Each variant corresponds to a specific action taken when
 /// a button is pressed.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MenuButtonAction {
+pub(super) enum MenuButtonAction {
     /// Start a new game, transitioning to `AppState::InGame`.
     StartGame,
 

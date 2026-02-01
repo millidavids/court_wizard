@@ -5,6 +5,7 @@ use bevy::ui::ComputedNode;
 
 use super::components::*;
 use super::constants::*;
+use crate::game::input::events::MouseClicked;
 use crate::game::units::wizard::components::{PrimeSpellMessage, Spell};
 use crate::state::InGameState;
 use crate::ui::components::{ButtonColors, ButtonStyle};
@@ -13,14 +14,10 @@ use crate::ui::systems::spawn_button;
 /// Resource to track when we just entered the spell book.
 /// Prevents spell casting on the same frame as opening the spell book.
 #[derive(Resource, Default)]
-pub struct JustEnteredSpellBook(pub bool);
-
-/// Marker component to track that a button was pressed down.
-#[derive(Component)]
-pub(super) struct ButtonPressedDown;
+pub(super) struct JustEnteredSpellBook(pub bool);
 
 /// Spawns the spell book UI when entering the SpellBook state.
-pub fn spawn_spell_book_ui(mut commands: Commands) {
+pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
     commands
         .spawn((
             Node {
@@ -210,7 +207,7 @@ fn spawn_spell_button(
 }
 
 /// Handles mouse wheel scrolling for the spell book container.
-pub fn handle_spell_scroll(
+pub(super) fn handle_spell_scroll(
     mut mouse_wheel_events: MessageReader<MouseWheel>,
     hover_map: Res<bevy::picking::hover::HoverMap>,
     mut scrollable_query: Query<
@@ -256,61 +253,23 @@ pub fn handle_spell_scroll(
 }
 
 /// Handles button click actions and sends prime spell messages.
-/// Uses a marker component to ensure buttons only trigger on release after being pressed.
-pub fn button_action(
-    mut commands: Commands,
-    interaction_query: Query<
-        (
-            Entity,
-            &Interaction,
-            &SpellBookButtonAction,
-            Option<&ButtonPressedDown>,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
+pub(super) fn button_action(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&SpellBookButtonAction>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
-    for (entity, interaction, action, pressed_down) in &interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                // Mark button as pressed down
-                commands.entity(entity).insert(ButtonPressedDown);
-            }
-            Interaction::Hovered => {
-                // Only trigger action if button was previously pressed
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        SpellBookButtonAction::SelectSpell(spell) => {
-                            prime_spell.write(PrimeSpellMessage {
-                                spell: spell.primed_config(),
-                            });
-                            next_in_game_state.set(InGameState::Running);
-                        }
-                        SpellBookButtonAction::Close => {
-                            next_in_game_state.set(InGameState::Running);
-                        }
-                    }
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                SpellBookButtonAction::SelectSpell(spell) => {
+                    prime_spell.write(PrimeSpellMessage {
+                        spell: spell.primed_config(),
+                    });
+                    next_in_game_state.set(InGameState::Running);
                 }
-            }
-            Interaction::None => {
-                // Trigger action on release (touch goes Pressed → None, skipping Hovered)
-                if pressed_down.is_some() {
-                    commands.entity(entity).remove::<ButtonPressedDown>();
-
-                    match action {
-                        SpellBookButtonAction::SelectSpell(spell) => {
-                            prime_spell.write(PrimeSpellMessage {
-                                spell: spell.primed_config(),
-                            });
-                            next_in_game_state.set(InGameState::Running);
-                        }
-                        SpellBookButtonAction::Close => {
-                            next_in_game_state.set(InGameState::Running);
-                        }
-                    }
+                SpellBookButtonAction::Close => {
+                    next_in_game_state.set(InGameState::Running);
                 }
             }
         }
@@ -318,7 +277,7 @@ pub fn button_action(
 }
 
 /// Handles keyboard input (ESC to close).
-pub fn keyboard_input(
+pub(super) fn keyboard_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
@@ -328,7 +287,7 @@ pub fn keyboard_input(
 }
 
 /// Despawns spell book UI when exiting the SpellBook state.
-pub fn despawn_spell_book_ui(
+pub(super) fn despawn_spell_book_ui(
     mut commands: Commands,
     query: Query<Entity, With<OnSpellBookScreen>>,
 ) {
@@ -338,11 +297,11 @@ pub fn despawn_spell_book_ui(
 }
 
 /// Sets the flag when entering spell book to prevent spell casting.
-pub fn set_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBook>) {
+pub(super) fn set_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBook>) {
     just_entered.0 = true;
 }
 
 /// Clears the flag after one frame in SpellBook state.
-pub fn clear_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBook>) {
+pub(super) fn clear_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBook>) {
     just_entered.0 = false;
 }

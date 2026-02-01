@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::game::run_conditions;
 use crate::state::{AppState, InGameState};
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems;
 
@@ -25,10 +26,15 @@ impl Plugin for InGamePlugin {
             )
             .add_systems(
                 Update,
+                systems::hud_button_action
+                    .in_set(ButtonActionSet)
+                    .run_if(in_state(InGameState::Running)),
+            )
+            .add_systems(
+                Update,
                 (
                     systems::block_spell_input_on_button_interaction,
                     systems::keyboard_input,
-                    systems::hud_button_action,
                     systems::update_mana_bar,
                     systems::update_cast_bar,
                     systems::update_level_display,

@@ -2,12 +2,12 @@
 //!
 //! Handles the wizard entity, castle setup, and spells.
 
-pub mod components;
+pub(crate) mod components;
 mod constants;
 mod plugin;
 mod spell_range_indicator;
-pub mod spells;
+pub(in crate::game) mod spells;
 mod styles;
-pub mod systems;
+pub(super) mod systems;
 
 pub use plugin::WizardPlugin;

@@ -4,8 +4,8 @@ use bevy::prelude::*;
 
 /// Marker component for the version text container.
 #[derive(Component)]
-pub struct VersionText;
+pub(super) struct VersionText;
 
 /// Marker component for the GitHub link button.
 #[derive(Component)]
-pub struct GitHubButton;
+pub(super) struct GitHubButton;

@@ -3,12 +3,13 @@
 use bevy::prelude::*;
 
 use super::components::{GitHubButton, VersionText};
+use crate::game::input::events::MouseClicked;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const GITHUB_URL: &str = "https://github.com/millidavids/court_wizard";
 
 /// Spawns the version text as a clickable button in the bottom-left corner.
-pub fn setup(mut commands: Commands) {
+pub(super) fn setup(mut commands: Commands) {
     commands
         .spawn((
             Button,
@@ -41,11 +42,12 @@ pub fn setup(mut commands: Commands) {
 }
 
 /// Handles GitHub button clicks to open the repository in a browser.
-pub fn handle_github_button(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<GitHubButton>)>,
+pub(super) fn handle_github_button(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&GitHubButton>,
 ) {
-    for interaction in &interaction_query {
-        if *interaction == Interaction::Pressed {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
             // Open URL in browser (WASM only)
             #[cfg(target_arch = "wasm32")]
             {
@@ -58,7 +60,7 @@ pub fn handle_github_button(
 }
 
 /// Updates GitHub button color on hover.
-pub fn update_github_button_style(
+pub(super) fn update_github_button_style(
     mut button_query: Query<
         (&Interaction, &mut BackgroundColor, &mut BorderColor),
         (Changed<Interaction>, With<GitHubButton>),
@@ -90,7 +92,7 @@ pub fn update_github_button_style(
 }
 
 /// Despawns the version button.
-pub fn cleanup(mut commands: Commands, query: Query<Entity, With<VersionText>>) {
+pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<VersionText>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }

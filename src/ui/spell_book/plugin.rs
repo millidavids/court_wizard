@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::state::InGameState;
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems;
 
@@ -21,7 +22,7 @@ impl Plugin for SpellBookPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::button_action,
+                    systems::button_action.in_set(ButtonActionSet),
                     systems::keyboard_input,
                     systems::handle_spell_scroll,
                 )

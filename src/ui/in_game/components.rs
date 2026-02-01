@@ -2,26 +2,26 @@ use bevy::prelude::*;
 
 /// Marker component for the HUD root container.
 #[derive(Component)]
-pub struct HudRoot;
+pub(super) struct HudRoot;
 
 /// Marker component for the mana bar fill element.
 #[derive(Component)]
-pub struct ManaBarFill;
+pub(super) struct ManaBarFill;
 
 /// Marker component for the cast bar fill element.
 #[derive(Component)]
-pub struct CastBarFill;
+pub(super) struct CastBarFill;
 
 /// Actions that can be triggered by HUD buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HudButtonAction {
+pub(super) enum HudButtonAction {
     OpenSpellBook,
 }
 
 /// Marker component for the level display text.
 #[derive(Component)]
-pub struct LevelDisplay;
+pub(super) struct LevelDisplay;
 
 /// Marker component for the past victory display text.
 #[derive(Component)]
-pub struct PastVictoryDisplay;
+pub(super) struct PastVictoryDisplay;

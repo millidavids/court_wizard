@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::state::MenuState;
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems::{button_action, cleanup, keyboard_input, setup};
 
@@ -21,7 +22,10 @@ impl Plugin for LandingPlugin {
             .add_systems(OnExit(MenuState::Landing), cleanup)
             .add_systems(
                 Update,
-                (button_action, keyboard_input).run_if(in_state(MenuState::Landing)),
-            );
+                button_action
+                    .in_set(ButtonActionSet)
+                    .run_if(in_state(MenuState::Landing)),
+            )
+            .add_systems(Update, keyboard_input.run_if(in_state(MenuState::Landing)));
     }
 }

@@ -1,7 +1,7 @@
-pub mod components;
-pub mod constants;
-pub mod plugin;
-pub mod styles;
-pub mod systems;
+mod components;
+pub(in crate::game::units::wizard) mod constants;
+mod plugin;
+mod styles;
+mod systems;
 
-pub use plugin::ChainLightningPlugin;
+pub(super) use plugin::ChainLightningPlugin;

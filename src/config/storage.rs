@@ -20,7 +20,7 @@ const CONFIG_KEY: &str = "court_wizard_config";
 /// - Window object is not available
 /// - localStorage API is not available
 /// - Setting the item fails
-pub fn save_config(config_toml: &str) -> ConfigResult<()> {
+pub(super) fn save_config(config_toml: &str) -> ConfigResult<()> {
     let window = window()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
@@ -49,7 +49,7 @@ pub fn save_config(config_toml: &str) -> ConfigResult<()> {
 /// - localStorage API is not available
 /// - No config is found in localStorage
 /// - Reading the item fails
-pub fn load_config() -> ConfigResult<String> {
+pub(super) fn load_config() -> ConfigResult<String> {
     let window = window()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
@@ -75,7 +75,7 @@ pub fn load_config() -> ConfigResult<String> {
 const PROGRESS_KEY: &str = "court_wizard_progress";
 
 /// Saves signed progress string to browser localStorage.
-pub fn save_progress(data: &str) -> ConfigResult<()> {
+pub(super) fn save_progress(data: &str) -> ConfigResult<()> {
     let window = window()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
@@ -92,7 +92,7 @@ pub fn save_progress(data: &str) -> ConfigResult<()> {
 }
 
 /// Loads signed progress string from browser localStorage.
-pub fn load_progress() -> ConfigResult<String> {
+pub(super) fn load_progress() -> ConfigResult<String> {
     let window = window()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
@@ -128,7 +128,7 @@ pub fn load_progress() -> ConfigResult<String> {
 /// - localStorage API is not available
 /// - Removing the item fails
 #[allow(dead_code)]
-pub fn clear_config() -> ConfigResult<()> {
+pub(super) fn clear_config() -> ConfigResult<()> {
     let window = window()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
     let storage = window
