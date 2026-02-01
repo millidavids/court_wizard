@@ -12,6 +12,7 @@ use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles chain lightning casting with left-click.
 ///
@@ -224,6 +225,7 @@ pub fn process_chain_lightning_bounces(
         ),
         Without<Corpse>,
     >,
+    walls: Query<&WallOfStone>,
 ) {
     for (bolt_entity, mut bolt) in &mut bolts {
         // Decrement bounce delay timer
@@ -231,9 +233,15 @@ pub fn process_chain_lightning_bounces(
 
         // Check if it's time to bounce
         if bolt.bounce_delay_timer <= 0.0 && bolt.bounces_remaining > 0 {
-            // Find next bounce target
+            // Find next bounce target (with wall line-of-sight check)
             if let Some((target_entity, target_pos)) =
                 find_next_bounce_target(bolt.last_hit_position, &bolt.hit_entities, &enemies)
+                    .filter(|(_, pos)| {
+                        !walls.iter().any(|wall| {
+                            wall.line_segment_intersects(bolt.last_hit_position, *pos)
+                                .is_some()
+                        })
+                    })
             {
                 // Apply damage to target
                 if let Ok((_, _, _, mut health, mut temp_hp)) = enemies.get_mut(target_entity) {

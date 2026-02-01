@@ -16,6 +16,7 @@ use crate::game::units::components::{
     KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team,
     Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Spawns initial defender archers when entering the game.
 /// Archers spawn at the furthest back spawn point (back-left, away from attackers).
@@ -455,10 +456,24 @@ pub fn check_arrow_collisions(
         ),
         Without<Corpse>,
     >,
+    walls: Query<&WallOfStone>,
 ) {
     #[allow(clippy::significant_drop_in_scrutinee)]
     for (arrow_entity, arrow_transform, arrow) in &arrows {
         let arrow_pos = arrow_transform.translation;
+
+        // Wall collision
+        let mut hit_wall = false;
+        for wall in &walls {
+            if wall.contains_point_xz(arrow_pos) && arrow_pos.y <= wall.height {
+                commands.entity(arrow_entity).despawn();
+                hit_wall = true;
+                break;
+            }
+        }
+        if hit_wall {
+            continue;
+        }
 
         // Ground collision
         if arrow_pos.y <= 0.0 {

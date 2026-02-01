@@ -211,6 +211,7 @@ pub fn apply_finger_of_death_damage(
     mut beams: Query<&mut FingerOfDeathBeam>,
     mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>), Without<Wizard>>,
     mut wizard_query: Query<(&mut Mana, &mut CastingState), With<Wizard>>,
+    walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
 ) {
     for mut beam in beams.iter_mut() {
         // Only apply damage if cast is complete and hasn't fired yet
@@ -221,10 +222,23 @@ pub fn apply_finger_of_death_damage(
         // Mark as fired
         beam.has_fired = true;
 
-        // Apply damage to all units along beam
+        // Find nearest wall intersection to limit beam reach
+        let beam_end = beam.origin + beam.direction * beam.length;
+        let mut max_t = 1.0_f32;
+        for wall in &walls {
+            if let Some(t) = wall.line_segment_intersects(beam.origin, beam_end) {
+                max_t = max_t.min(t);
+            }
+        }
+        let effective_length = beam.length * max_t;
+
+        // Apply damage to all units along beam (before wall)
         for (transform, mut health, mut temp_hp) in targets.iter_mut() {
             if beam.contains_point(transform.translation, constants::BEAM_WIDTH) {
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), constants::DAMAGE);
+                let proj = (transform.translation - beam.origin).dot(beam.direction);
+                if proj <= effective_length {
+                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), constants::DAMAGE);
+                }
             }
         }
 

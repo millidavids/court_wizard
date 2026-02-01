@@ -104,7 +104,9 @@ impl Plugin for GamePlugin {
                     // Separation adds flocking forces (immutable queries)
                     // Unit-specific targeting systems registered in their respective plugins
                     shared_systems::apply_separation,
+                    shared_systems::apply_wall_avoidance,
                 )
+                    .chain()
                     .in_set(VelocitySystemSet),
             )
             .add_systems(
@@ -126,6 +128,7 @@ impl Plugin for GamePlugin {
                     // Unit-specific movement systems run in parallel as a set
                     // (infantry_movement and archer_movement registered in their respective plugins)
                     // They read from TargetingVelocity set by update_targeting
+                    shared_systems::enforce_wall_collision,
                     shared_systems::combat,
                     shared_systems::convert_dead_to_corpses,
                     // Update billboards to face camera

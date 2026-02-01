@@ -10,6 +10,7 @@ use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles fireball casting with left-click.
 ///
@@ -155,9 +156,32 @@ pub fn check_fireball_collisions(
     mut materials: ResMut<Assets<StandardMaterial>>,
     fireballs: Query<(Entity, &Transform, &Fireball)>,
     targets: Query<(&Transform, &Team)>,
+    walls: Query<&WallOfStone>,
 ) {
     for (fireball_entity, fireball_transform, fireball) in &fireballs {
         let fireball_pos = fireball_transform.translation;
+
+        // Check collision with walls
+        let mut hit_wall = false;
+        for wall in &walls {
+            if wall.contains_point_xz(fireball_pos) && fireball_pos.y <= wall.height {
+                let explosion_pos = fireball_pos;
+                spawn_explosion(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    explosion_pos,
+                    fireball.explosion_radius,
+                    fireball.damage,
+                );
+                commands.entity(fireball_entity).despawn();
+                hit_wall = true;
+                break;
+            }
+        }
+        if hit_wall {
+            continue;
+        }
 
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {

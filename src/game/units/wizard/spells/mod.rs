@@ -14,6 +14,7 @@ mod raise_the_dead;
 pub mod run_conditions;
 mod systems;
 mod teleport;
+pub mod wall_of_stone;
 
 // Re-export constants for wizard setup and spell switching
 pub use chain_lightning::constants as chain_lightning_constants;
@@ -24,5 +25,6 @@ pub use guardian_circle::constants as guardian_circle_constants;
 pub use magic_missile::constants as magic_missile_constants;
 pub use raise_the_dead::constants as raise_the_dead_constants;
 pub use teleport::constants as teleport_constants;
+pub use wall_of_stone::constants as wall_of_stone_constants;
 
 pub use plugin::SpellsPlugin;

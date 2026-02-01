@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.86] - 2025-01-31
+
+### Added
+- New spell: Wall of Stone — click and drag to raise an impassable stone wall on the battlefield
+- Wall blocks all unit movement, projectiles, arrows, beams, and chain lightning bounces
+- Wall lasts 20 seconds then sinks into the ground before despawning
+- Units steer around walls instead of walking into them
+- Discord changelog notifications on push via GitHub Actions
+
+### Changed
+- Fireball now leaves a burning ground effect after the explosion, dealing damage over 5 seconds
+- Burning ground effect flickers like fire and fades out over its last second
+- Fireball mana cost reduced from 60 to 30
+- Fireball initial explosion damage reduced from 50 to 25
+- Fireball total damage (explosion + residual fire) now totals 100
+
 ## [v0.0.74] - 2025-01-31
 
 ### Added

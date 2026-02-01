@@ -209,22 +209,36 @@ pub fn apply_disintegrate_damage(
         (&Transform, &mut Health, Option<&mut TemporaryHitPoints>),
         Without<Wizard>,
     >,
+    walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     time: Res<Time>,
 ) {
     for mut beam in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
         beam.update_time_alive(time.delta_secs());
 
+        // Find the nearest wall intersection to limit beam reach
+        let beam_end = beam.origin + beam.direction * beam.current_length();
+        let mut max_t = 1.0_f32;
+        for wall in &walls {
+            if let Some(t) = wall.line_segment_intersects(beam.origin, beam_end) {
+                max_t = max_t.min(t);
+            }
+        }
+        let effective_length = beam.current_length() * max_t;
+
         if beam.should_damage() {
-            // Deal damage to all units in the beam (except wizard)
             for (transform, mut health, mut temp_hp) in target_query.iter_mut() {
                 let position = transform.translation;
+                // Check if point is in beam AND before the wall
                 if beam.contains_point(position) {
-                    apply_damage_to_unit(
-                        &mut health,
-                        temp_hp.as_deref_mut(),
-                        constants::DAMAGE_PER_TICK,
-                    );
+                    let proj = (position - beam.origin).dot(beam.direction);
+                    if proj <= effective_length {
+                        apply_damage_to_unit(
+                            &mut health,
+                            temp_hp.as_deref_mut(),
+                            constants::DAMAGE_PER_TICK,
+                        );
+                    }
                 }
             }
 

@@ -11,6 +11,7 @@ pub enum Spell {
     FingerOfDeath,
     RaiseTheDead,
     Teleport,
+    WallOfStone,
 }
 
 impl Spell {
@@ -25,6 +26,7 @@ impl Spell {
             Spell::FingerOfDeath,
             Spell::RaiseTheDead,
             Spell::Teleport,
+            Spell::WallOfStone,
         ]
     }
 
@@ -39,6 +41,7 @@ impl Spell {
             Spell::FingerOfDeath => "Finger of Death",
             Spell::RaiseTheDead => "Raise The Dead",
             Spell::Teleport => "Teleport",
+            Spell::WallOfStone => "Wall of Stone",
         }
     }
 
@@ -65,6 +68,9 @@ impl Spell {
             }
             Spell::RaiseTheDead => "Resurrects corpses near the cursor.",
             Spell::Teleport => "Teleports all units near the cursor to a chosen destination.",
+            Spell::WallOfStone => {
+                "Drag to raise an impassable stone wall that blocks all movement and projectiles for 20 seconds."
+            }
         }
     }
 
@@ -79,6 +85,7 @@ impl Spell {
             Spell::FingerOfDeath => "Click and hold to cast",
             Spell::RaiseTheDead => "Click and hold to channel",
             Spell::Teleport => "Click to place destination, then click and hold to cast",
+            Spell::WallOfStone => "Click and drag to place wall",
         }
     }
 
@@ -87,7 +94,7 @@ impl Spell {
         use crate::game::units::wizard::spells::{
             chain_lightning_constants, disintegrate_constants, finger_of_death_constants,
             fireball_constants, guardian_circle_constants, magic_missile_constants,
-            raise_the_dead_constants, teleport_constants,
+            raise_the_dead_constants, teleport_constants, wall_of_stone_constants,
         };
 
         match self {
@@ -99,6 +106,7 @@ impl Spell {
             Spell::FingerOfDeath => finger_of_death_constants::PRIMED_FINGER_OF_DEATH,
             Spell::RaiseTheDead => raise_the_dead_constants::PRIMED_RAISE_THE_DEAD,
             Spell::Teleport => teleport_constants::PRIMED_TELEPORT,
+            Spell::WallOfStone => wall_of_stone_constants::PRIMED_WALL_OF_STONE,
         }
     }
 }
