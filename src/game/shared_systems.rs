@@ -461,6 +461,74 @@ pub fn cleanup_for_replay(
     }
 }
 
+/// Applies a steering force to units approaching walls so they navigate around them.
+pub fn apply_wall_avoidance(
+    walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    mut units: Query<(&Transform, &Velocity, &mut Acceleration, &Hitbox), Without<Corpse>>,
+) {
+    const AVOIDANCE_DISTANCE: f32 = 80.0; // How far ahead units look for walls
+    const AVOIDANCE_FORCE: f32 = 800.0; // Strength of the avoidance steering
+
+    for (transform, velocity, mut acceleration, hitbox) in &mut units {
+        let vel = Vec3::new(velocity.x, 0.0, velocity.z);
+        let speed = vel.length();
+        if speed < 1.0 {
+            continue;
+        }
+        let vel_dir = vel / speed;
+
+        // Check if the unit's projected position will be inside a wall
+        let look_ahead = transform.translation + vel_dir * AVOIDANCE_DISTANCE;
+
+        for wall in &walls {
+            // Check if look-ahead point is inside the wall
+            let diff = Vec3::new(
+                look_ahead.x - wall.center.x,
+                0.0,
+                look_ahead.z - wall.center.z,
+            );
+            let forward_proj = diff.dot(wall.forward);
+            let right_proj = diff.dot(wall.right);
+
+            let forward_pen = wall.half_length + hitbox.radius - forward_proj.abs();
+            let right_pen = wall.half_width + hitbox.radius - right_proj.abs();
+
+            if forward_pen > 0.0 && right_pen > 0.0 {
+                // Unit is heading into the wall — steer along the wall edge
+                // Choose the perpendicular direction that requires least deviation
+                let steer = if forward_pen < right_pen {
+                    // Closer to a forward edge — steer along the right axis
+                    wall.right * right_proj.signum()
+                } else {
+                    // Closer to a right edge — steer along the forward axis
+                    wall.forward * forward_proj.signum()
+                };
+
+                // Scale force by how close we are to the wall
+                let proximity = 1.0 - (forward_pen.min(right_pen) / AVOIDANCE_DISTANCE).min(1.0);
+                acceleration.add_force(steer * AVOIDANCE_FORCE * proximity);
+            }
+        }
+    }
+}
+
+/// Pushes units out of any active Wall of Stone entities.
+///
+/// Runs after movement systems to ensure units cannot walk through walls.
+pub fn enforce_wall_collision(
+    walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    mut units: Query<(&mut Transform, &Hitbox), Without<Corpse>>,
+) {
+    for (mut transform, hitbox) in &mut units {
+        for wall in &walls {
+            if let Some(corrected) = wall.push_out(transform.translation, hitbox.radius) {
+                transform.translation.x = corrected.x;
+                transform.translation.z = corrected.z;
+            }
+        }
+    }
+}
+
 /// Resets game resources when replaying (transitioning from GameOver to Running).
 ///
 /// This system runs on OnExit(InGameState::GameOver) and resets resources like

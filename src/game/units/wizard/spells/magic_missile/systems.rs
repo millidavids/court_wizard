@@ -11,6 +11,7 @@ use crate::game::input::events::MouseLeftReleased;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles magic missile casting with left-click.
 ///
@@ -330,8 +331,24 @@ pub fn check_magic_missile_collisions(
         ),
         (Without<MagicMissile>, Without<Corpse>),
     >,
+    walls: Query<&WallOfStone>,
 ) {
     for (missile_entity, missile_transform, missile) in &missiles {
+        // Wall collision
+        let mut hit_wall = false;
+        for wall in &walls {
+            if wall.contains_point_xz(missile_transform.translation)
+                && missile_transform.translation.y <= wall.height
+            {
+                commands.entity(missile_entity).despawn();
+                hit_wall = true;
+                break;
+            }
+        }
+        if hit_wall {
+            continue;
+        }
+
         for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
             // Magic Missile targets Attackers and Undead
             if *team != Team::Attackers && *team != Team::Undead {

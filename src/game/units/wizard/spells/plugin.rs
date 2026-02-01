@@ -11,6 +11,7 @@ use super::magic_missile::MagicMissilePlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
 use super::systems;
 use super::teleport::TeleportPlugin;
+use super::wall_of_stone::plugin::WallOfStonePlugin;
 
 /// Plugin that handles wizard spells and projectiles.
 ///
@@ -39,6 +40,7 @@ impl Plugin for SpellsPlugin {
             FingerOfDeathPlugin,
             RaiseTheDeadPlugin,
             TeleportPlugin,
+            WallOfStonePlugin,
         ))
         .add_systems(
             Update,

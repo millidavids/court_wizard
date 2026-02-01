@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
+use super::wall_of_stone::components::WallOfStone;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::infantry::components::Infantry;
 
@@ -31,8 +32,24 @@ pub fn check_projectile_collisions(
         ),
         With<Infantry>,
     >,
+    walls: Query<&WallOfStone>,
 ) {
     for (projectile_entity, proj_transform, projectile) in &projectiles {
+        // Check wall collision
+        let mut hit_wall = false;
+        for wall in &walls {
+            if wall.contains_point_xz(proj_transform.translation)
+                && proj_transform.translation.y <= wall.height
+            {
+                commands.entity(projectile_entity).despawn();
+                hit_wall = true;
+                break;
+            }
+        }
+        if hit_wall {
+            continue;
+        }
+
         for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
             // Only damage attackers (projectiles are from defenders/wizard)
             if *team != Team::Attackers {
