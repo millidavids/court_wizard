@@ -296,9 +296,21 @@ pub fn button_action(
                 }
             }
             Interaction::None => {
-                // Clear marker if mouse leaves button
+                // Trigger action on release (touch goes Pressed → None, skipping Hovered)
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    match action {
+                        SpellBookButtonAction::SelectSpell(spell) => {
+                            prime_spell.write(PrimeSpellMessage {
+                                spell: spell.primed_config(),
+                            });
+                            next_in_game_state.set(InGameState::Running);
+                        }
+                        SpellBookButtonAction::Close => {
+                            next_in_game_state.set(InGameState::Running);
+                        }
+                    }
                 }
             }
         }

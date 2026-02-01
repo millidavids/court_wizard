@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.88] - 2025-01-31
+
+### Fixed
+- Buttons now work correctly on mobile touch devices (spell book, menus, settings, sliders)
+
 ## [v0.0.86] - 2025-01-31
 
 ### Added
