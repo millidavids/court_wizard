@@ -691,6 +691,12 @@ pub fn settings_button_action(
             Interaction::None => {
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    match action {
+                        SettingsButtonAction::Back => {
+                            next_menu_state.set(MenuState::Landing);
+                        }
+                    }
                 }
             }
         }
@@ -730,6 +736,12 @@ pub fn pause_settings_button_action(
             Interaction::None => {
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    match action {
+                        SettingsButtonAction::Back => {
+                            next_pause_menu_state.set(PauseMenuState::Main);
+                        }
+                    }
                 }
             }
         }
@@ -764,6 +776,7 @@ pub fn option_button_action(
             Interaction::None => {
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+                    value.apply(&mut game_config);
                 }
             }
         }
@@ -867,6 +880,12 @@ pub fn slider_button_action(
             Interaction::None => {
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    let current = button.value.get(&game_config);
+                    let step = button.value.step();
+                    let min = button.value.min_value();
+                    let new_value = (current - step).max(min);
+                    button.value.set(&mut game_config, new_value);
                 }
             }
         }
@@ -891,6 +910,12 @@ pub fn slider_button_action(
             Interaction::None => {
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    let current = button.value.get(&game_config);
+                    let step = button.value.step();
+                    let max = button.value.max_value();
+                    let new_value = (current + step).min(max);
+                    button.value.set(&mut game_config, new_value);
                 }
             }
         }

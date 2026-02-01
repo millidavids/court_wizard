@@ -128,9 +128,21 @@ pub fn button_action(
                 }
             }
             Interaction::None => {
-                // Clear marker if mouse leaves button
+                // Trigger action on release (touch goes Pressed → None, skipping Hovered)
                 if pressed_down.is_some() {
                     commands.entity(entity).remove::<ButtonPressedDown>();
+
+                    match action {
+                        PauseMenuButtonAction::Continue => {
+                            next_in_game_state.set(InGameState::Running);
+                        }
+                        PauseMenuButtonAction::Settings => {
+                            next_pause_menu_state.set(PauseMenuState::Settings);
+                        }
+                        PauseMenuButtonAction::Exit => {
+                            next_app_state.set(AppState::MainMenu);
+                        }
+                    }
                 }
             }
         }
