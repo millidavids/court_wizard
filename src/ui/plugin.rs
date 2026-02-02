@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
 
+use super::action_bar::ActionBarPlugin;
 use super::game_over::GameOverPlugin;
 use super::in_game::plugin::InGamePlugin;
 use super::main_menu::MainMenuPlugin;
@@ -34,6 +35,7 @@ impl Plugin for UiPlugin {
             InGamePlugin,
             PauseMenuPlugin,
             SpellBookPlugin,
+            ActionBarPlugin,
             GameOverPlugin,
             VersionPlugin,
         ))

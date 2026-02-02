@@ -5,9 +5,10 @@ use bevy::ui::ComputedNode;
 
 use super::components::*;
 use super::constants::*;
-use crate::game::input::events::MouseClicked;
+use crate::game::input::events::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{PrimeSpellMessage, Spell};
 use crate::state::InGameState;
+use crate::ui::action_bar::systems::AssignSpellToSlot;
 use crate::ui::components::{ButtonColors, ButtonStyle};
 use crate::ui::systems::spawn_button;
 
@@ -241,10 +242,9 @@ pub(super) fn handle_spell_scroll(
                         break;
                     }
 
-                    if let Ok(parent) = parent_query.get(current_entity) {
-                        current_entity = parent.get();
-                    } else {
-                        break;
+                    match parent_query.get(current_entity) {
+                        Ok(parent) => current_entity = parent.get(),
+                        Err(_) => break,
                     }
                 }
             }
@@ -304,4 +304,42 @@ pub(super) fn set_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBoo
 /// Clears the flag after one frame in SpellBook state.
 pub(super) fn clear_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBook>) {
     just_entered.0 = false;
+}
+
+/// Detects number key presses while hovering over spell buttons to assign spells to action bar slots.
+pub(super) fn handle_spell_hover_assignment(
+    mut action_bar_key: MessageReader<ActionBarKeyPressed>,
+    hover_map: Res<bevy::picking::hover::HoverMap>,
+    spell_button_query: Query<&SpellBookButtonAction>,
+    parent_query: Query<&ChildOf>,
+    mut assign_spell: MessageWriter<AssignSpellToSlot>,
+) {
+    for event in action_bar_key.read() {
+        // Check if we're hovering over a spell button or its children
+        for pointer_map in hover_map.values() {
+            for (hovered_entity, _) in pointer_map.iter() {
+                // Try the entity itself and traverse up the parent hierarchy
+                let mut current_entity = *hovered_entity;
+                loop {
+                    if let Ok(action) = spell_button_query.get(current_entity)
+                        && let SpellBookButtonAction::SelectSpell(spell) = action
+                    {
+                        // Assign the spell to the pressed slot
+                        assign_spell.write(AssignSpellToSlot {
+                            slot: event.slot,
+                            spell: *spell,
+                        });
+                        return;
+                    }
+
+                    // Try parent
+                    if let Ok(parent) = parent_query.get(current_entity) {
+                        current_entity = parent.get();
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }

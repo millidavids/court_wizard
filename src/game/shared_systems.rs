@@ -517,13 +517,69 @@ pub fn apply_wall_avoidance(
 /// Runs after movement systems to ensure units cannot walk through walls.
 pub fn enforce_wall_collision(
     walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
-    mut units: Query<(&mut Transform, &Hitbox), Without<Corpse>>,
+    mut units: Query<
+        (
+            &mut Transform,
+            &Hitbox,
+            Option<&mut super::components::Velocity>,
+            Option<&super::units::components::TargetingVelocity>,
+        ),
+        Without<Corpse>,
+    >,
 ) {
-    for (mut transform, hitbox) in &mut units {
+    for (mut transform, hitbox, mut velocity_opt, targeting_velocity) in &mut units {
+        // Get the desired movement direction for intelligent collision response
+        let desired_direction = if let Some(vel) = velocity_opt.as_ref() {
+            Some(Vec3::new(vel.x, 0.0, vel.z).normalize_or_zero())
+        } else {
+            targeting_velocity.map(|tv| tv.velocity.normalize_or_zero())
+        };
+
         for wall in &walls {
-            if let Some(corrected) = wall.push_out(transform.translation, hitbox.radius) {
+            if let Some(corrected) =
+                wall.push_out(transform.translation, hitbox.radius, desired_direction)
+            {
+                // Calculate the correction vector
+                let correction = Vec3::new(
+                    corrected.x - transform.translation.x,
+                    0.0,
+                    corrected.z - transform.translation.z,
+                );
+
+                let correction_magnitude = correction.length();
+
+                // Apply position correction
                 transform.translation.x = corrected.x;
                 transform.translation.z = corrected.z;
+
+                // Adjust velocity to redirect around the wall with stronger force
+                if let Some(ref mut velocity) = velocity_opt {
+                    let correction_normal = correction.normalize_or_zero();
+                    let velocity_vec = Vec3::new(velocity.x, 0.0, velocity.z);
+                    let velocity_magnitude = velocity_vec.length();
+
+                    // Remove velocity component perpendicular to wall, keep tangential
+                    let perpendicular_component = velocity_vec.dot(correction_normal);
+
+                    if perpendicular_component < 0.0 {
+                        // Project onto wall surface (slide along)
+                        let tangent_velocity =
+                            velocity_vec - correction_normal * perpendicular_component;
+
+                        // Add extra repulsive force to help units flow around the wall
+                        // Stronger when deeper in collision
+                        let repulsion_strength = (correction_magnitude / hitbox.radius).min(1.0);
+                        let repulsion_force =
+                            correction_normal * velocity_magnitude * repulsion_strength * 1.5;
+
+                        let final_velocity = tangent_velocity + repulsion_force;
+
+                        // Clamp to original velocity magnitude to avoid speeding up
+                        let final_velocity_normalized = final_velocity.normalize_or_zero();
+                        velocity.x = final_velocity_normalized.x * velocity_magnitude;
+                        velocity.z = final_velocity_normalized.z * velocity_magnitude;
+                    }
+                }
             }
         }
     }

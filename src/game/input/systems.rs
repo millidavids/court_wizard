@@ -86,6 +86,7 @@ pub fn detect_keyboard_input(
     mut spacebar_pressed: MessageWriter<SpacebarPressed>,
     mut spacebar_held: MessageWriter<SpacebarHeld>,
     mut spacebar_released: MessageWriter<SpacebarReleased>,
+    mut action_bar_pressed: MessageWriter<ActionBarKeyPressed>,
 ) {
     // Check spacebar state
     if keyboard.just_pressed(KeyCode::Space) {
@@ -98,6 +99,26 @@ pub fn detect_keyboard_input(
 
     if keyboard.just_released(KeyCode::Space) {
         spacebar_released.write(SpacebarReleased);
+    }
+
+    // Check number keys 1-9, 0 (for slots 0-9 in action bar)
+    const NUMBER_KEYS: [(KeyCode, u8); 10] = [
+        (KeyCode::Digit1, 0),
+        (KeyCode::Digit2, 1),
+        (KeyCode::Digit3, 2),
+        (KeyCode::Digit4, 3),
+        (KeyCode::Digit5, 4),
+        (KeyCode::Digit6, 5),
+        (KeyCode::Digit7, 6),
+        (KeyCode::Digit8, 7),
+        (KeyCode::Digit9, 8),
+        (KeyCode::Digit0, 9),
+    ];
+
+    for (key_code, slot) in NUMBER_KEYS {
+        if keyboard.just_pressed(key_code) {
+            action_bar_pressed.write(ActionBarKeyPressed { slot });
+        }
     }
 }
 

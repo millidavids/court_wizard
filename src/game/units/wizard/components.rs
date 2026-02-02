@@ -1,7 +1,8 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Available spells.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Serialize, Deserialize)]
 pub enum Spell {
     MagicMissile,
     Disintegrate,

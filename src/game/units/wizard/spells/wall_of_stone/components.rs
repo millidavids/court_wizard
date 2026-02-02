@@ -63,9 +63,17 @@ impl WallOfStone {
         }
     }
 
-    /// Pushes a point outside the wall along the nearest edge normal.
+    /// Pushes a point outside the wall, guiding it around in the direction of its target.
     /// Returns the corrected position if the point was inside.
-    pub fn push_out(&self, point: Vec3, radius: f32) -> Option<Vec3> {
+    ///
+    /// Uses the unit's desired direction to determine which way around the wall is shorter,
+    /// preventing units from being pushed backward when they hit an angled wall.
+    pub fn push_out(
+        &self,
+        point: Vec3,
+        radius: f32,
+        desired_direction: Option<Vec3>,
+    ) -> Option<Vec3> {
         let diff = Vec3::new(point.x - self.center.x, 0.0, point.z - self.center.z);
         let forward_proj = diff.dot(self.forward);
         let right_proj = diff.dot(self.right);
@@ -77,22 +85,59 @@ impl WallOfStone {
             return None; // Not overlapping
         }
 
-        // Push along axis with least penetration
-        if forward_pen < right_pen {
-            let sign = forward_proj.signum();
-            Some(Vec3::new(
-                point.x + self.forward.x * forward_pen * sign,
-                point.y,
-                point.z + self.forward.z * forward_pen * sign,
-            ))
+        // Determine push direction based on desired movement
+        let push_dir = if let Some(desired) = desired_direction {
+            // Calculate which direction around the wall aligns better with desired movement
+            let forward_sign = forward_proj.signum();
+            let right_sign = right_proj.signum();
+
+            // Option 1: Push along forward axis
+            let forward_push = Vec3::new(
+                self.forward.x * forward_sign,
+                0.0,
+                self.forward.z * forward_sign,
+            );
+
+            // Option 2: Push along right axis
+            let right_push = Vec3::new(self.right.x * right_sign, 0.0, self.right.z * right_sign);
+
+            // Choose the push direction that best aligns with desired movement
+            let forward_alignment = forward_push.dot(desired);
+            let right_alignment = right_push.dot(desired);
+
+            // Weight by penetration depth - prefer shallower penetration, but also consider alignment
+            let forward_score = forward_alignment - forward_pen * 0.5;
+            let right_score = right_alignment - right_pen * 0.5;
+
+            if forward_score > right_score {
+                forward_push * forward_pen
+            } else {
+                right_push * right_pen
+            }
         } else {
-            let sign = right_proj.signum();
-            Some(Vec3::new(
-                point.x + self.right.x * right_pen * sign,
-                point.y,
-                point.z + self.right.z * right_pen * sign,
-            ))
-        }
+            // Fallback to least penetration if no desired direction
+            if forward_pen < right_pen {
+                let sign = forward_proj.signum();
+                Vec3::new(
+                    self.forward.x * forward_pen * sign,
+                    0.0,
+                    self.forward.z * forward_pen * sign,
+                )
+            } else {
+                let sign = right_proj.signum();
+                Vec3::new(
+                    self.right.x * right_pen * sign,
+                    0.0,
+                    self.right.z * right_pen * sign,
+                )
+            }
+        };
+
+        Some(Vec3::new(
+            point.x + push_dir.x,
+            point.y,
+            point.z + push_dir.z,
+        ))
     }
 
     fn slab_intersect(origin: f32, dir: f32, half_extent: f32) -> Option<(f32, f32)> {

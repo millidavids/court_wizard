@@ -68,6 +68,7 @@ pub(super) fn load_and_apply_config(
         current_level: config_file.game.current_level,
         highest_level_achieved: config_file.game.highest_level_achieved,
         efficiency_ratios: config_file.game.efficiency_ratios,
+        action_bar_slots: config_file.game.action_bar_slots,
     };
     // Verify progress against signed copy in localStorage
     match progress::load_verified_progress() {

@@ -3,6 +3,7 @@
 //! This module provides the user interface systems and components,
 //! organized by menu/screen type.
 
+mod action_bar;
 mod components;
 mod game_over;
 mod in_game;

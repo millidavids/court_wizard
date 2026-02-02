@@ -2,11 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.0.97] - 2025-02-01
+## [v0.0.121] - 2025-02-02
+
+### Added
+- Action bar with 10 customizable spell slots at the bottom-left of the screen
+- Keyboard shortcuts: press keys 1-9 and 0 to instantly cast assigned spells without opening spell book
+- Spell assignment: hover over any spell in the spell book and press a number key to assign it to that slot
+- Action bar configuration persists between game sessions via local storage
+- Dynamic text sizing in action bar slots to fit longer spell names
 
 ### Changed
-- Improved codebase encapsulation: restricted visibility of internal modules and functions throughout config/ and state/ directories
-- Reduced public API surface area by over 150+ items, following Rust best practices for minimal exposure
+- Wall of Stone collision now intelligently guides units around walls based on their target direction
+- Units flow around walls in the shortest path toward their destination instead of being pushed backward
+- Improved wall collision with stronger repulsive force to prevent units from getting stuck
+- Wall collision preserves unit speed while redirecting movement around obstacles
+- Version button now only appears on the main menu (hidden during gameplay)
+
+### Fixed
+- Wall of Stone collision now works correctly for the King and all unit types
+- Units no longer exceed their max speed when redirected by wall collisions
 
 ## [v0.0.88] - 2025-01-31
 

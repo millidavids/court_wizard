@@ -68,3 +68,10 @@ pub struct MouseClicked {
     /// The entity of the button that was clicked.
     pub button: Entity,
 }
+
+/// Event fired when a number key (1-10, using 0 for 10) is pressed.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct ActionBarKeyPressed {
+    /// The action bar slot (0-9, where 0 represents the 10th slot).
+    pub slot: u8,
+}

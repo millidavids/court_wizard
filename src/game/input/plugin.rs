@@ -40,15 +40,20 @@ impl Plugin for InputPlugin {
             .add_message::<SpacebarReleased>()
             .add_message::<BlockSpellInput>()
             .add_message::<MouseClicked>()
+            .add_message::<ActionBarKeyPressed>()
             // Add input detection systems
             .add_systems(
                 Update,
                 (
                     systems::detect_mouse_input,
-                    systems::detect_keyboard_input,
                     systems::update_input_state_for_run_conditions,
                 )
                     .run_if(in_state(InGameState::Running)),
+            )
+            .add_systems(
+                Update,
+                systems::detect_keyboard_input
+                    .run_if(in_state(InGameState::Running).or(in_state(InGameState::SpellBook))),
             );
     }
 }
