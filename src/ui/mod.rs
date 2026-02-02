@@ -10,6 +10,7 @@ mod in_game;
 mod main_menu;
 mod pause_menu;
 mod plugin;
+mod rune_display;
 mod spell_book;
 mod styles;
 mod systems;

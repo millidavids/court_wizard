@@ -101,18 +101,13 @@ pub fn detect_keyboard_input(
         spacebar_released.write(SpacebarReleased);
     }
 
-    // Check number keys 1-9, 0 (for slots 0-9 in action bar)
-    const NUMBER_KEYS: [(KeyCode, u8); 10] = [
+    // Check number keys 1-5 (for slots 0-4 in action bar)
+    const NUMBER_KEYS: [(KeyCode, u8); 5] = [
         (KeyCode::Digit1, 0),
         (KeyCode::Digit2, 1),
         (KeyCode::Digit3, 2),
         (KeyCode::Digit4, 3),
         (KeyCode::Digit5, 4),
-        (KeyCode::Digit6, 5),
-        (KeyCode::Digit7, 6),
-        (KeyCode::Digit8, 7),
-        (KeyCode::Digit9, 8),
-        (KeyCode::Digit0, 9),
     ];
 
     for (key_code, slot) in NUMBER_KEYS {

@@ -33,12 +33,8 @@ pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) 
             OnGameplayScreen,
         ))
         .with_children(|parent| {
-            for slot in 0..10 {
-                let hotkey_label = if slot == 9 {
-                    "0"
-                } else {
-                    &(slot + 1).to_string()
-                };
+            for slot in 0..5 {
+                let hotkey_label = &(slot + 1).to_string();
                 let spell = config.action_bar_slots[slot as usize];
 
                 parent

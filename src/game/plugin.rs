@@ -6,6 +6,7 @@ use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
 use super::resources::{CurrentLevel, GameOutcome, KillStats};
+use super::runes::RunePlugin;
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -72,7 +73,7 @@ impl Plugin for GamePlugin {
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()
             .insert_resource(GameOutcome::Victory)
-            .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin))
+            .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin, RunePlugin))
             .add_systems(
                 OnEnter(AppState::InGame),
                 shared_systems::init_level_from_config,

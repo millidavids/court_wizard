@@ -11,6 +11,7 @@ use super::game_over::GameOverPlugin;
 use super::in_game::plugin::InGamePlugin;
 use super::main_menu::MainMenuPlugin;
 use super::pause_menu::plugin::PauseMenuPlugin;
+use super::rune_display::RuneDisplayPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
 use super::version::VersionPlugin;
@@ -36,6 +37,7 @@ impl Plugin for UiPlugin {
             PauseMenuPlugin,
             SpellBookPlugin,
             ActionBarPlugin,
+            RuneDisplayPlugin,
             GameOverPlugin,
             VersionPlugin,
         ))

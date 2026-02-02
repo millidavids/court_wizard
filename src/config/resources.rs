@@ -110,13 +110,13 @@ fn default_efficiency_ratios() -> HashMap<String, f32> {
     HashMap::new()
 }
 
-/// Default action bar slots: None for all 10 slots.
-fn default_action_bar_slots() -> [Option<Spell>; 10] {
-    [None; 10]
+/// Default action bar slots: None for all 5 slots.
+fn default_action_bar_slots() -> [Option<Spell>; 5] {
+    [None; 5]
 }
 
 /// Serialize action bar slots as a map with string keys, filtering out None values.
-fn serialize_action_bar<S>(slots: &[Option<Spell>; 10], serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_action_bar<S>(slots: &[Option<Spell>; 5], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -131,15 +131,15 @@ where
 }
 
 /// Deserialize action bar slots from a map of string indices to spells.
-fn deserialize_action_bar<'de, D>(deserializer: D) -> Result<[Option<Spell>; 10], D::Error>
+fn deserialize_action_bar<'de, D>(deserializer: D) -> Result<[Option<Spell>; 5], D::Error>
 where
     D: Deserializer<'de>,
 {
     let map: HashMap<String, Spell> = HashMap::deserialize(deserializer).unwrap_or_default();
-    let mut slots = [None; 10];
+    let mut slots = [None; 5];
     for (idx_str, spell) in map {
         if let Ok(idx) = idx_str.parse::<usize>()
-            && idx < 10
+            && idx < 5
         {
             slots[idx] = Some(spell);
         }
@@ -193,14 +193,14 @@ pub struct GameConfig {
     /// Key: level number as string, Value: efficiency ratio (0.0 = all defenders lost, 1.0 = no defenders lost)
     #[serde(default = "default_efficiency_ratios")]
     pub efficiency_ratios: HashMap<String, f32>,
-    /// Action bar spell slots (0-9 correspond to keys 1-9, 0)
+    /// Action bar spell slots (0-4 correspond to keys 1-5)
     /// None = empty slot, Some(spell) = assigned spell
     #[serde(
         default = "default_action_bar_slots",
         serialize_with = "serialize_action_bar",
         deserialize_with = "deserialize_action_bar"
     )]
-    pub action_bar_slots: [Option<Spell>; 10],
+    pub action_bar_slots: [Option<Spell>; 5],
 }
 
 impl Default for GameConfig {
@@ -215,7 +215,7 @@ impl Default for GameConfig {
             current_level: 1,
             highest_level_achieved: 1,
             efficiency_ratios: HashMap::new(),
-            action_bar_slots: [None; 10],
+            action_bar_slots: [None; 5],
         }
     }
 }
