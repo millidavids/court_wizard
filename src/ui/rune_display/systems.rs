@@ -157,14 +157,18 @@ pub(super) fn update_spell_name_fade(
 }
 
 /// Shows spell name briefly when a valid rune sequence is activated.
+/// MUST run BEFORE handle_rune_activation clears the sequence.
 pub(super) fn show_spell_name_on_activation(
     mut activation_reader: MessageReader<crate::game::runes::events::ActivateRuneSequence>,
     sequence: Res<RuneSequence>,
     mut commands: Commands,
     mut sequence_text_query: Query<(Entity, &mut Text), With<RuneSequenceText>>,
 ) {
-    for _ in activation_reader.read() {
-        // Check if the sequence is valid
+    // Peek at messages without consuming them
+    let messages: Vec<_> = activation_reader.read().collect();
+
+    for _ in messages {
+        // Check if the current sequence is valid (before it gets cleared)
         if let Some(spell) = sequence_to_spell(&sequence.runes)
             && let Ok((entity, mut text)) = sequence_text_query.single_mut()
         {
