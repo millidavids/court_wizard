@@ -65,6 +65,7 @@ pub fn handle_fireball_casting(
                         &mut materials,
                         WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0),
                         target_pos,
+                        primed_spell,
                     );
                 }
                 // Return to resting state (no channeling for fireball)
@@ -115,11 +116,14 @@ fn spawn_fireball(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     origin: Vec3,
     target: Vec3,
+    primed_spell: &PrimedSpell,
 ) {
     let direction = (target - origin).normalize();
-    let velocity = direction * constants::PROJECTILE_SPEED;
+    let speed = primed_spell.scale(constants::PROJECTILE_SPEED);
+    let velocity = direction * speed;
 
-    let sphere = Sphere::new(FIREBALL_RADIUS);
+    let radius = primed_spell.scale(FIREBALL_RADIUS);
+    let sphere = Sphere::new(radius);
 
     commands.spawn((
         Mesh3d(meshes.add(sphere)),
@@ -131,9 +135,10 @@ fn spawn_fireball(
         Transform::from_translation(origin),
         Fireball::new(
             velocity,
-            constants::DAMAGE_PER_TICK,
-            constants::EXPLOSION_RADIUS,
-            constants::PROJECTILE_COLLISION_RADIUS,
+            primed_spell.scale(constants::DAMAGE_PER_TICK),
+            primed_spell.scale(constants::EXPLOSION_RADIUS),
+            primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS),
+            primed_spell.empowerment,
         ),
         OnGameplayScreen,
     ));
@@ -173,6 +178,7 @@ pub fn check_fireball_collisions(
                     explosion_pos,
                     fireball.explosion_radius,
                     fireball.damage,
+                    fireball.empowerment,
                 );
                 commands.entity(fireball_entity).despawn();
                 hit_wall = true;
@@ -194,6 +200,7 @@ pub fn check_fireball_collisions(
                 explosion_pos,
                 fireball.explosion_radius,
                 fireball.damage,
+                fireball.empowerment,
             );
             commands.entity(fireball_entity).despawn();
             continue;
@@ -212,6 +219,7 @@ pub fn check_fireball_collisions(
                     fireball_pos,
                     fireball.explosion_radius,
                     fireball.damage,
+                    fireball.empowerment,
                 );
                 commands.entity(fireball_entity).despawn();
                 break;
@@ -228,6 +236,7 @@ fn spawn_explosion(
     position: Vec3,
     max_radius: f32,
     damage: f32,
+    empowerment: f32,
 ) {
     let sphere = Sphere::new(1.0); // Unit sphere, scaled by transform
 
@@ -239,7 +248,7 @@ fn spawn_explosion(
             ..default()
         })),
         Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
-        FireballExplosion::new(position, max_radius, damage),
+        FireballExplosion::new(position, max_radius, damage, empowerment),
         OnGameplayScreen,
     ));
 }
@@ -301,8 +310,13 @@ pub fn cleanup_finished_explosions(
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= constants::EXPLOSION_DURATION {
+            // Apply empowerment scaling to residual effect
+            let scale = explosion.empowerment;
+            let residual_radius = constants::RESIDUAL_DAMAGE_RADIUS * scale;
+            let residual_damage = constants::RESIDUAL_DAMAGE_PER_TICK * scale;
+
             // Spawn residual fire at explosion origin
-            let circle = Circle::new(constants::RESIDUAL_DAMAGE_RADIUS);
+            let circle = Circle::new(residual_radius);
             commands.spawn((
                 Mesh3d(meshes.add(circle)),
                 MeshMaterial3d(materials.add(StandardMaterial {
@@ -316,8 +330,8 @@ pub fn cleanup_finished_explosions(
                     .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
                 ResidualAreaDamageEffect::new(
                     explosion.origin,
-                    constants::RESIDUAL_DAMAGE_RADIUS,
-                    constants::RESIDUAL_DAMAGE_PER_TICK,
+                    residual_radius,
+                    residual_damage,
                     constants::RESIDUAL_TICK_INTERVAL,
                     constants::RESIDUAL_DURATION,
                 ),

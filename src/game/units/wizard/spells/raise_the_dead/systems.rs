@@ -70,6 +70,7 @@ pub fn handle_raise_the_dead_casting(
                             &corpse_query,
                             &mut materials,
                             &material_query,
+                            primed_spell.empowerment,
                         );
                         casting_state.reset_channel_interval();
                     }
@@ -96,6 +97,7 @@ pub fn handle_raise_the_dead_casting(
                             &corpse_query,
                             &mut materials,
                             &material_query,
+                            primed_spell.empowerment,
                         );
                         casting_state.start_channeling();
                     }
@@ -118,12 +120,17 @@ pub fn handle_raise_the_dead_casting(
 ///
 /// Searches for corpses within RESURRECTION_RADIUS and resurrects the closest one.
 /// All raised undead are infantry units.
+///
+/// # Arguments
+///
+/// * `empowered` - Whether the spell is empowered (applies 1.25x stat scaling)
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
     corpse_query: &Query<(Entity, &Transform, &Team), (With<Corpse>, Without<PermanentCorpse>)>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     material_query: &Query<&MeshMaterial3d<StandardMaterial>>,
+    empowerment: f32,
 ) {
     // Find nearest corpse within radius
     if let Some((corpse_entity, corpse_transform, _)) = corpse_query
@@ -153,6 +160,17 @@ fn resurrect_nearest_corpse(
             corpse_transform.translation.z,
         );
 
+        // Apply empowerment scaling (1.25x bonus to stats if empowered)
+        let scale = empowerment;
+        let health = UNIT_HEALTH * scale;
+        let speed = UNIT_MOVEMENT_SPEED * 0.5 * scale; // Base is half speed, then apply scaling
+
+        // Create effectiveness with spell bonus for damage scaling if empowered
+        let mut effectiveness = Effectiveness::new();
+        if empowerment > 1.0 {
+            effectiveness.spell_bonus = 0.25; // +25% damage bonus
+        }
+
         // Restore combat components but change team
         commands
             .entity(corpse_entity)
@@ -160,12 +178,12 @@ fn resurrect_nearest_corpse(
             .remove::<RoughTerrain>()
             .insert(upright_transform) // Stand upright
             .insert(Team::Undead)
-            .insert(Health::new(UNIT_HEALTH)) // Full health restoration
+            .insert(Health::new(health)) // Full health restoration with empowerment scaling
             .insert(Velocity::default())
             .insert(Acceleration::new())
-            .insert(MovementSpeed(UNIT_MOVEMENT_SPEED * 0.5)) // Half speed
+            .insert(MovementSpeed(speed)) // Half speed with empowerment scaling
             .insert(AttackTiming::new())
-            .insert(Effectiveness::new())
+            .insert(effectiveness) // Effectiveness with empowerment bonus if applicable
             .insert(Billboard)
             .insert(hitbox) // Restore collision
             .insert(Teleportable) // Can be teleported

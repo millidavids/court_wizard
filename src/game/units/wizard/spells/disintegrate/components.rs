@@ -17,6 +17,8 @@ pub struct DisintegrateBeam {
     pub time_since_damage: f32,
     /// Time since beam was spawned (used for growth animation).
     pub time_alive: f32,
+    /// Whether this beam is empowered.
+    pub empowerment: f32,
 }
 
 impl DisintegrateBeam {
@@ -27,14 +29,28 @@ impl DisintegrateBeam {
     /// * `origin` - Starting position of the beam
     /// * `direction` - Direction the beam points (will be normalized)
     /// * `length` - Length of the beam
-    pub fn new(origin: Vec3, direction: Vec3, length: f32) -> Self {
+    /// * `empowered` - Whether this beam is empowered (25% bonus)
+    pub fn new(origin: Vec3, direction: Vec3, length: f32, empowerment: f32) -> Self {
         Self {
             origin,
             direction: direction.normalize(),
             length,
             time_since_damage: 0.0,
             time_alive: 0.0,
+            empowerment,
         }
+    }
+
+    /// Gets the damage per tick, scaled by empowerment.
+    pub fn damage_per_tick(&self) -> f32 {
+        let scale = self.empowerment;
+        constants::DAMAGE_PER_TICK * scale
+    }
+
+    /// Gets the beam width, scaled by empowerment.
+    pub fn beam_width(&self) -> f32 {
+        let scale = self.empowerment;
+        constants::BEAM_WIDTH * scale
     }
 
     /// Checks if enough time has passed to deal damage again.
@@ -92,6 +108,6 @@ impl DisintegrateBeam {
         let closest_point_on_beam = self.origin + self.direction * projection_length;
         let distance_from_beam = point.distance(closest_point_on_beam);
 
-        distance_from_beam <= constants::BEAM_WIDTH
+        distance_from_beam <= self.beam_width()
     }
 }

@@ -102,6 +102,7 @@ pub fn handle_disintegrate_casting(
                             beam_origin,
                             direction,
                             beam_length,
+                            primed_spell.empowerment,
                         );
                     }
                 }
@@ -155,6 +156,7 @@ pub fn handle_disintegrate_casting(
                         beam_origin,
                         direction,
                         beam_length,
+                        primed_spell.empowerment,
                     );
                 }
             }
@@ -236,7 +238,7 @@ pub fn apply_disintegrate_damage(
                         apply_damage_to_unit(
                             &mut health,
                             temp_hp.as_deref_mut(),
-                            constants::DAMAGE_PER_TICK,
+                            beam.damage_per_tick(),
                         );
                     }
                 }
@@ -270,16 +272,21 @@ fn spawn_beam(
     origin: Vec3,
     direction: Vec3,
     length: f32,
+    empowerment: f32,
 ) {
     // Calculate midpoint for the beam billboard
     let midpoint = origin + direction * (length / 2.0);
 
+    // Apply empowerment scaling to beam width
+    let scale = empowerment;
+    let beam_width = constants::BEAM_WIDTH * scale;
+
     // Create a rectangle mesh for the beam
     // We'll use a standard size and scale it later
-    let rectangle = Rectangle::new(constants::BEAM_WIDTH, constants::BEAM_WIDTH);
+    let rectangle = Rectangle::new(beam_width, beam_width);
 
     commands.spawn((
-        DisintegrateBeam::new(origin, direction, length),
+        DisintegrateBeam::new(origin, direction, length, empowerment),
         Mesh3d(meshes.add(rectangle)),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: constants::BEAM_COLOR,

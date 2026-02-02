@@ -87,10 +87,13 @@ pub fn detect_keyboard_input(
     mut spacebar_held: MessageWriter<SpacebarHeld>,
     mut spacebar_released: MessageWriter<SpacebarReleased>,
     mut action_bar_pressed: MessageWriter<ActionBarKeyPressed>,
+    mut rune_pressed: MessageWriter<crate::game::runes::events::RunePressed>,
+    mut rune_activate: MessageWriter<crate::game::runes::events::ActivateRuneSequence>,
 ) {
     // Check spacebar state
     if keyboard.just_pressed(KeyCode::Space) {
         spacebar_pressed.write(SpacebarPressed);
+        rune_activate.write(crate::game::runes::events::ActivateRuneSequence);
     }
 
     if keyboard.pressed(KeyCode::Space) {
@@ -113,6 +116,20 @@ pub fn detect_keyboard_input(
     for (key_code, slot) in NUMBER_KEYS {
         if keyboard.just_pressed(key_code) {
             action_bar_pressed.write(ActionBarKeyPressed { slot });
+        }
+    }
+
+    // Check rune keys Q, W, E, R
+    const RUNE_KEYS: [(KeyCode, crate::game::runes::resources::Rune); 4] = [
+        (KeyCode::KeyQ, crate::game::runes::resources::Rune::Q),
+        (KeyCode::KeyW, crate::game::runes::resources::Rune::W),
+        (KeyCode::KeyE, crate::game::runes::resources::Rune::E),
+        (KeyCode::KeyR, crate::game::runes::resources::Rune::R),
+    ];
+
+    for (key_code, rune) in RUNE_KEYS {
+        if keyboard.just_pressed(key_code) {
+            rune_pressed.write(crate::game::runes::events::RunePressed { rune });
         }
     }
 }

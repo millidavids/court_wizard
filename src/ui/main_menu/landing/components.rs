@@ -22,4 +22,7 @@ pub(super) enum MenuButtonAction {
 
     /// Open the changelog screen, transitioning to `MenuState::Changelog`.
     Changelog,
+
+    /// Open the instructions screen, transitioning to `MenuState::Instructions`.
+    Instructions,
 }

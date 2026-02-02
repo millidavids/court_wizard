@@ -5,19 +5,6 @@ use super::events::*;
 use super::resources::*;
 use crate::game::units::wizard::components::PrimeSpellMessage;
 
-/// Detects rune key presses (Q, W, E, R) and sends RunePressed messages.
-/// Only runs during InGameState::Running.
-pub fn detect_rune_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut rune_pressed: MessageWriter<RunePressed>,
-) {
-    for rune in [Rune::Q, Rune::W, Rune::E, Rune::R] {
-        if keyboard.just_pressed(rune.keycode()) {
-            rune_pressed.write(RunePressed { rune });
-        }
-    }
-}
-
 /// Handles RunePressed messages by adding to the current sequence.
 pub fn handle_rune_pressed(
     mut messages: MessageReader<RunePressed>,
@@ -31,33 +18,28 @@ pub fn handle_rune_pressed(
     }
 }
 
-/// Detects spacebar press for activating rune sequences.
-pub fn detect_rune_activation(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut activate: MessageWriter<ActivateRuneSequence>,
-) {
-    if keyboard.just_pressed(KeyCode::Space) {
-        activate.write(ActivateRuneSequence);
-    }
-}
-
 /// Handles rune sequence activation by mapping to spell and sending PrimeSpellMessage.
 pub fn handle_rune_activation(
     mut messages: MessageReader<ActivateRuneSequence>,
     mut sequence: ResMut<RuneSequence>,
+    mut last_activated: ResMut<super::resources::LastActivatedSpell>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
     mut spell_activated: MessageWriter<RuneSpellActivated>,
 ) {
     for _ in messages.read() {
         if let Some(spell) = sequence_to_spell(&sequence.runes) {
-            // Valid sequence - prime the spell
+            // Store in resource for UI display FIRST, before clearing sequence
+            last_activated.activate(spell);
+
+            // Valid sequence - prime the spell with 25% empowerment
             prime_spell.write(PrimeSpellMessage {
-                spell: spell.primed_config(),
+                spell: spell.primed_config().with_empowerment(1.25),
             });
             // Notify UI that a spell was activated
             spell_activated.write(RuneSpellActivated { spell });
         }
         // Always clear sequence after activation attempt (valid or invalid)
+        // By this point, last_activated is already set, so UI won't overwrite it
         sequence.clear();
     }
 }

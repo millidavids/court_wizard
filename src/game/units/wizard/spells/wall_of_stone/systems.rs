@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
@@ -17,7 +17,14 @@ pub fn handle_wall_of_stone_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &Transform, &Wizard, &mut CastingState, &mut Mana),
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
         With<Wizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -25,7 +32,7 @@ pub fn handle_wall_of_stone_casting(
     mut caster_query: Query<&mut WallOfStoneCaster, With<Wizard>>,
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
 ) {
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana)) =
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -67,24 +74,31 @@ pub fn handle_wall_of_stone_casting(
                 let wall_mesh = Cuboid::new(clamped_length, WALL_HEIGHT, WALL_WIDTH);
                 let rotation = Quat::from_rotation_arc(Vec3::X, forward);
 
+                // Apply empowerment scaling
+                let scale = primed_spell.empowerment;
+                let wall_width = WALL_WIDTH * scale;
+                let wall_height = WALL_HEIGHT * scale;
+                let wall_duration = WALL_DURATION * scale;
+
                 commands.spawn((
                     Mesh3d(meshes.add(wall_mesh)),
                     MeshMaterial3d(materials.add(StandardMaterial {
                         base_color: WALL_COLOR,
                         ..default()
                     })),
-                    Transform::from_xyz(center.x, WALL_HEIGHT / 2.0, center.z)
+                    Transform::from_xyz(center.x, wall_height / 2.0, center.z)
                         .with_rotation(rotation),
                     WallOfStone {
                         center,
                         half_length: clamped_length / 2.0,
-                        half_width: WALL_WIDTH / 2.0,
+                        half_width: wall_width / 2.0,
                         forward,
                         right,
-                        height: WALL_HEIGHT,
+                        height: wall_height,
                         time_alive: 0.0,
-                        duration: WALL_DURATION,
+                        duration: wall_duration,
                         sinking: false,
+                        empowerment: primed_spell.empowerment,
                     },
                     OnGameplayScreen,
                 ));

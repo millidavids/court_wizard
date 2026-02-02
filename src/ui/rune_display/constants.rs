@@ -20,11 +20,6 @@ pub(super) const RUNE_SEQUENCE_FONT_SIZE: f32 = 20.0;
 /// Bottom margin from screen edge (between action bar and mana/cast bars).
 pub(super) const BOTTOM_MARGIN: f32 = 20.0;
 
-/// Left margin - positioned after action bar.
-/// Action bar is 5 slots * 50px + 4 gaps * 4px = 266px wide, plus 20px margin = 286px.
-/// Add some spacing: 286px + 20px gap = 306px.
-pub(super) const LEFT_MARGIN: f32 = 306.0;
-
 /// Button style for rune buttons.
 pub(super) const RUNE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: RUNE_BUTTON_WIDTH,

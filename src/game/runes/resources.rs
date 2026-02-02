@@ -20,16 +20,6 @@ impl Rune {
             Rune::R => 'R',
         }
     }
-
-    /// Returns the keycode for this rune.
-    pub const fn keycode(&self) -> KeyCode {
-        match self {
-            Rune::Q => KeyCode::KeyQ,
-            Rune::W => KeyCode::KeyW,
-            Rune::E => KeyCode::KeyE,
-            Rune::R => KeyCode::KeyR,
-        }
-    }
 }
 
 /// Resource tracking the current rune sequence being built.
@@ -84,5 +74,25 @@ impl fmt::Display for RuneSequence {
             write!(f, "{}", rune.as_char())?;
         }
         Ok(())
+    }
+}
+
+/// Resource tracking the last activated spell for UI display purposes.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct LastActivatedSpell {
+    pub spell: Option<crate::game::units::wizard::components::Spell>,
+    pub just_activated: bool,
+}
+
+impl LastActivatedSpell {
+    /// Sets the last activated spell and marks it as just activated.
+    pub fn activate(&mut self, spell: crate::game::units::wizard::components::Spell) {
+        self.spell = Some(spell);
+        self.just_activated = true;
+    }
+
+    /// Clears the just_activated flag (called after UI reads it).
+    pub fn acknowledge(&mut self) {
+        self.just_activated = false;
     }
 }

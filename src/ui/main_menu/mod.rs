@@ -1,6 +1,6 @@
 //! Main menu module.
 //!
-//! Contains the MainMenuPlugin which aggregates Landing, Settings, and Changelog screens.
+//! Contains the MainMenuPlugin which aggregates Landing, Settings, Changelog, and Instructions screens.
 
 mod changelog;
 mod landing;

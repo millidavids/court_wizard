@@ -16,5 +16,6 @@ pub struct ActivateRuneSequence;
 /// Message sent when a valid rune sequence is activated with the resulting spell.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct RuneSpellActivated {
+    #[allow(dead_code)]
     pub spell: Spell,
 }

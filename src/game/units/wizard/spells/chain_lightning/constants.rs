@@ -5,6 +5,8 @@ use crate::game::units::wizard::components::{PrimedSpell, Spell};
 pub const PRIMED_CHAIN_LIGHTNING: PrimedSpell = PrimedSpell {
     spell: Spell::ChainLightning,
     cast_time: CAST_TIME,
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 // Casting

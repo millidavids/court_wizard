@@ -120,6 +120,42 @@ pub struct PrimedSpell {
     pub spell: Spell,
     /// Time required to cast this spell before it activates (in seconds).
     pub cast_time: f32,
+    /// Empowerment multiplier for spell effectiveness (1.0 = normal, 1.25 = 25% bonus, etc.).
+    pub empowerment: f32,
+    /// Whether the empowerment has been consumed by starting a cast.
+    pub empowerment_consumed: bool,
+}
+
+impl PrimedSpell {
+    /// Creates an empowered version of this primed spell with the given multiplier.
+    pub const fn with_empowerment(mut self, multiplier: f32) -> Self {
+        self.empowerment = multiplier;
+        self.cast_time /= multiplier;
+        self.empowerment_consumed = false;
+        self
+    }
+
+    /// Applies empowerment scaling to a value.
+    pub fn scale(&self, value: f32) -> f32 {
+        value * self.empowerment
+    }
+
+    /// Marks the empowerment as consumed (called when starting a cast).
+    pub fn consume_empowerment(&mut self) {
+        self.empowerment_consumed = true;
+    }
+
+    /// Returns true if empowerment needs to be reset.
+    pub fn should_reset_empowerment(&self) -> bool {
+        self.empowerment != 1.0 && self.empowerment_consumed
+    }
+
+    /// Resets empowerment to 1.0 and restores original cast time.
+    pub fn reset_empowerment(&mut self) {
+        self.empowerment = 1.0;
+        self.cast_time = self.spell.primed_config().cast_time;
+        self.empowerment_consumed = false;
+    }
 }
 
 /// Message sent to prime a spell for casting.

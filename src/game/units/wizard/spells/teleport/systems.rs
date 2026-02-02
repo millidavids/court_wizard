@@ -112,7 +112,7 @@ pub fn handle_teleport_casting(
         ),
     >,
 ) {
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, _)) =
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -157,13 +157,14 @@ pub fn handle_teleport_casting(
         if let CastingState::Casting { elapsed } = *casting_state {
             // Get source circle position
             if let Some(source_entity) = caster.source_circle
-                && let Ok((transform, _)) = source_query.get(source_entity)
+                && let Ok((transform, source_circle)) = source_query.get(source_entity)
             {
                 let source_pos = transform.translation;
 
                 // Calculate current circle radius based on growth
                 let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
-                let current_radius = CIRCLE_RADIUS * growth;
+                let scale = source_circle.empowerment;
+                let current_radius = CIRCLE_RADIUS * scale * growth;
 
                 // Check mana and execute teleport
                 if mana.can_afford(MANA_COST) {
@@ -217,6 +218,7 @@ pub fn handle_teleport_casting(
             &mut materials,
             &mut destination_query,
             clamped_pos,
+            primed_spell,
         );
     } else {
         // PHASE 2: Placing source circle and teleporting
@@ -231,12 +233,14 @@ pub fn handle_teleport_casting(
             &mut materials,
             &mut source_query,
             clamped_pos,
+            primed_spell,
             &units_query,
         );
     }
 }
 
 /// Handles the first cast phase (destination placement) - shows crosshair while mouse is held.
+#[allow(clippy::too_many_arguments)]
 fn handle_first_cast(
     casting_state: &mut CastingState,
     caster: &mut TeleportCaster,
@@ -251,11 +255,13 @@ fn handle_first_cast(
         ),
     >,
     position: Vec3,
+    primed_spell: &PrimedSpell,
 ) {
     match *casting_state {
         CastingState::Resting => {
             // Start showing crosshair on mouse down
-            let crosshair_mesh = meshes.add(Circle::new(CROSSHAIR_RADIUS));
+            let radius = primed_spell.scale(CROSSHAIR_RADIUS);
+            let crosshair_mesh = meshes.add(Circle::new(radius));
             let crosshair_material = materials.add(StandardMaterial {
                 base_color: DESTINATION_COLOR,
                 unlit: true,
@@ -268,7 +274,7 @@ fn handle_first_cast(
                     MeshMaterial3d(crosshair_material),
                     Transform::from_xyz(position.x, 1.0, position.z)
                         .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-                    TeleportDestinationCircle::new(),
+                    TeleportDestinationCircle::new(primed_spell.empowerment),
                     OnGameplayScreen,
                 ))
                 .id();
@@ -310,6 +316,7 @@ fn handle_second_cast(
         ),
     >,
     position: Vec3,
+    primed_spell: &PrimedSpell,
     units_query: &Query<
         (Entity, &Transform),
         (
@@ -330,7 +337,8 @@ fn handle_second_cast(
             casting_state.start_cast();
 
             // Spawn source circle
-            let circle_mesh = meshes.add(Circle::new(CIRCLE_RADIUS));
+            let radius = primed_spell.scale(CIRCLE_RADIUS);
+            let circle_mesh = meshes.add(Circle::new(radius));
             let circle_material = materials.add(StandardMaterial {
                 base_color: SOURCE_COLOR,
                 unlit: true,
@@ -344,7 +352,7 @@ fn handle_second_cast(
                     Transform::from_xyz(position.x, 1.0, position.z)
                         .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                         .with_scale(Vec3::ZERO), // Start at zero size
-                    TeleportSourceCircle::new(position),
+                    TeleportSourceCircle::new(position, primed_spell.empowerment),
                     OnGameplayScreen,
                 ))
                 .id();
@@ -375,9 +383,10 @@ fn handle_second_cast(
                 // Consume mana
                 mana.consume(MANA_COST);
 
-                // Execute teleportation
+                // Execute teleportation with scaled radius
+                let radius = primed_spell.scale(CIRCLE_RADIUS);
                 if let Some(dest_pos) = caster.destination_position {
-                    teleport_units(position, dest_pos, units_query, commands);
+                    teleport_units(position, dest_pos, radius, units_query, commands);
                 }
 
                 // Despawn both circles
@@ -405,6 +414,7 @@ fn handle_second_cast(
 fn teleport_units(
     source_center: Vec3,
     dest_center: Vec3,
+    radius: f32,
     units_query: &Query<
         (Entity, &Transform),
         (
@@ -415,13 +425,7 @@ fn teleport_units(
     >,
     commands: &mut Commands,
 ) {
-    teleport_units_with_radius(
-        source_center,
-        dest_center,
-        CIRCLE_RADIUS,
-        units_query,
-        commands,
-    );
+    teleport_units_with_radius(source_center, dest_center, radius, units_query, commands);
 }
 
 /// Teleports all units within a specified radius of the source center to random positions

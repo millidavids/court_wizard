@@ -44,6 +44,9 @@ pub enum MenuState {
     /// Changelog screen.
     Changelog,
 
+    /// Instructions screen explaining gameplay mechanics.
+    Instructions,
+
     /// Credits screen.
     Credits,
 }
@@ -97,4 +100,7 @@ pub enum PauseMenuState {
 
     /// Settings submenu (identical to main menu settings).
     Settings,
+
+    /// Instructions screen explaining gameplay mechanics.
+    Instructions,
 }

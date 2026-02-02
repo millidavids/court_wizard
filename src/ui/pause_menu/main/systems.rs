@@ -63,6 +63,14 @@ pub fn setup(mut commands: Commands) {
                 &BUTTON_STYLE,
             );
 
+            // Instructions button
+            spawn_button(
+                parent,
+                "Instructions",
+                PauseMenuButtonAction::Instructions,
+                &BUTTON_STYLE,
+            );
+
             // Exit button
             spawn_button(
                 parent,
@@ -100,6 +108,9 @@ pub fn button_action(
                 }
                 PauseMenuButtonAction::Settings => {
                     next_pause_menu_state.set(PauseMenuState::Settings);
+                }
+                PauseMenuButtonAction::Instructions => {
+                    next_pause_menu_state.set(PauseMenuState::Instructions);
                 }
                 PauseMenuButtonAction::Exit => {
                     next_app_state.set(AppState::MainMenu);

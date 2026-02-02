@@ -85,7 +85,10 @@ pub fn handle_guardian_circle_casting(
     };
 
     // Account for the Guardian Circle's radius so the entire circle stays within range
-    let max_center_distance = (max_ground_radius - constants::CIRCLE_RADIUS).max(0.0);
+    // Scale radius by empowerment
+    let scale = primed_spell.empowerment;
+    let circle_radius = constants::CIRCLE_RADIUS * scale;
+    let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
 
     // Calculate XZ plane distance from wizard to cursor
     let direction = cursor_world_pos - wizard_pos;
@@ -109,6 +112,7 @@ pub fn handle_guardian_circle_casting(
                     &mut meshes,
                     &mut materials,
                     cursor_world_pos,
+                    primed_spell.empowerment,
                 );
 
                 // Mark wizard as casting Guardian Circle
@@ -140,12 +144,17 @@ pub fn handle_guardian_circle_casting(
                     if let Ok(mut caster) = caster_query.single_mut() {
                         if let Some(circle_entity) = caster.circle_entity {
                             if let Ok(indicator) = indicator_query.get(circle_entity) {
+                                // Scale radius by empowerment
+                                let scale = indicator.empowerment;
+                                let radius = constants::CIRCLE_RADIUS * scale;
+
                                 apply_guardian_circle_buff(
                                     &mut commands,
                                     indicator.position,
-                                    constants::CIRCLE_RADIUS,
+                                    radius,
                                     constants::TEMP_HP_AMOUNT,
                                     constants::TEMP_HP_DURATION,
+                                    indicator.empowerment,
                                     &mut targets_query,
                                 );
                             }
@@ -215,14 +224,21 @@ pub fn update_circle_indicator(
 /// Helper function to apply Guardian Circle buff to all units in radius.
 ///
 /// Grants temporary HP to units. If a unit already has temp HP, takes the maximum.
+/// Scales temp HP amount and duration by 1.25x when empowered.
 fn apply_guardian_circle_buff(
     commands: &mut Commands,
     circle_pos: Vec3,
     radius: f32,
     temp_hp_amount: f32,
     duration: f32,
+    empowerment: f32,
     targets: &mut Query<(Entity, &Transform), Without<Wizard>>,
 ) {
+    // Scale values by empowerment
+    let scale = empowerment;
+    let scaled_temp_hp = temp_hp_amount * scale;
+    let scaled_duration = duration * scale;
+
     for (entity, transform) in targets.iter() {
         let distance = transform.translation.distance(circle_pos);
 
@@ -230,7 +246,7 @@ fn apply_guardian_circle_buff(
             // Unit is in range - add or update TemporaryHitPoints
             commands
                 .entity(entity)
-                .insert(TemporaryHitPoints::new(temp_hp_amount, duration));
+                .insert(TemporaryHitPoints::new(scaled_temp_hp, scaled_duration));
         }
     }
 }
@@ -238,13 +254,19 @@ fn apply_guardian_circle_buff(
 /// Helper function to spawn the visual circle indicator.
 ///
 /// Creates a translucent cyan circle mesh at the target position.
+/// Scales radius by 1.25x when empowered.
 fn spawn_circle_indicator(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
+    empowerment: f32,
 ) -> Entity {
-    let circle_mesh = meshes.add(Circle::new(constants::CIRCLE_RADIUS));
+    // Scale radius by empowerment
+    let scale = empowerment;
+    let radius = constants::CIRCLE_RADIUS * scale;
+
+    let circle_mesh = meshes.add(Circle::new(radius));
     let circle_material = materials.add(StandardMaterial {
         base_color: CIRCLE_COLOR,
         unlit: true,
@@ -261,7 +283,7 @@ fn spawn_circle_indicator(
                 position.z,
             ))
             .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-            GuardianCircleIndicator::new(position),
+            GuardianCircleIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))
         .id()

@@ -13,6 +13,8 @@ pub struct ChainLightningBolt {
     pub last_hit_position: Vec3,
     /// Time remaining before next bounce triggers.
     pub bounce_delay_timer: f32,
+    /// Whether this chain lightning is empowered.
+    pub empowerment: f32,
 }
 
 /// Visual lightning arc between two points.

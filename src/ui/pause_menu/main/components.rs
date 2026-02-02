@@ -20,6 +20,9 @@ pub(super) enum PauseMenuButtonAction {
     /// Open the settings menu, transitioning to `PauseMenuState::Settings`.
     Settings,
 
+    /// Open the instructions screen, transitioning to `PauseMenuState::Instructions`.
+    Instructions,
+
     /// Exit to main menu, transitioning to `AppState::MainMenu`.
     Exit,
 }

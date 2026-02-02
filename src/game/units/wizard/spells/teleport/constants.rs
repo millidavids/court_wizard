@@ -9,6 +9,8 @@ use crate::game::units::wizard::components::Spell;
 pub const PRIMED_TELEPORT: PrimedSpell = PrimedSpell {
     spell: Spell::Teleport,
     cast_time: 0.0, // First cast is instant (places crosshair immediately)
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Second cast time for source circle and teleportation.

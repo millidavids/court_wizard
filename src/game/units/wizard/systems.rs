@@ -70,6 +70,35 @@ pub fn handle_prime_spell_messages(
     }
 }
 
+/// Manages empowerment consumption and reset based on casting state transitions.
+///
+/// When a cast starts (transition to Casting), marks empowerment as consumed.
+/// When returning to Resting, resets empowerment if it was previously consumed.
+/// This ensures empowerment only applies to a single cast (including full channel duration).
+pub fn reset_empowerment_after_cast(
+    mut wizard_query: Query<
+        (&CastingState, &mut PrimedSpell),
+        (With<Wizard>, Changed<CastingState>),
+    >,
+) {
+    for (casting_state, mut primed_spell) in &mut wizard_query {
+        match casting_state {
+            // When starting a cast, mark empowerment as consumed
+            CastingState::Casting { .. } => {
+                primed_spell.consume_empowerment();
+            }
+            // When returning to rest, reset empowerment if it was consumed
+            CastingState::Resting => {
+                if primed_spell.should_reset_empowerment() {
+                    primed_spell.reset_empowerment();
+                }
+            }
+            // Channeling state doesn't affect empowerment
+            CastingState::Channeling { .. } => {}
+        }
+    }
+}
+
 /// Cancels any active casting when leaving the Running state.
 ///
 /// Prevents spells from continuing to cast when entering menus or paused state.

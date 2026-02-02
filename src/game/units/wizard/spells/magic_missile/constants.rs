@@ -8,6 +8,8 @@ use crate::game::units::wizard::components::{PrimedSpell, Spell};
 pub const PRIMED_MAGIC_MISSILE: PrimedSpell = PrimedSpell {
     spell: Spell::MagicMissile,
     cast_time: CAST_TIME,
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Height offset above wizard for magic missile spawn.

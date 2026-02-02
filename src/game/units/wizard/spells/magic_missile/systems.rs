@@ -63,6 +63,7 @@ pub fn handle_magic_missile_casting(
                         &camera_query,
                         &targets,
                         wizard.spell_range,
+                        primed_spell.empowerment,
                     );
                     casting_state.reset_channel_interval();
                 } else {
@@ -86,6 +87,7 @@ pub fn handle_magic_missile_casting(
                         &camera_query,
                         &targets,
                         wizard.spell_range,
+                        primed_spell.empowerment,
                     );
                     casting_state.start_channeling();
                 } else {
@@ -114,6 +116,7 @@ fn spawn_magic_missile(
     camera_query: &Query<&GlobalTransform, With<Camera>>,
     targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     spell_range: f32,
+    empowerment: f32,
 ) {
     // Spawn position: above the wizard
     let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
@@ -178,7 +181,7 @@ fn spawn_magic_missile(
             ..default()
         })),
         Transform::from_translation(spawn_pos),
-        MagicMissile::new(initial_velocity, wobble_offset, target),
+        MagicMissile::new(initial_velocity, wobble_offset, target, empowerment),
         OnGameplayScreen,
     ));
 }

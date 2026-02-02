@@ -36,12 +36,18 @@ impl TeleportCaster {
 pub struct TeleportDestinationCircle {
     /// Time this indicator has been active (for animations).
     pub time_alive: f32,
+    /// Empowerment multiplier (stored for potential future use).
+    #[allow(dead_code)]
+    pub empowerment: f32,
 }
 
 impl TeleportDestinationCircle {
     /// Creates a new destination circle indicator.
-    pub const fn new() -> Self {
-        Self { time_alive: 0.0 }
+    pub const fn new(empowerment: f32) -> Self {
+        Self {
+            time_alive: 0.0,
+            empowerment,
+        }
     }
 
     /// Returns the current scale factor for pulse animation.
@@ -61,14 +67,17 @@ pub struct TeleportSourceCircle {
     pub position: Vec3,
     /// Time this indicator has been active (for animations).
     pub time_alive: f32,
+    /// Whether this teleport is empowered.
+    pub empowerment: f32,
 }
 
 impl TeleportSourceCircle {
     /// Creates a new source circle indicator.
-    pub const fn new(position: Vec3) -> Self {
+    pub const fn new(position: Vec3, empowerment: f32) -> Self {
         Self {
             position,
             time_alive: 0.0,
+            empowerment,
         }
     }
 

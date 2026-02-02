@@ -8,6 +8,8 @@ use crate::game::units::wizard::components::{PrimedSpell, Spell};
 pub const PRIMED_DISINTEGRATE: PrimedSpell = PrimedSpell {
     spell: Spell::Disintegrate,
     cast_time: CAST_TIME,
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Damage dealt per tick to entities in the beam.

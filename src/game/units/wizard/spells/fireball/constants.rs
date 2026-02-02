@@ -8,6 +8,8 @@ use crate::game::units::wizard::components::{PrimedSpell, Spell};
 pub const PRIMED_FIREBALL: PrimedSpell = PrimedSpell {
     spell: Spell::Fireball,
     cast_time: CAST_TIME,
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Height offset above wizard for fireball spawn.

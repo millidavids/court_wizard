@@ -70,12 +70,15 @@ pub fn handle_chain_lightning_casting(
                         let wizard_pos =
                             WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
+                        // Scale damage by empowerment
+                        let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
+
                         // Apply initial damage
                         if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
                             apply_damage_to_unit(
                                 &mut health,
                                 temp_hp.as_deref_mut(),
-                                constants::INITIAL_DAMAGE,
+                                initial_damage,
                             );
                         }
 
@@ -86,17 +89,18 @@ pub fn handle_chain_lightning_casting(
                             &mut materials,
                             wizard_pos,
                             target_pos,
+                            primed_spell.empowerment,
                         );
 
                         // Spawn chain lightning bolt to track bouncing
                         commands.spawn((
                             ChainLightningBolt {
                                 hit_entities: vec![target_entity],
-                                current_damage: constants::INITIAL_DAMAGE
-                                    * constants::DAMAGE_FALLOFF,
+                                current_damage: initial_damage * constants::DAMAGE_FALLOFF,
                                 bounces_remaining: constants::MAX_BOUNCES,
                                 last_hit_position: target_pos,
-                                bounce_delay_timer: constants::BOUNCE_DELAY,
+                                bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
+                                empowerment: primed_spell.empowerment,
                             },
                             OnGameplayScreen,
                         ));
@@ -176,13 +180,18 @@ fn spawn_arc(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     start: Vec3,
     end: Vec3,
+    empowerment: f32,
 ) {
     let midpoint = (start + end) / 2.0;
     let direction = (end - start).normalize();
     let length = start.distance(end);
 
+    // Scale arc width by empowerment
+    let scale = empowerment;
+    let arc_width = constants::ARC_WIDTH * scale;
+
     // Create a rectangle mesh for the arc
-    let rectangle = Rectangle::new(constants::ARC_WIDTH, constants::ARC_WIDTH);
+    let rectangle = Rectangle::new(arc_width, arc_width);
 
     // Calculate rotation to align Y axis with direction
     let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
@@ -202,7 +211,7 @@ fn spawn_arc(
         })),
         Transform::from_translation(midpoint)
             .with_rotation(rotation)
-            .with_scale(Vec3::new(1.0, length / constants::ARC_WIDTH, 1.0)),
+            .with_scale(Vec3::new(1.0, length / arc_width, 1.0)),
         OnGameplayScreen,
     ));
 }
@@ -233,16 +242,22 @@ pub fn process_chain_lightning_bounces(
 
         // Check if it's time to bounce
         if bolt.bounce_delay_timer <= 0.0 && bolt.bounces_remaining > 0 {
+            // Calculate empowered bounce range
+            let bounce_range = constants::BOUNCE_RANGE * bolt.empowerment;
+
             // Find next bounce target (with wall line-of-sight check)
-            if let Some((target_entity, target_pos)) =
-                find_next_bounce_target(bolt.last_hit_position, &bolt.hit_entities, &enemies)
-                    .filter(|(_, pos)| {
-                        !walls.iter().any(|wall| {
-                            wall.line_segment_intersects(bolt.last_hit_position, *pos)
-                                .is_some()
-                        })
-                    })
-            {
+            if let Some((target_entity, target_pos)) = find_next_bounce_target(
+                bolt.last_hit_position,
+                &bolt.hit_entities,
+                &enemies,
+                bounce_range,
+            )
+            .filter(|(_, pos)| {
+                !walls.iter().any(|wall| {
+                    wall.line_segment_intersects(bolt.last_hit_position, *pos)
+                        .is_some()
+                })
+            }) {
                 // Apply damage to target
                 if let Ok((_, _, _, mut health, mut temp_hp)) = enemies.get_mut(target_entity) {
                     apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), bolt.current_damage);
@@ -255,6 +270,7 @@ pub fn process_chain_lightning_bounces(
                     &mut materials,
                     bolt.last_hit_position,
                     target_pos,
+                    bolt.empowerment,
                 );
 
                 // Update bolt state
@@ -262,7 +278,7 @@ pub fn process_chain_lightning_bounces(
                 bolt.current_damage *= constants::DAMAGE_FALLOFF;
                 bolt.last_hit_position = target_pos;
                 bolt.bounces_remaining -= 1;
-                bolt.bounce_delay_timer = constants::BOUNCE_DELAY;
+                bolt.bounce_delay_timer = constants::BOUNCE_DELAY * bolt.empowerment;
             } else {
                 // No valid targets - end chain
                 bolt.bounces_remaining = 0;
@@ -291,14 +307,13 @@ fn find_next_bounce_target(
         ),
         Without<Corpse>,
     >,
+    bounce_range: f32,
 ) -> Option<(Entity, Vec3)> {
     enemies
         .iter()
         // No team filter - spell damages ALL units indiscriminately
         .filter(|(entity, _, _, _, _)| !hit_entities.contains(entity))
-        .filter(|(_, transform, _, _, _)| {
-            origin.distance(transform.translation) <= constants::BOUNCE_RANGE
-        })
+        .filter(|(_, transform, _, _, _)| origin.distance(transform.translation) <= bounce_range)
         .min_by(|a, b| {
             let dist_a = origin.distance(a.1.translation);
             let dist_b = origin.distance(b.1.translation);

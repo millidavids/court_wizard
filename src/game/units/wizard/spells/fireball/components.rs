@@ -13,16 +13,25 @@ pub struct Fireball {
     pub explosion_radius: f32,
     /// Collision radius of the projectile itself.
     pub radius: f32,
+    /// Whether this fireball is empowered (for residual effect scaling).
+    pub empowerment: f32,
 }
 
 impl Fireball {
     /// Creates a new Fireball component.
-    pub const fn new(velocity: Vec3, damage: f32, explosion_radius: f32, radius: f32) -> Self {
+    pub const fn new(
+        velocity: Vec3,
+        damage: f32,
+        explosion_radius: f32,
+        radius: f32,
+        empowerment: f32,
+    ) -> Self {
         Self {
             velocity,
             damage,
             explosion_radius,
             radius,
+            empowerment,
         }
     }
 }
@@ -42,17 +51,20 @@ pub struct FireballExplosion {
     pub time_alive: f32,
     /// Time since last damage tick (in seconds).
     pub time_since_last_tick: f32,
+    /// Whether this explosion is empowered (for residual effect scaling).
+    pub empowerment: f32,
 }
 
 impl FireballExplosion {
     /// Creates a new FireballExplosion component.
-    pub fn new(origin: Vec3, max_radius: f32, damage_per_tick: f32) -> Self {
+    pub fn new(origin: Vec3, max_radius: f32, damage_per_tick: f32, empowerment: f32) -> Self {
         Self {
             origin,
             max_radius,
             damage_per_tick,
             time_alive: 0.0,
             time_since_last_tick: 0.0,
+            empowerment,
         }
     }
 

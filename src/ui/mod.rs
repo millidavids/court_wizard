@@ -7,6 +7,7 @@ mod action_bar;
 mod components;
 mod game_over;
 mod in_game;
+mod instructions;
 mod main_menu;
 mod pause_menu;
 mod plugin;

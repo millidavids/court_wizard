@@ -21,6 +21,8 @@ pub struct MagicMissile {
     pub wobble_offset: f32,
     /// Locked target entity (retargets only if this despawns).
     pub target: Option<Entity>,
+    /// Whether this missile is empowered.
+    pub empowerment: f32,
 }
 
 impl MagicMissile {
@@ -31,15 +33,23 @@ impl MagicMissile {
     /// * `initial_velocity` - Starting velocity vector
     /// * `wobble_offset` - Random offset for wobble pattern
     /// * `target` - Initial target entity to lock onto
-    pub fn new(initial_velocity: Vec3, wobble_offset: f32, target: Option<Entity>) -> Self {
+    /// * `empowered` - Whether this missile is empowered (25% bonus)
+    pub fn new(
+        initial_velocity: Vec3,
+        wobble_offset: f32,
+        target: Option<Entity>,
+        empowerment: f32,
+    ) -> Self {
+        let scale = empowerment;
         Self {
             velocity: initial_velocity,
-            base_homing_strength: constants::BASE_HOMING_STRENGTH,
-            damage: constants::DAMAGE,
-            radius: constants::COLLISION_RADIUS,
+            base_homing_strength: constants::BASE_HOMING_STRENGTH * scale,
+            damage: constants::DAMAGE * scale,
+            radius: constants::COLLISION_RADIUS * scale,
             time_alive: 0.0,
             wobble_offset,
             target,
+            empowerment,
         }
     }
 
@@ -62,13 +72,15 @@ impl MagicMissile {
     ///
     /// Speed increases based on multipliers over perfect tracking time.
     pub fn current_max_speed(&self) -> f32 {
+        let scale = self.empowerment;
+        let base_speed = constants::BASE_SPEED * scale;
         if self.time_alive >= constants::PERFECT_TRACKING_TIME {
             // After perfect tracking time, max speed reaches final multiplier
-            constants::BASE_SPEED * constants::FINAL_SPEED_MULTIPLIER
+            base_speed * constants::FINAL_SPEED_MULTIPLIER
         } else {
             // Ramp up from 1x to final multiplier over perfect tracking time
             let t = self.time_alive / constants::PERFECT_TRACKING_TIME;
-            constants::BASE_SPEED * (1.0 + t * constants::SPEED_RAMP_MULTIPLIER)
+            base_speed * (1.0 + t * constants::SPEED_RAMP_MULTIPLIER)
         }
     }
 }

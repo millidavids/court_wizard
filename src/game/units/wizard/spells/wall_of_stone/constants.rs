@@ -6,6 +6,8 @@ use crate::game::units::wizard::components::{PrimedSpell, Spell};
 pub const PRIMED_WALL_OF_STONE: PrimedSpell = PrimedSpell {
     spell: Spell::WallOfStone,
     cast_time: 0.0, // Instant start, wall placed on release
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Mana cost for placing a wall.

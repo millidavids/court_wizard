@@ -20,8 +20,8 @@ impl Plugin for RuneDisplayPlugin {
                 Update,
                 (
                     systems::handle_rune_button_click.in_set(ButtonActionSet),
-                    systems::update_rune_display,
                     systems::show_spell_name_on_activation,
+                    systems::update_rune_display,
                     systems::update_spell_name_fade,
                 )
                     .run_if(in_state(InGameState::Running)),

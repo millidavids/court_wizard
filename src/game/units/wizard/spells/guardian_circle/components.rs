@@ -19,14 +19,17 @@ pub struct GuardianCircleIndicator {
     pub position: Vec3,
     /// Time this indicator has been active (for animations).
     pub time_alive: f32,
+    /// Whether this circle is empowered.
+    pub empowerment: f32,
 }
 
 impl GuardianCircleIndicator {
     /// Creates a new circle indicator.
-    pub const fn new(position: Vec3) -> Self {
+    pub const fn new(position: Vec3, empowerment: f32) -> Self {
         Self {
             position,
             time_alive: 0.0,
+            empowerment,
         }
     }
 

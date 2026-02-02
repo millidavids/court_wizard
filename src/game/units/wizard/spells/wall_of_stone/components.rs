@@ -21,6 +21,9 @@ pub struct WallOfStone {
     pub duration: f32,
     /// Whether the wall is currently sinking into the ground.
     pub sinking: bool,
+    /// Empowerment multiplier (stored for potential future use).
+    #[allow(dead_code)]
+    pub empowerment: f32,
 }
 
 impl WallOfStone {

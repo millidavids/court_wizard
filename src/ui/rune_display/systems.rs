@@ -1,85 +1,98 @@
-use bevy::log::{error, info};
 use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::events::MouseClicked;
-use crate::game::runes::RuneSequence;
 use crate::game::runes::resources::Rune;
+use crate::game::runes::{LastActivatedSpell, RuneSequence};
 use crate::ui::components::ButtonColors;
 
 /// Spawns the rune display UI with 4 clickable buttons and sequence text above.
 pub(super) fn spawn_rune_display(mut commands: Commands) {
+    // Create a full-width container at the bottom for proper centering
     commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
                 bottom: Val::Px(BOTTOM_MARGIN),
-                left: Val::Px(LEFT_MARGIN),
-                flex_direction: FlexDirection::Column,
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                row_gap: Val::Px(8.0),
                 ..default()
             },
-            RuneDisplayRoot,
             OnGameplayScreen,
         ))
         .with_children(|parent| {
-            // Sequence text above buttons
-            parent.spawn((
-                Text::new(""),
-                TextFont {
-                    font_size: RUNE_SEQUENCE_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(SEQUENCE_TEXT_COLOR),
-                Node {
-                    min_height: Val::Px(RUNE_SEQUENCE_FONT_SIZE + 4.0),
-                    ..default()
-                },
-                RuneSequenceText,
-            ));
-
-            // Row of 4 rune buttons (Q, W, E, R)
+            // Inner container with the actual rune buttons
             parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(RUNE_BUTTON_GAP),
-                    ..default()
-                })
-                .with_children(|row| {
-                    for rune in [Rune::Q, Rune::W, Rune::E, Rune::R] {
-                        row.spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(RUNE_BUTTON_STYLE.width),
-                                height: Val::Px(RUNE_BUTTON_STYLE.height),
-                                border: UiRect::all(Val::Px(RUNE_BUTTON_STYLE.border_width)),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BorderColor::all(RUNE_BUTTON_STYLE.border),
-                            BorderRadius::all(Val::Px(4.0)),
-                            BackgroundColor(RUNE_BUTTON_STYLE.background),
-                            ButtonColors {
-                                background: RUNE_BUTTON_STYLE.background,
-                                border: RUNE_BUTTON_STYLE.border,
-                            },
-                            RuneButton { rune },
-                        ))
-                        .with_children(|button| {
-                            button.spawn((
-                                Text::new(format!("{}", rune.as_char())),
-                                TextFont {
-                                    font_size: RUNE_BUTTON_STYLE.font_size,
-                                    ..default()
-                                },
-                                TextColor(RUNE_BUTTON_STYLE.text_color),
-                            ));
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(8.0),
+                        ..default()
+                    },
+                    RuneDisplayRoot,
+                ))
+                .with_children(|inner| {
+                    // Sequence text above buttons
+                    inner.spawn((
+                        Text::new(""),
+                        TextFont {
+                            font_size: RUNE_SEQUENCE_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(SEQUENCE_TEXT_COLOR),
+                        Node {
+                            min_height: Val::Px(RUNE_SEQUENCE_FONT_SIZE + 4.0),
+                            ..default()
+                        },
+                        RuneSequenceText,
+                    ));
+
+                    // Row of 4 rune buttons (Q, W, E, R)
+                    inner
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(RUNE_BUTTON_GAP),
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            for rune in [Rune::Q, Rune::W, Rune::E, Rune::R] {
+                                row.spawn((
+                                    Button,
+                                    Node {
+                                        width: Val::Px(RUNE_BUTTON_STYLE.width),
+                                        height: Val::Px(RUNE_BUTTON_STYLE.height),
+                                        border: UiRect::all(Val::Px(
+                                            RUNE_BUTTON_STYLE.border_width,
+                                        )),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    BorderColor::all(RUNE_BUTTON_STYLE.border),
+                                    BorderRadius::all(Val::Px(4.0)),
+                                    BackgroundColor(RUNE_BUTTON_STYLE.background),
+                                    ButtonColors {
+                                        background: RUNE_BUTTON_STYLE.background,
+                                        border: RUNE_BUTTON_STYLE.border,
+                                    },
+                                    RuneButton { rune },
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new(format!("{}", rune.as_char())),
+                                        TextFont {
+                                            font_size: RUNE_BUTTON_STYLE.font_size,
+                                            ..default()
+                                        },
+                                        TextColor(RUNE_BUTTON_STYLE.text_color),
+                                    ));
+                                });
+                            }
                         });
-                    }
                 });
         });
 }
@@ -104,8 +117,14 @@ pub(super) fn handle_rune_button_click(
 /// Shows spell name briefly when a valid sequence is activated, then fades out.
 pub(super) fn update_rune_display(
     sequence: Res<RuneSequence>,
+    mut commands: Commands,
     mut sequence_text_query: Query<
-        (&mut Text, Option<&SpellNameFadeTimer>),
+        (
+            Entity,
+            &mut Text,
+            Option<&SpellNameFadeTimer>,
+            &mut TextColor,
+        ),
         With<RuneSequenceText>,
     >,
 ) {
@@ -113,9 +132,15 @@ pub(super) fn update_rune_display(
         return;
     }
 
-    if let Ok((mut text, fade_timer)) = sequence_text_query.single_mut() {
-        // Don't update if we're in the middle of a fade animation
-        if fade_timer.is_some() {
+    if let Ok((entity, mut text, fade_timer, mut color)) = sequence_text_query.single_mut() {
+        // If a new rune is being added to the sequence, interrupt any fade animation
+        if !sequence.is_empty() && fade_timer.is_some() {
+            commands.entity(entity).remove::<SpellNameFadeTimer>();
+            color.0.set_alpha(1.0);
+        }
+
+        // Don't update if a spell name is currently fading (unless we're interrupting above)
+        if fade_timer.is_some() && sequence.is_empty() {
             return;
         }
 
@@ -158,23 +183,23 @@ pub(super) fn update_spell_name_fade(
 
 /// Shows spell name briefly when a valid rune sequence is activated.
 pub(super) fn show_spell_name_on_activation(
-    mut spell_activated: MessageReader<crate::game::runes::events::RuneSpellActivated>,
+    mut last_activated: ResMut<LastActivatedSpell>,
     mut commands: Commands,
     mut sequence_text_query: Query<(Entity, &mut Text), With<RuneSequenceText>>,
 ) {
-    for event in spell_activated.read() {
-        info!("Spell activated: {}", event.spell.name());
-        if let Ok((entity, mut text)) = sequence_text_query.single_mut() {
-            // Show spell name
-            **text = event.spell.name().to_string();
+    if last_activated.just_activated {
+        if let Some(spell) = last_activated.spell
+            && let Ok((entity, mut text)) = sequence_text_query.single_mut() {
+                // Show spell name
+                **text = spell.name().to_string();
 
-            // Add fade timer
-            commands.entity(entity).insert(SpellNameFadeTimer {
-                elapsed: 0.0,
-                duration: SPELL_NAME_FADE_DURATION,
-            });
-        } else {
-            error!("Could not find sequence text entity!");
-        }
+                // Add fade timer
+                commands.entity(entity).insert(SpellNameFadeTimer {
+                    elapsed: 0.0,
+                    duration: SPELL_NAME_FADE_DURATION,
+                });
+            }
+        // Acknowledge that we've processed this activation
+        last_activated.acknowledge();
     }
 }

@@ -23,11 +23,20 @@ pub struct FingerOfDeathBeam {
     pub has_fired: bool,
     /// Time since the beam fired (for fade out animation).
     pub time_since_fired: f32,
+    /// Whether this beam is empowered.
+    pub empowerment: f32,
 }
 
 impl FingerOfDeathBeam {
     /// Creates a new Finger of Death beam.
-    pub fn new(origin: Vec3, direction: Vec3, length: f32) -> Self {
+    ///
+    /// # Arguments
+    ///
+    /// * `origin` - Starting position of the beam
+    /// * `direction` - Direction the beam points (will be normalized)
+    /// * `length` - Length of the beam
+    /// * `empowered` - Whether this beam is empowered (25% bonus)
+    pub fn new(origin: Vec3, direction: Vec3, length: f32, empowerment: f32) -> Self {
         Self {
             origin,
             direction: direction.normalize(),
@@ -36,7 +45,26 @@ impl FingerOfDeathBeam {
             cast_progress: 0.0,
             has_fired: false,
             time_since_fired: 0.0,
+            empowerment,
         }
+    }
+
+    /// Gets the damage value, scaled by empowerment.
+    pub fn damage(&self) -> f32 {
+        let scale = self.empowerment;
+        super::constants::DAMAGE * scale
+    }
+
+    /// Gets the beam width, scaled by empowerment.
+    pub fn beam_width(&self) -> f32 {
+        let scale = self.empowerment;
+        super::constants::BEAM_WIDTH * scale
+    }
+
+    /// Gets the fired beam width, scaled by empowerment.
+    pub fn beam_width_fired(&self) -> f32 {
+        let scale = self.empowerment;
+        super::constants::BEAM_WIDTH_FIRED * scale
     }
 
     /// Checks if a point is within the beam.

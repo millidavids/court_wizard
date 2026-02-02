@@ -6,6 +6,8 @@ use super::super::super::components::{PrimedSpell, Spell};
 pub const PRIMED_RAISE_THE_DEAD: PrimedSpell = PrimedSpell {
     spell: Spell::RaiseTheDead,
     cast_time: 1.0, // 1 second cast time
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Initial interval between resurrections (in seconds)

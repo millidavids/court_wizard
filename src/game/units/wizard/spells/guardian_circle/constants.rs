@@ -4,6 +4,8 @@ use crate::game::units::wizard::components::{PrimedSpell, Spell};
 pub const PRIMED_GUARDIAN_CIRCLE: PrimedSpell = PrimedSpell {
     spell: Spell::GuardianCircle,
     cast_time: CAST_TIME,
+    empowerment: 1.0,
+    empowerment_consumed: false,
 };
 
 /// Cast time for Guardian Circle in seconds.

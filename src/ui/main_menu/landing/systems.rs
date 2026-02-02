@@ -67,6 +67,14 @@ pub fn setup(mut commands: Commands) {
                 MenuButtonAction::Changelog,
                 &BUTTON_STYLE,
             );
+
+            // Instructions button
+            spawn_button(
+                parent,
+                "Instructions",
+                MenuButtonAction::Instructions,
+                &BUTTON_STYLE,
+            );
         });
 }
 
@@ -99,6 +107,9 @@ pub fn button_action(
                 }
                 MenuButtonAction::Changelog => {
                     next_menu_state.set(MenuState::Changelog);
+                }
+                MenuButtonAction::Instructions => {
+                    next_menu_state.set(MenuState::Instructions);
                 }
             }
         }

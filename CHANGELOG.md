@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.156] - 2025-02-02
+
+### Added
+- Instructions screen accessible from both main menu and pause menu explaining game mechanics
+- Comprehensive gameplay guide covering controls, spell book, action bar, rune system, and tips
+- Rune system: cast empowered spells using Q/W/E/R key combinations + Spacebar
+- 9 spell combinations available via runes (4 single-rune, 5 two-rune combos)
+- Spells cast via runes are 25% more powerful (increased damage, speed, radius, reduced cast time)
+- Rune display in bottom-middle shows current sequence and validity
+- Empowered spells have their effectiveness increased across all aspects for a single cast
+
+### Changed
+- Action bar reduced from 10 slots to 5 slots (keys 1-5)
+- Empowerment system refactored from boolean to f32 multiplier for future extensibility
+- Empowerment now properly resets after a single cast, including channeled spells
+- Instructions button added to main menu landing screen
+- Instructions button added to pause menu
+
 ## [v0.0.121] - 2025-02-02
 
 ### Added

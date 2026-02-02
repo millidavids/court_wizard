@@ -97,7 +97,12 @@ pub fn handle_finger_of_death_casting(
                     beam.time_alive += time.delta_secs();
                 } else {
                     // No beam exists, spawn new one
-                    let mut new_beam = FingerOfDeathBeam::new(beam_origin, direction, beam_length);
+                    let mut new_beam = FingerOfDeathBeam::new(
+                        beam_origin,
+                        direction,
+                        beam_length,
+                        primed_spell.empowerment,
+                    );
                     new_beam.cast_progress = cast_progress;
                     spawn_beam(&mut commands, &mut meshes, &mut materials, new_beam);
                 }
@@ -133,7 +138,12 @@ pub fn handle_finger_of_death_casting(
                         .length()
                         .min(constants::BEAM_LENGTH);
 
-                    let beam = FingerOfDeathBeam::new(beam_origin, direction, beam_length);
+                    let beam = FingerOfDeathBeam::new(
+                        beam_origin,
+                        direction,
+                        beam_length,
+                        primed_spell.empowerment,
+                    );
                     spawn_beam(&mut commands, &mut meshes, &mut materials, beam);
                 }
             }
@@ -233,11 +243,13 @@ pub fn apply_finger_of_death_damage(
         let effective_length = beam.length * max_t;
 
         // Apply damage to all units along beam (before wall)
+        let beam_width = beam.beam_width();
+        let damage = beam.damage();
         for (transform, mut health, mut temp_hp) in targets.iter_mut() {
-            if beam.contains_point(transform.translation, constants::BEAM_WIDTH) {
+            if beam.contains_point(transform.translation, beam_width) {
                 let proj = (transform.translation - beam.origin).dot(beam.direction);
                 if proj <= effective_length {
-                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), constants::DAMAGE);
+                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
                 }
             }
         }
@@ -280,11 +292,12 @@ pub fn update_finger_of_death_beam_visuals(
         transform.rotation = rotation;
 
         // Scale the mesh to match beam length
+        let base_width = beam.beam_width();
         let scale_y = current_len / constants::BEAM_WIDTH;
         let scale_x = if beam.has_fired {
-            constants::BEAM_WIDTH_FIRED / constants::BEAM_WIDTH // Wider after fire
+            beam.beam_width_fired() / constants::BEAM_WIDTH // Wider after fire
         } else {
-            1.0 // Normal width during cast
+            base_width / constants::BEAM_WIDTH // Normal width during cast
         };
         transform.scale = Vec3::new(scale_x, scale_y, 1.0);
 

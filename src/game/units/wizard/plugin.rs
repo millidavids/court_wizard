@@ -33,6 +33,7 @@ impl Plugin for WizardPlugin {
                 (
                     systems::regenerate_mana,
                     systems::handle_prime_spell_messages,
+                    systems::reset_empowerment_after_cast,
                 )
                     .run_if(in_state(InGameState::Running)),
             )
