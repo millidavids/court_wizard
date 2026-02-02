@@ -46,6 +46,7 @@ pub fn handle_rune_activation(
     mut messages: MessageReader<ActivateRuneSequence>,
     mut sequence: ResMut<RuneSequence>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
+    mut spell_activated: MessageWriter<RuneSpellActivated>,
 ) {
     for _ in messages.read() {
         if let Some(spell) = sequence_to_spell(&sequence.runes) {
@@ -53,6 +54,8 @@ pub fn handle_rune_activation(
             prime_spell.write(PrimeSpellMessage {
                 spell: spell.primed_config(),
             });
+            // Notify UI that a spell was activated
+            spell_activated.write(RuneSpellActivated { spell });
         }
         // Always clear sequence after activation attempt (valid or invalid)
         sequence.clear();

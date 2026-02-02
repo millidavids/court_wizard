@@ -1,3 +1,4 @@
+use bevy::log::{error, info};
 use bevy::prelude::*;
 
 use super::components::*;
@@ -5,7 +6,6 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::events::MouseClicked;
 use crate::game::runes::RuneSequence;
-use crate::game::runes::constants::sequence_to_spell;
 use crate::game::runes::resources::Rune;
 use crate::ui::components::ButtonColors;
 
@@ -157,29 +157,24 @@ pub(super) fn update_spell_name_fade(
 }
 
 /// Shows spell name briefly when a valid rune sequence is activated.
-/// MUST run BEFORE handle_rune_activation clears the sequence.
 pub(super) fn show_spell_name_on_activation(
-    mut activation_reader: MessageReader<crate::game::runes::events::ActivateRuneSequence>,
-    sequence: Res<RuneSequence>,
+    mut spell_activated: MessageReader<crate::game::runes::events::RuneSpellActivated>,
     mut commands: Commands,
     mut sequence_text_query: Query<(Entity, &mut Text), With<RuneSequenceText>>,
 ) {
-    // Peek at messages without consuming them
-    let messages: Vec<_> = activation_reader.read().collect();
-
-    for _ in messages {
-        // Check if the current sequence is valid (before it gets cleared)
-        if let Some(spell) = sequence_to_spell(&sequence.runes)
-            && let Ok((entity, mut text)) = sequence_text_query.single_mut()
-        {
+    for event in spell_activated.read() {
+        info!("Spell activated: {}", event.spell.name());
+        if let Ok((entity, mut text)) = sequence_text_query.single_mut() {
             // Show spell name
-            **text = spell.name().to_string();
+            **text = event.spell.name().to_string();
 
             // Add fade timer
             commands.entity(entity).insert(SpellNameFadeTimer {
                 elapsed: 0.0,
                 duration: SPELL_NAME_FADE_DURATION,
             });
+        } else {
+            error!("Could not find sequence text entity!");
         }
     }
 }

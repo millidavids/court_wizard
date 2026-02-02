@@ -14,6 +14,7 @@ impl Plugin for RunePlugin {
         app.init_resource::<RuneSequence>()
             .add_message::<RunePressed>()
             .add_message::<ActivateRuneSequence>()
+            .add_message::<RuneSpellActivated>()
             .add_systems(
                 Update,
                 (
