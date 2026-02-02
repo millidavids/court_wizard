@@ -29,8 +29,3 @@ pub fn sequence_to_spell(runes: &[Rune]) -> Option<Spell> {
         _ => None,
     }
 }
-
-/// Returns true if the sequence is valid (maps to a spell).
-pub fn is_valid_sequence(runes: &[Rune]) -> bool {
-    sequence_to_spell(runes).is_some()
-}

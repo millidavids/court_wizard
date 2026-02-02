@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::run_conditions;
 use crate::state::{AppState, InGameState};
+use crate::ui::plugin::ButtonActionSet;
 
 use super::systems;
 
@@ -17,7 +18,13 @@ impl Plugin for RuneDisplayPlugin {
             )
             .add_systems(
                 Update,
-                systems::update_rune_display.run_if(in_state(InGameState::Running)),
+                (
+                    systems::handle_rune_button_click.in_set(ButtonActionSet),
+                    systems::update_rune_display,
+                    systems::show_spell_name_on_activation,
+                    systems::update_spell_name_fade,
+                )
+                    .run_if(in_state(InGameState::Running)),
             );
     }
 }

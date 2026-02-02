@@ -1,8 +1,8 @@
 pub(crate) mod constants;
-mod events;
+pub(crate) mod events;
 mod plugin;
-mod resources;
+pub(crate) mod resources;
 mod systems;
 
 pub use plugin::RunePlugin;
-pub use resources::RuneSequence;
+pub use resources::{Rune, RuneSequence};
