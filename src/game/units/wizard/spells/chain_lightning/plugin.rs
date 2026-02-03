@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::{ChainLightningArc, ChainLightningBolt};
 use super::systems::*;
 use crate::state::InGameState;
 
@@ -17,11 +18,14 @@ impl Plugin for ChainLightningPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                process_chain_lightning_bounces,
-                update_chain_lightning_arcs,
-                cleanup_chain_lightning,
+                (
+                    process_chain_lightning_bounces,
+                    update_chain_lightning_arcs,
+                    cleanup_chain_lightning,
+                )
+                    .chain()
+                    .run_if(any_exist::<ChainLightningBolt>().or(any_exist::<ChainLightningArc>())),
             )
-                .chain()
                 .run_if(in_state(InGameState::Running)),
         );
     }

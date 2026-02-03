@@ -6,6 +6,7 @@
 pub(crate) mod components;
 pub(crate) mod events;
 mod plugin;
+pub mod run_conditions;
 mod systems;
 
 pub(crate) use components::MouseButtonState;

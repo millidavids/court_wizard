@@ -12,7 +12,7 @@ mod guardian_circle;
 mod magic_missile;
 mod plugin;
 mod raise_the_dead;
-pub(super) mod run_conditions;
+pub mod run_conditions;
 mod systems;
 mod teleport;
 pub(in crate::game) mod wall_of_stone;

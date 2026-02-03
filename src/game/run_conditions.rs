@@ -14,3 +14,13 @@ pub fn coming_from_game_over(
             && transition.entered == Some(InGameState::Running)
     })
 }
+
+/// Check if any entities with the specified component exist.
+/// Used to avoid running systems when there are no relevant entities.
+///
+/// Example: `any_exist::<MagicMissile>()` will only return true if there are magic missiles in the world.
+///
+/// This is more efficient than running systems with empty queries every frame.
+pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
+    |query: Query<(), With<T>>| !query.is_empty()
+}

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::{Fireball, FireballExplosion, ResidualAreaDamageEffect};
 use super::systems;
 use crate::state::InGameState;
 
@@ -25,17 +26,28 @@ impl Plugin for FireballPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::move_fireballs,
-                systems::check_fireball_collisions,
-                systems::despawn_distant_fireballs,
-                systems::update_explosions,
-                systems::apply_explosion_damage,
-                systems::cleanup_finished_explosions,
-                systems::apply_residual_area_damage,
-                systems::fade_residual_effects,
-                systems::cleanup_residual_effects,
+                (
+                    systems::move_fireballs,
+                    systems::check_fireball_collisions,
+                    systems::despawn_distant_fireballs,
+                )
+                    .chain()
+                    .run_if(any_exist::<Fireball>()),
+                (
+                    systems::update_explosions,
+                    systems::apply_explosion_damage,
+                    systems::cleanup_finished_explosions,
+                )
+                    .chain()
+                    .run_if(any_exist::<FireballExplosion>()),
+                (
+                    systems::apply_residual_area_damage,
+                    systems::fade_residual_effects,
+                    systems::cleanup_residual_effects,
+                )
+                    .chain()
+                    .run_if(any_exist::<ResidualAreaDamageEffect>()),
             )
-                .chain()
                 .run_if(in_state(InGameState::Running)),
         );
     }

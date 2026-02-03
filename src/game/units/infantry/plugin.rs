@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions;
+use crate::game::run_conditions::{any_exist, coming_from_game_over};
 use crate::game::units::MovementCalculationSet;
 use crate::state::{AppState, InGameState};
 
-use super::components::DefendersActivated;
+use super::components::{DefendersActivated, Infantry};
 use super::systems;
 
 /// Plugin that handles infantry units (both defenders and attackers).
@@ -34,15 +34,17 @@ impl Plugin for InfantryPlugin {
                     systems::spawn_initial_attackers,
                     systems::spawn_kings_guard,
                 )
-                    .run_if(run_conditions::coming_from_game_over),
+                    .run_if(coming_from_game_over),
             )
             .add_systems(
                 Update,
-                systems::update_infantry_targeting.in_set(crate::game::plugin::VelocitySystemSet),
-            )
-            .add_systems(
-                Update,
-                systems::infantry_movement.in_set(MovementCalculationSet),
+                (
+                    systems::update_infantry_targeting
+                        .in_set(crate::game::plugin::VelocitySystemSet),
+                    systems::infantry_movement.in_set(MovementCalculationSet),
+                )
+                    .run_if(any_exist::<Infantry>())
+                    .run_if(in_state(InGameState::Running)),
             );
     }
 }

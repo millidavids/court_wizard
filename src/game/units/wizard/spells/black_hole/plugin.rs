@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::BlackHole;
 use super::systems;
 use crate::game::units::MovementCalculationSet;
 use crate::state::InGameState;
@@ -30,7 +31,8 @@ impl Plugin for BlackHolePlugin {
                     systems::update_black_hole_visuals,
                     systems::despawn_expired_black_holes,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(any_exist::<BlackHole>()),
             )
                 .run_if(in_state(InGameState::Running)),
         );

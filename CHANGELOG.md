@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.191] - 2025-02-03
+
+### Added
+- Performance optimization system to reduce CPU usage
+  - Game systems now skip execution when nothing needs to be processed
+  - Significantly improves performance, especially when spells aren't active or units are eliminated
+
+### Changed
+- **Optimized all spell systems** to only run when spell effects are active:
+  - Magic Missile: Systems run only when missiles exist
+  - Fireball: Separate checks for projectiles, explosions, and residual effects
+  - Black Hole: Systems run only when black holes exist
+  - Wall of Stone: Systems run only when walls exist
+  - Chain Lightning: Systems run only when bolts or arcs exist
+  - Disintegrate, Finger of Death: Beam systems run only when beams exist
+  - Guardian Circle, Teleport: Visual update systems run only when indicators exist
+- **Optimized all unit systems** to only run when units exist:
+  - Archer systems run only when archers exist; arrow systems run only when arrows exist
+  - Infantry systems run only when infantry exist
+  - King systems run only when king exists
+- **Code organization improvements**:
+  - Moved `any_exist` run condition to game-level for reuse across entire codebase
+  - Created `src/game/input/run_conditions.rs` for input-related conditions
+  - Moved input conditions (`mouse_left_not_consumed`, `mouse_right_not_held`, `spell_input_not_blocked`) to input module
+  - Spell run conditions now re-export commonly used conditions for convenience
+  - All run condition imports properly organized with re-exports at top of files
+- Removed unnecessary `Clone` trait bound from `any_exist` function for better performance
+
+### Performance
+- Spell systems no longer execute empty queries every frame when spells aren't active
+- Unit systems no longer execute when those unit types don't exist (e.g., during game over, or when unit types are eliminated)
+- Run condition checks are extremely lightweight compared to full system execution
+
 ## [v0.0.183] - 2025-02-03
 
 ### Added

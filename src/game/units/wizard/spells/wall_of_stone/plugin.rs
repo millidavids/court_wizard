@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::WallOfStone;
 use super::systems;
 use crate::state::InGameState;
 
@@ -19,9 +20,13 @@ impl Plugin for WallOfStonePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::tick_wall_lifetime,
-                systems::animate_sinking_walls,
-                systems::cleanup_expired_walls,
+                (
+                    systems::tick_wall_lifetime,
+                    systems::animate_sinking_walls,
+                    systems::cleanup_expired_walls,
+                )
+                    .chain()
+                    .run_if(any_exist::<WallOfStone>()),
             )
                 .run_if(in_state(InGameState::Running)),
         );

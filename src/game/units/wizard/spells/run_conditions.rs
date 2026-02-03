@@ -1,9 +1,13 @@
 use bevy::prelude::*;
 
 use super::super::components::{CastingState, PrimedSpell, Spell, Wizard};
-use crate::game::input::components::{
-    MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame, SpellInputBlockedThisFrame,
+use crate::game::input::components::MouseLeftHeldThisFrame;
+
+// Re-export commonly used run conditions for convenience
+pub use crate::game::input::run_conditions::{
+    mouse_left_not_consumed, mouse_right_not_held, spell_input_not_blocked,
 };
+pub use crate::game::run_conditions::any_exist;
 
 /// Check if specific spell is primed
 pub fn spell_is_primed(spell: Spell) -> impl Fn(Query<&PrimedSpell, With<Wizard>>) -> bool + Clone {
@@ -13,16 +17,6 @@ pub fn spell_is_primed(spell: Spell) -> impl Fn(Query<&PrimedSpell, With<Wizard>
             .map(|primed| primed.spell == spell)
             .unwrap_or(false)
     }
-}
-
-/// Check if spell input is NOT blocked
-pub fn spell_input_not_blocked(spell_blocked: Res<SpellInputBlockedThisFrame>) -> bool {
-    !spell_blocked.blocked
-}
-
-/// Check if mouse left is NOT consumed
-pub fn mouse_left_not_consumed(mouse_state: Res<MouseButtonState>) -> bool {
-    !mouse_state.left_consumed
 }
 
 /// Check if wizard is currently casting or channeling
@@ -41,10 +35,4 @@ pub fn mouse_held_or_wizard_casting(
     wizard_query: Query<&CastingState, With<Wizard>>,
 ) -> bool {
     mouse_held.held || wizard_is_casting_or_channeling(wizard_query)
-}
-
-/// Check if right mouse button is NOT held
-/// Used to prevent spell casting while right-clicking
-pub fn mouse_right_not_held(mouse_right_held: Res<MouseRightHeldThisFrame>) -> bool {
-    !mouse_right_held.held
 }

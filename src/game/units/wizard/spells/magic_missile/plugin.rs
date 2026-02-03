@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::MagicMissile;
 use super::systems;
 use crate::state::InGameState;
 
@@ -24,11 +25,14 @@ impl Plugin for MagicMissilePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::move_magic_missiles,
-                systems::check_magic_missile_collisions,
-                systems::despawn_distant_magic_missiles,
+                (
+                    systems::move_magic_missiles,
+                    systems::check_magic_missile_collisions,
+                    systems::despawn_distant_magic_missiles,
+                )
+                    .chain()
+                    .run_if(any_exist::<MagicMissile>()),
             )
-                .chain()
                 .run_if(in_state(InGameState::Running)),
         );
     }

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::DisintegrateBeam;
 use super::systems;
 use crate::state::InGameState;
 
@@ -24,11 +25,14 @@ impl Plugin for DisintegratePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::update_beam_visuals,
-                systems::apply_disintegrate_damage,
-                systems::cleanup_beams_on_cancel,
+                (
+                    systems::update_beam_visuals,
+                    systems::apply_disintegrate_damage,
+                    systems::cleanup_beams_on_cancel,
+                )
+                    .chain()
+                    .run_if(any_exist::<DisintegrateBeam>()),
             )
-                .chain()
                 .run_if(in_state(InGameState::Running)),
         );
     }
