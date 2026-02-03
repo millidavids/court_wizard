@@ -29,7 +29,7 @@ impl Plugin for ArcherPlugin {
         )
         .add_systems(
             Update,
-            archer_movement.in_set(crate::game::plugin::MovementSystemSet),
+            archer_movement.in_set(crate::game::units::MovementCalculationSet),
         )
         .add_systems(
             Update,

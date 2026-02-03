@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 
+use super::black_hole::BlackHolePlugin;
 use super::chain_lightning::ChainLightningPlugin;
 use super::disintegrate::DisintegratePlugin;
 use super::finger_of_death::FingerOfDeathPlugin;
@@ -41,6 +42,7 @@ impl Plugin for SpellsPlugin {
             RaiseTheDeadPlugin,
             TeleportPlugin,
             WallOfStonePlugin,
+            BlackHolePlugin,
         ))
         .add_systems(
             Update,

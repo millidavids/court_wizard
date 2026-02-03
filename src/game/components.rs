@@ -11,6 +11,14 @@ pub struct OnGameplayScreen;
 #[derive(Component)]
 pub struct Billboard;
 
+/// Marker component for persistent spell effects that can affect game outcome.
+///
+/// The game will not end while any entities with this component exist.
+/// This prevents premature victory/defeat when dangerous spell effects like Black Hole
+/// are still active and could change the outcome.
+#[derive(Component)]
+pub struct PersistentSpellEffect;
+
 /// Velocity component for moving units.
 ///
 /// Represents the unit's movement speed on the XZ plane (units per second).

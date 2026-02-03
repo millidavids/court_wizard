@@ -22,7 +22,10 @@ impl Plugin for KingPlugin {
                 Update,
                 systems::update_king_targeting.in_set(VelocitySystemSet),
             )
-            .add_systems(Update, systems::king_movement.in_set(MovementSystemSet))
+            .add_systems(
+                Update,
+                systems::king_movement.in_set(crate::game::units::MovementCalculationSet),
+            )
             .add_systems(
                 Update,
                 systems::king_cohesion_aura

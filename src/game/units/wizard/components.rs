@@ -13,6 +13,7 @@ pub enum Spell {
     RaiseTheDead,
     Teleport,
     WallOfStone,
+    BlackHole,
 }
 
 impl Spell {
@@ -28,6 +29,7 @@ impl Spell {
             Spell::RaiseTheDead,
             Spell::Teleport,
             Spell::WallOfStone,
+            Spell::BlackHole,
         ]
     }
 
@@ -43,6 +45,7 @@ impl Spell {
             Spell::RaiseTheDead => "Raise The Dead",
             Spell::Teleport => "Teleport",
             Spell::WallOfStone => "Wall of Stone",
+            Spell::BlackHole => "Black Hole",
         }
     }
 
@@ -72,6 +75,9 @@ impl Spell {
             Spell::WallOfStone => {
                 "Drag to raise an impassable stone wall that blocks all movement and projectiles for 20 seconds."
             }
+            Spell::BlackHole => {
+                "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 10 seconds, growing in size and strength over time."
+            }
         }
     }
 
@@ -87,15 +93,17 @@ impl Spell {
             Spell::RaiseTheDead => "Click and hold to channel",
             Spell::Teleport => "Click to place destination, then click and hold to cast",
             Spell::WallOfStone => "Click and drag to place wall",
+            Spell::BlackHole => "Click and hold to cast",
         }
     }
 
     /// Returns the PrimedSpell configuration for this spell.
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{
-            chain_lightning_constants, disintegrate_constants, finger_of_death_constants,
-            fireball_constants, guardian_circle_constants, magic_missile_constants,
-            raise_the_dead_constants, teleport_constants, wall_of_stone_constants,
+            black_hole_constants, chain_lightning_constants, disintegrate_constants,
+            finger_of_death_constants, fireball_constants, guardian_circle_constants,
+            magic_missile_constants, raise_the_dead_constants, teleport_constants,
+            wall_of_stone_constants,
         };
 
         match self {
@@ -108,6 +116,7 @@ impl Spell {
             Spell::RaiseTheDead => raise_the_dead_constants::PRIMED_RAISE_THE_DEAD,
             Spell::Teleport => teleport_constants::PRIMED_TELEPORT,
             Spell::WallOfStone => wall_of_stone_constants::PRIMED_WALL_OF_STONE,
+            Spell::BlackHole => black_hole_constants::PRIMED_BLACK_HOLE,
         }
     }
 }

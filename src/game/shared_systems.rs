@@ -390,6 +390,7 @@ pub fn convert_dead_to_corpses(
     query: Query<(Entity, &Health, &Team, &Transform), Without<Corpse>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     material_query: Query<&MeshMaterial3d<StandardMaterial>>,
+    mut velocity_query: Query<&mut Velocity>,
 ) {
     for (entity, health, team, transform) in &query {
         if health.is_dead() {
@@ -426,10 +427,15 @@ pub fn convert_dead_to_corpses(
                 entity_commands.insert(super::units::components::PermanentCorpse);
             }
 
+            // Keep Velocity and Acceleration so corpses can be affected by external forces (e.g., black hole)
+            // But reset velocity to zero so they don't continue moving from their death momentum
+            if let Ok(mut velocity) = velocity_query.get_mut(entity) {
+                velocity.x = 0.0;
+                velocity.z = 0.0;
+            }
+
             entity_commands
-                .remove::<Velocity>() // Stop moving
-                .remove::<Acceleration>() // No forces
-                .remove::<MovementSpeed>() // Can't move
+                .remove::<MovementSpeed>() // Can't move on their own
                 .remove::<AttackTiming>() // Can't attack
                 .remove::<Hitbox>() // Remove collision
                 .remove::<crate::game::components::Billboard>(); // Remove billboard so corpse stays flat

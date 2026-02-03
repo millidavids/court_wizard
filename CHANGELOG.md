@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.183] - 2025-02-03
+
+### Added
+- **Black Hole spell**: New ultimate spell that creates a gravitational sphere pulling units in a spiral
+  - Cast time: 20 seconds (high commitment, strategic positioning required)
+  - Duration: 20 seconds after cast completes
+  - Rune combination: Q+R for 25% empowerment bonus
+  - Uses inverse square law physics for realistic gravity that intensifies with proximity
+  - Pulls both living units and corpses toward the center
+  - Corpses despawn when they touch the black hole sphere
+  - Deals ramping damage to units in contact with the sphere (increases over 3 seconds)
+  - Gravity strength ramps up over 5 seconds, growing stronger over time
+  - Maximum pull range: 500 units
+  - Visual: Dark purple sphere with emissive glow and vibration effect
+- Persistent spell effect system: Game will not end while Black Hole or Wall of Stone effects are active
+  - Prevents premature victory if enemies die but King gets pulled into Black Hole afterward
+  - Makes Black Hole a high-risk spell requiring careful placement and timing
+
+### Changed
+- Unit movement system refactored to separate movement calculations from transform application
+  - External forces (like Black Hole gravity) can now override unit self-imposed speed limits
+  - Units maintain their normal max speed for self-movement but can exceed it when pulled by external forces
+  - Velocity damping now properly allows external forces to build momentum
+- Corpses now retain Velocity and Acceleration components to be affected by external forces
+  - Corpse velocity reset to zero on death to prevent death momentum
+  - Allows Black Hole and future area effects to interact with corpses
+
+### Fixed
+- Removed debug logging from movement and spell effect systems
+
 ## [v0.0.156] - 2025-02-02
 
 ### Added

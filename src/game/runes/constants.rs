@@ -21,6 +21,7 @@ pub fn sequence_to_spell(runes: &[Rune]) -> Option<Spell> {
         // Two-rune combinations
         [Rune::Q, Rune::W] => Some(Spell::Disintegrate),
         [Rune::Q, Rune::E] => Some(Spell::ChainLightning),
+        [Rune::Q, Rune::R] => Some(Spell::BlackHole),
         [Rune::W, Rune::E] => Some(Spell::WallOfStone),
         [Rune::W, Rune::R] => Some(Spell::RaiseTheDead),
         [Rune::E, Rune::R] => Some(Spell::FingerOfDeath),

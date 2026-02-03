@@ -4,24 +4,13 @@ use bevy::prelude::*;
 
 use super::systems;
 use crate::state::AppState;
-use crate::ui::plugin::ButtonActionSet;
 
-/// Plugin that displays the version number and GitHub link in the bottom-left corner.
+/// Plugin that displays the version number in the bottom-left corner of the main menu.
 pub struct VersionPlugin;
 
 impl Plugin for VersionPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::MainMenu), systems::setup)
-            .add_systems(OnExit(AppState::MainMenu), systems::cleanup)
-            .add_systems(
-                Update,
-                systems::handle_github_button
-                    .in_set(ButtonActionSet)
-                    .run_if(in_state(AppState::MainMenu)),
-            )
-            .add_systems(
-                Update,
-                systems::update_github_button_style.run_if(in_state(AppState::MainMenu)),
-            );
+            .add_systems(OnExit(AppState::MainMenu), systems::cleanup);
     }
 }

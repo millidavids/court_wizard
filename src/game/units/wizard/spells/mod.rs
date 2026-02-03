@@ -2,6 +2,7 @@
 //!
 //! Handles wizard spells, projectiles, and spell effects.
 
+mod black_hole;
 mod chain_lightning;
 mod components;
 mod disintegrate;
@@ -17,6 +18,7 @@ mod teleport;
 pub(in crate::game) mod wall_of_stone;
 
 // Re-export constants for wizard setup and spell switching
+pub(in crate::game::units::wizard) use black_hole::constants as black_hole_constants;
 pub(in crate::game::units::wizard) use chain_lightning::constants as chain_lightning_constants;
 pub(in crate::game::units::wizard) use disintegrate::constants as disintegrate_constants;
 pub(in crate::game::units::wizard) use finger_of_death::constants as finger_of_death_constants;

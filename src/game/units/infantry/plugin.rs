@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
+use crate::game::units::MovementCalculationSet;
 use crate::state::{AppState, InGameState};
 
 use super::components::DefendersActivated;
@@ -41,7 +42,7 @@ impl Plugin for InfantryPlugin {
             )
             .add_systems(
                 Update,
-                systems::infantry_movement.in_set(crate::game::plugin::MovementSystemSet),
+                systems::infantry_movement.in_set(MovementCalculationSet),
             );
     }
 }

@@ -4,7 +4,7 @@ use bevy::window::PrimaryWindow;
 use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{OnGameplayScreen, PersistentSpellEffect};
 use crate::game::input::MouseButtonState;
 use crate::game::input::events::MouseLeftReleased;
 
@@ -101,6 +101,7 @@ pub fn handle_wall_of_stone_casting(
                         empowerment: primed_spell.empowerment,
                     },
                     OnGameplayScreen,
+                    PersistentSpellEffect,
                 ));
             }
 

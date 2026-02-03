@@ -611,7 +611,6 @@ pub fn archer_movement(
     time: Res<Time>,
     mut archer_units: Query<
         (
-            &mut Transform,
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
@@ -625,11 +624,8 @@ pub fn archer_movement(
         With<Archer>,
     >,
 ) {
-    let delta = time.delta_secs();
-
     // Process each archer unit
     for (
-        mut transform,
         mut velocity,
         mut acceleration,
         movement_speed,
@@ -660,17 +656,6 @@ pub fn archer_movement(
         let total_percentage = aura_percentage + terrain_percentage;
         let speed_multiplier = 1.0 + total_percentage;
 
-        // Apply as acceleration force with speed modifiers
-        acceleration.add_force(weighted_direction * STEERING_FORCE * speed_multiplier);
-
-        // Apply acceleration to velocity
-        velocity.x += acceleration.x * delta;
-        velocity.z += acceleration.z * delta;
-
-        // Apply damping to smooth movement
-        velocity.x *= VELOCITY_DAMPING;
-        velocity.z *= VELOCITY_DAMPING;
-
         // Calculate max speed based on state with modifiers (aura + terrain)
         let mut max_speed = movement_speed.0 * effectiveness.multiplier() * speed_multiplier;
 
@@ -685,20 +670,34 @@ pub fn archer_movement(
             }
         }
 
-        // Cap velocity to maximum speed
-        let velocity_vec = Vec3::new(velocity.x, 0.0, velocity.z);
-        let current_speed = velocity_vec.length();
-        if current_speed > max_speed {
-            let normalized = velocity_vec.normalize();
-            velocity.x = normalized.x * max_speed;
-            velocity.z = normalized.z * max_speed;
-        }
+        // Calculate steering force, but limit it to prevent self-movement from exceeding max_speed
+        // External forces (like black hole gravity) can still push beyond this limit
+        let desired_velocity = weighted_direction * max_speed;
+        let velocity_change_needed = Vec3::new(
+            desired_velocity.x - velocity.x,
+            0.0,
+            desired_velocity.z - velocity.z,
+        );
 
-        // Apply velocity to position (only XZ plane - Y stays fixed at spawn height)
-        transform.translation.x += velocity.x * delta;
-        transform.translation.z += velocity.z * delta;
+        // Apply steering force, but clamp it to achieve max_speed over time without overshooting
+        let steering =
+            velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier;
+        let steering_magnitude = steering.length();
+        let max_steering = velocity_change_needed.length() / time.delta_secs();
 
-        // Reset acceleration for next frame
-        acceleration.reset();
+        let final_steering = if steering_magnitude > max_steering && max_steering > 0.0 {
+            steering.normalize() * max_steering
+        } else {
+            steering
+        };
+
+        acceleration.add_force(final_steering);
+
+        // Apply damping to current velocity (before acceleration is integrated)
+        // This allows external forces to overcome the damping by adding larger accelerations
+        velocity.x *= VELOCITY_DAMPING;
+        velocity.z *= VELOCITY_DAMPING;
+
+        // Transform application and acceleration reset happens in apply_unit_movement system
     }
 }
