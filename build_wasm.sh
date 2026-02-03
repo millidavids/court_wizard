@@ -10,7 +10,25 @@ if [ "$1" = "--release" ]; then
     BUILD_TYPE="release"
     OUT_DIR="./docs"
     echo "Building for WASM (RELEASE MODE - for GitHub Pages)..."
+    echo "Skipping version bump (update CHANGELOG.md manually before release builds)"
 else
+    # Bump patch version in Cargo.toml (debug builds only)
+    echo "Bumping version..."
+    CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+
+    # Parse semantic version
+    MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+    MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+    PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+
+    # Increment patch version
+    NEW_PATCH=$((PATCH + 1))
+    NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+    # Update Cargo.toml
+    perl -pi -e "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
+
+    echo "Version bumped: $CURRENT_VERSION -> $NEW_VERSION"
     echo "Building for WASM (debug mode - for local testing)..."
 fi
 
