@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::game::units::DamageType;
+
 /// Tracks the chain lightning spell state through its lifecycle.
 #[derive(Component)]
 pub struct ChainLightningBolt {
@@ -7,6 +9,9 @@ pub struct ChainLightningBolt {
     pub hit_entities: Vec<Entity>,
     /// Current damage for next hit (decreases with each bounce).
     pub current_damage: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Number of bounces remaining.
     pub bounces_remaining: u32,
     /// Position of last hit (origin for next arc).

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::units::DamageType;
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 pub const PRIMED_CHAIN_LIGHTNING: PrimedSpell = PrimedSpell {
@@ -16,6 +17,7 @@ pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
 
 // Damage
 pub const INITIAL_DAMAGE: f32 = 40.0;
+pub const DAMAGE_TYPE: DamageType = DamageType::Electric;
 pub const DAMAGE_FALLOFF: f32 = 0.7;
 pub const MAX_BOUNCES: u32 = 4;
 

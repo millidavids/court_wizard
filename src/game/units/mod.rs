@@ -7,6 +7,7 @@ use bevy::prelude::*;
 pub(crate) mod archer;
 pub(crate) mod components;
 pub(crate) mod constants;
+pub(crate) mod damage;
 pub(super) mod infantry;
 pub(super) mod king;
 mod movement;
@@ -15,6 +16,7 @@ pub(crate) mod wizard;
 
 mod plugin;
 
+pub use damage::DamageType;
 pub use plugin::UnitsPlugin;
 
 /// System set for calculating unit movement (acceleration, velocity).

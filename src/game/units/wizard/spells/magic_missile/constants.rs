@@ -2,6 +2,7 @@
 //!
 //! Contains all hardcoded values for magic missile behavior.
 
+use crate::game::units::DamageType;
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 /// PrimedSpell constant for Magic Missile.
@@ -59,6 +60,9 @@ pub const SLOWDOWN_DISTANCE: f32 = 300.0;
 
 /// Damage dealt by each magic missile.
 pub const DAMAGE: f32 = 5.0;
+
+/// Type of damage dealt by magic missiles.
+pub const DAMAGE_TYPE: DamageType = DamageType::Force;
 
 /// Collision radius for magic missiles.
 pub const COLLISION_RADIUS: f32 = 10.0;

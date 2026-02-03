@@ -97,6 +97,7 @@ pub fn handle_chain_lightning_casting(
                             ChainLightningBolt {
                                 hit_entities: vec![target_entity],
                                 current_damage: initial_damage * constants::DAMAGE_FALLOFF,
+                                damage_type: constants::DAMAGE_TYPE,
                                 bounces_remaining: constants::MAX_BOUNCES,
                                 last_hit_position: target_pos,
                                 bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),

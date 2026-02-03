@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use super::constants::*;
+use crate::game::units::DamageType;
 
 /// Black hole spell component.
 ///
@@ -16,6 +17,9 @@ pub(super) struct BlackHole {
     pub current_radius: f32,
     /// Maximum radius the black hole can reach.
     pub max_radius: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Time since the black hole was spawned (for growth animation).
     pub time_alive: f32,
     /// Time since last damage tick.
@@ -31,6 +35,7 @@ impl BlackHole {
             position,
             current_radius: 0.0,
             max_radius,
+            damage_type: DAMAGE_TYPE,
             time_alive: 0.0,
             time_since_damage: 0.0,
             empowerment,

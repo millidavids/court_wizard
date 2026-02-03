@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::game::units::DamageType;
+
 /// Available spells.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Serialize, Deserialize)]
 pub enum Spell {
@@ -117,6 +119,23 @@ impl Spell {
             Spell::Teleport => teleport_constants::PRIMED_TELEPORT,
             Spell::WallOfStone => wall_of_stone_constants::PRIMED_WALL_OF_STONE,
             Spell::BlackHole => black_hole_constants::PRIMED_BLACK_HOLE,
+        }
+    }
+
+    /// Returns the type of damage this spell deals.
+    #[allow(dead_code)]
+    pub const fn damage_type(&self) -> DamageType {
+        match self {
+            Spell::MagicMissile => DamageType::Force,
+            Spell::Disintegrate => DamageType::Force,
+            Spell::Fireball => DamageType::Fire,
+            Spell::ChainLightning => DamageType::Electric,
+            Spell::BlackHole => DamageType::Force,
+            Spell::GuardianCircle => DamageType::Force,
+            Spell::FingerOfDeath => DamageType::Necrotic,
+            Spell::RaiseTheDead => DamageType::Necrotic,
+            Spell::Teleport => DamageType::Force,
+            Spell::WallOfStone => DamageType::Force,
         }
     }
 }

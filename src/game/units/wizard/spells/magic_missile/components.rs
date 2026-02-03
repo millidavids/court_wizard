@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::constants;
+use crate::game::units::DamageType;
 
 /// Component for magic missile projectiles.
 ///
@@ -13,6 +14,9 @@ pub struct MagicMissile {
     pub base_homing_strength: f32,
     /// Damage dealt on impact.
     pub damage: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Collision radius.
     pub radius: f32,
     /// Accumulated time for path variability.
@@ -45,6 +49,7 @@ impl MagicMissile {
             velocity: initial_velocity,
             base_homing_strength: constants::BASE_HOMING_STRENGTH * scale,
             damage: constants::DAMAGE * scale,
+            damage_type: constants::DAMAGE_TYPE,
             radius: constants::COLLISION_RADIUS * scale,
             time_alive: 0.0,
             wobble_offset,

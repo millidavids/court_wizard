@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::game::units::DamageType;
+
 /// Fireball projectile component.
 ///
 /// Represents a fireball traveling through the battlefield until it hits a target or the ground.
@@ -9,6 +11,9 @@ pub struct Fireball {
     pub velocity: Vec3,
     /// Damage dealt by the explosion.
     pub damage: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Radius of the explosion when fireball impacts.
     pub explosion_radius: f32,
     /// Collision radius of the projectile itself.
@@ -22,6 +27,7 @@ impl Fireball {
     pub const fn new(
         velocity: Vec3,
         damage: f32,
+        damage_type: DamageType,
         explosion_radius: f32,
         radius: f32,
         empowerment: f32,
@@ -29,6 +35,7 @@ impl Fireball {
         Self {
             velocity,
             damage,
+            damage_type,
             explosion_radius,
             radius,
             empowerment,
@@ -47,6 +54,9 @@ pub struct FireballExplosion {
     pub max_radius: f32,
     /// Damage dealt per tick to units hit by the explosion.
     pub damage_per_tick: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Time the explosion has been active (in seconds).
     pub time_alive: f32,
     /// Time since last damage tick (in seconds).
@@ -57,11 +67,18 @@ pub struct FireballExplosion {
 
 impl FireballExplosion {
     /// Creates a new FireballExplosion component.
-    pub fn new(origin: Vec3, max_radius: f32, damage_per_tick: f32, empowerment: f32) -> Self {
+    pub fn new(
+        origin: Vec3,
+        max_radius: f32,
+        damage_per_tick: f32,
+        damage_type: DamageType,
+        empowerment: f32,
+    ) -> Self {
         Self {
             origin,
             max_radius,
             damage_per_tick,
+            damage_type,
             time_alive: 0.0,
             time_since_last_tick: 0.0,
             empowerment,
@@ -91,6 +108,9 @@ pub struct ResidualAreaDamageEffect {
     pub radius: f32,
     /// Damage dealt each tick.
     pub damage_per_tick: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Time between damage ticks (seconds).
     pub tick_interval: f32,
     /// Total lifetime (seconds).
@@ -106,6 +126,7 @@ impl ResidualAreaDamageEffect {
         origin: Vec3,
         radius: f32,
         damage_per_tick: f32,
+        damage_type: DamageType,
         tick_interval: f32,
         duration: f32,
     ) -> Self {
@@ -113,6 +134,7 @@ impl ResidualAreaDamageEffect {
             origin,
             radius,
             damage_per_tick,
+            damage_type,
             tick_interval,
             duration,
             time_alive: 0.0,

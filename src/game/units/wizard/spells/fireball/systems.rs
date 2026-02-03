@@ -136,6 +136,7 @@ fn spawn_fireball(
         Fireball::new(
             velocity,
             primed_spell.scale(constants::DAMAGE_PER_TICK),
+            constants::DAMAGE_TYPE,
             primed_spell.scale(constants::EXPLOSION_RADIUS),
             primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS),
             primed_spell.empowerment,
@@ -248,7 +249,13 @@ fn spawn_explosion(
             ..default()
         })),
         Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
-        FireballExplosion::new(position, max_radius, damage, empowerment),
+        FireballExplosion::new(
+            position,
+            max_radius,
+            damage,
+            constants::DAMAGE_TYPE,
+            empowerment,
+        ),
         OnGameplayScreen,
     ));
 }
@@ -332,6 +339,7 @@ pub fn cleanup_finished_explosions(
                     explosion.origin,
                     residual_radius,
                     residual_damage,
+                    constants::DAMAGE_TYPE,
                     constants::RESIDUAL_TICK_INTERVAL,
                     constants::RESIDUAL_DURATION,
                 ),

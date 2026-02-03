@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.197] - 2025-02-03
+
+### Added
+- Loading screen that displays while the game loads
+  - Shows spinning wizard hat logo with "Court Wizard" title
+  - Smooth fade-out when game is ready
+  - Error screen if game fails to load
+- Damage type system for spells (infrastructure for future features)
+  - Magic Missile, Disintegrate, and Black Hole deal Force damage
+  - Fireball deals Fire damage
+  - Chain Lightning deals Electric damage
+  - Ice and Necrotic damage types reserved for future spells
+  - Currently tracked but not affecting gameplay (ready for resistances/vulnerabilities)
+
+### Fixed
+- Removed border/outline from game canvas for cleaner appearance
+- Fixed loading screen text wrapping issue
+
 ## [v0.0.191] - 2025-02-03
 
 ### Added

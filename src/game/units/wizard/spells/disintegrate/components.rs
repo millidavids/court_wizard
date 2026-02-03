@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::constants;
+use crate::game::units::DamageType;
 
 /// Component for disintegrate beam.
 ///
@@ -13,6 +14,9 @@ pub struct DisintegrateBeam {
     pub direction: Vec3,
     /// Length of the beam.
     pub length: f32,
+    /// Type of damage dealt.
+    #[allow(dead_code)]
+    pub damage_type: DamageType,
     /// Time since last damage tick.
     pub time_since_damage: f32,
     /// Time since beam was spawned (used for growth animation).
@@ -35,6 +39,7 @@ impl DisintegrateBeam {
             origin,
             direction: direction.normalize(),
             length,
+            damage_type: constants::DAMAGE_TYPE,
             time_since_damage: 0.0,
             time_alive: 0.0,
             empowerment,

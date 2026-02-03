@@ -2,6 +2,7 @@
 //!
 //! Contains all hardcoded values for fireball behavior.
 
+use crate::game::units::DamageType;
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 /// PrimedSpell constant for Fireball.
@@ -38,6 +39,9 @@ pub const DAMAGE_TICK_INTERVAL: f32 = 0.05;
 
 /// Total damage dealt to a unit that stays in the explosion for the full duration.
 pub const TOTAL_DAMAGE: f32 = 25.0;
+
+/// Type of damage dealt by fireballs.
+pub const DAMAGE_TYPE: DamageType = DamageType::Fire;
 
 /// Damage dealt per tick to units in the explosion.
 /// Calculated as TOTAL_DAMAGE / (EXPLOSION_DURATION / DAMAGE_TICK_INTERVAL)

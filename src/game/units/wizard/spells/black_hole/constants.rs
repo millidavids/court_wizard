@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::game::units::DamageType;
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 /// PrimedSpell constant for Black Hole.
@@ -56,6 +57,9 @@ pub const MAX_FORCE_CLAMP: f32 = 2500.0;
 
 /// Base damage per tick to units touching the sphere.
 pub const BASE_DAMAGE_PER_TICK: f32 = 8.0;
+
+/// Type of damage dealt by black holes.
+pub const DAMAGE_TYPE: DamageType = DamageType::Force;
 
 /// Time between damage ticks (in seconds).
 pub const DAMAGE_INTERVAL: f32 = 0.2;
