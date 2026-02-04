@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.253] - 2025-02-04
+
+### Added
+- **Revolutionary Flow Field Pathfinding System**
+  - Units now use intelligent pathfinding to navigate around obstacles
+  - Defenders wait at their spawn positions until enemies get close, then move toward the King's target
+  - Attackers flow smoothly toward the King, automatically avoiding walls and obstacles
+  - Units path around fire, walls, and other hazards instead of walking through them
+  - Smooth, coordinated unit movement that looks more natural and tactical
+- Units now avoid fireball explosions and burning ground using the new pathfinding
+  - Explosions create a danger zone that units strongly avoid (100x movement cost)
+  - Burning ground left by fireballs slows movement significantly (50x movement cost)
+  - Units will find alternate routes around fire when possible
+
+### Changed
+- **Completely overhauled unit movement system**
+  - Units now blend three types of movement: pathfinding, targeting, and flocking
+  - When enemies are far away, units follow pathfinding routes
+  - When enemies are close, units prioritize direct targeting
+  - Units always maintain spacing with flocking behavior to avoid clustering
+- Improved Wall of Stone obstacle detection
+  - Added a buffer zone around walls to prevent units from clipping corners
+  - Units maintain better distance from wall edges when pathfinding
+- The King now intelligently selects targets for defenders
+  - Focuses on the closest living enemy
+  - Ignores dead units and won't target other defenders
+
+### Fixed
+- Defenders now properly reset when returning to the game from the main menu
+- Units no longer get stuck walking into walls or obstacles (kinda)
+- Removed leftover debug code and cleaned up compiler warnings
+
 ## [v0.0.229] - 2025-02-04
 
 ### Changed

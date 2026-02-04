@@ -17,4 +17,7 @@ pub enum FlowFieldInfluence {
 #[derive(Component, Default)]
 pub struct FlowFieldVelocity {
     pub velocity: Vec3,
+    /// Pathfinding distance to goal (integration field cost).
+    /// Use this instead of straight-line distance for weighting decisions.
+    pub pathfinding_distance: f32,
 }

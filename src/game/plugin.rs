@@ -83,7 +83,10 @@ impl Plugin for GamePlugin {
             ))
             .add_systems(
                 OnEnter(AppState::InGame),
-                shared_systems::init_level_from_config,
+                (
+                    shared_systems::init_level_from_config,
+                    shared_systems::reset_resources_for_replay,
+                ),
             )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             .add_systems(

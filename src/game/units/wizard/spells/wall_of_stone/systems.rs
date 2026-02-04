@@ -107,14 +107,24 @@ pub fn handle_wall_of_stone_casting(
                 ));
 
                 // Notify pathfinding system about the new obstacle
-                let min_x =
-                    center.x - forward.x * (clamped_length / 2.0) - right.x * wall_width / 2.0;
-                let max_x =
-                    center.x + forward.x * (clamped_length / 2.0) + right.x * wall_width / 2.0;
-                let min_z =
-                    center.z - forward.z * (clamped_length / 2.0) - right.z * wall_width / 2.0;
-                let max_z =
-                    center.z + forward.z * (clamped_length / 2.0) + right.z * wall_width / 2.0;
+                // Add buffer to prevent units from clipping corners (one cell size = 25 units)
+                const OBSTACLE_BUFFER: f32 = 25.0;
+
+                // Calculate unbuffered bounding box first
+                let unbuffered_min_x =
+                    center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
+                let unbuffered_max_x =
+                    center.x + forward.x * (clamped_length / 2.0) + right.x * (wall_width / 2.0);
+                let unbuffered_min_z =
+                    center.z - forward.z * (clamped_length / 2.0) - right.z * (wall_width / 2.0);
+                let unbuffered_max_z =
+                    center.z + forward.z * (clamped_length / 2.0) + right.z * (wall_width / 2.0);
+
+                // Expand the bounding box uniformly
+                let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
+                let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
+                let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
+                let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
 
                 obstacle_events.write(ObstacleChanged {
                     bounds: Rect::new(
@@ -258,14 +268,24 @@ pub fn cleanup_expired_walls(
             commands.entity(entity).despawn();
 
             // Notify pathfinding system that the obstacle is removed
-            let min_x =
+            // Use same buffer as when created
+            const OBSTACLE_BUFFER: f32 = 25.0;
+
+            // Calculate unbuffered bounding box first
+            let unbuffered_min_x =
                 wall.center.x - wall.forward.x * wall.half_length - wall.right.x * wall.half_width;
-            let max_x =
+            let unbuffered_max_x =
                 wall.center.x + wall.forward.x * wall.half_length + wall.right.x * wall.half_width;
-            let min_z =
+            let unbuffered_min_z =
                 wall.center.z - wall.forward.z * wall.half_length - wall.right.z * wall.half_width;
-            let max_z =
+            let unbuffered_max_z =
                 wall.center.z + wall.forward.z * wall.half_length + wall.right.z * wall.half_width;
+
+            // Expand the bounding box uniformly
+            let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
+            let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
+            let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
+            let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
 
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::new(

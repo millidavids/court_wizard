@@ -138,17 +138,18 @@ pub fn update_king_target(
     };
 
     // Spawn defender field rebuild if target changed and no rebuild pending
-    if target_changed && pathfinding.pending_defender_rebuild.is_none() {
-        if let Some((target_entity, _)) = closest_enemy {
-            // Get target position
-            if let Ok((_, target_transform, _)) = enemy_query.get(target_entity) {
-                let target_pos = Vec2::new(
-                    target_transform.translation.x,
-                    target_transform.translation.z,
-                );
-                spawn_defender_field_rebuild(&mut pathfinding, target_pos);
-                debug!("King target changed, rebuilding defender field");
-            }
+    if target_changed
+        && pathfinding.pending_defender_rebuild.is_none()
+        && let Some((target_entity, _)) = closest_enemy
+    {
+        // Get target position
+        if let Ok((_, target_transform, _)) = enemy_query.get(target_entity) {
+            let target_pos = Vec2::new(
+                target_transform.translation.x,
+                target_transform.translation.z,
+            );
+            spawn_defender_field_rebuild(&mut pathfinding, target_pos);
+            debug!("King target changed, rebuilding defender field");
         }
     }
 }
@@ -236,33 +237,15 @@ pub fn handle_obstacle_events(
         match event.obstacle_type {
             ObstacleType::Blocked => {
                 pathfinding.mark_blocked(&affected_cells);
-                debug!(
-                    "Blocked {} cells at ({}, {}) size {}x{}",
-                    affected_cells.len(),
-                    event.bounds.min.x,
-                    event.bounds.min.y,
-                    event.bounds.width(),
-                    event.bounds.height()
-                );
             }
             ObstacleType::SlowTerrain(multiplier) => {
                 pathfinding.set_terrain_cost(&affected_cells, multiplier);
-                debug!(
-                    "Set {} cells to slow terrain ({}x) at ({}, {})",
-                    affected_cells.len(),
-                    multiplier,
-                    event.bounds.min.x,
-                    event.bounds.min.y
-                );
+            }
+            ObstacleType::Hazard => {
+                pathfinding.set_terrain_cost(&affected_cells, 50.0);
             }
             ObstacleType::Removed => {
                 pathfinding.set_terrain_cost(&affected_cells, 1.0);
-                debug!(
-                    "Removed obstacle from {} cells at ({}, {})",
-                    affected_cells.len(),
-                    event.bounds.min.x,
-                    event.bounds.min.y
-                );
             }
         }
 
@@ -272,25 +255,25 @@ pub fn handle_obstacle_events(
     // If any obstacles changed, rebuild both fields
     if rebuild_needed {
         // Rebuild attacker field
-        if pathfinding.pending_attacker_rebuild.is_none() {
-            if let Ok(king_transform) = king_query.single() {
-                let king_pos =
-                    Vec2::new(king_transform.translation.x, king_transform.translation.z);
-                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
-            }
+        if pathfinding.pending_attacker_rebuild.is_none()
+            && let Ok(king_transform) = king_query.single()
+        {
+            let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
+            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
         }
 
         // Rebuild defender field if it exists
-        if pathfinding.defender_field.is_some() && pathfinding.pending_defender_rebuild.is_none() {
-            if let Some(target_entity) = pathfinding.king_current_target {
-                // We need to get the target's position, but we don't have access to the query here
-                // The next update_king_target call will handle this
-                debug!(
-                    "Obstacle changed, defender field rebuild will occur on next king target update"
-                );
-                // Force a rebuild by clearing current target so it re-evaluates
-                pathfinding.king_current_target = Some(target_entity);
-            }
+        if pathfinding.defender_field.is_some()
+            && pathfinding.pending_defender_rebuild.is_none()
+            && let Some(target_entity) = pathfinding.king_current_target
+        {
+            // We need to get the target's position, but we don't have access to the query here
+            // The next update_king_target call will handle this
+            debug!(
+                "Obstacle changed, defender field rebuild will occur on next king target update"
+            );
+            // Force a rebuild by clearing current target so it re-evaluates
+            pathfinding.king_current_target = Some(target_entity);
         }
     }
 }
@@ -317,15 +300,21 @@ pub fn sample_flow_fields(
                 if let Some(ref field) = pathfinding.attacker_field {
                     flow_velocity.velocity =
                         field.sample(world_pos, pathfinding.world_min, pathfinding.cell_size);
+                    flow_velocity.pathfinding_distance = field.sample_distance(
+                        world_pos,
+                        pathfinding.world_min,
+                        pathfinding.cell_size,
+                    );
                 } else {
                     flow_velocity.velocity = Vec3::ZERO;
+                    flow_velocity.pathfinding_distance = f32::INFINITY;
                 }
             }
             FlowFieldInfluence::Defender { spawn_pos } => {
                 if defenders_activated.active {
                     // Defenders are activated, use defender flow field
                     if let Some(ref field) = pathfinding.defender_field {
-                        let mut direction =
+                        let direction =
                             field.sample(world_pos, pathfinding.world_min, pathfinding.cell_size);
 
                         // Archers should respect their attack range as satisfaction radius
@@ -333,7 +322,7 @@ pub fn sample_flow_fields(
                         // zero out the flow field velocity so targeting takes over
                         if is_archer.is_some() && direction.length() > 0.0 {
                             // Check if archer is within attack range of target
-                            if let Some(target) = pathfinding.king_current_target {
+                            if let Some(_target) = pathfinding.king_current_target {
                                 // We can't easily get target position here without another query
                                 // So we'll let the targeting system handle this via weighting
                                 // The archer targeting system already handles optimal range positioning
@@ -341,8 +330,14 @@ pub fn sample_flow_fields(
                         }
 
                         flow_velocity.velocity = direction;
+                        flow_velocity.pathfinding_distance = field.sample_distance(
+                            world_pos,
+                            pathfinding.world_min,
+                            pathfinding.cell_size,
+                        );
                     } else {
                         flow_velocity.velocity = Vec3::ZERO;
+                        flow_velocity.pathfinding_distance = f32::INFINITY;
                     }
                 } else {
                     // Defenders not activated, rally to spawn point with satisfaction radius
@@ -358,6 +353,8 @@ pub fn sample_flow_fields(
                         // Within satisfaction radius of spawn point
                         flow_velocity.velocity = Vec3::ZERO;
                     }
+                    // Use straight-line distance when rallying to spawn
+                    flow_velocity.pathfinding_distance = distance_to_spawn;
                 }
             }
         }

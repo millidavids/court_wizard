@@ -31,7 +31,7 @@ pub fn spawn_initial_defender_archers(
     // Archers spawn one row behind last infantry row
     // Infantry fill from high rows down (2, 1, 0), archers go to the next row down
     let infantry_cells = cells_needed(INITIAL_DEFENDER_COUNT);
-    let infantry_rows = (infantry_cells + DEFENDER_GRID_COLS - 1) / DEFENDER_GRID_COLS;
+    let infantry_rows = infantry_cells.div_ceil(DEFENDER_GRID_COLS);
     // Infantry start at row (ROWS-1) and fill `infantry_rows` rows, ending at (ROWS-1-infantry_rows+1)
     // Archers go one row lower than that
     let last_infantry_row = DEFENDER_GRID_ROWS.saturating_sub(infantry_rows);
@@ -667,12 +667,13 @@ pub fn archer_movement(
     ) in &mut archer_units
     {
         // Calculate three-velocity weighting based on distance to target
+        // Use pathfinding distance (accounts for obstacles) instead of straight-line distance
         // Archers follow similar logic to infantry but prioritize staying at range
         // Far from enemies (>700 units, beyond max range): 70% flow field, 20% flocking, 10% targeting
         // Approaching range (400-700 units): 50% flow field, 20% flocking, 30% targeting
         // Within optimal range (150-400 units): 20% flow field, 20% flocking, 60% targeting
         // Too close (<150 units): 10% flow field, 10% flocking, 80% targeting (retreat)
-        let distance = targeting_velocity.distance_to_target;
+        let distance = flow_field_velocity.pathfinding_distance;
 
         let (flow_weight, flocking_weight, targeting_weight) = if distance > ARCHER_MAX_RANGE {
             (0.7, 0.2, 0.1)

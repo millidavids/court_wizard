@@ -214,12 +214,13 @@ pub fn king_movement(
     ) in &mut king_units
     {
         // Calculate three-velocity weighting based on distance to target
+        // Use pathfinding distance (accounts for obstacles) instead of straight-line distance
         // King uses same logic as infantry
         // Far from enemies (>500 units): 70% flow field, 20% flocking, 10% targeting
         // Medium range (200-500 units): 50% flow field, 20% flocking, 30% targeting
         // Close range (50-200 units): 20% flow field, 20% flocking, 60% targeting
         // In melee (<50 units): 10% flow field, 10% flocking, 80% targeting
-        let distance = targeting_velocity.distance_to_target;
+        let distance = flow_field_velocity.pathfinding_distance;
 
         let (flow_weight, flocking_weight, targeting_weight) = if distance > 500.0 {
             (0.7, 0.2, 0.1)

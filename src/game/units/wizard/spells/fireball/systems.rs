@@ -9,6 +9,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::events::MouseLeftReleased;
+use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -163,6 +164,7 @@ pub fn check_fireball_collisions(
     fireballs: Query<(Entity, &Transform, &Fireball)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (fireball_entity, fireball_transform, fireball) in &fireballs {
         let fireball_pos = fireball_transform.translation;
@@ -176,6 +178,7 @@ pub fn check_fireball_collisions(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &mut obstacle_events,
                     explosion_pos,
                     fireball.explosion_radius,
                     fireball.damage,
@@ -198,6 +201,7 @@ pub fn check_fireball_collisions(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
+                &mut obstacle_events,
                 explosion_pos,
                 fireball.explosion_radius,
                 fireball.damage,
@@ -217,6 +221,7 @@ pub fn check_fireball_collisions(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &mut obstacle_events,
                     fireball_pos,
                     fireball.explosion_radius,
                     fireball.damage,
@@ -234,12 +239,24 @@ fn spawn_explosion(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
     position: Vec3,
     max_radius: f32,
     damage: f32,
     empowerment: f32,
 ) {
     let sphere = Sphere::new(1.0); // Unit sphere, scaled by transform
+
+    // Buffer the explosion bounds to make units avoid it more strongly (25 units = 1 cell)
+    const EXPLOSION_BUFFER: f32 = 25.0;
+    let buffered_radius = max_radius + EXPLOSION_BUFFER;
+
+    // Notify pathfinding system about the explosion (100x movement cost)
+    let origin_2d = Vec2::new(position.x, position.z);
+    obstacle_events.write(ObstacleChanged {
+        bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
+        obstacle_type: ObstacleType::SlowTerrain(100.0),
+    });
 
     commands.spawn((
         Mesh3d(meshes.add(sphere)),
@@ -314,6 +331,7 @@ pub fn cleanup_finished_explosions(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     explosions: Query<(Entity, &FireballExplosion)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= constants::EXPLOSION_DURATION {
@@ -321,6 +339,24 @@ pub fn cleanup_finished_explosions(
             let scale = explosion.empowerment;
             let residual_radius = constants::RESIDUAL_DAMAGE_RADIUS * scale;
             let residual_damage = constants::RESIDUAL_DAMAGE_PER_TICK * scale;
+
+            // Remove the explosion obstacle (100x cost)
+            const EXPLOSION_BUFFER: f32 = 25.0;
+            let buffered_explosion_radius = explosion.max_radius + EXPLOSION_BUFFER;
+            let origin_2d = Vec2::new(explosion.origin.x, explosion.origin.z);
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::from_center_size(
+                    origin_2d,
+                    Vec2::splat(buffered_explosion_radius * 2.0),
+                ),
+                obstacle_type: ObstacleType::Removed,
+            });
+
+            // Add the burning ground obstacle (50x movement cost)
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(residual_radius * 2.0)),
+                obstacle_type: ObstacleType::Hazard,
+            });
 
             // Spawn residual fire at explosion origin
             let circle = Circle::new(residual_radius);
@@ -419,9 +455,17 @@ pub fn fade_residual_effects(
 pub fn cleanup_residual_effects(
     mut commands: Commands,
     effects: Query<(Entity, &ResidualAreaDamageEffect)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, effect) in &effects {
         if effect.time_alive >= effect.duration {
+            // Notify pathfinding system that the burning ground is removed
+            let origin_2d = Vec2::new(effect.origin.x, effect.origin.z);
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(effect.radius * 2.0)),
+                obstacle_type: ObstacleType::Removed,
+            });
+
             commands.entity(entity).despawn();
         }
     }

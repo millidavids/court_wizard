@@ -8,15 +8,8 @@ pub struct Infantry;
 ///
 /// Defenders share activation - once any attacker gets within range,
 /// all defenders activate and start moving.
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct DefendersActivated {
+    #[allow(clippy::struct_field_names)]
     pub active: bool,
-}
-
-impl Default for DefendersActivated {
-    fn default() -> Self {
-        Self {
-            active: false, // Start inactive - defenders wait for enemies to get close
-        }
-    }
 }

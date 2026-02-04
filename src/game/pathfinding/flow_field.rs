@@ -16,6 +16,8 @@ pub struct FlowField {
     pub directions: Vec<Vec3>,
     /// Movement cost for each cell (1.0 = normal, 3.0 = mud, f32::INFINITY = blocked).
     pub costs: Vec<f32>,
+    /// Integration field - pathfinding distance from each cell to goal.
+    pub integration: Vec<f32>,
     /// Grid width (number of cells in X direction).
     pub width: usize,
     /// Grid height (number of cells in Z direction).
@@ -61,6 +63,7 @@ impl FlowField {
         Self {
             directions: vec![Vec3::ZERO; size],
             costs: vec![1.0; size],
+            integration: vec![f32::INFINITY; size],
             width,
             height,
         }
@@ -73,6 +76,7 @@ impl FlowField {
     }
 
     /// Marks cells as blocked (impassable).
+    #[allow(dead_code)]
     pub fn mark_blocked(&mut self, cells: &[(usize, usize)]) {
         for &(x, z) in cells {
             if x < self.width && z < self.height {
@@ -86,6 +90,7 @@ impl FlowField {
     ///
     /// This replaces the current cost - use this when clearing obstacles or
     /// updating terrain. For obstacles that overlap, the last one wins.
+    #[allow(dead_code)]
     pub fn set_terrain_cost(&mut self, cells: &[(usize, usize)], cost: f32) {
         for &(x, z) in cells {
             if x < self.width && z < self.height {
@@ -168,13 +173,16 @@ impl FlowField {
             }
         }
 
-        // Generate flow field from integration field
+        // Generate flow field from integration field (before moving)
         self.generate_flow_from_integration(
             &integration,
             goal_x,
             goal_z,
             satisfaction_radius_cells,
         );
+
+        // Store integration field for pathfinding distance queries (moved, not cloned)
+        self.integration = integration;
     }
 
     /// Generates direction vectors from integration costs.
@@ -197,8 +205,8 @@ impl FlowField {
 
                 // Check if within satisfaction radius of goal (if radius > 0)
                 if satisfaction_radius > 0 {
-                    let dx = (x as isize - goal_x as isize).abs() as usize;
-                    let dz = (z as isize - goal_z as isize).abs() as usize;
+                    let dx = (x as isize - goal_x as isize).unsigned_abs();
+                    let dz = (z as isize - goal_z as isize).unsigned_abs();
                     let distance_squared = dx * dx + dz * dz;
                     let radius_squared = satisfaction_radius * satisfaction_radius;
 
@@ -267,6 +275,28 @@ impl FlowField {
 
         let idx = self.index(grid_x as usize, grid_z as usize);
         self.directions[idx]
+    }
+
+    /// Samples the pathfinding distance at a world position.
+    ///
+    /// Returns the integration field cost (pathfinding distance to goal),
+    /// or f32::INFINITY if out of bounds or unreachable.
+    pub fn sample_distance(&self, world_pos: Vec3, world_min: Vec2, cell_size: f32) -> f32 {
+        // Convert world position to grid coordinates
+        let grid_x = ((world_pos.x - world_min.x) / cell_size).floor() as isize;
+        let grid_z = ((world_pos.z - world_min.y) / cell_size).floor() as isize;
+
+        // Check bounds
+        if grid_x < 0
+            || grid_z < 0
+            || grid_x >= self.width as isize
+            || grid_z >= self.height as isize
+        {
+            return f32::INFINITY;
+        }
+
+        let idx = self.index(grid_x as usize, grid_z as usize);
+        self.integration[idx]
     }
 }
 
