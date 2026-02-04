@@ -7,6 +7,7 @@ use super::constants::*;
 use crate::game::components::{OnGameplayScreen, PersistentSpellEffect};
 use crate::game::input::MouseButtonState;
 use crate::game::input::events::MouseLeftReleased;
+use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
 
 /// Handles Wall of Stone casting — click to anchor, drag to extend, release to place.
 #[allow(clippy::too_many_arguments)]
@@ -31,6 +32,7 @@ pub fn handle_wall_of_stone_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut caster_query: Query<&mut WallOfStoneCaster, With<Wizard>>,
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -103,6 +105,26 @@ pub fn handle_wall_of_stone_casting(
                     OnGameplayScreen,
                     PersistentSpellEffect,
                 ));
+
+                // Notify pathfinding system about the new obstacle
+                let min_x =
+                    center.x - forward.x * (clamped_length / 2.0) - right.x * wall_width / 2.0;
+                let max_x =
+                    center.x + forward.x * (clamped_length / 2.0) + right.x * wall_width / 2.0;
+                let min_z =
+                    center.z - forward.z * (clamped_length / 2.0) - right.z * wall_width / 2.0;
+                let max_z =
+                    center.z + forward.z * (clamped_length / 2.0) + right.z * wall_width / 2.0;
+
+                obstacle_events.write(ObstacleChanged {
+                    bounds: Rect::new(
+                        min_x.min(max_x),
+                        min_z.min(max_z),
+                        (max_x - min_x).abs(),
+                        (max_z - min_z).abs(),
+                    ),
+                    obstacle_type: ObstacleType::Blocked,
+                });
             }
 
             // Despawn preview
@@ -226,10 +248,34 @@ pub fn animate_sinking_walls(mut walls: Query<(&WallOfStone, &mut Transform)>) {
 }
 
 /// Despawns walls that have exceeded their duration.
-pub fn cleanup_expired_walls(mut commands: Commands, walls: Query<(Entity, &WallOfStone)>) {
+pub fn cleanup_expired_walls(
+    mut commands: Commands,
+    walls: Query<(Entity, &WallOfStone)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
     for (entity, wall) in &walls {
         if wall.time_alive >= wall.duration {
             commands.entity(entity).despawn();
+
+            // Notify pathfinding system that the obstacle is removed
+            let min_x =
+                wall.center.x - wall.forward.x * wall.half_length - wall.right.x * wall.half_width;
+            let max_x =
+                wall.center.x + wall.forward.x * wall.half_length + wall.right.x * wall.half_width;
+            let min_z =
+                wall.center.z - wall.forward.z * wall.half_length - wall.right.z * wall.half_width;
+            let max_z =
+                wall.center.z + wall.forward.z * wall.half_length + wall.right.z * wall.half_width;
+
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::new(
+                    min_x.min(max_x),
+                    min_z.min(max_z),
+                    (max_x - min_x).abs(),
+                    (max_z - min_z).abs(),
+                ),
+                obstacle_type: ObstacleType::Removed,
+            });
         }
     }
 }

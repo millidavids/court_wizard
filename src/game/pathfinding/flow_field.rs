@@ -1,0 +1,332 @@
+//! Flow field pathfinding implementation.
+//!
+//! Uses Dijkstra's algorithm to generate vector fields that guide units toward goals
+//! while avoiding obstacles and respecting terrain costs.
+
+use bevy::prelude::*;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
+
+/// A flow field that guides units toward a goal position.
+///
+/// Each cell contains a direction vector and a cost value.
+#[derive(Clone)]
+pub struct FlowField {
+    /// Direction to move from each cell (normalized Vec3, Y=0).
+    pub directions: Vec<Vec3>,
+    /// Movement cost for each cell (1.0 = normal, 3.0 = mud, f32::INFINITY = blocked).
+    pub costs: Vec<f32>,
+    /// Grid width (number of cells in X direction).
+    pub width: usize,
+    /// Grid height (number of cells in Z direction).
+    pub height: usize,
+}
+
+/// Priority queue node for Dijkstra's algorithm.
+#[derive(Copy, Clone)]
+struct Node {
+    cost: f32,
+    x: usize,
+    z: usize,
+}
+
+// Priority queue ordering: lowest cost first
+impl Ord for Node {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other
+            .cost
+            .partial_cmp(&self.cost)
+            .unwrap_or(Ordering::Equal)
+    }
+}
+
+impl PartialOrd for Node {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.cost == other.cost
+    }
+}
+
+impl Eq for Node {}
+
+impl FlowField {
+    /// Creates a new empty flow field with the specified dimensions.
+    pub fn new(width: usize, height: usize) -> Self {
+        let size = width * height;
+        Self {
+            directions: vec![Vec3::ZERO; size],
+            costs: vec![1.0; size],
+            width,
+            height,
+        }
+    }
+
+    /// Gets the 1D index for a 2D grid position.
+    #[inline]
+    fn index(&self, x: usize, z: usize) -> usize {
+        z * self.width + x
+    }
+
+    /// Marks cells as blocked (impassable).
+    pub fn mark_blocked(&mut self, cells: &[(usize, usize)]) {
+        for &(x, z) in cells {
+            if x < self.width && z < self.height {
+                let idx = self.index(x, z);
+                self.costs[idx] = f32::INFINITY;
+            }
+        }
+    }
+
+    /// Sets terrain cost for cells (higher = slower movement).
+    ///
+    /// This replaces the current cost - use this when clearing obstacles or
+    /// updating terrain. For obstacles that overlap, the last one wins.
+    pub fn set_terrain_cost(&mut self, cells: &[(usize, usize)], cost: f32) {
+        for &(x, z) in cells {
+            if x < self.width && z < self.height {
+                let idx = self.index(x, z);
+                // Replace the cost directly instead of taking max
+                self.costs[idx] = cost;
+            }
+        }
+    }
+
+    /// Generates the flow field using Dijkstra's algorithm from a goal position.
+    ///
+    /// # Arguments
+    ///
+    /// * `goal_x` - Goal cell X coordinate
+    /// * `goal_z` - Goal cell Z coordinate
+    pub fn generate(&mut self, goal_x: usize, goal_z: usize) {
+        self.generate_with_radius(goal_x, goal_z, 8);
+    }
+
+    /// Generates the flow field with a custom satisfaction radius.
+    ///
+    /// # Arguments
+    ///
+    /// * `goal_x` - Goal cell X coordinate
+    /// * `goal_z` - Goal cell Z coordinate
+    /// * `satisfaction_radius_cells` - Radius in cells where units are "close enough"
+    pub fn generate_with_radius(
+        &mut self,
+        goal_x: usize,
+        goal_z: usize,
+        satisfaction_radius_cells: usize,
+    ) {
+        // Initialize integration field (cost to reach goal from each cell)
+        let mut integration = vec![f32::INFINITY; self.width * self.height];
+
+        // Goal has zero cost
+        let goal_idx = self.index(goal_x, goal_z);
+        integration[goal_idx] = 0.0;
+
+        // Priority queue for Dijkstra
+        let mut queue = BinaryHeap::new();
+        queue.push(Node {
+            cost: 0.0,
+            x: goal_x,
+            z: goal_z,
+        });
+
+        // Dijkstra's algorithm
+        while let Some(Node { cost, x, z }) = queue.pop() {
+            let current_idx = self.index(x, z);
+
+            // Skip if we've already found a better path
+            if cost > integration[current_idx] {
+                continue;
+            }
+
+            // Check all 8 neighbors
+            let neighbors = [
+                (x.wrapping_sub(1), z, 1.0),                   // West
+                (x + 1, z, 1.0),                               // East
+                (x, z.wrapping_sub(1), 1.0),                   // South
+                (x, z + 1, 1.0),                               // North
+                (x.wrapping_sub(1), z.wrapping_sub(1), 1.414), // SW (diagonal)
+                (x + 1, z.wrapping_sub(1), 1.414),             // SE
+                (x.wrapping_sub(1), z + 1, 1.414),             // NW
+                (x + 1, z + 1, 1.414),                         // NE
+            ];
+
+            for (nx, nz, distance_mult) in neighbors {
+                // Check bounds
+                if nx >= self.width || nz >= self.height {
+                    continue;
+                }
+
+                let neighbor_idx = self.index(nx, nz);
+                let terrain_cost = self.costs[neighbor_idx];
+
+                // Skip blocked cells
+                if terrain_cost.is_infinite() {
+                    continue;
+                }
+
+                // Calculate cost to reach neighbor through current cell
+                let new_cost = cost + terrain_cost * distance_mult;
+
+                // Update if we found a better path
+                if new_cost < integration[neighbor_idx] {
+                    integration[neighbor_idx] = new_cost;
+                    queue.push(Node {
+                        cost: new_cost,
+                        x: nx,
+                        z: nz,
+                    });
+                }
+            }
+        }
+
+        // Generate flow field from integration field
+        self.generate_flow_from_integration(
+            &integration,
+            goal_x,
+            goal_z,
+            satisfaction_radius_cells,
+        );
+    }
+
+    /// Generates direction vectors from integration costs.
+    fn generate_flow_from_integration(
+        &mut self,
+        integration: &[f32],
+        goal_x: usize,
+        goal_z: usize,
+        satisfaction_radius: usize,
+    ) {
+        for z in 0..self.height {
+            for x in 0..self.width {
+                let idx = self.index(x, z);
+
+                // Skip blocked or unreachable cells
+                if self.costs[idx].is_infinite() || integration[idx].is_infinite() {
+                    self.directions[idx] = Vec3::ZERO;
+                    continue;
+                }
+
+                // Check if within satisfaction radius of goal
+                let dx = (x as isize - goal_x as isize).abs() as usize;
+                let dz = (z as isize - goal_z as isize).abs() as usize;
+                let distance_squared = dx * dx + dz * dz;
+                let radius_squared = satisfaction_radius * satisfaction_radius;
+
+                if distance_squared <= radius_squared {
+                    // Within satisfaction radius - no need to move
+                    self.directions[idx] = Vec3::ZERO;
+                    continue;
+                }
+
+                // Find the neighbor with lowest integration cost
+                let mut best_direction = Vec3::ZERO;
+                let mut best_cost = integration[idx];
+
+                let neighbors = [
+                    (x.wrapping_sub(1), z, Vec3::new(-1.0, 0.0, 0.0)), // West
+                    (x + 1, z, Vec3::new(1.0, 0.0, 0.0)),              // East
+                    (x, z.wrapping_sub(1), Vec3::new(0.0, 0.0, -1.0)), // South
+                    (x, z + 1, Vec3::new(0.0, 0.0, 1.0)),              // North
+                    (
+                        x.wrapping_sub(1),
+                        z.wrapping_sub(1),
+                        Vec3::new(-1.0, 0.0, -1.0),
+                    ), // SW
+                    (x + 1, z.wrapping_sub(1), Vec3::new(1.0, 0.0, -1.0)), // SE
+                    (x.wrapping_sub(1), z + 1, Vec3::new(-1.0, 0.0, 1.0)), // NW
+                    (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0)),          // NE
+                ];
+
+                for (nx, nz, direction) in neighbors {
+                    if nx >= self.width || nz >= self.height {
+                        continue;
+                    }
+
+                    let neighbor_idx = self.index(nx, nz);
+                    let neighbor_cost = integration[neighbor_idx];
+
+                    if neighbor_cost < best_cost {
+                        best_cost = neighbor_cost;
+                        best_direction = direction;
+                    }
+                }
+
+                // Normalize direction (diagonals are longer)
+                self.directions[idx] = best_direction.normalize_or_zero();
+            }
+        }
+    }
+
+    /// Samples the flow field at a world position.
+    ///
+    /// Returns the direction vector to follow, or Vec3::ZERO if out of bounds.
+    pub fn sample(&self, world_pos: Vec3, world_min: Vec2, cell_size: f32) -> Vec3 {
+        // Convert world position to grid coordinates
+        let grid_x = ((world_pos.x - world_min.x) / cell_size).floor() as isize;
+        let grid_z = ((world_pos.z - world_min.y) / cell_size).floor() as isize;
+
+        // Check bounds
+        if grid_x < 0
+            || grid_z < 0
+            || grid_x >= self.width as isize
+            || grid_z >= self.height as isize
+        {
+            return Vec3::ZERO;
+        }
+
+        let idx = self.index(grid_x as usize, grid_z as usize);
+        self.directions[idx]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_flow_field_generation() {
+        // Create a 10x10 grid
+        let mut field = FlowField::new(10, 10);
+
+        // Goal in center (5, 5)
+        field.generate(5, 5);
+
+        // Check that corner points toward center
+        let world_min = Vec2::new(0.0, 0.0);
+        let cell_size = 1.0;
+
+        // Sample from corner (0, 0) - should point toward (5, 5)
+        let direction = field.sample(Vec3::new(0.5, 0.0, 0.5), world_min, cell_size);
+
+        // Direction should have positive X and Z components
+        assert!(direction.x > 0.0);
+        assert!(direction.z > 0.0);
+        assert_eq!(direction.y, 0.0);
+    }
+
+    #[test]
+    fn test_blocked_cells() {
+        let mut field = FlowField::new(10, 10);
+
+        // Block a wall from (5, 0) to (5, 9)
+        for z in 0..10 {
+            field.mark_blocked(&[(5, z)]);
+        }
+
+        field.generate(7, 5); // Goal on right side of wall
+
+        // Sample from left side (3, 5) - should path around wall
+        let world_min = Vec2::new(0.0, 0.0);
+        let cell_size = 1.0;
+        let direction = field.sample(Vec3::new(3.5, 0.0, 5.5), world_min, cell_size);
+
+        // Should not point directly at goal (blocked), should go around
+        // Direction should point north or south to go around wall
+        assert!(direction.z.abs() > 0.1);
+    }
+}

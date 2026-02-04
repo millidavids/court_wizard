@@ -5,6 +5,7 @@ use crate::state::{AppState, InGameState};
 use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
+use super::pathfinding::PathfindingPlugin;
 use super::resources::{CurrentLevel, GameOutcome, KillStats};
 use super::runes::RunePlugin;
 use super::shared_systems;
@@ -73,7 +74,13 @@ impl Plugin for GamePlugin {
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()
             .insert_resource(GameOutcome::Victory)
-            .add_plugins((InputPlugin, BattlefieldPlugin, UnitsPlugin, RunePlugin))
+            .add_plugins((
+                InputPlugin,
+                BattlefieldPlugin,
+                UnitsPlugin,
+                RunePlugin,
+                PathfindingPlugin,
+            ))
             .add_systems(
                 OnEnter(AppState::InGame),
                 shared_systems::init_level_from_config,
@@ -102,6 +109,8 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 (
+                    // Check if any defender is near an enemy to activate all defenders
+                    shared_systems::activate_defenders_on_proximity,
                     // Separation adds flocking forces (immutable queries)
                     // Unit-specific targeting systems registered in their respective plugins
                     shared_systems::apply_separation,

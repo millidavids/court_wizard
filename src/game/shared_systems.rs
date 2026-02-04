@@ -85,13 +85,16 @@ pub fn calculate_effectiveness(
     }
 }
 
-/// Applies flocking behavior and enforces zero hitbox overlap.
+/// Applies flocking behavior (separation, alignment, cohesion) to units.
 ///
 /// First enforces hard collision constraint (no overlap allowed), then calculates flocking velocity.
 /// Separation - Units steer away from neighbors that are too close
 /// Alignment - Units steer to match the velocity of nearby neighbors
 /// Cohesion - Units steer toward the average position of nearby neighbors
+///
+/// Defenders have alignment/cohesion disabled when not activated (returning to rally).
 pub fn apply_separation(
+    defenders_activated: Res<super::units::infantry::components::DefendersActivated>,
     mut units: Query<
         (
             Entity,
@@ -99,17 +102,18 @@ pub fn apply_separation(
             &Velocity,
             &mut super::units::components::FlockingVelocity,
             &Hitbox,
+            &Team,
             Option<&super::units::components::FlockingModifier>,
         ),
         Without<Corpse>,
     >,
 ) {
-    // Flocking parameters are defined in constants.rs
+    // Separation parameters are defined in constants.rs
 
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
         .iter()
-        .map(|(entity, transform, velocity, _, hitbox, _)| {
+        .map(|(entity, transform, velocity, _, hitbox, _, _)| {
             (
                 entity,
                 transform.translation,
@@ -124,10 +128,10 @@ pub fn apply_separation(
     for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
-            .map(|(entity, transform, _, _, hitbox, _)| (entity, transform.translation, *hitbox))
+            .map(|(entity, transform, _, _, hitbox, _, _)| (entity, transform.translation, *hitbox))
             .collect();
 
-        for (entity, mut transform, _, _, hitbox, _) in units.iter_mut() {
+        for (entity, mut transform, _, _, hitbox, _, _) in units.iter_mut() {
             let mut total_correction = Vec3::ZERO;
             let mut overlap_count = 0;
 
@@ -167,9 +171,13 @@ pub fn apply_separation(
         }
     }
 
-    // Second pass: calculate flocking velocity
-    for (entity, transform, _velocity, mut flocking_velocity, hitbox, flock_mod) in units.iter_mut()
+    // Second pass: calculate flocking velocity (separation, alignment, cohesion)
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod) in
+        units.iter_mut()
     {
+        // Defenders have alignment/cohesion disabled when not activated
+        let is_defender = *team == Team::Defenders;
+        let disable_flocking = is_defender && !defenders_activated.active;
         let mut separation = Vec3::ZERO;
         let mut alignment = Vec3::ZERO;
         let mut cohesion = Vec3::ZERO;
@@ -215,8 +223,17 @@ pub fn apply_separation(
         let mut combined_direction = Vec3::ZERO;
 
         let sep_mult = flock_mod.map_or(1.0, |m| m.separation);
-        let align_mult = flock_mod.map_or(1.0, |m| m.alignment);
-        let coh_mult = flock_mod.map_or(1.0, |m| m.cohesion);
+        // Disable alignment and cohesion for defenders when not activated
+        let align_mult = if disable_flocking {
+            0.0
+        } else {
+            flock_mod.map_or(1.0, |m| m.alignment)
+        };
+        let coh_mult = if disable_flocking {
+            0.0
+        } else {
+            flock_mod.map_or(1.0, |m| m.cohesion)
+        };
 
         if separation_count > 0 {
             separation /= separation_count as f32;
@@ -603,4 +620,58 @@ pub fn reset_resources_for_replay(
     attack_cycle.current_time = 0.0;
     defenders_activated.active = false;
     king_spawned.0 = false;
+}
+
+/// Activates all defenders when any defender is close enough to an enemy.
+///
+/// This creates coordinated defensive behavior - the entire defensive line
+/// engages together rather than individually.
+pub fn activate_defenders_on_proximity(
+    mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
+    defenders: Query<(&Transform, &Team), Without<Corpse>>,
+    all_units: Query<(&Transform, &Team), Without<Corpse>>,
+) {
+    const ENGAGEMENT_RANGE: f32 = 800.0; // Archer max range (700) + 100
+
+    // If already active, stay active (defenders don't deactivate once engaged)
+    if defenders_activated.active {
+        return;
+    }
+
+    // Check if any defender is close to any enemy
+    for (defender_transform, defender_team) in &defenders {
+        // Skip non-defenders
+        if *defender_team != Team::Defenders {
+            continue;
+        }
+
+        // Check distance to nearest enemy
+        for (enemy_transform, enemy_team) in &all_units {
+            // Skip same team
+            if *enemy_team == *defender_team {
+                continue;
+            }
+
+            // Check if enemy (using same logic as combat)
+            let is_enemy = match (*defender_team, *enemy_team) {
+                (Team::Undead, Team::Undead) => false,
+                (Team::Undead, _) => true,
+                (_, Team::Undead) => true,
+                _ => *enemy_team != *defender_team,
+            };
+
+            if !is_enemy {
+                continue;
+            }
+
+            let distance = defender_transform
+                .translation
+                .distance(enemy_transform.translation);
+            if distance < ENGAGEMENT_RANGE {
+                // Enemy in range - activate all defenders
+                defenders_activated.active = true;
+                return;
+            }
+        }
+    }
 }
