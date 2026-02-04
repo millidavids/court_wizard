@@ -10,24 +10,22 @@ use crate::game::units::components::{
     TargetingVelocity, Team, Teleportable,
 };
 
-/// Spawns the King unit at the exact center of all defender spawn points.
+/// Spawns the King unit at the center of the defender grid.
 ///
-/// Defender spawn points form a 2x2 grid:
-/// (-1700, 1200), (-1400, 1200), (-1700, 1500), (-1400, 1500)
-/// King spawns at centroid moved 100 units diagonally back from attackers
+/// King spawns in the center of the radial defender formation,
+/// positioned between the wizard and battlefield center.
 pub fn spawn_king(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut king_spawned: ResMut<KingSpawned>,
 ) {
-    // Calculate centroid of all 4 defender spawn points
-    let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0; // = -1550
-    let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0; // = 1350
-
-    // Spawn King in the middle of infantry (which spawns at centroid_x + 100)
-    let spawn_x = centroid_x + 100.0;
-    let spawn_z = centroid_z;
+    // King spawns at exact center of defender grid
+    // Use center angle and base range (no row/col offsets)
+    let angle = DEFENDER_GRID_CENTER_ANGLE;
+    let radius = DEFENDER_GRID_GROUND_RANGE + 600.0;
+    let spawn_x = WIZARD_POSITION.x + radius * angle.cos();
+    let spawn_z = WIZARD_POSITION.z + radius * angle.sin();
 
     // Define King hitbox (larger than standard units)
     let hitbox = Hitbox::new(KING_RADIUS, KING_HITBOX_HEIGHT);
@@ -97,7 +95,9 @@ pub fn spawn_king(
 ///
 /// The King always moves directly toward the nearest enemy.
 /// Also sets InMelee component if an enemy is within melee range.
+/// King is gated by the DefendersActivated resource.
 pub fn update_king_targeting(
+    defenders_activated: Res<crate::game::units::infantry::components::DefendersActivated>,
     mut commands: Commands,
     mut king: Query<
         (Entity, &Transform, &Team, &mut TargetingVelocity),
@@ -113,6 +113,11 @@ pub fn update_king_targeting(
 
     // Update King's targeting velocity
     for (entity, transform, team, mut targeting_velocity) in &mut king {
+        // Skip inactive King (wait for defenders to activate)
+        if !defenders_activated.active {
+            *targeting_velocity = TargetingVelocity::default();
+            continue;
+        }
         // Find nearest enemy
         let nearest_enemy = unit_snapshot
             .iter()
