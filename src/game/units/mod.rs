@@ -3,6 +3,7 @@
 //! Contains all game unit types: wizard, infantry, and archers.
 
 use bevy::prelude::*;
+use rand::Rng;
 
 pub(crate) mod archer;
 pub(crate) mod components;
@@ -28,3 +29,15 @@ pub struct MovementCalculationSet;
 /// This set runs after MovementCalculationSet.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ApplyTransformsSet;
+
+/// Generates a random position within a tight spread around a cell center.
+/// Used for spawning units randomly within their assigned grid cell.
+/// Returns (x, z) coordinates offset from the center point.
+pub(crate) fn random_position_in_cell(cell_x: f32, cell_z: f32) -> (f32, f32) {
+    use crate::game::constants::GRID_ROW_DEPTH;
+    let mut rng = rand::thread_rng();
+    let spread = GRID_ROW_DEPTH / 8.0;
+    let final_x = cell_x + rng.gen_range(-spread..spread);
+    let final_z = cell_z + rng.gen_range(-spread..spread);
+    (final_x, final_z)
+}

@@ -16,7 +16,7 @@ pub struct DefendersActivated {
 impl Default for DefendersActivated {
     fn default() -> Self {
         Self {
-            active: false, // Start inactive, activate when enemies come within range
+            active: false, // Start inactive - defenders wait for enemies to get close
         }
     }
 }

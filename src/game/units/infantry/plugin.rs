@@ -39,6 +39,8 @@ impl Plugin for InfantryPlugin {
             .add_systems(
                 Update,
                 (
+                    systems::check_defender_activation
+                        .before(crate::game::plugin::VelocitySystemSet),
                     systems::update_infantry_targeting
                         .in_set(crate::game::plugin::VelocitySystemSet),
                     systems::infantry_movement.in_set(MovementCalculationSet),

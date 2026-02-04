@@ -4,72 +4,136 @@ use super::components::*;
 use super::styles::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    calculate_grid_cell_position, calculate_spawn_cells, calculate_total_archers,
-    calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
+    calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
+    calculate_total_archers, calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
 };
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
+    AttackTiming, Corpse, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
     KingsGuard, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
+use crate::game::units::random_position_in_cell;
 
 /// Spawns initial defenders when entering the game.
 ///
-/// Spawns defenders in one group in front of the King.
+/// Spawns defenders in radial grid formation around wizard, positioned between
+/// wizard and battlefield center.
 pub fn spawn_initial_defenders(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Calculate King's centroid position
-    let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0; // = -1550
-    let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0; // = 1350
+    // Calculate how many cells needed for all defenders
+    let cells_needed = cells_needed(INITIAL_DEFENDER_COUNT);
 
-    // Spawn all infantry in one group in front of the King (positive X direction from King)
-    let spawn_x = centroid_x + 100.0; // 100 units forward from King
-    let spawn_z = centroid_z;
+    // Distribute defenders across cells
+    let units_per_cell = distribute_units_to_cells(INITIAL_DEFENDER_COUNT);
 
-    for i in 0..INITIAL_DEFENDER_COUNT {
-        // Define defender hitbox (cylinder) - this determines sprite size
-        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+    // Generate cell list in reverse row order (high to low)
+    // Since grid is rotated 180°, higher rows are closer to attackers
+    let mut defender_cells = Vec::new();
+    let mut cells_added = 0;
+    'outer: for row in (0..DEFENDER_GRID_ROWS).rev() {
+        for col in 0..DEFENDER_GRID_COLS {
+            defender_cells.push((row, col));
+            cells_added += 1;
+            if cells_added >= cells_needed {
+                break 'outer;
+            }
+        }
+    }
 
-        // Spawn defender as a circle billboard sized to match the hitbox
-        let circle = Circle::new(hitbox.radius);
+    // Define defender hitbox (cylinder) - this determines sprite size
+    let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
 
-        // Distribute spawns in a circular pattern around this spawn point
-        let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-        let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
-        let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+    // Spawn defenders in each cell
+    for (cell_idx, (row, col)) in defender_cells.iter().enumerate() {
+        let (spawn_x, spawn_z) = calculate_defender_grid_position(*row, *col);
+        let units_in_this_cell = units_per_cell[cell_idx];
 
-        // Position unit so bottom edge is 1 unit above battlefield (Y=0)
-        let spawn_y = hitbox.height / 2.0 + 1.0;
+        for _ in 0..units_in_this_cell {
+            // Spawn defender as a circle billboard sized to match the hitbox
+            let circle = Circle::new(hitbox.radius);
 
-        commands
-            .spawn((
-                Mesh3d(meshes.add(circle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: DEFENDER_COLOR,
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_xyz(final_x, spawn_y, final_z),
-                Velocity::default(),
-                Acceleration::new(),
-                hitbox,
-                Health::new(UNIT_HEALTH),
-                MovementSpeed(UNIT_MOVEMENT_SPEED),
-                AttackTiming::new(),
-                Effectiveness::new(),
-                Team::Defenders,
-                Infantry,
-            ))
-            .insert((
-                TargetingVelocity::default(),
-                FlockingVelocity::default(),
-                Teleportable,
-                Billboard,
-                OnGameplayScreen,
-            ));
+            // Randomly position near center of grid cell
+            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+
+            // Position unit so bottom edge is 1 unit above battlefield (Y=0)
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(meshes.add(circle)),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: DEFENDER_COLOR,
+                        unlit: true,
+                        ..default()
+                    })),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed(UNIT_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Defenders,
+                    Infantry,
+                ))
+                .insert((
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+        }
+    }
+}
+
+/// Checks if any attacker is within activation range of any defender.
+///
+/// Once a single defender detects an enemy within DEFENDER_ACTIVATION_RANGE,
+/// ALL defenders activate collectively via the DefendersActivated resource.
+/// Activation persists for the entire game.
+pub fn check_defender_activation(
+    mut defenders_activated: ResMut<DefendersActivated>,
+    defender_query: Query<(&Transform, &Team), (With<Infantry>, Without<Corpse>)>,
+    attacker_query: Query<(&Transform, &Team), Without<Corpse>>,
+) {
+    // Skip if already activated (collective activation persists)
+    if defenders_activated.active {
+        return;
+    }
+
+    // Check if ANY attacker is within activation range of ANY defender
+    // As soon as one defender "sees" an enemy, all defenders activate
+    for (defender_transform, defender_team) in defender_query.iter() {
+        // Only check defender infantry, not attacker infantry
+        if *defender_team != Team::Defenders {
+            continue;
+        }
+
+        for (attacker_transform, attacker_team) in attacker_query.iter() {
+            // Only check against Attackers and Undead, not other Defenders
+            if *attacker_team != Team::Attackers && *attacker_team != Team::Undead {
+                continue;
+            }
+
+            let dx = defender_transform.translation.x - attacker_transform.translation.x;
+            let dz = defender_transform.translation.z - attacker_transform.translation.z;
+            let distance = (dx * dx + dz * dz).sqrt();
+
+            if distance <= DEFENDER_ACTIVATION_RANGE {
+                // Activate ALL defenders collectively
+                defenders_activated.active = true;
+                info!(
+                    "Defenders activated! Enemy within {} units - all defenders now active",
+                    DEFENDER_ACTIVATION_RANGE
+                );
+                return;
+            }
+        }
     }
 }
 
@@ -77,7 +141,9 @@ pub fn spawn_initial_defenders(
 ///
 /// Infantry always move directly toward the nearest enemy.
 /// Also sets InMelee component if an enemy is within melee range.
+/// Defender infantry are gated by the DefendersActivated resource.
 pub fn update_infantry_targeting(
+    defenders_activated: Res<DefendersActivated>,
     mut commands: Commands,
     mut infantry: Query<
         (
@@ -101,6 +167,11 @@ pub fn update_infantry_targeting(
 
     // Update each infantry's targeting velocity
     for (entity, transform, team, mut targeting_velocity) in &mut infantry {
+        // Skip inactive defender infantry (but always process attackers)
+        if *team == Team::Defenders && !defenders_activated.active {
+            *targeting_velocity = TargetingVelocity::default();
+            continue;
+        }
         // Find nearest enemy
         let nearest_enemy = unit_snapshot
             .iter()
@@ -274,17 +345,15 @@ pub fn spawn_initial_attackers(
         let cell_count = units_per_cell.get(cell_idx).copied().unwrap_or(0);
 
         // Spawn all units in this cell
-        for i in 0..cell_count {
+        for _ in 0..cell_count {
             // Define attacker hitbox (cylinder) - this determines sprite size
             let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
 
             // Spawn attacker as a circle billboard sized to match the hitbox
             let circle = Circle::new(hitbox.radius);
 
-            // Distribute spawns in a circular pattern around this spawn point
-            let offset = i as f32 * SPAWN_OFFSET_MULTIPLIER;
-            let final_x = spawn_x + (offset.sin() * SPAWN_DISTRIBUTION_RADIUS);
-            let final_z = spawn_z + (offset.cos() * SPAWN_DISTRIBUTION_RADIUS);
+            // Randomly position near center of grid cell
+            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
             // Position unit so bottom edge is 1 unit above battlefield (Y=0)
             let spawn_y = hitbox.height / 2.0 + 1.0;

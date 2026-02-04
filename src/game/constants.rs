@@ -25,18 +25,6 @@ pub const CASTLE_DEPTH: f32 = 2000.0;
 /// Wizard offset from castle position.
 const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 
-// ===== Spawn Areas =====
-
-/// Defender spawn points in a 2×2 grid under the castle.
-/// Castle is at (-1550, 1550). These points form a formation directly below it.
-/// Grid spacing: 300 units between points (reduced from 400 for tighter formation)
-pub const DEFENDER_SPAWN_POINTS: [(f32, f32); 4] = [
-    (-1700.0, 1200.0), // Southwest (was -1750, 1150)
-    (-1400.0, 1200.0), // Southeast (was -1350, 1150)
-    (-1700.0, 1500.0), // Northwest (was -1750, 1550)
-    (-1400.0, 1500.0), // Northeast (was -1350, 1550)
-];
-
 // ===== Unit Positioning =====
 
 /// Wizard position in 3D space (on castle platform).
@@ -71,14 +59,6 @@ pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0;
 
 /// Hitbox height for attacker units.
 pub const ATTACKER_HITBOX_HEIGHT: f32 = 20.0;
-
-// ===== Spawn Distribution =====
-
-/// Offset multiplier for distributing spawned units in a pattern.
-pub const SPAWN_OFFSET_MULTIPLIER: f32 = 0.31415;
-
-/// Radius of the spawn distribution area (units spawn within this radius).
-pub const SPAWN_DISTRIBUTION_RADIUS: f32 = 50.0;
 
 // ===== Movement Constants =====
 
@@ -153,26 +133,52 @@ pub const EFFECTIVENESS_MIN: f32 = 0.1;
 /// Maximum effectiveness cap (200% of base).
 pub const EFFECTIVENESS_MAX: f32 = 2.0;
 
-// ===== Formation Grid Constants =====
-
-/// Number of columns in the attacker spawn grid.
-pub const GRID_COLS: u32 = 6;
-
-/// Number of rows in the attacker spawn grid.
-pub const GRID_ROWS: u32 = 6;
-
-/// Center angle from wizard toward spawn area (radians).
-/// atan2(0 - 1550, 1200 - (-1425)) ≈ -0.53 rad
-pub const GRID_CENTER_ANGLE: f32 = -0.70;
+// ===== Spawn Grid Constants (Shared) =====
 
 /// Angular spacing between columns (radians). ~0.1 rad ≈ 274 units at range 2736.
+/// Used by both attacker and defender spawn grids.
 pub const GRID_ANGULAR_SPACING: f32 = 0.1;
 
 /// Radial depth of each row (distance between row centers).
+/// Used by both attacker and defender spawn grids.
 pub const GRID_ROW_DEPTH: f32 = 300.0;
 
-/// Ground-plane spell range: sqrt(3000² - 1230²) ≈ 2736.
-pub const GRID_GROUND_RANGE: f32 = 3236.0;
+// ===== Attacker Spawn Grid Constants =====
+
+/// Number of columns in the attacker spawn grid.
+pub const ATTACKER_GRID_COLS: u32 = 6;
+
+/// Number of rows in the attacker spawn grid.
+pub const ATTACKER_GRID_ROWS: u32 = 6;
+
+/// Center angle from wizard toward attacker spawn area (radians).
+/// atan2(0 - 1550, 1200 - (-1425)) ≈ -0.53 rad
+pub const ATTACKER_GRID_CENTER_ANGLE: f32 = -0.70;
+
+/// Ground-plane distance from wizard to attacker spawn grid.
+/// sqrt(3000² - 1230²) ≈ 2736, adjusted to 3236.
+pub const ATTACKER_GRID_GROUND_RANGE: f32 = 3236.0;
+
+// ===== Defender Spawn Grid Constants =====
+
+/// Number of columns in the defender spawn grid.
+pub const DEFENDER_GRID_COLS: u32 = 5;
+
+/// Number of rows in the defender spawn grid.
+pub const DEFENDER_GRID_ROWS: u32 = 4;
+
+/// Center angle from wizard toward defender spawn area (radians).
+/// Currently same as attackers - manually adjusted positioning.
+pub const DEFENDER_GRID_CENTER_ANGLE: f32 = ATTACKER_GRID_CENTER_ANGLE;
+
+/// Ground-plane distance from wizard to defender spawn grid.
+pub const DEFENDER_GRID_GROUND_RANGE: f32 = 400.0;
+
+// ===== Defender Activation =====
+
+/// Distance at which defenders activate (XZ plane distance).
+/// Once any enemy is within this range of any defender, all defenders activate.
+pub const DEFENDER_ACTIVATION_RANGE: f32 = 800.0;
 
 // ===== Level-Based Spawn Calculations =====
 
@@ -240,8 +246,33 @@ pub fn distribute_units_to_cells(total_units: u32) -> Vec<u32> {
 /// Tuple of (x, z) world coordinates for the cell center
 pub fn calculate_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
     let col_offset = col as f32 - 2.5; // centers 6 columns: -2.5 .. 2.5
-    let angle = GRID_CENTER_ANGLE + col_offset * GRID_ANGULAR_SPACING;
-    let radius = GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let angle = ATTACKER_GRID_CENTER_ANGLE + col_offset * GRID_ANGULAR_SPACING;
+    let radius = ATTACKER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let x = WIZARD_POSITION.x + radius * angle.cos();
+    let z = WIZARD_POSITION.z + radius * angle.sin();
+    (x, z)
+}
+
+/// Calculates the world position of a defender grid cell.
+///
+/// The defender grid is a radial arc positioned opposite from attackers,
+/// closer to the battlefield center. Uses the same angular spacing and row depth
+/// as the attacker grid for consistency.
+///
+/// Grid is flipped 180 degrees: row 0 is farthest from attackers (archers in back),
+/// higher rows are closer to attackers (infantry in front).
+///
+/// # Arguments
+/// * `row` - Row index (0 = farthest from attackers/closest to wizard, for archers)
+/// * `col` - Column index (0-3 for 4 columns, centered around center angle)
+///
+/// # Returns
+/// Tuple of (x, z) world coordinates for the cell center
+pub fn calculate_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
+    let col_offset = col as f32 - (DEFENDER_GRID_COLS as f32 - 1.0) / 2.0; // Center columns
+    let angle = DEFENDER_GRID_CENTER_ANGLE + col_offset * GRID_ANGULAR_SPACING;
+    // Row 0 starts at base range, increasing rows go AWAY from wizard (same as attackers)
+    let radius = DEFENDER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
     let x = WIZARD_POSITION.x + radius * angle.cos();
     let z = WIZARD_POSITION.z + radius * angle.sin();
     (x, z)
@@ -267,8 +298,8 @@ pub fn calculate_spawn_cells(
 ) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
     // Build all cells sorted by distance, then by column proximity to center
     let mut all_cells: Vec<(u32, u32, u32)> = Vec::new(); // (distance, row, col)
-    for row in 0..GRID_ROWS {
-        for col in 0..GRID_COLS {
+    for row in 0..ATTACKER_GRID_ROWS {
+        for col in 0..ATTACKER_GRID_COLS {
             all_cells.push((grid_cell_distance(row, col), row, col));
         }
     }

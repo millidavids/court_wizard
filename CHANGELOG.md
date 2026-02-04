@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.229] - 2025-02-04
+
+### Changed
+- Defenders now spawn in a radial formation between the castle and the battlefield center
+- Defenders wait idle until enemies get close (800 units), then all activate at once
+- Archers spawn in the back row, infantry in the front row of the defender formation
+- King spawns at the center of the defender formation
+- Improved code organization by renaming spawn grid constants for clarity
+
 ## [v0.0.197] - 2025-02-03
 
 ### Added
