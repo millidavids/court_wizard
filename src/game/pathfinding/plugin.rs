@@ -15,14 +15,22 @@ impl Plugin for PathfindingPlugin {
             .add_message::<ObstacleChanged>()
             // Initialize pathfinding grid at startup
             .add_systems(Startup, initialize_pathfinding)
-            // Handle obstacle changes and async rebuilding in Update
+            // Update systems run in order
             .add_systems(
                 Update,
                 (
+                    // Generate initial fields when King spawns
+                    generate_initial_fields,
+                    // Track King movement for attacker field
                     update_king_position,
+                    // Update King's target for defender field
+                    update_king_target,
+                    // Handle obstacle changes
                     handle_obstacle_events,
-                    spawn_rebuild_tasks,
+                    // Apply completed async rebuilds
                     apply_completed_rebuilds,
+                    // Sample flow fields (run before movement systems)
+                    sample_flow_fields,
                 )
                     .chain(),
             );

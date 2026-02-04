@@ -3,21 +3,18 @@
 use bevy::prelude::*;
 
 /// Component that determines which flow field a unit should follow.
-#[derive(Component, Clone, Copy)]
-pub struct FlowFieldInfluence {
-    /// Type of flow field to follow.
-    pub field_type: FlowFieldType,
-}
-
-/// Types of flow fields available.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FlowFieldType {
+#[derive(Component, Clone)]
+pub enum FlowFieldInfluence {
     /// Attackers flow toward the King.
     Attacker,
-    /// King defenders flow toward their rally point (closest to action).
-    KingDefender,
-    /// Infantry defenders flow toward their rally point (middle line).
-    InfantryDefender,
-    /// Archer defenders flow toward their rally point (back line).
-    ArcherDefender,
+    /// Defenders flow toward King's target when activated, or rally to spawn point when not.
+    Defender { spawn_pos: Vec2 },
+}
+
+/// Flow field velocity calculated from sampling the flow field.
+///
+/// This is combined with targeting and flocking velocities in unit movement systems.
+#[derive(Component, Default)]
+pub struct FlowFieldVelocity {
+    pub velocity: Vec3,
 }

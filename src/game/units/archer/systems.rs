@@ -9,6 +9,7 @@ use crate::game::constants::{
     calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
     calculate_total_archers, calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
 };
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
@@ -53,6 +54,9 @@ pub fn spawn_initial_defender_archers(
             // Position unit so bottom edge is 1 unit above battlefield (Y=0)
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
+            // Store spawn position for rallying when not activated
+            let spawn_pos = Vec2::new(spawn_x, spawn_z);
+
             commands
                 .spawn((
                     Mesh3d(meshes.add(circle)),
@@ -80,6 +84,8 @@ pub fn spawn_initial_defender_archers(
                     ArcherMovementTimer::new(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
+                    FlowFieldVelocity::default(),
+                    FlowFieldInfluence::Defender { spawn_pos },
                     FlockingModifier::new(1.0, 1.0, 0.0),
                     Teleportable,
                     Billboard,
@@ -165,6 +171,8 @@ pub fn spawn_initial_attacker_archers(
                     ArcherMovementTimer::new(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
+                    FlowFieldVelocity::default(),
+                    FlowFieldInfluence::Attacker,
                     Teleportable,
                     Billboard,
                     OnGameplayScreen,
@@ -636,6 +644,7 @@ pub fn archer_movement(
             &Effectiveness,
             &TargetingVelocity,
             &crate::game::units::components::FlockingVelocity,
+            &FlowFieldVelocity,
             Option<&crate::game::units::components::InMelee>,
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
@@ -651,22 +660,43 @@ pub fn archer_movement(
         effectiveness,
         targeting_velocity,
         flocking_velocity,
+        flow_field_velocity,
         in_melee,
         aura_modifier,
         terrain_modifier,
     ) in &mut archer_units
     {
-        // Weight targeting vs flocking based on distance to target
-        // When far from target: prioritize flocking (stay in formation)
-        // When close to target: prioritize targeting (engage enemy)
-        // Transition happens around 500 units distance
-        let targeting_weight =
-            (1.0 - (targeting_velocity.distance_to_target / 500.0).min(1.0)).max(0.2); // Minimum 20% targeting weight
-        let flocking_weight = 1.0 - targeting_weight;
+        // Calculate three-velocity weighting based on distance to target
+        // Archers follow similar logic to infantry but prioritize staying at range
+        // Far from enemies (>700 units, beyond max range): 70% flow field, 20% flocking, 10% targeting
+        // Approaching range (400-700 units): 50% flow field, 20% flocking, 30% targeting
+        // Within optimal range (150-400 units): 20% flow field, 20% flocking, 60% targeting
+        // Too close (<150 units): 10% flow field, 10% flocking, 80% targeting (retreat)
+        let distance = targeting_velocity.distance_to_target;
 
-        // Combine targeting and flocking velocities with distance-based weighting
-        let weighted_direction = (targeting_velocity.velocity * targeting_weight
-            + flocking_velocity.velocity * flocking_weight)
+        let (flow_weight, flocking_weight, targeting_weight) = if distance > ARCHER_MAX_RANGE {
+            (0.7, 0.2, 0.1)
+        } else if distance > 400.0 {
+            // Interpolate between far and approaching
+            let t = (ARCHER_MAX_RANGE - distance) / (ARCHER_MAX_RANGE - 400.0);
+            let flow = 0.7 - (0.2 * t);
+            let targeting = 0.1 + (0.2 * t);
+            (flow, 0.2, targeting)
+        } else if distance > ARCHER_MIN_RANGE {
+            // Interpolate between approaching and optimal
+            let t = (400.0 - distance) / (400.0 - ARCHER_MIN_RANGE);
+            let flow = 0.5 - (0.3 * t);
+            let targeting = 0.3 + (0.3 * t);
+            (flow, 0.2, targeting)
+        } else {
+            // Too close, need to retreat
+            (0.1, 0.1, 0.8)
+        };
+
+        // Combine targeting, flocking, and flow field velocities with distance-based weighting
+        let weighted_direction = (flow_field_velocity.velocity * flow_weight
+            + flocking_velocity.velocity * flocking_weight
+            + targeting_velocity.velocity * targeting_weight)
             .normalize_or_zero();
 
         // Calculate speed modifiers early to apply to acceleration

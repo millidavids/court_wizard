@@ -10,7 +10,6 @@ pub mod plugin;
 pub mod resources;
 pub mod systems;
 
-pub use components::{FlowFieldInfluence, FlowFieldType};
+pub use components::{FlowFieldInfluence, FlowFieldVelocity};
 pub use events::{ObstacleChanged, ObstacleType};
 pub use plugin::PathfindingPlugin;
-pub use resources::PathfindingGrid;

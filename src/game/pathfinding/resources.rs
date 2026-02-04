@@ -1,6 +1,7 @@
 //! Pathfinding resources.
 
 use bevy::prelude::*;
+use bevy::tasks::Task;
 
 use super::flow_field::FlowField;
 
@@ -21,48 +22,24 @@ pub struct PathfindingGrid {
     /// Maximum world coordinates (top-right corner).
     pub world_max: Vec2,
 
-    /// Flow field for attackers (flows toward King).
-    pub attacker_field: FlowField,
-    /// Flow field for king defenders (closest to action).
-    pub king_defender_field: FlowField,
-    /// Flow field for infantry defenders (middle line).
-    pub infantry_defender_field: FlowField,
-    /// Flow field for archer defenders (back line).
-    pub archer_defender_field: FlowField,
+    /// Flow field for attackers (flows toward King), None until first generation.
+    pub attacker_field: Option<FlowField>,
+    /// Pending async rebuild task for attacker field.
+    pub pending_attacker_rebuild: Option<Task<FlowField>>,
+
+    /// Flow field for defenders (flows toward King's target), None when not activated.
+    pub defender_field: Option<FlowField>,
+    /// Pending async rebuild task for defender field.
+    pub pending_defender_rebuild: Option<Task<FlowField>>,
 
     /// Last known King position (for detecting significant movement).
     pub last_king_pos: Vec2,
+    /// King's current target entity (None = not activated yet).
+    pub king_current_target: Option<Entity>,
 
-    /// Pending rebuild requests (processed asynchronously).
-    pub pending_rebuilds: Vec<RebuildRequest>,
-}
-
-/// Request to rebuild a flow field region.
-#[derive(Clone)]
-pub struct RebuildRequest {
-    /// Which field(s) to rebuild.
-    pub field_type: RebuildFieldType,
-    /// Goal position for the field.
-    pub goal_pos: Vec2,
-    /// Cells that need rebuilding (empty = full rebuild).
-    pub dirty_cells: Vec<(usize, usize)>,
-}
-
-/// Specifies which field(s) to rebuild.
-#[derive(Clone, Copy, Debug)]
-pub enum RebuildFieldType {
-    /// Rebuild attacker field only.
-    Attacker,
-    /// Rebuild king defender field only.
-    KingDefender,
-    /// Rebuild infantry defender field only.
-    InfantryDefender,
-    /// Rebuild archer defender field only.
-    ArcherDefender,
-    /// Rebuild all defender fields.
-    AllDefenders,
-    /// Rebuild all fields.
-    All,
+    /// Base terrain costs template (copied for each field generation).
+    /// This stores obstacles like walls that affect all fields.
+    pub base_costs: Vec<f32>,
 }
 
 impl PathfindingGrid {
@@ -80,10 +57,7 @@ impl PathfindingGrid {
         let grid_width = (battlefield_size / cell_size).ceil() as usize;
         let grid_height = grid_width; // Square grid
 
-        let attacker_field = FlowField::new(grid_width, grid_height);
-        let king_defender_field = FlowField::new(grid_width, grid_height);
-        let infantry_defender_field = FlowField::new(grid_width, grid_height);
-        let archer_defender_field = FlowField::new(grid_width, grid_height);
+        let base_costs = vec![1.0; grid_width * grid_height];
 
         Self {
             cell_size,
@@ -91,12 +65,13 @@ impl PathfindingGrid {
             grid_height,
             world_min,
             world_max,
-            attacker_field,
-            king_defender_field,
-            infantry_defender_field,
-            archer_defender_field,
+            attacker_field: None,
+            pending_attacker_rebuild: None,
+            defender_field: None,
+            pending_defender_rebuild: None,
             last_king_pos: Vec2::ZERO,
-            pending_rebuilds: Vec::new(),
+            king_current_target: None,
+            base_costs,
         }
     }
 
@@ -148,59 +123,36 @@ impl PathfindingGrid {
         cells
     }
 
-    /// Initializes flow fields with default goals.
-    ///
-    /// Should be called once at startup after the resource is created.
-    ///
-    /// # Arguments
-    ///
-    /// * `king_pos` - King's starting position
-    /// * `wizard_pos` - Wizard position (reference point for defender rally points)
-    /// * `king_rally_dist` - Distance from wizard for king rally point
-    /// * `infantry_rally_dist` - Distance from wizard for infantry rally point
-    /// * `archer_rally_dist` - Distance from wizard for archer rally point
-    /// * `king_radius` - Satisfaction radius for king (in cells)
-    /// * `infantry_radius` - Satisfaction radius for infantry (in cells)
-    /// * `archer_radius` - Satisfaction radius for archers (in cells)
-    pub fn initialize_fields(
-        &mut self,
-        king_pos: Vec2,
-        wizard_pos: Vec2,
-        king_rally_dist: f32,
-        infantry_rally_dist: f32,
-        archer_rally_dist: f32,
-        king_radius: usize,
-        infantry_radius: usize,
-        archer_radius: usize,
-    ) {
-        // Convert world positions to grid coordinates
-        if let Some((king_x, king_z)) = self.world_to_grid(king_pos) {
-            self.attacker_field.generate(king_x, king_z);
-            self.last_king_pos = king_pos;
+    /// Gets the 1D index for a 2D grid position.
+    #[inline]
+    fn index(&self, x: usize, z: usize) -> usize {
+        z * self.grid_width + x
+    }
+
+    /// Marks cells as blocked in the base cost template.
+    pub fn mark_blocked(&mut self, cells: &[(usize, usize)]) {
+        for &(x, z) in cells {
+            if x < self.grid_width && z < self.grid_height {
+                let idx = self.index(x, z);
+                self.base_costs[idx] = f32::INFINITY;
+            }
         }
+    }
 
-        // Calculate rally points radially from wizard toward battlefield center
-        // Direction: toward origin (0, 0) from wizard position
-        let to_center = Vec2::ZERO - wizard_pos;
-        let direction = to_center.normalize();
-
-        let king_rally = wizard_pos + direction * king_rally_dist;
-        let infantry_rally = wizard_pos + direction * infantry_rally_dist;
-        let archer_rally = wizard_pos + direction * archer_rally_dist;
-
-        if let Some((x, z)) = self.world_to_grid(king_rally) {
-            self.king_defender_field
-                .generate_with_radius(x, z, king_radius);
+    /// Sets terrain cost for cells in the base cost template.
+    pub fn set_terrain_cost(&mut self, cells: &[(usize, usize)], cost: f32) {
+        for &(x, z) in cells {
+            if x < self.grid_width && z < self.grid_height {
+                let idx = self.index(x, z);
+                self.base_costs[idx] = cost;
+            }
         }
+    }
 
-        if let Some((x, z)) = self.world_to_grid(infantry_rally) {
-            self.infantry_defender_field
-                .generate_with_radius(x, z, infantry_radius);
-        }
-
-        if let Some((x, z)) = self.world_to_grid(archer_rally) {
-            self.archer_defender_field
-                .generate_with_radius(x, z, archer_radius);
-        }
+    /// Creates a new flow field with the base costs applied.
+    pub fn create_field_with_base_costs(&self) -> FlowField {
+        let mut field = FlowField::new(self.grid_width, self.grid_height);
+        field.costs = self.base_costs.clone();
+        field
     }
 }

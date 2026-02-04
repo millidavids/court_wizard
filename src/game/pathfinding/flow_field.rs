@@ -90,7 +90,6 @@ impl FlowField {
         for &(x, z) in cells {
             if x < self.width && z < self.height {
                 let idx = self.index(x, z);
-                // Replace the cost directly instead of taking max
                 self.costs[idx] = cost;
             }
         }
@@ -102,23 +101,8 @@ impl FlowField {
     ///
     /// * `goal_x` - Goal cell X coordinate
     /// * `goal_z` - Goal cell Z coordinate
-    pub fn generate(&mut self, goal_x: usize, goal_z: usize) {
-        self.generate_with_radius(goal_x, goal_z, 8);
-    }
-
-    /// Generates the flow field with a custom satisfaction radius.
-    ///
-    /// # Arguments
-    ///
-    /// * `goal_x` - Goal cell X coordinate
-    /// * `goal_z` - Goal cell Z coordinate
-    /// * `satisfaction_radius_cells` - Radius in cells where units are "close enough"
-    pub fn generate_with_radius(
-        &mut self,
-        goal_x: usize,
-        goal_z: usize,
-        satisfaction_radius_cells: usize,
-    ) {
+    /// * `satisfaction_radius_cells` - Radius in cells where units are "close enough" (0 = no satisfaction radius)
+    pub fn generate(&mut self, goal_x: usize, goal_z: usize, satisfaction_radius_cells: usize) {
         // Initialize integration field (cost to reach goal from each cell)
         let mut integration = vec![f32::INFINITY; self.width * self.height];
 
@@ -211,16 +195,18 @@ impl FlowField {
                     continue;
                 }
 
-                // Check if within satisfaction radius of goal
-                let dx = (x as isize - goal_x as isize).abs() as usize;
-                let dz = (z as isize - goal_z as isize).abs() as usize;
-                let distance_squared = dx * dx + dz * dz;
-                let radius_squared = satisfaction_radius * satisfaction_radius;
+                // Check if within satisfaction radius of goal (if radius > 0)
+                if satisfaction_radius > 0 {
+                    let dx = (x as isize - goal_x as isize).abs() as usize;
+                    let dz = (z as isize - goal_z as isize).abs() as usize;
+                    let distance_squared = dx * dx + dz * dz;
+                    let radius_squared = satisfaction_radius * satisfaction_radius;
 
-                if distance_squared <= radius_squared {
-                    // Within satisfaction radius - no need to move
-                    self.directions[idx] = Vec3::ZERO;
-                    continue;
+                    if distance_squared <= radius_squared {
+                        // Within satisfaction radius - no need to move
+                        self.directions[idx] = Vec3::ZERO;
+                        continue;
+                    }
                 }
 
                 // Find the neighbor with lowest integration cost
@@ -293,8 +279,8 @@ mod tests {
         // Create a 10x10 grid
         let mut field = FlowField::new(10, 10);
 
-        // Goal in center (5, 5)
-        field.generate(5, 5);
+        // Goal in center (5, 5), no satisfaction radius
+        field.generate(5, 5, 0);
 
         // Check that corner points toward center
         let world_min = Vec2::new(0.0, 0.0);
@@ -318,7 +304,7 @@ mod tests {
             field.mark_blocked(&[(5, z)]);
         }
 
-        field.generate(7, 5); // Goal on right side of wall
+        field.generate(7, 5, 0); // Goal on right side of wall
 
         // Sample from left side (3, 5) - should path around wall
         let world_min = Vec2::new(0.0, 0.0);
@@ -328,5 +314,24 @@ mod tests {
         // Should not point directly at goal (blocked), should go around
         // Direction should point north or south to go around wall
         assert!(direction.z.abs() > 0.1);
+    }
+
+    #[test]
+    fn test_satisfaction_radius() {
+        let mut field = FlowField::new(10, 10);
+
+        // Goal at (5, 5) with satisfaction radius of 2 cells
+        field.generate(5, 5, 2);
+
+        let world_min = Vec2::new(0.0, 0.0);
+        let cell_size = 1.0;
+
+        // Sample from within satisfaction radius (4, 5) - should be zero
+        let direction = field.sample(Vec3::new(4.5, 0.0, 5.5), world_min, cell_size);
+        assert_eq!(direction, Vec3::ZERO);
+
+        // Sample from outside satisfaction radius (0, 0) - should have direction
+        let direction = field.sample(Vec3::new(0.5, 0.0, 0.5), world_min, cell_size);
+        assert!(direction.length() > 0.0);
     }
 }

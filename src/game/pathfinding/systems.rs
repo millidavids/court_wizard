@@ -1,93 +1,241 @@
 //! Pathfinding systems.
 
 use bevy::prelude::*;
-use bevy::tasks::{AsyncComputeTaskPool, Task};
+use bevy::tasks::AsyncComputeTaskPool;
 
 use crate::game::constants::BATTLEFIELD_SIZE;
+use crate::game::units::archer::Archer;
+use crate::game::units::components::Team;
+use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::King;
 
+use super::components::{FlowFieldInfluence, FlowFieldVelocity};
 use super::events::{ObstacleChanged, ObstacleType};
-use super::flow_field::FlowField;
-use super::resources::{PathfindingGrid, RebuildFieldType, RebuildRequest};
+use super::resources::PathfindingGrid;
 
 /// Cell size for the pathfinding grid (in world units).
 const CELL_SIZE: f32 = 25.0;
 
-/// Wizard position (XZ plane) - the reference point for defender formations.
-const WIZARD_POS: Vec2 = Vec2::new(-1425.0, 1550.0);
+/// Distance threshold for King movement to trigger attacker field rebuild.
+const KING_MOVEMENT_THRESHOLD: f32 = 50.0;
 
-/// Defender rally points at different distances from wizard (radial distance).
-/// Archers closest to wizard (back line), Infantry in middle, King furthest (front line).
-/// Distances measured radially from wizard toward battlefield center.
-const ARCHER_RALLY_DISTANCE: f32 = 800.0; // Back line for ranged attacks (closest to wizard)
-const INFANTRY_RALLY_DISTANCE: f32 = 1400.0; // Front line, closest to action (furthest from wizard)
-const KING_RALLY_DISTANCE: f32 = 1100.0; // Middle line, closest to action (medium from wizard)
+/// Satisfaction radius for defenders rallying to spawn points (in cells).
+/// 200 units / 25 units per cell = 8 cells
+const DEFENDER_SPAWN_RALLY_RADIUS: usize = 8;
 
-/// Satisfaction radii for each defender type (in grid cells).
-/// With 25-unit cells: Archer=20 cells (500 units), Infantry=16 cells (400 units), King=12 cells (300 units)
-const ARCHER_SATISFACTION_RADIUS: usize = 20;
-const INFANTRY_SATISFACTION_RADIUS: usize = 16;
-const KING_SATISFACTION_RADIUS: usize = 12;
-
-/// Initializes the pathfinding grid and generates initial flow fields.
-pub fn initialize_pathfinding(mut commands: Commands, king_query: Query<&Transform, With<King>>) {
-    // Create the pathfinding grid
-    let mut pathfinding = PathfindingGrid::new(BATTLEFIELD_SIZE, CELL_SIZE);
-
-    // Get King's starting position
-    let king_pos = if let Ok(king_transform) = king_query.single() {
-        Vec2::new(king_transform.translation.x, king_transform.translation.z)
-    } else {
-        // Fallback if King hasn't spawned yet
-        WIZARD_POS
-    };
-
-    // Initialize flow fields with layered rally points
-    pathfinding.initialize_fields(
-        king_pos,
-        WIZARD_POS,
-        KING_RALLY_DISTANCE,
-        INFANTRY_RALLY_DISTANCE,
-        ARCHER_RALLY_DISTANCE,
-        KING_SATISFACTION_RADIUS,
-        INFANTRY_SATISFACTION_RADIUS,
-        ARCHER_SATISFACTION_RADIUS,
-    );
+/// Initializes the pathfinding grid resource.
+pub fn initialize_pathfinding(mut commands: Commands) {
+    let pathfinding = PathfindingGrid::new(BATTLEFIELD_SIZE, CELL_SIZE);
 
     info!(
-        "Pathfinding initialized: {}x{} grid ({} cells)",
+        "Pathfinding initialized: {}x{} grid ({} cells, {} bytes per field)",
         pathfinding.grid_width,
         pathfinding.grid_height,
-        pathfinding.grid_width * pathfinding.grid_height
+        pathfinding.grid_width * pathfinding.grid_height,
+        pathfinding.grid_width * pathfinding.grid_height * std::mem::size_of::<Vec3>()
     );
 
-    // Insert as resource
     commands.insert_resource(pathfinding);
 }
 
-/// Handles obstacle change events and updates flow fields accordingly.
+/// Updates King position and spawns attacker field rebuild when King moves significantly.
+pub fn update_king_position(
+    mut pathfinding: ResMut<PathfindingGrid>,
+    king_query: Query<&Transform, With<King>>,
+) {
+    if let Ok(king_transform) = king_query.single() {
+        let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
+        let distance_moved = king_pos.distance(pathfinding.last_king_pos);
+
+        if distance_moved > KING_MOVEMENT_THRESHOLD {
+            // King moved significantly, spawn attacker field rebuild
+            if pathfinding.pending_attacker_rebuild.is_none() {
+                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+                pathfinding.last_king_pos = king_pos;
+                debug!(
+                    "King moved {} units, rebuilding attacker field",
+                    distance_moved
+                );
+            }
+        }
+    }
+}
+
+/// Selects King's target and spawns defender field rebuild when needed.
+///
+/// Runs only when defenders are activated.
+pub fn update_king_target(
+    mut pathfinding: ResMut<PathfindingGrid>,
+    defenders_activated: Res<DefendersActivated>,
+    king_query: Query<&Transform, With<King>>,
+    enemy_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<King>,
+            Without<crate::game::units::components::Corpse>,
+        ),
+    >,
+) {
+    // Only run when defenders are activated
+    if !defenders_activated.active {
+        return;
+    }
+
+    let Ok(king_transform) = king_query.single() else {
+        return;
+    };
+
+    let king_pos = Vec3::new(
+        king_transform.translation.x,
+        0.0,
+        king_transform.translation.z,
+    );
+
+    // Find closest enemy to King (only Attackers and Undead, not Defenders)
+    let mut closest_enemy: Option<(Entity, f32)> = None;
+
+    for (entity, enemy_transform, enemy_team) in enemy_query.iter() {
+        // Skip defenders - only target Attackers and Undead
+        if *enemy_team == Team::Defenders {
+            continue;
+        }
+
+        let enemy_pos = Vec3::new(
+            enemy_transform.translation.x,
+            0.0,
+            enemy_transform.translation.z,
+        );
+        let distance = king_pos.distance(enemy_pos);
+
+        if let Some((_, current_closest)) = closest_enemy {
+            if distance < current_closest {
+                closest_enemy = Some((entity, distance));
+            }
+        } else {
+            closest_enemy = Some((entity, distance));
+        }
+    }
+
+    // Check if target changed
+    let target_changed = match (pathfinding.king_current_target, closest_enemy) {
+        (None, Some((new_entity, _))) => {
+            // First time activating
+            pathfinding.king_current_target = Some(new_entity);
+            true
+        }
+        (Some(old_entity), Some((new_entity, _))) if old_entity != new_entity => {
+            // Target changed
+            pathfinding.king_current_target = Some(new_entity);
+            true
+        }
+        (Some(_), None) => {
+            // Old target died, no new targets (victory condition elsewhere)
+            pathfinding.king_current_target = None;
+            pathfinding.defender_field = None;
+            false
+        }
+        _ => false,
+    };
+
+    // Spawn defender field rebuild if target changed and no rebuild pending
+    if target_changed && pathfinding.pending_defender_rebuild.is_none() {
+        if let Some((target_entity, _)) = closest_enemy {
+            // Get target position
+            if let Ok((_, target_transform, _)) = enemy_query.get(target_entity) {
+                let target_pos = Vec2::new(
+                    target_transform.translation.x,
+                    target_transform.translation.z,
+                );
+                spawn_defender_field_rebuild(&mut pathfinding, target_pos);
+                debug!("King target changed, rebuilding defender field");
+            }
+        }
+    }
+}
+
+/// Spawns async task to rebuild the attacker flow field.
+fn spawn_attacker_field_rebuild(pathfinding: &mut PathfindingGrid, king_pos: Vec2) {
+    let task_pool = AsyncComputeTaskPool::get();
+
+    let mut field = pathfinding.create_field_with_base_costs();
+    let world_min = pathfinding.world_min;
+    let cell_size = pathfinding.cell_size;
+
+    let task = task_pool.spawn(async move {
+        // Convert king position to grid coordinates
+        let goal_x = ((king_pos.x - world_min.x) / cell_size).floor().max(0.0) as usize;
+        let goal_z = ((king_pos.y - world_min.y) / cell_size).floor().max(0.0) as usize;
+
+        // Generate field with 0 satisfaction radius
+        field.generate(goal_x, goal_z, 0);
+        field
+    });
+
+    pathfinding.pending_attacker_rebuild = Some(task);
+}
+
+/// Spawns async task to rebuild the defender flow field.
+fn spawn_defender_field_rebuild(pathfinding: &mut PathfindingGrid, target_pos: Vec2) {
+    let task_pool = AsyncComputeTaskPool::get();
+
+    let mut field = pathfinding.create_field_with_base_costs();
+    let world_min = pathfinding.world_min;
+    let cell_size = pathfinding.cell_size;
+
+    let task = task_pool.spawn(async move {
+        // Convert target position to grid coordinates
+        let goal_x = ((target_pos.x - world_min.x) / cell_size).floor().max(0.0) as usize;
+        let goal_z = ((target_pos.y - world_min.y) / cell_size).floor().max(0.0) as usize;
+
+        // Generate field with 0 satisfaction radius (infantry charges in)
+        // Archers will handle their own satisfaction via targeting system
+        field.generate(goal_x, goal_z, 0);
+        field
+    });
+
+    pathfinding.pending_defender_rebuild = Some(task);
+}
+
+/// Polls pending async rebuild tasks and applies completed fields.
+pub fn apply_completed_rebuilds(mut pathfinding: ResMut<PathfindingGrid>) {
+    // Check attacker field rebuild
+    if let Some(mut task) = pathfinding.pending_attacker_rebuild.take() {
+        if let Some(new_field) = bevy::tasks::block_on(bevy::tasks::poll_once(&mut task)) {
+            pathfinding.attacker_field = Some(new_field);
+            debug!("Applied rebuilt attacker flow field");
+        } else {
+            // Task not complete yet, put it back
+            pathfinding.pending_attacker_rebuild = Some(task);
+        }
+    }
+
+    // Check defender field rebuild
+    if let Some(mut task) = pathfinding.pending_defender_rebuild.take() {
+        if let Some(new_field) = bevy::tasks::block_on(bevy::tasks::poll_once(&mut task)) {
+            pathfinding.defender_field = Some(new_field);
+            debug!("Applied rebuilt defender flow field");
+        } else {
+            // Task not complete yet, put it back
+            pathfinding.pending_defender_rebuild = Some(task);
+        }
+    }
+}
+
+/// Handles obstacle change events and updates base costs, then triggers rebuilds.
 pub fn handle_obstacle_events(
     mut obstacle_events: MessageReader<ObstacleChanged>,
     mut pathfinding: ResMut<PathfindingGrid>,
+    king_query: Query<&Transform, With<King>>,
 ) {
+    let mut rebuild_needed = false;
+
     for event in obstacle_events.read() {
         // Convert world bounds to grid cells
         let affected_cells = pathfinding.world_bounds_to_cells(event.bounds);
 
         match event.obstacle_type {
             ObstacleType::Blocked => {
-                // Mark cells as blocked (infinite cost)
-                pathfinding.attacker_field.mark_blocked(&affected_cells);
-                pathfinding
-                    .king_defender_field
-                    .mark_blocked(&affected_cells);
-                pathfinding
-                    .infantry_defender_field
-                    .mark_blocked(&affected_cells);
-                pathfinding
-                    .archer_defender_field
-                    .mark_blocked(&affected_cells);
-
+                pathfinding.mark_blocked(&affected_cells);
                 debug!(
                     "Blocked {} cells at ({}, {}) size {}x{}",
                     affected_cells.len(),
@@ -98,20 +246,7 @@ pub fn handle_obstacle_events(
                 );
             }
             ObstacleType::SlowTerrain(multiplier) => {
-                // Set cells to slow terrain cost
-                pathfinding
-                    .attacker_field
-                    .set_terrain_cost(&affected_cells, multiplier);
-                pathfinding
-                    .king_defender_field
-                    .set_terrain_cost(&affected_cells, multiplier);
-                pathfinding
-                    .infantry_defender_field
-                    .set_terrain_cost(&affected_cells, multiplier);
-                pathfinding
-                    .archer_defender_field
-                    .set_terrain_cost(&affected_cells, multiplier);
-
+                pathfinding.set_terrain_cost(&affected_cells, multiplier);
                 debug!(
                     "Set {} cells to slow terrain ({}x) at ({}, {})",
                     affected_cells.len(),
@@ -121,20 +256,7 @@ pub fn handle_obstacle_events(
                 );
             }
             ObstacleType::Removed => {
-                // Reset cells to normal terrain cost (1.0)
-                pathfinding
-                    .attacker_field
-                    .set_terrain_cost(&affected_cells, 1.0);
-                pathfinding
-                    .king_defender_field
-                    .set_terrain_cost(&affected_cells, 1.0);
-                pathfinding
-                    .infantry_defender_field
-                    .set_terrain_cost(&affected_cells, 1.0);
-                pathfinding
-                    .archer_defender_field
-                    .set_terrain_cost(&affected_cells, 1.0);
-
+                pathfinding.set_terrain_cost(&affected_cells, 1.0);
                 debug!(
                     "Removed obstacle from {} cells at ({}, {})",
                     affected_cells.len(),
@@ -144,203 +266,118 @@ pub fn handle_obstacle_events(
             }
         }
 
-        // Queue rebuild request for all fields when obstacles change
-        let king_pos = pathfinding.last_king_pos;
-        pathfinding.pending_rebuilds.push(RebuildRequest {
-            field_type: RebuildFieldType::All,
-            goal_pos: king_pos, // Will be updated for each field
-            dirty_cells: affected_cells,
-        });
-    }
-}
-
-/// Component attached to entities with async rebuild tasks.
-#[derive(Component)]
-pub(super) struct FlowFieldRebuildTask {
-    task: Task<FlowField>,
-    field_type: RebuildFieldType,
-}
-
-/// Spawns async tasks to rebuild flow fields.
-pub fn spawn_rebuild_tasks(mut commands: Commands, mut pathfinding: ResMut<PathfindingGrid>) {
-    if pathfinding.pending_rebuilds.is_empty() {
-        return;
+        rebuild_needed = true;
     }
 
-    let task_pool = AsyncComputeTaskPool::get();
-
-    // Extract values before draining to avoid borrow checker issues
-    let attacker_field = pathfinding.attacker_field.clone();
-    let king_defender_field = pathfinding.king_defender_field.clone();
-    let infantry_defender_field = pathfinding.infantry_defender_field.clone();
-    let archer_defender_field = pathfinding.archer_defender_field.clone();
-    let king_pos = pathfinding.last_king_pos;
-    let world_min = pathfinding.world_min;
-    let cell_size = pathfinding.cell_size;
-
-    // Calculate defender rally points
-    let to_center = Vec2::ZERO - WIZARD_POS;
-    let direction = to_center.normalize();
-    let king_rally = WIZARD_POS + direction * KING_RALLY_DISTANCE;
-    let infantry_rally = WIZARD_POS + direction * INFANTRY_RALLY_DISTANCE;
-    let archer_rally = WIZARD_POS + direction * ARCHER_RALLY_DISTANCE;
-
-    for rebuild in pathfinding.pending_rebuilds.drain(..) {
-        use RebuildFieldType::*;
-
-        // Determine which fields to rebuild
-        let rebuild_attacker = matches!(rebuild.field_type, Attacker | All);
-        let rebuild_king = matches!(rebuild.field_type, KingDefender | AllDefenders | All);
-        let rebuild_infantry = matches!(rebuild.field_type, InfantryDefender | AllDefenders | All);
-        let rebuild_archer = matches!(rebuild.field_type, ArcherDefender | AllDefenders | All);
-
-        // Rebuild attacker field (flows toward King)
-        if rebuild_attacker {
-            spawn_field_rebuild_task(
-                &mut commands,
-                &task_pool,
-                attacker_field.clone(),
-                king_pos,
-                world_min,
-                cell_size,
-                RebuildFieldType::Attacker,
-                8, // Default satisfaction radius for attackers
-            );
+    // If any obstacles changed, rebuild both fields
+    if rebuild_needed {
+        // Rebuild attacker field
+        if pathfinding.pending_attacker_rebuild.is_none() {
+            if let Ok(king_transform) = king_query.single() {
+                let king_pos =
+                    Vec2::new(king_transform.translation.x, king_transform.translation.z);
+                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+            }
         }
 
-        // Rebuild king defender field
-        if rebuild_king {
-            spawn_field_rebuild_task(
-                &mut commands,
-                &task_pool,
-                king_defender_field.clone(),
-                king_rally,
-                world_min,
-                cell_size,
-                RebuildFieldType::KingDefender,
-                KING_SATISFACTION_RADIUS,
-            );
-        }
-
-        // Rebuild infantry defender field
-        if rebuild_infantry {
-            spawn_field_rebuild_task(
-                &mut commands,
-                &task_pool,
-                infantry_defender_field.clone(),
-                infantry_rally,
-                world_min,
-                cell_size,
-                RebuildFieldType::InfantryDefender,
-                INFANTRY_SATISFACTION_RADIUS,
-            );
-        }
-
-        // Rebuild archer defender field
-        if rebuild_archer {
-            spawn_field_rebuild_task(
-                &mut commands,
-                &task_pool,
-                archer_defender_field.clone(),
-                archer_rally,
-                world_min,
-                cell_size,
-                RebuildFieldType::ArcherDefender,
-                ARCHER_SATISFACTION_RADIUS,
-            );
+        // Rebuild defender field if it exists
+        if pathfinding.defender_field.is_some() && pathfinding.pending_defender_rebuild.is_none() {
+            if let Some(target_entity) = pathfinding.king_current_target {
+                // We need to get the target's position, but we don't have access to the query here
+                // The next update_king_target call will handle this
+                debug!(
+                    "Obstacle changed, defender field rebuild will occur on next king target update"
+                );
+                // Force a rebuild by clearing current target so it re-evaluates
+                pathfinding.king_current_target = Some(target_entity);
+            }
         }
     }
 }
 
-/// Helper function to spawn a single field rebuild task.
-fn spawn_field_rebuild_task(
-    commands: &mut Commands,
-    task_pool: &AsyncComputeTaskPool,
-    mut field: FlowField,
-    goal_pos: Vec2,
-    world_min: Vec2,
-    cell_size: f32,
-    field_type: RebuildFieldType,
-    satisfaction_radius: usize,
+/// Samples flow fields and updates FlowFieldVelocity for all units.
+///
+/// Runs before movement systems to provide flow field guidance.
+pub fn sample_flow_fields(
+    pathfinding: Res<PathfindingGrid>,
+    defenders_activated: Res<DefendersActivated>,
+    mut units_query: Query<(
+        &Transform,
+        &FlowFieldInfluence,
+        &mut FlowFieldVelocity,
+        Option<&Archer>,
+    )>,
 ) {
-    let task = task_pool.spawn(async move {
-        // Convert goal to grid coordinates
-        let goal_x = ((goal_pos.x - world_min.x) / cell_size).floor() as usize;
-        let goal_z = ((goal_pos.y - world_min.y) / cell_size).floor() as usize;
+    for (transform, influence, mut flow_velocity, is_archer) in units_query.iter_mut() {
+        let world_pos = transform.translation;
 
-        // Rebuild the field with satisfaction radius
-        field.generate_with_radius(goal_x, goal_z, satisfaction_radius);
-        field
-    });
-
-    commands.spawn(FlowFieldRebuildTask { task, field_type });
-}
-
-/// Applies completed rebuild tasks to the pathfinding grid.
-pub fn apply_completed_rebuilds(
-    mut commands: Commands,
-    mut pathfinding: ResMut<PathfindingGrid>,
-    mut rebuild_tasks: Query<(Entity, &mut FlowFieldRebuildTask)>,
-) {
-    for (entity, mut task) in &mut rebuild_tasks {
-        // Check if task is complete (non-blocking poll)
-        if let Some(new_field) = bevy::tasks::block_on(bevy::tasks::poll_once(&mut task.task)) {
-            // Swap in the new field
-            match task.field_type {
-                RebuildFieldType::Attacker => {
-                    pathfinding.attacker_field = new_field;
-                    debug!("Applied rebuilt attacker flow field");
-                }
-                RebuildFieldType::KingDefender => {
-                    pathfinding.king_defender_field = new_field;
-                    debug!("Applied rebuilt king defender flow field");
-                }
-                RebuildFieldType::InfantryDefender => {
-                    pathfinding.infantry_defender_field = new_field;
-                    debug!("Applied rebuilt infantry defender flow field");
-                }
-                RebuildFieldType::ArcherDefender => {
-                    pathfinding.archer_defender_field = new_field;
-                    debug!("Applied rebuilt archer defender flow field");
-                }
-                RebuildFieldType::AllDefenders | RebuildFieldType::All => {
-                    // These shouldn't appear in individual tasks
-                    warn!(
-                        "Unexpected {:?} field type in rebuild task",
-                        task.field_type
-                    );
+        match influence {
+            FlowFieldInfluence::Attacker => {
+                // Sample attacker field
+                if let Some(ref field) = pathfinding.attacker_field {
+                    flow_velocity.velocity =
+                        field.sample(world_pos, pathfinding.world_min, pathfinding.cell_size);
+                } else {
+                    flow_velocity.velocity = Vec3::ZERO;
                 }
             }
+            FlowFieldInfluence::Defender { spawn_pos } => {
+                if defenders_activated.active {
+                    // Defenders are activated, use defender flow field
+                    if let Some(ref field) = pathfinding.defender_field {
+                        let mut direction =
+                            field.sample(world_pos, pathfinding.world_min, pathfinding.cell_size);
 
-            // Despawn the task entity
-            commands.entity(entity).despawn();
+                        // Archers should respect their attack range as satisfaction radius
+                        // If the flow field says "go forward" but they're already in range,
+                        // zero out the flow field velocity so targeting takes over
+                        if is_archer.is_some() && direction.length() > 0.0 {
+                            // Check if archer is within attack range of target
+                            if let Some(target) = pathfinding.king_current_target {
+                                // We can't easily get target position here without another query
+                                // So we'll let the targeting system handle this via weighting
+                                // The archer targeting system already handles optimal range positioning
+                            }
+                        }
+
+                        flow_velocity.velocity = direction;
+                    } else {
+                        flow_velocity.velocity = Vec3::ZERO;
+                    }
+                } else {
+                    // Defenders not activated, rally to spawn point with satisfaction radius
+                    let current_pos = Vec2::new(world_pos.x, world_pos.z);
+                    let distance_to_spawn = current_pos.distance(*spawn_pos);
+                    let satisfaction_radius_world = DEFENDER_SPAWN_RALLY_RADIUS as f32 * CELL_SIZE;
+
+                    if distance_to_spawn > satisfaction_radius_world {
+                        // Move toward spawn point
+                        let direction = (*spawn_pos - current_pos).normalize();
+                        flow_velocity.velocity = Vec3::new(direction.x, 0.0, direction.y);
+                    } else {
+                        // Within satisfaction radius of spawn point
+                        flow_velocity.velocity = Vec3::ZERO;
+                    }
+                }
+            }
         }
     }
 }
 
-/// Updates King position and rebuilds attacker flow field when he moves significantly.
-pub fn update_king_position(
+/// Generates initial attacker flow field on first frame after King spawns.
+///
+/// This ensures the attacker field exists when attackers spawn.
+pub fn generate_initial_fields(
     mut pathfinding: ResMut<PathfindingGrid>,
-    king_query: Query<&Transform, With<King>>,
+    king_query: Query<&Transform, (With<King>, Added<Transform>)>,
 ) {
-    const UPDATE_THRESHOLD: f32 = 50.0; // Rebuild if King moves more than 50 units
-
+    // Only run when King first spawns
     if let Ok(king_transform) = king_query.single() {
         let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
-        let distance_moved = king_pos.distance(pathfinding.last_king_pos);
+        pathfinding.last_king_pos = king_pos;
 
-        if distance_moved > UPDATE_THRESHOLD {
-            // King moved significantly, queue attacker field rebuild
-            pathfinding.pending_rebuilds.push(RebuildRequest {
-                field_type: RebuildFieldType::Attacker,
-                goal_pos: king_pos,
-                dirty_cells: vec![], // Empty = full rebuild
-            });
-            pathfinding.last_king_pos = king_pos;
-            debug!(
-                "King moved {} units, rebuilding attacker field",
-                distance_moved
-            );
-        }
+        // Spawn initial attacker field rebuild
+        spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+        info!("Generating initial attacker flow field toward King");
     }
 }
