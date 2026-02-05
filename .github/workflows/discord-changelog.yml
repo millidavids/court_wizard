@@ -8,8 +8,12 @@ on:
 jobs:
     notify:
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
         steps:
             - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: Extract latest changelog entry
               id: changelog
@@ -31,8 +35,20 @@ jobs:
                   echo "$body" >> "$GITHUB_OUTPUT"
                   echo "$EOF" >> "$GITHUB_OUTPUT"
 
+            - name: Check if tag exists
+              id: check_tag
+              run: |
+                  VERSION="${{ steps.changelog.outputs.version }}"
+                  if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+                    echo "exists=true" >> $GITHUB_OUTPUT
+                    echo "Tag v$VERSION already exists, skipping notification"
+                  else
+                    echo "exists=false" >> $GITHUB_OUTPUT
+                    echo "Tag v$VERSION does not exist, will send notification"
+                  fi
+
             - name: Post to Discord
-              if: env.DISCORD_WEBHOOK_URL != ''
+              if: steps.check_tag.outputs.exists == 'false' && env.DISCORD_WEBHOOK_URL != ''
               env:
                   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
                   VERSION: ${{ steps.changelog.outputs.version }}
@@ -43,3 +59,12 @@ jobs:
                     --arg desc "$BODY" \
                     '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
                   curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
+
+            - name: Create and push tag
+              if: steps.check_tag.outputs.exists == 'false'
+              run: |
+                  VERSION="${{ steps.changelog.outputs.version }}"
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git tag -a "v$VERSION" -m "Release v$VERSION"
+                  git push origin "v$VERSION"
