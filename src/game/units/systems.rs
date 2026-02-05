@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    Effectiveness, FlockingVelocity, InMelee, TargetingVelocity, Team, TemporaryHitPoints,
+    Effectiveness, FlockingVelocity, FrostSlowModifier, InMelee, TargetingVelocity, Team,
+    TemporaryHitPoints,
 };
 use crate::game::components::{Acceleration, Velocity};
 use crate::game::constants::{
@@ -96,6 +97,7 @@ pub fn calculate_weighted_movement(
     in_melee: bool,
     aura_modifier: Option<f32>,
     terrain_modifier: Option<f32>,
+    frost_modifier: Option<f32>,
 ) {
     // Use pathfinding distance (accounts for obstacles)
     let distance = flow_field_velocity.pathfinding_distance;
@@ -130,8 +132,9 @@ pub fn calculate_weighted_movement(
     // Calculate speed modifiers
     let aura_percentage = aura_modifier.unwrap_or(0.0);
     let terrain_percentage = terrain_modifier.unwrap_or(0.0);
-    let total_percentage = aura_percentage + terrain_percentage;
-    let speed_multiplier = 1.0 + total_percentage;
+    let frost_percentage = frost_modifier.unwrap_or(0.0);
+    let total_percentage = aura_percentage + terrain_percentage + frost_percentage;
+    let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
     // Calculate max speed with effectiveness, modifiers, and melee slowdown
     let mut max_speed = movement_speed * effectiveness.multiplier() * speed_multiplier;
@@ -181,6 +184,26 @@ pub fn update_temporary_hit_points(
         if temp_hp.update(delta) {
             // Temp HP has expired, remove the component
             commands.entity(entity).remove::<TemporaryHitPoints>();
+        }
+    }
+}
+
+/// Updates all frost slow modifiers and removes expired components.
+///
+/// This system runs each frame to:
+/// - Decrement time_remaining on all FrostSlowModifier components
+/// - Remove components that have expired (time <= 0)
+pub fn update_frost_slow_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut FrostSlowModifier)>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut frost_slow) in query.iter_mut() {
+        if frost_slow.update(delta) {
+            // Frost slow has expired, remove the component
+            commands.entity(entity).remove::<FrostSlowModifier>();
         }
     }
 }

@@ -43,6 +43,7 @@ impl Plugin for UnitsPlugin {
             Update,
             (
                 systems::update_temporary_hit_points,
+                systems::update_frost_slow_modifiers,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
             )
                 .run_if(in_state(InGameState::Running)),

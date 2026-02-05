@@ -50,6 +50,40 @@ pub struct KingAuraSpeedModifier(pub f32);
 #[derive(Component)]
 pub struct RoughTerrainModifier(pub f32);
 
+/// Movement speed modifier from frost slow effect as a percentage.
+///
+/// Applied to units hit by ice explosions from the Squall spell.
+/// Examples: -0.4 = -40% speed (0.6x multiplier).
+/// Movement systems apply this as: speed * (1.0 + sum_of_all_modifiers).
+#[derive(Component)]
+pub struct FrostSlowModifier {
+    /// Speed reduction as a percentage (negative value).
+    pub modifier: f32,
+    /// Time remaining before the slow effect expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl FrostSlowModifier {
+    /// Creates a new frost slow modifier with the given strength and duration.
+    pub const fn new(modifier: f32, duration: f32) -> Self {
+        Self {
+            modifier,
+            time_remaining: duration,
+        }
+    }
+
+    /// Updates the timer, returning true if expired.
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    /// Refreshes the duration (used when reapplying the slow).
+    pub fn refresh(&mut self, duration: f32) {
+        self.time_remaining = duration;
+    }
+}
+
 /// Attack timing component for all units.
 ///
 /// Tracks when in the global attack cycle a unit can attack.

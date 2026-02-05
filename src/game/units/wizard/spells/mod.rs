@@ -13,6 +13,7 @@ mod magic_missile;
 mod plugin;
 mod raise_the_dead;
 pub mod run_conditions;
+mod squall;
 mod systems;
 mod teleport;
 pub(in crate::game) mod wall_of_stone;
@@ -26,6 +27,7 @@ pub(in crate::game::units::wizard) use fireball::constants as fireball_constants
 pub(in crate::game::units::wizard) use guardian_circle::constants as guardian_circle_constants;
 pub(in crate::game::units::wizard) use magic_missile::constants as magic_missile_constants;
 pub(in crate::game::units::wizard) use raise_the_dead::constants as raise_the_dead_constants;
+pub(in crate::game::units::wizard) use squall::constants as squall_constants;
 pub(in crate::game::units::wizard) use teleport::constants as teleport_constants;
 pub(in crate::game::units::wizard) use wall_of_stone::constants as wall_of_stone_constants;
 

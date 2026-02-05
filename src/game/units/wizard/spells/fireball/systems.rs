@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, Wizard};
 use super::components::*;
 use super::constants;
 use super::styles::*;
@@ -28,17 +28,22 @@ pub fn handle_fireball_casting(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<Wizard>>,
+    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell), With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<Wizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
+    else {
         return;
     };
 
     // Check for release event - this is spell-specific logic
     if mouse_left_released.read().next().is_some() {
-        // Cancel cast on release
+        // Cancel cast on release and remove marker
+        if caster_query.get(wizard_entity).is_ok() {
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
         casting_state.cancel();
         return;
     }
@@ -69,14 +74,19 @@ pub fn handle_fireball_casting(
                         primed_spell,
                     );
                 }
+                // Remove caster marker immediately (don't keep it blocking future casts)
+                commands.entity(wizard_entity).remove::<SpellCaster>();
                 // Return to resting state (no channeling for fireball)
                 casting_state.cancel();
-                mouse_state.left_consumed = true; // Require release before next cast
+                // Consume mouse to require release before next cast
+                mouse_state.left_consumed = true;
             }
         }
         CastingState::Resting => {
-            // Not casting - check mana before starting cast
-            if mana.can_afford(constants::MANA_COST) {
+            // Only start if we don't have a caster marker and have enough mana
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
+                // Mark wizard as casting
+                commands.entity(wizard_entity).insert(SpellCaster::new());
                 casting_state.start_cast();
             }
         }

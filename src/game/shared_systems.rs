@@ -458,7 +458,10 @@ pub fn convert_dead_to_corpses(
                 .remove::<MovementSpeed>() // Can't move on their own
                 .remove::<AttackTiming>() // Can't attack
                 .remove::<Hitbox>() // Remove collision
-                .remove::<crate::game::components::Billboard>(); // Remove billboard so corpse stays flat
+                .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
+                .remove::<super::units::components::KingAuraSpeedModifier>() // Remove speed modifiers
+                .remove::<super::units::components::FrostSlowModifier>()
+                .remove::<super::units::components::RoughTerrainModifier>();
         }
     }
 }

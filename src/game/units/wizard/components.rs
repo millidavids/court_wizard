@@ -16,6 +16,7 @@ pub enum Spell {
     Teleport,
     WallOfStone,
     BlackHole,
+    Squall,
 }
 
 impl Spell {
@@ -32,6 +33,7 @@ impl Spell {
             Spell::Teleport,
             Spell::WallOfStone,
             Spell::BlackHole,
+            Spell::Squall,
         ]
     }
 
@@ -48,6 +50,7 @@ impl Spell {
             Spell::Teleport => "Teleport",
             Spell::WallOfStone => "Wall of Stone",
             Spell::BlackHole => "Black Hole",
+            Spell::Squall => "Squall",
         }
     }
 
@@ -80,6 +83,9 @@ impl Spell {
             Spell::BlackHole => {
                 "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 10 seconds, growing in size and strength over time."
             }
+            Spell::Squall => {
+                "Summons a storm that rains ice down on a targeted area, dealing frost damage and slowing enemies. Requires concentration to maintain."
+            }
         }
     }
 
@@ -96,6 +102,7 @@ impl Spell {
             Spell::Teleport => "Click to place destination, then click and hold to cast",
             Spell::WallOfStone => "Click and drag to place wall",
             Spell::BlackHole => "Click and hold to cast",
+            Spell::Squall => "Click and hold to place storm",
         }
     }
 
@@ -104,8 +111,8 @@ impl Spell {
         use crate::game::units::wizard::spells::{
             black_hole_constants, chain_lightning_constants, disintegrate_constants,
             finger_of_death_constants, fireball_constants, guardian_circle_constants,
-            magic_missile_constants, raise_the_dead_constants, teleport_constants,
-            wall_of_stone_constants,
+            magic_missile_constants, raise_the_dead_constants, squall_constants,
+            teleport_constants, wall_of_stone_constants,
         };
 
         match self {
@@ -119,6 +126,7 @@ impl Spell {
             Spell::Teleport => teleport_constants::PRIMED_TELEPORT,
             Spell::WallOfStone => wall_of_stone_constants::PRIMED_WALL_OF_STONE,
             Spell::BlackHole => black_hole_constants::PRIMED_BLACK_HOLE,
+            Spell::Squall => squall_constants::PRIMED_SQUALL,
         }
     }
 
@@ -136,6 +144,7 @@ impl Spell {
             Spell::RaiseTheDead => DamageType::Necrotic,
             Spell::Teleport => DamageType::Force,
             Spell::WallOfStone => DamageType::Force,
+            Spell::Squall => DamageType::Frost,
         }
     }
 }
@@ -403,6 +412,37 @@ impl CastingState {
                 }
             }
             Self::Channeling { .. } => 1.0,
+        }
+    }
+}
+
+/// Marker component to track when the wizard is actively casting a spell.
+///
+/// This marker is added when a spell cast begins and removed immediately after
+/// the spell completes. It prevents immediate recast while the mouse button is
+/// held down, but allows immediate casting on the next mouse press without
+/// requiring a double-click.
+///
+/// The marker stores an optional entity (like a circle indicator) that should
+/// be despawned when the cast is cancelled or completed.
+#[derive(Component)]
+pub struct SpellCaster {
+    /// Optional entity to despawn when cast is cancelled/completed (e.g., circle indicator).
+    pub indicator_entity: Option<Entity>,
+}
+
+impl SpellCaster {
+    /// Creates a new SpellCaster marker with no indicator.
+    pub const fn new() -> Self {
+        Self {
+            indicator_entity: None,
+        }
+    }
+
+    /// Creates a new SpellCaster marker with an indicator entity.
+    pub const fn with_indicator(indicator_entity: Entity) -> Self {
+        Self {
+            indicator_entity: Some(indicator_entity),
         }
     }
 }

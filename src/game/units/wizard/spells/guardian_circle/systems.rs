@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
-use super::components::{GuardianCircleCaster, GuardianCircleIndicator};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, Wizard};
+use super::components::GuardianCircleIndicator;
 use super::constants;
 use super::styles::CIRCLE_COLOR;
 use crate::game::components::OnGameplayScreen;
@@ -38,7 +38,7 @@ pub fn handle_guardian_circle_casting(
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut caster_query: Query<&mut GuardianCircleCaster, With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<Wizard>>,
     mut indicator_query: Query<&mut GuardianCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform), Without<Wizard>>,
 ) {
@@ -53,13 +53,11 @@ pub fn handle_guardian_circle_casting(
         // Cancel cast on release
         if let Ok(caster) = caster_query.single() {
             // Despawn circle indicator if it exists
-            if let Some(circle_entity) = caster.circle_entity {
-                commands.entity(circle_entity).despawn();
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).despawn();
             }
             // Remove caster marker
-            commands
-                .entity(wizard_entity)
-                .remove::<GuardianCircleCaster>();
+            commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
         return;
@@ -104,8 +102,7 @@ pub fn handle_guardian_circle_casting(
     match *casting_state {
         CastingState::Resting => {
             // Only start a new cast if we don't have a caster marker and have enough mana
-            // (the marker persists after cast completion until mouse release)
-            if caster_query.single().is_err() && mana.can_afford(constants::MANA_COST) {
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
                 // Start casting - spawn circle indicator
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
@@ -116,9 +113,9 @@ pub fn handle_guardian_circle_casting(
                 );
 
                 // Mark wizard as casting Guardian Circle
-                commands.entity(wizard_entity).insert(GuardianCircleCaster {
-                    circle_entity: Some(circle_entity),
-                });
+                commands
+                    .entity(wizard_entity)
+                    .insert(SpellCaster::with_indicator(circle_entity));
 
                 // Start the cast
                 casting_state.start_cast();
@@ -130,8 +127,8 @@ pub fn handle_guardian_circle_casting(
 
             // Update circle position to follow cursor
             if let Ok(caster) = caster_query.single()
-                && let Some(circle_entity) = caster.circle_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(circle_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
             {
                 indicator.position = cursor_world_pos;
             }
@@ -141,9 +138,9 @@ pub fn handle_guardian_circle_casting(
                 // Cast complete - apply buff to units in radius
                 if mana.consume(constants::MANA_COST) {
                     // Get final circle position and apply buff
-                    if let Ok(mut caster) = caster_query.single_mut() {
-                        if let Some(circle_entity) = caster.circle_entity {
-                            if let Ok(indicator) = indicator_query.get(circle_entity) {
+                    if let Ok(caster) = caster_query.single() {
+                        if let Some(indicator_entity) = caster.indicator_entity {
+                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
                                 // Scale radius by empowerment
                                 let scale = indicator.empowerment;
                                 let radius = constants::CIRCLE_RADIUS * scale;
@@ -160,25 +157,24 @@ pub fn handle_guardian_circle_casting(
                             }
 
                             // Despawn circle indicator
-                            commands.entity(circle_entity).despawn();
+                            commands.entity(indicator_entity).despawn();
                         }
-
-                        // Clear circle entity reference but keep marker to prevent immediate recast
-                        caster.circle_entity = None;
                     }
+
+                    // Remove caster marker immediately (don't keep it blocking future casts)
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
 
                     // Return to resting state
                     casting_state.cancel();
-                    mouse_state.left_consumed = true; // Require release before next cast
+                    // Consume mouse to require release before next cast
+                    mouse_state.left_consumed = true;
                 } else {
                     // Out of mana - cancel cast
                     if let Ok(caster) = caster_query.single() {
-                        if let Some(circle_entity) = caster.circle_entity {
-                            commands.entity(circle_entity).despawn();
+                        if let Some(indicator_entity) = caster.indicator_entity {
+                            commands.entity(indicator_entity).despawn();
                         }
-                        commands
-                            .entity(wizard_entity)
-                            .remove::<GuardianCircleCaster>();
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
                     }
                     casting_state.cancel();
                 }
@@ -187,12 +183,10 @@ pub fn handle_guardian_circle_casting(
         CastingState::Channeling { .. } => {
             // Guardian Circle doesn't use channeling, cancel if we somehow get here
             if let Ok(caster) = caster_query.single() {
-                if let Some(circle_entity) = caster.circle_entity {
-                    commands.entity(circle_entity).despawn();
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).despawn();
                 }
-                commands
-                    .entity(wizard_entity)
-                    .remove::<GuardianCircleCaster>();
+                commands.entity(wizard_entity).remove::<SpellCaster>();
             }
             casting_state.cancel();
         }

@@ -5,6 +5,7 @@ use bevy::ui::ComputedNode;
 
 use super::components::*;
 use super::constants::*;
+use crate::game::input::MouseButtonState;
 use crate::game::input::events::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{PrimeSpellMessage, Spell};
 use crate::state::InGameState;
@@ -294,6 +295,13 @@ pub(super) fn despawn_spell_book_ui(
     for entity in &query {
         commands.entity(entity).despawn();
     }
+}
+
+/// Consumes the mouse button when exiting spell book to prevent click bleed-through.
+///
+/// This prevents the click that closed the spell book from being interpreted as a spell cast.
+pub(super) fn consume_mouse_on_exit(mut mouse_state: ResMut<MouseButtonState>) {
+    mouse_state.left_consumed = true;
 }
 
 /// Sets the flag when entering spell book to prevent spell casting.

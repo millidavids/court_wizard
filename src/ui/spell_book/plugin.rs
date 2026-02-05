@@ -17,7 +17,10 @@ impl Plugin for SpellBookPlugin {
             )
             .add_systems(
                 OnExit(InGameState::SpellBook),
-                systems::despawn_spell_book_ui,
+                (
+                    systems::despawn_spell_book_ui,
+                    systems::consume_mouse_on_exit,
+                ),
             )
             .add_systems(
                 Update,

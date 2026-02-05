@@ -4,20 +4,22 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct OnGameplayScreen;
 
+/// Marker component for spells that require concentration to maintain.
+///
+/// When a spell with this component is active, the concentration UI will be shown
+/// and the wizard cannot cast other spells without ending concentration.
+#[derive(Component)]
+pub struct ConcentrationSpell {
+    /// Name of the spell being concentrated on.
+    pub spell_name: &'static str,
+}
+
 /// Marker component for entities that should always face the camera (billboard effect).
 ///
 /// Entities with this component will have their rotation updated each frame to face the camera,
 /// rotating around the Y axis to remain perpendicular to the camera's forward direction on the XZ plane.
 #[derive(Component)]
 pub struct Billboard;
-
-/// Marker component for persistent spell effects that can affect game outcome.
-///
-/// The game will not end while any entities with this component exist.
-/// This prevents premature victory/defeat when dangerous spell effects like Black Hole
-/// are still active and could change the outcome.
-#[derive(Component)]
-pub struct PersistentSpellEffect;
 
 /// Velocity component for moving units.
 ///

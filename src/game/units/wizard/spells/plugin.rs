@@ -10,6 +10,7 @@ use super::fireball::FireballPlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
+use super::squall::SquallPlugin;
 use super::systems;
 use super::teleport::TeleportPlugin;
 use super::wall_of_stone::plugin::WallOfStonePlugin;
@@ -43,6 +44,7 @@ impl Plugin for SpellsPlugin {
             TeleportPlugin,
             WallOfStonePlugin,
             BlackHolePlugin,
+            SquallPlugin,
         ))
         .add_systems(
             Update,

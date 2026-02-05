@@ -9,8 +9,8 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    Health, Hitbox, InMelee, KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier,
-    TargetingVelocity, Team, Teleportable,
+    FrostSlowModifier, Health, Hitbox, InMelee, KingAuraSpeedModifier, MovementSpeed,
+    RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -24,8 +24,8 @@ pub fn spawn_initial_behemoths(
 ) {
     let level = current_level.0;
 
-    // Only spawn behemoths every 5 levels
-    if level % BEHEMOTH_SPAWN_LEVEL_INTERVAL != 0 {
+    // Only spawn behemoths at the specified interval
+    if BEHEMOTH_SPAWN_LEVEL_INTERVAL > 1 && level % BEHEMOTH_SPAWN_LEVEL_INTERVAL != 0 {
         return;
     }
 
@@ -160,6 +160,7 @@ pub fn behemoth_movement(
             Option<&InMelee>,
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
+            Option<&FrostSlowModifier>,
         ),
         With<Behemoth>,
     >,
@@ -175,6 +176,7 @@ pub fn behemoth_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
+        frost_modifier,
     ) in &mut behemoths
     {
         // Use shared weighted movement function
@@ -190,6 +192,7 @@ pub fn behemoth_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
+            frost_modifier.map(|m| m.modifier),
         );
     }
 }

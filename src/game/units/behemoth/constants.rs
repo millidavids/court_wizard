@@ -16,4 +16,4 @@ pub const BEHEMOTH_AOE_DAMAGE: f32 = 200.0; // AOE splash damage
 pub const BEHEMOTH_AOE_RADIUS: f32 = 30.0; // AOE effect radius
 
 // Spawn interval
-pub const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 1; // Spawn every level (for testing)
+pub const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3; // Spawn every 3 levels

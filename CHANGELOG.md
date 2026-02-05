@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.346] - 2025-02-05
+
+### Added
+- **New Spell: Squall**
+  - Summons a storm that continuously rains ice down on a targeted area
+  - Ice projectiles fall from the sky and explode on impact, dealing frost damage
+  - Hit enemies are slowed by 40% for a few seconds, making it harder for them to reach your defenses
+  - Storm persists as long as you maintain concentration (currently lasts until manually cancelled or another spell is cast)
+  - Perfect for controlling choke points and slowing down waves of enemies
+- **New Spell Mechanic: Concentration**
+  - Squall is the first spell that requires concentration to maintain
+  - While concentrating on a spell, it continues to have an effect on the battlefield
+  - A new UI appears above the action bar showing which spell you're concentrating on
+  - Click "End Concentration" to stop the spell early, or cast another spell to automatically end it
+  - Only one concentration spell can be active at a time
+
+### Changed
+- Ice damage type renamed to Frost damage for consistency
+- Behemoths now spawn every 3 levels instead of every level
+
+### Fixed
+- Improved spell casting controls - you can now cast spells repeatedly without needing to click twice
+- All spells (Fireball, Guardian Circle, Squall) now work consistently when clicking multiple times
+
 ## [v0.0.325] - 2025-02-04
 
 ### Added

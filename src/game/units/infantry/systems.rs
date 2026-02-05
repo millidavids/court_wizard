@@ -10,8 +10,9 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingVelocity, Health, Hitbox, KingAuraSpeedModifier,
-    KingsGuard, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    AttackTiming, Corpse, Effectiveness, FlockingVelocity, FrostSlowModifier, Health, Hitbox,
+    KingAuraSpeedModifier, KingsGuard, MovementSpeed, RoughTerrainModifier, TargetingVelocity,
+    Team, Teleportable,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -211,6 +212,7 @@ pub fn infantry_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
+            Option<&FrostSlowModifier>,
         ),
         With<Infantry>,
     >,
@@ -227,6 +229,7 @@ pub fn infantry_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
+        frost_modifier,
     ) in &mut infantry_units
     {
         // Use shared weighted movement function
@@ -242,6 +245,7 @@ pub fn infantry_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
+            frost_modifier.map(|m| m.modifier),
         );
     }
 }

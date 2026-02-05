@@ -7,8 +7,8 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed, RoughTerrainModifier,
-    TargetingVelocity, Team, Teleportable,
+    FrostSlowModifier, Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed,
+    RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 
 /// Spawns the King unit at the center of the defender grid.
@@ -157,6 +157,7 @@ pub fn king_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
+            Option<&FrostSlowModifier>,
         ),
         With<King>,
     >,
@@ -173,6 +174,7 @@ pub fn king_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
+        frost_modifier,
     ) in &mut king_units
     {
         // Use shared weighted movement function
@@ -188,6 +190,7 @@ pub fn king_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
+            frost_modifier.map(|m| m.modifier),
         );
     }
 }

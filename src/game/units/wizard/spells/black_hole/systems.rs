@@ -5,7 +5,7 @@ use bevy::window::PrimaryWindow;
 
 use super::components::{BlackHole, UnitInBlackHole};
 use super::constants::*;
-use crate::game::components::{Acceleration, OnGameplayScreen, PersistentSpellEffect};
+use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -72,7 +72,6 @@ fn spawn_black_hole(
         MeshMaterial3d(materials.add(material)),
         Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
         OnGameplayScreen,
-        PersistentSpellEffect,
     ));
 }
 

@@ -19,8 +19,10 @@ pub enum DamageType {
     ///
     /// Dealt by: Chain Lightning
     Electric,
-    /// Ice damage (reserved for future spells)
-    Ice,
+    /// Frost damage
+    ///
+    /// Dealt by: Squall
+    Frost,
     /// Necrotic damage (reserved for future spells)
     Necrotic,
 }

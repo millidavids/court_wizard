@@ -5,6 +5,7 @@
 
 mod action_bar;
 mod components;
+mod concentration;
 mod game_over;
 mod in_game;
 mod instructions;

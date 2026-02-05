@@ -13,9 +13,9 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingModifier, FlockingVelocity, Health, Hitbox,
-    KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity, Team,
-    Teleportable, TemporaryHitPoints, apply_damage_to_unit,
+    AttackTiming, Corpse, Effectiveness, FlockingModifier, FlockingVelocity, FrostSlowModifier,
+    Health, Hitbox, KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity,
+    Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::random_position_in_cell;
@@ -648,6 +648,7 @@ pub fn archer_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
+            Option<&FrostSlowModifier>,
         ),
         With<Archer>,
     >,
@@ -664,6 +665,7 @@ pub fn archer_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
+        frost_modifier,
     ) in &mut archer_units
     {
         // Use shared weighted movement function
@@ -679,6 +681,7 @@ pub fn archer_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
+            frost_modifier.map(|m| m.modifier),
         );
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)

@@ -1,15 +1,5 @@
 use bevy::prelude::*;
 
-/// Marker component indicating the wizard is actively casting Guardian Circle.
-///
-/// Used to track the casting visual entity and differentiate from other spells.
-/// The circle_entity is None after cast completes but before mouse release.
-#[derive(Component)]
-pub struct GuardianCircleCaster {
-    /// Entity ID of the visual circle indicator (None if despawned).
-    pub circle_entity: Option<Entity>,
-}
-
 /// Visual indicator for the Guardian Circle area during casting.
 ///
 /// Shows the area of effect that will receive temporary hit points.
