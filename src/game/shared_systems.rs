@@ -316,15 +316,18 @@ pub fn apply_rough_terrain_slowdown(
 
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
-    mut all_units: Query<(
-        Entity,
-        &Transform,
-        &Hitbox,
-        &Team,
-        &mut AttackTiming,
-        &Effectiveness,
-        Option<&DamageMultiplier>,
-    )>,
+    mut all_units: Query<
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &Team,
+            &mut AttackTiming,
+            &Effectiveness,
+            Option<&DamageMultiplier>,
+        ),
+        Without<Corpse>,
+    >,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
     let current_time = attack_cycle.current_time;

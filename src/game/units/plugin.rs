@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::state::InGameState;
 
 use super::archer::ArcherPlugin;
+use super::behemoth::BehemothPlugin;
 use super::infantry::InfantryPlugin;
 use super::king::KingPlugin;
 use super::movement;
@@ -25,20 +26,26 @@ pub struct UnitsPlugin;
 
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((WizardPlugin, InfantryPlugin, ArcherPlugin, KingPlugin))
-            .configure_sets(
-                Update,
-                (MovementCalculationSet, ApplyTransformsSet)
-                    .chain()
-                    .run_if(in_state(InGameState::Running)),
+        app.add_plugins((
+            WizardPlugin,
+            InfantryPlugin,
+            ArcherPlugin,
+            BehemothPlugin,
+            KingPlugin,
+        ))
+        .configure_sets(
+            Update,
+            (MovementCalculationSet, ApplyTransformsSet)
+                .chain()
+                .run_if(in_state(InGameState::Running)),
+        )
+        .add_systems(
+            Update,
+            (
+                systems::update_temporary_hit_points,
+                movement::apply_unit_movement.in_set(ApplyTransformsSet),
             )
-            .add_systems(
-                Update,
-                (
-                    systems::update_temporary_hit_points,
-                    movement::apply_unit_movement.in_set(ApplyTransformsSet),
-                )
-                    .run_if(in_state(InGameState::Running)),
-            );
+                .run_if(in_state(InGameState::Running)),
+        );
     }
 }

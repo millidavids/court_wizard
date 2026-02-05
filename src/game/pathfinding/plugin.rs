@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use super::events::ObstacleChanged;
 use super::systems::*;
+use crate::game::plugin::VelocitySystemSet;
 
 /// Plugin that handles flow field pathfinding for units.
 pub struct PathfindingPlugin;
@@ -29,10 +30,13 @@ impl Plugin for PathfindingPlugin {
                     handle_obstacle_events,
                     // Apply completed async rebuilds
                     apply_completed_rebuilds,
-                    // Sample flow fields (run before movement systems)
-                    sample_flow_fields,
                 )
                     .chain(),
+            )
+            .add_systems(
+                Update,
+                // Sample flow fields MUST run in VelocitySystemSet (before movement calculations)
+                sample_flow_fields.in_set(VelocitySystemSet),
             );
     }
 }

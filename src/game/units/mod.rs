@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use rand::Rng;
 
 pub(crate) mod archer;
+mod behemoth;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod damage;

@@ -14,7 +14,7 @@ pub const CAST_TIME: f32 = 2.0;
 pub const BEAM_ORIGIN_HEIGHT_OFFSET: f32 = 100.0;
 
 // Mana requirement - must have full mana (100%)
-pub const MANA_REQUIREMENT_PERCENT: f32 = 1.0;
+pub const MANA_REQUIREMENT_PERCENT: f32 = 0.5;
 
 // Damage
 pub const DAMAGE: f32 = 1000.0;

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [v0.0.325] - 2025-02-04
+
+### Added
+- **New Enemy: Behemoth**
+  - A massive, slow-moving tank unit that spawns every level (currently for testing)
+  - Has 10 times the health of regular units (500 HP)
+  - Attacks with devastating area-of-effect damage, hitting everything within 30 units of its target
+  - Does 200 damage per attack - enough to wipe out groups of defenders
+  - Watch out - behemoths can accidentally damage their own allies with their powerful attacks!
+  - Spawns in the archer row alongside other attackers
+
+### Changed
+- Reduced Finger of Death mana cost by 50% to make it more viable against tough enemies
+
 ## [v0.0.253] - 2025-02-04
 
 ### Added

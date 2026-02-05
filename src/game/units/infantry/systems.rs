@@ -178,54 +178,16 @@ pub fn update_infantry_targeting(
             *targeting_velocity = TargetingVelocity::default();
             continue;
         }
-        // Find nearest enemy
-        let nearest_enemy = unit_snapshot
-            .iter()
-            .filter(|(other_entity, _, other_team)| {
-                *other_entity != entity
-                    && match (*team, other_team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => *other_team != *team,
-                    }
-            })
-            .min_by(|a, b| {
-                let dist_a = (transform.translation.x - a.1.x).powi(2)
-                    + (transform.translation.z - a.1.z).powi(2);
-                let dist_b = (transform.translation.x - b.1.x).powi(2)
-                    + (transform.translation.z - b.1.z).powi(2);
-                dist_a
-                    .partial_cmp(&dist_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
 
-        // Set targeting velocity toward target (normalized direction)
-        if let Some(&(_, target_pos, enemy_team)) = nearest_enemy {
-            let direction = (target_pos - transform.translation).normalize_or_zero();
-            targeting_velocity.velocity = Vec3::new(direction.x, 0.0, direction.z);
-
-            // Store distance for formation weighting
-            let distance = transform.translation.distance(target_pos);
-            targeting_velocity.distance_to_target = distance;
-
-            // Check if enemy is in melee range
-            if distance < MELEE_SLOWDOWN_DISTANCE {
-                commands
-                    .entity(entity)
-                    .insert(crate::game::units::components::InMelee(enemy_team));
-            } else {
-                commands
-                    .entity(entity)
-                    .remove::<crate::game::units::components::InMelee>();
-            }
-        } else {
-            targeting_velocity.velocity = Vec3::ZERO;
-            targeting_velocity.distance_to_target = f32::MAX;
-            commands
-                .entity(entity)
-                .remove::<crate::game::units::components::InMelee>();
-        }
+        // Use shared melee targeting function
+        crate::game::units::systems::update_melee_unit_targeting(
+            &unit_snapshot,
+            entity,
+            transform,
+            *team,
+            &mut targeting_velocity,
+            &mut commands,
+        );
     }
 }
 
@@ -267,80 +229,20 @@ pub fn infantry_movement(
         terrain_modifier,
     ) in &mut infantry_units
     {
-        // Calculate three-velocity weighting based on distance to target
-        // Use pathfinding distance (accounts for obstacles) instead of straight-line distance
-        // Far from enemies (>500 units): 70% flow field, 20% flocking, 10% targeting
-        // Medium range (200-500 units): 50% flow field, 20% flocking, 30% targeting
-        // Close range (50-200 units): 20% flow field, 20% flocking, 60% targeting
-        // In melee (<50 units): 10% flow field, 10% flocking, 80% targeting
-        let distance = flow_field_velocity.pathfinding_distance;
-
-        let (flow_weight, flocking_weight, targeting_weight) = if distance > 500.0 {
-            (0.7, 0.2, 0.1)
-        } else if distance > 200.0 {
-            // Interpolate between far and medium
-            let t = (500.0 - distance) / 300.0; // 0.0 at 500, 1.0 at 200
-            let flow = 0.7 - (0.2 * t);
-            let targeting = 0.1 + (0.2 * t);
-            (flow, 0.2, targeting)
-        } else if distance > 50.0 {
-            // Interpolate between medium and close
-            let t = (200.0 - distance) / 150.0; // 0.0 at 200, 1.0 at 50
-            let flow = 0.5 - (0.3 * t);
-            let targeting = 0.3 + (0.3 * t);
-            (flow, 0.2, targeting)
-        } else {
-            // In melee range
-            (0.1, 0.1, 0.8)
-        };
-
-        // Combine targeting, flocking, and flow field velocities with distance-based weighting
-        let weighted_direction = (flow_field_velocity.velocity * flow_weight
-            + flocking_velocity.velocity * flocking_weight
-            + targeting_velocity.velocity * targeting_weight)
-            .normalize_or_zero();
-
-        // Calculate speed modifiers early to apply to acceleration
-        let aura_percentage = aura_modifier.map_or(0.0, |m| m.0);
-        let terrain_percentage = terrain_modifier.map_or(0.0, |m| m.0);
-        let total_percentage = aura_percentage + terrain_percentage;
-        let speed_multiplier = 1.0 + total_percentage;
-
-        // Calculate max speed with effectiveness, modifiers (aura + terrain), and melee slowdown
-        let mut max_speed = movement_speed.0 * effectiveness.multiplier() * speed_multiplier;
-        if in_melee.is_some() {
-            max_speed *= MELEE_SLOWDOWN_FACTOR;
-        }
-
-        // Calculate steering force, but limit it to prevent self-movement from exceeding max_speed
-        // External forces (like black hole gravity) can still push beyond this limit
-        let desired_velocity = weighted_direction * max_speed;
-        let velocity_change_needed = Vec3::new(
-            desired_velocity.x - velocity.x,
-            0.0,
-            desired_velocity.z - velocity.z,
+        // Use shared weighted movement function
+        crate::game::units::systems::calculate_weighted_movement(
+            &time,
+            &mut velocity,
+            &mut acceleration,
+            movement_speed.0,
+            effectiveness,
+            targeting_velocity,
+            flocking_velocity,
+            flow_field_velocity,
+            in_melee.is_some(),
+            aura_modifier.map(|m| m.0),
+            terrain_modifier.map(|m| m.0),
         );
-
-        // Apply steering force, but clamp it to achieve max_speed over time without overshooting
-        let steering =
-            velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier;
-        let steering_magnitude = steering.length();
-        let max_steering = velocity_change_needed.length() / time.delta_secs();
-
-        let final_steering = if steering_magnitude > max_steering && max_steering > 0.0 {
-            steering.normalize() * max_steering
-        } else {
-            steering
-        };
-
-        acceleration.add_force(final_steering);
-
-        // Apply damping to current velocity (before acceleration is integrated)
-        // This allows external forces to overcome the damping by adding larger accelerations
-        velocity.x *= VELOCITY_DAMPING;
-        velocity.z *= VELOCITY_DAMPING;
-
-        // Transform application and acceleration reset happens in apply_unit_movement system
     }
 }
 
