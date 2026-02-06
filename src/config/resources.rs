@@ -75,7 +75,7 @@ impl Default for AudioConfig {
     fn default() -> Self {
         Self {
             master_volume: 1.0,
-            music_volume: 0.8,
+            music_volume: 0.3,
             sfx_volume: 0.8,
         }
     }
@@ -208,7 +208,7 @@ impl Default for GameConfig {
         Self {
             vsync: VsyncMode::default(),
             master_volume: 1.0,
-            music_volume: 0.8,
+            music_volume: 0.3,
             sfx_volume: 0.8,
             difficulty: Difficulty::default(),
             brightness: 1.0,

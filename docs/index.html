@@ -36,7 +36,8 @@
                 outline: none;
             }
 
-            /* Loading Screen Overlay */
+            /* Start Screen Overlay */
+            #start-screen,
             #loading-screen {
                 position: absolute;
                 top: 0;
@@ -52,6 +53,7 @@
                 transition: opacity 0.5s ease-out;
             }
 
+            #start-screen.hidden,
             #loading-screen.hidden {
                 opacity: 0;
                 pointer-events: none;
@@ -59,6 +61,10 @@
 
             /* Loading Content Container */
             .loading-content {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
                 text-align: center;
                 color: rgb(230, 230, 230);
                 font-family:
@@ -70,7 +76,7 @@
             .spinner {
                 width: 300px;
                 height: 300px;
-                margin: 0 auto 30px;
+                margin: 0 auto;
                 animation: spin 2s linear infinite;
             }
 
@@ -141,11 +147,62 @@
     </head>
     <body>
         <div id="canvas-container">
-            <div id="loading-screen">
+            <div id="start-screen">
                 <div class="loading-content">
-                    <img src="wizard_hat.svg" alt="Loading" class="spinner" />
                     <h1 class="loading-title">Court Wizard</h1>
-                    <p class="loading-text">
+                    <img
+                        src="wizard_hat.svg"
+                        alt="Court Wizard"
+                        class="spinner"
+                        style="animation: none; margin-top: 30px"
+                    />
+                    <button
+                        id="start-button"
+                        style="
+                            margin-top: 40px;
+                            padding: 20px 60px;
+                            font-size: 28px;
+                            font-weight: 700;
+                            color: white;
+                            background: linear-gradient(
+                                135deg,
+                                #667eea 0%,
+                                #764ba2 100%
+                            );
+                            border: none;
+                            border-radius: 50px;
+                            cursor: pointer;
+                            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+                            transition: all 0.3s ease;
+                            font-family:
+                                -apple-system, BlinkMacSystemFont,
+                                &quot;Segoe UI&quot;, Roboto, sans-serif;
+                        "
+                        onmouseover="
+                            this.style.transform = 'translateY(-2px)';
+                            this.style.boxShadow =
+                                '0 12px 25px rgba(102, 126, 234, 0.6)';
+                        "
+                        onmouseout="
+                            this.style.transform = '';
+                            this.style.boxShadow =
+                                '0 8px 20px rgba(102, 126, 234, 0.4)';
+                        "
+                    >
+                        Click to Start
+                    </button>
+                </div>
+            </div>
+            <div id="loading-screen" style="display: none">
+                <div class="loading-content">
+                    <h1 class="loading-title">Court Wizard</h1>
+                    <img
+                        src="wizard_hat.svg"
+                        alt="Loading"
+                        class="spinner"
+                        style="margin-top: 30px; animation: none"
+                    />
+                    <p class="loading-text" style="margin-top: 20px">
                         Loading<span class="dots"></span>
                     </p>
                 </div>
@@ -154,6 +211,73 @@
         </div>
 
         <script type="module">
+            // Store reference to AudioContext when it's created
+            let audioContext = null;
+            let audioContextResumed = false;
+
+            // Intercept AudioContext creation BEFORE loading WASM
+            const OriginalAudioContext =
+                window.AudioContext || window.webkitAudioContext;
+            if (OriginalAudioContext) {
+                const AudioContextProxy = new Proxy(OriginalAudioContext, {
+                    construct(target, args) {
+                        // If we already created an AudioContext (after user click), return that
+                        if (audioContext) {
+                            console.log(
+                                "WASM requested AudioContext, returning pre-created context, state:",
+                                audioContext.state,
+                            );
+                            return audioContext;
+                        }
+
+                        // Otherwise create a new one (shouldn't happen with our start button)
+                        audioContext = new target(...args);
+                        console.log(
+                            "AudioContext created by WASM (no pre-existing context), state:",
+                            audioContext.state,
+                        );
+                        return audioContext;
+                    },
+                });
+                window.AudioContext = AudioContextProxy;
+                if (window.webkitAudioContext) {
+                    window.webkitAudioContext = AudioContextProxy;
+                }
+            }
+
+            // Resume AudioContext on ANY user interaction
+            function resumeAudioContext() {
+                if (
+                    !audioContextResumed &&
+                    audioContext &&
+                    audioContext.state === "suspended"
+                ) {
+                    console.log(
+                        "Resuming suspended AudioContext after user interaction...",
+                    );
+                    audioContext
+                        .resume()
+                        .then(() => {
+                            console.log(
+                                "AudioContext resumed! State:",
+                                audioContext.state,
+                            );
+                            audioContextResumed = true;
+                        })
+                        .catch((err) => {
+                            console.error(
+                                "Failed to resume AudioContext:",
+                                err,
+                            );
+                        });
+                }
+            }
+
+            // Listen for ANY user interaction to resume audio
+            document.addEventListener("click", resumeAudioContext);
+            document.addEventListener("keydown", resumeAudioContext);
+            document.addEventListener("touchstart", resumeAudioContext);
+
             import init from "./court_wizard.js";
 
             // Maintain 16:9 aspect ratio, constrained by both width and height
@@ -189,44 +313,82 @@
             window.addEventListener("resize", resizeCanvas);
             resizeCanvas();
 
-            // Get loading screen element
+            // Get screen elements
+            const startScreen = document.getElementById("start-screen");
             const loadingScreen = document.getElementById("loading-screen");
+            const startButton = document.getElementById("start-button");
 
-            // Initialize WASM and hide loading screen on success
-            init()
-                .then(() => {
-                    // Add hidden class to trigger fade-out transition
-                    loadingScreen.classList.add("hidden");
+            // Wait for user to click start button before initializing WASM
+            startButton.addEventListener("click", () => {
+                console.log(
+                    "User clicked start - creating AudioContext and initializing WASM...",
+                );
 
-                    // Remove from DOM after transition completes (500ms)
-                    setTimeout(() => {
-                        loadingScreen.remove();
-                    }, 500);
-                })
-                .catch((error) => {
-                    // Check for Bevy's control flow exception
-                    if (
-                        !error.message.startsWith(
-                            "Using exceptions for control flow, don't mind me. This isn't actually an error!",
-                        )
-                    ) {
-                        // Show error message in loading screen
-                        loadingScreen.innerHTML = `
+                // Create AudioContext immediately after user gesture (before WASM init)
+                const AudioContextConstructor =
+                    window.AudioContext || window.webkitAudioContext;
+                if (AudioContextConstructor && !audioContext) {
+                    audioContext = new AudioContextConstructor();
+                    console.log(
+                        "AudioContext created after user click, state:",
+                        audioContext.state,
+                    );
+
+                    // Resume if suspended
+                    if (audioContext.state === "suspended") {
+                        audioContext.resume().then(() => {
+                            console.log(
+                                "AudioContext resumed! State:",
+                                audioContext.state,
+                            );
+                            audioContextResumed = true;
+                        });
+                    } else {
+                        audioContextResumed = true;
+                    }
+                }
+
+                // Hide start screen and show loading screen
+                startScreen.classList.add("hidden");
+                setTimeout(() => startScreen.remove(), 500);
+                loadingScreen.style.display = "flex";
+
+                // Now initialize WASM (will use our pre-created AudioContext via proxy)
+                init()
+                    .then(() => {
+                        // Add hidden class to trigger fade-out transition
+                        loadingScreen.classList.add("hidden");
+
+                        // Remove from DOM after transition completes (500ms)
+                        setTimeout(() => {
+                            loadingScreen.remove();
+                        }, 500);
+                    })
+                    .catch((error) => {
+                        // Check for Bevy's control flow exception
+                        if (
+                            !error.message.startsWith(
+                                "Using exceptions for control flow, don't mind me. This isn't actually an error!",
+                            )
+                        ) {
+                            // Show error message in loading screen
+                            loadingScreen.innerHTML = `
                             <div class="loading-content">
                                 <h1 class="loading-title" style="color: rgb(255, 100, 100);">Error Loading Game</h1>
                                 <p class="loading-text">${error.message}</p>
                                 <p class="loading-text" style="margin-top: 20px; font-size: 16px;">Please refresh the page to try again.</p>
                             </div>
                         `;
-                        throw error;
-                    } else {
-                        // Handle control flow exception as success
-                        loadingScreen.classList.add("hidden");
-                        setTimeout(() => {
-                            loadingScreen.remove();
-                        }, 500);
-                    }
-                });
+                            throw error;
+                        } else {
+                            // Handle control flow exception as success
+                            loadingScreen.classList.add("hidden");
+                            setTimeout(() => {
+                                loadingScreen.remove();
+                            }, 500);
+                        }
+                    });
+            });
         </script>
     </body>
 </html>

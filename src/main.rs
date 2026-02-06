@@ -3,11 +3,13 @@ use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 mod config;
 mod game;
+mod music;
 mod state;
 mod ui;
 
 use config::{ConfigPlugin, GameConfig};
 use game::GamePlugin;
+use music::MusicPlugin;
 use state::StatePlugin;
 use ui::UiPlugin;
 
@@ -30,7 +32,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins((ConfigPlugin, StatePlugin, UiPlugin, GamePlugin))
+        .add_plugins((ConfigPlugin, StatePlugin, MusicPlugin, UiPlugin, GamePlugin))
         .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)))
         .add_systems(Startup, setup)
         .add_systems(Update, apply_global_brightness)

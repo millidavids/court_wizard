@@ -4,6 +4,7 @@ use crate::game::run_conditions;
 use crate::state::{AppState, InGameState};
 use crate::ui::plugin::ButtonActionSet;
 
+use super::components::SpellNameFadeTimer;
 use super::systems;
 
 /// Plugin managing the rune display UI.
@@ -22,7 +23,8 @@ impl Plugin for RuneDisplayPlugin {
                     systems::handle_rune_button_click.in_set(ButtonActionSet),
                     systems::show_spell_name_on_activation,
                     systems::update_rune_display,
-                    systems::update_spell_name_fade,
+                    systems::update_spell_name_fade
+                        .run_if(any_with_component::<SpellNameFadeTimer>),
                 )
                     .run_if(in_state(InGameState::Running)),
             );

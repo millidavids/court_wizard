@@ -1,12 +1,12 @@
 [package]
 name = "court_wizard"
-version = "0.0.346"
+version = "0.0.392"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
 
 [dependencies]
-bevy = "0.17.3"
+bevy = { version = "0.17.3", default-features = true }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 thiserror = "2.0"

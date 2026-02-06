@@ -47,7 +47,7 @@ pub fn setup(mut commands: Commands) {
             // Start Game button
             spawn_button(
                 parent,
-                "Start Game",
+                "Begin, Wizard",
                 MenuButtonAction::StartGame,
                 &BUTTON_STYLE,
             );

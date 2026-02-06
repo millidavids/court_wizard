@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.392] - 2025-02-05
+
+### Added
+- Background music now plays throughout the game and loops continuously
+- Music respects volume settings from the settings menu (master volume and music volume)
+- Volume changes apply in real-time while music is playing
+
+### Changed
+- Default music volume set to 30% (was 80%)
+- Start screen now requires clicking "Click to Start" button before loading the game (enables audio to work in browsers)
+
+### Fixed
+- Optimized several systems to reduce unnecessary processing and improve performance
+- Fixed audio interruptions during state transitions (menu to game, game to menu)
+
 ## [v0.0.346] - 2025-02-05
 
 ### Added
