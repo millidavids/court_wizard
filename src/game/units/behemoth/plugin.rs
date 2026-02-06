@@ -2,12 +2,13 @@ use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
 use super::components::*;
+use super::resources;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;
 use crate::game::run_conditions::coming_from_game_over;
 use crate::game::shared_systems;
 use crate::game::units::MovementCalculationSet;
-use crate::state::{AppState, InGameState};
+use crate::state::InGameState;
 
 pub struct BehemothPlugin;
 
@@ -16,8 +17,8 @@ impl Plugin for BehemothPlugin {
         app
             // Register message
             .add_message::<BehemothAttackEvent>()
-            // Spawn on entering InGame and after GameOver
-            .add_systems(OnEnter(AppState::InGame), spawn_initial_behemoths)
+            .add_systems(Startup, resources::preload_behemoth_assets)
+            // Spawn after GameOver for replay
             .add_systems(
                 OnEnter(InGameState::Running),
                 spawn_initial_behemoths.run_if(coming_from_game_over),

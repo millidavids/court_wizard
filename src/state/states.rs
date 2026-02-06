@@ -7,7 +7,8 @@ use bevy::prelude::*;
 ///
 /// # State Transitions
 ///
-/// - `MainMenu` → `InGame`: Player starts a new game
+/// - `MainMenu` → `Loading`: Player starts a new game
+/// - `Loading` → `InGame`: Assets loaded and units spawned
 /// - `InGame` → `MainMenu`: Player quits to main menu from pause or game over
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 #[allow(dead_code)] // Variants will be used as game features are implemented
@@ -15,6 +16,9 @@ pub enum AppState {
     /// Main menu state - game is not running.
     #[default]
     MainMenu,
+
+    /// Loading state - progressively spawning units to avoid blocking.
+    Loading,
 
     /// Active gameplay state.
     InGame,

@@ -3,6 +3,7 @@ use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
+use super::resources::ArcherAssets;
 use super::styles::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
@@ -23,11 +24,7 @@ use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Spawns initial defender archers when entering the game.
 /// Archers spawn in the back row of the defender grid formation.
-pub fn spawn_initial_defender_archers(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+pub fn spawn_initial_defender_archers(mut commands: Commands, archer_assets: Res<ArcherAssets>) {
     // Archers spawn one row behind last infantry row
     // Infantry fill from high rows down (2, 1, 0), archers go to the next row down
     let infantry_cells = cells_needed(INITIAL_DEFENDER_COUNT);
@@ -46,7 +43,6 @@ pub fn spawn_initial_defender_archers(
 
         for _ in 0..units_in_this_cell {
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
-            let circle = Circle::new(hitbox.radius);
 
             // Randomly position near center of grid cell
             let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
@@ -59,12 +55,8 @@ pub fn spawn_initial_defender_archers(
 
             commands
                 .spawn((
-                    Mesh3d(meshes.add(circle)),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: DEFENDER_ARCHER_COLOR,
-                        unlit: true,
-                        ..default()
-                    })),
+                    Mesh3d(archer_assets.mesh.clone()),
+                    MeshMaterial3d(archer_assets.defender_material.clone()),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     Velocity::default(),
                     Acceleration::new(),
@@ -102,8 +94,7 @@ pub fn spawn_initial_defender_archers(
 /// Every even level: +1 unit per group
 pub fn spawn_initial_attacker_archers(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    archer_assets: Res<ArcherAssets>,
     current_level: Res<CurrentLevel>,
 ) {
     let level = current_level.0;
@@ -124,7 +115,6 @@ pub fn spawn_initial_attacker_archers(
         // Spawn all units in this cell
         for _ in 0..cell_count {
             let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
-            let circle = Circle::new(hitbox.radius);
 
             // Randomly position near center of grid cell
             let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
@@ -146,12 +136,8 @@ pub fn spawn_initial_attacker_archers(
 
             commands
                 .spawn((
-                    Mesh3d(meshes.add(circle)),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: ATTACKER_ARCHER_COLOR,
-                        unlit: true,
-                        ..default()
-                    })),
+                    Mesh3d(archer_assets.mesh.clone()),
+                    MeshMaterial3d(archer_assets.attacker_material.clone()),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     initial_velocity,
                     Acceleration::new(),
@@ -280,8 +266,7 @@ pub fn archer_melee_combat(
 /// Only fires if no melee targets are available.
 pub fn archer_ranged_combat(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    archer_assets: Res<ArcherAssets>,
     mut archers: Query<
         (
             Entity,
@@ -361,8 +346,7 @@ pub fn archer_ranged_combat(
             // Spawn arrow projectile directly above the archer
             spawn_arrow(
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &archer_assets,
                 archer_transform.translation + Vec3::Y * 10.0,
                 target_transform.translation,
                 *archer_team,
@@ -386,8 +370,7 @@ fn is_valid_target(source_team: &Team, target_team: &Team) -> bool {
 /// Spawns an arrow projectile from archer toward target.
 fn spawn_arrow(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    archer_assets: &ArcherAssets,
     origin: Vec3,
     target: Vec3,
     source_team: Team,
@@ -430,22 +413,17 @@ fn spawn_arrow(
         horizontal_velocity.z,
     );
 
-    // Spawn arrow as circle mesh
-    let arrow_mesh = Circle::new(ARROW_WIDTH);
-
+    // Spawn arrow using pre-loaded assets
     commands.spawn((
-        Mesh3d(meshes.add(arrow_mesh)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: ARROW_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(archer_assets.arrow_mesh.clone()),
+        MeshMaterial3d(archer_assets.arrow_material.clone()),
         Transform::from_translation(origin),
         Arrow {
             velocity,
             damage: ARCHER_ATTACK_DAMAGE,
             source_team,
         },
+        crate::game::components::Billboard,
         OnGameplayScreen,
     ));
 }
@@ -688,10 +666,146 @@ pub fn archer_movement(
         if in_melee.is_none() {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
-                // Override velocity to stop archer when in shooting stance
+                // Override velocity and acceleration to completely stop archer when in shooting stance
                 velocity.x = 0.0;
                 velocity.z = 0.0;
+                acceleration.x = 0.0;
+                acceleration.z = 0.0;
             }
         }
+    }
+}
+
+/// Spawns a single defender archer unit at a specific index.
+/// Used for progressive loading.
+pub(in crate::game) fn spawn_single_defender_archer(
+    commands: &mut Commands,
+    archer_assets: &ArcherAssets,
+    unit_index: u32,
+) {
+    // Calculate where infantry spawned to determine archer row
+    let infantry_cells = cells_needed(INITIAL_DEFENDER_COUNT);
+    let infantry_rows = infantry_cells.div_ceil(DEFENDER_GRID_COLS);
+    // Infantry start at row (ROWS-1) and fill `infantry_rows` rows, ending at (ROWS-1-infantry_rows+1)
+    // Archers go one row lower than that
+    let last_infantry_row = DEFENDER_GRID_ROWS.saturating_sub(infantry_rows);
+    let archer_row = last_infantry_row.saturating_sub(1);
+
+    let archer_cells_needed = cells_needed(INITIAL_ARCHER_DEFENDER_COUNT);
+    let units_per_cell = distribute_units_to_cells(INITIAL_ARCHER_DEFENDER_COUNT);
+
+    // Calculate which cell this unit belongs to
+    let mut units_counted = 0;
+    for cell_idx in 0..archer_cells_needed.min(DEFENDER_GRID_COLS) {
+        let units_in_this_cell = units_per_cell[cell_idx as usize];
+        if unit_index < units_counted + units_in_this_cell {
+            // This unit goes in this cell
+            let (spawn_x, spawn_z) = calculate_defender_grid_position(archer_row, cell_idx);
+            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+
+            let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(archer_assets.mesh.clone()),
+                    MeshMaterial3d(archer_assets.defender_material.clone()),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed(ARCHER_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Defenders,
+                    Archer,
+                ))
+                .insert((
+                    AttackRange {
+                        min_range: ARCHER_MIN_RANGE,
+                        max_range: ARCHER_MAX_RANGE,
+                    },
+                    ArcherMovementTimer::new(),
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    FlowFieldVelocity::default(),
+                    FlowFieldInfluence::Defender {
+                        spawn_pos: Vec2::new(spawn_x, spawn_z),
+                    },
+                    FlockingModifier::new(1.0, 1.0, 0.0),
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+            return;
+        }
+        units_counted += units_in_this_cell;
+    }
+}
+
+/// Spawns a single attacker archer unit at a specific index.
+/// Used for progressive loading.
+pub(in crate::game) fn spawn_single_attacker_archer(
+    commands: &mut Commands,
+    archer_assets: &ArcherAssets,
+    unit_index: u32,
+    level: u32,
+) {
+    let total_archers = calculate_total_archers(level);
+    let total_infantry = calculate_total_infantry(level);
+    let infantry_cells_needed = cells_needed(total_infantry);
+    let archer_cells_needed = cells_needed(total_archers);
+
+    let (_, archer_cells) = calculate_spawn_cells(infantry_cells_needed, archer_cells_needed);
+    let units_per_cell = distribute_units_to_cells(total_archers);
+
+    // Calculate which cell this unit belongs to
+    let mut units_counted = 0;
+    for (cell_idx, (row, col)) in archer_cells.iter().enumerate() {
+        if cell_idx >= units_per_cell.len() {
+            break;
+        }
+        let units_in_this_cell = units_per_cell[cell_idx];
+        if unit_index < units_counted + units_in_this_cell {
+            // This unit goes in this cell
+            let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
+            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+
+            let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(archer_assets.mesh.clone()),
+                    MeshMaterial3d(archer_assets.attacker_material.clone()),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed(ARCHER_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Attackers,
+                    Archer,
+                ))
+                .insert((
+                    AttackRange {
+                        min_range: ARCHER_MIN_RANGE,
+                        max_range: ARCHER_MAX_RANGE,
+                    },
+                    ArcherMovementTimer::new(),
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    FlowFieldVelocity::default(),
+                    FlowFieldInfluence::Attacker,
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+            return;
+        }
+        units_counted += units_in_this_cell;
     }
 }

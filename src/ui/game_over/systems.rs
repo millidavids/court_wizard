@@ -5,7 +5,7 @@ use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::input::events::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
-use crate::state::{AppState, InGameState};
+use crate::state::AppState;
 use crate::ui::systems::spawn_button;
 
 use super::components::*;
@@ -268,17 +268,16 @@ pub(super) fn handle_button_actions(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&GameOverButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut kill_stats: ResMut<KillStats>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 GameOverButtonAction::PlayAgain => {
-                    // Reset stats and return to Running state
+                    // Reset stats and go to Loading state to clean up corpses and reload units
                     // (level was already updated and saved when entering GameOver state)
                     kill_stats.reset();
-                    next_in_game_state.set(InGameState::Running);
+                    next_app_state.set(AppState::Loading);
                 }
                 GameOverButtonAction::ReturnToMenu => {
                     // Reset stats and go to main menu (exits InGame state)

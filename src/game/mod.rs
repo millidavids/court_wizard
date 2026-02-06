@@ -11,6 +11,7 @@ mod battlefield;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod input;
+mod loading;
 pub(crate) mod pathfinding;
 mod plugin;
 pub(crate) mod resources;

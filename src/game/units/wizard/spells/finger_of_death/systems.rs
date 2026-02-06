@@ -115,7 +115,7 @@ pub fn handle_finger_of_death_casting(
                 return;
             }
 
-            // Check for 100% mana requirement before starting cast
+            // Check for 50% mana requirement before starting cast
             if mana.percentage() >= constants::MANA_REQUIREMENT_PERCENT {
                 casting_state.start_cast();
 
@@ -214,7 +214,7 @@ fn spawn_beam(
 ///
 /// Checks beams where has_fired == false and cast_progress >= 1.0.
 /// Applies 1000 damage instantly to all units along beam (hitscan).
-/// Drains wizard's entire mana bar and cancels casting state.
+/// Drains 50% of the wizard's mana and cancels casting state.
 /// Adds AwaitingFingerOfDeathRelease component to prevent immediate recast.
 pub fn apply_finger_of_death_damage(
     mut mouse_state: ResMut<MouseButtonState>,
@@ -254,9 +254,10 @@ pub fn apply_finger_of_death_damage(
             }
         }
 
-        // Drain entire mana bar, cancel casting state, and add awaiting release marker
+        // Drain 50% mana, cancel casting state, and add awaiting release marker
         if let Ok((mut mana, mut casting_state)) = wizard_query.single_mut() {
-            mana.current = 0.0;
+            mana.current -= mana.max * constants::MANA_REQUIREMENT_PERCENT;
+            mana.current = mana.current.max(0.0); // Clamp to 0 minimum
             casting_state.cancel(); // Return to Resting immediately
 
             // Mark mouse hold as consumed to prevent immediate recast

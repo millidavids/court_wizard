@@ -16,15 +16,13 @@ use crate::game::units::components::{
 };
 use crate::game::units::random_position_in_cell;
 
+use super::resources::InfantryAssets;
+
 /// Spawns initial defenders when entering the game.
 ///
 /// Spawns defenders in radial grid formation around wizard, positioned between
 /// wizard and battlefield center.
-pub fn spawn_initial_defenders(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+pub fn spawn_initial_defenders(mut commands: Commands, infantry_assets: Res<InfantryAssets>) {
     // Calculate how many cells needed for all defenders
     let cells_needed = cells_needed(INITIAL_DEFENDER_COUNT);
 
@@ -54,9 +52,6 @@ pub fn spawn_initial_defenders(
         let units_in_this_cell = units_per_cell[cell_idx];
 
         for _ in 0..units_in_this_cell {
-            // Spawn defender as a circle billboard sized to match the hitbox
-            let circle = Circle::new(hitbox.radius);
-
             // Randomly position near center of grid cell
             let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
@@ -68,12 +63,8 @@ pub fn spawn_initial_defenders(
 
             commands
                 .spawn((
-                    Mesh3d(meshes.add(circle)),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: DEFENDER_COLOR,
-                        unlit: true,
-                        ..default()
-                    })),
+                    Mesh3d(infantry_assets.mesh.clone()),
+                    MeshMaterial3d(infantry_assets.defender_material.clone()),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     Velocity::default(),
                     Acceleration::new(),
@@ -260,8 +251,7 @@ pub fn infantry_movement(
 /// Every even level: +1 unit per group
 pub fn spawn_initial_attackers(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    infantry_assets: Res<InfantryAssets>,
     current_level: Res<CurrentLevel>,
 ) {
     let level = current_level.0;
@@ -283,9 +273,6 @@ pub fn spawn_initial_attackers(
             // Define attacker hitbox (cylinder) - this determines sprite size
             let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
 
-            // Spawn attacker as a circle billboard sized to match the hitbox
-            let circle = Circle::new(hitbox.radius);
-
             // Randomly position near center of grid cell
             let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
@@ -306,12 +293,8 @@ pub fn spawn_initial_attackers(
 
             commands
                 .spawn((
-                    Mesh3d(meshes.add(circle)),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: ATTACKER_COLOR,
-                        unlit: true,
-                        ..default()
-                    })),
+                    Mesh3d(infantry_assets.mesh.clone()),
+                    MeshMaterial3d(infantry_assets.attacker_material.clone()),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     initial_velocity,
                     Acceleration::new(),
@@ -340,11 +323,7 @@ pub fn spawn_initial_attackers(
 ///
 /// These are defender infantry locked to fixed positions around the King.
 /// They have no movement components — a separate system snaps them to the King each frame.
-pub fn spawn_kings_guard(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+pub fn spawn_kings_guard(mut commands: Commands, infantry_assets: Res<InfantryAssets>) {
     // King spawns at centroid_x + 100, centroid_z
     let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0;
     let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0;
@@ -353,7 +332,6 @@ pub fn spawn_kings_guard(
 
     for i in 0..KINGS_GUARD_COUNT {
         let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
-        let circle = Circle::new(hitbox.radius);
         let spawn_y = hitbox.height / 2.0 + 1.0;
 
         // Initial position at King's location; snap system will position them each frame
@@ -363,12 +341,8 @@ pub fn spawn_kings_guard(
 
         commands
             .spawn((
-                Mesh3d(meshes.add(circle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: KINGS_GUARD_COLOR,
-                    unlit: true,
-                    ..default()
-                })),
+                Mesh3d(infantry_assets.mesh.clone()),
+                MeshMaterial3d(infantry_assets.kings_guard_material.clone()),
                 Transform::from_xyz(final_x, spawn_y, final_z),
                 hitbox,
                 Health::new(UNIT_HEALTH),
@@ -380,4 +354,171 @@ pub fn spawn_kings_guard(
             ))
             .insert((Teleportable, Billboard, OnGameplayScreen));
     }
+}
+
+/// Spawns a single defender infantry unit at a specific index.
+/// Used for progressive loading.
+pub(in crate::game) fn spawn_single_defender(
+    commands: &mut Commands,
+    infantry_assets: &InfantryAssets,
+    unit_index: u32,
+) {
+    let total_units = INITIAL_DEFENDER_COUNT;
+    let cells_needed = cells_needed(total_units);
+    let units_per_cell = distribute_units_to_cells(total_units);
+
+    // Generate cell list in reverse row order
+    let mut defender_cells = Vec::new();
+    let mut cells_added = 0;
+    'outer: for row in (0..DEFENDER_GRID_ROWS).rev() {
+        for col in 0..DEFENDER_GRID_COLS {
+            defender_cells.push((row, col));
+            cells_added += 1;
+            if cells_added >= cells_needed {
+                break 'outer;
+            }
+        }
+    }
+
+    // Calculate which cell this unit belongs to
+    let mut units_counted = 0;
+    for (cell_idx, (row, col)) in defender_cells.iter().enumerate() {
+        let units_in_this_cell = units_per_cell[cell_idx];
+        if unit_index < units_counted + units_in_this_cell {
+            // This unit goes in this cell
+            let (spawn_x, spawn_z) = calculate_defender_grid_position(*row, *col);
+            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+
+            let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+            let spawn_pos = Vec2::new(spawn_x, spawn_z);
+
+            commands
+                .spawn((
+                    Mesh3d(infantry_assets.mesh.clone()),
+                    MeshMaterial3d(infantry_assets.defender_material.clone()),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed(UNIT_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Defenders,
+                    Infantry,
+                ))
+                .insert((
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    FlowFieldVelocity::default(),
+                    FlowFieldInfluence::Defender { spawn_pos },
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+            return;
+        }
+        units_counted += units_in_this_cell;
+    }
+}
+
+/// Spawns a single attacker infantry unit at a specific index.
+/// Used for progressive loading.
+pub(in crate::game) fn spawn_single_attacker(
+    commands: &mut Commands,
+    infantry_assets: &InfantryAssets,
+    unit_index: u32,
+    level: u32,
+) {
+    let total_units = calculate_total_infantry(level);
+    let num_cells = cells_needed(total_units);
+    let units_per_cell = distribute_units_to_cells(total_units);
+
+    // Calculate spawn cells
+    let infantry_cells_needed = num_cells;
+    let total_archers = calculate_total_archers(level);
+    let archer_cells_needed = cells_needed(total_archers);
+    let (infantry_cells, _) = calculate_spawn_cells(infantry_cells_needed, archer_cells_needed);
+
+    // Calculate which cell this unit belongs to
+    let mut units_counted = 0;
+    for (cell_idx, (row, col)) in infantry_cells.iter().enumerate() {
+        if cell_idx >= units_per_cell.len() {
+            break;
+        }
+        let units_in_this_cell = units_per_cell[cell_idx];
+        if unit_index < units_counted + units_in_this_cell {
+            // This unit goes in this cell
+            let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
+            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+
+            let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
+            let spawn_y = hitbox.height / 2.0 + 1.0;
+
+            commands
+                .spawn((
+                    Mesh3d(infantry_assets.mesh.clone()),
+                    MeshMaterial3d(infantry_assets.attacker_material.clone()),
+                    Transform::from_xyz(final_x, spawn_y, final_z),
+                    Velocity::default(),
+                    Acceleration::new(),
+                    hitbox,
+                    Health::new(UNIT_HEALTH),
+                    MovementSpeed(UNIT_MOVEMENT_SPEED),
+                    AttackTiming::new(),
+                    Effectiveness::new(),
+                    Team::Attackers,
+                    Infantry,
+                ))
+                .insert((
+                    TargetingVelocity::default(),
+                    FlockingVelocity::default(),
+                    FlowFieldVelocity::default(),
+                    FlowFieldInfluence::Attacker,
+                    Teleportable,
+                    Billboard,
+                    OnGameplayScreen,
+                ));
+            return;
+        }
+        units_counted += units_in_this_cell;
+    }
+}
+
+/// Spawns a single king's guard unit at a specific index.
+/// Used for progressive loading.
+pub(in crate::game) fn spawn_single_kings_guard(
+    commands: &mut Commands,
+    infantry_assets: &InfantryAssets,
+    guard_index: u32,
+) {
+    // King spawns at centroid_x + 100, centroid_z
+    let centroid_x = (-1700.0 + -1400.0 + -1700.0 + -1400.0) / 4.0;
+    let centroid_z = (1200.0 + 1200.0 + 1500.0 + 1500.0) / 4.0;
+    let spawn_x = centroid_x + 100.0;
+    let spawn_z = centroid_z;
+
+    let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
+
+    // Calculate position in orbit around king
+    let angle = guard_index as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
+    let final_x = spawn_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
+    let final_z = spawn_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+
+    commands
+        .spawn((
+            Mesh3d(infantry_assets.mesh.clone()),
+            MeshMaterial3d(infantry_assets.kings_guard_material.clone()),
+            Transform::from_xyz(final_x, spawn_y, final_z),
+            hitbox,
+            Health::new(UNIT_HEALTH),
+            AttackTiming::new(),
+            Effectiveness::new(),
+            Team::Defenders,
+            Infantry,
+            KingsGuard(guard_index),
+        ))
+        .insert((Teleportable, Billboard, OnGameplayScreen));
 }

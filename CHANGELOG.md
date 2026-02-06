@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [v0.0.438] - 2025-02-06
+
+### Added
+- Loading screen now appears when starting a new level or replaying after game over
+- All units and game objects now spawn smoothly one at a time during loading
+
+### Improved
+- Archers now properly fire arrows at enemies when standing still
+- Arrow projectiles are now properly sized and visible
+- Units no longer turn into corpse colors when other units die
+- Loading happens in a smart order: battlefield, castle, grid, king, units, wizard
+- Each level starts with a completely clean battlefield
+
+### Fixed
+- Fixed issue where most units weren't spawning during loading
+- Fixed wizard not spawning, which prevented spells from working
+- Fixed archers spawning in wrong positions on the defender grid
+- Fixed archers unable to attack due to constant tiny movements
+- Fixed missing King's Guards and other units
+- Fixed material sharing bug that caused all units to appear as corpses when one unit died
+- Fixed corpse materials now use separate pre-loaded assets instead of modifying shared materials
+- Fixed undead units now use correct bright green color when resurrected
+
 ## [v0.0.392] - 2025-02-05
 
 ### Added

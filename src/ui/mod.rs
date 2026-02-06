@@ -9,6 +9,7 @@ mod concentration;
 mod game_over;
 mod in_game;
 mod instructions;
+mod loading;
 mod main_menu;
 mod pause_menu;
 mod plugin;

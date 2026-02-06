@@ -100,7 +100,7 @@ pub fn button_action(
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 MenuButtonAction::StartGame => {
-                    next_app_state.set(AppState::InGame);
+                    next_app_state.set(AppState::Loading);
                 }
                 MenuButtonAction::Settings => {
                     next_menu_state.set(MenuState::Settings);

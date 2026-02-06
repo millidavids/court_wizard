@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use super::events::ObstacleChanged;
+use super::resources::PathfindingGrid;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;
 
@@ -14,9 +15,8 @@ impl Plugin for PathfindingPlugin {
         app
             // Register message channels
             .add_message::<ObstacleChanged>()
-            // Initialize pathfinding grid at startup
-            .add_systems(Startup, initialize_pathfinding)
-            // Update systems run in order
+            // Note: initialize_pathfinding is now called via the loading spawn queue
+            // Update systems run in order (only when PathfindingGrid exists)
             .add_systems(
                 Update,
                 (
@@ -31,12 +31,15 @@ impl Plugin for PathfindingPlugin {
                     // Apply completed async rebuilds
                     apply_completed_rebuilds,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(resource_exists::<PathfindingGrid>),
             )
             .add_systems(
                 Update,
                 // Sample flow fields MUST run in VelocitySystemSet (before movement calculations)
-                sample_flow_fields.in_set(VelocitySystemSet),
+                sample_flow_fields
+                    .in_set(VelocitySystemSet)
+                    .run_if(resource_exists::<PathfindingGrid>),
             );
     }
 }

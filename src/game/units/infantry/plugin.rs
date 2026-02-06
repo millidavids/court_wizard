@@ -2,9 +2,10 @@ use bevy::prelude::*;
 
 use crate::game::run_conditions::{any_exist, coming_from_game_over};
 use crate::game::units::MovementCalculationSet;
-use crate::state::{AppState, InGameState};
+use crate::state::InGameState;
 
 use super::components::{DefendersActivated, Infantry};
+use super::resources;
 use super::systems;
 
 /// Plugin that handles infantry units (both defenders and attackers).
@@ -19,14 +20,7 @@ pub struct InfantryPlugin;
 impl Plugin for InfantryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DefendersActivated>()
-            .add_systems(
-                OnEnter(AppState::InGame),
-                (
-                    systems::spawn_initial_defenders,
-                    systems::spawn_initial_attackers,
-                    systems::spawn_kings_guard,
-                ),
-            )
+            .add_systems(Startup, resources::preload_infantry_assets)
             .add_systems(
                 OnEnter(InGameState::Running),
                 (

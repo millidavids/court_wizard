@@ -5,6 +5,6 @@
 mod components;
 mod plugin;
 mod styles;
-mod systems;
+pub(in crate::game) mod systems;
 
 pub use plugin::BattlefieldPlugin;

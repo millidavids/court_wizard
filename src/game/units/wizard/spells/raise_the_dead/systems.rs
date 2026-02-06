@@ -3,15 +3,21 @@ use bevy::window::PrimaryWindow;
 
 use super::super::super::components::{CastingState, Mana, PrimedSpell};
 use super::components::*;
-use super::constants::*;
+use super::constants::{
+    CHANNEL_RAMP_TIME, INITIAL_CHANNEL_INTERVAL, MANA_COST_PER_CORPSE, MIN_CHANNEL_INTERVAL,
+    RESURRECTION_RADIUS,
+};
 use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::events::MouseLeftReleased;
+use crate::game::units::archer::Archer;
+use crate::game::units::archer::resources::ArcherAssets;
 use crate::game::units::components::{
     AttackTiming, Corpse, Effectiveness, Health, Hitbox, MovementSpeed, PermanentCorpse,
     RoughTerrain, Team, Teleportable,
 };
 use crate::game::units::infantry::components::Infantry;
+use crate::game::units::infantry::resources::InfantryAssets;
 
 /// Unit radius for infantry hitboxes (matches infantry/styles.rs::UNIT_RADIUS)
 const UNIT_RADIUS: f32 = 8.0;
@@ -31,9 +37,18 @@ pub fn handle_raise_the_dead_casting(
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell)>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    corpse_query: Query<(Entity, &Transform, &Team), (With<Corpse>, Without<PermanentCorpse>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    material_query: Query<&MeshMaterial3d<StandardMaterial>>,
+    corpse_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&Infantry>,
+            Option<&Archer>,
+        ),
+        (With<Corpse>, Without<PermanentCorpse>),
+    >,
+    infantry_assets: Res<InfantryAssets>,
+    archer_assets: Res<ArcherAssets>,
 ) {
     let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
         return;
@@ -68,8 +83,8 @@ pub fn handle_raise_the_dead_casting(
                             &mut commands,
                             cursor_pos,
                             &corpse_query,
-                            &mut materials,
-                            &material_query,
+                            &infantry_assets,
+                            &archer_assets,
                             primed_spell.empowerment,
                         );
                         casting_state.reset_channel_interval();
@@ -95,8 +110,8 @@ pub fn handle_raise_the_dead_casting(
                             &mut commands,
                             cursor_pos,
                             &corpse_query,
-                            &mut materials,
-                            &material_query,
+                            &infantry_assets,
+                            &archer_assets,
                             primed_spell.empowerment,
                         );
                         casting_state.start_channeling();
@@ -127,15 +142,24 @@ pub fn handle_raise_the_dead_casting(
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
-    corpse_query: &Query<(Entity, &Transform, &Team), (With<Corpse>, Without<PermanentCorpse>)>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    material_query: &Query<&MeshMaterial3d<StandardMaterial>>,
+    corpse_query: &Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&Infantry>,
+            Option<&Archer>,
+        ),
+        (With<Corpse>, Without<PermanentCorpse>),
+    >,
+    infantry_assets: &Res<InfantryAssets>,
+    archer_assets: &Res<ArcherAssets>,
     empowerment: f32,
 ) {
     // Find nearest corpse within radius
-    if let Some((corpse_entity, corpse_transform, _)) = corpse_query
+    if let Some((corpse_entity, corpse_transform, _, is_infantry, is_archer)) = corpse_query
         .iter()
-        .filter(|(_, transform, _)| {
+        .filter(|(_, transform, _, _, _)| {
             target_pos.distance(transform.translation) <= RESURRECTION_RADIUS
         })
         .min_by(|a, b| {
@@ -144,12 +168,15 @@ fn resurrect_nearest_corpse(
             dist_a.partial_cmp(&dist_b).unwrap()
         })
     {
-        // Change sprite color to undead green
-        if let Ok(material_handle) = material_query.get(corpse_entity)
-            && let Some(material) = materials.get_mut(&material_handle.0)
-        {
-            material.base_color = UNDEAD_COLOR;
-        }
+        // Replace with undead material
+        let undead_material = if is_infantry.is_some() {
+            infantry_assets.undead_material.clone()
+        } else if is_archer.is_some() {
+            archer_assets.undead_material.clone()
+        } else {
+            // Fallback to infantry material
+            infantry_assets.undead_material.clone()
+        };
 
         // Calculate upright position: bottom edge 1 unit above battlefield
         let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
@@ -177,6 +204,7 @@ fn resurrect_nearest_corpse(
             .remove::<Corpse>()
             .remove::<RoughTerrain>()
             .insert(upright_transform) // Stand upright
+            .insert(MeshMaterial3d(undead_material)) // Replace with undead material
             .insert(Team::Undead)
             .insert(Health::new(health)) // Full health restoration with empowerment scaling
             .insert(Velocity::default())

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::state::{AppState, InGameState};
+use crate::state::InGameState;
 
 use super::components::PrimeSpellMessage;
 use super::spell_range_indicator::SpellRangeIndicatorPlugin;
@@ -23,7 +23,8 @@ impl Plugin for WizardPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<PrimeSpellMessage>()
             .add_plugins((SpellsPlugin, SpellRangeIndicatorPlugin))
-            .add_systems(OnEnter(AppState::InGame), systems::setup_wizard)
+            // Note: setup_wizard is now called via the loading spawn queue
+            // Only re-setup when coming from GameOver for replay
             .add_systems(
                 OnEnter(InGameState::Running),
                 systems::setup_wizard.run_if(run_conditions::coming_from_game_over),

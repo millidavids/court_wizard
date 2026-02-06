@@ -1,5 +1,3 @@
-use bevy::prelude::*;
-
 use super::super::super::components::{PrimedSpell, Spell};
 
 /// Spell configuration for Raise The Dead
@@ -24,6 +22,3 @@ pub const MANA_COST_PER_CORPSE: f32 = 10.0;
 
 /// Radius around cursor to search for corpses (in world units)
 pub const RESURRECTION_RADIUS: f32 = 150.0;
-
-/// Color for undead units (bright green)
-pub const UNDEAD_COLOR: Color = Color::srgb(0.3, 0.8, 0.4);

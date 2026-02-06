@@ -5,6 +5,7 @@ use super::constants::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use super::resources::KingAssets;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
     FrostSlowModifier, Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed,
@@ -17,6 +18,7 @@ use crate::game::units::components::{
 /// positioned between the wizard and battlefield center.
 pub fn spawn_king(
     mut commands: Commands,
+    king_assets: Res<KingAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut king_spawned: ResMut<KingSpawned>,
@@ -31,9 +33,6 @@ pub fn spawn_king(
     // Define King hitbox (larger than standard units)
     let hitbox = Hitbox::new(KING_RADIUS, KING_HITBOX_HEIGHT);
 
-    // Spawn King as a circle billboard sized to match the hitbox
-    let circle = Circle::new(hitbox.radius);
-
     // Position unit so bottom edge is 1 unit above battlefield (Y=0)
     let spawn_y = hitbox.height / 2.0 + 1.0;
 
@@ -43,12 +42,8 @@ pub fn spawn_king(
     // Spawn the King unit
     let king_entity = commands
         .spawn((
-            Mesh3d(meshes.add(circle)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: KING_COLOR,
-                unlit: true,
-                ..default()
-            })),
+            Mesh3d(king_assets.mesh.clone()),
+            MeshMaterial3d(king_assets.material.clone()),
             Transform::from_xyz(spawn_x, spawn_y, spawn_z),
             Velocity::default(),
             Acceleration::new(),

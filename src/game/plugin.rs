@@ -5,6 +5,7 @@ use crate::state::{AppState, InGameState};
 use super::battlefield::BattlefieldPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
+use super::loading::LoadingPlugin;
 use super::pathfinding::PathfindingPlugin;
 use super::resources::{CurrentLevel, GameOutcome, KillStats};
 use super::runes::RunePlugin;
@@ -76,6 +77,7 @@ impl Plugin for GamePlugin {
             .insert_resource(GameOutcome::Victory)
             .add_plugins((
                 InputPlugin,
+                LoadingPlugin,
                 BattlefieldPlugin,
                 UnitsPlugin,
                 RunePlugin,

@@ -7,6 +7,7 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 
 use crate::game::resources::CurrentLevel;
+use super::resources::BehemothAssets;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
     FrostSlowModifier, Health, Hitbox, InMelee, KingAuraSpeedModifier, MovementSpeed,
@@ -18,8 +19,7 @@ use crate::game::units::random_position_in_cell;
 /// Behemoths spawn in the archer row alongside archers.
 pub fn spawn_initial_behemoths(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    behemoth_assets: Res<BehemothAssets>,
     current_level: Res<CurrentLevel>,
 ) {
     let level = current_level.0;
@@ -56,11 +56,8 @@ pub fn spawn_initial_behemoths(
     // Randomly position near center of grid cell
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
-    // Create hitbox and mesh
-    // Ellipse is a 2D shape in XZ plane (width × depth), not 3D
-    // Hitbox height is the vertical (Y axis) dimension
+    // Create hitbox
     let hitbox = Hitbox::new(BEHEMOTH_RADIUS, BEHEMOTH_HITBOX_HEIGHT);
-    let ellipse = Ellipse::new(BEHEMOTH_ELLIPSE_WIDTH, BEHEMOTH_ELLIPSE_DEPTH);
 
     // Position unit so bottom edge is 1 unit above battlefield (Y=0)
     // The ellipse is billboarded (rotated to face camera), so when tilted,
@@ -78,12 +75,8 @@ pub fn spawn_initial_behemoths(
     commands
         .spawn((
             // Rendering
-            Mesh3d(meshes.add(ellipse)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: BEHEMOTH_COLOR,
-                unlit: true,
-                ..default()
-            })),
+            Mesh3d(behemoth_assets.mesh.clone()),
+            MeshMaterial3d(behemoth_assets.material.clone()),
             Transform::from_xyz(final_x, spawn_y, final_z),
             // Physics
             Velocity {

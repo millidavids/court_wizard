@@ -6,10 +6,12 @@ use super::components::{Acceleration, Velocity};
 use super::constants::*;
 use super::plugin::GlobalAttackCycle;
 use super::resources::CurrentLevel;
+use super::units::archer::Archer;
 use super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, Health, Hitbox, MovementSpeed,
     RoughTerrain, RoughTerrainModifier, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 
 /// Advances the global attack cycle timer each game frame.
@@ -401,31 +403,58 @@ pub fn combat(
 
 /// Converts dead units to corpses instead of despawning them.
 ///
-/// When a unit's health reaches zero, this system grays out the sprite based on team
-/// and converts the unit into a corpse that slows living units walking over it.
+/// When a unit's health reaches zero, this system replaces the unit's material with
+/// a pre-loaded corpse material based on team and converts the unit into a corpse
+/// that slows living units walking over it.
 /// Also records the kill in the kill statistics resource.
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
     mut kill_stats: ResMut<super::resources::KillStats>,
-    query: Query<(Entity, &Health, &Team, &Transform), Without<Corpse>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    material_query: Query<&MeshMaterial3d<StandardMaterial>>,
+    query: Query<
+        (
+            Entity,
+            &Health,
+            &Team,
+            &Transform,
+            Option<&Infantry>,
+            Option<&Archer>,
+        ),
+        Without<Corpse>,
+    >,
+    infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
+    archer_assets: Res<super::units::archer::resources::ArcherAssets>,
     mut velocity_query: Query<&mut Velocity>,
 ) {
-    for (entity, health, team, transform) in &query {
+    for (entity, health, team, transform, is_infantry, is_archer) in &query {
         if health.is_dead() {
             // Record the kill
             kill_stats.record_kill(*team);
-            // Get existing material handle and gray out the sprite based on team
-            if let Ok(material_handle) = material_query.get(entity)
-                && let Some(material) = materials.get_mut(&material_handle.0)
-            {
-                material.base_color = match team {
-                    Team::Defenders => Color::srgb(0.6, 0.6, 0.4), // Grayish yellow
-                    Team::Attackers => Color::srgb(0.6, 0.4, 0.4), // Grayish red
-                    Team::Undead => Color::srgb(0.4, 0.5, 0.4),    // Grayish green
-                };
-            }
+
+            // Replace with appropriate corpse material
+            let corpse_material = if is_infantry.is_some() {
+                match team {
+                    Team::Defenders => infantry_assets.defender_corpse_material.clone(),
+                    Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
+                    Team::Undead => infantry_assets.undead_corpse_material.clone(),
+                }
+            } else if is_archer.is_some() {
+                match team {
+                    Team::Defenders => archer_assets.defender_corpse_material.clone(),
+                    Team::Attackers => archer_assets.attacker_corpse_material.clone(),
+                    Team::Undead => archer_assets.undead_corpse_material.clone(),
+                }
+            } else {
+                // Fallback for other unit types (shouldn't happen but be safe)
+                match team {
+                    Team::Defenders => infantry_assets.defender_corpse_material.clone(),
+                    Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
+                    Team::Undead => infantry_assets.undead_corpse_material.clone(),
+                }
+            };
+
+            commands
+                .entity(entity)
+                .insert(MeshMaterial3d(corpse_material));
 
             // Create a new transform for the corpse: lay flat on ground at Y=1
             // Rotate -90 degrees around X axis to make it face upward

@@ -10,6 +10,7 @@ use super::action_bar::ActionBarPlugin;
 use super::concentration::ConcentrationUIPlugin;
 use super::game_over::GameOverPlugin;
 use super::in_game::plugin::InGamePlugin;
+use super::loading::LoadingUiPlugin;
 use super::main_menu::MainMenuPlugin;
 use super::pause_menu::plugin::PauseMenuPlugin;
 use super::rune_display::RuneDisplayPlugin;
@@ -34,6 +35,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             MainMenuPlugin,
+            LoadingUiPlugin,
             InGamePlugin,
             PauseMenuPlugin,
             SpellBookPlugin,

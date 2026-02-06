@@ -1,6 +1,7 @@
 pub(in crate::game) mod components;
 pub(super) mod constants;
 mod plugin;
-mod systems;
+pub(in crate::game) mod resources;
+pub(in crate::game) mod systems;
 
 pub use plugin::KingPlugin;
