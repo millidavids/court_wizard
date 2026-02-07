@@ -59,9 +59,25 @@ Channeled Spells: Hold the mouse button to continuously cast (Magic Missile, Dis
 Placed Spells: Click to place at cursor location (Guardian Circle, Teleport)
 Drag Spells: Click and drag to define placement (Wall of Stone)
 
+CAULDRON BREWING
+The cauldron lets you brew potions from magical ingredients to buff your wizard.
+
+How to brew:
+1. Click the cauldron (bottom-right) to open the ingredient menu
+2. Toggle ingredients on or off to build your recipe
+3. Preview the effects before committing
+4. Click \"Brew\" to start — the wizard can't cast spells while brewing
+
+Ingredients:
+- Lavender: Increases mana regeneration
+- Mugwort: Increases spell power
+
+Mixing multiple ingredients gives you all their effects, but each effect is diluted. A single ingredient gives full strength; combining two gives each about 70% strength.
+
 TIPS
 - Use the rune system for 25% bonus damage on critical spells
 - Experiment with different spell combinations
 - Position walls strategically to funnel enemies
 - Teleport can reposition both enemies and allies
-- Guardian Circle's temporary HP can save units from death";
+- Guardian Circle's temporary HP can save units from death
+- Brew potions between waves for extra power";

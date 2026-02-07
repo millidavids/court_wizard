@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::brews::Brew;
+use super::brews::Recipe;
 
 /// Marker component for the cauldron entity.
 #[derive(Component)]
@@ -14,7 +14,7 @@ pub enum CauldronState {
     Idle,
     /// Currently brewing — wizard cannot cast spells.
     Brewing {
-        brew: Brew,
+        recipe: Recipe,
         elapsed: f32,
         duration: f32,
     },
@@ -34,10 +34,11 @@ impl CauldronState {
         matches!(self, Self::Idle)
     }
 
-    /// Returns the brew currently being brewed, if any.
-    pub fn active_brew(&self) -> Option<Brew> {
+    /// Returns the recipe currently being brewed, if any.
+    #[allow(dead_code)]
+    pub fn active_recipe(&self) -> Option<&Recipe> {
         match self {
-            Self::Brewing { brew, .. } => Some(*brew),
+            Self::Brewing { recipe, .. } => Some(recipe),
             _ => None,
         }
     }
@@ -47,28 +48,30 @@ impl CauldronState {
         *self = Self::Idle;
     }
 
-    /// Starts brewing the given brew.
-    pub fn start_brewing(&mut self, brew: Brew, duration: f32) {
+    /// Starts brewing the given recipe.
+    pub fn start_brewing(&mut self, recipe: Recipe, duration: f32) {
         *self = Self::Brewing {
-            brew,
+            recipe,
             elapsed: 0.0,
             duration,
         };
     }
 
-    /// Advances the brew timer. Returns Some(brew) if brewing just completed.
-    pub fn tick(&mut self, delta: f32) -> Option<Brew> {
+    /// Advances the brew timer. Returns Some(recipe) if brewing just completed.
+    pub fn tick(&mut self, delta: f32) -> Option<Recipe> {
         match self {
             Self::Brewing {
-                brew,
-                elapsed,
-                duration,
+                elapsed, duration, ..
             } => {
                 *elapsed += delta;
                 if *elapsed >= *duration {
-                    let completed_brew = *brew;
-                    *self = Self::Idle;
-                    Some(completed_brew)
+                    // Take the recipe out before transitioning to Idle
+                    let old = std::mem::take(self);
+                    if let CauldronState::Brewing { recipe, .. } = old {
+                        Some(recipe)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }

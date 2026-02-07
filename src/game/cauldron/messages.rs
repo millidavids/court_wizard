@@ -1,17 +1,17 @@
 use bevy::prelude::*;
 
-use super::brews::Brew;
+use super::brews::Recipe;
 
-/// Message sent when the player selects a brew to start.
-#[derive(Message, Debug, Clone, Copy)]
+/// Message sent when the player selects ingredients and starts brewing.
+#[derive(Message, Debug, Clone)]
 pub struct StartBrewMessage {
-    pub brew: Brew,
+    pub recipe: Recipe,
 }
 
 /// Message sent when a brew finishes and is ready to apply its buff.
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Message, Debug, Clone)]
 pub struct BrewCompleteMessage {
-    pub brew: Brew,
+    pub recipe: Recipe,
 }
 
 /// Message sent when the player cancels an in-progress brew.

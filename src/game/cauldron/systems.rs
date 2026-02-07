@@ -39,7 +39,8 @@ pub fn handle_start_brew(
         if let Ok(mut state) = cauldron_query.single_mut()
             && state.is_idle()
         {
-            state.start_brewing(message.brew, message.brew.brew_time());
+            let duration = message.recipe.brew_time();
+            state.start_brewing(message.recipe.clone(), duration);
         }
     }
 }
@@ -51,21 +52,21 @@ pub fn update_brew_timer(
     mut brew_complete: MessageWriter<BrewCompleteMessage>,
 ) {
     if let Ok(mut state) = cauldron_query.single_mut()
-        && let Some(completed_brew) = state.tick(time.delta_secs())
+        && let Some(completed_recipe) = state.tick(time.delta_secs())
     {
         brew_complete.write(BrewCompleteMessage {
-            brew: completed_brew,
+            recipe: completed_recipe,
         });
     }
 }
 
-/// Handles BrewCompleteMessage to apply the brew's buff.
+/// Handles BrewCompleteMessage to apply the recipe's buff.
 pub fn handle_brew_complete(
     mut messages: MessageReader<BrewCompleteMessage>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
 ) {
     for message in messages.read() {
-        cauldron_buffs.apply_brew(message.brew);
+        cauldron_buffs.apply_recipe(&message.recipe);
     }
 }
 

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use crate::game::cauldron::brews::Brew;
+use crate::game::cauldron::brews::{BrewEffect, Ingredient, Recipe};
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::input::MouseButtonState;
@@ -14,15 +14,33 @@ use crate::ui::systems::spawn_button;
 pub(super) fn spawn_cauldron_menu_ui(
     mut commands: Commands,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
+    selection: Res<IngredientSelection>,
 ) {
     let is_brewing = cauldron_query
         .single()
         .is_ok_and(|state| state.is_brewing());
-    let active_brew = cauldron_query
-        .single()
-        .ok()
-        .and_then(|state| state.active_brew());
 
+    build_menu(&mut commands, is_brewing, &selection);
+}
+
+/// Re-spawns the menu UI if it was despawned by a toggle action.
+pub(super) fn respawn_menu_on_toggle(
+    mut commands: Commands,
+    menu_query: Query<Entity, With<OnCauldronMenuScreen>>,
+    cauldron_query: Query<&CauldronState, With<Cauldron>>,
+    selection: Res<IngredientSelection>,
+) {
+    if menu_query.iter().next().is_none() {
+        let is_brewing = cauldron_query
+            .single()
+            .is_ok_and(|state| state.is_brewing());
+
+        build_menu(&mut commands, is_brewing, &selection);
+    }
+}
+
+/// Builds the cauldron menu UI tree.
+fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientSelection) {
     commands
         .spawn((
             Node {
@@ -40,7 +58,7 @@ pub(super) fn spawn_cauldron_menu_ui(
         .with_children(|parent| {
             // Title
             parent.spawn((
-                Text::new("Cauldron Brews"),
+                Text::new("Cauldron"),
                 TextFont {
                     font_size: TITLE_FONT_SIZE,
                     ..default()
@@ -48,47 +66,68 @@ pub(super) fn spawn_cauldron_menu_ui(
                 TextColor(TEXT_COLOR),
             ));
 
-            // Brewing status banner
-            if let Some(brew) = active_brew {
+            if is_brewing {
+                // Show brewing status
                 parent.spawn((
-                    Text::new(format!("Currently brewing: {}", brew.name())),
+                    Text::new("Brewing in progress..."),
                     TextFont {
                         font_size: BREWING_STATUS_FONT_SIZE,
                         ..default()
                     },
                     TextColor(BREWING_STATUS_COLOR),
                 ));
-            }
 
-            // Brew cards container
-            parent
-                .spawn((
-                    Node {
-                        border: UiRect::all(Val::Px(FRAME_BORDER_WIDTH)),
-                        padding: UiRect::all(Val::Px(FRAME_PADDING)),
-                        flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(BREW_COLUMN_GAP),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::FlexStart,
-                        ..default()
-                    },
-                    BorderColor::all(FRAME_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(8.0)),
-                    BackgroundColor(FRAME_BACKGROUND),
-                ))
-                .with_children(|container| {
-                    for brew in Brew::all() {
-                        spawn_brew_card(container, *brew, is_brewing);
-                    }
-                });
-
-            // Cancel brew button (only when brewing)
-            if is_brewing {
+                // Cancel button
                 spawn_button(
                     parent,
                     "Cancel Brew",
                     CauldronMenuButtonAction::CancelBrew,
                     &CANCEL_BUTTON_STYLE,
+                );
+            } else {
+                // Ingredient selection frame
+                parent
+                    .spawn((
+                        Node {
+                            border: UiRect::all(Val::Px(FRAME_BORDER_WIDTH)),
+                            padding: UiRect::all(Val::Px(FRAME_PADDING)),
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(INGREDIENT_COLUMN_GAP),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::FlexStart,
+                            ..default()
+                        },
+                        BorderColor::all(FRAME_BORDER_COLOR),
+                        BorderRadius::all(Val::Px(8.0)),
+                        BackgroundColor(FRAME_BACKGROUND),
+                    ))
+                    .with_children(|container| {
+                        for ingredient in Ingredient::all() {
+                            spawn_ingredient_card(
+                                container,
+                                *ingredient,
+                                selection.is_selected(ingredient),
+                            );
+                        }
+                    });
+
+                // Effect preview (only when something is selected)
+                if !selection.is_empty() {
+                    let recipe = Recipe::new(selection.selected.clone());
+                    spawn_effect_preview(parent, &recipe);
+                }
+
+                // Brew button
+                let brew_style = if selection.is_empty() {
+                    &BREW_BUTTON_DISABLED_STYLE
+                } else {
+                    &BREW_BUTTON_STYLE
+                };
+                spawn_button(
+                    parent,
+                    "Brew",
+                    CauldronMenuButtonAction::StartBrew,
+                    brew_style,
                 );
             }
 
@@ -102,16 +141,21 @@ pub(super) fn spawn_cauldron_menu_ui(
         });
 }
 
-/// Spawns a single brew card with button, brew time, and description.
-fn spawn_brew_card(parent: &mut ChildSpawnerCommands, brew: Brew, disabled: bool) {
-    let (button_style, text_color, time_color) = if disabled {
-        (
-            &DISABLED_BUTTON_STYLE,
-            DISABLED_TEXT_COLOR,
-            DISABLED_BREW_TIME_COLOR,
-        )
+/// Spawns a single ingredient card with toggle button and description.
+fn spawn_ingredient_card(
+    parent: &mut ChildSpawnerCommands,
+    ingredient: Ingredient,
+    selected: bool,
+) {
+    let button_style = if selected {
+        &INGREDIENT_SELECTED_STYLE
     } else {
-        (&BUTTON_STYLE, TEXT_COLOR, BREW_TIME_COLOR)
+        &INGREDIENT_BUTTON_STYLE
+    };
+    let text_color = if selected {
+        INGREDIENT_SELECTED_STYLE.text_color
+    } else {
+        TEXT_COLOR
     };
 
     parent
@@ -119,37 +163,20 @@ fn spawn_brew_card(parent: &mut ChildSpawnerCommands, brew: Brew, disabled: bool
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             row_gap: Val::Px(8.0),
-            width: Val::Px(BREW_COLUMN_WIDTH),
+            width: Val::Px(INGREDIENT_COLUMN_WIDTH),
             padding: UiRect::horizontal(Val::Px(COLUMN_PADDING)),
             ..default()
         })
         .with_children(|card| {
-            // Brew button (disabled buttons still get spawned but won't trigger action)
             spawn_button(
                 card,
-                brew.name(),
-                CauldronMenuButtonAction::SelectBrew(brew),
+                ingredient.name(),
+                CauldronMenuButtonAction::ToggleIngredient(ingredient),
                 button_style,
             );
 
-            // Brew time info
             card.spawn((
-                Text::new(format!(
-                    "Brew: {:.0}s | Buff: {:.0}s",
-                    brew.brew_time(),
-                    brew.buff_duration()
-                )),
-                TextFont {
-                    font_size: BREW_TIME_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(time_color),
-                TextLayout::new_with_justify(Justify::Center),
-            ));
-
-            // Description
-            card.spawn((
-                Text::new(brew.description()),
+                Text::new(ingredient.description()),
                 TextFont {
                     font_size: DESCRIPTION_FONT_SIZE,
                     ..default()
@@ -160,14 +187,78 @@ fn spawn_brew_card(parent: &mut ChildSpawnerCommands, brew: Brew, disabled: bool
         });
 }
 
-/// Handles button click actions — selects a brew, cancels, or closes the menu.
+/// Spawns the effect preview section showing computed effects.
+fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            row_gap: Val::Px(4.0),
+            ..default()
+        })
+        .with_children(|preview| {
+            // Brew time info
+            preview.spawn((
+                Text::new(format!(
+                    "Brew time: {:.0}s | Buff duration: {:.0}s",
+                    recipe.brew_time(),
+                    recipe.buff_duration()
+                )),
+                TextFont {
+                    font_size: BREW_INFO_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(BREW_INFO_COLOR),
+            ));
+
+            // Effect list
+            for effect in &recipe.effects() {
+                let text = match effect {
+                    BrewEffect::ManaRegenMultiplier(v) => {
+                        format!("Mana regen: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                    BrewEffect::SpellPowerMultiplier(v) => {
+                        format!("Spell power: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                };
+                preview.spawn((
+                    Text::new(text),
+                    TextFont {
+                        font_size: EFFECT_PREVIEW_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(EFFECT_PREVIEW_COLOR),
+                ));
+            }
+
+            // Dilution warning if more than 1 ingredient
+            if recipe.ingredients.len() > 1 {
+                preview.spawn((
+                    Text::new(format!(
+                        "Dilution: {:.0}% strength per ingredient",
+                        recipe.dilution_factor() * 100.0
+                    )),
+                    TextFont {
+                        font_size: EFFECT_PREVIEW_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(DISABLED_TEXT_COLOR),
+                ));
+            }
+        });
+}
+
+/// Handles button click actions — toggles ingredients, starts brew, cancels, or closes.
 pub(super) fn button_action(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&CauldronMenuButtonAction>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
+    mut selection: ResMut<IngredientSelection>,
     mut start_brew: MessageWriter<StartBrewMessage>,
     mut cancel_brew: MessageWriter<CancelBrewMessage>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
+    menu_query: Query<Entity, With<OnCauldronMenuScreen>>,
 ) {
     let is_brewing = cauldron_query
         .single()
@@ -176,9 +267,18 @@ pub(super) fn button_action(
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
-                CauldronMenuButtonAction::SelectBrew(brew) => {
-                    if !is_brewing {
-                        start_brew.write(StartBrewMessage { brew: *brew });
+                CauldronMenuButtonAction::ToggleIngredient(ingredient) => {
+                    selection.toggle(*ingredient);
+                    // Despawn menu so respawn_menu_on_toggle rebuilds it next frame
+                    for entity in &menu_query {
+                        commands.entity(entity).despawn();
+                    }
+                }
+                CauldronMenuButtonAction::StartBrew => {
+                    if !is_brewing && !selection.is_empty() {
+                        let recipe = Recipe::new(selection.selected.clone());
+                        start_brew.write(StartBrewMessage { recipe });
+                        selection.clear();
                         next_in_game_state.set(InGameState::Running);
                     }
                 }

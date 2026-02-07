@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.461] - 2025-02-07
+
+### Changed
+- Cauldron now uses an ingredient mixing system instead of fixed brews
+- Pick individual ingredients (Lavender for mana regen, Mugwort for spell power) and combine them into a custom brew
+- Mixing multiple ingredients dilutes each effect, so you can't just throw everything in at once
+- The cauldron menu shows a live preview of what your brew will do before you start brewing
+
 ## [v0.0.458] - 2025-02-07
 
 ### Added

@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use super::brews::{Brew, BrewEffect};
+use super::brews::{BrewEffect, Recipe};
 
 /// An active buff from a completed brew.
 #[derive(Debug, Clone)]
 pub struct ActiveBuff {
-    pub brew: Brew,
+    pub effects: Vec<BrewEffect>,
     pub time_remaining: f32,
 }
 
@@ -17,11 +17,11 @@ pub struct CauldronBuffs {
 }
 
 impl CauldronBuffs {
-    /// Applies a brew's buff effect.
-    pub fn apply_brew(&mut self, brew: Brew) {
+    /// Applies a recipe's effects as a new active buff.
+    pub fn apply_recipe(&mut self, recipe: &Recipe) {
         self.active_buffs.push(ActiveBuff {
-            brew,
-            time_remaining: brew.buff_duration(),
+            effects: recipe.effects(),
+            time_remaining: recipe.buff_duration(),
         });
     }
 
@@ -63,7 +63,7 @@ impl CauldronBuffs {
     fn compute_multiplier(&self, extract: impl Fn(&BrewEffect) -> Option<f32>) -> f32 {
         let mut result = 1.0;
         for buff in &self.active_buffs {
-            for effect in buff.brew.config().effects {
+            for effect in &buff.effects {
                 if let Some(value) = extract(effect) {
                     result *= value;
                 }

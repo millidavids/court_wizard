@@ -3,7 +3,6 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
-use super::brews::BrewsPlugin;
 use super::messages::*;
 use super::resources::CauldronBuffs;
 use super::run_conditions::{cauldron_is_brewing, has_active_buffs};
@@ -18,7 +17,6 @@ impl Plugin for CauldronPlugin {
             .add_message::<StartBrewMessage>()
             .add_message::<BrewCompleteMessage>()
             .add_message::<CancelBrewMessage>()
-            .add_plugins(BrewsPlugin)
             // Message handlers run across all InGame states so messages sent
             // from CauldronMenu aren't lost during the state transition.
             .add_systems(
