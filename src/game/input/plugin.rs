@@ -9,7 +9,7 @@ use super::{
         MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame,
         SpellInputBlockedThisFrame,
     },
-    events::*,
+    messages::*,
     systems,
 };
 

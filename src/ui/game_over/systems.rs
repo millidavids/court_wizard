@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::config::{ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::state::AppState;

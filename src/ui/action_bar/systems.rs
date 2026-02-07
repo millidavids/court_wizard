@@ -2,10 +2,11 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use super::messages::AssignSpellToSlot;
 use crate::config::{ConfigChanged, GameConfig};
 use crate::game::components::OnGameplayScreen;
-use crate::game::input::events::{ActionBarKeyPressed, MouseClicked};
-use crate::game::units::wizard::components::PrimeSpellMessage;
+use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
+use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::ButtonColors;
 
 /// Calculates the appropriate font size for action bar spell names based on character count.
@@ -141,15 +142,6 @@ pub(super) fn update_action_bar_slots(
             text_font.font_size = calculate_action_bar_font_size(spell_name);
         }
     }
-}
-
-/// Message sent when a spell should be assigned to an action bar slot.
-#[derive(Message, Debug, Clone, Copy)]
-pub struct AssignSpellToSlot {
-    /// The slot index to assign to.
-    pub slot: u8,
-    /// The spell to assign.
-    pub spell: crate::game::units::wizard::components::Spell,
 }
 
 /// Handles spell assignment to action bar slots.

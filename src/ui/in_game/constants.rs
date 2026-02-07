@@ -23,6 +23,7 @@ pub const CAST_BAR_HEIGHT: Val = Val::Px(15.0);
 /// Cast bar colors.
 pub const CAST_BAR_BG_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.5); // 50% translucent black background
 pub const CAST_BAR_FILL_COLOR: Color = Color::srgba(1.0, 0.8, 0.0, 0.7); // 70% translucent yellow/gold
+pub const CAST_BAR_BREWING_FILL_COLOR: Color = Color::srgba(0.4, 0.4, 0.4, 0.7); // 70% translucent gray
 
 /// Button dimensions.
 pub const BUTTON_WIDTH: f32 = 120.0;

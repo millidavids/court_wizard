@@ -7,6 +7,7 @@ use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
 
 use super::action_bar::ActionBarPlugin;
+use super::cauldron_menu::CauldronMenuPlugin;
 use super::concentration::ConcentrationUIPlugin;
 use super::game_over::GameOverPlugin;
 use super::in_game::plugin::InGamePlugin;
@@ -17,7 +18,7 @@ use super::rune_display::RuneDisplayPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
 use super::version::VersionPlugin;
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 
 /// System set for all button action handlers.
 /// Systems in this set only run when a MouseClicked message exists.
@@ -39,6 +40,7 @@ impl Plugin for UiPlugin {
             InGamePlugin,
             PauseMenuPlugin,
             SpellBookPlugin,
+            CauldronMenuPlugin,
             ActionBarPlugin,
             ConcentrationUIPlugin,
             RuneDisplayPlugin,

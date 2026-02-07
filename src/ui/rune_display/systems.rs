@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 use crate::game::runes::resources::Rune;
 use crate::game::runes::{LastActivatedSpell, RuneSequence};
 use crate::ui::components::ButtonColors;
@@ -189,16 +189,17 @@ pub(super) fn show_spell_name_on_activation(
 ) {
     if last_activated.just_activated {
         if let Some(spell) = last_activated.spell
-            && let Ok((entity, mut text)) = sequence_text_query.single_mut() {
-                // Show spell name
-                **text = spell.name().to_string();
+            && let Ok((entity, mut text)) = sequence_text_query.single_mut()
+        {
+            // Show spell name
+            **text = spell.name().to_string();
 
-                // Add fade timer
-                commands.entity(entity).insert(SpellNameFadeTimer {
-                    elapsed: 0.0,
-                    duration: SPELL_NAME_FADE_DURATION,
-                });
-            }
+            // Add fade timer
+            commands.entity(entity).insert(SpellNameFadeTimer {
+                elapsed: 0.0,
+                duration: SPELL_NAME_FADE_DURATION,
+            });
+        }
         // Acknowledge that we've processed this activation
         last_activated.acknowledge();
     }

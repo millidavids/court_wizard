@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowResized};
 
+use super::messages::*;
 use super::progress;
 use super::resources::*;
 use super::storage;
@@ -203,7 +204,7 @@ pub(super) fn save_config_on_debounce_timer(
 
 /// Manual save trigger (bypasses debounce).
 ///
-/// This system listens for SaveConfigEvent messages and immediately
+/// This system listens for SaveConfigMessage messages and immediately
 /// saves the current state to localStorage, bypassing the debounce timer.
 /// Useful for critical saves (e.g., on app quit).
 ///
@@ -213,7 +214,7 @@ pub(super) fn save_config_on_debounce_timer(
 /// * `windows` - Query for the primary window
 /// * `game_config` - Game configuration resource
 pub(super) fn save_config_on_event(
-    mut save_events: MessageReader<SaveConfigEvent>,
+    mut save_events: MessageReader<SaveConfigMessage>,
     game_config: Res<GameConfig>,
 ) {
     if save_events.read().count() == 0 {

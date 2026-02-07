@@ -4,7 +4,7 @@ use super::components::*;
 use super::constants::*;
 use super::styles::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 
 /// Spawns the concentration UI when a concentration spell is active.
 pub(super) fn spawn_concentration_ui(

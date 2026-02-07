@@ -1,8 +1,8 @@
-//! Pathfinding events for obstacle changes.
+//! Pathfinding messages for obstacle changes.
 
 use bevy::prelude::*;
 
-/// Event fired when an obstacle appears, changes, or is removed.
+/// Message sent when an obstacle appears, changes, or is removed.
 #[derive(Message)]
 pub struct ObstacleChanged {
     /// World-space bounds of the obstacle.

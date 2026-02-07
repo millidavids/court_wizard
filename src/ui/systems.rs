@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::components::{ButtonColors, ButtonStyle};
 use super::styles::{item_hovered, item_pressed};
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 
 /// Marker component to track that a button was pressed down.
 #[derive(Component)]

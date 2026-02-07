@@ -2,8 +2,10 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants;
+use super::messages::*;
 use super::spells::magic_missile_constants;
 use super::styles::*;
+use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
@@ -50,22 +52,34 @@ pub fn setup_wizard(
     ));
 }
 
-/// Regenerates wizard mana over time.
-pub fn regenerate_mana(time: Res<Time>, mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>) {
+/// Regenerates wizard mana over time, scaled by cauldron buffs.
+pub fn regenerate_mana(
+    time: Res<Time>,
+    cauldron_buffs: Res<CauldronBuffs>,
+    mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>,
+) {
     for (mut mana, regen) in &mut wizards {
-        mana.regenerate(regen.rate * time.delta_secs());
+        let rate = regen.rate * cauldron_buffs.mana_regen_multiplier();
+        mana.regenerate(rate * time.delta_secs());
     }
 }
 
 /// Handles PrimeSpellMessage to update the wizard's primed spell.
 /// This allows UI systems to request spell changes without directly accessing components.
+/// Applies cauldron spell power buff as a base empowerment multiplier.
 pub fn handle_prime_spell_messages(
     mut messages: MessageReader<PrimeSpellMessage>,
+    cauldron_buffs: Res<CauldronBuffs>,
     mut wizard_query: Query<&mut PrimedSpell, With<Wizard>>,
 ) {
     for message in messages.read() {
         if let Ok(mut primed_spell) = wizard_query.single_mut() {
-            *primed_spell = message.spell;
+            let mut spell = message.spell;
+            if cauldron_buffs.spell_power_multiplier() > 1.0 {
+                spell = spell
+                    .with_empowerment(spell.empowerment * cauldron_buffs.spell_power_multiplier());
+            }
+            *primed_spell = spell;
         }
     }
 }

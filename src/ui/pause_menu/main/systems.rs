@@ -3,7 +3,7 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, PauseMenuState};
 use crate::ui::systems::spawn_button;
 

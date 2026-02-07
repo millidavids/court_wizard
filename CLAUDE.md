@@ -22,7 +22,7 @@ src/
 │   ├── pathfinding/  # Flow field pathfinding system
 │   │   ├── constants.rs    # Pathfinding constants (rally points, satisfaction radii)
 │   │   ├── components.rs   # FlowFieldInfluence component
-│   │   ├── events.rs       # ObstacleChanged events
+│   │   ├── messages.rs      # ObstacleChanged messages
 │   │   ├── flow_field.rs   # FlowField struct and generation
 │   │   ├── resources.rs    # PathfindingGrid resource
 │   │   └── systems.rs      # Pathfinding systems
@@ -107,16 +107,15 @@ Systems are grouped into sets with explicit ordering:
 
 ## Build Instructions
 
-### Development (Native)
+### Development (Wasm)
+**IMPORTANT**: After completing ANY task that modifies Rust code, you MUST run (except changelog changes):
 ```bash
-cargo build
-cargo run
+./build_wash.sh
 ```
 
 ### Production Build (WASM)
-**IMPORTANT**: After completing ANY task that modifies Rust code, you MUST run (except changelog changes):
 ```bash
-./build_wasm.sh
+./build_wasm.sh --release
 ```
 
 This script:
@@ -140,9 +139,11 @@ cargo fmt --check
 
 ## Important Conventions
 
-### Constants Organization
+### Constants and Styles Organization
 - Game-wide constants in `src/game/constants.rs`
 - Module-specific constants in dedicated `constants.rs` files (e.g., `pathfinding/constants.rs`)
+- **Colors and style values go in `constants.rs`** — do NOT create separate `styles.rs` files. Keep all constants (dimensions, colors, positions, etc.) together in one file per module.
+- **Messages go in `messages.rs`** — This project uses Bevy 0.17 **Messages** (`#[derive(Message)]`) for broadcast inter-system communication. All message types in a module should live in a dedicated `messages.rs` file, never `events.rs`. Name message structs with a `Message` suffix (e.g., `StartBrewMessage`), never `Event`. **Bevy Events** (`#[derive(Event)]`) are a separate, newer mechanism for reactive observer/trigger callbacks (entity-targeted via `world.trigger()` / `On<E>`). We don't currently use Events, but if we do, they would go in a separate `events.rs` file and use the `Event` suffix.
 - Use `pub(super)` for module-internal constants
 
 ### Error Handling

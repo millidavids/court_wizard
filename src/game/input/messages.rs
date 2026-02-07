@@ -1,11 +1,11 @@
-//! Input events for game systems.
+//! Input messages for game systems.
 //!
-//! All input events are centralized here and sent from the input plugin
+//! All input messages are centralized here and sent from the input plugin
 //! to be consumed by other game systems.
 
 use bevy::prelude::*;
 
-/// Event fired when the left mouse button is pressed.
+/// Message sent when the left mouse button is pressed.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseLeftPressed {
     /// Cursor position in window coordinates (if available).
@@ -13,7 +13,7 @@ pub struct MouseLeftPressed {
     pub cursor_position: Option<Vec2>,
 }
 
-/// Event fired when the left mouse button is held down.
+/// Message sent when the left mouse button is held down.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseLeftHeld {
     /// Cursor position in window coordinates (if available).
@@ -21,11 +21,11 @@ pub struct MouseLeftHeld {
     pub cursor_position: Option<Vec2>,
 }
 
-/// Event fired when the left mouse button is released.
+/// Message sent when the left mouse button is released.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseLeftReleased;
 
-/// Event fired when the right mouse button is pressed.
+/// Message sent when the right mouse button is pressed.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseRightPressed {
     /// Cursor position in window coordinates (if available).
@@ -33,7 +33,7 @@ pub struct MouseRightPressed {
     pub cursor_position: Option<Vec2>,
 }
 
-/// Event fired when the right mouse button is held down.
+/// Message sent when the right mouse button is held down.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseRightHeld {
     /// Cursor position in window coordinates (if available).
@@ -41,19 +41,19 @@ pub struct MouseRightHeld {
     pub cursor_position: Option<Vec2>,
 }
 
-/// Event fired when the right mouse button is released.
+/// Message sent when the right mouse button is released.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct MouseRightReleased;
 
-/// Event fired when the spacebar is pressed.
+/// Message sent when the spacebar is pressed.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct SpacebarPressed;
 
-/// Event fired when the spacebar is held down.
+/// Message sent when the spacebar is held down.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct SpacebarHeld;
 
-/// Event fired when the spacebar is released.
+/// Message sent when the spacebar is released.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct SpacebarReleased;
 
@@ -69,7 +69,7 @@ pub struct MouseClicked {
     pub button: Entity,
 }
 
-/// Event fired when a number key (1-10, using 0 for 10) is pressed.
+/// Message sent when a number key (1-10, using 0 for 10) is pressed.
 #[derive(Message, Debug, Clone, Copy)]
 pub struct ActionBarKeyPressed {
     /// The action bar slot (0-9, where 0 represents the 10th slot).

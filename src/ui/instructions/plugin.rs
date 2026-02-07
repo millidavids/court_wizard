@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::plugin::ButtonActionSet;
 

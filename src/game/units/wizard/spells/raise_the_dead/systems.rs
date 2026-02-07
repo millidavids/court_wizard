@@ -9,7 +9,7 @@ use super::constants::{
 };
 use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::resources::ArcherAssets;
 use crate::game::units::components::{

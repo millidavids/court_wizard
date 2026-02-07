@@ -195,13 +195,6 @@ impl PrimedSpell {
     }
 }
 
-/// Message sent to prime a spell for casting.
-/// Used by UI systems to request spell changes without direct component access.
-#[derive(Message, Debug, Clone, Copy)]
-pub struct PrimeSpellMessage {
-    pub spell: PrimedSpell,
-}
-
 /// Wizard component with spell casting range.
 #[derive(Component)]
 pub struct Wizard {

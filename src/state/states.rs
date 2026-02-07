@@ -66,6 +66,8 @@ pub enum MenuState {
 /// - `Paused` → `Running`: Player selects Continue from pause menu
 /// - `Running` → `SpellBook`: Player clicks Spells button
 /// - `SpellBook` → `Running`: Player selects a spell or closes spell book
+/// - `Running` → `CauldronMenu`: Player clicks Cauldron button
+/// - `CauldronMenu` → `Running`: Player selects a brew or closes cauldron menu
 /// - `Running` → `GameOver`: Game ends (win or lose)
 /// - `GameOver` → `Running`: Player clicks Play Again
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
@@ -80,6 +82,9 @@ pub enum InGameState {
 
     /// Spell selection screen.
     SpellBook,
+
+    /// Cauldron brew selection screen.
+    CauldronMenu,
 
     /// Game over screen (win or lose).
     GameOver,

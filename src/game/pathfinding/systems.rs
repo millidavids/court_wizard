@@ -10,7 +10,7 @@ use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::King;
 
 use super::components::{FlowFieldInfluence, FlowFieldVelocity};
-use super::events::{ObstacleChanged, ObstacleType};
+use super::messages::{ObstacleChanged, ObstacleType};
 use super::resources::PathfindingGrid;
 
 /// Cell size for the pathfinding grid (in world units).

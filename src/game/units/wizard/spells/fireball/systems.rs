@@ -8,7 +8,7 @@ use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;

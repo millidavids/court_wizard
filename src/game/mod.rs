@@ -8,6 +8,7 @@
 //! - Simple collision-based combat
 
 mod battlefield;
+pub(crate) mod cauldron;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod input;

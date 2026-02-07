@@ -9,7 +9,7 @@ use super::constants::*;
 use super::styles::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
     FrostSlowModifier, Health, TemporaryHitPoints, apply_damage_to_unit,
 };

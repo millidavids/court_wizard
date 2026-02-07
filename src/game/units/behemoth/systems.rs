@@ -2,12 +2,13 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use super::messages::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 
-use crate::game::resources::CurrentLevel;
 use super::resources::BehemothAssets;
+use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
     FrostSlowModifier, Health, Hitbox, InMelee, KingAuraSpeedModifier, MovementSpeed,
@@ -191,10 +192,10 @@ pub fn behemoth_movement(
 }
 
 /// Tracks the position of the behemoth's attack target before combat happens.
-/// Sends BehemothAttackEvent when a behemoth is about to attack.
+/// Sends BehemothAttackMessage when a behemoth is about to attack.
 pub fn track_behemoth_attack_target(
     attack_cycle: Res<crate::game::plugin::GlobalAttackCycle>,
-    mut attack_events: MessageWriter<BehemothAttackEvent>,
+    mut attack_events: MessageWriter<BehemothAttackMessage>,
     behemoths: Query<
         (Entity, &Transform, &Hitbox, &Team, &AttackTiming),
         (With<Behemoth>, Without<Corpse>),
@@ -240,7 +241,7 @@ pub fn track_behemoth_attack_target(
                 .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
             {
                 // Send message that behemoth is attacking
-                attack_events.write(BehemothAttackEvent {
+                attack_events.write(BehemothAttackMessage {
                     target_position: *target_pos,
                     behemoth_team: *behemoth_team,
                 });
@@ -250,9 +251,9 @@ pub fn track_behemoth_attack_target(
 }
 
 /// Applies AOE splash damage around the behemoth's attack target.
-/// Runs after combat system. Reads BehemothAttackEvent messages.
+/// Runs after combat system. Reads BehemothAttackMessage messages.
 pub fn behemoth_aoe_splash_damage(
-    mut attack_events: MessageReader<BehemothAttackEvent>,
+    mut attack_events: MessageReader<BehemothAttackMessage>,
     mut all_units: Query<
         (&Transform, &Team, &Hitbox, &mut Health),
         (Without<Behemoth>, Without<Corpse>),

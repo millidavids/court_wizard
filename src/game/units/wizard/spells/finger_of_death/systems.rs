@@ -8,7 +8,7 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
 
 /// Handles Finger of Death casting with left-click.

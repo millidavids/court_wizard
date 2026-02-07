@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
 use crate::config::{Difficulty, GameConfig, VsyncMode};
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
 

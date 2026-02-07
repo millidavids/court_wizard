@@ -6,7 +6,7 @@ use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
 
 /// Marker component for disintegrate spell when it's actively being cast/channeled.

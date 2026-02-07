@@ -7,7 +7,7 @@ use super::constants;
 use super::styles::CIRCLE_COLOR;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::TemporaryHitPoints;
 
 /// Handles Guardian Circle casting with left-click.

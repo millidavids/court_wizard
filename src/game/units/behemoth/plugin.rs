@@ -2,6 +2,7 @@ use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
 use super::components::*;
+use super::messages::*;
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;
@@ -16,7 +17,7 @@ impl Plugin for BehemothPlugin {
     fn build(&self, app: &mut App) {
         app
             // Register message
-            .add_message::<BehemothAttackEvent>()
+            .add_message::<BehemothAttackMessage>()
             .add_systems(Startup, resources::preload_behemoth_assets)
             // Spawn after GameOver for replay
             .add_systems(
@@ -40,7 +41,7 @@ impl Plugin for BehemothPlugin {
                 behemoth_aoe_splash_damage
                     .after(shared_systems::combat)
                     .run_if(in_state(InGameState::Running))
-                    .run_if(on_message::<BehemothAttackEvent>),
+                    .run_if(on_message::<BehemothAttackMessage>),
             );
     }
 }

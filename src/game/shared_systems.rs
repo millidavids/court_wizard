@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::config::GameConfig;
 
+use super::cauldron::resources::CauldronBuffs;
 use super::components::{Acceleration, Velocity};
 use super::constants::*;
 use super::plugin::GlobalAttackCycle;
@@ -651,10 +652,12 @@ pub fn reset_resources_for_replay(
     mut attack_cycle: ResMut<super::plugin::GlobalAttackCycle>,
     mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
     mut king_spawned: ResMut<KingSpawned>,
+    mut cauldron_buffs: ResMut<CauldronBuffs>,
 ) {
     attack_cycle.current_time = 0.0;
     defenders_activated.active = false;
     king_spawned.0 = false;
+    cauldron_buffs.reset();
 }
 
 /// Activates all defenders when any defender is close enough to an enemy.

@@ -6,8 +6,9 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::config::GameConfig;
+use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::components::OnGameplayScreen;
-use crate::game::input::events::{BlockSpellInput, MouseClicked};
+use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 use crate::state::InGameState;
@@ -78,8 +79,26 @@ pub(super) fn spawn_hud(
                     ..default()
                 })
                 .with_children(|row| {
-                    // Spell book button (top-left)
-                    spawn_button(row, "Spells", HudButtonAction::OpenSpellBook, &BUTTON_STYLE);
+                    // Button group (top-left)
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(10.0),
+                        ..default()
+                    })
+                    .with_children(|buttons| {
+                        spawn_button(
+                            buttons,
+                            "Spells",
+                            HudButtonAction::OpenSpellBook,
+                            &BUTTON_STYLE,
+                        );
+                        spawn_button(
+                            buttons,
+                            "Cauldron",
+                            HudButtonAction::OpenCauldronMenu,
+                            &BUTTON_STYLE,
+                        );
+                    });
 
                     // Level and past victory display (top-right)
                     row.spawn(Node {
@@ -183,6 +202,31 @@ pub(super) fn spawn_hud(
                             BackgroundColor(CAST_BAR_FILL_COLOR),
                             CastBarFill,
                         ));
+
+                        // Brewing overlay container (hidden by default, shown during brewing)
+                        cast_bar
+                            .spawn((
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                Visibility::Hidden,
+                                BrewingOverlay,
+                            ))
+                            .with_children(|overlay| {
+                                overlay.spawn((
+                                    Text::new("Brewing..."),
+                                    TextFont {
+                                        font_size: 12.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::WHITE),
+                                ));
+                            });
                     });
                 });
         });
@@ -199,6 +243,9 @@ pub(super) fn hud_button_action(
             match action {
                 HudButtonAction::OpenSpellBook => {
                     next_in_game_state.set(InGameState::SpellBook);
+                }
+                HudButtonAction::OpenCauldronMenu => {
+                    next_in_game_state.set(InGameState::CauldronMenu);
                 }
             }
         }
@@ -218,18 +265,48 @@ pub(super) fn update_mana_bar(
     }
 }
 
-/// Updates the cast bar width based on current wizard casting progress.
+/// Updates the cast bar width based on current wizard casting progress or brewing progress.
 ///
-/// Uses the cast time from the currently primed spell.
+/// When the cauldron is brewing:
+/// - Shows brewing progress with a grayed-out fill
+/// - Displays "Brewing..." text overlay
+///
+/// Otherwise shows normal cast progress with gold fill.
 pub(super) fn update_cast_bar(
     wizard_query: Query<(&CastingState, &PrimedSpell), With<Wizard>>,
-    mut cast_bar_query: Query<&mut Node, With<CastBarFill>>,
+    cauldron_query: Query<&CauldronState, With<Cauldron>>,
+    mut cast_bar_query: Query<(&mut Node, &mut BackgroundColor), With<CastBarFill>>,
+    mut overlay_query: Query<&mut Visibility, With<BrewingOverlay>>,
 ) {
-    if let Ok((casting_state, primed_spell)) = wizard_query.single()
-        && let Ok(mut node) = cast_bar_query.single_mut()
-    {
-        let progress_percent = casting_state.progress(primed_spell.cast_time) * 100.0;
-        node.width = Val::Percent(progress_percent);
+    let is_brewing = cauldron_query
+        .single()
+        .is_ok_and(|state| state.is_brewing());
+
+    if let Ok((mut node, mut bg_color)) = cast_bar_query.single_mut() {
+        if is_brewing {
+            // Show brewing progress with gray fill
+            if let Ok(state) = cauldron_query.single() {
+                let progress_percent = state.progress() * 100.0;
+                node.width = Val::Percent(progress_percent);
+            }
+            bg_color.0 = CAST_BAR_BREWING_FILL_COLOR;
+        } else {
+            // Show normal cast progress with gold fill
+            if let Ok((casting_state, primed_spell)) = wizard_query.single() {
+                let progress_percent = casting_state.progress(primed_spell.cast_time) * 100.0;
+                node.width = Val::Percent(progress_percent);
+            }
+            bg_color.0 = CAST_BAR_FILL_COLOR;
+        }
+    }
+
+    // Toggle brewing overlay visibility
+    if let Ok(mut visibility) = overlay_query.single_mut() {
+        *visibility = if is_brewing {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 

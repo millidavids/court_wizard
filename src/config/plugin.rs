@@ -52,14 +52,14 @@ use super::systems::*;
 ///
 /// # Manual Save
 ///
-/// Send `SaveConfigEvent` to bypass debounce and save immediately:
+/// Send `SaveConfigMessage` to bypass debounce and save immediately:
 ///
 /// ```rust
 /// use bevy::prelude::*;
-/// use court_wizard::config::SaveConfigEvent;
+/// use court_wizard::config::SaveConfigMessage;
 ///
-/// fn save_on_quit(mut events: MessageWriter<SaveConfigEvent>) {
-///     events.write(SaveConfigEvent);
+/// fn save_on_quit(mut events: MessageWriter<SaveConfigMessage>) {
+///     events.write(SaveConfigMessage);
 /// }
 /// ```
 #[allow(clippy::needless_doctest_main)]
@@ -73,8 +73,8 @@ impl Plugin for ConfigPlugin {
         // NOTE: ConfigFile is NOT a resource - it's only used for serialization
 
         // Add messages
-        app.add_message::<super::resources::SaveConfigEvent>();
-        app.add_message::<super::resources::ConfigChanged>();
+        app.add_message::<super::messages::SaveConfigMessage>();
+        app.add_message::<super::messages::ConfigChanged>();
 
         // Add systems
         app.add_systems(Startup, load_and_apply_config);

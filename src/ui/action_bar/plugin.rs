@@ -4,6 +4,7 @@ use crate::game::run_conditions;
 use crate::state::{AppState, InGameState};
 use crate::ui::plugin::ButtonActionSet;
 
+use super::messages::AssignSpellToSlot;
 use super::systems;
 
 /// Plugin that manages the action bar UI.
@@ -12,7 +13,7 @@ pub struct ActionBarPlugin;
 
 impl Plugin for ActionBarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<systems::AssignSpellToSlot>()
+        app.add_message::<AssignSpellToSlot>()
             .add_systems(OnEnter(AppState::InGame), systems::spawn_action_bar)
             .add_systems(
                 OnEnter(InGameState::Running),

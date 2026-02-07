@@ -75,8 +75,11 @@ pub fn init_loading_progress(mut commands: Commands, current_level: Res<CurrentL
         queue.tasks.push(SpawnTask::Behemoth);
     }
 
-    // 11. Wizard (last, controls spells)
+    // 11. Wizard (controls spells)
     queue.tasks.push(SpawnTask::Wizard);
+
+    // 12. Cauldron (next to wizard on castle wall)
+    queue.tasks.push(SpawnTask::Cauldron);
 
     commands.insert_resource(queue);
 }
@@ -168,6 +171,13 @@ pub fn process_spawn_queue(
             }
             SpawnTask::Wizard => {
                 crate::game::units::wizard::systems::setup_wizard(
+                    commands.reborrow(),
+                    meshes,
+                    materials,
+                );
+            }
+            SpawnTask::Cauldron => {
+                crate::game::cauldron::systems::spawn_cauldron(
                     commands.reborrow(),
                     meshes,
                     materials,

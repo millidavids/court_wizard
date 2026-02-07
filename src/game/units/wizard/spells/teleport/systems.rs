@@ -10,7 +10,7 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::BATTLEFIELD_SIZE;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::{MouseLeftReleased, MouseRightPressed};
+use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::Teleportable;
 
 /// Handles right-click to cancel/reset the teleport spell.

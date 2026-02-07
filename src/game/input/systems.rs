@@ -1,6 +1,6 @@
 //! Input detection systems.
 //!
-//! These systems query input state once per frame and send events
+//! These systems query input state once per frame and send messages
 //! that other systems can consume.
 
 use bevy::prelude::*;
@@ -10,12 +10,12 @@ use super::{
         MouseButtonState, MouseLeftHeldThisFrame, MouseRightHeldThisFrame,
         SpellInputBlockedThisFrame,
     },
-    events::*,
+    messages::*,
 };
 
-/// Detects mouse button input and sends events.
+/// Detects mouse button input and sends messages.
 ///
-/// Runs once per frame to query mouse state and fire appropriate events.
+/// Runs once per frame to query mouse state and fire appropriate messages.
 #[allow(clippy::too_many_arguments)]
 pub fn detect_mouse_input(
     mut mouse: ResMut<ButtonInput<MouseButton>>,
@@ -78,22 +78,22 @@ pub fn detect_mouse_input(
     }
 }
 
-/// Detects keyboard input and sends events.
+/// Detects keyboard input and sends messages.
 ///
-/// Runs once per frame to query keyboard state and fire appropriate events.
+/// Runs once per frame to query keyboard state and fire appropriate messages.
 pub fn detect_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut spacebar_pressed: MessageWriter<SpacebarPressed>,
     mut spacebar_held: MessageWriter<SpacebarHeld>,
     mut spacebar_released: MessageWriter<SpacebarReleased>,
     mut action_bar_pressed: MessageWriter<ActionBarKeyPressed>,
-    mut rune_pressed: MessageWriter<crate::game::runes::events::RunePressed>,
-    mut rune_activate: MessageWriter<crate::game::runes::events::ActivateRuneSequence>,
+    mut rune_pressed: MessageWriter<crate::game::runes::messages::RunePressed>,
+    mut rune_activate: MessageWriter<crate::game::runes::messages::ActivateRuneSequence>,
 ) {
     // Check spacebar state
     if keyboard.just_pressed(KeyCode::Space) {
         spacebar_pressed.write(SpacebarPressed);
-        rune_activate.write(crate::game::runes::events::ActivateRuneSequence);
+        rune_activate.write(crate::game::runes::messages::ActivateRuneSequence);
     }
 
     if keyboard.pressed(KeyCode::Space) {
@@ -129,7 +129,7 @@ pub fn detect_keyboard_input(
 
     for (key_code, rune) in RUNE_KEYS {
         if keyboard.just_pressed(key_code) {
-            rune_pressed.write(crate::game::runes::events::RunePressed { rune });
+            rune_pressed.write(crate::game::runes::messages::RunePressed { rune });
         }
     }
 }

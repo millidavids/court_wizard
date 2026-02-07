@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 
-use super::events::*;
+use super::messages::*;
 use super::resources::{LastActivatedSpell, RuneSequence};
 use super::systems;
 

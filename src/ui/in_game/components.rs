@@ -12,10 +12,15 @@ pub(super) struct ManaBarFill;
 #[derive(Component)]
 pub(super) struct CastBarFill;
 
+/// Marker component for the brewing overlay text on the cast bar.
+#[derive(Component)]
+pub(super) struct BrewingOverlay;
+
 /// Actions that can be triggered by HUD buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum HudButtonAction {
     OpenSpellBook,
+    OpenCauldronMenu,
 }
 
 /// Marker component for the level display text.

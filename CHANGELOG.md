@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.458] - 2025-02-07
+
+### Added
+- Cauldron brewing system with two brews: Mana Surge (doubles mana regen) and Empowerment (increases spell power by 50%)
+- Cauldron menu accessible during gameplay to select and start brews
+- Cast bar shows brewing progress with a grayed-out overlay while a brew is active
+- Ability to cancel an in-progress brew from the cauldron menu
+
+### Improved
+- Brews now use a flexible effect system so each brew only defines the effects it cares about
+- Cauldron systems are smarter about when they run, skipping unnecessary work when not brewing
+
+### Fixed
+- Fixed brews not starting when selected from the cauldron menu
+
 ## [v0.0.438] - 2025-02-06
 
 ### Added

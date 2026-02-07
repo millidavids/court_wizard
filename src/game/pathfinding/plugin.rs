@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::events::ObstacleChanged;
+use super::messages::ObstacleChanged;
 use super::resources::PathfindingGrid;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;

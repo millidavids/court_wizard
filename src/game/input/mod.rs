@@ -1,10 +1,10 @@
 //! Input handling for the game.
 //!
 //! Centralizes all input detection to avoid duplicate queries.
-//! Input systems send events that other game systems consume.
+//! Input systems send messages that other game systems consume.
 
 pub(crate) mod components;
-pub(crate) mod events;
+pub(crate) mod messages;
 mod plugin;
 pub mod run_conditions;
 mod systems;

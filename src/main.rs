@@ -1,3 +1,4 @@
+use bevy::asset::{AssetMetaCheck, AssetPlugin};
 use bevy::prelude::*;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
@@ -20,18 +21,25 @@ use ui::UiPlugin;
 /// apply them to the window.
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Court Wizard".into(),
-                // Default resolution - ConfigPlugin will update at Startup
-                resolution: WindowResolution::new(1920, 1080),
-                canvas: Some("#bevy-canvas".to_string()),
-                fit_canvas_to_parent: true,
-                prevent_default_event_handling: true,
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    meta_check: AssetMetaCheck::Never,
+                    ..default()
+                })
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Court Wizard".into(),
+                        // Default resolution - ConfigPlugin will update at Startup
+                        resolution: WindowResolution::new(1920, 1080),
+                        canvas: Some("#bevy-canvas".to_string()),
+                        fit_canvas_to_parent: true,
+                        prevent_default_event_handling: true,
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
         .add_plugins((ConfigPlugin, StatePlugin, MusicPlugin, UiPlugin, GamePlugin))
         .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)))
         .add_systems(Startup, setup)

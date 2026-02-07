@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::game::run_conditions;
 use crate::state::InGameState;
 
-use super::components::PrimeSpellMessage;
+use super::messages::PrimeSpellMessage;
 use super::spell_range_indicator::SpellRangeIndicatorPlugin;
 use super::spells::SpellsPlugin;
 use super::systems;

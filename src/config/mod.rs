@@ -1,4 +1,5 @@
 mod error;
+pub(crate) mod messages;
 mod plugin;
 pub(crate) mod progress;
 mod resources;
@@ -6,5 +7,6 @@ mod storage;
 mod systems;
 
 // Public API exports - only export what's actually used externally
+pub use messages::ConfigChanged;
 pub use plugin::ConfigPlugin;
-pub use resources::{ConfigChanged, Difficulty, GameConfig, VsyncMode};
+pub use resources::{Difficulty, GameConfig, VsyncMode};

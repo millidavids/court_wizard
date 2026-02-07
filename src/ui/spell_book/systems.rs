@@ -6,10 +6,11 @@ use bevy::ui::ComputedNode;
 use super::components::*;
 use super::constants::*;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::{ActionBarKeyPressed, MouseClicked};
-use crate::game::units::wizard::components::{PrimeSpellMessage, Spell};
+use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
+use crate::game::units::wizard::components::Spell;
+use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::state::InGameState;
-use crate::ui::action_bar::systems::AssignSpellToSlot;
+use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::{ButtonColors, ButtonStyle};
 use crate::ui::systems::spawn_button;
 

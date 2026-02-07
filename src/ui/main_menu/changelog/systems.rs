@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::ui::ComputedNode;
 
 use super::components::{BackButton, OnChangelogScreen, ScrollableChangelogContainer};
-use crate::game::input::events::MouseClicked;
+use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::main_menu::landing::constants::TEXT_COLOR;
 

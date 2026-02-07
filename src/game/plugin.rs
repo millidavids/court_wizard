@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::state::{AppState, InGameState};
 
 use super::battlefield::BattlefieldPlugin;
+use super::cauldron::CauldronPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
@@ -81,6 +82,7 @@ impl Plugin for GamePlugin {
                 BattlefieldPlugin,
                 UnitsPlugin,
                 RunePlugin,
+                CauldronPlugin,
                 PathfindingPlugin,
             ))
             .add_systems(

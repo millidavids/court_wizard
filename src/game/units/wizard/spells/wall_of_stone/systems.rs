@@ -6,7 +6,7 @@ use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::input::events::MouseLeftReleased;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
 
 /// Handles Wall of Stone casting — click to anchor, drag to extend, release to place.
@@ -205,7 +205,7 @@ pub fn handle_wall_of_stone_casting(
 
 /// Handles right-click cancellation of wall placement.
 pub fn handle_wall_of_stone_cancel(
-    mut mouse_right_pressed: MessageReader<crate::game::input::events::MouseRightPressed>,
+    mut mouse_right_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
     mut commands: Commands,
     mut wizard_query: Query<&mut CastingState, With<Wizard>>,
     mut caster_query: Query<&mut WallOfStoneCaster, With<Wizard>>,

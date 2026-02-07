@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use super::constants::*;
-use super::events::*;
+use super::messages::*;
 use super::resources::*;
-use crate::game::units::wizard::components::PrimeSpellMessage;
+use crate::game::units::wizard::messages::PrimeSpellMessage;
 
 /// Handles RunePressed messages by adding to the current sequence.
 pub fn handle_rune_pressed(
