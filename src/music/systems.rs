@@ -9,9 +9,9 @@ use super::resources::{BackgroundMusicAssets, BackgroundMusicEntity};
 ///
 /// The audio handle is stored in the BackgroundMusicAssets resource for later use.
 pub(super) fn load_music_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let music_handle = asset_server.load("fireball_dungeon_mix.ogg");
+    let music_handle = asset_server.load("audio/fireball_dungeon_mix.ogg");
     commands.insert_resource(BackgroundMusicAssets { music_handle });
-    info!("Music asset loading: fireball_dungeon_mix.ogg");
+    info!("Music asset loading: audio/fireball_dungeon_mix.ogg");
 }
 
 /// Spawns the background music entity once all resources are ready.

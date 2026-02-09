@@ -5,6 +5,7 @@ use bevy::prelude::*;
 
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, MenuState};
+use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 use super::components::{MenuButtonAction, OnLandingScreen};
@@ -14,7 +15,7 @@ use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 ///
 /// Spawns the root UI node containing the title and menu buttons.
 /// All spawned entities are marked with `OnLandingScreen` for cleanup.
-pub fn setup(mut commands: Commands) {
+pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
     // Root container - full screen, centered content in a column
     commands
         .spawn((
@@ -34,6 +35,7 @@ pub fn setup(mut commands: Commands) {
             parent.spawn((
                 Text::new("Court Wizard"),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size: TITLE_FONT_SIZE,
                     ..default()
                 },
@@ -50,6 +52,7 @@ pub fn setup(mut commands: Commands) {
                 "Begin, Wizard",
                 MenuButtonAction::StartGame,
                 &BUTTON_STYLE,
+                &custom_font,
             );
 
             // Settings button
@@ -58,6 +61,7 @@ pub fn setup(mut commands: Commands) {
                 "Settings",
                 MenuButtonAction::Settings,
                 &BUTTON_STYLE,
+                &custom_font,
             );
 
             // Changelog button
@@ -66,6 +70,7 @@ pub fn setup(mut commands: Commands) {
                 "Changelog",
                 MenuButtonAction::Changelog,
                 &BUTTON_STYLE,
+                &custom_font,
             );
 
             // Instructions button
@@ -74,6 +79,7 @@ pub fn setup(mut commands: Commands) {
                 "Instructions",
                 MenuButtonAction::Instructions,
                 &BUTTON_STYLE,
+                &custom_font,
             );
         });
 }

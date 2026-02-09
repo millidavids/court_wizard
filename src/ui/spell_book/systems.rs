@@ -12,6 +12,7 @@ use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::state::InGameState;
 use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::{ButtonColors, ButtonStyle};
+use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 /// Resource to track when we just entered the spell book.
@@ -20,7 +21,7 @@ use crate::ui::systems::spawn_button;
 pub(super) struct JustEnteredSpellBook(pub bool);
 
 /// Spawns the spell book UI when entering the SpellBook state.
-pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
+pub(super) fn spawn_spell_book_ui(mut commands: Commands, custom_font: Res<CustomFont>) {
     commands
         .spawn((
             Node {
@@ -40,6 +41,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
             parent.spawn((
                 Text::new("Select Spell"),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size: TITLE_FONT_SIZE,
                     ..default()
                 },
@@ -97,6 +99,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                         SpellBookButtonAction::SelectSpell(*spell),
                                         &BUTTON_STYLE,
                                         font_size,
+                                        &custom_font,
                                     );
                                 }
                             });
@@ -121,6 +124,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                         cell.spawn((
                                             Text::new(spell.instructions()),
                                             TextFont {
+                                                font: custom_font.handle.clone(),
                                                 font_size: INSTRUCTIONS_FONT_SIZE,
                                                 ..default()
                                             },
@@ -142,6 +146,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                     row.spawn((
                                         Text::new(spell.description()),
                                         TextFont {
+                                            font: custom_font.handle.clone(),
                                             font_size: DESCRIPTION_FONT_SIZE,
                                             ..default()
                                         },
@@ -164,6 +169,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                 "Close",
                 SpellBookButtonAction::Close,
                 &CLOSE_BUTTON_STYLE,
+                &custom_font,
             );
         });
 }
@@ -175,6 +181,7 @@ fn spawn_spell_button(
     action: impl Component,
     style: &ButtonStyle,
     font_size: f32,
+    custom_font: &CustomFont,
 ) {
     parent
         .spawn((
@@ -200,6 +207,7 @@ fn spawn_spell_button(
             button.spawn((
                 Text::new(text),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size,
                     ..default()
                 },

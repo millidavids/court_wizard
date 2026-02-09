@@ -8,18 +8,31 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::ButtonColors;
+use crate::ui::resources::CustomFont;
 
-/// Calculates the appropriate font size for action bar spell names based on character count.
+/// Calculates the appropriate font size for action bar spell names based on max line width.
+///
+/// Spell names may contain newlines to split long names across multiple lines.
+/// Font size is scaled based on the longest line to ensure it fits in the button.
 fn calculate_action_bar_font_size(name: &str) -> f32 {
-    let min_chars = 4.0;
-    let max_chars = 16.0;
-    let min_scale = 0.5;
-    let t = ((name.len() as f32 - min_chars) / (max_chars - min_chars)).clamp(0.0, 1.0);
+    let max_line_width = name.lines().map(|line| line.len()).max().unwrap_or(0) as f32;
+
+    // Scale down for longer names to fit in button
+    // Short names (≤6 chars) = full size (16px)
+    // Long names (≥11 chars) = 65% size (~10.4px)
+    let min_chars = 6.0;
+    let max_chars = 11.0;
+    let min_scale = 0.65;
+    let t = ((max_line_width - min_chars) / (max_chars - min_chars)).clamp(0.0, 1.0);
     SPELL_NAME_FONT_SIZE * (1.0 - t * (1.0 - min_scale))
 }
 
 /// Spawns the action bar UI at the bottom of the screen.
-pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) {
+pub(super) fn spawn_action_bar(
+    mut commands: Commands,
+    config: Res<GameConfig>,
+    custom_font: Res<CustomFont>,
+) {
     commands
         .spawn((
             Node {
@@ -48,7 +61,7 @@ pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) 
                             flex_direction: FlexDirection::Column,
                             justify_content: JustifyContent::SpaceBetween,
                             align_items: AlignItems::Center,
-                            padding: UiRect::all(Val::Px(4.0)),
+                            padding: UiRect::all(Val::Px(2.0)),
                             ..default()
                         },
                         BorderColor::all(SLOT_BUTTON_STYLE.border),
@@ -65,6 +78,7 @@ pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) 
                         button.spawn((
                             Text::new(hotkey_label),
                             TextFont {
+                                font: custom_font.handle.clone(),
                                 font_size: HOTKEY_FONT_SIZE,
                                 ..default()
                             },
@@ -72,25 +86,27 @@ pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) 
                             ActionBarHotkeyText,
                         ));
 
-                        // Spell name text in center (with dynamic font sizing)
+                        // Spell name text in center (with dynamic font sizing and tight line spacing)
                         let spell_name = spell.map(|s| s.name()).unwrap_or("");
                         let font_size = calculate_action_bar_font_size(spell_name);
-                        button.spawn((
-                            Text::new(spell_name),
-                            TextFont {
-                                font_size,
-                                ..default()
-                            },
-                            TextColor(SLOT_BUTTON_STYLE.text_color),
-                            TextLayout::new_with_justify(Justify::Center),
-                            Node {
+                        button
+                            .spawn((
+                                Text::new(spell_name),
+                                TextFont {
+                                    font: custom_font.handle.clone(),
+                                    font_size,
+                                    ..default()
+                                },
+                                TextColor(SLOT_BUTTON_STYLE.text_color),
+                                TextLayout::new_with_justify(Justify::Center),
+                                ActionBarSlotText { slot },
+                            ))
+                            .insert(Node {
                                 flex_grow: 1.0,
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
                                 ..default()
-                            },
-                            ActionBarSlotText { slot },
-                        ));
+                            });
                     });
             }
         });

@@ -14,6 +14,7 @@ mod loading;
 mod main_menu;
 mod pause_menu;
 mod plugin;
+mod resources;
 mod rune_display;
 mod spell_book;
 mod styles;
@@ -21,3 +22,4 @@ mod systems;
 mod version;
 
 pub use plugin::UiPlugin;
+pub use resources::CustomFont;

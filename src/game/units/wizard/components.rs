@@ -37,19 +37,19 @@ impl Spell {
         ]
     }
 
-    /// Returns the display name for this spell.
+    /// Returns the display name for this spell with newlines between words.
     pub const fn name(&self) -> &'static str {
         match self {
-            Spell::MagicMissile => "Magic Missile",
+            Spell::MagicMissile => "Magic\nMissile",
             Spell::Disintegrate => "Disintegrate",
             Spell::Fireball => "Fireball",
-            Spell::GuardianCircle => "Guardian Circle",
-            Spell::ChainLightning => "Chain Lightning",
-            Spell::FingerOfDeath => "Finger of Death",
-            Spell::RaiseTheDead => "Raise The Dead",
+            Spell::GuardianCircle => "Guardian\nCircle",
+            Spell::ChainLightning => "Chain\nLightning",
+            Spell::FingerOfDeath => "Finger\nof\nDeath",
+            Spell::RaiseTheDead => "Raise\nThe\nDead",
             Spell::Teleport => "Teleport",
-            Spell::WallOfStone => "Wall of Stone",
-            Spell::BlackHole => "Black Hole",
+            Spell::WallOfStone => "Wall of\nStone",
+            Spell::BlackHole => "Black\nHole",
             Spell::Squall => "Squall",
         }
     }

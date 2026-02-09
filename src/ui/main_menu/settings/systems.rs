@@ -9,6 +9,7 @@ use bevy::ui::RelativeCursorPosition;
 use crate::config::{Difficulty, GameConfig, VsyncMode};
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
+use crate::ui::resources::CustomFont;
 use crate::ui::styles::{item_hovered, item_pressed};
 
 use super::components::{
@@ -36,7 +37,8 @@ use super::constants::{
 ///
 /// * `commands` - Bevy command buffer for spawning entities
 /// * `game_config` - Current game configuration
-pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
+/// * `custom_font` - Custom font resource for text rendering
+pub fn setup(mut commands: Commands, game_config: Res<GameConfig>, custom_font: Res<CustomFont>) {
     commands
         .spawn((
             Node {
@@ -66,6 +68,7 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                     parent.spawn((
                         Text::new("Settings"),
                         TextFont {
+                            font: custom_font.handle.clone(),
                             font_size: TITLE_FONT_SIZE,
                             ..default()
                         },
@@ -77,82 +80,92 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                     ));
 
                     // Graphics Settings Section
-                    spawn_section(parent, "Graphics", |section| {
+                    spawn_section(parent, "Graphics", &custom_font, |section| {
                         // VSync Mode
-                        spawn_option_row(section, "VSync:", |buttons| {
+                        spawn_option_row(section, "VSync:", &custom_font, |buttons| {
                             spawn_option_button(
                                 buttons,
                                 "On",
                                 OptionButtonValue::VsyncMode(VsyncMode::On),
                                 game_config.vsync == VsyncMode::On,
+                                &custom_font,
                             );
                             spawn_option_button(
                                 buttons,
                                 "Off",
                                 OptionButtonValue::VsyncMode(VsyncMode::Off),
                                 game_config.vsync == VsyncMode::Off,
+                                &custom_font,
                             );
                             spawn_option_button(
                                 buttons,
                                 "Adaptive",
                                 OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
                                 game_config.vsync == VsyncMode::Adaptive,
+                                &custom_font,
                             );
                         });
                     });
 
                     // Audio Settings Section
-                    spawn_section(parent, "Audio", |section| {
+                    spawn_section(parent, "Audio", &custom_font, |section| {
                         spawn_slider_control(
                             section,
                             "Master Volume:",
                             SliderValue::MasterVolume,
                             &game_config,
+                            &custom_font,
                         );
                         spawn_slider_control(
                             section,
                             "Music Volume:",
                             SliderValue::MusicVolume,
                             &game_config,
+                            &custom_font,
                         );
                         spawn_slider_control(
                             section,
                             "SFX Volume:",
                             SliderValue::SfxVolume,
                             &game_config,
+                            &custom_font,
                         );
                     });
 
                     // Display Settings Section
-                    spawn_section(parent, "Display", |section| {
+                    spawn_section(parent, "Display", &custom_font, |section| {
                         spawn_slider_control(
                             section,
                             "Brightness:",
                             SliderValue::UiBrightness,
                             &game_config,
+                            &custom_font,
                         );
                     });
 
                     // Game Settings Section
-                    spawn_section(parent, "Game", |section| {
-                        spawn_option_row(section, "Difficulty:", |buttons| {
+                    spawn_section(parent, "Game", &custom_font, |section| {
+                        spawn_option_row(section, "Difficulty:", &custom_font, |buttons| {
                             spawn_option_button(
                                 buttons,
                                 "Easy",
                                 OptionButtonValue::Difficulty(Difficulty::Easy),
                                 game_config.difficulty == Difficulty::Easy,
+                                &custom_font,
                             );
                             spawn_option_button(
                                 buttons,
                                 "Normal",
                                 OptionButtonValue::Difficulty(Difficulty::Normal),
                                 game_config.difficulty == Difficulty::Normal,
+                                &custom_font,
                             );
                             spawn_option_button(
                                 buttons,
                                 "Hard",
                                 OptionButtonValue::Difficulty(Difficulty::Hard),
                                 game_config.difficulty == Difficulty::Hard,
+                                &custom_font,
                             );
                         });
                     });
@@ -182,6 +195,7 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                             button.spawn((
                                 Text::new("Back"),
                                 TextFont {
+                                    font: custom_font.handle.clone(),
                                     font_size: BUTTON_FONT_SIZE,
                                     ..default()
                                 },
@@ -196,6 +210,7 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
 fn spawn_section(
     parent: &mut ChildSpawnerCommands,
     title: &str,
+    custom_font: &CustomFont,
     spawn_content: impl FnOnce(&mut ChildSpawnerCommands),
 ) {
     parent
@@ -211,6 +226,7 @@ fn spawn_section(
             section.spawn((
                 Text::new(title),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size: SECTION_FONT_SIZE,
                     ..default()
                 },
@@ -229,6 +245,7 @@ fn spawn_section(
 fn spawn_option_row(
     parent: &mut ChildSpawnerCommands,
     label: &str,
+    custom_font: &CustomFont,
     spawn_buttons: impl FnOnce(&mut ChildSpawnerCommands),
 ) {
     parent
@@ -244,6 +261,7 @@ fn spawn_option_row(
             row.spawn((
                 Text::new(label),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size: LABEL_FONT_SIZE,
                     ..default()
                 },
@@ -270,6 +288,7 @@ fn spawn_option_button(
     text: &str,
     value: OptionButtonValue,
     is_selected: bool,
+    custom_font: &CustomFont,
 ) {
     let (bg_color, border_color) = if is_selected {
         (SELECTED_BACKGROUND, SELECTED_BORDER)
@@ -304,6 +323,7 @@ fn spawn_option_button(
         button.spawn((
             Text::new(text),
             TextFont {
+                font: custom_font.handle.clone(),
                 font_size: BUTTON_FONT_SIZE,
                 ..default()
             },
@@ -324,6 +344,7 @@ struct SliderRowConfig<'a, TText, TDownButton, TUpButton, TSliderTrack, TSliderF
     slider_track: TSliderTrack,
     slider_fill: TSliderFill,
     slider_handle: TSliderHandle,
+    custom_font: &'a CustomFont,
 }
 
 /// Helper function to spawn a slider row with decrease/increase buttons, slider, and value display.
@@ -356,6 +377,7 @@ fn spawn_slider_row<
         slider_track,
         slider_fill,
         slider_handle,
+        custom_font,
     } = config;
     parent
         .spawn(Node {
@@ -370,6 +392,7 @@ fn spawn_slider_row<
             row.spawn((
                 Text::new(label),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size: LABEL_FONT_SIZE,
                     ..default()
                 },
@@ -412,6 +435,7 @@ fn spawn_slider_row<
                         button.spawn((
                             Text::new("-"),
                             TextFont {
+                                font: custom_font.handle.clone(),
                                 font_size: BUTTON_FONT_SIZE,
                                 ..default()
                             },
@@ -500,6 +524,7 @@ fn spawn_slider_row<
                         button.spawn((
                             Text::new("+"),
                             TextFont {
+                                font: custom_font.handle.clone(),
                                 font_size: BUTTON_FONT_SIZE,
                                 ..default()
                             },
@@ -511,6 +536,7 @@ fn spawn_slider_row<
                 controls.spawn((
                     Text::new(format!("{}%", (current_value * 100.0) as u8)),
                     TextFont {
+                        font: custom_font.handle.clone(),
                         font_size: LABEL_FONT_SIZE,
                         ..default()
                     },
@@ -532,6 +558,7 @@ fn spawn_slider_control(
     label: &str,
     slider_value: SliderValue,
     game_config: &GameConfig,
+    custom_font: &CustomFont,
 ) {
     let current_value = slider_value.get(game_config);
     let max_value = slider_value.max_value();
@@ -561,6 +588,7 @@ fn spawn_slider_control(
                 value: slider_value,
                 is_dragging: false,
             },
+            custom_font,
         },
     );
 }

@@ -7,9 +7,10 @@ use crate::game::input::messages::MouseClicked;
 use crate::game::runes::resources::Rune;
 use crate::game::runes::{LastActivatedSpell, RuneSequence};
 use crate::ui::components::ButtonColors;
+use crate::ui::resources::CustomFont;
 
 /// Spawns the rune display UI with 4 clickable buttons and sequence text above.
-pub(super) fn spawn_rune_display(mut commands: Commands) {
+pub(super) fn spawn_rune_display(mut commands: Commands, custom_font: Res<CustomFont>) {
     // Create a full-width container at the bottom for proper centering
     commands
         .spawn((
@@ -40,6 +41,7 @@ pub(super) fn spawn_rune_display(mut commands: Commands) {
                     inner.spawn((
                         Text::new(""),
                         TextFont {
+                            font: custom_font.handle.clone(),
                             font_size: RUNE_SEQUENCE_FONT_SIZE,
                             ..default()
                         },
@@ -85,6 +87,7 @@ pub(super) fn spawn_rune_display(mut commands: Commands) {
                                     button.spawn((
                                         Text::new(format!("{}", rune.as_char())),
                                         TextFont {
+                                            font: custom_font.handle.clone(),
                                             font_size: RUNE_BUTTON_STYLE.font_size,
                                             ..default()
                                         },

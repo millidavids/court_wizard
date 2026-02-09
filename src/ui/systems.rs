@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use super::components::{ButtonColors, ButtonStyle};
+use super::resources::CustomFont;
 use super::styles::{item_hovered, item_pressed};
 use crate::game::input::messages::MouseClicked;
 
@@ -89,11 +90,13 @@ pub fn button_interaction(
 /// * `text` - The button label text
 /// * `action` - Any component to attach as the button's action identifier
 /// * `style` - The `ButtonStyle` configuration for dimensions and colors
+/// * `custom_font` - The custom font resource
 pub fn spawn_button(
     parent: &mut ChildSpawnerCommands,
     text: &str,
     action: impl Component,
     style: &ButtonStyle,
+    custom_font: &CustomFont,
 ) {
     parent
         .spawn((
@@ -119,6 +122,7 @@ pub fn spawn_button(
             button.spawn((
                 Text::new(text),
                 TextFont {
+                    font: custom_font.handle.clone(),
                     font_size: style.font_size,
                     ..default()
                 },

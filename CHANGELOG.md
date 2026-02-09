@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.495] - 2025-02-09
+
+### Added
+- Custom Davidfont now used throughout the entire game for better readability
+- Multi-word spell names now display across multiple lines in action bar (easier to read at a glance)
+
+### Improved
+- Increased font sizes across the board for better readability:
+  - Action bar spell names are now 16px (up from 10px)
+  - In-game buttons are now 28px (up from 24px)
+  - Hotkey indicators are now 11px (up from 10px)
+- Reduced padding in action bar buttons to give more room for spell names
+- Spell names now scale intelligently based on the longest line rather than total characters
+- Better spell name formatting (e.g., "Wall of Stone" displays as "Wall of" / "Stone" instead of three separate lines)
+- Organized audio and font files into dedicated folders within the assets directory
+
+### Fixed
+- Fixed font and audio file paths to use the correct assets directory structure
+- Fixed custom font not loading on the HTML loading screen
+
 ## [v0.0.467] - 2025-02-07
 
 ### Added
