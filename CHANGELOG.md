@@ -2,11 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.0.461] - 2025-02-07
+## [v0.0.467] - 2025-02-07
+
+### Added
+- Yarrow ingredient that heals your defenders over time while the brew is active
+- Colorful bubble explosion effect when a brew finishes — the bubble's color is based on the ingredients used
 
 ### Changed
 - Cauldron now uses an ingredient mixing system instead of fixed brews
-- Pick individual ingredients (Lavender for mana regen, Mugwort for spell power) and combine them into a custom brew
+- Pick individual ingredients (Lavender for mana regen, Mugwort for spell power, Yarrow for healing) and combine them into a custom brew
 - Mixing multiple ingredients dilutes each effect, so you can't just throw everything in at once
 - The cauldron menu shows a live preview of what your brew will do before you start brewing
 

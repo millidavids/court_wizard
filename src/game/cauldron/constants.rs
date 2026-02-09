@@ -17,3 +17,15 @@ pub const CAULDRON_POSITION: Vec3 = Vec3::new(
     WIZARD_POSITION.y + CAULDRON_OFFSET.y,
     WIZARD_POSITION.z + CAULDRON_OFFSET.z,
 );
+
+/// Total duration of the brew bubble effect (seconds).
+pub const BREW_BUBBLE_DURATION: f32 = 1.0;
+
+/// Expansion speed of the bubble (units per second).
+pub const BREW_BUBBLE_EXPAND_SPEED: f32 = 3000.0;
+
+/// Starting alpha (translucency) of the bubble.
+pub const BREW_BUBBLE_INITIAL_ALPHA: f32 = 0.2;
+
+/// Y position of the bubble center.
+pub const BREW_BUBBLE_HEIGHT: f32 = CAULDRON_POSITION.y;

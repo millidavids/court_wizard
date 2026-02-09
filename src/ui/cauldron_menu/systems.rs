@@ -220,6 +220,9 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
                     BrewEffect::SpellPowerMultiplier(v) => {
                         format!("Spell power: +{:.0}%", (v - 1.0) * 100.0)
                     }
+                    BrewEffect::DefenderHealPerSecond(v) => {
+                        format!("Defender healing: {:.1} HP/s", v)
+                    }
                 };
                 preview.spawn((
                     Text::new(text),

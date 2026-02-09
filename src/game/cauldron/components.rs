@@ -6,6 +6,14 @@ use super::brews::Recipe;
 #[derive(Component)]
 pub struct Cauldron;
 
+/// Expanding translucent sphere that plays when a brew completes.
+#[derive(Component)]
+pub struct BrewBubble {
+    pub time_alive: f32,
+    pub duration: f32,
+    pub color: Color,
+}
+
 /// Tracks the current state of the cauldron.
 #[derive(Debug, Clone, Component, Default)]
 pub enum CauldronState {

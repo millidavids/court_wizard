@@ -59,6 +59,19 @@ impl CauldronBuffs {
         })
     }
 
+    /// Total defender heal per second from all active buffs.
+    pub fn defender_heal_per_second(&self) -> f32 {
+        let mut total = 0.0;
+        for buff in &self.active_buffs {
+            for effect in &buff.effects {
+                if let BrewEffect::DefenderHealPerSecond(v) = effect {
+                    total += v;
+                }
+            }
+        }
+        total
+    }
+
     /// Computes a combined multiplier by scanning all active buff effects.
     fn compute_multiplier(&self, extract: impl Fn(&BrewEffect) -> Option<f32>) -> f32 {
         let mut result = 1.0;

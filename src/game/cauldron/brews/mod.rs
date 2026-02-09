@@ -1,3 +1,9 @@
+mod constants;
+
+use bevy::prelude::*;
+
+use constants::*;
+
 /// A single effect that an ingredient/brew applies when active.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BrewEffect {
@@ -5,6 +11,8 @@ pub enum BrewEffect {
     ManaRegenMultiplier(f32),
     /// Multiplies spell power/empowerment.
     SpellPowerMultiplier(f32),
+    /// Heals all defender units by this amount per second.
+    DefenderHealPerSecond(f32),
 }
 
 /// An ingredient that can be added to a brew.
@@ -12,6 +20,7 @@ pub enum BrewEffect {
 pub enum Ingredient {
     Lavender,
     Mugwort,
+    Yarrow,
 }
 
 /// Static configuration for an ingredient.
@@ -22,19 +31,9 @@ pub struct IngredientConfig {
     pub description: &'static str,
     /// The effect this ingredient contributes at full strength.
     pub effect: BrewEffect,
+    /// Visual color based on the real-life ingredient.
+    pub color: Color,
 }
-
-const LAVENDER_CONFIG: IngredientConfig = IngredientConfig {
-    name: "Lavender",
-    description: "Increases mana regeneration",
-    effect: BrewEffect::ManaRegenMultiplier(2.0),
-};
-
-const MUGWORT_CONFIG: IngredientConfig = IngredientConfig {
-    name: "Mugwort",
-    description: "Increases spell power",
-    effect: BrewEffect::SpellPowerMultiplier(1.5),
-};
 
 impl Ingredient {
     /// Returns the static configuration for this ingredient.
@@ -42,12 +41,17 @@ impl Ingredient {
         match self {
             Ingredient::Lavender => &LAVENDER_CONFIG,
             Ingredient::Mugwort => &MUGWORT_CONFIG,
+            Ingredient::Yarrow => &YARROW_CONFIG,
         }
     }
 
     /// Returns all available ingredients.
     pub const fn all() -> &'static [Ingredient] {
-        &[Ingredient::Lavender, Ingredient::Mugwort]
+        &[
+            Ingredient::Lavender,
+            Ingredient::Mugwort,
+            Ingredient::Yarrow,
+        ]
     }
 
     /// Returns the display name for this ingredient.
@@ -66,10 +70,6 @@ impl Ingredient {
 pub struct Recipe {
     pub ingredients: Vec<Ingredient>,
 }
-
-const BASE_BREW_TIME: f32 = 6.0;
-const PER_INGREDIENT_BREW_TIME: f32 = 2.0;
-const BUFF_DURATION: f32 = 30.0;
 
 impl Recipe {
     /// Creates a new recipe from a list of ingredients.
@@ -107,17 +107,38 @@ impl Recipe {
             })
             .collect()
     }
+
+    /// Returns the averaged color of all ingredients in the recipe.
+    pub fn color(&self) -> Color {
+        if self.ingredients.is_empty() {
+            return Color::WHITE;
+        }
+        let count = self.ingredients.len() as f32;
+        let (mut r, mut g, mut b) = (0.0, 0.0, 0.0);
+        for ingredient in &self.ingredients {
+            let Srgba {
+                red, green, blue, ..
+            } = ingredient.config().color.to_srgba();
+            r += red;
+            g += green;
+            b += blue;
+        }
+        Color::srgb(r / count, g / count, b / count)
+    }
 }
 
 /// Applies dilution to an effect's magnitude.
 /// Formula: effective = 1.0 + (base - 1.0) * dilution
 fn dilute_effect(effect: BrewEffect, dilution: f32) -> BrewEffect {
     match effect {
+        // Multiplier effects: neutral base is 1.0
         BrewEffect::ManaRegenMultiplier(v) => {
             BrewEffect::ManaRegenMultiplier(1.0 + (v - 1.0) * dilution)
         }
         BrewEffect::SpellPowerMultiplier(v) => {
             BrewEffect::SpellPowerMultiplier(1.0 + (v - 1.0) * dilution)
         }
+        // Flat effects: neutral base is 0.0
+        BrewEffect::DefenderHealPerSecond(v) => BrewEffect::DefenderHealPerSecond(v * dilution),
     }
 }

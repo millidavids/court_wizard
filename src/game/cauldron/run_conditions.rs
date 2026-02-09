@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{Cauldron, CauldronState};
+use super::components::{BrewBubble, Cauldron, CauldronState};
 use super::resources::CauldronBuffs;
 
 /// Returns true if the cauldron is currently brewing.
@@ -11,4 +11,9 @@ pub fn cauldron_is_brewing(query: Query<&CauldronState, With<Cauldron>>) -> bool
 /// Returns true if any cauldron buffs are currently active.
 pub fn has_active_buffs(cauldron_buffs: Res<CauldronBuffs>) -> bool {
     cauldron_buffs.has_active_buffs()
+}
+
+/// Returns true if any brew bubbles exist in the world.
+pub fn has_brew_bubbles(query: Query<(), With<BrewBubble>>) -> bool {
+    !query.is_empty()
 }
