@@ -18,6 +18,7 @@ use super::rune_display::RuneDisplayPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
 use super::version::VersionPlugin;
+use super::wizard_tower::WizardTowerPlugin;
 use crate::game::input::messages::MouseClicked;
 
 /// System set for all button action handlers.
@@ -45,6 +46,7 @@ impl Plugin for UiPlugin {
             ConcentrationUIPlugin,
             RuneDisplayPlugin,
             GameOverPlugin,
+            WizardTowerPlugin,
             VersionPlugin,
         ))
         .configure_sets(

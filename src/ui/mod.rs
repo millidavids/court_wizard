@@ -20,6 +20,7 @@ mod spell_book;
 mod styles;
 mod systems;
 mod version;
+mod wizard_tower;
 
 pub use plugin::UiPlugin;
 pub use resources::CustomFont;

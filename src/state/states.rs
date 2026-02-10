@@ -69,7 +69,9 @@ pub enum MenuState {
 /// - `Running` → `CauldronMenu`: Player clicks Cauldron button
 /// - `CauldronMenu` → `Running`: Player selects a brew or closes cauldron menu
 /// - `Running` → `GameOver`: Game ends (win or lose)
-/// - `GameOver` → `Running`: Player clicks Play Again
+/// - `GameOver` → `WizardTower`: Player wins and clicks Continue
+/// - `GameOver` → `Loading`: Player loses and clicks Try Again (immediate retry)
+/// - `WizardTower` → `Loading`: Player clicks Start Next Battle
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::InGame)]
 pub enum InGameState {
@@ -88,6 +90,9 @@ pub enum InGameState {
 
     /// Game over screen (win or lose).
     GameOver,
+
+    /// Wizard's Tower screen - progression and maintenance between battles.
+    WizardTower,
 }
 
 /// Pause menu navigation state.

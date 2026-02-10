@@ -5,7 +5,7 @@ use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
-use crate::state::AppState;
+use crate::state::{AppState, InGameState};
 use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
@@ -137,18 +137,12 @@ pub(super) fn setup_game_over_screen(
                         ));
                     }
 
-                    // Play Again button with level progression indicator
+                    // Play Again button text depends on outcome
                     let button_text = match *game_outcome {
-                        GameOutcome::Victory => {
-                            format!("Advance to Level {}", current_level.0 + 1)
-                        }
+                        GameOutcome::Victory => "Continue".to_string(),
                         GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
                             let next_level = current_level.0.saturating_sub(1).max(1);
-                            if next_level < current_level.0 {
-                                format!("Drop to Level {}", next_level)
-                            } else {
-                                format!("Stay at Level {}", next_level)
-                            }
+                            format!("Try Again (Level {})", next_level)
                         }
                     };
 
@@ -281,17 +275,28 @@ pub(super) fn setup_game_over_screen(
 pub(super) fn handle_button_actions(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&GameOverButtonAction>,
+    game_outcome: Res<GameOutcome>,
     mut next_app_state: ResMut<NextState<AppState>>,
+    mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut kill_stats: ResMut<KillStats>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 GameOverButtonAction::PlayAgain => {
-                    // Reset stats and go to Loading state to clean up corpses and reload units
-                    // (level was already updated and saved when entering GameOver state)
-                    kill_stats.reset();
-                    next_app_state.set(AppState::Loading);
+                    // Victory: Go to Wizard Tower for progression
+                    // Defeat: Immediate retry, skip tower
+                    match *game_outcome {
+                        GameOutcome::Victory => {
+                            // Go to Wizard Tower (don't reset stats yet)
+                            next_in_game_state.set(InGameState::WizardTower);
+                        }
+                        GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
+                            // Immediate retry: reset stats and reload
+                            kill_stats.reset();
+                            next_app_state.set(AppState::Loading);
+                        }
+                    }
                 }
                 GameOverButtonAction::ReturnToMenu => {
                     // Reset stats and go to main menu (exits InGame state)

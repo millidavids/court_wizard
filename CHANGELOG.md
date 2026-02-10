@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.497] - 2025-02-09
+
+### Added
+- **Wizard's Tower progression screen** appears after winning a battle
+  - Victory now takes you to the tower before starting the next level
+  - New screen shows your current level and lets you prepare for the next battle
+  - "Start Next Battle" button to continue your journey
+  - "Return to Menu" button if you want to take a break
+  - Defeats skip the tower and let you retry immediately at a lower level
+  - Placeholder for future features like spell unlocking, upgrades, and rewards
+
+### Changed
+- Victory screen now shows "Continue" button instead of level progression text
+- Defeat screen shows "Try Again (Level X)" to indicate immediate retry
+
 ## [v0.0.495] - 2025-02-09
 
 ### Added
