@@ -14,8 +14,11 @@ pub(super) struct OnLandingScreen;
 /// a button is pressed.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum MenuButtonAction {
-    /// Start a new game, transitioning to `AppState::InGame`.
+    /// Start a new game, transitioning to wizard select screen.
     StartGame,
+
+    /// Continue an existing save file.
+    Continue,
 
     /// Open the settings menu, transitioning to `MenuState::Settings`.
     Settings,

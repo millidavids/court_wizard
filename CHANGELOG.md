@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.504] - 2025-02-10
+
+### Added
+- **Wizard type selection screen** after clicking "Begin, Wizard" on the main menu
+  - Choose your wizard type before starting a new game (currently RuneCaster)
+  - Enter a unique name for your wizard to identify your save
+- **Multiple save files** — up to 3 separate saves, each with their own wizard, level, and progress
+- **"Continue" button** on the main menu to resume a previous save
+  - If you have one save, it loads directly
+  - If you have multiple saves, a save selection screen lets you pick which one to continue
+  - Delete saves you no longer want from the save selection screen
+- Old progress from before this update is automatically carried over to your first save slot
+
+### Fixed
+- Fixed a bug where clicking a menu button could cause the wizard to cast a spell when the battle starts
+
 ## [v0.0.497] - 2025-02-09
 
 ### Added

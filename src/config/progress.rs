@@ -4,7 +4,6 @@ use std::fmt::Write;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::resources::GameConfig;
 use super::storage;
 
 /// Secret key constants for the keyed hash. Compiled into the WASM binary.
@@ -28,7 +27,7 @@ struct SignedProgress {
 
 /// Computes a keyed hash of the input bytes using SipHash-style mixing.
 /// Returns a 128-bit hash as two u64 values.
-fn keyed_hash(data: &[u8]) -> u128 {
+pub(crate) fn keyed_hash(data: &[u8]) -> u128 {
     let mut v0: u64 = KEY_A;
     let mut v1: u64 = KEY_B;
     let mut v2: u64 = KEY_A ^ 0xFF51_AFD7_ED55_8CCD;
@@ -127,7 +126,7 @@ fn keyed_hash(data: &[u8]) -> u128 {
 }
 
 /// Converts a u128 to a hex string.
-fn to_hex(value: u128) -> String {
+pub(crate) fn to_hex(value: u128) -> String {
     let bytes = value.to_be_bytes();
     let mut hex = String::with_capacity(32);
     for byte in &bytes {
@@ -141,29 +140,6 @@ fn compute_signature(data: &ProgressData) -> String {
     let canonical = toml::to_string(data).unwrap_or_default();
     let hash = keyed_hash(canonical.as_bytes());
     to_hex(hash)
-}
-
-/// Saves signed progress to localStorage.
-pub(crate) fn save_signed_progress(config: &GameConfig) {
-    let data = ProgressData {
-        current_level: config.current_level,
-        highest_level_achieved: config.highest_level_achieved,
-        efficiency_ratios: config.efficiency_ratios.clone(),
-    };
-
-    let signature = compute_signature(&data);
-    let signed = SignedProgress { signature, data };
-
-    match toml::to_string_pretty(&signed) {
-        Ok(toml_string) => {
-            if let Err(e) = storage::save_progress(&toml_string) {
-                error!("Failed to save signed progress: {}", e);
-            }
-        }
-        Err(e) => {
-            error!("Failed to serialize signed progress: {}", e);
-        }
-    }
 }
 
 /// Loads and verifies progress from localStorage.

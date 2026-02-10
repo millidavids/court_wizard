@@ -95,6 +95,33 @@ pub enum Difficulty {
     Hard,
 }
 
+/// Wizard class types available for selection.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum WizardType {
+    /// Rune-based caster - the classic wizard type.
+    #[default]
+    RuneCaster,
+}
+
+impl WizardType {
+    /// Returns the display name for this wizard type.
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            WizardType::RuneCaster => "RuneCaster",
+        }
+    }
+
+    /// Returns all available wizard types.
+    pub const fn all() -> &'static [WizardType] {
+        &[WizardType::RuneCaster]
+    }
+}
+
+/// Tracks which save slot is currently active.
+/// None means no save is loaded (main menu before selection).
+#[derive(Resource, Default)]
+pub struct ActiveSave(pub Option<usize>);
+
 /// Default current level for serde deserialization.
 fn default_current_level() -> u32 {
     1
@@ -116,7 +143,10 @@ fn default_action_bar_slots() -> [Option<Spell>; 5] {
 }
 
 /// Serialize action bar slots as a map with string keys, filtering out None values.
-fn serialize_action_bar<S>(slots: &[Option<Spell>; 5], serializer: S) -> Result<S::Ok, S::Error>
+pub(crate) fn serialize_action_bar<S>(
+    slots: &[Option<Spell>; 5],
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -131,7 +161,9 @@ where
 }
 
 /// Deserialize action bar slots from a map of string indices to spells.
-fn deserialize_action_bar<'de, D>(deserializer: D) -> Result<[Option<Spell>; 5], D::Error>
+pub(crate) fn deserialize_action_bar<'de, D>(
+    deserializer: D,
+) -> Result<[Option<Spell>; 5], D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -201,6 +233,12 @@ pub struct GameConfig {
         deserialize_with = "deserialize_action_bar"
     )]
     pub action_bar_slots: [Option<Spell>; 5],
+    /// Active wizard type for the current save
+    #[serde(default)]
+    pub wizard_type: WizardType,
+    /// Name of the wizard for the current save
+    #[serde(default)]
+    pub wizard_name: String,
 }
 
 impl Default for GameConfig {
@@ -216,6 +254,8 @@ impl Default for GameConfig {
             highest_level_achieved: 1,
             efficiency_ratios: HashMap::new(),
             action_bar_slots: [None; 5],
+            wizard_type: WizardType::default(),
+            wizard_name: String::new(),
         }
     }
 }

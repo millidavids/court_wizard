@@ -41,6 +41,11 @@ impl Plugin for InputPlugin {
             .add_message::<BlockSpellInput>()
             .add_message::<MouseClicked>()
             .add_message::<ActionBarKeyPressed>()
+            // Clear stale mouse state on entering gameplay
+            .add_systems(
+                OnEnter(InGameState::Running),
+                systems::clear_mouse_input_state,
+            )
             // Add input detection systems
             .add_systems(
                 Update,

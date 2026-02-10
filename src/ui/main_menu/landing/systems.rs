@@ -3,6 +3,8 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
+use crate::config::save_data;
+use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, MenuState};
 use crate::ui::resources::CustomFont;
@@ -16,6 +18,8 @@ use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 /// Spawns the root UI node containing the title and menu buttons.
 /// All spawned entities are marked with `OnLandingScreen` for cleanup.
 pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
+    let has_saves = !save_data::load_all_summaries().is_empty();
+
     // Root container - full screen, centered content in a column
     commands
         .spawn((
@@ -54,6 +58,17 @@ pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                 &BUTTON_STYLE,
                 &custom_font,
             );
+
+            // Continue button (only if saves exist)
+            if has_saves {
+                spawn_button(
+                    parent,
+                    "Continue",
+                    MenuButtonAction::Continue,
+                    &BUTTON_STYLE,
+                    &custom_font,
+                );
+            }
 
             // Settings button
             spawn_button(
@@ -101,12 +116,32 @@ pub fn button_action(
     button_query: Query<&MenuButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut game_config: ResMut<GameConfig>,
+    mut active_save: ResMut<ActiveSave>,
+    mut config_events: MessageWriter<ConfigChanged>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 MenuButtonAction::StartGame => {
-                    next_app_state.set(AppState::Loading);
+                    next_menu_state.set(MenuState::WizardSelect);
+                }
+                MenuButtonAction::Continue => {
+                    let saves = save_data::load_all_summaries();
+                    if saves.len() == 1 {
+                        // Single save: load directly and start
+                        if save_data::load_save_into_config(
+                            saves[0].slot,
+                            &mut game_config,
+                            &mut active_save,
+                        ) {
+                            config_events.write(ConfigChanged);
+                            next_app_state.set(AppState::Loading);
+                        }
+                    } else if saves.len() > 1 {
+                        // Multiple saves: go to save select screen
+                        next_menu_state.set(MenuState::SaveSelect);
+                    }
                 }
                 MenuButtonAction::Settings => {
                     next_menu_state.set(MenuState::Settings);

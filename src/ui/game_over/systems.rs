@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::config::{ConfigChanged, GameConfig};
+use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
@@ -279,6 +279,7 @@ pub(super) fn handle_button_actions(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut kill_stats: ResMut<KillStats>,
+    mut active_save: ResMut<ActiveSave>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -299,8 +300,9 @@ pub(super) fn handle_button_actions(
                     }
                 }
                 GameOverButtonAction::ReturnToMenu => {
-                    // Reset stats and go to main menu (exits InGame state)
+                    // Reset stats, clear active save, and go to main menu
                     kill_stats.reset();
+                    active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }
             }

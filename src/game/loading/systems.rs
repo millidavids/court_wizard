@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::resources::LoadingProgress;
 use super::spawn_queue::{SpawnQueue, SpawnTask};
+use crate::config::GameConfig;
 use crate::game::constants::*;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
@@ -12,7 +13,14 @@ use crate::game::units::infantry::systems as infantry_systems;
 use crate::state::AppState;
 
 /// Initializes the loading progress tracker and spawn queue.
-pub fn init_loading_progress(mut commands: Commands, current_level: Res<CurrentLevel>) {
+pub fn init_loading_progress(
+    mut commands: Commands,
+    mut current_level: ResMut<CurrentLevel>,
+    config: Res<GameConfig>,
+) {
+    // Sync CurrentLevel from GameConfig (may have been updated by save loading)
+    current_level.0 = config.current_level;
+
     commands.insert_resource(LoadingProgress::new());
 
     let mut queue = SpawnQueue::new();

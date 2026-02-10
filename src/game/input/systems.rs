@@ -13,6 +13,22 @@ use super::{
     messages::*,
 };
 
+/// Clears all mouse input state to prevent stale events from carrying across state transitions.
+///
+/// Runs on entering `InGameState::Running` to ensure menu clicks don't trigger
+/// spell casts when the game begins.
+pub fn clear_mouse_input_state(
+    mut mouse: ResMut<ButtonInput<MouseButton>>,
+    mut mouse_state: ResMut<MouseButtonState>,
+    mut mouse_left_held_state: ResMut<MouseLeftHeldThisFrame>,
+    mut mouse_right_held_state: ResMut<MouseRightHeldThisFrame>,
+) {
+    mouse.clear();
+    mouse_state.left_consumed = false;
+    mouse_left_held_state.held = false;
+    mouse_right_held_state.held = false;
+}
+
 /// Detects mouse button input and sends messages.
 ///
 /// Runs once per frame to query mouse state and fire appropriate messages.

@@ -53,6 +53,12 @@ pub enum MenuState {
 
     /// Credits screen.
     Credits,
+
+    /// Wizard type selection screen for starting a new save.
+    WizardSelect,
+
+    /// Save file selection screen for continuing an existing save.
+    SaveSelect,
 }
 
 /// InGame sub-state.

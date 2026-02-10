@@ -3,6 +3,7 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
+use crate::config::ActiveSave;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, PauseMenuState};
 use crate::ui::resources::CustomFont;
@@ -105,6 +106,7 @@ pub fn button_action(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
+    mut active_save: ResMut<ActiveSave>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -119,6 +121,7 @@ pub fn button_action(
                     next_pause_menu_state.set(PauseMenuState::Instructions);
                 }
                 PauseMenuButtonAction::Exit => {
+                    active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }
             }

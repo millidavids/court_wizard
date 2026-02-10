@@ -70,6 +70,7 @@ impl Plugin for ConfigPlugin {
     fn build(&self, app: &mut App) {
         // Insert resources
         app.init_resource::<super::resources::SaveDebounceTimer>();
+        app.init_resource::<super::resources::ActiveSave>();
         // NOTE: ConfigFile is NOT a resource - it's only used for serialization
 
         // Add messages

@@ -75,6 +75,7 @@ pub(super) fn load_config() -> ConfigResult<String> {
 const PROGRESS_KEY: &str = "court_wizard_progress";
 
 /// Saves signed progress string to browser localStorage.
+#[allow(dead_code)]
 pub(super) fn save_progress(data: &str) -> ConfigResult<()> {
     let window = window()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
@@ -113,6 +114,94 @@ pub(super) fn load_progress() -> ConfigResult<String> {
         })?;
 
     Ok(data)
+}
+
+/// Returns the localStorage key for a save slot.
+fn save_slot_key(slot: usize) -> String {
+    format!("court_wizard_save_{slot}")
+}
+
+/// Saves signed save data to a specific slot in localStorage.
+pub(super) fn save_slot(slot: usize, data: &str) -> ConfigResult<()> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    storage
+        .set_item(&save_slot_key(slot), data)
+        .map_err(|_| std::io::Error::other("Failed to save slot to localStorage"))?;
+    Ok(())
+}
+
+/// Loads signed save data from a specific slot in localStorage.
+pub(super) fn load_slot(slot: usize) -> ConfigResult<String> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    let data = storage
+        .get_item(&save_slot_key(slot))
+        .map_err(|_| std::io::Error::other("Failed to read slot from localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "No save found in slot")
+        })?;
+
+    Ok(data)
+}
+
+/// Deletes a save slot from localStorage.
+pub(super) fn delete_slot(slot: usize) -> ConfigResult<()> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    storage
+        .remove_item(&save_slot_key(slot))
+        .map_err(|_| std::io::Error::other("Failed to delete slot from localStorage"))?;
+    Ok(())
+}
+
+/// Checks if a save slot exists in localStorage.
+pub(super) fn slot_exists(slot: usize) -> bool {
+    let Ok(window) = window().ok_or(()) else {
+        return false;
+    };
+    let Ok(Some(storage)) = window.local_storage() else {
+        return false;
+    };
+    matches!(storage.get_item(&save_slot_key(slot)), Ok(Some(_)))
+}
+
+/// Deletes the legacy progress key from localStorage (used during migration).
+pub(super) fn delete_progress() -> ConfigResult<()> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    storage
+        .remove_item(PROGRESS_KEY)
+        .map_err(|_| std::io::Error::other("Failed to delete progress from localStorage"))?;
+    Ok(())
 }
 
 /// Clears config from localStorage.

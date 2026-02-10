@@ -4,6 +4,7 @@ use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowResiz
 use super::messages::*;
 use super::progress;
 use super::resources::*;
+use super::save_data;
 use super::storage;
 
 /// System that loads configuration from localStorage at startup and applies settings.
@@ -70,6 +71,8 @@ pub(super) fn load_and_apply_config(
         highest_level_achieved: config_file.game.highest_level_achieved,
         efficiency_ratios: config_file.game.efficiency_ratios,
         action_bar_slots: config_file.game.action_bar_slots,
+        wizard_type: config_file.game.wizard_type,
+        wizard_name: config_file.game.wizard_name,
     };
     // Verify progress against signed copy in localStorage
     match progress::load_verified_progress() {
@@ -86,6 +89,9 @@ pub(super) fn load_and_apply_config(
             game_config.efficiency_ratios = std::collections::HashMap::new();
         }
     }
+
+    // Migrate legacy single-save progress to slot 0 if needed
+    save_data::migrate_legacy_progress(&game_config);
 
     commands.insert_resource(game_config);
 
@@ -189,6 +195,7 @@ pub(super) fn save_config_on_debounce_timer(
     time: Res<Time>,
     mut debounce_timer: ResMut<SaveDebounceTimer>,
     game_config: Res<GameConfig>,
+    active_save: Res<ActiveSave>,
 ) {
     if !debounce_timer.pending {
         return;
@@ -197,7 +204,7 @@ pub(super) fn save_config_on_debounce_timer(
     debounce_timer.timer.tick(time.delta());
 
     if debounce_timer.timer.is_finished() {
-        persist_config(&game_config);
+        persist_config(&game_config, &active_save);
         debounce_timer.pending = false;
     }
 }
@@ -216,12 +223,13 @@ pub(super) fn save_config_on_debounce_timer(
 pub(super) fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigMessage>,
     game_config: Res<GameConfig>,
+    active_save: Res<ActiveSave>,
 ) {
     if save_events.read().count() == 0 {
         return;
     }
 
-    persist_config(&game_config);
+    persist_config(&game_config, &active_save);
 }
 
 /// Saves current state to localStorage by reading from Bevy components.
@@ -240,7 +248,7 @@ pub(super) fn save_config_on_event(
 /// * `window_config` - Window configuration resource
 /// * `audio_config` - Audio configuration resource
 /// * `game_config` - Game configuration resource
-fn persist_config(game_config: &GameConfig) {
+fn persist_config(game_config: &GameConfig, active_save: &ActiveSave) {
     // Build ConfigFile from current state
     let config_file = build_config_from_game_config(game_config);
 
@@ -259,8 +267,8 @@ fn persist_config(game_config: &GameConfig) {
         }
     }
 
-    // Also save signed progress
-    progress::save_signed_progress(game_config);
+    // Save progress to active save slot (replaces old signed progress)
+    save_data::save_config_to_active_slot(game_config, active_save);
 }
 
 /// Builds ConfigFile from current GameConfig.

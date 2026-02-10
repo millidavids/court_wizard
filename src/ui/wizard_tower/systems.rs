@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::config::ActiveSave;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, KillStats};
 use crate::state::AppState;
@@ -83,6 +84,7 @@ pub(super) fn handle_button_actions(
     button_query: Query<&WizardTowerButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut kill_stats: ResMut<KillStats>,
+    mut active_save: ResMut<ActiveSave>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -94,8 +96,9 @@ pub(super) fn handle_button_actions(
                     next_app_state.set(AppState::Loading);
                 }
                 WizardTowerButtonAction::ReturnToMenu => {
-                    // Reset stats and return to main menu
+                    // Reset stats, clear active save, and return to main menu
                     kill_stats.reset();
+                    active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }
             }
