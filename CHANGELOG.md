@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.513] - 2025-02-10
+
+### Fixed
+- **King death detection now works reliably** — the game correctly ends when the King dies
+  - Previously, the King sometimes wouldn't trigger defeat when killed
+  - Fixed by ensuring the King becomes a corpse when health reaches zero
+  - Simplified defeat check to directly look for a dead King instead of tracking spawn status
+- **Behemoth now attacks at regular intervals** instead of attacking every single frame
+  - Fixed attack timing system to properly record attacks and respect the global attack cycle
+- **All units can now attack properly regardless of height differences**
+  - Attack range is now measured using horizontal distance only (ignoring vertical position)
+  - This fixes issues where tall units like the Behemoth couldn't reach ground-level enemies
+  - Applies to all combat: melee attacks, archer melee, and Behemoth AOE attacks
+
 ## [v0.0.504] - 2025-02-10
 
 ### Added

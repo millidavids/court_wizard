@@ -4,7 +4,7 @@ use crate::state::InGameState;
 
 use super::resources::GameOutcome;
 use super::units::components::{Corpse, Team};
-use super::units::king::components::{King, KingSpawned};
+use super::units::king::components::King;
 
 /// Checks win/lose conditions every frame and transitions to GameOver state.
 ///
@@ -14,11 +14,11 @@ pub fn check_win_lose_conditions(
     mut next_state: ResMut<NextState<InGameState>>,
     mut game_outcome: ResMut<GameOutcome>,
     units: Query<&Team, Without<Corpse>>,
-    king_spawned: Res<KingSpawned>,
-    kings: Query<&King, Without<Corpse>>,
+    dead_kings: Query<&King, With<Corpse>>,
 ) {
     // Check King death first (highest priority lose condition)
-    if king_spawned.0 && kings.iter().next().is_none() {
+    // If a dead King corpse exists, the game is lost
+    if dead_kings.iter().next().is_some() {
         *game_outcome = GameOutcome::DefeatKingDied;
         next_state.set(InGameState::GameOver);
         return;

@@ -238,7 +238,10 @@ pub fn archer_melee_combat(
                 *entity != archer_entity && is_valid_target(archer_team, team)
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
-                let distance = archer_transform.translation.distance(*target_pos);
+                // Calculate distance on XZ plane only (ignore Y axis for attack range)
+                let dx = archer_transform.translation.x - target_pos.x;
+                let dz = archer_transform.translation.z - target_pos.z;
+                let distance = (dx * dx + dz * dz).sqrt();
                 let melee_range =
                     (archer_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
                 if distance <= melee_range {

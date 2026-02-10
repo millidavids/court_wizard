@@ -196,8 +196,8 @@ pub fn behemoth_movement(
 pub fn track_behemoth_attack_target(
     attack_cycle: Res<crate::game::plugin::GlobalAttackCycle>,
     mut attack_events: MessageWriter<BehemothAttackMessage>,
-    behemoths: Query<
-        (Entity, &Transform, &Hitbox, &Team, &AttackTiming),
+    mut behemoths: Query<
+        (Entity, &Transform, &Hitbox, &Team, &mut AttackTiming),
         (With<Behemoth>, Without<Corpse>),
     >,
     all_units: Query<(Entity, &Transform, &Hitbox, &Team), Without<Corpse>>,
@@ -211,8 +211,8 @@ pub fn track_behemoth_attack_target(
         .map(|(entity, transform, hitbox, team)| (entity, transform.translation, *hitbox, *team))
         .collect();
 
-    for (behemoth_entity, behemoth_transform, behemoth_hitbox, behemoth_team, attack_timing) in
-        &behemoths
+    for (behemoth_entity, behemoth_transform, behemoth_hitbox, behemoth_team, mut attack_timing) in
+        &mut behemoths
     {
         // Only track target when behemoth is about to attack
         if attack_timing.can_attack(current_time, last_time) {
@@ -229,7 +229,10 @@ pub fn track_behemoth_attack_target(
                         }
                 })
                 .filter_map(|(entity, target_pos, target_hitbox, _)| {
-                    let distance = behemoth_transform.translation.distance(*target_pos);
+                    // Calculate distance on XZ plane only (ignore Y axis for attack range)
+                    let dx = behemoth_transform.translation.x - target_pos.x;
+                    let dz = behemoth_transform.translation.z - target_pos.z;
+                    let distance = (dx * dx + dz * dz).sqrt();
                     let attack_range = (behemoth_hitbox.radius + target_hitbox.radius)
                         * crate::game::constants::ATTACK_RANGE_MULTIPLIER;
                     if distance <= attack_range {
@@ -245,6 +248,9 @@ pub fn track_behemoth_attack_target(
                     target_position: *target_pos,
                     behemoth_team: *behemoth_team,
                 });
+
+                // Record the attack to respect the attack cycle
+                attack_timing.record_attack(current_time);
             }
         }
     }
@@ -267,8 +273,10 @@ pub fn behemoth_aoe_splash_damage(
                 continue;
             }
 
-            // Calculate distance from target position to this unit
-            let distance_to_target = unit_transform.translation.distance(event.target_position);
+            // Calculate distance from target position to this unit (XZ plane only)
+            let dx = unit_transform.translation.x - event.target_position.x;
+            let dz = unit_transform.translation.z - event.target_position.z;
+            let distance_to_target = (dx * dx + dz * dz).sqrt();
 
             // Check if within AOE radius (accounting for hitbox)
             if distance_to_target <= BEHEMOTH_AOE_RADIUS + hitbox.radius {

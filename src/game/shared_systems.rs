@@ -373,7 +373,10 @@ pub fn combat(
                     }
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
-                let distance = attacker_transform.translation.distance(*target_pos);
+                // Calculate distance on XZ plane only (ignore Y axis for attack range)
+                let dx = attacker_transform.translation.x - target_pos.x;
+                let dz = attacker_transform.translation.z - target_pos.z;
+                let distance = (dx * dx + dz * dz).sqrt();
                 let attack_range =
                     (attacker_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
                 if distance <= attack_range {
@@ -419,20 +422,24 @@ pub fn convert_dead_to_corpses(
             &Transform,
             Option<&Infantry>,
             Option<&Archer>,
+            Option<&super::units::king::components::King>,
         ),
         Without<Corpse>,
     >,
     infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
     archer_assets: Res<super::units::archer::resources::ArcherAssets>,
+    king_assets: Res<super::units::king::resources::KingAssets>,
     mut velocity_query: Query<&mut Velocity>,
 ) {
-    for (entity, health, team, transform, is_infantry, is_archer) in &query {
+    for (entity, health, team, transform, is_infantry, is_archer, is_king) in &query {
         if health.is_dead() {
             // Record the kill
             kill_stats.record_kill(*team);
 
             // Replace with appropriate corpse material
-            let corpse_material = if is_infantry.is_some() {
+            let corpse_material = if is_king.is_some() {
+                king_assets.corpse_material.clone()
+            } else if is_infantry.is_some() {
                 match team {
                     Team::Defenders => infantry_assets.defender_corpse_material.clone(),
                     Team::Attackers => infantry_assets.attacker_corpse_material.clone(),

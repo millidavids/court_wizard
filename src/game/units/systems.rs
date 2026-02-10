@@ -58,8 +58,10 @@ pub fn update_melee_unit_targeting(
         let direction = (target_pos - transform.translation).normalize_or_zero();
         targeting_velocity.velocity = Vec3::new(direction.x, 0.0, direction.z);
 
-        // Store distance for formation weighting
-        let distance = transform.translation.distance(target_pos);
+        // Store distance for formation weighting (XZ plane only)
+        let dx = transform.translation.x - target_pos.x;
+        let dz = transform.translation.z - target_pos.z;
+        let distance = (dx * dx + dz * dz).sqrt();
         targeting_velocity.distance_to_target = distance;
 
         // Check if enemy is in melee range
