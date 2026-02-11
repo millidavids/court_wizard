@@ -2,8 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
-
 ## [v0.0.564] - 2025-02-11
 
 ### Added
