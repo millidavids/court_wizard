@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::config::{GameConfig, WizardType};
 use crate::state::InGameState;
 
 /// Run condition that returns true only when transitioning from GameOver to Running.
@@ -23,4 +24,14 @@ pub fn coming_from_game_over(
 /// This is more efficient than running systems with empty queries every frame.
 pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
     |query: Query<(), With<T>>| !query.is_empty()
+}
+
+/// Returns true if the active wizard type is RuneCaster.
+pub fn is_rune_caster(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::RuneCaster
+}
+
+/// Returns true if the active wizard type is Randomancer.
+pub fn is_randomancer(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::Randomancer
 }

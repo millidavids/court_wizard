@@ -101,6 +101,8 @@ pub enum WizardType {
     /// Rune-based caster - the classic wizard type.
     #[default]
     RuneCaster,
+    /// Randomancer - spins a roulette wheel for powerful random spells.
+    Randomancer,
 }
 
 impl WizardType {
@@ -108,12 +110,21 @@ impl WizardType {
     pub const fn display_name(&self) -> &'static str {
         match self {
             WizardType::RuneCaster => "RuneCaster",
+            WizardType::Randomancer => "Randomancer",
+        }
+    }
+
+    /// Returns a short description of this wizard type's playstyle.
+    pub const fn description(&self) -> &'static str {
+        match self {
+            WizardType::RuneCaster => "Master rune sequences to empower your spells.",
+            WizardType::Randomancer => "Spin the wheel of fate for powerful random spells.",
         }
     }
 
     /// Returns all available wizard types.
     pub const fn all() -> &'static [WizardType] {
-        &[WizardType::RuneCaster]
+        &[WizardType::RuneCaster, WizardType::Randomancer]
     }
 }
 

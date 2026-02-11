@@ -9,7 +9,6 @@ use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::pathfinding::PathfindingPlugin;
 use super::resources::{CurrentLevel, GameOutcome, KillStats};
-use super::runes::RunePlugin;
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -81,7 +80,6 @@ impl Plugin for GamePlugin {
                 LoadingPlugin,
                 BattlefieldPlugin,
                 UnitsPlugin,
-                RunePlugin,
                 CauldronPlugin,
                 PathfindingPlugin,
             ))

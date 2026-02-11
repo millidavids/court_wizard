@@ -4,8 +4,8 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::MouseClicked;
-use crate::game::runes::resources::Rune;
-use crate::game::runes::{LastActivatedSpell, RuneSequence};
+use crate::game::units::wizard::archetypes::runes::resources::Rune;
+use crate::game::units::wizard::archetypes::runes::{LastActivatedSpell, RuneSequence};
 use crate::ui::components::ButtonColors;
 use crate::ui::resources::CustomFont;
 
@@ -109,7 +109,7 @@ pub(super) fn handle_rune_button_click(
     for event in button_clicked.read() {
         if let Ok(rune_button) = button_query.get(event.button) {
             // Add rune to sequence (respects max length and prevents duplicates)
-            if sequence.len() < crate::game::runes::constants::MAX_RUNE_SEQUENCE_LENGTH {
+            if sequence.len() < crate::game::units::wizard::archetypes::runes::constants::MAX_RUNE_SEQUENCE_LENGTH {
                 sequence.push(rune_button.rune);
             }
         }

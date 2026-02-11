@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.536] - 2025-02-10
+
+### Added
+- **New wizard archetype: Randomancer** — a second way to play with different mechanics
+  - Press SPACE to spin a colorful roulette wheel that randomly selects a spell
+  - Selected spells are empowered with 1.75x power (higher than RuneCaster's 1.25x)
+  - Adds unpredictability and forces you to adapt to whatever spell you get
+  - Choose your archetype (RuneCaster or Randomancer) when starting a new game
+- **Roulette wheel UI** with smooth spinning animation
+  - Displays as a colorful spinning wheel at the bottom of the screen
+  - Spins for 2 seconds with smooth deceleration before landing on a random spell
+  - Shows the selected spell name above the wheel after spinning
+  - Triangle indicator points to the selected wedge
+
+### Changed
+- **Save system now uses encrypted format** instead of signed checksums
+  - Saves are now obfuscated with XOR encryption and base64 encoding
+  - No more false "tampered save" warnings after game updates
+  - Save format is simpler and more robust
+
+### Fixed
+- **Roulette wheel state resets properly** when the game ends but not when pausing
+
+### Technical
+- Reorganized code structure: archetype systems (runes and roulette) moved into `wizard/archetypes/` module
+
 ## [v0.0.513] - 2025-02-10
 
 ### Fixed

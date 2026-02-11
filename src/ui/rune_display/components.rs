@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::runes::resources::Rune;
+use crate::game::units::wizard::archetypes::runes::resources::Rune;
 
 /// Marker for the root rune display container.
 #[derive(Component)]

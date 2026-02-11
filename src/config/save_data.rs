@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::game::units::wizard::components::Spell;
 
-use super::progress::{keyed_hash, load_verified_progress, to_hex};
+use super::progress::{keyed_hash, load_verified_progress};
 use super::resources::{
     ActiveSave, GameConfig, WizardType, deserialize_action_bar, serialize_action_bar,
 };
@@ -30,13 +30,6 @@ pub(crate) struct SaveData {
     pub(crate) action_bar_slots: [Option<Spell>; 5],
 }
 
-/// Signed save data container with data and its signature.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SignedSaveData {
-    signature: String,
-    data: SaveData,
-}
-
 /// Lightweight summary for displaying saves in menus.
 #[derive(Debug, Clone)]
 pub(crate) struct SaveSummary {
@@ -48,24 +41,100 @@ pub(crate) struct SaveSummary {
     pub(crate) highest_level_achieved: u32,
 }
 
-/// Computes the signature for the given save data.
-fn compute_save_signature(data: &SaveData) -> String {
-    let canonical = toml::to_string(data).unwrap_or_default();
-    let hash = keyed_hash(canonical.as_bytes());
-    to_hex(hash)
+/// Simple XOR cipher for obfuscating save data.
+/// Uses a key derived from the slot number and a secret constant.
+fn obfuscate(data: &[u8], slot: usize) -> Vec<u8> {
+    // Generate a keystream from the slot number
+    let seed = format!("save_slot_{}", slot);
+    let key_hash = keyed_hash(seed.as_bytes());
+    let key_bytes = key_hash.to_le_bytes();
+
+    data.iter()
+        .enumerate()
+        .map(|(i, &byte)| byte ^ key_bytes[i % key_bytes.len()])
+        .collect()
 }
 
-/// Saves save data to a specific slot in localStorage (signed).
-pub(crate) fn save_to_slot(slot: usize, data: &SaveData) {
-    let signature = compute_save_signature(data);
-    let signed = SignedSaveData {
-        signature,
-        data: data.clone(),
-    };
+/// Deobfuscate is the same as obfuscate (XOR is symmetric).
+fn deobfuscate(data: &[u8], slot: usize) -> Vec<u8> {
+    obfuscate(data, slot)
+}
 
-    match toml::to_string_pretty(&signed) {
+/// Convert bytes to base64 for storage.
+fn to_base64(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::new();
+
+    for chunk in data.chunks(3) {
+        let b1 = chunk[0];
+        let b2 = chunk.get(1).copied().unwrap_or(0);
+        let b3 = chunk.get(2).copied().unwrap_or(0);
+
+        result.push(CHARS[(b1 >> 2) as usize] as char);
+        result.push(CHARS[(((b1 & 0x03) << 4) | (b2 >> 4)) as usize] as char);
+        result.push(if chunk.len() > 1 {
+            CHARS[(((b2 & 0x0f) << 2) | (b3 >> 6)) as usize] as char
+        } else {
+            '='
+        });
+        result.push(if chunk.len() > 2 {
+            CHARS[(b3 & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+    }
+
+    result
+}
+
+/// Convert base64 back to bytes.
+fn from_base64(s: &str) -> Option<Vec<u8>> {
+    let chars: Vec<u8> = s.bytes().collect();
+    let mut result = Vec::new();
+
+    for chunk in chars.chunks(4) {
+        if chunk.len() < 4 {
+            break;
+        }
+
+        let decode = |c: u8| -> Option<u8> {
+            match c {
+                b'A'..=b'Z' => Some(c - b'A'),
+                b'a'..=b'z' => Some(c - b'a' + 26),
+                b'0'..=b'9' => Some(c - b'0' + 52),
+                b'+' => Some(62),
+                b'/' => Some(63),
+                b'=' => Some(0),
+                _ => None,
+            }
+        };
+
+        let b1 = decode(chunk[0])?;
+        let b2 = decode(chunk[1])?;
+        let b3 = decode(chunk[2])?;
+        let b4 = decode(chunk[3])?;
+
+        result.push((b1 << 2) | (b2 >> 4));
+        if chunk[2] != b'=' {
+            result.push((b2 << 4) | (b3 >> 2));
+        }
+        if chunk[3] != b'=' {
+            result.push((b3 << 6) | b4);
+        }
+    }
+
+    Some(result)
+}
+
+/// Saves save data to a specific slot in localStorage (obfuscated).
+pub(crate) fn save_to_slot(slot: usize, data: &SaveData) {
+    match toml::to_string_pretty(data) {
         Ok(toml_string) => {
-            if let Err(e) = storage::save_slot(slot, &toml_string) {
+            // Obfuscate the TOML data
+            let obfuscated = obfuscate(toml_string.as_bytes(), slot);
+            let encoded = to_base64(&obfuscated);
+
+            if let Err(e) = storage::save_slot(slot, &encoded) {
                 error!("Failed to save to slot {}: {}", slot, e);
             }
         }
@@ -75,21 +144,23 @@ pub(crate) fn save_to_slot(slot: usize, data: &SaveData) {
     }
 }
 
-/// Loads and verifies save data from a specific slot.
-/// Returns None if missing, tampered, or invalid.
+/// Loads save data from a specific slot (deobfuscated).
+/// Returns None if missing or invalid.
 pub(crate) fn load_from_slot(slot: usize) -> Option<SaveData> {
-    let contents = storage::load_slot(slot).ok()?;
-    let signed: SignedSaveData = toml::from_str(&contents).ok()?;
+    let encoded = storage::load_slot(slot).ok()?;
 
-    let expected = compute_save_signature(&signed.data);
-    if expected == signed.signature {
-        Some(signed.data)
-    } else {
-        warn!(
-            "Save slot {} signature mismatch — save has been tampered with",
-            slot
-        );
-        None
+    // Try to decode from base64 and deobfuscate
+    let obfuscated = from_base64(&encoded)?;
+    let deobfuscated = deobfuscate(&obfuscated, slot);
+    let toml_string = String::from_utf8(deobfuscated).ok()?;
+
+    // Parse the TOML
+    match toml::from_str::<SaveData>(&toml_string) {
+        Ok(data) => Some(data),
+        Err(e) => {
+            warn!("Failed to parse save slot {}: {}", slot, e);
+            None
+        }
     }
 }
 

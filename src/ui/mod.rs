@@ -15,6 +15,7 @@ mod main_menu;
 mod pause_menu;
 mod plugin;
 mod resources;
+mod roulette_display;
 mod rune_display;
 mod spell_book;
 mod styles;

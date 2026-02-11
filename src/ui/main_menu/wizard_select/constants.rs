@@ -22,6 +22,9 @@ pub(super) const WARNING_COLOR: Color = Color::hsla(0.0, 0.6, 0.7, 1.0);
 /// Color for error messages.
 pub(super) const ERROR_COLOR: Color = Color::hsla(0.0, 0.7, 0.6, 1.0);
 
+/// Color for wizard type description text.
+pub(super) const DESCRIPTION_COLOR: Color = Color::hsla(0.0, 0.0, 0.6, 1.0);
+
 /// Background color for the name input field.
 pub(super) const INPUT_BACKGROUND: Color = Color::hsla(0.0, 0.0, 0.1, 1.0);
 

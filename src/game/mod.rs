@@ -17,7 +17,6 @@ pub(crate) mod pathfinding;
 mod plugin;
 pub(crate) mod resources;
 pub(crate) mod run_conditions;
-pub(crate) mod runes;
 pub(crate) mod shared_systems;
 mod systems;
 pub(crate) mod units;

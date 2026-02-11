@@ -14,6 +14,7 @@ use super::in_game::plugin::InGamePlugin;
 use super::loading::LoadingUiPlugin;
 use super::main_menu::MainMenuPlugin;
 use super::pause_menu::plugin::PauseMenuPlugin;
+use super::roulette_display::RouletteDisplayPlugin;
 use super::rune_display::RuneDisplayPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
@@ -45,6 +46,7 @@ impl Plugin for UiPlugin {
             ActionBarPlugin,
             ConcentrationUIPlugin,
             RuneDisplayPlugin,
+            RouletteDisplayPlugin,
             GameOverPlugin,
             WizardTowerPlugin,
             VersionPlugin,

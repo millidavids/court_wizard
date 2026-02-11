@@ -1,7 +1,8 @@
 //! Wizard plugin module.
 //!
-//! Handles the wizard entity, castle setup, and spells.
+//! Handles the wizard entity, castle setup, spells, and archetypes.
 
+pub(crate) mod archetypes;
 pub(crate) mod components;
 mod constants;
 pub(crate) mod messages;

@@ -67,6 +67,20 @@ fn spawn_wizard_type_screen(
                         &BUTTON_STYLE,
                         custom_font,
                     );
+                    // Description text below each archetype button
+                    parent.spawn((
+                        Text::new(wizard_type.description()),
+                        TextFont {
+                            font: custom_font.handle.clone(),
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(DESCRIPTION_COLOR),
+                        Node {
+                            margin: UiRect::bottom(Val::Px(MARGIN)),
+                            ..default()
+                        },
+                    ));
                 }
             } else {
                 parent.spawn((

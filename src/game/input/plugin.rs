@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::game::run_conditions;
 use crate::state::InGameState;
 
 use super::{
@@ -59,6 +60,20 @@ impl Plugin for InputPlugin {
                 Update,
                 systems::detect_keyboard_input
                     .run_if(in_state(InGameState::Running).or(in_state(InGameState::SpellBook))),
+            )
+            // Rune input (Q/W/E/R + spacebar activate) - RuneCaster only
+            .add_systems(
+                Update,
+                systems::detect_rune_input
+                    .run_if(in_state(InGameState::Running).or(in_state(InGameState::SpellBook)))
+                    .run_if(run_conditions::is_rune_caster),
+            )
+            // Roulette input (spacebar to spin) - Randomancer only
+            .add_systems(
+                Update,
+                systems::detect_roulette_input
+                    .run_if(in_state(InGameState::Running))
+                    .run_if(run_conditions::is_randomancer),
             );
     }
 }
