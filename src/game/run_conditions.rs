@@ -35,3 +35,8 @@ pub fn is_rune_caster(config: Res<GameConfig>) -> bool {
 pub fn is_randomancer(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Randomancer
 }
+
+/// Returns true if the active wizard type is Arcanorouter.
+pub fn is_arcanorouter(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::Arcanorouter
+}

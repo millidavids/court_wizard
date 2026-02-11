@@ -6,6 +6,8 @@ pub const PRIMED_RAISE_THE_DEAD: PrimedSpell = PrimedSpell {
     cast_time: 1.0, // 1 second cast time
     empowerment: 1.0,
     empowerment_consumed: false,
+    mana_multiplier: 1.0,
+    range_multiplier: 1.0,
 };
 
 /// Initial interval between resurrections (in seconds)

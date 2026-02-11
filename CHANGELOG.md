@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [v0.0.564] - 2025-02-11
+
+### Added
+- **New wizard archetype: Arcanorouter** — a third way to play with dynamic resource allocation
+  - Four vertical sliders let you balance power between Range, Mana Cost, Spell Power, and Cast Speed
+  - All sliders share a fixed pool (adjusting one affects the others to keep things balanced)
+  - Each slider can range from very weak (25%) to very strong (200%)
+  - Keyboard controls: Q/A for Range, W/S for Mana, E/D for Power, R/F for Speed (each key changes by 10%)
+  - Small color-coded bars at the bottom of the screen show your current allocations
+  - Perfect for players who like fine-tuning their wizard's abilities on the fly
+- Choose your wizard archetype (RuneCaster, Randomancer, or Arcanorouter) when starting a new game
+
+### Changed
+- Wizard stats are now the single source of truth for all spell effects
+  - Range, mana cost, spell power, and cast speed are tracked on the wizard
+  - All buffs and archetype effects modify these core stats
+  - Spells now read directly from wizard stats for consistent behavior
+
 ## [v0.0.536] - 2025-02-10
 
 ### Added

@@ -30,7 +30,6 @@ pub fn handle_spin_trigger(
 pub fn update_spin(
     time: Res<Time>,
     mut state: ResMut<RouletteState>,
-    mut selected_writer: MessageWriter<RouletteSelectedMessage>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
 ) {
     // Read immutable data before mutable destructuring
@@ -67,7 +66,6 @@ pub fn update_spin(
         prime_spell.write(PrimeSpellMessage {
             spell: spell.primed_config().with_empowerment(ROULETTE_EMPOWERMENT),
         });
-        selected_writer.write(RouletteSelectedMessage { spell });
         state.phase = RoulettePhase::Selected { spell };
     }
 }

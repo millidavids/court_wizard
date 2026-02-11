@@ -8,6 +8,8 @@ pub const PRIMED_WALL_OF_STONE: PrimedSpell = PrimedSpell {
     cast_time: 0.0, // Instant start, wall placed on release
     empowerment: 1.0,
     empowerment_consumed: false,
+    mana_multiplier: 1.0,
+    range_multiplier: 1.0,
 };
 
 /// Mana cost for placing a wall.

@@ -79,7 +79,8 @@ pub fn init_loading_progress(
 
     // 10. Behemoth (if level qualifies)
     const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3;
-    if level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL && level % BEHEMOTH_SPAWN_LEVEL_INTERVAL == 0 {
+    if level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL)
+    {
         queue.tasks.push(SpawnTask::Behemoth);
     }
 
@@ -100,6 +101,7 @@ pub fn process_spawn_queue(
     mut spawn_queue: ResMut<SpawnQueue>,
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
+    config: Res<GameConfig>,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
@@ -182,6 +184,7 @@ pub fn process_spawn_queue(
                     commands.reborrow(),
                     meshes,
                     materials,
+                    Res::clone(&config),
                 );
             }
             SpawnTask::Cauldron => {

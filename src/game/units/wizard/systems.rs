@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 
+use super::archetypes::arcanorouter::ArcanoRouterBonuses;
 use super::components::*;
 use super::constants;
 use super::messages::*;
 use super::spells::magic_missile_constants;
 use super::styles::*;
+use crate::config::{GameConfig, WizardType};
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
@@ -18,6 +20,7 @@ pub fn setup_wizard(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<GameConfig>,
 ) {
     // Define wizard hitbox (cylinder) - this determines sprite size
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
@@ -31,7 +34,7 @@ pub fn setup_wizard(
         Vec2::new(wizard_width / 2.0, -wizard_height / 2.0), // Bottom-right
     );
 
-    commands.spawn((
+    let mut entity_commands = commands.spawn((
         Mesh3d(meshes.add(wizard_triangle)),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: WIZARD_COLOR,
@@ -50,6 +53,11 @@ pub fn setup_wizard(
         Billboard,
         OnGameplayScreen,
     ));
+
+    // Add archetype-specific components
+    if config.wizard_type == WizardType::Arcanorouter {
+        entity_commands.insert(ArcanoRouterBonuses::default());
+    }
 }
 
 /// Regenerates wizard mana over time, scaled by cauldron buffs.

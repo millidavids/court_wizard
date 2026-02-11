@@ -4,6 +4,7 @@
 //! organized by menu/screen type.
 
 mod action_bar;
+mod arcanorouter_display;
 mod cauldron_menu;
 mod components;
 mod concentration;

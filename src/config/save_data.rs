@@ -239,19 +239,21 @@ pub(crate) fn save_config_to_active_slot(config: &GameConfig, active_save: &Acti
 /// Migrates legacy single-save progress to slot 0 if no save slots exist.
 pub(crate) fn migrate_legacy_progress(config: &GameConfig) {
     // Only migrate if old progress exists and no new saves exist
-    if let Some(old_progress) = load_verified_progress() {
-        if !storage::slot_exists(0) && !storage::slot_exists(1) && !storage::slot_exists(2) {
-            let save = SaveData {
-                wizard_name: "Wizard".to_string(),
-                wizard_type: WizardType::RuneCaster,
-                current_level: old_progress.current_level,
-                highest_level_achieved: old_progress.highest_level_achieved,
-                efficiency_ratios: old_progress.efficiency_ratios,
-                action_bar_slots: config.action_bar_slots,
-            };
-            save_to_slot(0, &save);
-            let _ = storage::delete_progress();
-            info!("Migrated legacy progress to save slot 0");
-        }
+    if let Some(old_progress) = load_verified_progress()
+        && !storage::slot_exists(0)
+        && !storage::slot_exists(1)
+        && !storage::slot_exists(2)
+    {
+        let save = SaveData {
+            wizard_name: "Wizard".to_string(),
+            wizard_type: WizardType::RuneCaster,
+            current_level: old_progress.current_level,
+            highest_level_achieved: old_progress.highest_level_achieved,
+            efficiency_ratios: old_progress.efficiency_ratios,
+            action_bar_slots: config.action_bar_slots,
+        };
+        save_to_slot(0, &save);
+        let _ = storage::delete_progress();
+        info!("Migrated legacy progress to save slot 0");
     }
 }

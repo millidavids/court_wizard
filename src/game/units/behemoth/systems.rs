@@ -26,7 +26,7 @@ pub fn spawn_initial_behemoths(
     let level = current_level.0;
 
     // Only spawn behemoths at the specified interval
-    if BEHEMOTH_SPAWN_LEVEL_INTERVAL > 1 && level % BEHEMOTH_SPAWN_LEVEL_INTERVAL != 0 {
+    if BEHEMOTH_SPAWN_LEVEL_INTERVAL > 1 && !level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL) {
         return;
     }
 

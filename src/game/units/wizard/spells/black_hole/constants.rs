@@ -11,6 +11,8 @@ pub const PRIMED_BLACK_HOLE: PrimedSpell = PrimedSpell {
     cast_time: CAST_TIME,
     empowerment: 1.0,
     empowerment_consumed: false,
+    mana_multiplier: 1.0,
+    range_multiplier: 1.0,
 };
 
 // ===== Casting & Mana =====

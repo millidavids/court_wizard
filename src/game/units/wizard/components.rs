@@ -161,6 +161,10 @@ pub struct PrimedSpell {
     pub empowerment: f32,
     /// Whether the empowerment has been consumed by starting a cast.
     pub empowerment_consumed: bool,
+    /// Mana cost multiplier (1.0 = normal, 0.5 = half cost, 2.0 = double cost).
+    pub mana_multiplier: f32,
+    /// Range multiplier for spell radius and distance (1.0 = normal, 1.5 = 50% more range).
+    pub range_multiplier: f32,
 }
 
 impl PrimedSpell {
@@ -195,17 +199,31 @@ impl PrimedSpell {
     }
 }
 
-/// Wizard component with spell casting range.
+/// Wizard component with spell casting stats.
+///
+/// These are the wizard's actual effective stats after all modifiers are applied.
+/// Various systems (archetypes, cauldron buffs, etc.) modify these values.
 #[derive(Component)]
 pub struct Wizard {
     /// Maximum distance from wizard position that spells can be cast (in units).
     pub spell_range: f32,
+    /// Multiplier for spell mana costs (1.0 = normal, 0.5 = half cost, 2.0 = double cost).
+    pub mana_cost_multiplier: f32,
+    /// Multiplier for spell power/damage (1.0 = normal, 1.5 = 50% more damage).
+    pub spell_power_multiplier: f32,
+    /// Multiplier for cast speed (1.0 = normal, 2.0 = twice as fast).
+    pub cast_speed_multiplier: f32,
 }
 
 impl Wizard {
-    /// Creates a new Wizard with the given spell range.
+    /// Creates a new Wizard with the given spell range and default multipliers.
     pub const fn new(spell_range: f32) -> Self {
-        Self { spell_range }
+        Self {
+            spell_range,
+            mana_cost_multiplier: 1.0,
+            spell_power_multiplier: 1.0,
+            cast_speed_multiplier: 1.0,
+        }
     }
 }
 

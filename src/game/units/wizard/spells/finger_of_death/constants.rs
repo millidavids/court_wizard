@@ -7,6 +7,8 @@ pub const PRIMED_FINGER_OF_DEATH: PrimedSpell = PrimedSpell {
     cast_time: CAST_TIME,
     empowerment: 1.0,
     empowerment_consumed: false,
+    mana_multiplier: 1.0,
+    range_multiplier: 1.0,
 };
 
 // Casting

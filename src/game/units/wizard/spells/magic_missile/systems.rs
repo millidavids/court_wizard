@@ -55,7 +55,8 @@ pub fn handle_magic_missile_casting(
                 constants::CHANNEL_RAMP_TIME,
             ) {
                 // Try to spawn missile if we have mana
-                if mana.consume(constants::MANA_COST) {
+                let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
+                if mana.consume(mana_cost) {
                     spawn_magic_missile(
                         &mut commands,
                         &mut meshes,
@@ -79,7 +80,8 @@ pub fn handle_magic_missile_casting(
             // Check if cast is complete
             if casting_state.is_complete(primed_spell.cast_time) {
                 // Cast complete - transition to channeling and spawn first missile
-                if mana.consume(constants::MANA_COST) {
+                let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
+                if mana.consume(mana_cost) {
                     spawn_magic_missile(
                         &mut commands,
                         &mut meshes,
@@ -98,7 +100,8 @@ pub fn handle_magic_missile_casting(
         }
         CastingState::Resting => {
             // Not casting or channeling - check mana before starting cast
-            if mana.can_afford(constants::MANA_COST) {
+            let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
+            if mana.can_afford(mana_cost) {
                 casting_state.start_cast();
             }
         }

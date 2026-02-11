@@ -11,6 +11,8 @@ pub const PRIMED_TELEPORT: PrimedSpell = PrimedSpell {
     cast_time: 0.0, // First cast is instant (places crosshair immediately)
     empowerment: 1.0,
     empowerment_consumed: false,
+    mana_multiplier: 1.0,
+    range_multiplier: 1.0,
 };
 
 /// Second cast time for source circle and teleportation.

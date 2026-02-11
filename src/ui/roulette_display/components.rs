@@ -1,9 +1,5 @@
 use bevy::prelude::*;
 
-/// Marker for the root roulette display container.
-#[derive(Component)]
-pub(super) struct RouletteDisplayRoot;
-
 /// Marker for the spinning wheel mesh/entity that rotates.
 #[derive(Component)]
 pub(super) struct RouletteWheelMesh;

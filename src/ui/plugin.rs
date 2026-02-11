@@ -7,6 +7,7 @@ use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
 
 use super::action_bar::ActionBarPlugin;
+use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
 use super::concentration::ConcentrationUIPlugin;
 use super::game_over::GameOverPlugin;
@@ -47,6 +48,7 @@ impl Plugin for UiPlugin {
             ConcentrationUIPlugin,
             RuneDisplayPlugin,
             RouletteDisplayPlugin,
+            ArcanoRouterDisplayPlugin,
             GameOverPlugin,
             WizardTowerPlugin,
             VersionPlugin,

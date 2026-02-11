@@ -103,6 +103,8 @@ pub enum WizardType {
     RuneCaster,
     /// Randomancer - spins a roulette wheel for powerful random spells.
     Randomancer,
+    /// Arcanorouter - allocates resources between range, mana, power, and speed.
+    Arcanorouter,
 }
 
 impl WizardType {
@@ -111,6 +113,7 @@ impl WizardType {
         match self {
             WizardType::RuneCaster => "RuneCaster",
             WizardType::Randomancer => "Randomancer",
+            WizardType::Arcanorouter => "Arcanorouter",
         }
     }
 
@@ -119,12 +122,17 @@ impl WizardType {
         match self {
             WizardType::RuneCaster => "Master rune sequences to empower your spells.",
             WizardType::Randomancer => "Spin the wheel of fate for powerful random spells.",
+            WizardType::Arcanorouter => "Route arcane power between range, mana, power, and speed.",
         }
     }
 
     /// Returns all available wizard types.
     pub const fn all() -> &'static [WizardType] {
-        &[WizardType::RuneCaster, WizardType::Randomancer]
+        &[
+            WizardType::RuneCaster,
+            WizardType::Randomancer,
+            WizardType::Arcanorouter,
+        ]
     }
 }
 
