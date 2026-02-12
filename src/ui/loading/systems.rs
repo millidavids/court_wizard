@@ -1,13 +1,12 @@
 use bevy::prelude::*;
 
-use crate::ui::resources::CustomFont;
 
 /// Marker component for loading screen root.
 #[derive(Component)]
 pub struct LoadingScreen;
 
 /// Spawns the loading screen UI.
-pub fn spawn_loading_screen(mut commands: Commands, custom_font: Res<CustomFont>) {
+pub fn spawn_loading_screen(mut commands: Commands) {
     commands
         .spawn((
             Node {
@@ -26,7 +25,7 @@ pub fn spawn_loading_screen(mut commands: Commands, custom_font: Res<CustomFont>
             parent.spawn((
                 Text::new("Loading..."),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: 60.0,
                     ..default()
                 },

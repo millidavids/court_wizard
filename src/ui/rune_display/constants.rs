@@ -12,10 +12,10 @@ pub(super) const RUNE_BUTTON_HEIGHT: f32 = 50.0;
 pub(super) const RUNE_BUTTON_GAP: f32 = 4.0;
 
 /// Font size for rune letters on buttons.
-pub(super) const RUNE_LETTER_FONT_SIZE: f32 = 24.0;
+pub(super) const RUNE_LETTER_FONT_SIZE: f32 = 16.0;
 
 /// Font size for the rune sequence display above buttons.
-pub(super) const RUNE_SEQUENCE_FONT_SIZE: f32 = 20.0;
+pub(super) const RUNE_SEQUENCE_FONT_SIZE: f32 = 14.0;
 
 /// Bottom margin from screen edge (between action bar and mana/cast bars).
 pub(super) const BOTTOM_MARGIN: f32 = 20.0;

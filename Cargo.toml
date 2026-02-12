@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.0.564"
+version = "0.0.579"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -17,6 +17,7 @@ rand = "0.8"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = ["Window", "Storage"] }
+js-sys = "0.3"
 getrandom = { version = "0.2", features = ["js"] }
 
 [profile.dev]

@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.579] - 2025-02-12
+
+### Changed
+- Switched to default Bevy font throughout the game (removed custom Davidfont)
+- Reduced all UI font sizes by 30-35% to compensate for the default font appearing larger
+- Finger of Death beam is now 3 times wider (easier to aim and hit enemies)
+- When you lose a level, you now retry the same level instead of dropping down a level
+
+## [v0.0.572] - 2025-02-11
+
+### Changed
+- **Save system completely redesigned** — one wizard per archetype instead of multiple named saves
+  - Pick your archetype (RuneCaster, Randomancer, or Arcanorouter) directly from the Play menu
+  - Each archetype can only have one save — starting a new wizard of the same type replaces the old one
+  - No more managing multiple save slots or wizard names
+  - Much simpler and cleaner — just pick an archetype and play
+- **"Play" replaces "Begin, Wizard" and "Continue"** on the main menu
+  - Single button takes you straight to the wizard select screen
+  - See all three archetypes at once with their current progress
+  - Archetypes you've played before show your current level
+  - Pick any archetype to continue where you left off or start fresh
+- Your existing saves are automatically upgraded to the new system when you launch the game
+
 ## [v0.0.564] - 2025-02-11
 
 ### Added

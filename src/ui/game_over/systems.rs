@@ -6,7 +6,6 @@ use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::state::{AppState, InGameState};
-use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 use super::components::*;
@@ -56,8 +55,8 @@ pub(super) fn update_level_after_display(
             }
         }
         GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-            // Drop one level, minimum 1
-            current_level.0 = current_level.0.saturating_sub(1).max(1);
+            // Keep current level - player retries the same level
+            // No change to current_level.0
         }
     }
 
@@ -74,7 +73,6 @@ pub(super) fn setup_game_over_screen(
     kill_stats: Res<KillStats>,
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
-    custom_font: Res<CustomFont>,
 ) {
     // Calculate current efficiency
     let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
@@ -117,7 +115,7 @@ pub(super) fn setup_game_over_screen(
                     buttons.spawn((
                         Text::new(title_text),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 60.0,
                             ..default()
                         },
@@ -129,7 +127,7 @@ pub(super) fn setup_game_over_screen(
                         buttons.spawn((
                             Text::new("The King died!"),
                             TextFont {
-                                font: custom_font.handle.clone(),
+                                // font removed (using default),
                                 font_size: 24.0,
                                 ..default()
                             },
@@ -141,8 +139,7 @@ pub(super) fn setup_game_over_screen(
                     let button_text = match *game_outcome {
                         GameOutcome::Victory => "Continue".to_string(),
                         GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                            let next_level = current_level.0.saturating_sub(1).max(1);
-                            format!("Try Again (Level {})", next_level)
+                            format!("Try Again (Level {})", current_level.0)
                         }
                     };
 
@@ -151,7 +148,6 @@ pub(super) fn setup_game_over_screen(
                         &button_text,
                         GameOverButtonAction::PlayAgain,
                         &BUTTON_STYLE,
-                        &custom_font,
                     );
 
                     // Return to Menu button
@@ -160,7 +156,6 @@ pub(super) fn setup_game_over_screen(
                         "Return to Menu",
                         GameOverButtonAction::ReturnToMenu,
                         &BUTTON_STYLE,
-                        &custom_font,
                     );
                 });
 
@@ -178,7 +173,7 @@ pub(super) fn setup_game_over_screen(
                     stats.spawn((
                         Text::new(format!("Current Level: {}", current_level.0)),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 28.0,
                             ..default()
                         },
@@ -189,7 +184,7 @@ pub(super) fn setup_game_over_screen(
                     stats.spawn((
                         Text::new("Kill Statistics:"),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 24.0,
                             ..default()
                         },
@@ -199,7 +194,7 @@ pub(super) fn setup_game_over_screen(
                     stats.spawn((
                         Text::new(format!("  Defenders Lost: {}", kill_stats.defenders_killed)),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 20.0,
                             ..default()
                         },
@@ -212,7 +207,7 @@ pub(super) fn setup_game_over_screen(
                             kill_stats.attackers_killed
                         )),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 20.0,
                             ..default()
                         },
@@ -222,7 +217,7 @@ pub(super) fn setup_game_over_screen(
                     stats.spawn((
                         Text::new(format!("  Undead Killed: {}", kill_stats.undead_killed)),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 20.0,
                             ..default()
                         },
@@ -233,7 +228,7 @@ pub(super) fn setup_game_over_screen(
                     stats.spawn((
                         Text::new(format!("  Efficiency: {:.1}%", current_efficiency)),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 20.0,
                             ..default()
                         },
@@ -247,7 +242,7 @@ pub(super) fn setup_game_over_screen(
                         stats.spawn((
                             Text::new("Past Victory:"),
                             TextFont {
-                                font: custom_font.handle.clone(),
+                                // font removed (using default),
                                 font_size: 24.0,
                                 ..default()
                             },
@@ -261,7 +256,7 @@ pub(super) fn setup_game_over_screen(
                                 past_efficiency * 100.0
                             )),
                             TextFont {
-                                font: custom_font.handle.clone(),
+                                // font removed (using default),
                                 font_size: 18.0,
                                 ..default()
                             },

@@ -4,7 +4,6 @@ use crate::config::ActiveSave;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{CurrentLevel, KillStats};
 use crate::state::AppState;
-use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 use super::components::*;
@@ -14,7 +13,6 @@ use super::constants::*;
 pub(super) fn setup_wizard_tower_screen(
     mut commands: Commands,
     current_level: Res<CurrentLevel>,
-    custom_font: Res<CustomFont>,
 ) {
     // Root container (fullscreen, centered column layout)
     commands
@@ -36,7 +34,7 @@ pub(super) fn setup_wizard_tower_screen(
             parent.spawn((
                 Text::new("Wizard's Tower"),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: TITLE_FONT_SIZE,
                     ..default()
                 },
@@ -47,7 +45,7 @@ pub(super) fn setup_wizard_tower_screen(
             parent.spawn((
                 Text::new(format!("Level {}", current_level.0)),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: LEVEL_FONT_SIZE,
                     ..default()
                 },
@@ -64,7 +62,6 @@ pub(super) fn setup_wizard_tower_screen(
                 "Start Next Battle",
                 WizardTowerButtonAction::StartNextBattle,
                 &BUTTON_STYLE,
-                &custom_font,
             );
 
             // Return to Menu button
@@ -73,7 +70,6 @@ pub(super) fn setup_wizard_tower_screen(
                 "Return to Menu",
                 WizardTowerButtonAction::ReturnToMenu,
                 &BUTTON_STYLE,
-                &custom_font,
             );
         });
 }

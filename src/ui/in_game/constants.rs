@@ -34,7 +34,7 @@ pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
 pub const BUTTON_BACKGROUND: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const BUTTON_BORDER: Color = Color::srgb(0.4, 0.4, 0.4);
 pub const BUTTON_TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
-pub const BUTTON_FONT_SIZE: f32 = 28.0;
+pub const BUTTON_FONT_SIZE: f32 = 18.0;
 
 /// Button style configuration for the in-game HUD.
 pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {

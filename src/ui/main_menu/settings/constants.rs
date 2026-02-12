@@ -6,16 +6,16 @@ use bevy::prelude::*;
 pub const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 
 /// Font size for settings title text.
-pub const TITLE_FONT_SIZE: f32 = 48.0;
+pub const TITLE_FONT_SIZE: f32 = 32.0;
 
 /// Font size for section headers.
-pub const SECTION_FONT_SIZE: f32 = 28.0;
+pub const SECTION_FONT_SIZE: f32 = 18.0;
 
 /// Font size for option labels and values.
-pub const LABEL_FONT_SIZE: f32 = 20.0;
+pub const LABEL_FONT_SIZE: f32 = 14.0;
 
 /// Font size for button text.
-pub const BUTTON_FONT_SIZE: f32 = 18.0;
+pub const BUTTON_FONT_SIZE: f32 = 13.0;
 
 /// Margin between settings UI elements in pixels.
 pub const MARGIN: f32 = 20.0;

@@ -8,7 +8,6 @@ use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseClicked;
 use crate::state::InGameState;
-use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 /// Spawns the cauldron menu UI when entering the CauldronMenu state.
@@ -16,13 +15,12 @@ pub(super) fn spawn_cauldron_menu_ui(
     mut commands: Commands,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     selection: Res<IngredientSelection>,
-    custom_font: Res<CustomFont>,
 ) {
     let is_brewing = cauldron_query
         .single()
         .is_ok_and(|state| state.is_brewing());
 
-    build_menu(&mut commands, is_brewing, &selection, &custom_font);
+    build_menu(&mut commands, is_brewing, &selection);
 }
 
 /// Re-spawns the menu UI if it was despawned by a toggle action.
@@ -31,24 +29,18 @@ pub(super) fn respawn_menu_on_toggle(
     menu_query: Query<Entity, With<OnCauldronMenuScreen>>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     selection: Res<IngredientSelection>,
-    custom_font: Res<CustomFont>,
 ) {
     if menu_query.iter().next().is_none() {
         let is_brewing = cauldron_query
             .single()
             .is_ok_and(|state| state.is_brewing());
 
-        build_menu(&mut commands, is_brewing, &selection, &custom_font);
+        build_menu(&mut commands, is_brewing, &selection);
     }
 }
 
 /// Builds the cauldron menu UI tree.
-fn build_menu(
-    commands: &mut Commands,
-    is_brewing: bool,
-    selection: &IngredientSelection,
-    custom_font: &CustomFont,
-) {
+fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientSelection) {
     commands
         .spawn((
             Node {
@@ -68,7 +60,6 @@ fn build_menu(
             parent.spawn((
                 Text::new("Cauldron"),
                 TextFont {
-                    font: custom_font.handle.clone(),
                     font_size: TITLE_FONT_SIZE,
                     ..default()
                 },
@@ -80,7 +71,6 @@ fn build_menu(
                 parent.spawn((
                     Text::new("Brewing in progress..."),
                     TextFont {
-                        font: custom_font.handle.clone(),
                         font_size: BREWING_STATUS_FONT_SIZE,
                         ..default()
                     },
@@ -93,7 +83,6 @@ fn build_menu(
                     "Cancel Brew",
                     CauldronMenuButtonAction::CancelBrew,
                     &CANCEL_BUTTON_STYLE,
-                    custom_font,
                 );
             } else {
                 // Ingredient selection frame
@@ -118,7 +107,6 @@ fn build_menu(
                                 container,
                                 *ingredient,
                                 selection.is_selected(ingredient),
-                                custom_font,
                             );
                         }
                     });
@@ -126,7 +114,7 @@ fn build_menu(
                 // Effect preview (only when something is selected)
                 if !selection.is_empty() {
                     let recipe = Recipe::new(selection.selected.clone());
-                    spawn_effect_preview(parent, &recipe, custom_font);
+                    spawn_effect_preview(parent, &recipe);
                 }
 
                 // Brew button
@@ -140,7 +128,6 @@ fn build_menu(
                     "Brew",
                     CauldronMenuButtonAction::StartBrew,
                     brew_style,
-                    custom_font,
                 );
             }
 
@@ -150,7 +137,6 @@ fn build_menu(
                 "Close",
                 CauldronMenuButtonAction::Close,
                 &CLOSE_BUTTON_STYLE,
-                custom_font,
             );
         });
 }
@@ -160,7 +146,6 @@ fn spawn_ingredient_card(
     parent: &mut ChildSpawnerCommands,
     ingredient: Ingredient,
     selected: bool,
-    custom_font: &CustomFont,
 ) {
     let button_style = if selected {
         &INGREDIENT_SELECTED_STYLE
@@ -188,13 +173,11 @@ fn spawn_ingredient_card(
                 ingredient.name(),
                 CauldronMenuButtonAction::ToggleIngredient(ingredient),
                 button_style,
-                custom_font,
             );
 
             card.spawn((
                 Text::new(ingredient.description()),
                 TextFont {
-                    font: custom_font.handle.clone(),
                     font_size: DESCRIPTION_FONT_SIZE,
                     ..default()
                 },
@@ -205,11 +188,7 @@ fn spawn_ingredient_card(
 }
 
 /// Spawns the effect preview section showing computed effects.
-fn spawn_effect_preview(
-    parent: &mut ChildSpawnerCommands,
-    recipe: &Recipe,
-    custom_font: &CustomFont,
-) {
+fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Column,
@@ -226,7 +205,6 @@ fn spawn_effect_preview(
                     recipe.buff_duration()
                 )),
                 TextFont {
-                    font: custom_font.handle.clone(),
                     font_size: BREW_INFO_FONT_SIZE,
                     ..default()
                 },
@@ -249,7 +227,6 @@ fn spawn_effect_preview(
                 preview.spawn((
                     Text::new(text),
                     TextFont {
-                        font: custom_font.handle.clone(),
                         font_size: EFFECT_PREVIEW_FONT_SIZE,
                         ..default()
                     },
@@ -265,7 +242,6 @@ fn spawn_effect_preview(
                         recipe.dilution_factor() * 100.0
                     )),
                     TextFont {
-                        font: custom_font.handle.clone(),
                         font_size: EFFECT_PREVIEW_FONT_SIZE,
                         ..default()
                     },

@@ -6,7 +6,6 @@ use bevy::prelude::*;
 use crate::config::ActiveSave;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, PauseMenuState};
-use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 use super::components::{OnPauseMainScreen, PauseMenuButtonAction};
@@ -16,7 +15,7 @@ use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 ///
 /// Spawns the root UI node containing the title and menu buttons.
 /// All spawned entities are marked with `OnPauseMainScreen` for cleanup.
-pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
+pub fn setup(mut commands: Commands) {
     // Root container - full screen, centered content in a column
     commands
         .spawn((
@@ -39,7 +38,7 @@ pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
             parent.spawn((
                 Text::new("Paused"),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: TITLE_FONT_SIZE,
                     ..default()
                 },
@@ -56,7 +55,6 @@ pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                 "Continue",
                 PauseMenuButtonAction::Continue,
                 &BUTTON_STYLE,
-                &custom_font,
             );
 
             // Settings button
@@ -65,7 +63,6 @@ pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                 "Settings",
                 PauseMenuButtonAction::Settings,
                 &BUTTON_STYLE,
-                &custom_font,
             );
 
             // Instructions button
@@ -74,7 +71,6 @@ pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                 "Instructions",
                 PauseMenuButtonAction::Instructions,
                 &BUTTON_STYLE,
-                &custom_font,
             );
 
             // Exit button
@@ -83,7 +79,6 @@ pub fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                 "Exit to Menu",
                 PauseMenuButtonAction::Exit,
                 &BUTTON_STYLE,
-                &custom_font,
             );
         });
 }

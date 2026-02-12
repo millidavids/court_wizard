@@ -9,7 +9,6 @@ use super::components::{BackButton, OnChangelogScreen, ScrollableChangelogContai
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::main_menu::landing::constants::TEXT_COLOR;
-use crate::ui::resources::CustomFont;
 
 // Button colors for changelog screen
 const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
@@ -18,7 +17,7 @@ const BUTTON_HOVER_COLOR: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
 const CHANGELOG_TEXT: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Spawns the changelog screen UI.
-pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
+pub(super) fn setup(mut commands: Commands) {
     commands
         .spawn((
             Node {
@@ -38,7 +37,7 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
             parent.spawn((
                 Text::new("Changelog"),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: 48.0,
                     ..default()
                 },
@@ -75,7 +74,7 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                             parent.spawn((
                                 Text::new(CHANGELOG_TEXT),
                                 TextFont {
-                                    font: custom_font.handle.clone(),
+                                    // font removed (using default),
                                     font_size: 16.0,
                                     ..default()
                                 },
@@ -106,7 +105,7 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
                     parent.spawn((
                         Text::new("Back"),
                         TextFont {
-                            font: custom_font.handle.clone(),
+                            // font removed (using default),
                             font_size: 32.0,
                             ..default()
                         },

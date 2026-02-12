@@ -12,7 +12,6 @@ use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 use crate::state::InGameState;
-use crate::ui::resources::CustomFont;
 use crate::ui::systems::spawn_button;
 
 /// Blocks spell input when any button is being interacted with.
@@ -54,7 +53,6 @@ pub(super) fn spawn_hud(
     mut commands: Commands,
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
-    custom_font: Res<CustomFont>,
 ) {
     // Root HUD container (fullscreen with margins)
     commands
@@ -93,14 +91,12 @@ pub(super) fn spawn_hud(
                             "Spells",
                             HudButtonAction::OpenSpellBook,
                             &BUTTON_STYLE,
-                            &custom_font,
                         );
                         spawn_button(
                             buttons,
                             "Cauldron",
                             HudButtonAction::OpenCauldronMenu,
                             &BUTTON_STYLE,
-                            &custom_font,
                         );
                     });
 
@@ -116,7 +112,7 @@ pub(super) fn spawn_hud(
                         level_container.spawn((
                             Text::new(format!("Level: {}", current_level.0)),
                             TextFont {
-                                font: custom_font.handle.clone(),
+                                // font removed (using default),
                                 font_size: 30.0,
                                 ..default()
                             },
@@ -131,7 +127,7 @@ pub(super) fn spawn_hud(
                             level_container.spawn((
                                 Text::new(format!("Best: {:.1}%", past_efficiency * 100.0)),
                                 TextFont {
-                                    font: custom_font.handle.clone(),
+                                    // font removed (using default),
                                     font_size: 20.0,
                                     ..default()
                                 },
@@ -143,7 +139,7 @@ pub(super) fn spawn_hud(
                             level_container.spawn((
                                 Text::new(""),
                                 TextFont {
-                                    font: custom_font.handle.clone(),
+                                    // font removed (using default),
                                     font_size: 20.0,
                                     ..default()
                                 },
@@ -228,7 +224,7 @@ pub(super) fn spawn_hud(
                                 overlay.spawn((
                                     Text::new("Brewing..."),
                                     TextFont {
-                                        font: custom_font.handle.clone(),
+                                        // font removed (using default),
                                         font_size: 12.0,
                                         ..default()
                                     },

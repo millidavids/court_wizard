@@ -3,16 +3,15 @@
 use bevy::prelude::*;
 
 use super::components::VersionText;
-use crate::ui::resources::CustomFont;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Spawns the version text in the bottom-left corner.
-pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>) {
+pub(super) fn setup(mut commands: Commands) {
     commands.spawn((
         Text::new(format!("v{}", VERSION)),
         TextFont {
-            font: custom_font.handle.clone(),
+            // font removed (using default),
             font_size: 14.0,
             ..default()
         },

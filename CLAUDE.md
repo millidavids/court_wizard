@@ -129,6 +129,7 @@ The user tests in a web browser, so changes will NOT be visible until the WASM i
 - Make sure that the changelog is generated in laymans terms, no need to reference code changes
 - Add new features and improvements
 - Fix bugs and issues
+- Never add [Unreleased] sections to the changelog
 
 ### Testing
 ```bash

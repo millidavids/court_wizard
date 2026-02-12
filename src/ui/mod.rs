@@ -15,7 +15,6 @@ mod loading;
 mod main_menu;
 mod pause_menu;
 mod plugin;
-mod resources;
 mod roulette_display;
 mod rune_display;
 mod spell_book;
@@ -25,4 +24,3 @@ mod version;
 mod wizard_tower;
 
 pub use plugin::UiPlugin;
-pub use resources::CustomFont;

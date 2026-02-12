@@ -1,8 +1,5 @@
-use bevy::app::MainScheduleOrder;
 use bevy::asset::{AssetMetaCheck, AssetPlugin};
-use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
-use bevy::state::prelude::StateTransition;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
 mod config;
@@ -16,11 +13,6 @@ use game::GamePlugin;
 use music::MusicPlugin;
 use state::StatePlugin;
 use ui::UiPlugin;
-
-/// Custom schedule that runs before StateTransition to ensure essential
-/// resources are loaded before any state-dependent systems run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ScheduleLabel)]
-struct EarlyStartup;
 
 /// Main entry point for the game.
 ///
@@ -52,14 +44,7 @@ fn main() {
     .add_plugins((ConfigPlugin, StatePlugin, MusicPlugin, UiPlugin, GamePlugin))
     .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)));
 
-    // Add our custom EarlyStartup schedule before StateTransition
-    // This ensures essential resources are loaded before any OnEnter systems run
-    app.world_mut()
-        .resource_mut::<MainScheduleOrder>()
-        .insert_startup_before(StateTransition, EarlyStartup);
-
-    app.add_systems(EarlyStartup, load_custom_font)
-        .add_systems(Startup, setup)
+    app.add_systems(Startup, setup)
         .add_systems(Update, apply_global_brightness)
         .run();
 }
@@ -67,18 +52,6 @@ fn main() {
 /// Marker component for the brightness overlay.
 #[derive(Component)]
 struct BrightnessOverlay;
-
-/// Loads the custom font before any state transitions occur.
-///
-/// This runs in the EarlyStartup schedule, which is before StateTransition,
-/// ensuring the font resource exists before any OnEnter systems run.
-fn load_custom_font(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let font_handle = asset_server.load("fonts/Davidfont.otf");
-    commands.insert_resource(ui::CustomFont {
-        handle: font_handle,
-    });
-    info!("Custom font loading initiated: fonts/Davidfont.otf (runs before StateTransition)");
-}
 
 /// Sets up the initial game scene.
 ///

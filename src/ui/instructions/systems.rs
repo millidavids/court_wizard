@@ -7,7 +7,6 @@ use bevy::ui::ComputedNode;
 
 use super::components::{BackButton, OnInstructionsScreen, ScrollableInstructionsContainer};
 use super::constants::INSTRUCTIONS_TEXT;
-use crate::ui::resources::CustomFont;
 
 // UI colors for instructions screen
 const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
@@ -16,7 +15,7 @@ const BUTTON_HOVER_COLOR: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
 
 /// Spawns the instructions screen UI.
 /// Uses a transparent background suitable for overlaying on pause menu.
-pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>, transparent_bg: bool) {
+pub(super) fn setup(mut commands: Commands, transparent_bg: bool) {
     let background_color = if transparent_bg {
         Color::srgba(0.0, 0.0, 0.0, 0.9)
     } else {
@@ -47,7 +46,7 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>, transp
         parent.spawn((
             Text::new("Instructions"),
             TextFont {
-                font: custom_font.handle.clone(),
+                // font removed (using default),
                 font_size: 48.0,
                 ..default()
             },
@@ -84,7 +83,7 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>, transp
                         parent.spawn((
                             Text::new(INSTRUCTIONS_TEXT),
                             TextFont {
-                                font: custom_font.handle.clone(),
+                                // font removed (using default),
                                 font_size: 16.0,
                                 ..default()
                             },
@@ -116,7 +115,7 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>, transp
                 parent.spawn((
                     Text::new("Back"),
                     TextFont {
-                        font: custom_font.handle.clone(),
+                        // font removed (using default),
                         font_size: 32.0,
                         ..default()
                     },
@@ -127,13 +126,13 @@ pub(super) fn setup(mut commands: Commands, custom_font: Res<CustomFont>, transp
 }
 
 /// Spawns instructions with solid black background (for main menu).
-pub(super) fn setup_main_menu(commands: Commands, custom_font: Res<CustomFont>) {
-    setup(commands, custom_font, false);
+pub(super) fn setup_main_menu(commands: Commands) {
+    setup(commands, false);
 }
 
 /// Spawns instructions with transparent background (for pause menu).
-pub(super) fn setup_pause_menu(commands: Commands, custom_font: Res<CustomFont>) {
-    setup(commands, custom_font, true);
+pub(super) fn setup_pause_menu(commands: Commands) {
+    setup(commands, true);
 }
 
 /// Updates button colors on hover.

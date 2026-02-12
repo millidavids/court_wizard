@@ -5,7 +5,6 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::archetypes::roulette::resources::{RoulettePhase, RouletteState};
 use crate::game::units::wizard::components::Spell;
-use crate::ui::resources::CustomFont;
 
 /// Returns the display name for a spell with newlines replaced by spaces.
 fn spell_display_name(spell: &Spell) -> String {
@@ -16,7 +15,6 @@ fn spell_display_name(spell: &Spell) -> String {
 pub(super) fn spawn_roulette_display(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    custom_font: Res<CustomFont>,
 ) {
     // Load the roulette wheel image
     let wheel_texture: Handle<Image> = asset_server.load("images/roulette.png");
@@ -41,7 +39,7 @@ pub(super) fn spawn_roulette_display(
             parent.spawn((
                 Text::new(""),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: SELECTED_SPELL_FONT_SIZE,
                     ..default()
                 },
@@ -89,7 +87,7 @@ pub(super) fn spawn_roulette_display(
             parent.spawn((
                 Text::new("Press SPACE to spin"),
                 TextFont {
-                    font: custom_font.handle.clone(),
+                    // font removed (using default),
                     font_size: PROMPT_FONT_SIZE,
                     ..default()
                 },

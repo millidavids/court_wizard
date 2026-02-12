@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowResized};
 
 use super::messages::*;
-use super::progress;
 use super::resources::*;
 use super::save_data;
 use super::storage;
@@ -72,26 +71,15 @@ pub(super) fn load_and_apply_config(
         efficiency_ratios: config_file.game.efficiency_ratios,
         action_bar_slots: config_file.game.action_bar_slots,
         wizard_type: config_file.game.wizard_type,
-        wizard_name: config_file.game.wizard_name,
     };
-    // Verify progress against signed copy in localStorage
-    match progress::load_verified_progress() {
-        Some(verified) => {
-            game_config.current_level = verified.current_level;
-            game_config.highest_level_achieved = verified.highest_level_achieved;
-            game_config.efficiency_ratios = verified.efficiency_ratios;
-            info!("Loaded verified progress from signed storage");
-        }
-        None => {
-            warn!("No valid signed progress found, resetting progress to defaults");
-            game_config.current_level = 1;
-            game_config.highest_level_achieved = 1;
-            game_config.efficiency_ratios = std::collections::HashMap::new();
-        }
-    }
+    // Migrate legacy saves into unified save file if needed
+    save_data::migrate_legacy_saves(&game_config);
 
-    // Migrate legacy single-save progress to slot 0 if needed
-    save_data::migrate_legacy_progress(&game_config);
+    // Progress fields in GameConfig are only meaningful after loading a wizard.
+    // Reset them to defaults here; they get populated when a wizard is loaded.
+    game_config.current_level = 1;
+    game_config.highest_level_achieved = 1;
+    game_config.efficiency_ratios = std::collections::HashMap::new();
 
     commands.insert_resource(game_config);
 
@@ -267,8 +255,8 @@ fn persist_config(game_config: &GameConfig, active_save: &ActiveSave) {
         }
     }
 
-    // Save progress to active save slot (replaces old signed progress)
-    save_data::save_config_to_active_slot(game_config, active_save);
+    // Save progress to the active wizard in the unified save file
+    save_data::save_config_to_active_wizard(game_config, active_save);
 }
 
 /// Builds ConfigFile from current GameConfig.

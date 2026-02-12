@@ -20,10 +20,10 @@ pub const BUTTON_HEIGHT: f32 = 65.0;
 pub const BUTTON_BORDER_WIDTH: f32 = 3.0;
 
 /// Font size for landing screen button text.
-pub const BUTTON_FONT_SIZE: f32 = 28.0;
+pub const BUTTON_FONT_SIZE: f32 = 20.0;
 
 /// Font size for landing screen title text.
-pub const TITLE_FONT_SIZE: f32 = 64.0;
+pub const TITLE_FONT_SIZE: f32 = 48.0;
 
 /// Text color for landing screen UI elements.
 pub const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);

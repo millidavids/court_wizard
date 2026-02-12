@@ -8,10 +8,10 @@ use crate::ui::components::ButtonStyle;
 pub const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 
 /// Font size for the title text.
-pub const TITLE_FONT_SIZE: f32 = 60.0;
+pub const TITLE_FONT_SIZE: f32 = 40.0;
 
 /// Font size for button text.
-pub const BUTTON_FONT_SIZE: f32 = 32.0;
+pub const BUTTON_FONT_SIZE: f32 = 22.0;
 
 /// Width of all buttons.
 pub const BUTTON_WIDTH: f32 = 300.0;

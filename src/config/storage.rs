@@ -204,6 +204,64 @@ pub(super) fn delete_progress() -> ConfigResult<()> {
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Unified save file storage
+// ---------------------------------------------------------------------------
+
+const UNIFIED_SAVE_KEY: &str = "court_wizard_saves_v2";
+
+/// Saves the unified save data to localStorage.
+pub(super) fn save_unified_save(data: &str) -> ConfigResult<()> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    storage
+        .set_item(UNIFIED_SAVE_KEY, data)
+        .map_err(|_| std::io::Error::other("Failed to save unified save to localStorage"))?;
+    Ok(())
+}
+
+/// Loads the unified save data from localStorage.
+pub(super) fn load_unified_save() -> ConfigResult<String> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    let data = storage
+        .get_item(UNIFIED_SAVE_KEY)
+        .map_err(|_| std::io::Error::other("Failed to read unified save from localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No unified save found in localStorage",
+            )
+        })?;
+
+    Ok(data)
+}
+
+/// Checks if a unified save file exists in localStorage.
+pub(super) fn unified_save_exists() -> bool {
+    let Ok(window) = window().ok_or(()) else {
+        return false;
+    };
+    let Ok(Some(storage)) = window.local_storage() else {
+        return false;
+    };
+    matches!(storage.get_item(UNIFIED_SAVE_KEY), Ok(Some(_)))
+}
+
 /// Clears config from localStorage.
 ///
 /// # Returns

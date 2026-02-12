@@ -8,7 +8,6 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::ButtonColors;
-use crate::ui::resources::CustomFont;
 
 /// Calculates the appropriate font size for action bar spell names based on max line width.
 ///
@@ -31,7 +30,6 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
 pub(super) fn spawn_action_bar(
     mut commands: Commands,
     config: Res<GameConfig>,
-    custom_font: Res<CustomFont>,
 ) {
     commands
         .spawn((
@@ -78,7 +76,7 @@ pub(super) fn spawn_action_bar(
                         button.spawn((
                             Text::new(hotkey_label),
                             TextFont {
-                                font: custom_font.handle.clone(),
+                                // font removed (using default),
                                 font_size: HOTKEY_FONT_SIZE,
                                 ..default()
                             },
@@ -93,7 +91,7 @@ pub(super) fn spawn_action_bar(
                             .spawn((
                                 Text::new(spell_name),
                                 TextFont {
-                                    font: custom_font.handle.clone(),
+                                    // font removed (using default),
                                     font_size,
                                     ..default()
                                 },

@@ -96,7 +96,7 @@ pub enum Difficulty {
 }
 
 /// Wizard class types available for selection.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 pub enum WizardType {
     /// Rune-based caster - the classic wizard type.
     #[default]
@@ -136,10 +136,10 @@ impl WizardType {
     }
 }
 
-/// Tracks which save slot is currently active.
-/// None means no save is loaded (main menu before selection).
+/// Tracks which wizard is currently active by their unique ID.
+/// None means no wizard is loaded (main menu before selection).
 #[derive(Resource, Default)]
-pub struct ActiveSave(pub Option<usize>);
+pub struct ActiveSave(pub Option<String>);
 
 /// Default current level for serde deserialization.
 fn default_current_level() -> u32 {
@@ -255,9 +255,6 @@ pub struct GameConfig {
     /// Active wizard type for the current save
     #[serde(default)]
     pub wizard_type: WizardType,
-    /// Name of the wizard for the current save
-    #[serde(default)]
-    pub wizard_name: String,
 }
 
 impl Default for GameConfig {
@@ -274,7 +271,6 @@ impl Default for GameConfig {
             efficiency_ratios: HashMap::new(),
             action_bar_slots: [None; 5],
             wizard_type: WizardType::default(),
-            wizard_name: String::new(),
         }
     }
 }

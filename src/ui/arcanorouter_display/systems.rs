@@ -6,7 +6,6 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::archetypes::arcanorouter::{
     ArcanoRouterState, SliderAdjustMessage, SliderType,
 };
-use crate::ui::resources::CustomFont;
 
 /// Returns the color for a slider type
 fn slider_color(slider_type: SliderType) -> Color {
@@ -31,7 +30,6 @@ fn slider_label(slider_type: SliderType) -> &'static str {
 /// Spawns the Arcanorouter display with 4 vertical sliders
 pub(super) fn spawn_arcanorouter_display(
     mut commands: Commands,
-    custom_font: Res<CustomFont>,
     state: Res<ArcanoRouterState>,
 ) {
     // Root container - absolute positioned at bottom center
@@ -108,7 +106,7 @@ pub(super) fn spawn_arcanorouter_display(
                                 slider_parent.spawn((
                                     Text::new(slider_label(slider_type)),
                                     TextFont {
-                                        font: custom_font.handle.clone(),
+                                        // font removed (using default),
                                         font_size: LABEL_FONT_SIZE,
                                         ..default()
                                     },

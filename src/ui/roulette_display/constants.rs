@@ -7,10 +7,10 @@ pub(super) const BOTTOM_MARGIN: f32 = 20.0;
 pub(super) const WHEEL_RADIUS: f32 = 40.0;
 
 /// Font size for the selected spell name display above the wheel.
-pub(super) const SELECTED_SPELL_FONT_SIZE: f32 = 22.0;
+pub(super) const SELECTED_SPELL_FONT_SIZE: f32 = 16.0;
 
 /// Font size for the "Press SPACE" prompt.
-pub(super) const PROMPT_FONT_SIZE: f32 = 16.0;
+pub(super) const PROMPT_FONT_SIZE: f32 = 12.0;
 
 /// Color for the "Press SPACE" prompt.
 pub(super) const PROMPT_COLOR: Color = Color::srgba(0.8, 0.8, 0.9, 1.0);

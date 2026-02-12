@@ -5,7 +5,6 @@ use super::constants::*;
 use super::styles::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::messages::MouseClicked;
-use crate::ui::resources::CustomFont;
 
 /// Spawns the concentration UI when a concentration spell is active.
 pub(super) fn spawn_concentration_ui(
@@ -13,7 +12,6 @@ pub(super) fn spawn_concentration_ui(
     ui_query: Query<Entity, With<ConcentrationUIRoot>>,
     concentration_spells: Query<&ConcentrationSpell>,
     mut spell_name_text: Query<&mut Text, With<ConcentrationSpellNameText>>,
-    custom_font: Res<CustomFont>,
 ) {
     let has_concentration_spell = !concentration_spells.is_empty();
     let has_ui = !ui_query.is_empty();
@@ -52,7 +50,7 @@ pub(super) fn spawn_concentration_ui(
                 button.spawn((
                     Text::new(format!("End Concentration: {}", spell_name)),
                     TextFont {
-                        font: custom_font.handle.clone(),
+                        // font removed (using default),
                         font_size: BUTTON_FONT_SIZE,
                         ..default()
                     },

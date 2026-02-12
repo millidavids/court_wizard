@@ -23,8 +23,8 @@ pub const DAMAGE: f32 = 1000.0;
 
 // Beam properties
 pub const BEAM_LENGTH: f32 = 5000.0;
-pub const BEAM_WIDTH: f32 = 10.0; // 10 pixels wide
-pub const BEAM_WIDTH_FIRED: f32 = 10.0; // Same width after firing
+pub const BEAM_WIDTH: f32 = 30.0; // 30 pixels wide
+pub const BEAM_WIDTH_FIRED: f32 = 30.0; // Same width after firing
 
 // Visuals
 pub const BEAM_COLOR_CASTING: Color = Color::srgb(0.6, 0.0, 0.8); // Dark purple

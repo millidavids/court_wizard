@@ -19,5 +19,5 @@ pub(super) const POWER_COLOR: Color = Color::srgba(0.5, 0.2, 0.2, 0.8); // Muted
 pub(super) const SPEED_COLOR: Color = Color::srgba(0.2, 0.4, 0.2, 0.8); // Muted dark green
 
 // Text - smaller fonts
-pub(super) const LABEL_FONT_SIZE: f32 = 12.0;
+pub(super) const LABEL_FONT_SIZE: f32 = 9.0;
 pub(super) const TEXT_COLOR: Color = Color::WHITE;
