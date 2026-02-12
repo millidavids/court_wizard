@@ -56,6 +56,9 @@ pub enum MenuState {
 
     /// Wizard type selection screen for picking or creating a wizard.
     WizardSelect,
+
+    /// Progress screen showing achievements and unlockables.
+    Progress,
 }
 
 /// InGame sub-state.
@@ -120,4 +123,7 @@ pub enum PauseMenuState {
 
     /// Instructions screen explaining gameplay mechanics.
     Instructions,
+
+    /// Progress screen showing achievements and unlockables.
+    Progress,
 }

@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
 
+use super::achievement_popup::AchievementPopupPlugin;
 use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
@@ -38,6 +39,7 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            AchievementPopupPlugin,
             MainMenuPlugin,
             LoadingUiPlugin,
             InGamePlugin,

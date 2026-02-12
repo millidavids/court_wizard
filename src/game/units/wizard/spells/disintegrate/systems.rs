@@ -7,7 +7,9 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{
+    Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
+};
 
 /// Marker component for disintegrate spell when it's actively being cast/channeled.
 ///
@@ -206,9 +208,15 @@ fn get_cursor_world_position(
 /// This is a high-risk spell that damages both attackers and defenders,
 /// but not the wizard.
 pub fn apply_disintegrate_damage(
+    mut commands: Commands,
     mut beam_query: Query<&mut DisintegrateBeam>,
     mut target_query: Query<
-        (&Transform, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<Wizard>,
     >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
@@ -229,7 +237,7 @@ pub fn apply_disintegrate_damage(
         let effective_length = beam.current_length() * max_t;
 
         if beam.should_damage() {
-            for (transform, mut health, mut temp_hp) in target_query.iter_mut() {
+            for (entity, transform, mut health, mut temp_hp) in target_query.iter_mut() {
                 let position = transform.translation;
                 // Check if point is in beam AND before the wall
                 if beam.contains_point(position) {
@@ -240,6 +248,7 @@ pub fn apply_disintegrate_damage(
                             temp_hp.as_deref_mut(),
                             beam.damage_per_tick(),
                         );
+                        commands.entity(entity).insert(SpellDamaged);
                     }
                 }
             }

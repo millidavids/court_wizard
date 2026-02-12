@@ -10,10 +10,15 @@ use super::resources::CurrentLevel;
 use super::units::archer::Archer;
 use super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, Health, Hitbox, MovementSpeed,
-    RoughTerrain, RoughTerrainModifier, Team, TemporaryHitPoints, apply_damage_to_unit,
+    RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
+
+use crate::config::save_data::{AchievementId, unlock_achievement};
+use crate::game::messages::AchievementUnlockedMessage;
+use crate::game::resources::AchievementTracker;
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -414,6 +419,8 @@ pub fn combat(
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
     mut kill_stats: ResMut<super::resources::KillStats>,
+    mut tracker: ResMut<AchievementTracker>,
+    mut achievement_events: MessageWriter<AchievementUnlockedMessage>,
     query: Query<
         (
             Entity,
@@ -423,6 +430,7 @@ pub fn convert_dead_to_corpses(
             Option<&Infantry>,
             Option<&Archer>,
             Option<&super::units::king::components::King>,
+            Option<&SpellDamaged>,
         ),
         Without<Corpse>,
     >,
@@ -431,10 +439,22 @@ pub fn convert_dead_to_corpses(
     king_assets: Res<super::units::king::resources::KingAssets>,
     mut velocity_query: Query<&mut Velocity>,
 ) {
-    for (entity, health, team, transform, is_infantry, is_archer, is_king) in &query {
+    for (entity, health, team, transform, is_infantry, is_archer, is_king, spell_damaged) in &query
+    {
         if health.is_dead() {
             // Record the kill
             kill_stats.record_kill(*team);
+
+            // Check for friendly fire achievement (defender killed by spell)
+            if *team == Team::Defenders
+                && spell_damaged.is_some()
+                && !tracker.unlocked.contains(AchievementId::FriendlyFire.id())
+            {
+                let id = AchievementId::FriendlyFire;
+                tracker.unlocked.insert(id.id().to_string());
+                unlock_achievement(id);
+                achievement_events.write(AchievementUnlockedMessage { id });
+            }
 
             // Replace with appropriate corpse material
             let corpse_material = if is_king.is_some() {

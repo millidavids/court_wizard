@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.586] - 2025-02-12
+
+### Added
+- **Achievements** — earn achievements for completing milestones during gameplay
+  - "First Victory" — win your first battle
+  - "Friendly Fire" — accidentally kill one of your own defenders with a spell
+  - A gold popup appears near the top of the screen when you unlock an achievement (fades after 5 seconds)
+  - Achievements are saved and won't trigger again once earned
+- **Progress screen** — new menu accessible from both the main menu and pause menu
+  - View all achievements and whether you've earned them
+  - See all unlockable spells, ingredients, and wizard types
+  - "Clear Progress" button lets you reset all achievements and unlockables
+
 ## [v0.0.579] - 2025-02-12
 
 ### Changed

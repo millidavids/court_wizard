@@ -11,7 +11,7 @@ use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
-    FrostSlowModifier, Health, TemporaryHitPoints, apply_damage_to_unit,
+    FrostSlowModifier, Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
@@ -488,6 +488,7 @@ pub(super) fn update_ice_explosions(
                 if distance <= explosion.max_radius {
                     // Apply frost damage to ALL units
                     apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), explosion.damage);
+                    commands.entity(unit_entity).insert(SpellDamaged);
 
                     // Apply or refresh frost slow effect
                     if let Some(mut existing_slow) = frost_slow {

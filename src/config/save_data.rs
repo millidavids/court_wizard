@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::wizard::components::Spell;
 
 use super::progress::{keyed_hash, load_verified_progress};
@@ -37,6 +38,115 @@ pub(crate) struct SaveMetadata {
 pub(crate) struct PlayerMetaProgress {
     pub(crate) total_levels_completed: u32,
     pub(crate) total_games_played: u32,
+    #[serde(default)]
+    pub(crate) unlocked_achievements: Vec<String>,
+    #[serde(default)]
+    pub(crate) unlocked_content: UnlockedContent,
+}
+
+/// Tracks which content the player has unlocked (spells, ingredients, wizard types).
+/// Defaults to everything unlocked.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct UnlockedContent {
+    #[serde(default = "UnlockedContent::all_spells")]
+    pub(crate) spells: Vec<String>,
+    #[serde(default = "UnlockedContent::all_ingredients")]
+    pub(crate) ingredients: Vec<String>,
+    #[serde(default = "UnlockedContent::all_wizard_types")]
+    pub(crate) wizard_types: Vec<String>,
+}
+
+impl UnlockedContent {
+    fn all_spells() -> Vec<String> {
+        Spell::all().iter().map(|s| format!("{:?}", s)).collect()
+    }
+
+    fn all_ingredients() -> Vec<String> {
+        Ingredient::all()
+            .iter()
+            .map(|i| format!("{:?}", i))
+            .collect()
+    }
+
+    fn all_wizard_types() -> Vec<String> {
+        WizardType::all()
+            .iter()
+            .map(|w| format!("{:?}", w))
+            .collect()
+    }
+}
+
+impl Default for UnlockedContent {
+    fn default() -> Self {
+        Self {
+            spells: Self::all_spells(),
+            ingredients: Self::all_ingredients(),
+            wizard_types: Self::all_wizard_types(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Achievement definitions
+// ---------------------------------------------------------------------------
+
+/// Type-safe achievement identifiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AchievementId {
+    FirstVictory,
+    FriendlyFire,
+}
+
+impl AchievementId {
+    /// Returns all achievement variants.
+    pub(crate) fn all() -> &'static [AchievementId] {
+        &[AchievementId::FirstVictory, AchievementId::FriendlyFire]
+    }
+
+    /// String identifier used for persistence.
+    pub(crate) fn id(&self) -> &'static str {
+        match self {
+            AchievementId::FirstVictory => "first_victory",
+            AchievementId::FriendlyFire => "friendly_fire",
+        }
+    }
+
+    /// Display name shown in the achievement popup.
+    pub(crate) fn display_name(&self) -> &'static str {
+        match self {
+            AchievementId::FirstVictory => "First Victory",
+            AchievementId::FriendlyFire => "Friendly Fire",
+        }
+    }
+
+    /// Description shown in the achievement popup.
+    pub(crate) fn description(&self) -> &'static str {
+        match self {
+            AchievementId::FirstVictory => "You won your first battle!",
+            AchievementId::FriendlyFire => "You killed a defender with a spell. Oops!",
+        }
+    }
+}
+
+/// Unlock an achievement and persist immediately.
+/// Returns true if the achievement was newly unlocked.
+pub(crate) fn unlock_achievement(id: AchievementId) -> bool {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+    let id_str = id.id().to_string();
+    if save_file.player.unlocked_achievements.contains(&id_str) {
+        return false;
+    }
+    save_file.player.unlocked_achievements.push(id_str);
+    save_unified(&save_file);
+    true
+}
+
+/// Clear all achievements and reset unlocked content to defaults.
+pub(crate) fn clear_progress() {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+    save_file.player.unlocked_achievements.clear();
+    save_file.player.unlocked_content = UnlockedContent::default();
+    save_unified(&save_file);
 }
 
 /// Per-wizard save data. Exactly one per wizard type.

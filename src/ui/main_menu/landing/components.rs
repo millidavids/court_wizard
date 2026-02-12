@@ -25,4 +25,7 @@ pub(super) enum MenuButtonAction {
 
     /// Open the instructions screen, transitioning to `MenuState::Instructions`.
     Instructions,
+
+    /// Open the progress screen, transitioning to `MenuState::Progress`.
+    Progress,
 }

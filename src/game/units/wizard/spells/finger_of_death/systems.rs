@@ -9,7 +9,9 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Health, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{
+    Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
+};
 
 /// Handles Finger of Death casting with left-click.
 ///
@@ -217,9 +219,18 @@ fn spawn_beam(
 /// Drains 50% of the wizard's mana and cancels casting state.
 /// Adds AwaitingFingerOfDeathRelease component to prevent immediate recast.
 pub fn apply_finger_of_death_damage(
+    mut commands: Commands,
     mut mouse_state: ResMut<MouseButtonState>,
     mut beams: Query<&mut FingerOfDeathBeam>,
-    mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>), Without<Wizard>>,
+    mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        Without<Wizard>,
+    >,
     mut wizard_query: Query<(&mut Mana, &mut CastingState), With<Wizard>>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
 ) {
@@ -245,11 +256,12 @@ pub fn apply_finger_of_death_damage(
         // Apply damage to all units along beam (before wall)
         let beam_width = beam.beam_width();
         let damage = beam.damage();
-        for (transform, mut health, mut temp_hp) in targets.iter_mut() {
+        for (entity, transform, mut health, mut temp_hp) in targets.iter_mut() {
             if beam.contains_point(transform.translation, beam_width) {
                 let proj = (transform.translation - beam.origin).dot(beam.direction);
                 if proj <= effective_length {
                     apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
+                    commands.entity(entity).insert(SpellDamaged);
                 }
             }
         }

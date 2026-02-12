@@ -10,7 +10,7 @@ use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
+    Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -80,6 +80,7 @@ pub fn handle_chain_lightning_casting(
                                 temp_hp.as_deref_mut(),
                                 initial_damage,
                             );
+                            commands.entity(target_entity).insert(SpellDamaged);
                         }
 
                         // Spawn first arc from wizard to target
@@ -262,6 +263,7 @@ pub fn process_chain_lightning_bounces(
                 // Apply damage to target
                 if let Ok((_, _, _, mut health, mut temp_hp)) = enemies.get_mut(target_entity) {
                     apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), bolt.current_damage);
+                    commands.entity(target_entity).insert(SpellDamaged);
                 }
 
                 // Spawn arc from last position to new target

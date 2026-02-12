@@ -7,7 +7,7 @@ use super::components::{BlackHole, UnitInBlackHole};
 use super::constants::*;
 use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
+    Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
 
@@ -274,6 +274,7 @@ pub(super) fn apply_black_hole_damage(
                 // Apply scaled damage
                 let total_damage = black_hole.damage_per_tick() * damage_multiplier;
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), total_damage);
+                commands.entity(entity).insert(SpellDamaged);
             }
         }
 

@@ -3,6 +3,7 @@
 //! This module provides the user interface systems and components,
 //! organized by menu/screen type.
 
+mod achievement_popup;
 mod action_bar;
 mod arcanorouter_display;
 mod cauldron_menu;
@@ -15,6 +16,7 @@ mod loading;
 mod main_menu;
 mod pause_menu;
 mod plugin;
+pub(crate) mod progress;
 mod roulette_display;
 mod rune_display;
 mod spell_book;

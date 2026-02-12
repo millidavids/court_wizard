@@ -570,7 +570,7 @@ fn spawn_slider_control(
                 value: slider_value,
                 is_dragging: false,
             },
-            },
+        },
     );
 }
 

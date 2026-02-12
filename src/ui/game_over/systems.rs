@@ -1,15 +1,33 @@
 use bevy::prelude::*;
 
+use crate::config::save_data::{AchievementId, unlock_achievement};
 use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::input::messages::MouseClicked;
-use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
+use crate::game::messages::AchievementUnlockedMessage;
+use crate::game::resources::{AchievementTracker, CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::state::{AppState, InGameState};
 use crate::ui::systems::spawn_button;
 
 use super::components::*;
 use super::styles::*;
+
+/// Checks if the "First Victory" achievement should be unlocked.
+pub(super) fn check_first_victory_achievement(
+    game_outcome: Res<GameOutcome>,
+    mut tracker: ResMut<AchievementTracker>,
+    mut achievement_events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if *game_outcome == GameOutcome::Victory
+        && !tracker.unlocked.contains(AchievementId::FirstVictory.id())
+    {
+        let id = AchievementId::FirstVictory;
+        tracker.unlocked.insert(id.id().to_string());
+        unlock_achievement(id);
+        achievement_events.write(AchievementUnlockedMessage { id });
+    }
+}
 
 /// Saves efficiency for current level to config when entering game over screen.
 ///

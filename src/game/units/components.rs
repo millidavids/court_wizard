@@ -284,6 +284,11 @@ pub fn apply_damage_to_unit(
     health.take_damage(overflow);
 }
 
+/// Marker component for units that have been damaged by a spell.
+/// Used to detect friendly fire for the achievement system.
+#[derive(Component)]
+pub struct SpellDamaged;
+
 /// Marker component for dead units (corpses).
 ///
 /// Dead units remain on the battlefield as corpses that affect living units.

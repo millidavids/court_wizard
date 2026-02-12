@@ -56,6 +56,14 @@ pub fn setup(mut commands: Commands) {
                 &BUTTON_STYLE,
             );
 
+            // Progress button
+            spawn_button(
+                parent,
+                "Progress",
+                MenuButtonAction::Progress,
+                &BUTTON_STYLE,
+            );
+
             // Changelog button
             spawn_button(
                 parent,
@@ -105,6 +113,9 @@ pub fn button_action(
                 }
                 MenuButtonAction::Instructions => {
                     next_menu_state.set(MenuState::Instructions);
+                }
+                MenuButtonAction::Progress => {
+                    next_menu_state.set(MenuState::Progress);
                 }
             }
         }

@@ -10,7 +10,9 @@ use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
-use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{
+    Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
+};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles fireball casting with left-click.
@@ -309,8 +311,14 @@ pub fn update_explosions(
 ///
 /// Targets closer to the center stay in the explosion longer and take more damage.
 pub fn apply_explosion_damage(
+    mut commands: Commands,
     mut explosions: Query<&mut FireballExplosion>,
-    mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut targets: Query<(
+        Entity,
+        &Transform,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+    )>,
 ) {
     for mut explosion in &mut explosions {
         // Check if it's time for a damage tick
@@ -320,7 +328,7 @@ pub fn apply_explosion_damage(
             let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
 
             // Apply damage to all units within the current explosion radius
-            for (transform, mut health, mut temp_hp) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp) in &mut targets {
                 let distance = explosion.origin.distance(transform.translation);
 
                 if distance <= current_radius {
@@ -329,6 +337,7 @@ pub fn apply_explosion_damage(
                         temp_hp.as_deref_mut(),
                         explosion.damage_per_tick,
                     );
+                    commands.entity(entity).insert(SpellDamaged);
                 }
             }
         }
@@ -398,9 +407,15 @@ pub fn cleanup_finished_explosions(
 
 /// Applies periodic damage to units within residual fire effects.
 pub fn apply_residual_area_damage(
+    mut commands: Commands,
     time: Res<Time>,
     mut effects: Query<&mut ResidualAreaDamageEffect>,
-    mut targets: Query<(&Transform, &mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut targets: Query<(
+        Entity,
+        &Transform,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+    )>,
 ) {
     let delta = time.delta_secs();
 
@@ -411,7 +426,7 @@ pub fn apply_residual_area_damage(
         if effect.time_since_last_tick >= effect.tick_interval {
             effect.time_since_last_tick = 0.0;
 
-            for (transform, mut health, mut temp_hp) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp) in &mut targets {
                 let distance = Vec3::new(
                     effect.origin.x - transform.translation.x,
                     0.0,
@@ -425,6 +440,7 @@ pub fn apply_residual_area_damage(
                         temp_hp.as_deref_mut(),
                         effect.damage_per_tick,
                     );
+                    commands.entity(entity).insert(SpellDamaged);
                 }
             }
         }

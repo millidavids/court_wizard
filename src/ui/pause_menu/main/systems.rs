@@ -73,6 +73,14 @@ pub fn setup(mut commands: Commands) {
                 &BUTTON_STYLE,
             );
 
+            // Progress button
+            spawn_button(
+                parent,
+                "Progress",
+                PauseMenuButtonAction::Progress,
+                &BUTTON_STYLE,
+            );
+
             // Exit button
             spawn_button(
                 parent,
@@ -114,6 +122,9 @@ pub fn button_action(
                 }
                 PauseMenuButtonAction::Instructions => {
                     next_pause_menu_state.set(PauseMenuState::Instructions);
+                }
+                PauseMenuButtonAction::Progress => {
+                    next_pause_menu_state.set(PauseMenuState::Progress);
                 }
                 PauseMenuButtonAction::Exit => {
                     active_save.0 = None;

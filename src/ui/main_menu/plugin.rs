@@ -9,6 +9,7 @@ use super::landing::plugin::LandingPlugin;
 use super::settings::plugin::SettingsPlugin;
 use super::wizard_select::plugin::WizardSelectPlugin;
 use crate::ui::instructions::MainMenuInstructionsPlugin;
+use crate::ui::progress::MainMenuProgressPlugin;
 
 /// Main menu plugin that aggregates all main menu sub-screens.
 ///
@@ -27,6 +28,7 @@ impl Plugin for MainMenuPlugin {
             SettingsPlugin,
             ChangelogPlugin,
             MainMenuInstructionsPlugin,
+            MainMenuProgressPlugin,
             WizardSelectPlugin,
         ));
     }

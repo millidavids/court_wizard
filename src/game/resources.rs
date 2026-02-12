@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use super::units::components::Team;
@@ -43,4 +45,11 @@ impl Default for CurrentLevel {
     fn default() -> Self {
         Self(1)
     }
+}
+
+/// Runtime cache of unlocked achievements.
+/// Avoids repeated localStorage reads during gameplay.
+#[derive(Resource, Default)]
+pub struct AchievementTracker {
+    pub unlocked: HashSet<String>,
 }
