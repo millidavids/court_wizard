@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use rand::Rng;
 
 use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
@@ -28,7 +29,9 @@ pub fn handle_magic_missile_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell, &Wizard), With<Wizard>>,
+    camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
 ) {
     let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
@@ -57,6 +60,7 @@ pub fn handle_magic_missile_casting(
                 // Try to spawn missile if we have mana
                 let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
                 if mana.consume(mana_cost) {
+                    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
                     spawn_magic_missile(
                         &mut commands,
                         &mut meshes,
@@ -65,6 +69,7 @@ pub fn handle_magic_missile_casting(
                         &targets,
                         wizard.spell_range,
                         primed_spell.empowerment,
+                        cursor_pos,
                     );
                     casting_state.reset_channel_interval();
                 } else {
@@ -82,6 +87,7 @@ pub fn handle_magic_missile_casting(
                 // Cast complete - transition to channeling and spawn first missile
                 let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
                 if mana.consume(mana_cost) {
+                    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
                     spawn_magic_missile(
                         &mut commands,
                         &mut meshes,
@@ -90,6 +96,7 @@ pub fn handle_magic_missile_casting(
                         &targets,
                         wizard.spell_range,
                         primed_spell.empowerment,
+                        cursor_pos,
                     );
                     casting_state.start_channeling();
                 } else {
@@ -111,7 +118,8 @@ pub fn handle_magic_missile_casting(
 /// Spawns a single magic missile projectile.
 ///
 /// Helper function for spawning missiles with random trajectories that arc towards camera.
-/// Selects a random target within spell range, or falls back to closest target.
+/// If cursor position is provided, preferentially targets enemies near cursor using weighted random selection.
+/// Falls back to closest target if no enemies are in range.
 fn spawn_magic_missile(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -120,13 +128,15 @@ fn spawn_magic_missile(
     targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     spell_range: f32,
     empowerment: f32,
+    cursor_world_pos: Option<Vec3>,
 ) {
     // Spawn position: above the wizard
     let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
-    // Select target: random enemy (Attacker or Undead) within range, or closest enemy
+    // Select target using cursor-based weighted selection if cursor position is available
     let mut rng = rand::thread_rng();
 
+    // Collect enemies in range
     let enemies_in_range: Vec<Entity> = targets
         .iter()
         .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
@@ -138,9 +148,47 @@ fn spawn_magic_missile(
         .collect();
 
     let target = if !enemies_in_range.is_empty() {
-        // Pick a random target within range
-        let index = rng.gen_range(0..enemies_in_range.len());
-        Some(enemies_in_range[index])
+        if let Some(cursor_pos) = cursor_world_pos {
+            // Weighted random selection based on distance from cursor
+            // Build weights and total in a single pass without intermediate Vec
+            let mut total_weight = 0.0;
+            let weighted_targets: Vec<(Entity, f32)> = enemies_in_range
+                .iter()
+                .filter_map(|&entity| {
+                    targets.get(entity).ok().map(|(_, transform, _)| {
+                        let distance = cursor_pos.distance(transform.translation);
+                        // Inverse distance squared weighting (add 1.0 to avoid division by zero)
+                        let weight =
+                            1.0 / (distance.powi(constants::CURSOR_TARGETING_WEIGHT_POWER) + 1.0);
+                        total_weight += weight;
+                        (entity, weight)
+                    })
+                })
+                .collect();
+
+            if total_weight > 0.0 {
+                // Pick target using weighted random selection
+                let mut random_value = rng.gen_range(0.0..total_weight);
+                let mut selected_target = None;
+                for (entity, weight) in weighted_targets {
+                    random_value -= weight;
+                    if random_value <= 0.0 {
+                        selected_target = Some(entity);
+                        break;
+                    }
+                }
+                // Fallback to first target if loop completes (shouldn't happen)
+                selected_target.or_else(|| enemies_in_range.first().copied())
+            } else {
+                // All weights are zero (shouldn't happen), pick random
+                let index = rng.gen_range(0..enemies_in_range.len());
+                Some(enemies_in_range[index])
+            }
+        } else {
+            // No cursor position, pick random target within range
+            let index = rng.gen_range(0..enemies_in_range.len());
+            Some(enemies_in_range[index])
+        }
     } else {
         // No targets in range, find the closest enemy anywhere
         targets
@@ -395,5 +443,28 @@ pub fn despawn_distant_magic_missiles(
         if distance_from_wizard > spell_range {
             commands.entity(entity).despawn();
         }
+    }
+}
+
+/// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
+///
+/// TODO: Extract this to shared wizard utilities - duplicated across 11 spells.
+fn get_cursor_world_position(
+    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    window_query: &Query<&Window, With<PrimaryWindow>>,
+) -> Option<Vec3> {
+    let (camera, camera_transform) = camera_query.single().ok()?;
+    let window = window_query.single().ok()?;
+    let cursor_pos = window.cursor_position()?;
+
+    let ray = camera
+        .viewport_to_world(camera_transform, cursor_pos)
+        .ok()?;
+    let t = -ray.origin.y / ray.direction.y;
+
+    if t > 0.0 {
+        Some(ray.origin + ray.direction * t)
+    } else {
+        None
     }
 }

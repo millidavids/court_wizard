@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.30] - 2025-02-13
+
+### Improved
+- Magic Missile now targets enemies near your mouse cursor instead of shooting randomly
+- Aiming your cursor at specific enemies makes Magic Missile much more effective
+- The spell still has some randomness, but heavily favors enemies you're pointing at
+
 ## [v0.1.24] - 2025-02-13
 
 ### Improved

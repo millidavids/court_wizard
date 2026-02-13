@@ -14,13 +14,6 @@ if [ "$1" = "--release" ]; then
     OUT_DIR="./docs"
     echo "Building for WASM (RELEASE MODE - for GitHub Pages)..."
     echo "Skipping version bump (update CHANGELOG.md manually before release builds)"
-elif [ "$1" = "--profile" ] && [ "$2" = "wasm-release" ]; then
-    RELEASE_FLAG="--profile wasm-release"
-    BUILD_TYPE="wasm-release"
-    PROFILE_NAME="wasm-release"
-    OUT_DIR="./docs"
-    echo "Building for WASM (EXPERIMENTAL WASM-RELEASE PROFILE with fat LTO)..."
-    echo "Skipping version bump (update CHANGELOG.md manually before release builds)"
 else
     # Bump patch version in Cargo.toml (debug builds only)
     echo "Bumping version..."
@@ -68,20 +61,8 @@ if command -v wasm-opt &> /dev/null; then
             -o $OUT_DIR/court_wizard_bg.wasm
         echo "wasm-opt optimization complete!"
     else
-        echo "Running wasm-opt with fast settings for development..."
-        # -O1: Light optimization, fast processing
-        # Still enable features to avoid validation errors
-        wasm-opt -O1 \
-            --enable-nontrapping-float-to-int \
-            --enable-bulk-memory \
-            --enable-sign-ext \
-            --enable-mutable-globals \
-            --enable-reference-types \
-            --enable-simd \
-            --enable-multivalue \
-            $OUT_DIR/court_wizard_bg.wasm \
-            -o $OUT_DIR/court_wizard_bg.wasm
-        echo "wasm-opt light optimization complete!"
+        echo "Skipping wasm-opt for development builds (to avoid table growth issues)..."
+        # Skip wasm-opt entirely for dev builds - the raw WASM from cargo is fine
     fi
 else
     echo "Warning: wasm-opt not found, skipping post-processing optimization"

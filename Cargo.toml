@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.1.24"
+version = "0.1.33"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -81,12 +81,3 @@ lto = "thin"         # Keep thin LTO to avoid WASM validation errors
 codegen-units = 1    # Better optimization, slower compile
 panic = "abort"      # Remove unwinding code, smaller binary
 strip = "symbols"    # Strip all symbols for maximum size reduction
-
-# EXPERIMENTAL: wasm-release profile - DO NOT USE
-# Fat LTO causes WASM validation errors: "invalid value type 0x0"
-# Keep this profile for reference, but always use --release for WASM builds
-[profile.wasm-release]
-inherits = "release"
-opt-level = "z"      # Most aggressive size optimization
-lto = "fat"          # BROKEN: Causes WASM instantiation errors
-# This profile produces 13MB but creates invalid WASM. Use --release instead (16MB, works perfectly)

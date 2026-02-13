@@ -98,3 +98,8 @@ pub const MIN_CHANNEL_INTERVAL: f32 = 0.05;
 
 /// Time to ramp from initial to minimum channel interval (in seconds).
 pub const CHANNEL_RAMP_TIME: f32 = 5.0;
+
+/// Power for inverse distance weighting in cursor targeting.
+/// Higher values = stronger preference for targets near cursor.
+/// 2.0 = inverse square, 1.0 = linear inverse
+pub const CURSOR_TARGETING_WEIGHT_POWER: i32 = 2;
