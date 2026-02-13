@@ -121,6 +121,7 @@ pub fn process_spawn_queue(
     king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
     cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     asset_server: Res<AssetServer>,
+    camera_query: Query<&Transform, With<Camera3d>>,
 ) {
     // Process exactly one task per frame for smooth, predictable loading
     let batch = spawn_queue.pop_batch(1);
@@ -211,6 +212,7 @@ pub fn process_spawn_queue(
                         meshes,
                         materials,
                         Res::clone(&assets),
+                        camera_query,
                     );
                 }
             }

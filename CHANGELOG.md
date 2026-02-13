@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.23] - 2025-02-13
+
+### Changed
+- The cauldron now pulses and glows with different colors while brewing potions
+- Cauldron brewing animations are now smoother and more subtle
+
 ## [v0.1.6] - 2025-02-12
 
 ### Changed

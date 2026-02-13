@@ -5,7 +5,9 @@ use crate::state::{AppState, InGameState};
 
 use super::messages::*;
 use super::resources::CauldronBuffs;
-use super::run_conditions::{cauldron_is_brewing, has_active_buffs, has_brew_bubbles};
+use super::run_conditions::{
+    cauldron_is_brewing, has_active_buffs, has_brew_bubbles, has_brewing_effects,
+};
 use super::systems;
 
 /// Plugin managing the cauldron brewing system.
@@ -31,8 +33,10 @@ impl Plugin for CauldronPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::update_orthogonal_billboard,
+                    systems::start_brewing_effects,
+                    systems::update_brewing_timer.run_if(has_brewing_effects),
                     systems::update_cauldron_animation,
+                    systems::update_brewing_effects.run_if(has_brewing_effects),
                     systems::update_brew_timer.run_if(cauldron_is_brewing),
                     systems::handle_brew_complete.run_if(on_message::<BrewCompleteMessage>),
                     systems::tick_active_buffs.run_if(has_active_buffs),

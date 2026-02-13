@@ -41,3 +41,14 @@ pub const CAULDRON_FRAME_DURATION: f32 =
 
 /// Size of the cauldron billboard (pixels in world space)
 pub const CAULDRON_SPRITE_SIZE: f32 = 64.0;
+
+/// Brewing visual effect parameters
+pub const BREWING_PULSE_SCALE_MIN: f32 = 0.95; // Shrink to 95% of normal size
+pub const BREWING_PULSE_SCALE_MAX: f32 = 1.05; // Grow to 105% of normal size
+pub const BREWING_PULSE_DURATION: f32 = 1.0; // 1 second per pulse cycle
+pub const BREWING_COLOR_ALPHA_MIN: f32 = 0.3; // Min color opacity
+pub const BREWING_COLOR_ALPHA_MAX: f32 = 0.9; // Max color opacity
+
+// Pre-calculated ranges for brewing effects
+pub const BREWING_PULSE_SCALE_RANGE: f32 = BREWING_PULSE_SCALE_MAX - BREWING_PULSE_SCALE_MIN;
+pub const BREWING_COLOR_ALPHA_RANGE: f32 = BREWING_COLOR_ALPHA_MAX - BREWING_COLOR_ALPHA_MIN;

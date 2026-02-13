@@ -113,17 +113,19 @@ impl CauldronState {
     }
 }
 
-/// Marker for entities that should face the camera fully (orthogonal billboard).
-/// Unlike the standard Billboard component which only rotates on Y-axis,
-/// this makes the entity face the camera directly in all axes.
-#[derive(Component)]
-pub struct OrthogonalBillboard;
-
 /// Tracks the cauldron sprite sheet animation state.
 #[derive(Component)]
 pub struct CauldronAnimation {
     pub current_frame: usize,
     pub elapsed: f32,
+}
+
+/// Tracks brewing visual effects (pulsing and color).
+#[derive(Component)]
+pub struct CauldronBrewingEffects {
+    pub pulse_timer: f32,
+    pub original_scale: Vec3,
+    pub recipe_color: Color,
 }
 
 impl CauldronAnimation {
