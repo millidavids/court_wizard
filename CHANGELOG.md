@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.24] - 2025-02-13
+
+### Improved
+- Game now loads almost 3 times faster in your browser
+- Download size reduced by 66% - from 67 MB to just 23 MB
+- Much better experience on mobile devices and slower internet connections
+- Optimized game files without affecting any gameplay or visuals
+
 ## [v0.1.23] - 2025-02-13
 
 ### Changed

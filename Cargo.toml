@@ -1,17 +1,69 @@
 [package]
 name = "court_wizard"
-version = "0.1.23"
+version = "0.1.24"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
 
 [dependencies]
-bevy = { version = "0.17.3", default-features = true }
+bevy = { version = "0.17.3", default-features = false, features = [
+    # Core rendering and 2D
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_pbr",         # For 3D billboard effects (cauldron)
+    "bevy_mesh",
+    "bevy_image",
+    "bevy_camera",
+    "tonemapping_luts", # For proper color grading
+    "zstd_rust",        # Required by tonemapping_luts
+
+    # UI and Text
+    "bevy_text",        # Text rendering - REQUIRED!
+    "default_font",     # Embedded default font - REQUIRED for text!
+    "bevy_ui",
+    "bevy_ui_render",
+    "bevy_picking",
+    "bevy_ui_picking_backend",
+    "bevy_sprite_picking_backend",
+
+    # Window and input
+    "bevy_window",
+    "bevy_winit",
+    "bevy_input_focus",
+
+    # Audio
+    "bevy_audio",
+    "vorbis",
+
+    # Assets and scenes
+    "bevy_asset",
+    "bevy_scene",
+    "bevy_state",
+
+    # Image formats
+    "png",
+    "jpeg",
+
+    # Platform support
+    "x11",
+    "wayland",
+    "webgpu",           # REQUIRED for WASM rendering backend
+
+    # Performance
+    "multi_threaded",
+
+    # Utilities
+    "bevy_color",
+    "bevy_log",
+    "serialize",
+] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 thiserror = "2.0"
 anyhow = "1.0"
 rand = "0.8"
+tracing = { version = "0.1", features = ["max_level_debug", "release_max_level_warn"] }
 
 # WASM-specific dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -24,6 +76,17 @@ getrandom = { version = "0.2", features = ["js"] }
 opt-level = 1
 
 [profile.release]
-opt-level = 3
-lto = "thin"  # Use thin LTO instead of full LTO to avoid WASM table issues
-strip = true  # Strip debug symbols to reduce size
+opt-level = "s"      # Optimize for size (sometimes smaller than "z")
+lto = "thin"         # Keep thin LTO to avoid WASM validation errors
+codegen-units = 1    # Better optimization, slower compile
+panic = "abort"      # Remove unwinding code, smaller binary
+strip = "symbols"    # Strip all symbols for maximum size reduction
+
+# EXPERIMENTAL: wasm-release profile - DO NOT USE
+# Fat LTO causes WASM validation errors: "invalid value type 0x0"
+# Keep this profile for reference, but always use --release for WASM builds
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"      # Most aggressive size optimization
+lto = "fat"          # BROKEN: Causes WASM instantiation errors
+# This profile produces 13MB but creates invalid WASM. Use --release instead (16MB, works perfectly)

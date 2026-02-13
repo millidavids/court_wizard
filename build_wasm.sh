@@ -1,15 +1,25 @@
 #!/bin/bash
 set -e
 
-# Check for --release flag
+# Check for --release or --profile flag
 RELEASE_FLAG=""
 BUILD_TYPE="debug"
 OUT_DIR="./web"
+PROFILE_NAME=""
+
 if [ "$1" = "--release" ]; then
     RELEASE_FLAG="--release"
     BUILD_TYPE="release"
+    PROFILE_NAME="release"
     OUT_DIR="./docs"
     echo "Building for WASM (RELEASE MODE - for GitHub Pages)..."
+    echo "Skipping version bump (update CHANGELOG.md manually before release builds)"
+elif [ "$1" = "--profile" ] && [ "$2" = "wasm-release" ]; then
+    RELEASE_FLAG="--profile wasm-release"
+    BUILD_TYPE="wasm-release"
+    PROFILE_NAME="wasm-release"
+    OUT_DIR="./docs"
+    echo "Building for WASM (EXPERIMENTAL WASM-RELEASE PROFILE with fat LTO)..."
     echo "Skipping version bump (update CHANGELOG.md manually before release builds)"
 else
     # Bump patch version in Cargo.toml (debug builds only)
@@ -41,21 +51,48 @@ wasm-bindgen \
   --target web \
   ./target/wasm32-unknown-unknown/$BUILD_TYPE/court_wizard.wasm
 
-# Skip wasm-opt for now - it's causing feature validation issues
-# The thin LTO in Cargo.toml provides sufficient optimization
-# if [ "$1" = "--release" ]; then
-#     if command -v wasm-opt &> /dev/null; then
-#         echo "Running wasm-opt for size optimization..."
-#         wasm-opt -Oz --enable-bulk-memory --enable-reference-types $OUT_DIR/court_wizard_bg.wasm -o $OUT_DIR/court_wizard_bg.wasm
-#     else
-#         echo "Warning: wasm-opt not found, skipping optimization"
-#     fi
-# fi
+# Apply wasm-opt based on build type
+if command -v wasm-opt &> /dev/null; then
+    if [ "$PROFILE_NAME" = "release" ] || [ "$PROFILE_NAME" = "wasm-release" ]; then
+        echo "Running wasm-opt for maximum size reduction..."
+        # -Oz: Most aggressive size optimization for releases
+        wasm-opt -Oz \
+            --enable-nontrapping-float-to-int \
+            --enable-bulk-memory \
+            --enable-sign-ext \
+            --enable-mutable-globals \
+            --enable-reference-types \
+            --enable-simd \
+            --enable-multivalue \
+            $OUT_DIR/court_wizard_bg.wasm \
+            -o $OUT_DIR/court_wizard_bg.wasm
+        echo "wasm-opt optimization complete!"
+    else
+        echo "Running wasm-opt with fast settings for development..."
+        # -O1: Light optimization, fast processing
+        # Still enable features to avoid validation errors
+        wasm-opt -O1 \
+            --enable-nontrapping-float-to-int \
+            --enable-bulk-memory \
+            --enable-sign-ext \
+            --enable-mutable-globals \
+            --enable-reference-types \
+            --enable-simd \
+            --enable-multivalue \
+            $OUT_DIR/court_wizard_bg.wasm \
+            -o $OUT_DIR/court_wizard_bg.wasm
+        echo "wasm-opt light optimization complete!"
+    fi
+else
+    echo "Warning: wasm-opt not found, skipping post-processing optimization"
+    echo "Install with: cargo install wasm-opt"
+fi
 
-if [ "$1" = "--release" ]; then
+if [ "$PROFILE_NAME" = "release" ] || [ "$PROFILE_NAME" = "wasm-release" ]; then
     echo "Copying index.html to docs/..."
-    cp ./web/index.html ./docs/index.html
+    cp ./web/index.html ./docs/index.html 2>/dev/null || true
     echo "WASM build complete! Release files are in ./docs/ for GitHub Pages deployment."
+    echo "Final binary size: $(ls -lh $OUT_DIR/court_wizard_bg.wasm | awk '{print $5}')"
 else
     echo "WASM build complete! Debug files are in ./web/ for local testing."
     echo "Run ./serve.sh to test locally."
