@@ -77,7 +77,7 @@ impl UnlockedContent {
     fn default_wizard_types() -> Vec<String> {
         WizardType::all()
             .iter()
-            .filter(|w| **w != WizardType::Arcanorouter)
+            .filter(|w| **w == WizardType::BoringOleMage)
             .map(|w| format!("{:?}", w))
             .collect()
     }
@@ -126,6 +126,8 @@ pub(crate) enum AchievementId {
     ExtremelyStubborn,
     // Meta / Unlocks
     SliderFiddler,
+    RandomMagicSurge,
+    Qwer,
 }
 
 impl AchievementId {
@@ -155,6 +157,8 @@ impl AchievementId {
             AchievementId::Stubborn,
             AchievementId::ExtremelyStubborn,
             AchievementId::SliderFiddler,
+            AchievementId::RandomMagicSurge,
+            AchievementId::Qwer,
         ]
     }
 
@@ -184,6 +188,8 @@ impl AchievementId {
             AchievementId::Stubborn => "stubborn",
             AchievementId::ExtremelyStubborn => "extremely_stubborn",
             AchievementId::SliderFiddler => "slider_fiddler",
+            AchievementId::RandomMagicSurge => "random_magic_surge",
+            AchievementId::Qwer => "qwer",
         }
     }
 
@@ -213,6 +219,8 @@ impl AchievementId {
             AchievementId::Stubborn => "Stubborn",
             AchievementId::ExtremelyStubborn => "Extremely Stubborn",
             AchievementId::SliderFiddler => "Slider Fiddler",
+            AchievementId::RandomMagicSurge => "Random Magic Surge",
+            AchievementId::Qwer => "QWER",
         }
     }
 
@@ -254,6 +262,8 @@ impl AchievementId {
             }
             AchievementId::ExtremelyStubborn => "At this point, the enemies feel bad for you.",
             AchievementId::SliderFiddler => "You adjusted a slider. The Arcanorouter approves.",
+            AchievementId::RandomMagicSurge => "Lol, you're so random.",
+            AchievementId::Qwer => "Spell-keyboard?",
         }
     }
 }

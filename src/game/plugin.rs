@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
+use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
@@ -9,7 +10,7 @@ use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::AchievementUnlockedMessage;
 use super::pathfinding::PathfindingPlugin;
-use super::resources::{AchievementTracker, CurrentLevel, GameOutcome, KillStats, RetryTracker};
+use super::resources::{CurrentLevel, GameOutcome, KillStats, RetryTracker};
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -75,7 +76,6 @@ impl Plugin for GamePlugin {
         app.init_resource::<GlobalAttackCycle>()
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()
-            .init_resource::<AchievementTracker>()
             .init_resource::<RetryTracker>()
             .insert_resource(GameOutcome::Victory)
             .add_message::<AchievementUnlockedMessage>()
@@ -86,13 +86,13 @@ impl Plugin for GamePlugin {
                 UnitsPlugin,
                 CauldronPlugin,
                 PathfindingPlugin,
+                AchievementsPlugin,
             ))
             .add_systems(
                 OnEnter(AppState::InGame),
                 (
                     shared_systems::init_level_from_config,
                     shared_systems::reset_resources_for_replay,
-                    init_achievement_tracker,
                 ),
             )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
@@ -164,15 +164,5 @@ impl Plugin for GamePlugin {
                     .run_if(in_state(InGameState::Running))
                     .after(MovementSystemSet),
             );
-    }
-}
-
-/// Populates the AchievementTracker from the save file on entering InGame.
-fn init_achievement_tracker(mut tracker: ResMut<AchievementTracker>) {
-    tracker.unlocked.clear();
-    if let Some(save) = crate::config::save_data::load_unified_save() {
-        for id_str in &save.player.unlocked_achievements {
-            tracker.unlocked.insert(id_str.clone());
-        }
     }
 }

@@ -1,15 +1,17 @@
 //! Progress screen plugin for both main menu and pause menu.
 
+use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
+use crate::game::achievements::messages::ClearProgressMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::plugin::ButtonActionSet;
 
 use super::components::{BackButton, ClearProgressButton};
 use super::systems::{
-    cleanup, handle_clear_progress, handle_scroll, setup_main_menu, setup_pause_menu,
-    update_button_colors,
+    cleanup, clear_and_refresh_main_menu, clear_and_refresh_pause_menu, handle_clear_progress,
+    handle_scroll, setup_main_menu, setup_pause_menu, update_button_colors,
 };
 
 /// Plugin that manages the progress screen UI for the main menu.
@@ -30,7 +32,13 @@ impl Plugin for MainMenuProgressPlugin {
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Progress)),
             )
-            .add_systems(Update, handle_scroll.run_if(in_state(MenuState::Progress)));
+            .add_systems(Update, handle_scroll.run_if(in_state(MenuState::Progress)))
+            .add_systems(
+                Update,
+                clear_and_refresh_main_menu
+                    .run_if(on_message::<ClearProgressMessage>)
+                    .run_if(in_state(MenuState::Progress)),
+            );
     }
 }
 
@@ -55,6 +63,12 @@ impl Plugin for PauseMenuProgressPlugin {
             .add_systems(
                 Update,
                 handle_scroll.run_if(in_state(PauseMenuState::Progress)),
+            )
+            .add_systems(
+                Update,
+                clear_and_refresh_pause_menu
+                    .run_if(on_message::<ClearProgressMessage>)
+                    .run_if(in_state(PauseMenuState::Progress)),
             );
     }
 }
@@ -85,32 +99,30 @@ fn handle_pause_menu_back_button(
     }
 }
 
-/// Handles clear progress button from main menu — clears data and refreshes screen.
+/// Handles clear progress button from main menu — clears save data and writes message.
 fn handle_main_menu_clear_progress(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&ClearProgressButton>,
-    mut next_state: ResMut<NextState<MenuState>>,
+    mut clear_msg: MessageWriter<ClearProgressMessage>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
             handle_clear_progress();
-            // Re-enter same state to refresh UI with cleared data
-            next_state.set(MenuState::Progress);
+            clear_msg.write(ClearProgressMessage);
         }
     }
 }
 
-/// Handles clear progress button from pause menu — clears data and refreshes screen.
+/// Handles clear progress button from pause menu — clears save data and writes message.
 fn handle_pause_menu_clear_progress(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&ClearProgressButton>,
-    mut next_state: ResMut<NextState<PauseMenuState>>,
+    mut clear_msg: MessageWriter<ClearProgressMessage>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
             handle_clear_progress();
-            // Re-enter same state to refresh UI with cleared data
-            next_state.set(PauseMenuState::Progress);
+            clear_msg.write(ClearProgressMessage);
         }
     }
 }

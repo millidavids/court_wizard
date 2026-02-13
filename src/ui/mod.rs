@@ -13,7 +13,7 @@ mod game_over;
 mod in_game;
 mod instructions;
 mod loading;
-mod main_menu;
+pub(crate) mod main_menu;
 mod pause_menu;
 mod plugin;
 pub(crate) mod progress;

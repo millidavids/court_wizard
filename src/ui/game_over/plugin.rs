@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use crate::state::InGameState;
 use crate::ui::plugin::ButtonActionSet;
 
+use crate::game::achievements::systems::send_battle_ended;
+
 use super::systems::*;
 
 pub struct GameOverPlugin;
@@ -12,7 +14,7 @@ impl Plugin for GameOverPlugin {
         app.add_systems(
             OnEnter(InGameState::GameOver),
             (
-                check_victory_progression_achievements,
+                send_battle_ended,
                 save_efficiency_to_config,
                 setup_game_over_screen,
                 update_level_after_display,

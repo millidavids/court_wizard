@@ -333,16 +333,6 @@ fn spawn_locked_wizard_card(parent: &mut ChildSpawnerCommands, wizard_type: Wiza
         ))
         .with_children(|card| {
             card.spawn((
-                Text::new(wizard_type.display_name()),
-                TextFont {
-                    font_size: CARD_NAME_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(LOCKED_TEXT_COLOR),
-                TextLayout::new_with_justify(Justify::Center),
-            ));
-
-            card.spawn((
                 Text::new(wizard_type.locked_description()),
                 TextFont {
                     font_size: CARD_DESC_FONT_SIZE,

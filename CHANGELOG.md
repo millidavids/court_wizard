@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.0] - 2025-02-12
+
+### Added
+- **"QWER" achievement** — press Q, W, E, or R during a battle to unlock the Rune Caster wizard type
+- **"Random Magic Surge" achievement** — every time you cast a spell, there's a 1 in 100 chance this triggers and unlocks the Randomancer wizard type
+- **Wizard types are now unlockable** — only the Boring Ole Mage is available at the start; Rune Caster, Randomancer, and Arcanorouter must all be earned through achievements
+- Locked wizard types on the select screen now show only a mysterious hint instead of their name
+
+### Changed
+- Clearing progress now properly resets all achievements and locks wizard types again
+- Progress screen lists now show unlocked items at the top
+
 ## [v0.0.611] - 2025-02-12
 
 ### Added

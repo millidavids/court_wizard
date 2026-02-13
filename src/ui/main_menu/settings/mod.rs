@@ -2,7 +2,7 @@
 //!
 //! Contains the settings menu screen.
 
-mod components;
+pub(crate) mod components;
 mod constants;
 pub(super) mod plugin;
 

@@ -6,7 +6,7 @@
 mod changelog;
 mod landing;
 mod plugin;
-pub(super) mod settings;
+pub(crate) mod settings;
 mod wizard_select;
 
 pub use plugin::MainMenuPlugin;

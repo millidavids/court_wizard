@@ -6,10 +6,8 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::save_data::{self, AchievementId};
-use crate::config::{Difficulty, GameConfig, VsyncMode, WizardType};
+use crate::config::{Difficulty, GameConfig, VsyncMode};
 use crate::game::input::messages::MouseClicked;
-use crate::game::messages::AchievementUnlockedMessage;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
 
@@ -910,32 +908,6 @@ pub fn slider_interaction(
                 slider_handle.value.set(&mut game_config, new_value);
                 slider_adjusted.write(SliderAdjusted);
             }
-        }
-    }
-}
-
-/// Checks if a slider was adjusted and unlocks the "Slider Fiddler" achievement + Arcanorouter.
-pub fn check_slider_achievement(
-    mut slider_events: MessageReader<SliderAdjusted>,
-    mut achievement_events: MessageWriter<AchievementUnlockedMessage>,
-) {
-    if slider_events.read().next().is_some() {
-        let save = save_data::load_unified_save();
-        let already_unlocked = save
-            .as_ref()
-            .map(|s| {
-                s.player
-                    .unlocked_achievements
-                    .contains(&AchievementId::SliderFiddler.id().to_string())
-            })
-            .unwrap_or(false);
-
-        if !already_unlocked {
-            save_data::unlock_achievement(AchievementId::SliderFiddler);
-            save_data::unlock_wizard_type(WizardType::Arcanorouter);
-            achievement_events.write(AchievementUnlockedMessage {
-                id: AchievementId::SliderFiddler,
-            });
         }
     }
 }

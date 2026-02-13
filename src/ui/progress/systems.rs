@@ -111,21 +111,34 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                     spawn_stat_row(section, "Undead Killed", total_undead);
                 });
 
-                // Achievements column
+                // Achievements column (unlocked first)
                 spawn_column(columns, "Achievements", |section| {
-                    for achievement in AchievementId::all() {
-                        let is_unlocked =
-                            unlocked_achievements.contains(&achievement.id().to_string());
+                    let mut achievements: Vec<_> = AchievementId::all()
+                        .iter()
+                        .map(|a| {
+                            let is_unlocked = unlocked_achievements.contains(&a.id().to_string());
+                            (a, is_unlocked)
+                        })
+                        .collect();
+                    achievements.sort_by_key(|(_, unlocked)| !unlocked);
+                    for (achievement, is_unlocked) in achievements {
                         spawn_achievement_row(section, achievement, is_unlocked);
                     }
                 });
 
-                // Spells column
+                // Spells column (unlocked first)
                 spawn_column(columns, "Spells", |section| {
-                    for spell in Spell::all() {
+                    let mut spells: Vec<_> = Spell::all()
+                        .iter()
+                        .map(|spell| {
+                            let debug_name = format!("{:?}", spell);
+                            let is_unlocked = unlocked_content.spells.contains(&debug_name);
+                            (spell, is_unlocked)
+                        })
+                        .collect();
+                    spells.sort_by_key(|(_, unlocked)| !unlocked);
+                    for (spell, is_unlocked) in spells {
                         let name = spell.name().replace('\n', " ");
-                        let debug_name = format!("{:?}", spell);
-                        let is_unlocked = unlocked_content.spells.contains(&debug_name);
                         spawn_unlockable_row(
                             section,
                             &name,
@@ -136,11 +149,18 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                     }
                 });
 
-                // Ingredients column
+                // Ingredients column (unlocked first)
                 spawn_column(columns, "Ingredients", |section| {
-                    for ingredient in Ingredient::all() {
-                        let debug_name = format!("{:?}", ingredient);
-                        let is_unlocked = unlocked_content.ingredients.contains(&debug_name);
+                    let mut ingredients: Vec<_> = Ingredient::all()
+                        .iter()
+                        .map(|ingredient| {
+                            let debug_name = format!("{:?}", ingredient);
+                            let is_unlocked = unlocked_content.ingredients.contains(&debug_name);
+                            (ingredient, is_unlocked)
+                        })
+                        .collect();
+                    ingredients.sort_by_key(|(_, unlocked)| !unlocked);
+                    for (ingredient, is_unlocked) in ingredients {
                         spawn_unlockable_row(
                             section,
                             ingredient.name(),
@@ -151,12 +171,19 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                     }
                 });
 
-                // Wizard Types column
+                // Wizard Types column (unlocked first)
                 spawn_column(columns, "Wizard Types", |section| {
-                    for wizard_type in WizardType::all() {
-                        let debug_name = format!("{:?}", wizard_type);
-                        let is_unlocked = *wizard_type == WizardType::BoringOleMage
-                            || unlocked_content.wizard_types.contains(&debug_name);
+                    let mut wizard_types: Vec<_> = WizardType::all()
+                        .iter()
+                        .map(|wizard_type| {
+                            let debug_name = format!("{:?}", wizard_type);
+                            let is_unlocked = *wizard_type == WizardType::BoringOleMage
+                                || unlocked_content.wizard_types.contains(&debug_name);
+                            (wizard_type, is_unlocked)
+                        })
+                        .collect();
+                    wizard_types.sort_by_key(|(_, unlocked)| !unlocked);
+                    for (wizard_type, is_unlocked) in wizard_types {
                         spawn_unlockable_row(
                             section,
                             wizard_type.display_name(),
@@ -485,6 +512,28 @@ fn spawn_unlockable_row(
 /// Clears all achievements and unlockable progress from the save file.
 pub(super) fn handle_clear_progress() {
     clear_progress();
+}
+
+/// Despawns all progress screen entities and respawns with fresh data (main menu).
+pub(super) fn clear_and_refresh_main_menu(
+    mut commands: Commands,
+    query: Query<Entity, With<OnProgressScreen>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn();
+    }
+    setup(commands, false);
+}
+
+/// Despawns all progress screen entities and respawns with fresh data (pause menu).
+pub(super) fn clear_and_refresh_pause_menu(
+    mut commands: Commands,
+    query: Query<Entity, With<OnProgressScreen>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn();
+    }
+    setup(commands, true);
 }
 
 /// Spawns progress with solid black background (for main menu).

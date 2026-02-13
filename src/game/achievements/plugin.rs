@@ -1,0 +1,145 @@
+use bevy::ecs::schedule::common_conditions::on_message;
+use bevy::prelude::*;
+
+use crate::state::AppState;
+use crate::ui::main_menu::settings::components::SliderAdjusted;
+
+use super::messages::{
+    BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, QwerKeyPressedMessage,
+    SpellCastMessage,
+};
+use super::resources::*;
+use super::systems;
+
+pub struct AchievementsPlugin;
+
+impl Plugin for AchievementsPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_message::<BattleEndedMessage>()
+            .add_message::<DefenderKilledBySpellMessage>()
+            .add_message::<ClearProgressMessage>()
+            .add_message::<SpellCastMessage>()
+            .add_message::<QwerKeyPressedMessage>()
+            // Initialize all achievement resources from save at startup
+            .add_systems(Startup, init_achievements)
+            // NOTE: send_battle_ended is registered in GameOverPlugin's chain
+            // for explicit ordering with save_efficiency/setup_game_over_screen.
+            // Victory & Progression achievement systems
+            .add_systems(
+                Update,
+                (
+                    systems::check_first_victory
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<FirstVictoryAchievement>),
+                    systems::check_apprentice_wizard
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<ApprenticeWizardAchievement>),
+                    systems::check_court_wizard
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<CourtWizardAchievement>),
+                    systems::check_archmage
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<ArchmageAchievement>),
+                    systems::check_legends_speak_your_name
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<LegendsSpeakYourNameAchievement>),
+                    systems::check_immortalized
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<ImmortalizedAchievement>),
+                    systems::check_the_grind_never_stops
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<TheGrindNeverStopsAchievement>),
+                    systems::check_one_more_level
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<OneMoreLevelAchievement>),
+                    systems::check_into_the_deep
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<IntoTheDeepAchievement>),
+                    systems::check_absurdity
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<AbsurdityAchievement>),
+                    systems::check_level_100
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<Level100Achievement>),
+                ),
+            )
+            // Defeat & Failure achievement systems
+            .add_systems(
+                Update,
+                (
+                    systems::check_tactical_retreat
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<TacticalRetreatAchievement>),
+                    systems::check_the_king_is_dead
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<TheKingIsDeadAchievement>),
+                    systems::check_total_wipe
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<TotalWipeAchievement>),
+                    systems::check_speedrun_wrong_direction
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<SpeedrunWrongDirectionAchievement>),
+                    systems::check_pyrrhic_defeat
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<PyrrhicDefeatAchievement>),
+                    systems::check_it_was_going_so_well
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<ItWasGoingSoWellAchievement>),
+                    systems::check_friendly_fire_department
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<FriendlyFireDepartmentAchievement>),
+                    systems::check_accidental_regicide
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<AccidentalRegicideAchievement>),
+                    systems::check_stubborn
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<StubbornAchievement>),
+                    systems::check_extremely_stubborn
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<ExtremelyStubbornAchievement>),
+                ),
+            )
+            // FriendlyFire — mid-battle
+            .add_systems(
+                Update,
+                systems::check_friendly_fire
+                    .run_if(on_message::<DefenderKilledBySpellMessage>)
+                    .run_if(achievement_locked::<FriendlyFireAchievement>),
+            )
+            // SliderFiddler — settings menu
+            .add_systems(
+                Update,
+                systems::check_slider_fiddler
+                    .run_if(on_message::<SliderAdjusted>)
+                    .run_if(achievement_locked::<SliderFiddlerAchievement>),
+            )
+            // Spell cast and QWER key detection — runs during gameplay
+            .add_systems(
+                Update,
+                (
+                    systems::detect_spell_cast,
+                    systems::detect_qwer_key.run_if(achievement_locked::<QwerAchievement>),
+                )
+                    .run_if(in_state(AppState::InGame)),
+            )
+            // QWER — unlocks RuneCaster on first Q/W/E/R press
+            .add_systems(
+                Update,
+                systems::check_qwer
+                    .run_if(on_message::<QwerKeyPressedMessage>)
+                    .run_if(achievement_locked::<QwerAchievement>),
+            )
+            // Random Magic Surge — 1/100 chance on spell cast
+            .add_systems(
+                Update,
+                systems::check_random_magic_surge
+                    .run_if(on_message::<SpellCastMessage>)
+                    .run_if(achievement_locked::<RandomMagicSurgeAchievement>),
+            )
+            // Reset all achievements when progress is cleared
+            .add_systems(
+                Update,
+                reset_all_achievements.run_if(on_message::<ClearProgressMessage>),
+            );
+    }
+}

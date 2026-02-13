@@ -16,9 +16,7 @@ use super::units::components::{
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 
-use crate::config::save_data::{AchievementId, unlock_achievement};
-use crate::game::messages::AchievementUnlockedMessage;
-use crate::game::resources::AchievementTracker;
+use crate::game::achievements::messages::DefenderKilledBySpellMessage;
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -424,8 +422,7 @@ pub fn combat(
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
     mut kill_stats: ResMut<super::resources::KillStats>,
-    mut tracker: ResMut<AchievementTracker>,
-    mut achievement_events: MessageWriter<AchievementUnlockedMessage>,
+    mut spell_kill_events: MessageWriter<DefenderKilledBySpellMessage>,
     query: Query<
         (
             Entity,
@@ -454,14 +451,7 @@ pub fn convert_dead_to_corpses(
             if spell_damaged.is_some() {
                 if *team == Team::Defenders {
                     kill_stats.record_spell_kill_defender();
-
-                    // Check for friendly fire achievement (first defender killed by spell)
-                    if !tracker.unlocked.contains(AchievementId::FriendlyFire.id()) {
-                        let id = AchievementId::FriendlyFire;
-                        tracker.unlocked.insert(id.id().to_string());
-                        unlock_achievement(id);
-                        achievement_events.write(AchievementUnlockedMessage { id });
-                    }
+                    spell_kill_events.write(DefenderKilledBySpellMessage);
                 }
 
                 if is_king.is_some() {

@@ -7,6 +7,7 @@
 //! - Unit movement and targeting
 //! - Simple collision-based combat
 
+pub(crate) mod achievements;
 mod battlefield;
 pub(crate) mod cauldron;
 pub(crate) mod components;
