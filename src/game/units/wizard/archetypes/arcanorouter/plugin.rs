@@ -29,7 +29,6 @@ impl Plugin for ArcanoRouterPlugin {
                     update_allocations,
                     sync_state_to_bonuses,
                     apply_bonuses_to_wizard_stats,
-                    apply_wizard_stats_to_primed_spell,
                 )
                     .chain()
                     .run_if(in_state(AppState::InGame))

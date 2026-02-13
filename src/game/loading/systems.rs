@@ -4,7 +4,7 @@ use super::resources::LoadingProgress;
 use super::spawn_queue::{SpawnQueue, SpawnTask};
 use crate::config::GameConfig;
 use crate::game::constants::*;
-use crate::game::resources::CurrentLevel;
+use crate::game::resources::{CurrentLevel, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::resources::ArcherAssets;
 use crate::game::units::archer::systems as archer_systems;
@@ -16,6 +16,7 @@ use crate::state::AppState;
 pub fn init_loading_progress(
     mut commands: Commands,
     mut current_level: ResMut<CurrentLevel>,
+    mut kill_stats: ResMut<KillStats>,
     config: Res<GameConfig>,
 ) {
     // Sync CurrentLevel from GameConfig (may have been updated by save loading)
@@ -79,10 +80,15 @@ pub fn init_loading_progress(
 
     // 10. Behemoth (if level qualifies)
     const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3;
-    if level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL)
-    {
+    let has_behemoth = level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL
+        && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL);
+    if has_behemoth {
         queue.tasks.push(SpawnTask::Behemoth);
     }
+
+    // Record total attackers spawned for achievement tracking
+    kill_stats.total_attackers_spawned =
+        total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
 
     // 11. Wizard (controls spells)
     queue.tasks.push(SpawnTask::Wizard);

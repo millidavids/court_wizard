@@ -165,3 +165,7 @@ pub struct SliderHandle {
     /// Whether this handle is currently being dragged
     pub is_dragging: bool,
 }
+
+/// Message sent when any slider is adjusted (buttons, drag, or track click).
+#[derive(Message)]
+pub struct SliderAdjusted;

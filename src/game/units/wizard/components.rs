@@ -89,6 +89,25 @@ impl Spell {
         }
     }
 
+    /// Returns flavor text shown on the progress screen when the spell is locked.
+    pub const fn locked_description(&self) -> &'static str {
+        match self {
+            Spell::MagicMissile => "The first spell every wizard learns. Usually by accident.",
+            Spell::Disintegrate => "Point. Shoot. Nothing remains.",
+            Spell::Fireball => "The answer to every wizard's problems. And sometimes the cause.",
+            Spell::GuardianCircle => "Stand in the glowy circle. It's not that complicated.",
+            Spell::ChainLightning => "Electricity doesn't care about your feelings.",
+            Spell::FingerOfDeath => {
+                "Technically it's the whole hand, but that sounds less dramatic."
+            }
+            Spell::RaiseTheDead => "They were just resting. Aggressively.",
+            Spell::Teleport => "Be somewhere else. Immediately.",
+            Spell::WallOfStone => "The ultimate 'you shall not pass' moment.",
+            Spell::BlackHole => "What goes in doesn't come out. Wizard's promise.",
+            Spell::Squall => "Nothing says 'tactical advantage' like a localized ice storm.",
+        }
+    }
+
     /// Returns the control instructions for this spell.
     pub const fn instructions(&self) -> &'static str {
         match self {

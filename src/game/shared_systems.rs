@@ -28,6 +28,11 @@ pub fn tick_attack_cycle(time: Res<Time>, mut attack_cycle: ResMut<GlobalAttackC
     attack_cycle.tick(time.delta_secs());
 }
 
+/// Ticks the elapsed game time for achievement tracking.
+pub fn tick_elapsed_time(time: Res<Time>, mut kill_stats: ResMut<super::resources::KillStats>) {
+    kill_stats.elapsed_time += time.delta_secs();
+}
+
 /// Initializes the current level from saved config.
 ///
 /// This system runs on OnEnter(AppState::InGame) to restore the player's
@@ -445,15 +450,23 @@ pub fn convert_dead_to_corpses(
             // Record the kill
             kill_stats.record_kill(*team);
 
-            // Check for friendly fire achievement (defender killed by spell)
-            if *team == Team::Defenders
-                && spell_damaged.is_some()
-                && !tracker.unlocked.contains(AchievementId::FriendlyFire.id())
-            {
-                let id = AchievementId::FriendlyFire;
-                tracker.unlocked.insert(id.id().to_string());
-                unlock_achievement(id);
-                achievement_events.write(AchievementUnlockedMessage { id });
+            // Track spell kills on defenders and king
+            if spell_damaged.is_some() {
+                if *team == Team::Defenders {
+                    kill_stats.record_spell_kill_defender();
+
+                    // Check for friendly fire achievement (first defender killed by spell)
+                    if !tracker.unlocked.contains(AchievementId::FriendlyFire.id()) {
+                        let id = AchievementId::FriendlyFire;
+                        tracker.unlocked.insert(id.id().to_string());
+                        unlock_achievement(id);
+                        achievement_events.write(AchievementUnlockedMessage { id });
+                    }
+                }
+
+                if is_king.is_some() {
+                    kill_stats.record_king_killed_by_spell();
+                }
             }
 
             // Replace with appropriate corpse material

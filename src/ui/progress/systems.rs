@@ -15,9 +15,10 @@ use super::components::{
     BackButton, ClearProgressButton, OnProgressScreen, ScrollableProgressContainer,
 };
 use super::constants::{
-    BUTTON_STYLE, COMPLETED_COLOR, DANGER_BUTTON_STYLE, DESCRIPTION_COLOR, ITEM_DESC_FONT_SIZE,
-    ITEM_NAME_FONT_SIZE, LOCKED_COLOR, MARGIN, MARGIN_SMALL, SECTION_BG, SECTION_COLOR,
-    SECTION_FONT_SIZE, SECTION_PADDING, TEXT_COLOR, TITLE_FONT_SIZE, UNLOCKED_COLOR,
+    BUTTON_STYLE, COLUMN_GAP, COLUMN_TITLE_FONT_SIZE, COMPLETED_COLOR, DANGER_BUTTON_STYLE,
+    DESCRIPTION_COLOR, ITEM_DESC_FONT_SIZE, ITEM_NAME_FONT_SIZE, LOCKED_COLOR, MARGIN,
+    MARGIN_SMALL, SECTION_BG, SECTION_PADDING, STAT_LABEL_COLOR, STAT_VALUE_FONT_SIZE, TEXT_COLOR,
+    TITLE_FONT_SIZE, UNLOCKED_COLOR,
 };
 
 /// Spawns the progress screen UI.
@@ -38,6 +39,26 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
         .as_ref()
         .map(|s| s.player.unlocked_content.clone())
         .unwrap_or_default();
+    let total_games = save
+        .as_ref()
+        .map(|s| s.player.total_games_played)
+        .unwrap_or(0);
+    let total_victories = save
+        .as_ref()
+        .map(|s| s.player.total_levels_completed)
+        .unwrap_or(0);
+    let total_attackers = save
+        .as_ref()
+        .map(|s| s.player.total_attackers_killed)
+        .unwrap_or(0);
+    let total_defenders = save
+        .as_ref()
+        .map(|s| s.player.total_defenders_killed)
+        .unwrap_or(0);
+    let total_undead = save
+        .as_ref()
+        .map(|s| s.player.total_undead_killed)
+        .unwrap_or(0);
 
     let mut entity_commands = commands.spawn((
         Node {
@@ -71,79 +92,80 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
             },
         ));
 
-        // Scrollable content
+        // Columns container (horizontal row of individually scrollable columns)
         parent
-            .spawn((
-                Node {
-                    width: Val::Percent(90.0),
-                    max_width: Val::Px(700.0),
-                    height: Val::Percent(75.0),
-                    flex_direction: FlexDirection::Column,
-                    overflow: Overflow::scroll_y(),
-                    ..default()
-                },
-                ScrollPosition::default(),
-                ScrollableProgressContainer,
-            ))
-            .with_children(|scroll| {
-                scroll
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(MARGIN),
-                        padding: UiRect::all(Val::Px(MARGIN_SMALL)),
-                        ..default()
-                    })
-                    .with_children(|content| {
-                        // Achievements section
-                        spawn_section(content, "Achievements", |section| {
-                            for achievement in AchievementId::all() {
-                                let is_unlocked =
-                                    unlocked_achievements.contains(&achievement.id().to_string());
-                                spawn_achievement_row(section, achievement, is_unlocked);
-                            }
-                        });
+            .spawn(Node {
+                width: Val::Percent(95.0),
+                height: Val::Percent(75.0),
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(COLUMN_GAP),
+                ..default()
+            })
+            .with_children(|columns| {
+                // Statistics column
+                spawn_column(columns, "Statistics", |section| {
+                    spawn_stat_row(section, "Games Played", total_games);
+                    spawn_stat_row(section, "Victories", total_victories);
+                    spawn_stat_row(section, "Attackers Killed", total_attackers);
+                    spawn_stat_row(section, "Defenders Lost", total_defenders);
+                    spawn_stat_row(section, "Undead Killed", total_undead);
+                });
 
-                        // Spells section
-                        spawn_section(content, "Spells", |section| {
-                            for spell in Spell::all() {
-                                let name = spell.name().replace('\n', " ");
-                                let debug_name = format!("{:?}", spell);
-                                let is_unlocked = unlocked_content.spells.contains(&debug_name);
-                                spawn_unlockable_row(section, &name, None, is_unlocked);
-                            }
-                        });
+                // Achievements column
+                spawn_column(columns, "Achievements", |section| {
+                    for achievement in AchievementId::all() {
+                        let is_unlocked =
+                            unlocked_achievements.contains(&achievement.id().to_string());
+                        spawn_achievement_row(section, achievement, is_unlocked);
+                    }
+                });
 
-                        // Ingredients section
-                        spawn_section(content, "Ingredients", |section| {
-                            for ingredient in Ingredient::all() {
-                                let debug_name = format!("{:?}", ingredient);
-                                let is_unlocked =
-                                    unlocked_content.ingredients.contains(&debug_name);
-                                spawn_unlockable_row(
-                                    section,
-                                    ingredient.name(),
-                                    Some(ingredient.description()),
-                                    is_unlocked,
-                                );
-                            }
-                        });
+                // Spells column
+                spawn_column(columns, "Spells", |section| {
+                    for spell in Spell::all() {
+                        let name = spell.name().replace('\n', " ");
+                        let debug_name = format!("{:?}", spell);
+                        let is_unlocked = unlocked_content.spells.contains(&debug_name);
+                        spawn_unlockable_row(
+                            section,
+                            &name,
+                            None,
+                            spell.locked_description(),
+                            is_unlocked,
+                        );
+                    }
+                });
 
-                        // Wizard Types section
-                        spawn_section(content, "Wizard Types", |section| {
-                            for wizard_type in WizardType::all() {
-                                let debug_name = format!("{:?}", wizard_type);
-                                let is_unlocked =
-                                    unlocked_content.wizard_types.contains(&debug_name);
-                                spawn_unlockable_row(
-                                    section,
-                                    wizard_type.display_name(),
-                                    Some(wizard_type.description()),
-                                    is_unlocked,
-                                );
-                            }
-                        });
-                    });
+                // Ingredients column
+                spawn_column(columns, "Ingredients", |section| {
+                    for ingredient in Ingredient::all() {
+                        let debug_name = format!("{:?}", ingredient);
+                        let is_unlocked = unlocked_content.ingredients.contains(&debug_name);
+                        spawn_unlockable_row(
+                            section,
+                            ingredient.name(),
+                            Some(ingredient.description()),
+                            ingredient.locked_description(),
+                            is_unlocked,
+                        );
+                    }
+                });
+
+                // Wizard Types column
+                spawn_column(columns, "Wizard Types", |section| {
+                    for wizard_type in WizardType::all() {
+                        let debug_name = format!("{:?}", wizard_type);
+                        let is_unlocked = *wizard_type == WizardType::BoringOleMage
+                            || unlocked_content.wizard_types.contains(&debug_name);
+                        spawn_unlockable_row(
+                            section,
+                            wizard_type.display_name(),
+                            Some(wizard_type.description()),
+                            wizard_type.locked_description(),
+                            is_unlocked,
+                        );
+                    }
+                });
             });
 
         // Buttons row
@@ -166,8 +188,8 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
     });
 }
 
-/// Spawns a section with a title and content.
-fn spawn_section(
+/// Spawns a scrollable column with a title header and content.
+fn spawn_column(
     parent: &mut ChildSpawnerCommands,
     title: &str,
     spawn_content: impl FnOnce(&mut ChildSpawnerCommands),
@@ -175,31 +197,97 @@ fn spawn_section(
     parent
         .spawn((
             Node {
-                width: Val::Percent(100.0),
+                flex_grow: 1.0,
+                flex_basis: Val::Px(0.0),
+                height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(SECTION_PADDING)),
-                row_gap: Val::Px(MARGIN_SMALL),
                 ..default()
             },
             BackgroundColor(SECTION_BG),
             BorderRadius::all(Val::Px(6.0)),
         ))
-        .with_children(|section| {
-            // Section title
-            section.spawn((
+        .with_children(|column| {
+            // Column title (fixed, non-scrolling)
+            column.spawn((
                 Text::new(title),
                 TextFont {
-                    font_size: SECTION_FONT_SIZE,
+                    font_size: COLUMN_TITLE_FONT_SIZE,
                     ..default()
                 },
-                TextColor(SECTION_COLOR),
+                TextColor(TEXT_COLOR),
                 Node {
-                    margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
+                    padding: UiRect::new(
+                        Val::Px(SECTION_PADDING),
+                        Val::Px(SECTION_PADDING),
+                        Val::Px(SECTION_PADDING),
+                        Val::Px(MARGIN_SMALL),
+                    ),
                     ..default()
                 },
             ));
 
-            spawn_content(section);
+            // Scrollable content area
+            column
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        flex_grow: 1.0,
+                        flex_basis: Val::Px(0.0),
+                        flex_direction: FlexDirection::Column,
+                        overflow: Overflow::scroll_y(),
+                        ..default()
+                    },
+                    ScrollPosition::default(),
+                    ScrollableProgressContainer,
+                ))
+                .with_children(|scroll| {
+                    scroll
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(MARGIN_SMALL),
+                            padding: UiRect::new(
+                                Val::Px(SECTION_PADDING),
+                                Val::Px(SECTION_PADDING),
+                                Val::Px(0.0),
+                                Val::Px(SECTION_PADDING),
+                            ),
+                            ..default()
+                        })
+                        .with_children(|content| {
+                            spawn_content(content);
+                        });
+                });
+        });
+}
+
+/// Spawns a stat row with label and value.
+fn spawn_stat_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(2.0),
+            ..default()
+        })
+        .with_children(|row| {
+            row.spawn((
+                Text::new(label),
+                TextFont {
+                    font_size: ITEM_NAME_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(STAT_LABEL_COLOR),
+            ));
+
+            row.spawn((
+                Text::new(format!("{}", value)),
+                TextFont {
+                    font_size: STAT_VALUE_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(TEXT_COLOR),
+            ));
         });
 }
 
@@ -248,50 +336,59 @@ fn spawn_achievement_row(
                 },
             ));
 
-            // Name and description column
-            row.spawn(Node {
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(2.0),
-                ..default()
-            })
-            .with_children(|col| {
-                col.spawn((
-                    Text::new(achievement.display_name()),
-                    TextFont {
-                        font_size: ITEM_NAME_FONT_SIZE,
-                        ..default()
-                    },
-                    TextColor(name_color),
-                ));
+            if is_unlocked {
+                // Name and description column
+                row.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(2.0),
+                    ..default()
+                })
+                .with_children(|col| {
+                    col.spawn((
+                        Text::new(achievement.display_name()),
+                        TextFont {
+                            font_size: ITEM_NAME_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(name_color),
+                    ));
 
-                col.spawn((
+                    col.spawn((
+                        Text::new(achievement.description()),
+                        TextFont {
+                            font_size: ITEM_DESC_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(desc_color),
+                    ));
+                });
+            } else {
+                // Locked: only show the description as a hint
+                row.spawn((
                     Text::new(achievement.description()),
                     TextFont {
                         font_size: ITEM_DESC_FONT_SIZE,
                         ..default()
                     },
-                    TextColor(desc_color),
+                    TextColor(LOCKED_COLOR),
                 ));
-            });
+            }
         });
 }
 
 /// Spawns an unlockable item row.
+/// When locked, only the `locked_hint` flavor text is shown.
 fn spawn_unlockable_row(
     parent: &mut ChildSpawnerCommands,
     name: &str,
     description: Option<&str>,
+    locked_hint: &str,
     is_unlocked: bool,
 ) {
     let (indicator, indicator_color) = if is_unlocked {
         ("*", COMPLETED_COLOR)
     } else {
         ("-", LOCKED_COLOR)
-    };
-    let name_color = if is_unlocked {
-        UNLOCKED_COLOR
-    } else {
-        LOCKED_COLOR
     };
 
     parent
@@ -317,8 +414,46 @@ fn spawn_unlockable_row(
                 },
             ));
 
-            if let Some(desc) = description {
-                // Name + description column
+            if is_unlocked {
+                if let Some(desc) = description {
+                    // Name + description column
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(2.0),
+                        ..default()
+                    })
+                    .with_children(|col| {
+                        col.spawn((
+                            Text::new(name),
+                            TextFont {
+                                font_size: ITEM_NAME_FONT_SIZE,
+                                ..default()
+                            },
+                            TextColor(UNLOCKED_COLOR),
+                        ));
+
+                        col.spawn((
+                            Text::new(desc),
+                            TextFont {
+                                font_size: ITEM_DESC_FONT_SIZE,
+                                ..default()
+                            },
+                            TextColor(DESCRIPTION_COLOR),
+                        ));
+                    });
+                } else {
+                    // Name only
+                    row.spawn((
+                        Text::new(name),
+                        TextFont {
+                            font_size: ITEM_NAME_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(UNLOCKED_COLOR),
+                    ));
+                }
+            } else {
+                // Locked: show name and hint flavor text in locked color
                 row.spawn(Node {
                     flex_direction: FlexDirection::Column,
                     row_gap: Val::Px(2.0),
@@ -331,33 +466,18 @@ fn spawn_unlockable_row(
                             font_size: ITEM_NAME_FONT_SIZE,
                             ..default()
                         },
-                        TextColor(name_color),
+                        TextColor(LOCKED_COLOR),
                     ));
 
-                    let desc_color = if is_unlocked {
-                        DESCRIPTION_COLOR
-                    } else {
-                        LOCKED_COLOR
-                    };
                     col.spawn((
-                        Text::new(desc),
+                        Text::new(locked_hint),
                         TextFont {
                             font_size: ITEM_DESC_FONT_SIZE,
                             ..default()
                         },
-                        TextColor(desc_color),
+                        TextColor(LOCKED_COLOR),
                     ));
                 });
-            } else {
-                // Name only
-                row.spawn((
-                    Text::new(name),
-                    TextFont {
-                        font_size: ITEM_NAME_FONT_SIZE,
-                        ..default()
-                    },
-                    TextColor(name_color),
-                ));
             }
         });
 }

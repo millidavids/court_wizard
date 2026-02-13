@@ -6,15 +6,17 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::{Difficulty, GameConfig, VsyncMode};
+use crate::config::save_data::{self, AchievementId};
+use crate::config::{Difficulty, GameConfig, VsyncMode, WizardType};
 use crate::game::input::messages::MouseClicked;
+use crate::game::messages::AchievementUnlockedMessage;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
 
 use super::components::{
     ButtonColors, OnSettingsScreen, OptionButtonValue, ScrollableContainer, SelectedOption,
-    SettingsButtonAction, SliderDownButton, SliderFill, SliderHandle, SliderText, SliderTrack,
-    SliderUpButton, SliderValue,
+    SettingsButtonAction, SliderAdjusted, SliderDownButton, SliderFill, SliderHandle, SliderText,
+    SliderTrack, SliderUpButton, SliderValue,
 };
 use super::constants::{
     BACK_BUTTON_HEIGHT, BACK_BUTTON_WIDTH, BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
@@ -772,6 +774,7 @@ pub fn slider_button_action(
     down_buttons: Query<&SliderDownButton>,
     up_buttons: Query<&SliderUpButton>,
     mut game_config: ResMut<GameConfig>,
+    mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
     for event in button_clicked.read() {
         // Check if it's a down button
@@ -781,6 +784,7 @@ pub fn slider_button_action(
             let min = button.value.min_value();
             let new_value = (current - step).max(min);
             button.value.set(&mut game_config, new_value);
+            slider_adjusted.write(SliderAdjusted);
         }
         // Check if it's an up button
         else if let Ok(button) = up_buttons.get(event.button) {
@@ -789,6 +793,7 @@ pub fn slider_button_action(
             let max = button.value.max_value();
             let new_value = (current + step).min(max);
             button.value.set(&mut game_config, new_value);
+            slider_adjusted.write(SliderAdjusted);
         }
     }
 }
@@ -842,6 +847,7 @@ pub fn slider_interaction(
     mut slider_handles: Query<(&Interaction, &mut SliderHandle)>,
     slider_tracks: Query<(&Interaction, &RelativeCursorPosition, &SliderTrack)>,
     mut game_config: ResMut<GameConfig>,
+    mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
     const SLIDER_WIDTH: f32 = 200.0;
 
@@ -863,6 +869,7 @@ pub fn slider_interaction(
                 let range = max - min;
                 let new_value = (min + normalized * range).clamp(min, max);
                 track.value.set(&mut game_config, new_value);
+                slider_adjusted.write(SliderAdjusted);
 
                 // Start dragging the corresponding handle
                 for (_handle_interaction, mut slider_handle) in &mut slider_handles {
@@ -901,7 +908,34 @@ pub fn slider_interaction(
                 let new_value = (current + value_delta).clamp(min, max);
 
                 slider_handle.value.set(&mut game_config, new_value);
+                slider_adjusted.write(SliderAdjusted);
             }
+        }
+    }
+}
+
+/// Checks if a slider was adjusted and unlocks the "Slider Fiddler" achievement + Arcanorouter.
+pub fn check_slider_achievement(
+    mut slider_events: MessageReader<SliderAdjusted>,
+    mut achievement_events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if slider_events.read().next().is_some() {
+        let save = save_data::load_unified_save();
+        let already_unlocked = save
+            .as_ref()
+            .map(|s| {
+                s.player
+                    .unlocked_achievements
+                    .contains(&AchievementId::SliderFiddler.id().to_string())
+            })
+            .unwrap_or(false);
+
+        if !already_unlocked {
+            save_data::unlock_achievement(AchievementId::SliderFiddler);
+            save_data::unlock_wizard_type(WizardType::Arcanorouter);
+            achievement_events.write(AchievementUnlockedMessage {
+                id: AchievementId::SliderFiddler,
+            });
         }
     }
 }

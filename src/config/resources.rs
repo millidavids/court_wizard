@@ -98,8 +98,10 @@ pub enum Difficulty {
 /// Wizard class types available for selection.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 pub enum WizardType {
-    /// Rune-based caster - the classic wizard type.
+    /// Boring Ole Mage - no special mechanics, flat 5% bonus to all stats.
     #[default]
+    BoringOleMage,
+    /// Rune-based caster - the classic wizard type.
     RuneCaster,
     /// Randomancer - spins a roulette wheel for powerful random spells.
     Randomancer,
@@ -111,7 +113,8 @@ impl WizardType {
     /// Returns the display name for this wizard type.
     pub const fn display_name(&self) -> &'static str {
         match self {
-            WizardType::RuneCaster => "RuneCaster",
+            WizardType::BoringOleMage => "Boring Ole Mage",
+            WizardType::RuneCaster => "Rune Caster",
             WizardType::Randomancer => "Randomancer",
             WizardType::Arcanorouter => "Arcanorouter",
         }
@@ -120,15 +123,47 @@ impl WizardType {
     /// Returns a short description of this wizard type's playstyle.
     pub const fn description(&self) -> &'static str {
         match self {
+            WizardType::BoringOleMage => {
+                "A straightforward wizard with a small bonus to everything."
+            }
             WizardType::RuneCaster => "Master rune sequences to empower your spells.",
             WizardType::Randomancer => "Spin the wheel of fate for powerful random spells.",
             WizardType::Arcanorouter => "Route arcane power between range, mana, power, and speed.",
         }
     }
 
+    /// Returns a longer description explaining the archetype's mechanics in detail.
+    pub const fn long_description(&self) -> &'static str {
+        match self {
+            WizardType::BoringOleMage => {
+                "No special mechanics to learn. Your spells are slightly stronger, cheaper, faster, and longer-ranged than other wizards. A solid choice for beginners or anyone who just wants to cast spells without thinking about it."
+            }
+            WizardType::RuneCaster => {
+                "Press Q, W, E, and R to build rune sequences. Single runes cast basic spells, while two-rune combos unlock powerful advanced spells. Successful sequences empower your spells with a 1.25x bonus. Sequences time out if you wait too long between keys."
+            }
+            WizardType::Randomancer => {
+                "Press SPACE to spin a magical roulette wheel. Whatever spell it lands on, you cast — no choosing. In exchange for giving up control, your spells are empowered with a massive 1.75x bonus. Adapting to whatever the wheel gives you is the whole game."
+            }
+            WizardType::Arcanorouter => {
+                "Dynamically allocate a shared pool of arcane energy between four stats: Range, Mana Efficiency, Power, and Speed. Use Q/A, W/S, E/D, and R/F to increase or decrease each slider. Pump everything into Power for devastating spells, or balance your build for versatility. Adjust mid-battle to adapt to the situation."
+            }
+        }
+    }
+
+    /// Returns flavor text shown on the progress screen when the wizard type is locked.
+    pub const fn locked_description(&self) -> &'static str {
+        match self {
+            WizardType::BoringOleMage => "Sometimes boring is best.",
+            WizardType::RuneCaster => "Mysterious symbols. Mysterious results.",
+            WizardType::Randomancer => "You don't choose the spell. The spell chooses you.",
+            WizardType::Arcanorouter => "Geordi would be proud of your power routing.",
+        }
+    }
+
     /// Returns all available wizard types.
     pub const fn all() -> &'static [WizardType] {
         &[
+            WizardType::BoringOleMage,
             WizardType::RuneCaster,
             WizardType::Randomancer,
             WizardType::Arcanorouter,

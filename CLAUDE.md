@@ -130,6 +130,8 @@ The user tests in a web browser, so changes will NOT be visible until the WASM i
 - Add new features and improvements
 - Fix bugs and issues
 - Never add [Unreleased] sections to the changelog
+- Don't spoil achievements or unlockables in the changelog
+- Don't reveal any secrets or hidden content in the changelog
 
 ### Testing
 ```bash

@@ -9,7 +9,7 @@ use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::AchievementUnlockedMessage;
 use super::pathfinding::PathfindingPlugin;
-use super::resources::{AchievementTracker, CurrentLevel, GameOutcome, KillStats};
+use super::resources::{AchievementTracker, CurrentLevel, GameOutcome, KillStats, RetryTracker};
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -76,6 +76,7 @@ impl Plugin for GamePlugin {
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()
             .init_resource::<AchievementTracker>()
+            .init_resource::<RetryTracker>()
             .insert_resource(GameOutcome::Victory)
             .add_message::<AchievementUnlockedMessage>()
             .add_plugins((
@@ -113,7 +114,11 @@ impl Plugin for GamePlugin {
             )
             .add_systems(
                 Update,
-                shared_systems::tick_attack_cycle.run_if(in_state(InGameState::Running)),
+                (
+                    shared_systems::tick_attack_cycle,
+                    shared_systems::tick_elapsed_time,
+                )
+                    .run_if(in_state(InGameState::Running)),
             )
             .add_systems(
                 Update,

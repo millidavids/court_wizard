@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.0.611] - 2025-02-12
+
+### Added
+- **Boring Ole Mage** — a new starter wizard archetype with a 5% bonus to all stats, now the default wizard for new players
+- **20 new achievements** across two categories:
+  - **Victory & Progression** — win milestones (5, 10, 25, 50, 100, 200 wins), level milestones (10, 25, 50, 100), and retry milestones (5 and 15 retries on the same level)
+  - **Defeat & Failure** — lose your first battle, king dies, total wipe, lose in under 30 seconds, kill 90% of attackers but still lose, no deaths for 2 minutes then lose, kill 10 defenders with spells, kill the king with a spell
+- **Lifetime kill stats** — attackers killed, defenders lost, and undead killed are now tracked across all battles and shown on the game over screen and progress screen
+- Total wins and games played are now tracked across sessions
+- **"Slider Fiddler" achievement** — unlocked by adjusting any slider in the settings (volume or brightness)
+- **Arcanorouter is now a hidden wizard** — must be unlocked by earning the "Slider Fiddler" achievement
+
+### Changed
+- **Wizard select screen redesigned** — archetypes now appear in a grid with room for up to 16 wizard types, with a detail panel showing full descriptions
+- **Progress screen** — categories are now side-by-side columns that scroll independently
+- Locked items on the progress screen now show flavor text hints instead of their names
+
 ## [v0.0.586] - 2025-02-12
 
 ### Added

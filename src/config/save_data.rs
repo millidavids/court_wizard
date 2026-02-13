@@ -39,6 +39,12 @@ pub(crate) struct PlayerMetaProgress {
     pub(crate) total_levels_completed: u32,
     pub(crate) total_games_played: u32,
     #[serde(default)]
+    pub(crate) total_defenders_killed: u32,
+    #[serde(default)]
+    pub(crate) total_attackers_killed: u32,
+    #[serde(default)]
+    pub(crate) total_undead_killed: u32,
+    #[serde(default)]
     pub(crate) unlocked_achievements: Vec<String>,
     #[serde(default)]
     pub(crate) unlocked_content: UnlockedContent,
@@ -52,7 +58,7 @@ pub(crate) struct UnlockedContent {
     pub(crate) spells: Vec<String>,
     #[serde(default = "UnlockedContent::all_ingredients")]
     pub(crate) ingredients: Vec<String>,
-    #[serde(default = "UnlockedContent::all_wizard_types")]
+    #[serde(default = "UnlockedContent::default_wizard_types")]
     pub(crate) wizard_types: Vec<String>,
 }
 
@@ -68,9 +74,10 @@ impl UnlockedContent {
             .collect()
     }
 
-    fn all_wizard_types() -> Vec<String> {
+    fn default_wizard_types() -> Vec<String> {
         WizardType::all()
             .iter()
+            .filter(|w| **w != WizardType::Arcanorouter)
             .map(|w| format!("{:?}", w))
             .collect()
     }
@@ -81,7 +88,7 @@ impl Default for UnlockedContent {
         Self {
             spells: Self::all_spells(),
             ingredients: Self::all_ingredients(),
-            wizard_types: Self::all_wizard_types(),
+            wizard_types: Self::default_wizard_types(),
         }
     }
 }
@@ -95,12 +102,60 @@ impl Default for UnlockedContent {
 pub(crate) enum AchievementId {
     FirstVictory,
     FriendlyFire,
+    // Defeat & Failure
+    TacticalRetreat,
+    TheKingIsDead,
+    TotalWipe,
+    SpeedrunWrongDirection,
+    PyrrhicDefeat,
+    ItWasGoingSoWell,
+    FriendlyFireDepartment,
+    AccidentalRegicide,
+    // Victory & Progression
+    ApprenticeWizard,
+    CourtWizard,
+    Archmage,
+    LegendsSpeakYourName,
+    Immortalized,
+    TheGrindNeverStops,
+    OneMoreLevel,
+    IntoTheDeep,
+    Absurdity,
+    Level100,
+    Stubborn,
+    ExtremelyStubborn,
+    // Meta / Unlocks
+    SliderFiddler,
 }
 
 impl AchievementId {
     /// Returns all achievement variants.
     pub(crate) fn all() -> &'static [AchievementId] {
-        &[AchievementId::FirstVictory, AchievementId::FriendlyFire]
+        &[
+            AchievementId::FirstVictory,
+            AchievementId::FriendlyFire,
+            AchievementId::TacticalRetreat,
+            AchievementId::TheKingIsDead,
+            AchievementId::TotalWipe,
+            AchievementId::SpeedrunWrongDirection,
+            AchievementId::PyrrhicDefeat,
+            AchievementId::ItWasGoingSoWell,
+            AchievementId::FriendlyFireDepartment,
+            AchievementId::AccidentalRegicide,
+            AchievementId::ApprenticeWizard,
+            AchievementId::CourtWizard,
+            AchievementId::Archmage,
+            AchievementId::LegendsSpeakYourName,
+            AchievementId::Immortalized,
+            AchievementId::TheGrindNeverStops,
+            AchievementId::OneMoreLevel,
+            AchievementId::IntoTheDeep,
+            AchievementId::Absurdity,
+            AchievementId::Level100,
+            AchievementId::Stubborn,
+            AchievementId::ExtremelyStubborn,
+            AchievementId::SliderFiddler,
+        ]
     }
 
     /// String identifier used for persistence.
@@ -108,6 +163,27 @@ impl AchievementId {
         match self {
             AchievementId::FirstVictory => "first_victory",
             AchievementId::FriendlyFire => "friendly_fire",
+            AchievementId::TacticalRetreat => "tactical_retreat",
+            AchievementId::TheKingIsDead => "the_king_is_dead",
+            AchievementId::TotalWipe => "total_wipe",
+            AchievementId::SpeedrunWrongDirection => "speedrun_wrong_direction",
+            AchievementId::PyrrhicDefeat => "pyrrhic_defeat",
+            AchievementId::ItWasGoingSoWell => "it_was_going_so_well",
+            AchievementId::FriendlyFireDepartment => "friendly_fire_department",
+            AchievementId::AccidentalRegicide => "accidental_regicide",
+            AchievementId::ApprenticeWizard => "apprentice_wizard",
+            AchievementId::CourtWizard => "court_wizard",
+            AchievementId::Archmage => "archmage",
+            AchievementId::LegendsSpeakYourName => "legends_speak_your_name",
+            AchievementId::Immortalized => "immortalized",
+            AchievementId::TheGrindNeverStops => "the_grind_never_stops",
+            AchievementId::OneMoreLevel => "one_more_level",
+            AchievementId::IntoTheDeep => "into_the_deep",
+            AchievementId::Absurdity => "absurdity",
+            AchievementId::Level100 => "level_100",
+            AchievementId::Stubborn => "stubborn",
+            AchievementId::ExtremelyStubborn => "extremely_stubborn",
+            AchievementId::SliderFiddler => "slider_fiddler",
         }
     }
 
@@ -116,6 +192,27 @@ impl AchievementId {
         match self {
             AchievementId::FirstVictory => "First Victory",
             AchievementId::FriendlyFire => "Friendly Fire",
+            AchievementId::TacticalRetreat => "Tactical Retreat",
+            AchievementId::TheKingIsDead => "The King is Dead",
+            AchievementId::TotalWipe => "Total Wipe",
+            AchievementId::SpeedrunWrongDirection => "Speedrun (Wrong Direction)",
+            AchievementId::PyrrhicDefeat => "Pyrrhic Defeat",
+            AchievementId::ItWasGoingSoWell => "It Was Going So Well",
+            AchievementId::FriendlyFireDepartment => "Friendly Fire Department",
+            AchievementId::AccidentalRegicide => "Accidental Regicide",
+            AchievementId::ApprenticeWizard => "Apprentice Wizard",
+            AchievementId::CourtWizard => "Court Wizard",
+            AchievementId::Archmage => "Archmage",
+            AchievementId::LegendsSpeakYourName => "Legends Speak Your Name",
+            AchievementId::Immortalized => "Immortalized",
+            AchievementId::TheGrindNeverStops => "The Grind Never Stops",
+            AchievementId::OneMoreLevel => "One More Level",
+            AchievementId::IntoTheDeep => "Into the Deep",
+            AchievementId::Absurdity => "Absurdity",
+            AchievementId::Level100 => "Level 100",
+            AchievementId::Stubborn => "Stubborn",
+            AchievementId::ExtremelyStubborn => "Extremely Stubborn",
+            AchievementId::SliderFiddler => "Slider Fiddler",
         }
     }
 
@@ -124,6 +221,39 @@ impl AchievementId {
         match self {
             AchievementId::FirstVictory => "You won your first battle!",
             AchievementId::FriendlyFire => "You killed a defender with a spell. Oops!",
+            AchievementId::TacticalRetreat => "A strategic withdrawal to reconsider your options.",
+            AchievementId::TheKingIsDead => "You had one job.",
+            AchievementId::TotalWipe => {
+                "Not a single soldier left standing. Impressive, in a horrible way."
+            }
+            AchievementId::SpeedrunWrongDirection => "The battle barely started. What happened?",
+            AchievementId::PyrrhicDefeat => "Close, but no cigar.",
+            AchievementId::ItWasGoingSoWell => "Everything was fine. And then it wasn't.",
+            AchievementId::FriendlyFireDepartment => "Maybe stop casting into your own army?",
+            AchievementId::AccidentalRegicide => {
+                "The defense has been called off on account of you."
+            }
+            AchievementId::ApprenticeWizard => "You're getting the hang of this.",
+            AchievementId::CourtWizard => "The king trusts you. Probably a mistake.",
+            AchievementId::Archmage => "Your beard has grown three inches since you started.",
+            AchievementId::LegendsSpeakYourName => {
+                "Bards write songs. Most of them are inaccurate."
+            }
+            AchievementId::Immortalized => {
+                "Statues of you line the courtyard. They all look wrong."
+            }
+            AchievementId::TheGrindNeverStops => "You could have learned a real trade by now.",
+            AchievementId::OneMoreLevel => "Just one more, you told yourself 9 levels ago.",
+            AchievementId::IntoTheDeep => "The attackers are starting to look... different.",
+            AchievementId::Absurdity => "This many enemies shouldn't fit on one battlefield.",
+            AchievementId::Level100 => {
+                "You've been doing this longer than some civilizations lasted."
+            }
+            AchievementId::Stubborn => {
+                "Insanity is doing the same thing over and over. But maybe this time..."
+            }
+            AchievementId::ExtremelyStubborn => "At this point, the enemies feel bad for you.",
+            AchievementId::SliderFiddler => "You adjusted a slider. The Arcanorouter approves.",
         }
     }
 }
@@ -141,11 +271,34 @@ pub(crate) fn unlock_achievement(id: AchievementId) -> bool {
     true
 }
 
-/// Clear all achievements and reset unlocked content to defaults.
+/// Unlock a wizard type and persist immediately.
+/// Returns true if the wizard type was newly unlocked.
+pub(crate) fn unlock_wizard_type(wizard_type: WizardType) -> bool {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+    let name = format!("{:?}", wizard_type);
+    if save_file
+        .player
+        .unlocked_content
+        .wizard_types
+        .contains(&name)
+    {
+        return false;
+    }
+    save_file.player.unlocked_content.wizard_types.push(name);
+    save_unified(&save_file);
+    true
+}
+
+/// Clear all achievements, lifetime stats, and reset unlocked content to defaults.
 pub(crate) fn clear_progress() {
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
     save_file.player.unlocked_achievements.clear();
     save_file.player.unlocked_content = UnlockedContent::default();
+    save_file.player.total_levels_completed = 0;
+    save_file.player.total_games_played = 0;
+    save_file.player.total_defenders_killed = 0;
+    save_file.player.total_attackers_killed = 0;
+    save_file.player.total_undead_killed = 0;
     save_unified(&save_file);
 }
 
@@ -405,7 +558,6 @@ pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &Ac
 }
 
 /// Increment meta-progression counters on victory.
-#[allow(dead_code)]
 pub(crate) fn increment_levels_completed() {
     let Some(mut save_file) = load_unified_save() else {
         return;
@@ -415,13 +567,30 @@ pub(crate) fn increment_levels_completed() {
 }
 
 /// Increment total games played counter.
-#[allow(dead_code)]
 pub(crate) fn increment_games_played() {
     let Some(mut save_file) = load_unified_save() else {
         return;
     };
     save_file.player.total_games_played += 1;
     save_unified(&save_file);
+}
+
+/// Accumulate per-battle kill stats into lifetime totals.
+pub(crate) fn accumulate_kill_stats(defenders: u32, attackers: u32, undead: u32) {
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+    save_file.player.total_defenders_killed += defenders;
+    save_file.player.total_attackers_killed += attackers;
+    save_file.player.total_undead_killed += undead;
+    save_unified(&save_file);
+}
+
+/// Returns the total number of levels completed (victories) across all time.
+pub(crate) fn get_total_levels_completed() -> u32 {
+    load_unified_save()
+        .map(|s| s.player.total_levels_completed)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------

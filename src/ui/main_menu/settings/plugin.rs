@@ -6,8 +6,8 @@ use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
 
 use super::systems::{
-    button_hover, button_press, cleanup, handle_scroll, keyboard_input, option_button_action,
-    settings_button_action, setup, slider_button_action, slider_interaction,
+    button_hover, button_press, check_slider_achievement, cleanup, handle_scroll, keyboard_input,
+    option_button_action, settings_button_action, setup, slider_button_action, slider_interaction,
     update_selected_options, update_slider_text, update_sliders,
 };
 
@@ -47,6 +47,7 @@ impl Plugin for SettingsPlugin {
                     update_slider_text,
                     update_sliders,
                     update_selected_options,
+                    check_slider_achievement,
                 )
                     .run_if(in_state(MenuState::Settings)),
             );

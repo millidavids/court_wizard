@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::{
     components::ArcanoRouterBonuses, messages::SliderAdjustMessage, resources::ArcanoRouterState,
 };
-use crate::game::units::wizard::components::{PrimedSpell, Wizard};
+use crate::game::units::wizard::components::Wizard;
 
 /// Processes slider adjustment messages and updates the allocation state.
 ///
@@ -54,25 +54,6 @@ pub(super) fn apply_bonuses_to_wizard_stats(
         wizard.mana_cost_multiplier = bonuses.get_mana_cost_multiplier();
         wizard.spell_power_multiplier = bonuses.get_spell_power_multiplier();
         wizard.cast_speed_multiplier = bonuses.get_cast_speed_multiplier();
-    }
-}
-
-/// Applies the wizard's multipliers to the primed spell.
-///
-/// This system runs whenever the Wizard component changes, recalculating
-/// the effective cast time and empowerment based on the wizard's multipliers.
-pub(super) fn apply_wizard_stats_to_primed_spell(
-    mut wizard_query: Query<(&Wizard, &mut PrimedSpell), Changed<Wizard>>,
-) {
-    for (wizard, mut primed_spell) in wizard_query.iter_mut() {
-        // Get base values from spell config
-        let base_cast_time = primed_spell.spell.primed_config().cast_time;
-
-        // Apply wizard's cast speed multiplier to cast time
-        primed_spell.cast_time = base_cast_time / wizard.cast_speed_multiplier;
-
-        // Apply wizard's spell power multiplier to empowerment
-        primed_spell.empowerment = wizard.spell_power_multiplier;
     }
 }
 

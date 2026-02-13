@@ -63,6 +63,15 @@ impl Ingredient {
     pub fn description(&self) -> &'static str {
         self.config().description
     }
+
+    /// Returns flavor text shown on the progress screen when the ingredient is locked.
+    pub const fn locked_description(&self) -> &'static str {
+        match self {
+            Ingredient::Lavender => "Smells nice. Does something magical. Probably.",
+            Ingredient::Mugwort => "Not actually related to mugs. Or warts.",
+            Ingredient::Yarrow => "Ancient herbalists swore by it. They were mostly right.",
+        }
+    }
 }
 
 /// A recipe is a combination of ingredients to brew together.

@@ -34,6 +34,15 @@ pub fn setup_wizard(
         Vec2::new(wizard_width / 2.0, -wizard_height / 2.0), // Bottom-right
     );
 
+    // Build wizard with archetype-specific stat bonuses
+    let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
+    if config.wizard_type == WizardType::BoringOleMage {
+        wizard.spell_range = constants::DEFAULT_SPELL_RANGE * 1.05;
+        wizard.mana_cost_multiplier = 0.95; // 5% cheaper
+        wizard.spell_power_multiplier = 1.05;
+        wizard.cast_speed_multiplier = 1.05;
+    }
+
     let mut entity_commands = commands.spawn((
         Mesh3d(meshes.add(wizard_triangle)),
         MeshMaterial3d(materials.add(StandardMaterial {
@@ -48,7 +57,7 @@ pub fn setup_wizard(
         Mana::new(constants::MANA),
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),
-        Wizard::new(constants::DEFAULT_SPELL_RANGE),
+        wizard,
         magic_missile_constants::PRIMED_MAGIC_MISSILE,
         Billboard,
         OnGameplayScreen,
@@ -136,4 +145,19 @@ pub fn cancel_active_casts(
     }
     // Reset mouse state when exiting running state
     mouse_state.left_consumed = false;
+}
+
+/// Applies the wizard's stat multipliers to the currently primed spell.
+///
+/// Runs for all archetypes whenever the Wizard component changes. Recalculates
+/// the effective cast time and empowerment based on the wizard's multipliers.
+/// For archetypes with default 1.0 multipliers this is effectively a no-op.
+pub fn apply_wizard_stats_to_primed_spell(
+    mut wizard_query: Query<(&Wizard, &mut PrimedSpell), Changed<Wizard>>,
+) {
+    for (wizard, mut primed_spell) in wizard_query.iter_mut() {
+        let base_cast_time = primed_spell.spell.primed_config().cast_time;
+        primed_spell.cast_time = base_cast_time / wizard.cast_speed_multiplier;
+        primed_spell.empowerment = wizard.spell_power_multiplier;
+    }
 }

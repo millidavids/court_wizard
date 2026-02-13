@@ -6,7 +6,6 @@ use crate::ui::components::ButtonStyle;
 
 // Colors
 pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
-pub(super) const SECTION_COLOR: Color = Color::srgb(0.95, 0.82, 0.30);
 pub(super) const UNLOCKED_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
 pub(super) const LOCKED_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
 pub(super) const COMPLETED_COLOR: Color = Color::srgb(0.3, 0.85, 0.3);
@@ -15,14 +14,18 @@ pub(super) const SECTION_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.8);
 
 // Font sizes
 pub(super) const TITLE_FONT_SIZE: f32 = 40.0;
-pub(super) const SECTION_FONT_SIZE: f32 = 24.0;
+
 pub(super) const ITEM_NAME_FONT_SIZE: f32 = 16.0;
 pub(super) const ITEM_DESC_FONT_SIZE: f32 = 13.0;
+pub(super) const STAT_VALUE_FONT_SIZE: f32 = 22.0;
+pub(super) const STAT_LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.55, 1.0);
 
 // Layout
 pub(super) const MARGIN: f32 = 16.0;
 pub(super) const MARGIN_SMALL: f32 = 8.0;
 pub(super) const SECTION_PADDING: f32 = 12.0;
+pub(super) const COLUMN_GAP: f32 = 12.0;
+pub(super) const COLUMN_TITLE_FONT_SIZE: f32 = 20.0;
 
 // Button style
 pub(super) const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);

@@ -12,7 +12,7 @@ impl Plugin for GameOverPlugin {
         app.add_systems(
             OnEnter(InGameState::GameOver),
             (
-                check_first_victory_achievement,
+                check_victory_progression_achievements,
                 save_efficiency_to_config,
                 setup_game_over_screen,
                 update_level_after_display,
