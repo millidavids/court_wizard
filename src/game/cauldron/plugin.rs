@@ -27,10 +27,12 @@ impl Plugin for CauldronPlugin {
                 )
                     .run_if(in_state(AppState::InGame)),
             )
-            // Brewing loop and buff systems only run during gameplay.
+            // Brewing loop, animation, and buff systems only run during gameplay.
             .add_systems(
                 Update,
                 (
+                    systems::update_orthogonal_billboard,
+                    systems::update_cauldron_animation,
                     systems::update_brew_timer.run_if(cauldron_is_brewing),
                     systems::handle_brew_complete.run_if(on_message::<BrewCompleteMessage>),
                     systems::tick_active_buffs.run_if(has_active_buffs),

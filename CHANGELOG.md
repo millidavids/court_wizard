@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.6] - 2025-02-12
+
+### Changed
+- The cauldron now displays an animated bubbling sprite instead of a plain black circle
+- The cauldron sprite faces the camera and stays upright regardless of viewing angle
+
 ## [v0.1.0] - 2025-02-12
 
 ### Added

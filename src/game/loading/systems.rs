@@ -93,7 +93,10 @@ pub fn init_loading_progress(
     // 11. Wizard (controls spells)
     queue.tasks.push(SpawnTask::Wizard);
 
-    // 12. Cauldron (next to wizard on castle wall)
+    // 12. Load cauldron assets (texture for sprite sheet)
+    queue.tasks.push(SpawnTask::LoadCauldronAssets);
+
+    // 13. Cauldron (next to wizard on castle wall)
     queue.tasks.push(SpawnTask::Cauldron);
 
     commands.insert_resource(queue);
@@ -116,6 +119,8 @@ pub fn process_spawn_queue(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
     king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
+    cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
+    asset_server: Res<AssetServer>,
 ) {
     // Process exactly one task per frame for smooth, predictable loading
     let batch = spawn_queue.pop_batch(1);
@@ -193,12 +198,21 @@ pub fn process_spawn_queue(
                     Res::clone(&config),
                 );
             }
-            SpawnTask::Cauldron => {
-                crate::game::cauldron::systems::spawn_cauldron(
+            SpawnTask::LoadCauldronAssets => {
+                crate::game::cauldron::systems::load_cauldron_assets(
                     commands.reborrow(),
-                    meshes,
-                    materials,
+                    Res::clone(&asset_server),
                 );
+            }
+            SpawnTask::Cauldron => {
+                if let Some(assets) = cauldron_assets {
+                    crate::game::cauldron::systems::spawn_cauldron(
+                        commands.reborrow(),
+                        meshes,
+                        materials,
+                        Res::clone(&assets),
+                    );
+                }
             }
             SpawnTask::PathfindingGrid => {
                 crate::game::pathfinding::systems::initialize_pathfinding(commands.reborrow());

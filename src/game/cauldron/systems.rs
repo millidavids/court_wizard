@@ -1,32 +1,57 @@
+use bevy::math::Affine2;
 use bevy::prelude::*;
 
 use super::components::*;
 use super::constants;
 use super::messages::*;
-use super::resources::CauldronBuffs;
-use crate::game::components::{Billboard, OnGameplayScreen};
+use super::resources::{CauldronAssets, CauldronBuffs};
+use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::BlockSpellInput;
 use crate::game::units::components::{Corpse, Health, Team};
 
-/// Spawns the cauldron entity as a charcoal circle on the castle wall next to the wizard.
+/// Loads the cauldron sprite sheet texture.
+pub fn load_cauldron_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let sprite_texture = asset_server.load("images/cauldron-64px-9.png");
+    commands.insert_resource(CauldronAssets { sprite_texture });
+}
+
+/// Spawns the cauldron entity as an animated sprite billboard.
 pub fn spawn_cauldron(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    cauldron_assets: Res<CauldronAssets>,
 ) {
-    let circle = Circle::new(constants::CAULDRON_RADIUS);
+    // Create a quad mesh for the billboard
+    let quad_mesh = Rectangle::new(
+        constants::CAULDRON_SPRITE_SIZE,
+        constants::CAULDRON_SPRITE_SIZE,
+    );
+
+    // UV transform for first frame: scale to 1/3 to show only top-left frame
+    let grid_size = constants::CAULDRON_SPRITE_GRID_SIZE as f32;
+    let frame_scale = 1.0 / grid_size;
+    let uv_transform = Affine2::from_scale(Vec2::splat(frame_scale));
+
+    // Create material with sprite sheet texture
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(cauldron_assets.sprite_texture.clone()),
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        uv_transform,
+        ..default()
+    });
 
     commands.spawn((
-        Mesh3d(meshes.add(circle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: constants::CAULDRON_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(meshes.add(quad_mesh)),
+        MeshMaterial3d(material),
         Transform::from_translation(constants::CAULDRON_POSITION),
         Cauldron,
         CauldronState::default(),
-        Billboard,
+        CauldronAnimation::new(),
+        OrthogonalBillboard,
         OnGameplayScreen,
     ));
 }
@@ -167,6 +192,57 @@ pub fn update_brew_bubble(
 
         if let Some(material) = materials.get_mut(material_handle) {
             material.base_color = bubble.color.with_alpha(alpha);
+        }
+    }
+}
+
+/// Updates orthogonal billboard entities to face the camera directly.
+///
+/// Unlike the standard billboard which only rotates on Y-axis, this makes
+/// the entity fully orthogonal to the camera view (faces camera directly).
+pub fn update_orthogonal_billboard(
+    camera_query: Query<&Transform, With<Camera3d>>,
+    mut billboard_query: Query<&mut Transform, (With<OrthogonalBillboard>, Without<Camera3d>)>,
+) {
+    let Ok(camera_transform) = camera_query.single() else {
+        return;
+    };
+
+    // Make the billboard face the camera while maintaining upright orientation
+    for mut transform in &mut billboard_query {
+        let camera_pos = camera_transform.translation;
+
+        // World up direction
+        let up = Vec3::Y;
+
+        // Use look_at to face the camera while staying upright
+        // This creates a rotation where -Z points toward camera and Y points up
+        transform.look_at(camera_pos, up);
+    }
+}
+
+/// Updates the cauldron sprite sheet animation.
+pub fn update_cauldron_animation(
+    time: Res<Time>,
+    mut cauldron_query: Query<
+        (&mut CauldronAnimation, &MeshMaterial3d<StandardMaterial>),
+        With<Cauldron>,
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if let Ok((mut animation, material_handle)) = cauldron_query.single_mut() {
+        if animation.tick(time.delta_secs()) {
+            if let Some(material) = materials.get_mut(material_handle) {
+                let (offset_x, offset_y) = animation.uv_offset();
+                let grid_size = constants::CAULDRON_SPRITE_GRID_SIZE as f32;
+                let frame_scale = 1.0 / grid_size;
+
+                material.uv_transform = Affine2::from_scale_angle_translation(
+                    Vec2::splat(frame_scale),
+                    0.0,
+                    Vec2::new(offset_x, offset_y),
+                );
+            }
         }
     }
 }

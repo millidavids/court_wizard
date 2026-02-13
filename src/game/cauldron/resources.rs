@@ -85,3 +85,9 @@ impl CauldronBuffs {
         result
     }
 }
+
+/// Stores the cauldron sprite sheet texture handle.
+#[derive(Resource)]
+pub struct CauldronAssets {
+    pub sprite_texture: Handle<Image>,
+}

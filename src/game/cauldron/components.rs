@@ -112,3 +112,49 @@ impl CauldronState {
         }
     }
 }
+
+/// Marker for entities that should face the camera fully (orthogonal billboard).
+/// Unlike the standard Billboard component which only rotates on Y-axis,
+/// this makes the entity face the camera directly in all axes.
+#[derive(Component)]
+pub struct OrthogonalBillboard;
+
+/// Tracks the cauldron sprite sheet animation state.
+#[derive(Component)]
+pub struct CauldronAnimation {
+    pub current_frame: usize,
+    pub elapsed: f32,
+}
+
+impl CauldronAnimation {
+    pub fn new() -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: 0.0,
+        }
+    }
+
+    /// Advances the animation timer and returns true if frame changed.
+    pub fn tick(&mut self, delta: f32) -> bool {
+        self.elapsed += delta;
+        if self.elapsed >= super::constants::CAULDRON_FRAME_DURATION {
+            self.elapsed -= super::constants::CAULDRON_FRAME_DURATION;
+            self.current_frame =
+                (self.current_frame + 1) % super::constants::CAULDRON_SPRITE_FRAMES;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Calculates UV offset for current frame in a 3x3 grid.
+    pub fn uv_offset(&self) -> (f32, f32) {
+        let grid_size = super::constants::CAULDRON_SPRITE_GRID_SIZE as f32;
+        let frame_size = 1.0 / grid_size;
+
+        let row = (self.current_frame / super::constants::CAULDRON_SPRITE_GRID_SIZE) as f32;
+        let col = (self.current_frame % super::constants::CAULDRON_SPRITE_GRID_SIZE) as f32;
+
+        (col * frame_size, row * frame_size)
+    }
+}
