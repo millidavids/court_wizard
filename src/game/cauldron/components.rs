@@ -120,6 +120,27 @@ pub struct CauldronAnimation {
     pub elapsed: f32,
 }
 
+/// Damage bonus applied to defenders by cauldron buff (Mistletoe).
+///
+/// Stores a percentage bonus (e.g., 0.5 = +50% damage).
+/// Added/removed by the cauldron buff system each frame.
+#[derive(Component)]
+pub struct CauldronDamageBonus(pub f32);
+
+/// Damage resistance applied to defenders by cauldron buff (Wormwood).
+///
+/// Stores a resistance percentage (e.g., 0.25 = 25% damage reduction).
+/// Added/removed by the cauldron buff system each frame.
+#[derive(Component)]
+pub struct CauldronDamageResistance(pub f32);
+
+/// Speed modifier applied by cauldron buff (Meadowsweet/Valerian).
+///
+/// Stores a percentage modifier (positive for speed boost, negative for slow).
+/// Added/removed by the cauldron buff system each frame.
+#[derive(Component)]
+pub struct CauldronSpeedModifier(pub f32);
+
 /// Tracks brewing visual effects (pulsing and color).
 #[derive(Component)]
 pub struct CauldronBrewingEffects {

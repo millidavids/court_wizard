@@ -7,6 +7,7 @@ use super::messages::*;
 use super::resources::CauldronBuffs;
 use super::run_conditions::{
     cauldron_is_brewing, has_active_buffs, has_brew_bubbles, has_brewing_effects,
+    needs_buff_cleanup,
 };
 use super::systems;
 
@@ -41,6 +42,11 @@ impl Plugin for CauldronPlugin {
                     systems::handle_brew_complete.run_if(on_message::<BrewCompleteMessage>),
                     systems::tick_active_buffs.run_if(has_active_buffs),
                     systems::heal_defenders.run_if(has_active_buffs),
+                    systems::buff_defender_damage.run_if(has_active_buffs),
+                    systems::buff_defender_resistance.run_if(has_active_buffs),
+                    systems::apply_cauldron_speed_modifiers.run_if(has_active_buffs),
+                    systems::shield_defenders.run_if(has_active_buffs),
+                    systems::cleanup_cauldron_buff_components.run_if(needs_buff_cleanup),
                     systems::block_spells_during_brewing.run_if(cauldron_is_brewing),
                     systems::update_brew_bubble.run_if(has_brew_bubbles),
                 )

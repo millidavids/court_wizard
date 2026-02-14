@@ -61,15 +61,66 @@ impl CauldronBuffs {
 
     /// Total defender heal per second from all active buffs.
     pub fn defender_heal_per_second(&self) -> f32 {
-        let mut total = 0.0;
-        for buff in &self.active_buffs {
-            for effect in &buff.effects {
-                if let BrewEffect::DefenderHealPerSecond(v) = effect {
-                    total += v;
-                }
-            }
-        }
-        total
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::DefenderHealPerSecond(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Combined cast speed multiplier from all active buffs.
+    pub fn cast_speed_multiplier(&self) -> f32 {
+        self.compute_multiplier(|effect| match effect {
+            BrewEffect::CastSpeedMultiplier(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Combined spell range multiplier from all active buffs.
+    pub fn spell_range_multiplier(&self) -> f32 {
+        self.compute_multiplier(|effect| match effect {
+            BrewEffect::SpellRangeMultiplier(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Total defender damage bonus from all active buffs.
+    pub fn defender_damage_bonus(&self) -> f32 {
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::DefenderDamageBonus(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Total damage resistance percentage for defenders from all active buffs.
+    pub fn damage_resistance_percent(&self) -> f32 {
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::DamageResistancePercent(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Total defender speed bonus from all active buffs.
+    pub fn defender_speed_bonus(&self) -> f32 {
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::DefenderSpeedBonus(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Total attacker slow percentage from all active buffs.
+    pub fn attacker_slow_percent(&self) -> f32 {
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::AttackerSlowPercent(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Total defender shield per second from all active buffs.
+    pub fn defender_shield_per_second(&self) -> f32 {
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::DefenderShieldPerSecond(v) => Some(*v),
+            _ => None,
+        })
     }
 
     /// Computes a combined multiplier by scanning all active buff effects.
@@ -83,6 +134,19 @@ impl CauldronBuffs {
             }
         }
         result
+    }
+
+    /// Sums a flat effect value across all active buffs.
+    fn sum_flat_effect(&self, extract: impl Fn(&BrewEffect) -> Option<f32>) -> f32 {
+        let mut total = 0.0;
+        for buff in &self.active_buffs {
+            for effect in &buff.effects {
+                if let Some(value) = extract(effect) {
+                    total += value;
+                }
+            }
+        }
+        total
     }
 }
 

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use super::messages::*;
+use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
@@ -140,6 +141,7 @@ pub fn update_behemoth_targeting(
 
 /// Behemoth movement system using weighted velocities based on distance to target.
 /// Uses same logic as infantry movement.
+#[allow(clippy::type_complexity)]
 pub fn behemoth_movement(
     time: Res<Time>,
     mut behemoths: Query<
@@ -155,6 +157,7 @@ pub fn behemoth_movement(
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
+            Option<&CauldronSpeedModifier>,
         ),
         With<Behemoth>,
     >,
@@ -171,6 +174,7 @@ pub fn behemoth_movement(
         aura_modifier,
         terrain_modifier,
         frost_modifier,
+        cauldron_modifier,
     ) in &mut behemoths
     {
         // Use shared weighted movement function
@@ -187,6 +191,7 @@ pub fn behemoth_movement(
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
+            cauldron_modifier.map(|m| m.0),
         );
     }
 }

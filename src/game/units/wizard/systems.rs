@@ -96,6 +96,14 @@ pub fn handle_prime_spell_messages(
                 spell = spell
                     .with_empowerment(spell.empowerment * cauldron_buffs.spell_power_multiplier());
             }
+            let cast_speed = cauldron_buffs.cast_speed_multiplier();
+            if cast_speed > 1.0 {
+                spell.cast_time /= cast_speed;
+            }
+            let range_mult = cauldron_buffs.spell_range_multiplier();
+            if range_mult > 1.0 {
+                spell.range_multiplier *= range_mult;
+            }
             *primed_spell = spell;
         }
     }

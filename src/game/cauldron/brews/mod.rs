@@ -13,6 +13,20 @@ pub enum BrewEffect {
     SpellPowerMultiplier(f32),
     /// Heals all defender units by this amount per second.
     DefenderHealPerSecond(f32),
+    /// Multiplies wizard cast speed (higher = faster).
+    CastSpeedMultiplier(f32),
+    /// Multiplies spell area of effect.
+    SpellRangeMultiplier(f32),
+    /// Bonus damage percentage for defender units (0.5 = +50%).
+    DefenderDamageBonus(f32),
+    /// Damage resistance percentage for defender units (0.25 = 25% reduction).
+    DamageResistancePercent(f32),
+    /// Speed bonus percentage for defender units (0.3 = +30%).
+    DefenderSpeedBonus(f32),
+    /// Speed reduction percentage for attacker/undead units (0.25 = 25% slow).
+    AttackerSlowPercent(f32),
+    /// Grants temporary hit points to defenders per second.
+    DefenderShieldPerSecond(f32),
 }
 
 /// An ingredient that can be added to a brew.
@@ -21,6 +35,13 @@ pub enum Ingredient {
     Lavender,
     Mugwort,
     Yarrow,
+    Mistletoe,
+    Vervain,
+    Wormwood,
+    BlueLotus,
+    Meadowsweet,
+    Valerian,
+    NatronSalt,
 }
 
 /// Static configuration for an ingredient.
@@ -42,6 +63,13 @@ impl Ingredient {
             Ingredient::Lavender => &LAVENDER_CONFIG,
             Ingredient::Mugwort => &MUGWORT_CONFIG,
             Ingredient::Yarrow => &YARROW_CONFIG,
+            Ingredient::Mistletoe => &MISTLETOE_CONFIG,
+            Ingredient::Vervain => &VERVAIN_CONFIG,
+            Ingredient::Wormwood => &WORMWOOD_CONFIG,
+            Ingredient::BlueLotus => &BLUE_LOTUS_CONFIG,
+            Ingredient::Meadowsweet => &MEADOWSWEET_CONFIG,
+            Ingredient::Valerian => &VALERIAN_CONFIG,
+            Ingredient::NatronSalt => &NATRON_SALT_CONFIG,
         }
     }
 
@@ -51,6 +79,13 @@ impl Ingredient {
             Ingredient::Lavender,
             Ingredient::Mugwort,
             Ingredient::Yarrow,
+            Ingredient::Mistletoe,
+            Ingredient::Vervain,
+            Ingredient::Wormwood,
+            Ingredient::BlueLotus,
+            Ingredient::Meadowsweet,
+            Ingredient::Valerian,
+            Ingredient::NatronSalt,
         ]
     }
 
@@ -70,6 +105,15 @@ impl Ingredient {
             Ingredient::Lavender => "Smells nice. Does something magical. Probably.",
             Ingredient::Mugwort => "Not actually related to mugs. Or warts.",
             Ingredient::Yarrow => "Ancient herbalists swore by it. They were mostly right.",
+            Ingredient::Mistletoe => "Kiss under it or kill with it. Hedge wizards did both.",
+            Ingredient::Vervain => "Enchanters weave fate. This herb unravels it.",
+            Ingredient::Wormwood => "Bitter to taste, bitter for your enemies.",
+            Ingredient::BlueLotus => "Ancient alchemists saw gods. You'll see bigger explosions.",
+            Ingredient::Meadowsweet => "Warriors ran faster with this. Don't ask how.",
+            Ingredient::Valerian => "Makes enemies drowsy. Makes you victorious.",
+            Ingredient::NatronSalt => {
+                "Preserved archmages for millennia. Should work for soldiers."
+            }
         }
     }
 }
@@ -147,7 +191,18 @@ fn dilute_effect(effect: BrewEffect, dilution: f32) -> BrewEffect {
         BrewEffect::SpellPowerMultiplier(v) => {
             BrewEffect::SpellPowerMultiplier(1.0 + (v - 1.0) * dilution)
         }
+        BrewEffect::CastSpeedMultiplier(v) => {
+            BrewEffect::CastSpeedMultiplier(1.0 + (v - 1.0) * dilution)
+        }
+        BrewEffect::SpellRangeMultiplier(v) => {
+            BrewEffect::SpellRangeMultiplier(1.0 + (v - 1.0) * dilution)
+        }
         // Flat effects: neutral base is 0.0
         BrewEffect::DefenderHealPerSecond(v) => BrewEffect::DefenderHealPerSecond(v * dilution),
+        BrewEffect::DefenderDamageBonus(v) => BrewEffect::DefenderDamageBonus(v * dilution),
+        BrewEffect::DamageResistancePercent(v) => BrewEffect::DamageResistancePercent(v * dilution),
+        BrewEffect::DefenderSpeedBonus(v) => BrewEffect::DefenderSpeedBonus(v * dilution),
+        BrewEffect::AttackerSlowPercent(v) => BrewEffect::AttackerSlowPercent(v * dilution),
+        BrewEffect::DefenderShieldPerSecond(v) => BrewEffect::DefenderShieldPerSecond(v * dilution),
     }
 }

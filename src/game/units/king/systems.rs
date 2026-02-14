@@ -2,10 +2,11 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use super::resources::KingAssets;
+use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
-use super::resources::KingAssets;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
     FrostSlowModifier, Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed,
@@ -153,6 +154,7 @@ pub fn king_movement(
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
+            Option<&CauldronSpeedModifier>,
         ),
         With<King>,
     >,
@@ -170,6 +172,7 @@ pub fn king_movement(
         aura_modifier,
         terrain_modifier,
         frost_modifier,
+        cauldron_modifier,
     ) in &mut king_units
     {
         // Use shared weighted movement function
@@ -186,6 +189,7 @@ pub fn king_movement(
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
+            cauldron_modifier.map(|m| m.0),
         );
     }
 }

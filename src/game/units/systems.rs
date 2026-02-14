@@ -87,6 +87,7 @@ pub fn update_melee_unit_targeting(
 ///
 /// This function implements the core movement logic and returns the final steering force.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn calculate_weighted_movement(
     time: &Time,
     velocity: &mut Velocity,
@@ -100,6 +101,7 @@ pub fn calculate_weighted_movement(
     aura_modifier: Option<f32>,
     terrain_modifier: Option<f32>,
     frost_modifier: Option<f32>,
+    cauldron_modifier: Option<f32>,
 ) {
     // Use pathfinding distance (accounts for obstacles)
     let distance = flow_field_velocity.pathfinding_distance;
@@ -135,7 +137,9 @@ pub fn calculate_weighted_movement(
     let aura_percentage = aura_modifier.unwrap_or(0.0);
     let terrain_percentage = terrain_modifier.unwrap_or(0.0);
     let frost_percentage = frost_modifier.unwrap_or(0.0);
-    let total_percentage = aura_percentage + terrain_percentage + frost_percentage;
+    let cauldron_percentage = cauldron_modifier.unwrap_or(0.0);
+    let total_percentage =
+        aura_percentage + terrain_percentage + frost_percentage + cauldron_percentage;
     let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
     // Calculate max speed with effectiveness, modifiers, and melee slowdown

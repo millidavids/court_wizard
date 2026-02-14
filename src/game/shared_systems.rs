@@ -2,6 +2,9 @@ use bevy::prelude::*;
 
 use crate::config::GameConfig;
 
+use super::cauldron::components::{
+    CauldronDamageBonus, CauldronDamageResistance, CauldronSpeedModifier,
+};
 use super::cauldron::resources::CauldronBuffs;
 use super::components::{Acceleration, Velocity};
 use super::constants::*;
@@ -336,10 +339,15 @@ pub fn combat(
             &mut AttackTiming,
             &Effectiveness,
             Option<&DamageMultiplier>,
+            Option<&CauldronDamageBonus>,
         ),
         Without<Corpse>,
     >,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut health_query: Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Option<&CauldronDamageResistance>,
+    )>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -347,7 +355,7 @@ pub fn combat(
     // Collect snapshot of all units for enemy detection
     let units_snapshot: Vec<_> = all_units
         .iter()
-        .map(|(entity, transform, hitbox, team, _, _, _)| {
+        .map(|(entity, transform, hitbox, team, _, _, _, _)| {
             (entity, transform.translation, *hitbox, *team)
         })
         .collect();
@@ -361,6 +369,7 @@ pub fn combat(
         mut attack_timing,
         effectiveness,
         damage_mult,
+        cauldron_damage_bonus,
     ) in &mut all_units
     {
         // Find nearest enemy within attack range
@@ -397,15 +406,21 @@ pub fn combat(
         {
             // Attack if we're in the unit's attack window
             if attack_timing.can_attack(current_time, last_time)
-                && let Ok((mut target_health, mut temp_hp)) = health_query.get_mut(*target_entity)
+                && let Ok((mut target_health, mut temp_hp, target_resistance)) =
+                    health_query.get_mut(*target_entity)
             {
                 // Apply effectiveness and damage percentage
                 // DamageMultiplier stores percentage bonus (0.5 = +50%, 1.0 = +100%)
                 // Convert to multiplier: damage * (1.0 + percentage)
-                let damage_percentage = damage_mult.map_or(0.0, |d| d.0);
+                let damage_percentage =
+                    damage_mult.map_or(0.0, |d| d.0) + cauldron_damage_bonus.map_or(0.0, |b| b.0);
                 let damage_multiplier = 1.0 + damage_percentage;
-                let modified_damage =
+                let mut modified_damage =
                     ATTACK_DAMAGE * effectiveness.multiplier() * damage_multiplier;
+                // Apply target's damage resistance (Wormwood brew)
+                if let Some(resistance) = target_resistance {
+                    modified_damage *= 1.0 - resistance.0;
+                }
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.record_attack(current_time);
             }
@@ -527,7 +542,10 @@ pub fn convert_dead_to_corpses(
                 .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
                 .remove::<super::units::components::KingAuraSpeedModifier>() // Remove speed modifiers
                 .remove::<super::units::components::FrostSlowModifier>()
-                .remove::<super::units::components::RoughTerrainModifier>();
+                .remove::<super::units::components::RoughTerrainModifier>()
+                .remove::<CauldronDamageBonus>()
+                .remove::<CauldronDamageResistance>()
+                .remove::<CauldronSpeedModifier>();
         }
     }
 }

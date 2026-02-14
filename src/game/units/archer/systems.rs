@@ -5,6 +5,7 @@ use super::components::*;
 use super::constants::*;
 use super::resources::ArcherAssets;
 use super::styles::*;
+use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
     calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
@@ -630,6 +631,7 @@ pub fn archer_movement(
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
+            Option<&CauldronSpeedModifier>,
         ),
         With<Archer>,
     >,
@@ -647,6 +649,7 @@ pub fn archer_movement(
         aura_modifier,
         terrain_modifier,
         frost_modifier,
+        cauldron_modifier,
     ) in &mut archer_units
     {
         // Use shared weighted movement function
@@ -663,6 +666,7 @@ pub fn archer_movement(
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
+            cauldron_modifier.map(|m| m.0),
         );
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)

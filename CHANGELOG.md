@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.52] - 2025-02-13
+
+### Added
+- **7 new cauldron ingredients** to discover — experiment to find out what they do!
+
 ## [v0.1.50] - 2025-02-13
 
 ### Added

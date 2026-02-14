@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::styles::*;
+use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
     calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
@@ -204,6 +205,7 @@ pub fn infantry_movement(
             Option<&KingAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
+            Option<&CauldronSpeedModifier>,
         ),
         With<Infantry>,
     >,
@@ -221,6 +223,7 @@ pub fn infantry_movement(
         aura_modifier,
         terrain_modifier,
         frost_modifier,
+        cauldron_modifier,
     ) in &mut infantry_units
     {
         // Use shared weighted movement function
@@ -237,6 +240,7 @@ pub fn infantry_movement(
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
+            cauldron_modifier.map(|m| m.0),
         );
     }
 }

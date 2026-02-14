@@ -234,6 +234,27 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
                     BrewEffect::DefenderHealPerSecond(v) => {
                         format!("Defender healing: {:.1} HP/s", v)
                     }
+                    BrewEffect::CastSpeedMultiplier(v) => {
+                        format!("Cast speed: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                    BrewEffect::SpellRangeMultiplier(v) => {
+                        format!("Spell area: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                    BrewEffect::DefenderDamageBonus(v) => {
+                        format!("Defender damage: +{:.0}%", v * 100.0)
+                    }
+                    BrewEffect::DamageResistancePercent(v) => {
+                        format!("Damage resistance: {:.0}%", v * 100.0)
+                    }
+                    BrewEffect::DefenderSpeedBonus(v) => {
+                        format!("Defender speed: +{:.0}%", v * 100.0)
+                    }
+                    BrewEffect::AttackerSlowPercent(v) => {
+                        format!("Enemy slow: {:.0}%", v * 100.0)
+                    }
+                    BrewEffect::DefenderShieldPerSecond(v) => {
+                        format!("Defender shield: {:.1} HP/s", v)
+                    }
                 };
                 preview.spawn((
                     Text::new(text),

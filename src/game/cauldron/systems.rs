@@ -7,7 +7,7 @@ use super::messages::*;
 use super::resources::{CauldronAssets, CauldronBuffs};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::BlockSpellInput;
-use crate::game::units::components::{Corpse, Health, Team};
+use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints};
 
 /// Loads the cauldron sprite sheet texture.
 pub fn load_cauldron_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -349,6 +349,145 @@ pub fn heal_defenders(
     for (mut health, team) in &mut defenders {
         if *team == Team::Defenders {
             health.heal(heal_amount);
+        }
+    }
+}
+
+/// Applies or removes CauldronDamageBonus on all defenders based on active buffs.
+pub fn buff_defender_damage(
+    mut commands: Commands,
+    cauldron_buffs: Res<CauldronBuffs>,
+    defenders: Query<(Entity, &Team, Option<&CauldronDamageBonus>), Without<Corpse>>,
+) {
+    let bonus = cauldron_buffs.defender_damage_bonus();
+    for (entity, team, existing) in &defenders {
+        if *team == Team::Defenders {
+            if bonus > 0.0 {
+                if existing.is_none() {
+                    commands.entity(entity).insert(CauldronDamageBonus(bonus));
+                }
+            } else if existing.is_some() {
+                commands.entity(entity).remove::<CauldronDamageBonus>();
+            }
+        }
+    }
+}
+
+/// Applies or removes CauldronDamageResistance on all defenders based on active buffs.
+pub fn buff_defender_resistance(
+    mut commands: Commands,
+    cauldron_buffs: Res<CauldronBuffs>,
+    defenders: Query<(Entity, &Team, Option<&CauldronDamageResistance>), Without<Corpse>>,
+) {
+    let resistance = cauldron_buffs.damage_resistance_percent();
+    for (entity, team, existing) in &defenders {
+        if *team == Team::Defenders {
+            if resistance > 0.0 {
+                if existing.is_none() {
+                    commands
+                        .entity(entity)
+                        .insert(CauldronDamageResistance(resistance));
+                }
+            } else if existing.is_some() {
+                commands.entity(entity).remove::<CauldronDamageResistance>();
+            }
+        }
+    }
+}
+
+/// Applies or removes CauldronSpeedModifier on units based on active buffs.
+///
+/// Defenders get a speed bonus (Meadowsweet), attackers/undead get a slow (Valerian).
+pub fn apply_cauldron_speed_modifiers(
+    mut commands: Commands,
+    cauldron_buffs: Res<CauldronBuffs>,
+    units: Query<(Entity, &Team, Option<&CauldronSpeedModifier>), Without<Corpse>>,
+) {
+    let defender_bonus = cauldron_buffs.defender_speed_bonus();
+    let attacker_slow = cauldron_buffs.attacker_slow_percent();
+
+    for (entity, team, existing) in &units {
+        let modifier = match team {
+            Team::Defenders => {
+                if defender_bonus > 0.0 {
+                    Some(defender_bonus)
+                } else {
+                    None
+                }
+            }
+            Team::Attackers | Team::Undead => {
+                if attacker_slow > 0.0 {
+                    Some(-attacker_slow)
+                } else {
+                    None
+                }
+            }
+        };
+
+        if let Some(value) = modifier {
+            if existing.is_none() {
+                commands.entity(entity).insert(CauldronSpeedModifier(value));
+            }
+        } else if existing.is_some() {
+            commands.entity(entity).remove::<CauldronSpeedModifier>();
+        }
+    }
+}
+
+/// Removes all cauldron buff components from units when no buffs are active.
+///
+/// This runs when buffs have just expired to clean up lingering components
+/// that were inserted by the per-frame buff systems.
+pub fn cleanup_cauldron_buff_components(
+    mut commands: Commands,
+    units: Query<
+        (
+            Entity,
+            Option<&CauldronDamageBonus>,
+            Option<&CauldronDamageResistance>,
+            Option<&CauldronSpeedModifier>,
+        ),
+        Without<Corpse>,
+    >,
+) {
+    for (entity, damage_bonus, resistance, speed_mod) in &units {
+        if damage_bonus.is_some() {
+            commands.entity(entity).remove::<CauldronDamageBonus>();
+        }
+        if resistance.is_some() {
+            commands.entity(entity).remove::<CauldronDamageResistance>();
+        }
+        if speed_mod.is_some() {
+            commands.entity(entity).remove::<CauldronSpeedModifier>();
+        }
+    }
+}
+
+/// Grants temporary hit points to defenders based on active DefenderShieldPerSecond buff.
+pub fn shield_defenders(
+    time: Res<Time>,
+    cauldron_buffs: Res<CauldronBuffs>,
+    mut defenders: Query<(Entity, &Team, Option<&mut TemporaryHitPoints>), Without<Corpse>>,
+    mut commands: Commands,
+) {
+    let shield_per_second = cauldron_buffs.defender_shield_per_second();
+    if shield_per_second <= 0.0 {
+        return;
+    }
+    let shield_amount = shield_per_second * time.delta_secs();
+    const MAX_SHIELD: f32 = 20.0;
+
+    for (entity, team, temp_hp) in &mut defenders {
+        if *team != Team::Defenders {
+            continue;
+        }
+        if let Some(mut existing) = temp_hp {
+            existing.amount = (existing.amount + shield_amount).min(MAX_SHIELD);
+            existing.time_remaining = 5.0; // Keep alive while buff is active
+        } else {
+            commands
+                .entity(entity)
+                .insert(TemporaryHitPoints::new(shield_amount, 5.0));
         }
     }
 }
