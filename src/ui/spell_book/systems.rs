@@ -5,6 +5,7 @@ use bevy::ui::ComputedNode;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::save_data::load_unified_save;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::Spell;
@@ -73,7 +74,19 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                             ..default()
                         })
                         .with_children(|col| {
-                            let spells = Spell::all();
+                            // Load unlocked spells from save data
+                            let unlocked_spells: Vec<String> = load_unified_save()
+                                .map(|s| s.player.unlocked_content.spells)
+                                .unwrap_or_default();
+
+                            // Filter to only unlocked spells
+                            let spells: Vec<&Spell> = Spell::all()
+                                .iter()
+                                .filter(|spell| {
+                                    let debug_name = format!("{:?}", spell);
+                                    unlocked_spells.contains(&debug_name)
+                                })
+                                .collect();
 
                             // Buttons row
                             col.spawn(Node {
@@ -82,7 +95,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                 ..default()
                             })
                             .with_children(|row| {
-                                for spell in spells {
+                                for spell in &spells {
                                     let name = spell.name();
                                     let min_chars = 6.0;
                                     let max_chars = 16.0;
@@ -95,7 +108,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                     spawn_spell_button(
                                         row,
                                         name,
-                                        SpellBookButtonAction::SelectSpell(*spell),
+                                        SpellBookButtonAction::SelectSpell(**spell),
                                         &BUTTON_STYLE,
                                         font_size,
                                     );
@@ -109,7 +122,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                 ..default()
                             })
                             .with_children(|row| {
-                                for spell in spells {
+                                for spell in &spells {
                                     row.spawn(Node {
                                         width: Val::Px(SPELL_COLUMN_WIDTH),
                                         height: Val::Percent(100.0),
@@ -140,7 +153,7 @@ pub(super) fn spawn_spell_book_ui(mut commands: Commands) {
                                 ..default()
                             })
                             .with_children(|row| {
-                                for spell in spells {
+                                for spell in &spells {
                                     row.spawn((
                                         Text::new(spell.description()),
                                         TextFont {

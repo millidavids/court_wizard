@@ -12,7 +12,8 @@ use crate::game::units::wizard::components::Spell;
 use crate::ui::systems::spawn_button;
 
 use super::components::{
-    BackButton, ClearProgressButton, OnProgressScreen, ScrollableProgressContainer,
+    BackButton, CancelClearButton, ClearProgressButton, ConfirmClearButton, ConfirmationPopup,
+    OnProgressScreen, ScrollableProgressContainer,
 };
 use super::constants::{
     BUTTON_STYLE, COLUMN_GAP, COLUMN_TITLE_FONT_SIZE, COMPLETED_COLOR, DANGER_BUTTON_STYLE,
@@ -145,6 +146,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             None,
                             spell.locked_description(),
                             is_unlocked,
+                            false, // Don't show name when locked - only show joke text
                         );
                     }
                 });
@@ -167,6 +169,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             Some(ingredient.description()),
                             ingredient.locked_description(),
                             is_unlocked,
+                            false, // Only show joke text when locked (like spells)
                         );
                     }
                 });
@@ -190,6 +193,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             Some(wizard_type.description()),
                             wizard_type.locked_description(),
                             is_unlocked,
+                            true, // Show name when locked for wizard types
                         );
                     }
                 });
@@ -388,6 +392,18 @@ fn spawn_achievement_row(
                         },
                         TextColor(desc_color),
                     ));
+
+                    // Show unlock reward if this achievement has one
+                    if let Some(reward) = achievement.unlock_reward() {
+                        col.spawn((
+                            Text::new(reward),
+                            TextFont {
+                                font_size: ITEM_DESC_FONT_SIZE,
+                                ..default()
+                            },
+                            TextColor(COMPLETED_COLOR),
+                        ));
+                    }
                 });
             } else {
                 // Locked: only show the description as a hint
@@ -404,13 +420,14 @@ fn spawn_achievement_row(
 }
 
 /// Spawns an unlockable item row.
-/// When locked, only the `locked_hint` flavor text is shown.
+/// When locked, shows the `locked_hint` flavor text (and optionally the name).
 fn spawn_unlockable_row(
     parent: &mut ChildSpawnerCommands,
     name: &str,
     description: Option<&str>,
     locked_hint: &str,
     is_unlocked: bool,
+    show_name_when_locked: bool,
 ) {
     let (indicator, indicator_color) = if is_unlocked {
         ("*", COMPLETED_COLOR)
@@ -480,23 +497,35 @@ fn spawn_unlockable_row(
                     ));
                 }
             } else {
-                // Locked: show name and hint flavor text in locked color
-                row.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(2.0),
-                    ..default()
-                })
-                .with_children(|col| {
-                    col.spawn((
-                        Text::new(name),
-                        TextFont {
-                            font_size: ITEM_NAME_FONT_SIZE,
-                            ..default()
-                        },
-                        TextColor(LOCKED_COLOR),
-                    ));
+                // Locked: show hint flavor text (and optionally name)
+                if show_name_when_locked {
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(2.0),
+                        ..default()
+                    })
+                    .with_children(|col| {
+                        col.spawn((
+                            Text::new(name),
+                            TextFont {
+                                font_size: ITEM_NAME_FONT_SIZE,
+                                ..default()
+                            },
+                            TextColor(LOCKED_COLOR),
+                        ));
 
-                    col.spawn((
+                        col.spawn((
+                            Text::new(locked_hint),
+                            TextFont {
+                                font_size: ITEM_DESC_FONT_SIZE,
+                                ..default()
+                            },
+                            TextColor(LOCKED_COLOR),
+                        ));
+                    });
+                } else {
+                    // Only show the locked hint (no name)
+                    row.spawn((
                         Text::new(locked_hint),
                         TextFont {
                             font_size: ITEM_DESC_FONT_SIZE,
@@ -504,8 +533,93 @@ fn spawn_unlockable_row(
                         },
                         TextColor(LOCKED_COLOR),
                     ));
-                });
+                }
             }
+        });
+}
+
+/// Spawns a confirmation popup asking if the user really wants to clear progress.
+pub(super) fn spawn_confirmation_popup(commands: &mut Commands) {
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+            GlobalZIndex(1000),
+            ConfirmationPopup,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn((
+                    Node {
+                        width: Val::Px(500.0),
+                        padding: UiRect::all(Val::Px(30.0)),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(20.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    BorderColor::all(Color::srgb(0.8, 0.3, 0.3)),
+                    BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+                    BorderRadius::all(Val::Px(8.0)),
+                ))
+                .with_children(|popup| {
+                    // Title
+                    popup.spawn((
+                        Text::new("Clear All Progress?"),
+                        TextFont {
+                            font_size: 24.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(1.0, 0.4, 0.4)),
+                    ));
+
+                    // Warning message
+                    popup.spawn((
+                        Text::new(
+                            "This will permanently delete:\n\n\
+                            - All achievements\n\
+                            - All unlocked spells and wizards\n\
+                            - All wizard progress and levels\n\
+                            - All statistics\n\n\
+                            This action cannot be undone!",
+                        ),
+                        TextFont {
+                            font_size: 16.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                        TextLayout::new_with_justify(Justify::Left),
+                        Node {
+                            padding: UiRect::horizontal(Val::Px(20.0)),
+                            ..default()
+                        },
+                    ));
+
+                    // Buttons row
+                    popup
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(20.0),
+                            ..default()
+                        })
+                        .with_children(|buttons| {
+                            spawn_button(buttons, "Cancel", CancelClearButton, &BUTTON_STYLE);
+                            spawn_button(
+                                buttons,
+                                "Clear Everything",
+                                ConfirmClearButton,
+                                &DANGER_BUTTON_STYLE,
+                            );
+                        });
+                });
         });
 }
 

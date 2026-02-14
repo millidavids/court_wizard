@@ -33,6 +33,7 @@ macro_rules! achievement_resource {
 
 // Victory & Progression
 achievement_resource!(FirstVictoryAchievement, AchievementId::FirstVictory);
+achievement_resource!(ChainReactionAchievement, AchievementId::ChainReaction);
 achievement_resource!(ApprenticeWizardAchievement, AchievementId::ApprenticeWizard);
 achievement_resource!(CourtWizardAchievement, AchievementId::CourtWizard);
 achievement_resource!(ArchmageAchievement, AchievementId::Archmage);
@@ -87,6 +88,45 @@ pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
     res.is_locked()
 }
 
+/// Resource to track consecutive enemy kills for multi-kill achievements.
+#[derive(Resource, Default)]
+pub(crate) struct MultiKillTracker {
+    /// Number of consecutive kills within the time window.
+    pub kills: u32,
+    /// Time since last kill (resets when enemy dies).
+    pub time_since_last_kill: f32,
+}
+
+impl MultiKillTracker {
+    /// Time window for consecutive kills (in seconds).
+    const WINDOW: f32 = 2.0;
+
+    /// Reset the kill counter.
+    pub fn reset(&mut self) {
+        self.kills = 0;
+        self.time_since_last_kill = 0.0;
+    }
+
+    /// Register a kill and return the current kill count.
+    pub fn register_kill(&mut self) -> u32 {
+        if self.time_since_last_kill > Self::WINDOW {
+            self.kills = 1;
+        } else {
+            self.kills += 1;
+        }
+        self.time_since_last_kill = 0.0;
+        self.kills
+    }
+
+    /// Update the timer.
+    pub fn update(&mut self, delta: f32) {
+        self.time_since_last_kill += delta;
+        if self.time_since_last_kill > Self::WINDOW {
+            self.reset();
+        }
+    }
+}
+
 /// Resets all achievement resources back to locked state by re-inserting them.
 /// Triggered by `ClearProgressMessage` when the player clears their progress.
 pub(crate) fn reset_all_achievements(
@@ -94,6 +134,7 @@ pub(crate) fn reset_all_achievements(
     mut commands: Commands,
 ) {
     commands.insert_resource(FirstVictoryAchievement(false));
+    commands.insert_resource(ChainReactionAchievement(false));
     commands.insert_resource(ApprenticeWizardAchievement(false));
     commands.insert_resource(CourtWizardAchievement(false));
     commands.insert_resource(ArchmageAchievement(false));
@@ -136,6 +177,7 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     }
 
     init!(FirstVictoryAchievement);
+    init!(ChainReactionAchievement);
     init!(ApprenticeWizardAchievement);
     init!(CourtWizardAchievement);
     init!(ArchmageAchievement);

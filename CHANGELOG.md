@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.50] - 2025-02-13
+
+### Added
+- **Ingredient discovery system** — new ingredients are randomly unlocked after completing levels
+- When you unlock a new ingredient, it's highlighted in green on the Wizard Tower screen
+- You now start with only Lavender unlocked; other ingredients must be discovered through gameplay
+
+### Changed
+- **Most spells are now locked at the start** — you begin with only Magic Missile available
+- Other spells unlock automatically as you earn specific achievements
+- Locked spells and ingredients show mysterious hints instead of their names on the progress screen
+- The cauldron brewing menu now only shows ingredients you've discovered
+- Clearing your progress resets both spell and ingredient unlocks back to the starting set
+
 ## [v0.1.30] - 2025-02-13
 
 ### Improved

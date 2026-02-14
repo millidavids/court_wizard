@@ -17,3 +17,15 @@ pub(super) struct ClearProgressButton;
 /// Marker component for the scrollable progress container.
 #[derive(Component)]
 pub(super) struct ScrollableProgressContainer;
+
+/// Marker for the confirmation popup.
+#[derive(Component)]
+pub(super) struct ConfirmationPopup;
+
+/// Marker for confirm button in the popup.
+#[derive(Component)]
+pub(super) struct ConfirmClearButton;
+
+/// Marker for cancel button in the popup.
+#[derive(Component)]
+pub(super) struct CancelClearButton;

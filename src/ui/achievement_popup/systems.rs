@@ -3,17 +3,30 @@ use bevy::prelude::*;
 use crate::config::save_data::AchievementId;
 use crate::game::messages::AchievementUnlockedMessage;
 
-use super::components::{AchievementPopup, AchievementPopupTimer};
+use super::components::{AchievementPopup, AchievementPopupTimer, AchievementQueue};
 use super::constants::*;
 
-/// Spawns an achievement popup when an achievement is unlocked.
-pub(super) fn spawn_achievement_popup(
-    mut commands: Commands,
+/// Queues achievements as they unlock.
+pub(super) fn queue_achievements(
     mut achievement_events: MessageReader<AchievementUnlockedMessage>,
+    mut queue: ResMut<AchievementQueue>,
 ) {
     for event in achievement_events.read() {
-        let id = event.id;
-        spawn_popup(&mut commands, id);
+        queue.push(event.id);
+    }
+}
+
+/// Spawns the next achievement popup from the queue if no popup is currently displayed.
+pub(super) fn spawn_next_popup(
+    mut commands: Commands,
+    mut queue: ResMut<AchievementQueue>,
+    active_popups: Query<&AchievementPopup>,
+) {
+    // Only spawn a new popup if there isn't one already showing
+    if active_popups.is_empty() && !queue.is_empty() {
+        if let Some(id) = queue.pop() {
+            spawn_popup(&mut commands, id);
+        }
     }
 }
 
@@ -79,6 +92,19 @@ fn spawn_popup(commands: &mut Commands, id: AchievementId) {
                 TextColor(DESCRIPTION_COLOR),
                 Pickable::IGNORE,
             ));
+
+            // Unlock reward (if any)
+            if let Some(reward) = id.unlock_reward() {
+                parent.spawn((
+                    Text::new(reward),
+                    TextFont {
+                        font_size: 14.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.4, 0.9, 0.4)), // Bright green
+                    Pickable::IGNORE,
+                ));
+            }
         });
 }
 

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::save_data::load_unified_save;
 use crate::game::cauldron::brews::{BrewEffect, Ingredient, Recipe};
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
@@ -102,12 +103,22 @@ fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientS
                         BackgroundColor(FRAME_BACKGROUND),
                     ))
                     .with_children(|container| {
+                        // Load save data to get unlocked ingredients
+                        let save = load_unified_save();
+                        let unlocked_ingredients = save
+                            .as_ref()
+                            .map(|s| s.player.unlocked_content.ingredients.clone())
+                            .unwrap_or_default();
+
                         for ingredient in Ingredient::all() {
-                            spawn_ingredient_card(
-                                container,
-                                *ingredient,
-                                selection.is_selected(ingredient),
-                            );
+                            let debug_name = format!("{:?}", ingredient);
+                            if unlocked_ingredients.contains(&debug_name) {
+                                spawn_ingredient_card(
+                                    container,
+                                    *ingredient,
+                                    selection.is_selected(ingredient),
+                                );
+                            }
                         }
                     });
 

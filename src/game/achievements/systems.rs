@@ -2,16 +2,17 @@ use bevy::prelude::*;
 
 use crate::config::save_data::{
     accumulate_kill_stats, get_total_levels_completed, increment_games_played,
-    increment_levels_completed, unlock_achievement,
+    increment_levels_completed, unlock_achievement, unlock_spell,
 };
 use crate::config::{GameConfig, WizardType};
 use crate::game::messages::AchievementUnlockedMessage;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, RetryTracker};
-use crate::game::units::wizard::components::{CastingState, Wizard};
+use crate::game::units::wizard::components::{CastingState, Spell, Wizard};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
-    BattleEndedMessage, DefenderKilledBySpellMessage, QwerKeyPressedMessage, SpellCastMessage,
+    BattleEndedMessage, DefenderKilledBySpellMessage, EnemyKilledMessage, QwerKeyPressedMessage,
+    SpellCastMessage,
 };
 use super::resources::*;
 
@@ -97,6 +98,8 @@ pub(crate) fn check_first_victory(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 1 {
             do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::Fireball);
+            unlock_spell(Spell::GuardianCircle);
         }
     }
 }
@@ -109,6 +112,8 @@ pub(crate) fn check_apprentice_wizard(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 5 {
             do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::Disintegrate);
+            unlock_spell(Spell::Teleport);
         }
     }
 }
@@ -121,6 +126,8 @@ pub(crate) fn check_court_wizard(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 10 {
             do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::ChainLightning);
+            unlock_spell(Spell::WallOfStone);
         }
     }
 }
@@ -145,6 +152,7 @@ pub(crate) fn check_legends_speak_your_name(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 50 {
             do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::BlackHole);
         }
     }
 }
@@ -247,6 +255,7 @@ pub(crate) fn check_the_king_is_dead(
     for m in msg.read() {
         if m.outcome == GameOutcome::DefeatKingDied {
             do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::RaiseTheDead);
         }
     }
 }
@@ -355,7 +364,7 @@ pub(crate) fn check_extremely_stubborn(
 }
 
 // ---------------------------------------------------------------------------
-// Mid-battle achievement (triggered by DefenderKilledBySpellMessage)
+// Mid-battle achievements
 // ---------------------------------------------------------------------------
 
 pub(crate) fn check_friendly_fire(
@@ -365,6 +374,28 @@ pub(crate) fn check_friendly_fire(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
+        unlock_spell(Spell::FingerOfDeath);
+    }
+}
+
+/// Updates the multi-kill tracker timer.
+pub(crate) fn update_multi_kill_tracker(time: Res<Time>, mut tracker: ResMut<MultiKillTracker>) {
+    tracker.update(time.delta_secs());
+}
+
+/// Tracks consecutive enemy kills for multi-kill achievements.
+pub(crate) fn track_multi_kills(
+    mut msg: MessageReader<EnemyKilledMessage>,
+    mut tracker: ResMut<MultiKillTracker>,
+    mut res: ResMut<ChainReactionAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    for _ in msg.read() {
+        let kill_count = tracker.register_kill();
+        if kill_count >= 3 {
+            do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::Squall);
+        }
     }
 }
 

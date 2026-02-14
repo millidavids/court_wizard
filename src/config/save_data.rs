@@ -67,11 +67,19 @@ impl UnlockedContent {
         Spell::all().iter().map(|s| format!("{:?}", s)).collect()
     }
 
+    fn default_spells() -> Vec<String> {
+        vec![format!("{:?}", Spell::MagicMissile)]
+    }
+
     fn all_ingredients() -> Vec<String> {
         Ingredient::all()
             .iter()
             .map(|i| format!("{:?}", i))
             .collect()
+    }
+
+    fn default_ingredients() -> Vec<String> {
+        vec![format!("{:?}", Ingredient::Lavender)]
     }
 
     fn default_wizard_types() -> Vec<String> {
@@ -86,8 +94,8 @@ impl UnlockedContent {
 impl Default for UnlockedContent {
     fn default() -> Self {
         Self {
-            spells: Self::all_spells(),
-            ingredients: Self::all_ingredients(),
+            spells: Self::default_spells(),
+            ingredients: Self::default_ingredients(),
             wizard_types: Self::default_wizard_types(),
         }
     }
@@ -102,6 +110,7 @@ impl Default for UnlockedContent {
 pub(crate) enum AchievementId {
     FirstVictory,
     FriendlyFire,
+    ChainReaction,
     // Defeat & Failure
     TacticalRetreat,
     TheKingIsDead,
@@ -136,6 +145,7 @@ impl AchievementId {
         &[
             AchievementId::FirstVictory,
             AchievementId::FriendlyFire,
+            AchievementId::ChainReaction,
             AchievementId::TacticalRetreat,
             AchievementId::TheKingIsDead,
             AchievementId::TotalWipe,
@@ -167,6 +177,7 @@ impl AchievementId {
         match self {
             AchievementId::FirstVictory => "first_victory",
             AchievementId::FriendlyFire => "friendly_fire",
+            AchievementId::ChainReaction => "chain_reaction",
             AchievementId::TacticalRetreat => "tactical_retreat",
             AchievementId::TheKingIsDead => "the_king_is_dead",
             AchievementId::TotalWipe => "total_wipe",
@@ -198,6 +209,7 @@ impl AchievementId {
         match self {
             AchievementId::FirstVictory => "First Victory",
             AchievementId::FriendlyFire => "Friendly Fire",
+            AchievementId::ChainReaction => "Chain Reaction",
             AchievementId::TacticalRetreat => "Tactical Retreat",
             AchievementId::TheKingIsDead => "The King is Dead",
             AchievementId::TotalWipe => "Total Wipe",
@@ -224,11 +236,29 @@ impl AchievementId {
         }
     }
 
+    /// Returns the unlock reward for this achievement (spell or wizard type).
+    pub(crate) fn unlock_reward(&self) -> Option<&'static str> {
+        match self {
+            AchievementId::FirstVictory => Some("Unlocks: Fireball, Guardian Circle"),
+            AchievementId::FriendlyFire => Some("Unlocks: Finger of Death"),
+            AchievementId::ChainReaction => Some("Unlocks: Squall"),
+            AchievementId::TheKingIsDead => Some("Unlocks: Raise The Dead"),
+            AchievementId::ApprenticeWizard => Some("Unlocks: Disintegrate, Teleport"),
+            AchievementId::CourtWizard => Some("Unlocks: Chain Lightning, Wall of Stone"),
+            AchievementId::LegendsSpeakYourName => Some("Unlocks: Black Hole"),
+            AchievementId::SliderFiddler => Some("Unlocks: Arcanorouter wizard"),
+            AchievementId::RandomMagicSurge => Some("Unlocks: Randomancer wizard"),
+            AchievementId::Qwer => Some("Unlocks: Rune Caster wizard"),
+            _ => None,
+        }
+    }
+
     /// Description shown in the achievement popup.
     pub(crate) fn description(&self) -> &'static str {
         match self {
             AchievementId::FirstVictory => "You won your first battle!",
             AchievementId::FriendlyFire => "You killed a defender with a spell. Oops!",
+            AchievementId::ChainReaction => "Killed multiple enemies in quick succession.",
             AchievementId::TacticalRetreat => "A strategic withdrawal to reconsider your options.",
             AchievementId::TheKingIsDead => "You had one job.",
             AchievementId::TotalWipe => {
@@ -299,7 +329,38 @@ pub(crate) fn unlock_wizard_type(wizard_type: WizardType) -> bool {
     true
 }
 
-/// Clear all achievements, lifetime stats, and reset unlocked content to defaults.
+/// Unlock a spell and persist immediately.
+/// Returns true if the spell was newly unlocked.
+pub(crate) fn unlock_spell(spell: Spell) -> bool {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+    let name = format!("{:?}", spell);
+    if save_file.player.unlocked_content.spells.contains(&name) {
+        return false;
+    }
+    save_file.player.unlocked_content.spells.push(name);
+    save_unified(&save_file);
+    true
+}
+
+/// Unlock an ingredient and persist immediately.
+/// Returns true if the ingredient was newly unlocked.
+pub(crate) fn unlock_ingredient(ingredient: crate::game::cauldron::brews::Ingredient) -> bool {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+    let name = format!("{:?}", ingredient);
+    if save_file
+        .player
+        .unlocked_content
+        .ingredients
+        .contains(&name)
+    {
+        return false;
+    }
+    save_file.player.unlocked_content.ingredients.push(name);
+    save_unified(&save_file);
+    true
+}
+
+/// Clear all achievements, lifetime stats, wizard progress, and reset unlocked content to defaults.
 pub(crate) fn clear_progress() {
     let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
     save_file.player.unlocked_achievements.clear();
@@ -309,6 +370,15 @@ pub(crate) fn clear_progress() {
     save_file.player.total_defenders_killed = 0;
     save_file.player.total_attackers_killed = 0;
     save_file.player.total_undead_killed = 0;
+
+    // Reset all wizard saves to level 1
+    for wizard in &mut save_file.wizards {
+        wizard.current_level = 1;
+        wizard.highest_level_achieved = 1;
+        wizard.efficiency_ratios.clear();
+        wizard.action_bar_slots = [None; 5];
+    }
+
     save_unified(&save_file);
 }
 
@@ -504,6 +574,24 @@ pub(crate) fn get_wizard_by_type(wizard_type: WizardType) -> Option<WizardSave> 
         .find(|w| w.wizard_type == wizard_type)
 }
 
+/// Validates action bar slots against currently unlocked spells.
+/// Clears any slots containing locked spells.
+fn validate_action_bar_slots(action_bar_slots: &mut [Option<Spell>; 5]) {
+    let save_file = load_unified_save();
+    let unlocked_spells: Vec<String> = save_file
+        .map(|s| s.player.unlocked_content.spells)
+        .unwrap_or_default();
+
+    for slot in action_bar_slots.iter_mut() {
+        if let Some(spell) = slot {
+            let debug_name = format!("{:?}", spell);
+            if !unlocked_spells.contains(&debug_name) {
+                *slot = None; // Clear locked spell from action bar
+            }
+        }
+    }
+}
+
 /// Load the wizard for a given type into GameConfig and set it as active.
 /// Returns true if a save existed and was loaded.
 pub(crate) fn load_wizard_type_into_config(
@@ -520,6 +608,10 @@ pub(crate) fn load_wizard_type_into_config(
     config.highest_level_achieved = wizard.highest_level_achieved;
     config.efficiency_ratios = wizard.efficiency_ratios.clone();
     config.action_bar_slots = wizard.action_bar_slots;
+
+    // Validate that all action bar slots contain unlocked spells
+    validate_action_bar_slots(&mut config.action_bar_slots);
+
     active_save.0 = Some(wizard.id.clone());
     true
 }

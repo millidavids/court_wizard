@@ -5,8 +5,8 @@ use crate::state::AppState;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
-    BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, QwerKeyPressedMessage,
-    SpellCastMessage,
+    BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
+    QwerKeyPressedMessage, SpellCastMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -17,9 +17,11 @@ impl Plugin for AchievementsPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<BattleEndedMessage>()
             .add_message::<DefenderKilledBySpellMessage>()
+            .add_message::<EnemyKilledMessage>()
             .add_message::<ClearProgressMessage>()
             .add_message::<SpellCastMessage>()
             .add_message::<QwerKeyPressedMessage>()
+            .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
             // NOTE: send_battle_ended is registered in GameOverPlugin's chain
@@ -99,12 +101,22 @@ impl Plugin for AchievementsPlugin {
                         .run_if(achievement_locked::<ExtremelyStubbornAchievement>),
                 ),
             )
-            // FriendlyFire — mid-battle
+            // Mid-battle achievements
             .add_systems(
                 Update,
-                systems::check_friendly_fire
-                    .run_if(on_message::<DefenderKilledBySpellMessage>)
-                    .run_if(achievement_locked::<FriendlyFireAchievement>),
+                (
+                    systems::check_friendly_fire
+                        .run_if(on_message::<DefenderKilledBySpellMessage>)
+                        .run_if(achievement_locked::<FriendlyFireAchievement>),
+                    systems::track_multi_kills
+                        .run_if(on_message::<EnemyKilledMessage>)
+                        .run_if(achievement_locked::<ChainReactionAchievement>),
+                ),
+            )
+            // Multi-kill tracker timer (runs during gameplay)
+            .add_systems(
+                Update,
+                systems::update_multi_kill_tracker.run_if(in_state(AppState::InGame)),
             )
             // SliderFiddler — settings menu
             .add_systems(

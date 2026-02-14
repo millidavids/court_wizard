@@ -1,8 +1,37 @@
 use bevy::prelude::*;
 
+use crate::config::save_data::AchievementId;
+
 /// Marker for the achievement popup root entity.
 #[derive(Component)]
 pub(super) struct AchievementPopup;
+
+/// Queue of achievements waiting to be displayed.
+#[derive(Resource, Default)]
+pub(super) struct AchievementQueue {
+    pub queue: Vec<AchievementId>,
+}
+
+impl AchievementQueue {
+    /// Add an achievement to the queue.
+    pub fn push(&mut self, id: AchievementId) {
+        self.queue.push(id);
+    }
+
+    /// Get the next achievement to display (if any).
+    pub fn pop(&mut self) -> Option<AchievementId> {
+        if self.queue.is_empty() {
+            None
+        } else {
+            Some(self.queue.remove(0))
+        }
+    }
+
+    /// Check if the queue is empty.
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+}
 
 /// Timer that controls popup display and fade-out.
 #[derive(Component)]

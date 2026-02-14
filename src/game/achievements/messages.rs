@@ -22,6 +22,10 @@ pub(crate) struct BattleEndedMessage {
 #[derive(Message)]
 pub(crate) struct DefenderKilledBySpellMessage;
 
+/// Message sent when an enemy (attacker or undead) is killed.
+#[derive(Message)]
+pub(crate) struct EnemyKilledMessage;
+
 /// Message sent when the wizard begins casting a spell (CastingState transitions to Casting).
 #[derive(Message)]
 pub(crate) struct SpellCastMessage;

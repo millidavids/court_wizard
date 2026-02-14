@@ -16,7 +16,7 @@ use super::units::components::{
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 
-use crate::game::achievements::messages::DefenderKilledBySpellMessage;
+use crate::game::achievements::messages::{DefenderKilledBySpellMessage, EnemyKilledMessage};
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -423,6 +423,7 @@ pub fn convert_dead_to_corpses(
     mut commands: Commands,
     mut kill_stats: ResMut<super::resources::KillStats>,
     mut spell_kill_events: MessageWriter<DefenderKilledBySpellMessage>,
+    mut enemy_kill_events: MessageWriter<EnemyKilledMessage>,
     query: Query<
         (
             Entity,
@@ -446,6 +447,11 @@ pub fn convert_dead_to_corpses(
         if health.is_dead() {
             // Record the kill
             kill_stats.record_kill(*team);
+
+            // Send enemy killed message for multi-kill achievements
+            if *team == Team::Attackers || *team == Team::Undead {
+                enemy_kill_events.write(EnemyKilledMessage);
+            }
 
             // Track spell kills on defenders and king
             if spell_damaged.is_some() {
