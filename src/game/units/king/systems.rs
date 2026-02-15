@@ -9,8 +9,8 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    FrostSlowModifier, Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed,
-    RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    FrostSlowModifier, HasteModifier, Health, Hitbox, KingAuraSpeedModifier, KingsGuard,
+    MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 
 /// Spawns the King unit at the center of the defender grid.
@@ -155,6 +155,8 @@ pub fn king_movement(
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
+            Option<&RootedModifier>,
+            Option<&HasteModifier>,
         ),
         With<King>,
     >,
@@ -173,8 +175,17 @@ pub fn king_movement(
         terrain_modifier,
         frost_modifier,
         cauldron_modifier,
+        rooted,
+        haste_modifier,
     ) in &mut king_units
     {
+        // Rooted units cannot move
+        if rooted.is_some() {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            continue;
+        }
+
         // Use shared weighted movement function
         crate::game::units::systems::calculate_weighted_movement(
             &time,
@@ -190,6 +201,7 @@ pub fn king_movement(
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
+            haste_modifier.map(|m| m.modifier),
         );
     }
 }

@@ -25,4 +25,8 @@ pub enum DamageType {
     Frost,
     /// Necrotic damage (reserved for future spells)
     Necrotic,
+    /// Nature damage
+    ///
+    /// Dealt by: Entangle, Spike Growth
+    Nature,
 }

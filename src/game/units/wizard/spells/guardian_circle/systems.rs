@@ -5,10 +5,11 @@ use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCast
 use super::components::GuardianCircleIndicator;
 use super::constants;
 use super::styles::CIRCLE_COLOR;
+use crate::game::achievements::messages::GuardianCircleHitAttackerMessage;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::TemporaryHitPoints;
+use crate::game::units::components::{Team, TemporaryHitPoints};
 
 /// Handles Guardian Circle casting with left-click.
 ///
@@ -40,7 +41,8 @@ pub fn handle_guardian_circle_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster, With<Wizard>>,
     mut indicator_query: Query<&mut GuardianCircleIndicator>,
-    mut targets_query: Query<(Entity, &Transform), Without<Wizard>>,
+    mut targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
+    mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,
 ) {
     let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -138,27 +140,28 @@ pub fn handle_guardian_circle_casting(
                 // Cast complete - apply buff to units in radius
                 if mana.consume(constants::MANA_COST) {
                     // Get final circle position and apply buff
-                    if let Ok(caster) = caster_query.single() {
-                        if let Some(indicator_entity) = caster.indicator_entity {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                // Scale radius by empowerment
-                                let scale = indicator.empowerment;
-                                let radius = constants::CIRCLE_RADIUS * scale;
+                    if let Ok(caster) = caster_query.single()
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            // Scale radius by empowerment
+                            let scale = indicator.empowerment;
+                            let radius = constants::CIRCLE_RADIUS * scale;
 
-                                apply_guardian_circle_buff(
-                                    &mut commands,
-                                    indicator.position,
-                                    radius,
-                                    constants::TEMP_HP_AMOUNT,
-                                    constants::TEMP_HP_DURATION,
-                                    indicator.empowerment,
-                                    &mut targets_query,
-                                );
-                            }
-
-                            // Despawn circle indicator
-                            commands.entity(indicator_entity).despawn();
+                            apply_guardian_circle_buff(
+                                &mut commands,
+                                indicator.position,
+                                radius,
+                                constants::TEMP_HP_AMOUNT,
+                                constants::TEMP_HP_DURATION,
+                                indicator.empowerment,
+                                &mut targets_query,
+                                &mut attacker_hit_msg,
+                            );
                         }
+
+                        // Despawn circle indicator
+                        commands.entity(indicator_entity).despawn();
                     }
 
                     // Remove caster marker immediately (don't keep it blocking future casts)
@@ -170,12 +173,12 @@ pub fn handle_guardian_circle_casting(
                     mouse_state.left_consumed = true;
                 } else {
                     // Out of mana - cancel cast
-                    if let Ok(caster) = caster_query.single() {
-                        if let Some(indicator_entity) = caster.indicator_entity {
-                            commands.entity(indicator_entity).despawn();
-                        }
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                    if let Ok(caster) = caster_query.single()
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        commands.entity(indicator_entity).despawn();
                     }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
                 }
             }
@@ -219,6 +222,7 @@ pub fn update_circle_indicator(
 ///
 /// Grants temporary HP to units. If a unit already has temp HP, takes the maximum.
 /// Scales temp HP amount and duration by 1.25x when empowered.
+#[allow(clippy::too_many_arguments)]
 fn apply_guardian_circle_buff(
     commands: &mut Commands,
     circle_pos: Vec3,
@@ -226,14 +230,15 @@ fn apply_guardian_circle_buff(
     temp_hp_amount: f32,
     duration: f32,
     empowerment: f32,
-    targets: &mut Query<(Entity, &Transform), Without<Wizard>>,
+    targets: &mut Query<(Entity, &Transform, &Team), Without<Wizard>>,
+    attacker_hit_msg: &mut MessageWriter<GuardianCircleHitAttackerMessage>,
 ) {
     // Scale values by empowerment
     let scale = empowerment;
     let scaled_temp_hp = temp_hp_amount * scale;
     let scaled_duration = duration * scale;
 
-    for (entity, transform) in targets.iter() {
+    for (entity, transform, team) in targets.iter() {
         let distance = transform.translation.distance(circle_pos);
 
         if distance <= radius {
@@ -241,6 +246,11 @@ fn apply_guardian_circle_buff(
             commands
                 .entity(entity)
                 .insert(TemporaryHitPoints::new(scaled_temp_hp, scaled_duration));
+
+            // Protective Instincts: Guardian Circle hit an attacker or undead
+            if *team == Team::Attackers || *team == Team::Undead {
+                attacker_hit_msg.write(GuardianCircleHitAttackerMessage);
+            }
         }
     }
 }

@@ -11,9 +11,9 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingVelocity, FrostSlowModifier, Health, Hitbox,
-    KingAuraSpeedModifier, KingsGuard, MovementSpeed, RoughTerrainModifier, TargetingVelocity,
-    Team, Teleportable,
+    AttackTiming, Corpse, Effectiveness, FlockingVelocity, FrostSlowModifier, HasteModifier,
+    Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed, RootedModifier,
+    RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -206,6 +206,8 @@ pub fn infantry_movement(
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
+            Option<&RootedModifier>,
+            Option<&HasteModifier>,
         ),
         With<Infantry>,
     >,
@@ -224,8 +226,17 @@ pub fn infantry_movement(
         terrain_modifier,
         frost_modifier,
         cauldron_modifier,
+        rooted,
+        haste_modifier,
     ) in &mut infantry_units
     {
+        // Rooted units cannot move
+        if rooted.is_some() {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            continue;
+        }
+
         // Use shared weighted movement function
         crate::game::units::systems::calculate_weighted_movement(
             &time,
@@ -241,6 +252,7 @@ pub fn infantry_movement(
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
+            haste_modifier.map(|m| m.modifier),
         );
     }
 }

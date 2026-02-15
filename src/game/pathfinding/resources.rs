@@ -151,6 +151,25 @@ impl PathfindingGrid {
         }
     }
 
+    /// Samples the base terrain cost at a world position.
+    ///
+    /// Returns the cost of the cell at the given position, or 1.0 if out of bounds.
+    pub fn sample_base_cost(&self, world_pos: Vec3) -> f32 {
+        let grid_x = ((world_pos.x - self.world_min.x) / self.cell_size).floor() as isize;
+        let grid_z = ((world_pos.z - self.world_min.y) / self.cell_size).floor() as isize;
+
+        if grid_x < 0
+            || grid_z < 0
+            || grid_x >= self.grid_width as isize
+            || grid_z >= self.grid_height as isize
+        {
+            return 1.0;
+        }
+
+        let idx = self.index(grid_x as usize, grid_z as usize);
+        self.base_costs[idx]
+    }
+
     /// Creates a new flow field with the base costs applied.
     pub fn create_field_with_base_costs(&self) -> FlowField {
         let mut field = FlowField::new(self.grid_width, self.grid_height);

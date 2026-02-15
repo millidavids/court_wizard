@@ -12,8 +12,8 @@ use super::resources::BehemothAssets;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    FrostSlowModifier, Health, Hitbox, InMelee, KingAuraSpeedModifier, MovementSpeed,
-    RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    FrostSlowModifier, HasteModifier, Health, Hitbox, InMelee, KingAuraSpeedModifier,
+    MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -158,6 +158,8 @@ pub fn behemoth_movement(
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
+            Option<&RootedModifier>,
+            Option<&HasteModifier>,
         ),
         With<Behemoth>,
     >,
@@ -175,8 +177,17 @@ pub fn behemoth_movement(
         terrain_modifier,
         frost_modifier,
         cauldron_modifier,
+        rooted,
+        haste_modifier,
     ) in &mut behemoths
     {
+        // Rooted units cannot move
+        if rooted.is_some() {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            continue;
+        }
+
         // Use shared weighted movement function
         crate::game::units::systems::calculate_weighted_movement(
             &time,
@@ -192,6 +203,7 @@ pub fn behemoth_movement(
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
+            haste_modifier.map(|m| m.modifier),
         );
     }
 }

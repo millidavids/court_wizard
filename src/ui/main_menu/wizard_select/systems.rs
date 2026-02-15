@@ -386,6 +386,7 @@ pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<OnWizard
 }
 
 /// Handles wizard select button actions.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&WizardSelectButtonAction>,

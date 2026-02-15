@@ -289,6 +289,11 @@ pub fn apply_damage_to_unit(
 #[derive(Component)]
 pub struct SpellDamaged;
 
+/// Marker component for units that have been damaged by residual fire (ground fire).
+/// Used to detect deaths from fireball ground fire for the Scorched Earth achievement.
+#[derive(Component)]
+pub struct ResidualFireDamaged;
+
 /// Marker component for dead units (corpses).
 ///
 /// Dead units remain on the battlefield as corpses that affect living units.
@@ -457,6 +462,65 @@ mod tests {
         let mut eff = Effectiveness::new();
         eff.recalculate(2, 1);
         assert_eq!(eff.multiplier(), eff.current);
+    }
+}
+
+/// Movement speed modifier from being rooted (unable to move).
+///
+/// Applied to units hit by the Entangle spell.
+/// Rooted units cannot move but can still attack.
+#[derive(Component)]
+pub struct RootedModifier {
+    /// Time remaining before the root effect expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl RootedModifier {
+    /// Creates a new rooted modifier with the given duration.
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    /// Updates the timer, returning true if expired.
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Movement speed modifier from haste effect as a percentage.
+///
+/// Applied to units affected by the Haste spell.
+/// Examples: 0.5 = +50% speed (1.5x multiplier).
+/// Movement systems apply this as: speed * (1.0 + sum_of_all_modifiers).
+#[derive(Component)]
+pub struct HasteModifier {
+    /// Speed increase as a percentage (positive value).
+    pub modifier: f32,
+    /// Time remaining before the haste effect expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl HasteModifier {
+    /// Creates a new haste modifier with the given strength and duration.
+    pub const fn new(modifier: f32, duration: f32) -> Self {
+        Self {
+            modifier,
+            time_remaining: duration,
+        }
+    }
+
+    /// Updates the timer, returning true if expired.
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    /// Refreshes the duration (used when reapplying the haste).
+    pub fn refresh(&mut self, duration: f32) {
+        self.time_remaining = duration;
     }
 }
 

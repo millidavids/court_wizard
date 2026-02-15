@@ -16,8 +16,9 @@ use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, Corpse, Effectiveness, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    Health, Hitbox, KingAuraSpeedModifier, MovementSpeed, RoughTerrainModifier, TargetingVelocity,
-    Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
+    HasteModifier, Health, Hitbox, KingAuraSpeedModifier, MovementSpeed, RootedModifier,
+    RoughTerrainModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::random_position_in_cell;
@@ -632,6 +633,8 @@ pub fn archer_movement(
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
+            Option<&RootedModifier>,
+            Option<&HasteModifier>,
         ),
         With<Archer>,
     >,
@@ -650,8 +653,17 @@ pub fn archer_movement(
         terrain_modifier,
         frost_modifier,
         cauldron_modifier,
+        rooted,
+        haste_modifier,
     ) in &mut archer_units
     {
+        // Rooted units cannot move
+        if rooted.is_some() {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            continue;
+        }
+
         // Use shared weighted movement function
         crate::game::units::systems::calculate_weighted_movement(
             &time,
@@ -667,10 +679,12 @@ pub fn archer_movement(
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
+            haste_modifier.map(|m| m.modifier),
         );
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)
-        if in_melee.is_none() {
+        // But keep moving if standing on hazardous terrain (fire, spikes)
+        if in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
                 // Override velocity and acceleration to completely stop archer when in shooting stance

@@ -284,6 +284,7 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
 }
 
 /// Handles button click actions — toggles ingredients, starts brew, cancels, or closes.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn button_action(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,

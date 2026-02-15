@@ -20,4 +20,7 @@ pub struct FlowFieldVelocity {
     /// Pathfinding distance to goal (integration field cost).
     /// Use this instead of straight-line distance for weighting decisions.
     pub pathfinding_distance: f32,
+    /// Terrain cost of the unit's current cell (1.0 = normal, high = hazard).
+    /// Used by movement weighting to keep flow field influence high near hazards.
+    pub terrain_cost: f32,
 }

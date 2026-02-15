@@ -7,12 +7,14 @@ use crate::config::save_data::{
 use crate::config::{GameConfig, WizardType};
 use crate::game::messages::AchievementUnlockedMessage;
 use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, RetryTracker};
+use crate::game::units::components::{Corpse, Team};
 use crate::game::units::wizard::components::{CastingState, Spell, Wizard};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
-    BattleEndedMessage, DefenderKilledBySpellMessage, EnemyKilledMessage, QwerKeyPressedMessage,
-    SpellCastMessage,
+    BattleEndedMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
+    EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
+    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
 };
 use super::resources::*;
 
@@ -305,12 +307,11 @@ pub(crate) fn check_it_was_going_so_well(
     mut events: MessageWriter<AchievementUnlockedMessage>,
 ) {
     for m in msg.read() {
-        if m.outcome != GameOutcome::Victory {
-            if let Some(first_death_time) = m.first_defender_death_time {
-                if first_death_time >= 120.0 {
-                    do_unlock(&mut res, &mut events);
-                }
-            }
+        if m.outcome != GameOutcome::Victory
+            && let Some(first_death_time) = m.first_defender_death_time
+            && first_death_time >= 120.0
+        {
+            do_unlock(&mut res, &mut events);
         }
     }
 }
@@ -470,5 +471,77 @@ pub(crate) fn check_qwer(
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
         crate::config::save_data::unlock_wizard_type(WizardType::RuneCaster);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Spell-unlock achievements — mid-battle detection + check
+// ---------------------------------------------------------------------------
+
+/// Detects when a defender is beyond the wizard's spell range.
+pub(crate) fn detect_out_of_range(
+    wizard_query: Query<(&Transform, &Wizard)>,
+    defenders: Query<(&Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
+    mut msg: MessageWriter<OutOfRangeMessage>,
+) {
+    let Ok((wizard_transform, wizard)) = wizard_query.single() else {
+        return;
+    };
+
+    for (defender_transform, team) in &defenders {
+        if *team != Team::Defenders {
+            continue;
+        }
+        let distance = wizard_transform
+            .translation
+            .distance(defender_transform.translation);
+        if distance > wizard.spell_range {
+            msg.write(OutOfRangeMessage);
+            return; // Only need one detection
+        }
+    }
+}
+
+pub(crate) fn check_out_of_range(
+    mut msg: MessageReader<OutOfRangeMessage>,
+    mut res: ResMut<OutOfRangeAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        unlock_spell(Spell::Haste);
+    }
+}
+
+pub(crate) fn check_scorched_earth(
+    mut msg: MessageReader<ScorchedEarthMessage>,
+    mut res: ResMut<ScorchedEarthAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        unlock_spell(Spell::WallOfFire);
+    }
+}
+
+pub(crate) fn check_protective_instincts(
+    mut msg: MessageReader<GuardianCircleHitAttackerMessage>,
+    mut res: ResMut<ProtectiveInstinctsAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        unlock_spell(Spell::Entangle);
+    }
+}
+
+pub(crate) fn check_friendly_thorns(
+    mut msg: MessageReader<EntangleHitDefenderMessage>,
+    mut res: ResMut<FriendlyThornsAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        unlock_spell(Spell::SpikeGrowth);
     }
 }

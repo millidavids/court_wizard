@@ -242,7 +242,7 @@ pub fn handle_obstacle_events(
                 pathfinding.set_terrain_cost(&affected_cells, multiplier);
             }
             ObstacleType::Hazard => {
-                pathfinding.set_terrain_cost(&affected_cells, 50.0);
+                pathfinding.set_terrain_cost(&affected_cells, 15.0);
             }
             ObstacleType::Removed => {
                 pathfinding.set_terrain_cost(&affected_cells, 1.0);
@@ -293,6 +293,9 @@ pub fn sample_flow_fields(
 ) {
     for (transform, influence, mut flow_velocity, is_archer) in units_query.iter_mut() {
         let world_pos = transform.translation;
+
+        // Sample terrain cost from base costs (always up-to-date)
+        flow_velocity.terrain_cost = pathfinding.sample_base_cost(world_pos);
 
         match influence {
             FlowFieldInfluence::Attacker => {

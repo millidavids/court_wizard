@@ -13,13 +13,15 @@ use super::resources::CurrentLevel;
 use super::units::archer::Archer;
 use super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, Health, Hitbox, MovementSpeed,
-    RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
-    apply_damage_to_unit,
+    ResidualFireDamaged, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 
-use crate::game::achievements::messages::{DefenderKilledBySpellMessage, EnemyKilledMessage};
+use crate::game::achievements::messages::{
+    DefenderKilledBySpellMessage, EnemyKilledMessage, ScorchedEarthMessage,
+};
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -434,11 +436,13 @@ pub fn combat(
 /// a pre-loaded corpse material based on team and converts the unit into a corpse
 /// that slows living units walking over it.
 /// Also records the kill in the kill statistics resource.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
     mut kill_stats: ResMut<super::resources::KillStats>,
     mut spell_kill_events: MessageWriter<DefenderKilledBySpellMessage>,
     mut enemy_kill_events: MessageWriter<EnemyKilledMessage>,
+    mut scorched_earth_events: MessageWriter<ScorchedEarthMessage>,
     query: Query<
         (
             Entity,
@@ -449,6 +453,7 @@ pub fn convert_dead_to_corpses(
             Option<&Archer>,
             Option<&super::units::king::components::King>,
             Option<&SpellDamaged>,
+            Option<&ResidualFireDamaged>,
         ),
         Without<Corpse>,
     >,
@@ -457,7 +462,17 @@ pub fn convert_dead_to_corpses(
     king_assets: Res<super::units::king::resources::KingAssets>,
     mut velocity_query: Query<&mut Velocity>,
 ) {
-    for (entity, health, team, transform, is_infantry, is_archer, is_king, spell_damaged) in &query
+    for (
+        entity,
+        health,
+        team,
+        transform,
+        is_infantry,
+        is_archer,
+        is_king,
+        spell_damaged,
+        residual_fire_damaged,
+    ) in &query
     {
         if health.is_dead() {
             // Record the kill
@@ -478,6 +493,11 @@ pub fn convert_dead_to_corpses(
                 if is_king.is_some() {
                     kill_stats.record_king_killed_by_spell();
                 }
+            }
+
+            // Scorched Earth: unit died from residual fire damage
+            if residual_fire_damaged.is_some() {
+                scorched_earth_events.write(ScorchedEarthMessage);
             }
 
             // Replace with appropriate corpse material
@@ -542,6 +562,8 @@ pub fn convert_dead_to_corpses(
                 .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
                 .remove::<super::units::components::KingAuraSpeedModifier>() // Remove speed modifiers
                 .remove::<super::units::components::FrostSlowModifier>()
+                .remove::<super::units::components::RootedModifier>()
+                .remove::<super::units::components::HasteModifier>()
                 .remove::<super::units::components::RoughTerrainModifier>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()

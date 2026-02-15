@@ -120,6 +120,7 @@ pub fn handle_magic_missile_casting(
 /// Helper function for spawning missiles with random trajectories that arc towards camera.
 /// If cursor position is provided, preferentially targets enemies near cursor using weighted random selection.
 /// Falls back to closest target if no enemies are in range.
+#[allow(clippy::too_many_arguments)]
 fn spawn_magic_missile(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,

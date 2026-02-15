@@ -6,7 +6,8 @@ use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
     BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
-    QwerKeyPressedMessage, SpellCastMessage,
+    EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
+    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -21,6 +22,10 @@ impl Plugin for AchievementsPlugin {
             .add_message::<ClearProgressMessage>()
             .add_message::<SpellCastMessage>()
             .add_message::<QwerKeyPressedMessage>()
+            .add_message::<OutOfRangeMessage>()
+            .add_message::<ScorchedEarthMessage>()
+            .add_message::<GuardianCircleHitAttackerMessage>()
+            .add_message::<EntangleHitDefenderMessage>()
             .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
@@ -111,6 +116,30 @@ impl Plugin for AchievementsPlugin {
                     systems::track_multi_kills
                         .run_if(on_message::<EnemyKilledMessage>)
                         .run_if(achievement_locked::<ChainReactionAchievement>),
+                ),
+            )
+            // Spell-unlock achievements (mid-battle detection + check)
+            .add_systems(
+                Update,
+                systems::detect_out_of_range
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(achievement_locked::<OutOfRangeAchievement>),
+            )
+            .add_systems(
+                Update,
+                (
+                    systems::check_out_of_range
+                        .run_if(on_message::<OutOfRangeMessage>)
+                        .run_if(achievement_locked::<OutOfRangeAchievement>),
+                    systems::check_scorched_earth
+                        .run_if(on_message::<ScorchedEarthMessage>)
+                        .run_if(achievement_locked::<ScorchedEarthAchievement>),
+                    systems::check_protective_instincts
+                        .run_if(on_message::<GuardianCircleHitAttackerMessage>)
+                        .run_if(achievement_locked::<ProtectiveInstinctsAchievement>),
+                    systems::check_friendly_thorns
+                        .run_if(on_message::<EntangleHitDefenderMessage>)
+                        .run_if(achievement_locked::<FriendlyThornsAchievement>),
                 ),
             )
             // Multi-kill tracker timer (runs during gameplay)

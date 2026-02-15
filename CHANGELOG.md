@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.64] - 2025-02-14
+
+### Added
+- **4 new spells** to unlock through achievements:
+  - **Wall of Fire** — drag to draw a line of fire that burns enemies who walk through it
+  - **Entangle** — roots enemies in place so they can't move for a short time
+  - **Haste** — speeds up your defenders so they can get into position faster
+  - **Spike Growth** — creates a thorny zone that damages and slows all units inside it
+- 4 new achievements to unlock the new spells — check the progress screen for hints!
+
+### Improved
+- **Wall of Fire is now a solid line** instead of a row of disconnected circles
+- Wall of Fire is bigger — 50% longer and thicker than before
+- Units are smarter about avoiding dangerous areas like Wall of Fire and Spike Growth
+- Archers will now move out of fire and spike zones even if they were standing still shooting
+
 ## [v0.1.52] - 2025-02-13
 
 ### Added

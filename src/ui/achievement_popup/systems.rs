@@ -23,10 +23,11 @@ pub(super) fn spawn_next_popup(
     active_popups: Query<&AchievementPopup>,
 ) {
     // Only spawn a new popup if there isn't one already showing
-    if active_popups.is_empty() && !queue.is_empty() {
-        if let Some(id) = queue.pop() {
-            spawn_popup(&mut commands, id);
-        }
+    if active_popups.is_empty()
+        && !queue.is_empty()
+        && let Some(id) = queue.pop()
+    {
+        spawn_popup(&mut commands, id);
     }
 }
 

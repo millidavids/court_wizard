@@ -12,10 +12,7 @@ fn spell_display_name(spell: &Spell) -> String {
 }
 
 /// Spawns the roulette wheel as a UI image node with UiTransform for rotation.
-pub(super) fn spawn_roulette_display(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+pub(super) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Load the roulette wheel image
     let wheel_texture: Handle<Image> = asset_server.load("images/roulette.png");
 
@@ -120,12 +117,11 @@ pub(super) fn update_roulette_display(
 
     match &roulette_state.phase {
         RoulettePhase::Idle => {
-            if let Ok((_, fade_timer)) = selected_text_entity_query.single() {
-                if fade_timer.is_none() {
-                    if let Ok(mut text) = selected_text_query.single_mut() {
-                        **text = "".to_string();
-                    }
-                }
+            if let Ok((_, fade_timer)) = selected_text_entity_query.single()
+                && fade_timer.is_none()
+                && let Ok(mut text) = selected_text_query.single_mut()
+            {
+                **text = "".to_string();
             }
 
             if let Ok((mut text, mut color)) = prompt_query.single_mut() {
@@ -134,10 +130,10 @@ pub(super) fn update_roulette_display(
             }
         }
         RoulettePhase::Spinning { .. } => {
-            if let Ok((entity, fade_timer)) = selected_text_entity_query.single() {
-                if fade_timer.is_some() {
-                    commands.entity(entity).remove::<SelectedSpellFadeTimer>();
-                }
+            if let Ok((entity, fade_timer)) = selected_text_entity_query.single()
+                && fade_timer.is_some()
+            {
+                commands.entity(entity).remove::<SelectedSpellFadeTimer>();
             }
             if let Ok(mut text) = selected_text_query.single_mut() {
                 **text = "".to_string();
@@ -152,13 +148,13 @@ pub(super) fn update_roulette_display(
             if let Ok(mut text) = selected_text_query.single_mut() {
                 **text = spell_display_name(spell);
             }
-            if let Ok((entity, fade_timer)) = selected_text_entity_query.single() {
-                if fade_timer.is_none() {
-                    commands.entity(entity).insert(SelectedSpellFadeTimer {
-                        elapsed: 0.0,
-                        duration: SELECTED_FADE_DURATION,
-                    });
-                }
+            if let Ok((entity, fade_timer)) = selected_text_entity_query.single()
+                && fade_timer.is_none()
+            {
+                commands.entity(entity).insert(SelectedSpellFadeTimer {
+                    elapsed: 0.0,
+                    duration: SELECTED_FADE_DURATION,
+                });
             }
 
             if let Ok((mut text, mut color)) = prompt_query.single_mut() {
@@ -179,8 +175,9 @@ pub(super) fn animate_wheel_spin(
         match &roulette_state.phase {
             RoulettePhase::Spinning { elapsed, .. } => {
                 // Calculate rotation speed with easing (fast at start, slow at end)
-                let progress =
-                    (*elapsed / crate::game::units::wizard::archetypes::roulette::constants::SPIN_DURATION).min(1.0);
+                let progress = (*elapsed
+                    / crate::game::units::wizard::archetypes::roulette::constants::SPIN_DURATION)
+                    .min(1.0);
                 let speed = 20.0 * (1.0 - progress * progress); // Quadratic easing
 
                 // Accumulate rotation (clockwise in radians)

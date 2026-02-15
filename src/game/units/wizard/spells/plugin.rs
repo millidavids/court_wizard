@@ -5,14 +5,18 @@ use crate::state::InGameState;
 use super::black_hole::BlackHolePlugin;
 use super::chain_lightning::ChainLightningPlugin;
 use super::disintegrate::DisintegratePlugin;
+use super::entangle::EntanglePlugin;
 use super::finger_of_death::FingerOfDeathPlugin;
 use super::fireball::FireballPlugin;
 use super::guardian_circle::GuardianCirclePlugin;
+use super::haste::HastePlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
+use super::spike_growth::SpikeGrowthPlugin;
 use super::squall::SquallPlugin;
 use super::systems;
 use super::teleport::TeleportPlugin;
+use super::wall_of_fire::WallOfFirePlugin;
 use super::wall_of_stone::plugin::WallOfStonePlugin;
 
 /// Plugin that handles wizard spells and projectiles.
@@ -45,6 +49,10 @@ impl Plugin for SpellsPlugin {
             WallOfStonePlugin,
             BlackHolePlugin,
             SquallPlugin,
+            WallOfFirePlugin,
+            EntanglePlugin,
+            HastePlugin,
+            SpikeGrowthPlugin,
         ))
         .add_systems(
             Update,

@@ -215,18 +215,17 @@ pub fn update_cauldron_animation(
     const FRAME_SCALE: f32 = 1.0 / constants::CAULDRON_SPRITE_GRID_SIZE as f32;
     let frame_scale_vec = Vec2::splat(FRAME_SCALE);
 
-    if let Ok((mut animation, material_handle)) = cauldron_query.single_mut() {
-        if animation.tick(time.delta_secs()) {
-            if let Some(material) = materials.get_mut(material_handle) {
-                let (offset_x, offset_y) = animation.uv_offset();
+    if let Ok((mut animation, material_handle)) = cauldron_query.single_mut()
+        && animation.tick(time.delta_secs())
+        && let Some(material) = materials.get_mut(material_handle)
+    {
+        let (offset_x, offset_y) = animation.uv_offset();
 
-                material.uv_transform = Affine2::from_scale_angle_translation(
-                    frame_scale_vec,
-                    0.0,
-                    Vec2::new(offset_x, offset_y),
-                );
-            }
-        }
+        material.uv_transform = Affine2::from_scale_angle_translation(
+            frame_scale_vec,
+            0.0,
+            Vec2::new(offset_x, offset_y),
+        );
     }
 }
 

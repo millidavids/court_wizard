@@ -11,7 +11,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
 use crate::game::units::components::{
-    Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
+    Health, ResidualFireDamaged, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -247,6 +247,7 @@ pub fn check_fireball_collisions(
 }
 
 /// Spawns a fireball explosion at the given position.
+#[allow(clippy::too_many_arguments)]
 fn spawn_explosion(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -440,7 +441,9 @@ pub fn apply_residual_area_damage(
                         temp_hp.as_deref_mut(),
                         effect.damage_per_tick,
                     );
-                    commands.entity(entity).insert(SpellDamaged);
+                    commands
+                        .entity(entity)
+                        .insert((SpellDamaged, ResidualFireDamaged));
                 }
             }
         }

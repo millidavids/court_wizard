@@ -17,6 +17,10 @@ pub enum Spell {
     WallOfStone,
     BlackHole,
     Squall,
+    WallOfFire,
+    Entangle,
+    Haste,
+    SpikeGrowth,
 }
 
 impl Spell {
@@ -34,6 +38,10 @@ impl Spell {
             Spell::WallOfStone,
             Spell::BlackHole,
             Spell::Squall,
+            Spell::WallOfFire,
+            Spell::Entangle,
+            Spell::Haste,
+            Spell::SpikeGrowth,
         ]
     }
 
@@ -51,6 +59,10 @@ impl Spell {
             Spell::WallOfStone => "Wall of\nStone",
             Spell::BlackHole => "Black\nHole",
             Spell::Squall => "Squall",
+            Spell::WallOfFire => "Wall of\nFire",
+            Spell::Entangle => "Entangle",
+            Spell::Haste => "Haste",
+            Spell::SpikeGrowth => "Spike\nGrowth",
         }
     }
 
@@ -86,6 +98,16 @@ impl Spell {
             Spell::Squall => {
                 "Summons a storm that rains ice down on a targeted area, dealing frost damage and slowing enemies. Requires concentration to maintain."
             }
+            Spell::WallOfFire => {
+                "Drag a line of fire that burns all units walking through it. Lasts 12 seconds."
+            }
+            Spell::Entangle => {
+                "Roots all units in radius, preventing movement but not attacks. Lasts 5 seconds."
+            }
+            Spell::Haste => "Grants all units in radius increased movement speed for 10 seconds.",
+            Spell::SpikeGrowth => {
+                "Creates a persistent zone that damages and slows all units inside. Lasts 15 seconds."
+            }
         }
     }
 
@@ -105,6 +127,10 @@ impl Spell {
             Spell::WallOfStone => "The ultimate 'you shall not pass' moment.",
             Spell::BlackHole => "What goes in doesn't come out. Wizard's promise.",
             Spell::Squall => "Nothing says 'tactical advantage' like a localized ice storm.",
+            Spell::WallOfFire => "Fire doesn't pick sides. Neither should you.",
+            Spell::Entangle => "Vines don't ask whose feet they're grabbing.",
+            Spell::Haste => "Fast friends, fast enemies. Same spell.",
+            Spell::SpikeGrowth => "Nature reclaims the battlefield. Everyone suffers equally.",
         }
     }
 
@@ -122,6 +148,10 @@ impl Spell {
             Spell::WallOfStone => "Click and drag to place wall",
             Spell::BlackHole => "Click and hold to cast",
             Spell::Squall => "Click and hold to place storm",
+            Spell::WallOfFire => "Click and drag to place fire wall",
+            Spell::Entangle => "Click and hold to place",
+            Spell::Haste => "Click and hold to place",
+            Spell::SpikeGrowth => "Click and hold to place",
         }
     }
 
@@ -129,9 +159,10 @@ impl Spell {
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{
             black_hole_constants, chain_lightning_constants, disintegrate_constants,
-            finger_of_death_constants, fireball_constants, guardian_circle_constants,
-            magic_missile_constants, raise_the_dead_constants, squall_constants,
-            teleport_constants, wall_of_stone_constants,
+            entangle_constants, finger_of_death_constants, fireball_constants,
+            guardian_circle_constants, haste_constants, magic_missile_constants,
+            raise_the_dead_constants, spike_growth_constants, squall_constants, teleport_constants,
+            wall_of_fire_constants, wall_of_stone_constants,
         };
 
         match self {
@@ -146,6 +177,10 @@ impl Spell {
             Spell::WallOfStone => wall_of_stone_constants::PRIMED_WALL_OF_STONE,
             Spell::BlackHole => black_hole_constants::PRIMED_BLACK_HOLE,
             Spell::Squall => squall_constants::PRIMED_SQUALL,
+            Spell::WallOfFire => wall_of_fire_constants::PRIMED_WALL_OF_FIRE,
+            Spell::Entangle => entangle_constants::PRIMED_ENTANGLE,
+            Spell::Haste => haste_constants::PRIMED_HASTE,
+            Spell::SpikeGrowth => spike_growth_constants::PRIMED_SPIKE_GROWTH,
         }
     }
 
@@ -164,6 +199,10 @@ impl Spell {
             Spell::Teleport => DamageType::Force,
             Spell::WallOfStone => DamageType::Force,
             Spell::Squall => DamageType::Frost,
+            Spell::WallOfFire => DamageType::Fire,
+            Spell::Entangle => DamageType::Nature,
+            Spell::Haste => DamageType::Force,
+            Spell::SpikeGrowth => DamageType::Nature,
         }
     }
 }

@@ -137,6 +137,11 @@ pub(crate) enum AchievementId {
     SliderFiddler,
     RandomMagicSurge,
     Qwer,
+    // Spell Unlocks
+    OutOfRange,
+    ScorchedEarth,
+    ProtectiveInstincts,
+    FriendlyThorns,
 }
 
 impl AchievementId {
@@ -169,6 +174,10 @@ impl AchievementId {
             AchievementId::SliderFiddler,
             AchievementId::RandomMagicSurge,
             AchievementId::Qwer,
+            AchievementId::OutOfRange,
+            AchievementId::ScorchedEarth,
+            AchievementId::ProtectiveInstincts,
+            AchievementId::FriendlyThorns,
         ]
     }
 
@@ -201,6 +210,10 @@ impl AchievementId {
             AchievementId::SliderFiddler => "slider_fiddler",
             AchievementId::RandomMagicSurge => "random_magic_surge",
             AchievementId::Qwer => "qwer",
+            AchievementId::OutOfRange => "out_of_range",
+            AchievementId::ScorchedEarth => "scorched_earth",
+            AchievementId::ProtectiveInstincts => "protective_instincts",
+            AchievementId::FriendlyThorns => "friendly_thorns",
         }
     }
 
@@ -233,6 +246,10 @@ impl AchievementId {
             AchievementId::SliderFiddler => "Slider Fiddler",
             AchievementId::RandomMagicSurge => "Random Magic Surge",
             AchievementId::Qwer => "QWER",
+            AchievementId::OutOfRange => "Out of Range",
+            AchievementId::ScorchedEarth => "Scorched Earth",
+            AchievementId::ProtectiveInstincts => "Protective Instincts",
+            AchievementId::FriendlyThorns => "Friendly Thorns",
         }
     }
 
@@ -249,6 +266,10 @@ impl AchievementId {
             AchievementId::SliderFiddler => Some("Unlocks: Arcanorouter wizard"),
             AchievementId::RandomMagicSurge => Some("Unlocks: Randomancer wizard"),
             AchievementId::Qwer => Some("Unlocks: Rune Caster wizard"),
+            AchievementId::OutOfRange => Some("Unlocks: Haste"),
+            AchievementId::ScorchedEarth => Some("Unlocks: Wall of Fire"),
+            AchievementId::ProtectiveInstincts => Some("Unlocks: Entangle"),
+            AchievementId::FriendlyThorns => Some("Unlocks: Spike Growth"),
             _ => None,
         }
     }
@@ -294,6 +315,10 @@ impl AchievementId {
             AchievementId::SliderFiddler => "You adjusted a slider. The Arcanorouter approves.",
             AchievementId::RandomMagicSurge => "Lol, you're so random.",
             AchievementId::Qwer => "Spell-keyboard?",
+            AchievementId::OutOfRange => "A defender wandered beyond your reach.",
+            AchievementId::ScorchedEarth => "Your own fire claimed a life.",
+            AchievementId::ProtectiveInstincts => "You shielded the enemy. On purpose?",
+            AchievementId::FriendlyThorns => "Your vines don't discriminate.",
         }
     }
 }

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    Effectiveness, FlockingVelocity, FrostSlowModifier, InMelee, TargetingVelocity, Team,
-    TemporaryHitPoints,
+    Effectiveness, FlockingVelocity, FrostSlowModifier, HasteModifier, InMelee, RootedModifier,
+    TargetingVelocity, Team, TemporaryHitPoints,
 };
 use crate::game::components::{Acceleration, Velocity};
 use crate::game::constants::{
@@ -102,13 +102,14 @@ pub fn calculate_weighted_movement(
     terrain_modifier: Option<f32>,
     frost_modifier: Option<f32>,
     cauldron_modifier: Option<f32>,
+    haste_modifier: Option<f32>,
 ) {
     // Use pathfinding distance (accounts for obstacles)
     let distance = flow_field_velocity.pathfinding_distance;
 
     // Distance-based weighting with interpolation
     // Far: prioritize pathfinding, Medium: balanced, Close: prioritize targeting
-    let (flow_weight, flocking_weight, targeting_weight) = if distance > 500.0 {
+    let (mut flow_weight, mut flocking_weight, mut targeting_weight) = if distance > 500.0 {
         (0.7, 0.2, 0.1)
     } else if distance > 200.0 {
         // Interpolate between far and medium
@@ -127,6 +128,14 @@ pub fn calculate_weighted_movement(
         (0.1, 0.1, 0.8)
     };
 
+    // On hazardous terrain, boost flow field weight so units follow the rerouted path
+    // instead of charging through the hazard toward their target
+    if flow_field_velocity.terrain_cost > 1.0 {
+        flow_weight = 0.8;
+        flocking_weight = 0.1;
+        targeting_weight = 0.1;
+    }
+
     // Combine three velocity sources with distance-based weighting
     let weighted_direction = (flow_field_velocity.velocity * flow_weight
         + flocking_velocity.velocity * flocking_weight
@@ -138,8 +147,12 @@ pub fn calculate_weighted_movement(
     let terrain_percentage = terrain_modifier.unwrap_or(0.0);
     let frost_percentage = frost_modifier.unwrap_or(0.0);
     let cauldron_percentage = cauldron_modifier.unwrap_or(0.0);
-    let total_percentage =
-        aura_percentage + terrain_percentage + frost_percentage + cauldron_percentage;
+    let haste_percentage = haste_modifier.unwrap_or(0.0);
+    let total_percentage = aura_percentage
+        + terrain_percentage
+        + frost_percentage
+        + cauldron_percentage
+        + haste_percentage;
     let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
     // Calculate max speed with effectiveness, modifiers, and melee slowdown
@@ -208,8 +221,37 @@ pub fn update_frost_slow_modifiers(
 
     for (entity, mut frost_slow) in query.iter_mut() {
         if frost_slow.update(delta) {
-            // Frost slow has expired, remove the component
             commands.entity(entity).remove::<FrostSlowModifier>();
+        }
+    }
+}
+
+/// Updates all rooted modifiers and removes expired components.
+pub fn update_rooted_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut RootedModifier)>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut rooted) in query.iter_mut() {
+        if rooted.update(delta) {
+            commands.entity(entity).remove::<RootedModifier>();
+        }
+    }
+}
+
+/// Updates all haste modifiers and removes expired components.
+pub fn update_haste_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut HasteModifier)>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut haste) in query.iter_mut() {
+        if haste.update(delta) {
+            commands.entity(entity).remove::<HasteModifier>();
         }
     }
 }

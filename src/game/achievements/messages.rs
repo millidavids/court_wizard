@@ -34,6 +34,22 @@ pub(crate) struct SpellCastMessage;
 #[derive(Message)]
 pub(crate) struct QwerKeyPressedMessage;
 
+/// Message sent when a defender is beyond the wizard's spell range.
+#[derive(Message)]
+pub(crate) struct OutOfRangeMessage;
+
+/// Message sent when a unit dies from residual fire damage (fireball ground fire).
+#[derive(Message)]
+pub(crate) struct ScorchedEarthMessage;
+
+/// Message sent when Guardian Circle's buff hits an attacker.
+#[derive(Message)]
+pub(crate) struct GuardianCircleHitAttackerMessage;
+
+/// Message sent when Entangle roots a friendly defender.
+#[derive(Message)]
+pub(crate) struct EntangleHitDefenderMessage;
+
 /// Message sent when the player clears their progress from the progress screen.
 /// Triggers resetting all in-memory achievement resources back to locked.
 #[derive(Message)]

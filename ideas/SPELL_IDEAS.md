@@ -17,6 +17,10 @@ Spells for the wizard's arsenal, drawn from classic fantasy, D&D traditions, and
 | **Raise the Dead** | W+R | Channeled resurrection | Necrotic | Resurrects corpses as Undead allies |
 | **Finger of Death** | E+R | Instant beam | Necrotic | 1000 damage instant-kill beam, requires 50% mana |
 | **Squall** | Spell Book | Concentration AoE | Frost | Persistent ice storm with slow, blocks other casting |
+| **Wall of Fire** | Spell Book | Persistent area denial | Fire | Drag-to-place burning wall that damages units passing through |
+| **Entangle** | Spell Book | Crowd control | Nature | Roots all units in radius, preventing movement |
+| **Haste** | Spell Book | Speed buff | Force | Grants movement speed boost to all units in radius |
+| **Spike Growth** | Spell Book | Area denial + slow | Nature | Persistent zone that damages and slows all units |
 
 ## Mechanical Gaps to Fill
 
@@ -24,9 +28,9 @@ Before diving into specific spells, here are the **gameplay mechanic types** cur
 
 | Gap | What It Means | Why It Matters |
 |---|---|---|
-| **Persistent Area Denial** | Damage-over-time zone enemies avoid | Forces pathing changes, controls space |
-| **Non-Damage Crowd Control** | Slow, root, stun without killing | Keeps enemies alive for Raise the Dead |
-| **Offensive Buffs** | Strengthen allied units' attacks | Force-multiplies existing defenders |
+| ~~**Persistent Area Denial**~~ | ~~Damage-over-time zone enemies avoid~~ | ~~Filled by Wall of Fire, Spike Growth~~ |
+| ~~**Non-Damage Crowd Control**~~ | ~~Slow, root, stun without killing~~ | ~~Filled by Entangle (root), Spike Growth (slow)~~ |
+| ~~**Offensive Buffs**~~ | ~~Strengthen allied units' attacks~~ | ~~Partially filled by Haste (speed buff)~~ |
 | **Enemy Debuffs** | Weaken enemy armor, damage, speed | Makes all your defenses more effective |
 | **Trap/Delayed Spells** | Placed in advance, triggers on contact | Rewards prediction and planning |
 | **Knockback/Push** | Shove enemies away from the king | Opposite of Black Hole's pull |
@@ -42,9 +46,6 @@ Spells that reshape the battlefield itself -- walls, zones, terrain effects. Cas
 
 | Spell | Inspiration | Lore Basis | Game Mechanic | Category |
 |---|---|---|---|---|
-| **Wall of Fire** | D&D Evocation | Conjuring elemental fire to bar passage; flames that burn at the boundary between realms | Drag-to-place burning wall (like Wall of Stone but deals damage to enemies passing through). Doesn't block movement, but punishes crossing. | Area Denial |
-| **Entangle** | D&D Druidic | Commanding plant growth to seize and bind; the living forest's wrath | Vines erupt from the ground in a radius, rooting enemies in place for several seconds. Rooted enemies can still attack but cannot move. | Root/CC |
-| **Spike Growth** | D&D Druidic | Magical thorns that punish trespassers; sacred hedgerows enchanted to guard boundaries | Ground sprouts damaging spikes in an area. Enemies take damage proportional to distance moved through the zone. Lasts 15-20 seconds. | Area Denial + Slow |
 | **Cedar Curse** | Conjuration | A primeval forest guardian's wrath — spectral trees erupt to entrap and crush | Spectral trees erupt from the ground, acting as temporary obstacles that also root nearby enemies in their branches. Blocks pathfinding like Wall of Stone but also damages. | Obstacle + Damage |
 | **Seven Gates** | Abjuration | Wards that strip power layer by layer as intruders pass through, like descending into a warded dungeon | Creates a series of 3 luminous gate arches enemies must pass through. Each gate strips a buff and reduces stats (armor, speed, damage) progressively. | Debuff Zone |
 | **Grease** | D&D Conjuration | Conjuring slippery alchemical oil; a staple trick of apprentice wizards everywhere | Covers ground in slippery oil. Enemies slide and move erratically with reduced speed. Can be ignited by Fireball for a devastating combo (burning ground). | Terrain + Combo |
@@ -87,7 +88,6 @@ Force-multiplier spells that make existing defenders more effective. A well-time
 | **Healing Plume** | Conjuration | Conjuring feathers of pure restorative energy that drift down upon the wounded | Drop glowing feathers on wounded defenders. Heals over time and grants temporary bonus effectiveness (attack speed). The wizard's primary healing spell. | Heal + Buff |
 | **Phantom Feast** | Illusion/Conjuration | Conjuring a spectral banquet that restores vigor — the food of the fey courts | Creates a spectral feast area. Allied units near it regenerate health and gain temporary max HP increase. Persists for a duration. Stationary but powerful sustain. | Area Heal |
 | **Mending Touch** | Abjuration | Channeling raw restorative magic into a single warrior, knitting flesh and bone | Instantly heals a single heavily wounded defender to full health and grants them temporary damage resistance. The "clutch save" heal. Single target, moderate cooldown. | Emergency Heal |
-| **Haste** | D&D Transmutation | Accelerating allies beyond mortal speed — time bends around the enchanted | Grants massive movement speed boost to all defenders in radius. They move with supernatural swiftness, able to rapidly reposition or chase down fleeing enemies. | Speed Buff |
 
 ### Enemy Debuffs (Weaken Foes)
 
@@ -169,10 +169,10 @@ Lessons drawn from studying spell systems across D&D, Warcraft III, Total War: W
 A well-rounded spell book should cover all these interaction types:
 
 - [ ] **Control enemy position** (teleport, push, pull, wall) -- Have: Teleport, Black Hole, Wall of Stone
-- [ ] **Control enemy behavior** (slow, stun, fear, charm) -- Have: Squall (slow). Need more.
+- [x] **Control enemy behavior** (slow, stun, fear, charm) -- Have: Squall (slow), Entangle (root), Spike Growth (slow). Need more variety (stun, fear).
 - [ ] **Control enemy capabilities** (silence, weaken, debuff) -- Missing entirely.
-- [ ] **Enhance allied units** (buff attack, speed, defense) -- Have: Guardian Circle (temp HP). Need offensive buffs.
-- [ ] **Create persistent zones** (damage fields, buff auras, terrain) -- Have: Wall of Stone. Need damage zones.
+- [x] **Enhance allied units** (buff attack, speed, defense) -- Have: Guardian Circle (temp HP), Haste (speed). Need offensive buffs.
+- [x] **Create persistent zones** (damage fields, buff auras, terrain) -- Have: Wall of Stone, Wall of Fire, Spike Growth.
 - [ ] **Summon allies** (temporary fighters, distractions) -- Have: Raise the Dead. Could add more variety.
 - [ ] **Manipulate terrain** (obstacles, passages, traps) -- Have: Wall of Stone. Could expand.
 - [ ] **Direct damage** (burst, sustained, multi-target) -- Well covered with 5+ damage spells.

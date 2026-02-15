@@ -83,6 +83,15 @@ achievement_resource!(SliderFiddlerAchievement, AchievementId::SliderFiddler);
 achievement_resource!(RandomMagicSurgeAchievement, AchievementId::RandomMagicSurge);
 achievement_resource!(QwerAchievement, AchievementId::Qwer);
 
+// Spell Unlocks
+achievement_resource!(OutOfRangeAchievement, AchievementId::OutOfRange);
+achievement_resource!(ScorchedEarthAchievement, AchievementId::ScorchedEarth);
+achievement_resource!(
+    ProtectiveInstinctsAchievement,
+    AchievementId::ProtectiveInstincts
+);
+achievement_resource!(FriendlyThornsAchievement, AchievementId::FriendlyThorns);
+
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
     res.is_locked()
@@ -159,6 +168,10 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(SliderFiddlerAchievement(false));
     commands.insert_resource(RandomMagicSurgeAchievement(false));
     commands.insert_resource(QwerAchievement(false));
+    commands.insert_resource(OutOfRangeAchievement(false));
+    commands.insert_resource(ScorchedEarthAchievement(false));
+    commands.insert_resource(ProtectiveInstinctsAchievement(false));
+    commands.insert_resource(FriendlyThornsAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -202,4 +215,8 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(SliderFiddlerAchievement);
     init!(RandomMagicSurgeAchievement);
     init!(QwerAchievement);
+    init!(OutOfRangeAchievement);
+    init!(ScorchedEarthAchievement);
+    init!(ProtectiveInstinctsAchievement);
+    init!(FriendlyThornsAchievement);
 }

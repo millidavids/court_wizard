@@ -216,26 +216,26 @@ pub(super) fn handle_squall_casting(
                     }
 
                     // Get final circle position and spawn storm
-                    if let Ok(caster) = caster_query.single() {
-                        if let Some(indicator_entity) = caster.indicator_entity {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                // Spawn the storm entity (invisible marker)
-                                commands.spawn((
-                                    SquallStorm::new(
-                                        indicator.position,
-                                        storm_radius,
-                                        primed_spell.empowerment,
-                                    ),
-                                    ConcentrationSpell {
-                                        spell_name: "Squall",
-                                    },
-                                    OnGameplayScreen,
-                                ));
-                            }
-
-                            // Despawn circle indicator
-                            commands.entity(indicator_entity).despawn();
+                    if let Ok(caster) = caster_query.single()
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            // Spawn the storm entity (invisible marker)
+                            commands.spawn((
+                                SquallStorm::new(
+                                    indicator.position,
+                                    storm_radius,
+                                    primed_spell.empowerment,
+                                ),
+                                ConcentrationSpell {
+                                    spell_name: "Squall",
+                                },
+                                OnGameplayScreen,
+                            ));
                         }
+
+                        // Despawn circle indicator
+                        commands.entity(indicator_entity).despawn();
                     }
 
                     // Remove caster marker immediately (don't keep it blocking future casts)
@@ -247,12 +247,12 @@ pub(super) fn handle_squall_casting(
                     mouse_state.left_consumed = true;
                 } else {
                     // Out of mana - cancel cast
-                    if let Ok(caster) = caster_query.single() {
-                        if let Some(indicator_entity) = caster.indicator_entity {
-                            commands.entity(indicator_entity).despawn();
-                        }
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                    if let Ok(caster) = caster_query.single()
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        commands.entity(indicator_entity).despawn();
                     }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
                 }
             }
