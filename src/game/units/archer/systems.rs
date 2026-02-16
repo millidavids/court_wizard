@@ -15,10 +15,10 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    HasteModifier, Health, Hitbox, KingAuraSpeedModifier, MovementSpeed, RootedModifier,
-    RoughTerrainModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
-    apply_damage_to_unit,
+    AttackTiming, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
+    FlockingModifier, FlockingVelocity, FrostSlowModifier, HasteModifier, Health, Hitbox,
+    MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::random_position_in_cell;
@@ -629,12 +629,13 @@ pub fn archer_movement(
             &crate::game::units::components::FlockingVelocity,
             &FlowFieldVelocity,
             Option<&crate::game::units::components::InMelee>,
-            Option<&KingAuraSpeedModifier>,
+            Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
             Option<&RootedModifier>,
             Option<&HasteModifier>,
+            Option<&EliteSpeedBonus>,
         ),
         With<Archer>,
     >,
@@ -655,6 +656,7 @@ pub fn archer_movement(
         cauldron_modifier,
         rooted,
         haste_modifier,
+        elite_speed,
     ) in &mut archer_units
     {
         // Rooted units cannot move
@@ -680,6 +682,7 @@ pub fn archer_movement(
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
+            elite_speed.map(|e| e.0),
         );
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)

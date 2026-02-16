@@ -8,4 +8,5 @@ pub(in crate::game) mod resources;
 mod styles;
 pub(in crate::game) mod systems;
 
+pub use components::Infantry;
 pub use plugin::InfantryPlugin;

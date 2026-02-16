@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.78] - 2025-02-16
+
+### Added
+- **Elite enemies** — some attackers are now tougher, faster, and stronger (bright red infantry, hot pink archers)
+- **Enemy commanders** — rare powerful units with golden armor that make nearby enemies stronger and faster
+- Elites become more common as you reach higher levels
+- Commanders appear starting at level 5 and become more frequent at higher levels
+
+### Improved
+- The King's Guard are now elite warriors with enhanced combat abilities
+- Each level now feels more unique due to random enemy variety
+- Higher levels are more challenging through stronger enemies, not just more enemies
+
 ## [v0.1.64] - 2025-02-14
 
 ### Added

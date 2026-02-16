@@ -2,12 +2,16 @@ use bevy::prelude::*;
 
 use super::resources::LoadingProgress;
 use super::spawn_queue::{SpawnQueue, SpawnTask};
+use super::upgrade_selection;
+use super::upgrade_systems;
 use crate::config::GameConfig;
 use crate::game::constants::*;
 use crate::game::resources::{CurrentLevel, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
-use crate::game::units::archer::resources::ArcherAssets;
 use crate::game::units::archer::systems as archer_systems;
+use crate::game::units::archer::{Archer, ArcherAssets};
+use crate::game::units::components::{Hitbox, Team};
+use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::systems as infantry_systems;
 use crate::state::AppState;
@@ -99,11 +103,16 @@ pub fn init_loading_progress(
     // 13. Cauldron (next to wizard on castle wall)
     queue.tasks.push(SpawnTask::Cauldron);
 
+    // 14. Select upgrades for attacker units (after all attackers spawn)
+    queue.tasks.push(SpawnTask::SelectInfantryUpgrades);
+    queue.tasks.push(SpawnTask::SelectArcherUpgrades);
+
     commands.insert_resource(queue);
 }
 
 /// Processes spawn tasks from the queue, spreading them evenly across frames.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn process_spawn_queue(
     mut commands: Commands,
     mut loading_progress: ResMut<LoadingProgress>,
@@ -116,12 +125,19 @@ pub fn process_spawn_queue(
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     behemoth_assets: Res<crate::game::units::behemoth::resources::BehemothAssets>,
     current_level: Res<CurrentLevel>,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
     cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     asset_server: Res<AssetServer>,
-    camera_query: Query<&Transform, With<Camera3d>>,
+    // Use ParamSet to reduce parameter count and avoid query conflicts
+    mut queries: ParamSet<(
+        Query<&Transform, With<Camera3d>>,
+        Query<(Entity, &Team), With<Infantry>>,
+        Query<(Entity, &Team), With<Archer>>,
+        Query<&Transform>,
+        Query<&Hitbox>,
+    )>,
 ) {
     // Process exactly one task per frame for smooth, predictable loading
     let batch = spawn_queue.pop_batch(1);
@@ -212,12 +228,58 @@ pub fn process_spawn_queue(
                         meshes,
                         materials,
                         Res::clone(&assets),
-                        camera_query,
+                        queries.p0(),
                     );
                 }
             }
             SpawnTask::PathfindingGrid => {
                 crate::game::pathfinding::systems::initialize_pathfinding(commands.reborrow());
+            }
+            SpawnTask::SelectInfantryUpgrades => {
+                let level = current_level.0;
+                let upgrade_tasks =
+                    upgrade_selection::select_infantry_upgrades(&queries.p1(), level);
+                spawn_queue.tasks.extend(upgrade_tasks);
+            }
+            SpawnTask::SelectArcherUpgrades => {
+                let level = current_level.0;
+                let upgrade_tasks = upgrade_selection::select_archer_upgrades(&queries.p2(), level);
+                spawn_queue.tasks.extend(upgrade_tasks);
+            }
+            SpawnTask::UpgradeToElite { entity, unit_type } => {
+                // Query the entity's current transform and hitbox (query separately to avoid double borrow)
+                if let Ok(transform) = queries.p3().get(entity) {
+                    let transform = *transform; // Copy the transform
+                    if let Ok(hitbox) = queries.p4().get(entity) {
+                        let hitbox = *hitbox; // Copy the hitbox
+                        upgrade_systems::apply_elite_upgrade(
+                            &mut commands,
+                            entity,
+                            unit_type,
+                            &mut materials,
+                            &transform,
+                            &hitbox,
+                        );
+                    }
+                }
+            }
+            SpawnTask::UpgradeToCommander { entity, unit_type } => {
+                // Query the entity's current transform and hitbox (query separately to avoid double borrow)
+                if let Ok(transform) = queries.p3().get(entity) {
+                    let transform = *transform; // Copy the transform
+                    if let Ok(hitbox) = queries.p4().get(entity) {
+                        let hitbox = *hitbox; // Copy the hitbox
+                        upgrade_systems::apply_commander_upgrade(
+                            &mut commands,
+                            entity,
+                            unit_type,
+                            &mut materials,
+                            &mut meshes,
+                            &transform,
+                            &hitbox,
+                        );
+                    }
+                }
             }
         }
     }

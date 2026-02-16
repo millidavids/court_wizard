@@ -12,8 +12,8 @@ use super::plugin::GlobalAttackCycle;
 use super::resources::CurrentLevel;
 use super::units::archer::Archer;
 use super::units::components::{
-    AttackTiming, Corpse, DamageMultiplier, Effectiveness, Health, Hitbox, MovementSpeed,
-    ResidualFireDamaged, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
+    AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteDamageBonus, Health, Hitbox,
+    MovementSpeed, ResidualFireDamaged, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
 use super::units::infantry::components::Infantry;
@@ -342,6 +342,7 @@ pub fn combat(
             &Effectiveness,
             Option<&DamageMultiplier>,
             Option<&CauldronDamageBonus>,
+            Option<&EliteDamageBonus>,
         ),
         Without<Corpse>,
     >,
@@ -357,7 +358,7 @@ pub fn combat(
     // Collect snapshot of all units for enemy detection
     let units_snapshot: Vec<_> = all_units
         .iter()
-        .map(|(entity, transform, hitbox, team, _, _, _, _)| {
+        .map(|(entity, transform, hitbox, team, _, _, _, _, _)| {
             (entity, transform.translation, *hitbox, *team)
         })
         .collect();
@@ -372,6 +373,7 @@ pub fn combat(
         effectiveness,
         damage_mult,
         cauldron_damage_bonus,
+        elite_damage_bonus,
     ) in &mut all_units
     {
         // Find nearest enemy within attack range
@@ -388,7 +390,7 @@ pub fn combat(
                         // Living attack undead
                         (_, Team::Undead) => true,
                         // Normal team logic
-                        _ => *team != *attacker_team,
+                        _ => team != attacker_team,
                     }
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
@@ -414,8 +416,9 @@ pub fn combat(
                 // Apply effectiveness and damage percentage
                 // DamageMultiplier stores percentage bonus (0.5 = +50%, 1.0 = +100%)
                 // Convert to multiplier: damage * (1.0 + percentage)
-                let damage_percentage =
-                    damage_mult.map_or(0.0, |d| d.0) + cauldron_damage_bonus.map_or(0.0, |b| b.0);
+                let damage_percentage = damage_mult.map_or(0.0, |d| d.0)
+                    + cauldron_damage_bonus.map_or(0.0, |b| b.0)
+                    + elite_damage_bonus.map_or(0.0, |b| b.0);
                 let damage_multiplier = 1.0 + damage_percentage;
                 let mut modified_damage =
                     ATTACK_DAMAGE * effectiveness.multiplier() * damage_multiplier;
@@ -560,7 +563,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<AttackTiming>() // Can't attack
                 .remove::<Hitbox>() // Remove collision
                 .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
-                .remove::<super::units::components::KingAuraSpeedModifier>() // Remove speed modifiers
+                .remove::<super::units::components::CommanderAuraSpeedModifier>() // Remove speed modifiers
                 .remove::<super::units::components::FrostSlowModifier>()
                 .remove::<super::units::components::RootedModifier>()
                 .remove::<super::units::components::HasteModifier>()

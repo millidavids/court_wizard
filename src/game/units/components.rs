@@ -34,13 +34,13 @@ pub struct MovementSpeed(pub f32);
 #[derive(Component)]
 pub struct DamageMultiplier(pub f32);
 
-/// Movement speed modifier from King's aura as a percentage.
+/// Movement speed modifier from Commander aura as a percentage.
 ///
-/// Applied to defenders within the King's aura range.
-/// Examples: 0.25 = +25% speed from King's aura.
+/// Applied to units within a Commander's aura range.
+/// Examples: 0.25 = +25% speed from commander aura.
 /// Movement systems apply this as: speed * (1.0 + sum_of_all_modifiers).
 #[derive(Component)]
-pub struct KingAuraSpeedModifier(pub f32);
+pub struct CommanderAuraSpeedModifier(pub f32);
 
 /// Movement speed modifier from rough terrain as a percentage.
 ///
@@ -575,3 +575,7 @@ pub struct KingsGuard(pub u32);
 pub struct FlockingVelocity {
     pub velocity: Vec3,
 }
+
+// Re-export elite components
+#[allow(unused_imports)]
+pub use super::elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};

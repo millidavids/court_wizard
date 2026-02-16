@@ -7,10 +7,12 @@ use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::{
-    AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    FrostSlowModifier, HasteModifier, Health, Hitbox, KingAuraSpeedModifier, KingsGuard,
-    MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    AttackTiming, CommanderAuraSpeedModifier, Corpse, DamageMultiplier, Effectiveness,
+    EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, HasteModifier, Health,
+    Hitbox, KingsGuard, MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity,
+    Team, Teleportable,
 };
 
 /// Spawns the King unit at the center of the defender grid.
@@ -40,7 +42,7 @@ pub fn spawn_king(
     // Store spawn position for rallying when not activated
     let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
-    // Spawn the King unit
+    // Spawn the King unit with Commander components
     let king_entity = commands
         .spawn((
             Mesh3d(king_assets.mesh.clone()),
@@ -55,7 +57,17 @@ pub fn spawn_king(
             Effectiveness::new(),
             DamageMultiplier(KING_DAMAGE_PERCENTAGE),
             Team::Defenders,
-            King,
+            King, // Marker for game-ending logic
+        ))
+        .insert((
+            // Commander components
+            Commander {
+                aura_radius: KING_AURA_RADIUS,
+                team_filter: TeamFilter::Defenders,
+                visual_color: KING_AURA_COLOR,
+            },
+            AuraDamageBuff(KING_AURA_DAMAGE_PERCENTAGE),
+            AuraSpeedBuff(KING_AURA_SPEED_PERCENTAGE),
         ))
         .insert((
             TargetingVelocity::default(),
@@ -151,12 +163,13 @@ pub fn king_movement(
             &FlockingVelocity,
             &FlowFieldVelocity,
             Option<&crate::game::units::components::InMelee>,
-            Option<&KingAuraSpeedModifier>,
+            Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
             Option<&RootedModifier>,
             Option<&HasteModifier>,
+            Option<&EliteSpeedBonus>,
         ),
         With<King>,
     >,
@@ -177,6 +190,7 @@ pub fn king_movement(
         cauldron_modifier,
         rooted,
         haste_modifier,
+        elite_speed,
     ) in &mut king_units
     {
         // Rooted units cannot move
@@ -202,28 +216,28 @@ pub fn king_movement(
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
+            elite_speed.map(|e| e.0),
         );
     }
 }
 
-/// King cohesion aura system.
+/// King cohesion force system.
 ///
-/// Applies a dynamic cohesion force to all nearby units, pulling them toward the King.
+/// Applies a dynamic cohesion force to defenders, pulling them toward the King.
 /// The force strength increases when enemies are near (threatened) and decreases when safe.
-/// Defenders are drawn to protect the King, attackers are drawn to kill the King.
-/// Also applies/removes damage and speed buffs to defenders within aura range.
-/// The King himself also receives the aura buffs.
-pub fn king_cohesion_aura(
-    mut commands: Commands,
-    king_query: Query<(Entity, &Transform), (With<King>, Without<Corpse>)>,
-    mut all_affected_units: Query<
-        (Entity, &Transform, &Team, &mut FlockingVelocity),
+/// This is King-specific behavior separate from the generic commander aura system.
+///
+/// Note: Damage and speed buffs are now handled by the generic commander system.
+pub fn king_cohesion_force(
+    king_query: Query<&Transform, (With<King>, Without<Corpse>)>,
+    mut defenders: Query<
+        (&Transform, &Team, &mut FlockingVelocity),
         (Without<King>, Without<Corpse>),
     >,
     all_units: Query<(&Transform, &Team), Without<Corpse>>,
 ) {
-    // Get King entity and position (should only be one)
-    let Ok((king_entity, king_transform)) = king_query.single() else {
+    // Get King position (should only be one)
+    let Ok(king_transform) = king_query.single() else {
         return;
     };
 
@@ -238,8 +252,6 @@ pub fn king_cohesion_aura(
         .unwrap_or(f32::MAX);
 
     // Calculate threat level: interpolate between BASE and THREATENED
-    // If enemy is far (> AURA_RADIUS), use BASE
-    // If enemy is close (< AURA_RADIUS), interpolate to THREATENED
     let threat_factor = if nearest_enemy_distance > KING_AURA_RADIUS {
         0.0
     } else {
@@ -249,49 +261,31 @@ pub fn king_cohesion_aura(
     let cohesion_strength =
         KING_COHESION_BASE + (KING_COHESION_THREATENED - KING_COHESION_BASE) * threat_factor;
 
-    // Apply cohesion force to all units within aura radius, damage and speed buffs only to defenders
-    for (entity, unit_transform, team, mut flocking_velocity) in &mut all_affected_units {
+    // Apply cohesion force to defenders within aura radius
+    for (unit_transform, team, mut flocking_velocity) in &mut defenders {
+        if *team != Team::Defenders {
+            continue;
+        }
+
         let unit_pos = unit_transform.translation;
         let distance_to_king = unit_pos.distance(king_pos);
 
         // Check if unit is within aura radius
         if distance_to_king < KING_AURA_RADIUS && distance_to_king > 0.1 {
-            // Apply cohesion force only to defenders (they protect the King)
-            // Attackers use their normal targeting behavior to attack the King
-            if *team == Team::Defenders {
-                // Calculate direction toward King
-                let to_king = (king_pos - unit_pos).normalize_or_zero();
+            // Calculate direction toward King
+            let to_king = (king_pos - unit_pos).normalize_or_zero();
 
-                // Add cohesion force to flocking velocity
-                // Scale by distance (stronger pull when closer to edge of aura)
-                let distance_factor = distance_to_king / KING_AURA_RADIUS;
-                let cohesion_force = to_king * cohesion_strength * distance_factor;
+            // Add cohesion force to flocking velocity
+            // Scale by distance (stronger pull when closer to edge of aura)
+            let distance_factor = distance_to_king / KING_AURA_RADIUS;
+            let cohesion_force = to_king * cohesion_strength * distance_factor;
 
-                flocking_velocity.velocity += Vec3::new(cohesion_force.x, 0.0, cohesion_force.z);
+            flocking_velocity.velocity += Vec3::new(cohesion_force.x, 0.0, cohesion_force.z);
 
-                // Re-normalize to maintain consistent influence
-                flocking_velocity.velocity = flocking_velocity.velocity.normalize_or_zero();
-
-                // Apply damage and speed buffs to defenders (just set to fixed value)
-                commands
-                    .entity(entity)
-                    .insert(DamageMultiplier(KING_AURA_DAMAGE_PERCENTAGE));
-                commands
-                    .entity(entity)
-                    .insert(KingAuraSpeedModifier(KING_AURA_SPEED_PERCENTAGE));
-            }
-        } else if *team == Team::Defenders {
-            // Remove aura buffs if defender is outside aura
-            commands.entity(entity).remove::<DamageMultiplier>();
-            commands.entity(entity).remove::<KingAuraSpeedModifier>();
+            // Re-normalize to maintain consistent influence
+            flocking_velocity.velocity = flocking_velocity.velocity.normalize_or_zero();
         }
     }
-
-    // Apply aura buffs to the King himself (he's always in his own aura)
-    // The King gets speed buff but not damage buff (he already has base damage multiplier)
-    commands
-        .entity(king_entity)
-        .insert(KingAuraSpeedModifier(KING_AURA_SPEED_PERCENTAGE));
 }
 
 /// Snaps King's Guard units to fixed positions around the King each frame.

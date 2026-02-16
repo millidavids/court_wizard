@@ -7,3 +7,4 @@ pub(in crate::game) mod systems;
 
 pub use components::Archer;
 pub use plugin::ArcherPlugin;
+pub use resources::ArcherAssets;

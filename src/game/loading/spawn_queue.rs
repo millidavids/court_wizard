@@ -1,5 +1,12 @@
 use bevy::prelude::*;
 
+/// Unit type enum for upgrade tasks.
+#[derive(Clone, Copy, Debug)]
+pub enum UnitType {
+    Infantry,
+    Archer,
+}
+
 /// A task that spawns a single entity.
 /// Each plugin can enqueue tasks for the entities it needs to spawn.
 pub enum SpawnTask {
@@ -29,6 +36,17 @@ pub enum SpawnTask {
     LoadCauldronAssets,
     Cauldron,
     PathfindingGrid,
+    // Upgrade tasks
+    SelectInfantryUpgrades,
+    SelectArcherUpgrades,
+    UpgradeToElite {
+        entity: Entity,
+        unit_type: UnitType,
+    },
+    UpgradeToCommander {
+        entity: Entity,
+        unit_type: UnitType,
+    },
 }
 
 /// Resource that holds the queue of spawn tasks.

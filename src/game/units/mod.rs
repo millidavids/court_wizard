@@ -7,9 +7,11 @@ use rand::Rng;
 
 pub(crate) mod archer;
 pub(crate) mod behemoth;
+pub(in crate::game) mod commander;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod damage;
+pub(in crate::game) mod elite;
 pub(super) mod infantry;
 pub(super) mod king;
 mod movement;
@@ -20,6 +22,14 @@ mod plugin;
 
 pub use damage::DamageType;
 pub use plugin::UnitsPlugin;
+
+// Re-export commander types for future use
+#[allow(unused_imports)]
+pub use commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
+
+// Re-export elite types for future use
+#[allow(unused_imports)]
+pub use elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
 
 /// System set for calculating unit movement (acceleration, velocity).
 /// All unit-specific movement calculations should be in this set.

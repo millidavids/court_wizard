@@ -4,6 +4,8 @@ use crate::state::InGameState;
 
 use super::archer::ArcherPlugin;
 use super::behemoth::BehemothPlugin;
+use super::commander::CommanderPlugin;
+use super::elite::ElitePlugin;
 use super::infantry::InfantryPlugin;
 use super::king::KingPlugin;
 use super::movement;
@@ -27,6 +29,8 @@ pub struct UnitsPlugin;
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            CommanderPlugin,
+            ElitePlugin,
             WizardPlugin,
             InfantryPlugin,
             ArcherPlugin,

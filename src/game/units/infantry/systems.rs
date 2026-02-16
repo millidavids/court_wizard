@@ -11,10 +11,11 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, FlockingVelocity, FrostSlowModifier, HasteModifier,
-    Health, Hitbox, KingAuraSpeedModifier, KingsGuard, MovementSpeed, RootedModifier,
-    RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    AttackTiming, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
+    FlockingVelocity, FrostSlowModifier, HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed,
+    RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
 };
+use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
 
 use super::resources::InfantryAssets;
@@ -202,12 +203,13 @@ pub fn infantry_movement(
             &FlockingVelocity,
             &FlowFieldVelocity,
             Option<&crate::game::units::components::InMelee>,
-            Option<&KingAuraSpeedModifier>,
+            Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
             Option<&RootedModifier>,
             Option<&HasteModifier>,
+            Option<&EliteSpeedBonus>,
         ),
         With<Infantry>,
     >,
@@ -228,6 +230,7 @@ pub fn infantry_movement(
         cauldron_modifier,
         rooted,
         haste_modifier,
+        elite_speed,
     ) in &mut infantry_units
     {
         // Rooted units cannot move
@@ -253,6 +256,7 @@ pub fn infantry_movement(
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
+            elite_speed.map(|e| e.0),
         );
     }
 }
@@ -536,5 +540,13 @@ pub(in crate::game) fn spawn_single_kings_guard(
             Infantry,
             KingsGuard(guard_index),
         ))
-        .insert((Teleportable, Billboard, OnGameplayScreen));
+        .insert((
+            Teleportable,
+            Billboard,
+            OnGameplayScreen,
+            // King's Guard are all elites
+            EliteHealthBonus(crate::game::units::elite::ELITE_HEALTH_BONUS),
+            EliteDamageBonus(crate::game::units::elite::ELITE_DAMAGE_BONUS),
+            EliteSpeedBonus(crate::game::units::elite::ELITE_SPEED_BONUS),
+        ));
 }

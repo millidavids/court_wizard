@@ -98,11 +98,12 @@ pub fn calculate_weighted_movement(
     flocking_velocity: &FlockingVelocity,
     flow_field_velocity: &FlowFieldVelocity,
     in_melee: bool,
-    aura_modifier: Option<f32>,
+    commander_aura_modifier: Option<f32>,
     terrain_modifier: Option<f32>,
     frost_modifier: Option<f32>,
     cauldron_modifier: Option<f32>,
     haste_modifier: Option<f32>,
+    elite_speed_modifier: Option<f32>,
 ) {
     // Use pathfinding distance (accounts for obstacles)
     let distance = flow_field_velocity.pathfinding_distance;
@@ -143,16 +144,18 @@ pub fn calculate_weighted_movement(
         .normalize_or_zero();
 
     // Calculate speed modifiers
-    let aura_percentage = aura_modifier.unwrap_or(0.0);
+    let aura_percentage = commander_aura_modifier.unwrap_or(0.0);
     let terrain_percentage = terrain_modifier.unwrap_or(0.0);
     let frost_percentage = frost_modifier.unwrap_or(0.0);
     let cauldron_percentage = cauldron_modifier.unwrap_or(0.0);
     let haste_percentage = haste_modifier.unwrap_or(0.0);
+    let elite_speed_percentage = elite_speed_modifier.unwrap_or(0.0);
     let total_percentage = aura_percentage
         + terrain_percentage
         + frost_percentage
         + cauldron_percentage
-        + haste_percentage;
+        + haste_percentage
+        + elite_speed_percentage;
     let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
     // Calculate max speed with effectiveness, modifiers, and melee slowdown

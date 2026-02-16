@@ -24,7 +24,7 @@ impl Plugin for KingPlugin {
                 (
                     systems::update_king_targeting.in_set(VelocitySystemSet),
                     systems::king_movement.in_set(crate::game::units::MovementCalculationSet),
-                    systems::king_cohesion_aura
+                    systems::king_cohesion_force
                         .after(apply_separation)
                         .before(MovementSystemSet),
                     systems::snap_kings_guard_to_king

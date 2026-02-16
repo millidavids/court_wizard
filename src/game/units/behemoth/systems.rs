@@ -11,9 +11,10 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use super::resources::BehemothAssets;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
-    AttackTiming, Corpse, DamageMultiplier, Effectiveness, FlockingModifier, FlockingVelocity,
-    FrostSlowModifier, HasteModifier, Health, Hitbox, InMelee, KingAuraSpeedModifier,
-    MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    AttackTiming, CommanderAuraSpeedModifier, Corpse, DamageMultiplier, Effectiveness,
+    EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, HasteModifier, Health,
+    Hitbox, InMelee, MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity, Team,
+    Teleportable,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -105,7 +106,7 @@ pub fn spawn_initial_behemoths(
             DamageMultiplier(-1.0),
             FlockingVelocity::default(),
             FlockingModifier::new(1.0, 1.0, 1.0),
-            KingAuraSpeedModifier(0.0),
+            CommanderAuraSpeedModifier(0.0),
             RoughTerrainModifier(0.0),
             Teleportable,
             Billboard,
@@ -154,12 +155,13 @@ pub fn behemoth_movement(
             &FlockingVelocity,
             &FlowFieldVelocity,
             Option<&InMelee>,
-            Option<&KingAuraSpeedModifier>,
+            Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             Option<&FrostSlowModifier>,
             Option<&CauldronSpeedModifier>,
             Option<&RootedModifier>,
             Option<&HasteModifier>,
+            Option<&EliteSpeedBonus>,
         ),
         With<Behemoth>,
     >,
@@ -179,6 +181,7 @@ pub fn behemoth_movement(
         cauldron_modifier,
         rooted,
         haste_modifier,
+        elite_speed,
     ) in &mut behemoths
     {
         // Rooted units cannot move
@@ -204,6 +207,7 @@ pub fn behemoth_movement(
             frost_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
+            elite_speed.map(|e| e.0),
         );
     }
 }
