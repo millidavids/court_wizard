@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.84] - 2026-02-16
+
+### Improved
+- **Smoother pathfinding** — units now navigate around obstacles more precisely
+- **Elite enemies are darker** instead of brighter, making them look more menacing
+- Units are better at avoiding hazards and obstacles on the battlefield
+- Fewer elite enemies appear in the early levels
+
 ## [v0.1.78] - 2025-02-16
 
 ### Added

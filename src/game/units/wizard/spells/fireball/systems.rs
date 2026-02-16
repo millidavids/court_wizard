@@ -9,7 +9,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::components::{
     Health, ResidualFireDamaged, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -260,9 +260,7 @@ fn spawn_explosion(
 ) {
     let sphere = Sphere::new(1.0); // Unit sphere, scaled by transform
 
-    // Buffer the explosion bounds to make units avoid it more strongly (25 units = 1 cell)
-    const EXPLOSION_BUFFER: f32 = 25.0;
-    let buffered_radius = max_radius + EXPLOSION_BUFFER;
+    let buffered_radius = max_radius + OBSTACLE_BUFFER;
 
     // Notify pathfinding system about the explosion (100x movement cost)
     let origin_2d = Vec2::new(position.x, position.z);
@@ -361,8 +359,7 @@ pub fn cleanup_finished_explosions(
             let residual_damage = constants::RESIDUAL_DAMAGE_PER_TICK * scale;
 
             // Remove the explosion obstacle (100x cost)
-            const EXPLOSION_BUFFER: f32 = 25.0;
-            let buffered_explosion_radius = explosion.max_radius + EXPLOSION_BUFFER;
+            let buffered_explosion_radius = explosion.max_radius + OBSTACLE_BUFFER;
             let origin_2d = Vec2::new(explosion.origin.x, explosion.origin.z);
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(
@@ -373,8 +370,12 @@ pub fn cleanup_finished_explosions(
             });
 
             // Add the burning ground obstacle (50x movement cost)
+            let buffered_residual_radius = residual_radius + OBSTACLE_BUFFER;
             obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(origin_2d, Vec2::splat(residual_radius * 2.0)),
+                bounds: Rect::from_center_size(
+                    origin_2d,
+                    Vec2::splat(buffered_residual_radius * 2.0),
+                ),
                 obstacle_type: ObstacleType::Hazard,
             });
 
@@ -490,8 +491,9 @@ pub fn cleanup_residual_effects(
         if effect.time_alive >= effect.duration {
             // Notify pathfinding system that the burning ground is removed
             let origin_2d = Vec2::new(effect.origin.x, effect.origin.z);
+            let buffered_radius = effect.radius + OBSTACLE_BUFFER;
             obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(origin_2d, Vec2::splat(effect.radius * 2.0)),
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
             });
 

@@ -12,11 +12,11 @@ use bevy::prelude::*;
 /// Minimum level at which elites can spawn.
 pub const ELITE_START_LEVEL: u32 = 3;
 
-/// Base probability of elite upgrade at the start level (10%).
-pub const ELITE_BASE_CHANCE: f32 = 0.10;
+/// Base probability of elite upgrade at the start level (5%).
+pub const ELITE_BASE_CHANCE: f32 = 0.05;
 
-/// Probability increase per level (+5% per level).
-pub const ELITE_CHANCE_PER_LEVEL: f32 = 0.05;
+/// Probability increase per level (+2.5% per level).
+pub const ELITE_CHANCE_PER_LEVEL: f32 = 0.025;
 
 /// Maximum probability for elite upgrades (60% cap).
 /// Prevents entire army from being elite at high levels.
@@ -86,11 +86,11 @@ pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.3, 0.0, 0.0
 // Visual Differentiation - Elite Units
 // ============================================================================
 
-/// Color for elite infantry units (bright red).
-pub const ELITE_INFANTRY_COLOR: Color = Color::srgb(1.0, 0.0, 0.0);
+/// Color for elite infantry units (dark crimson).
+pub const ELITE_INFANTRY_COLOR: Color = Color::srgb(0.5, 0.05, 0.05);
 
-/// Color for elite archer units (hot pink-red).
-pub const ELITE_ARCHER_COLOR: Color = Color::srgb(1.0, 0.3, 0.5);
+/// Color for elite archer units (dark maroon-pink).
+pub const ELITE_ARCHER_COLOR: Color = Color::srgb(0.5, 0.15, 0.2);
 
 /// Size multiplier for elite units (30% larger than normal).
 pub const ELITE_SIZE_MULTIPLIER: f32 = 1.3;

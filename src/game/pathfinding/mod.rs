@@ -13,3 +13,4 @@ pub mod systems;
 pub use components::{FlowFieldInfluence, FlowFieldVelocity};
 pub use messages::{ObstacleChanged, ObstacleType};
 pub use plugin::PathfindingPlugin;
+pub(crate) use systems::OBSTACLE_BUFFER;

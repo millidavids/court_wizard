@@ -256,10 +256,6 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-function __wasm_bindgen_func_elem_121399(arg0, arg1) {
-    wasm.__wasm_bindgen_func_elem_121399(arg0, arg1);
-}
-
 function __wasm_bindgen_func_elem_125929(arg0, arg1, arg2) {
     wasm.__wasm_bindgen_func_elem_125929(arg0, arg1, addHeapObject(arg2));
 }
@@ -268,12 +264,16 @@ function __wasm_bindgen_func_elem_125930(arg0, arg1, arg2, arg3) {
     wasm.__wasm_bindgen_func_elem_125930(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
+function __wasm_bindgen_func_elem_124369(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_124369(arg0, arg1, addHeapObject(arg2));
+}
+
 function __wasm_bindgen_func_elem_125928(arg0, arg1) {
     wasm.__wasm_bindgen_func_elem_125928(arg0, arg1);
 }
 
-function __wasm_bindgen_func_elem_124369(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_124369(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_121399(arg0, arg1) {
+    wasm.__wasm_bindgen_func_elem_121399(arg0, arg1);
 }
 
 const __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];

@@ -7,7 +7,7 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::components::{
     FrostSlowModifier, Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -241,8 +241,9 @@ pub fn cleanup_spike_growth_zone(
     for (entity, zone) in &zones {
         if zone.time_alive >= zone.duration {
             let origin_2d = Vec2::new(zone.origin.x, zone.origin.z);
+            let buffered_radius = zone.radius + OBSTACLE_BUFFER;
             obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(origin_2d, Vec2::splat(zone.radius * 2.0)),
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
             });
             commands.entity(entity).despawn();
@@ -264,10 +265,11 @@ fn spawn_spike_growth_zone(
     let slow_mod = constants::SLOW_MODIFIER * empowerment;
     let slow_dur = constants::SLOW_DURATION * empowerment;
 
-    // Notify pathfinding about hazard zone
+    // Notify pathfinding about hazard zone (buffered so units reroute before reaching it)
     let origin_2d = Vec2::new(position.x, position.z);
+    let buffered_radius = radius + OBSTACLE_BUFFER;
     obstacle_events.write(ObstacleChanged {
-        bounds: Rect::from_center_size(origin_2d, Vec2::splat(radius * 2.0)),
+        bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
         obstacle_type: ObstacleType::Hazard,
     });
 

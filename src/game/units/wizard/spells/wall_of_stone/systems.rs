@@ -7,7 +7,7 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 
 /// Handles Wall of Stone casting — click to anchor, drag to extend, release to place.
 #[allow(clippy::too_many_arguments)]
@@ -106,9 +106,6 @@ pub fn handle_wall_of_stone_casting(
                 ));
 
                 // Notify pathfinding system about the new obstacle
-                // Add buffer to prevent units from clipping corners (one cell size = 25 units)
-                const OBSTACLE_BUFFER: f32 = 25.0;
-
                 // Calculate unbuffered bounding box first
                 let unbuffered_min_x =
                     center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
@@ -267,9 +264,6 @@ pub fn cleanup_expired_walls(
             commands.entity(entity).despawn();
 
             // Notify pathfinding system that the obstacle is removed
-            // Use same buffer as when created
-            const OBSTACLE_BUFFER: f32 = 25.0;
-
             // Calculate unbuffered bounding box first
             let unbuffered_min_x =
                 wall.center.x - wall.forward.x * wall.half_length - wall.right.x * wall.half_width;

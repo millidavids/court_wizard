@@ -14,14 +14,20 @@ use super::messages::{ObstacleChanged, ObstacleType};
 use super::resources::PathfindingGrid;
 
 /// Cell size for the pathfinding grid (in world units).
-const CELL_SIZE: f32 = 25.0;
+pub(crate) const CELL_SIZE: f32 = 10.0;
+
+/// Buffer zone added around obstacles/hazards in the pathfinding grid.
+/// Equal to one cell size so units start rerouting one cell before hitting the obstacle.
+pub(crate) const OBSTACLE_BUFFER: f32 = CELL_SIZE;
 
 /// Distance threshold for King movement to trigger attacker field rebuild.
-const KING_MOVEMENT_THRESHOLD: f32 = 50.0;
+/// Set just below the 200-unit targeting crossover so units arriving at the
+/// old goal position will already be in targeting-dominant range.
+const KING_MOVEMENT_THRESHOLD: f32 = 180.0;
 
 /// Satisfaction radius for defenders rallying to spawn points (in cells).
-/// 200 units / 25 units per cell = 8 cells
-const DEFENDER_SPAWN_RALLY_RADIUS: usize = 8;
+/// 200 units / 10 units per cell = 20 cells
+const DEFENDER_SPAWN_RALLY_RADIUS: usize = 20;
 
 /// Initializes the pathfinding grid resource.
 pub fn initialize_pathfinding(mut commands: Commands) {

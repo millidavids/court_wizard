@@ -7,16 +7,13 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, ResidualFireDamaged, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
 };
 
-/// Pathfinding grid cell size — must match the value in pathfinding/systems.rs.
-const PATHFINDING_CELL_SIZE: f32 = 25.0;
-
-/// Computes the axis-aligned bounding box of a rotated wall, expanded by one pathfinding cell.
+/// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
 /// The wall is defined by its start/end points and half-width. The AABB covers the
 /// rotated rectangle plus a buffer zone so units start rerouting before reaching it.
@@ -37,12 +34,12 @@ fn wall_obstacle_bounds(start: Vec3, end: Vec3, half_width: f32) -> Rect {
     let min_y = c0.y.min(c1.y).min(c2.y).min(c3.y);
     let max_y = c0.y.max(c1.y).max(c2.y).max(c3.y);
 
-    // Expand by one cell for buffer zone
+    // Expand by obstacle buffer so units start rerouting before reaching the wall
     Rect::new(
-        min_x - PATHFINDING_CELL_SIZE,
-        min_y - PATHFINDING_CELL_SIZE,
-        max_x + PATHFINDING_CELL_SIZE,
-        max_y + PATHFINDING_CELL_SIZE,
+        min_x - OBSTACLE_BUFFER,
+        min_y - OBSTACLE_BUFFER,
+        max_x + OBSTACLE_BUFFER,
+        max_y + OBSTACLE_BUFFER,
     )
 }
 
