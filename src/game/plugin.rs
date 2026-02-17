@@ -6,9 +6,10 @@ use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
+use super::drops::DropsPlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
-use super::messages::AchievementUnlockedMessage;
+use super::messages::{AchievementUnlockedMessage, IngredientCollectedMessage};
 use super::pathfinding::PathfindingPlugin;
 use super::resources::{CurrentLevel, GameOutcome, KillStats, RetryTracker};
 use super::shared_systems;
@@ -79,6 +80,7 @@ impl Plugin for GamePlugin {
             .init_resource::<RetryTracker>()
             .insert_resource(GameOutcome::Victory)
             .add_message::<AchievementUnlockedMessage>()
+            .add_message::<IngredientCollectedMessage>()
             .add_plugins((
                 InputPlugin,
                 LoadingPlugin,
@@ -87,6 +89,7 @@ impl Plugin for GamePlugin {
                 CauldronPlugin,
                 PathfindingPlugin,
                 AchievementsPlugin,
+                DropsPlugin,
             ))
             .add_systems(
                 OnEnter(AppState::InGame),

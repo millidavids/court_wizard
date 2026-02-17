@@ -12,6 +12,7 @@ mod battlefield;
 pub(crate) mod cauldron;
 pub(crate) mod components;
 pub(crate) mod constants;
+pub(crate) mod drops;
 pub(crate) mod input;
 mod loading;
 pub(crate) mod messages;

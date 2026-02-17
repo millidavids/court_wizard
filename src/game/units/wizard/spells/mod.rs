@@ -19,6 +19,7 @@ pub mod run_conditions;
 mod spike_growth;
 mod squall;
 mod systems;
+mod telekinesis;
 mod teleport;
 mod wall_of_fire;
 pub(in crate::game) mod wall_of_stone;
@@ -37,6 +38,7 @@ pub(in crate::game::units::wizard) use magic_missile::constants as magic_missile
 pub(in crate::game::units::wizard) use raise_the_dead::constants as raise_the_dead_constants;
 pub(in crate::game::units::wizard) use spike_growth::constants as spike_growth_constants;
 pub(in crate::game::units::wizard) use squall::constants as squall_constants;
+pub(in crate::game::units::wizard) use telekinesis::constants as telekinesis_constants;
 pub(in crate::game::units::wizard) use teleport::constants as teleport_constants;
 pub(in crate::game::units::wizard) use wall_of_fire::constants as wall_of_fire_constants;
 pub(in crate::game::units::wizard) use wall_of_stone::constants as wall_of_stone_constants;

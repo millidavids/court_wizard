@@ -22,6 +22,7 @@ pub enum Spell {
     Haste,
     SpikeGrowth,
     LightningRod,
+    Telekinesis,
 }
 
 impl Spell {
@@ -44,6 +45,7 @@ impl Spell {
             Spell::Haste,
             Spell::SpikeGrowth,
             Spell::LightningRod,
+            Spell::Telekinesis,
         ]
     }
 
@@ -66,6 +68,7 @@ impl Spell {
             Spell::Haste => "Haste",
             Spell::SpikeGrowth => "Spike\nGrowth",
             Spell::LightningRod => "Lightning\nRod",
+            Spell::Telekinesis => "Telekinesis",
         }
     }
 
@@ -114,6 +117,9 @@ impl Spell {
             Spell::LightningRod => {
                 "Places a lightning rod that periodically attracts lightning strikes. Arcs of electricity jump to all nearby units, friend or foe."
             }
+            Spell::Telekinesis => {
+                "Retrieves ingredients dropped by fallen enemies. Click near a drop to pull it to you."
+            }
         }
     }
 
@@ -140,6 +146,7 @@ impl Spell {
             Spell::LightningRod => {
                 "Stand near the tall metal thing during a storm. What could go wrong?"
             }
+            Spell::Telekinesis => "Mind over matter. Literally.",
         }
     }
 
@@ -162,6 +169,7 @@ impl Spell {
             Spell::Haste => "Click and hold to place",
             Spell::SpikeGrowth => "Click and hold to place",
             Spell::LightningRod => "Click and hold to place",
+            Spell::Telekinesis => "Click near a drop to retrieve",
         }
     }
 
@@ -172,7 +180,8 @@ impl Spell {
             entangle_constants, finger_of_death_constants, fireball_constants,
             guardian_circle_constants, haste_constants, lightning_rod_constants,
             magic_missile_constants, raise_the_dead_constants, spike_growth_constants,
-            squall_constants, teleport_constants, wall_of_fire_constants, wall_of_stone_constants,
+            squall_constants, telekinesis_constants, teleport_constants, wall_of_fire_constants,
+            wall_of_stone_constants,
         };
 
         match self {
@@ -192,6 +201,7 @@ impl Spell {
             Spell::Haste => haste_constants::PRIMED_HASTE,
             Spell::SpikeGrowth => spike_growth_constants::PRIMED_SPIKE_GROWTH,
             Spell::LightningRod => lightning_rod_constants::PRIMED_LIGHTNING_ROD,
+            Spell::Telekinesis => telekinesis_constants::PRIMED_TELEKINESIS,
         }
     }
 
@@ -215,6 +225,7 @@ impl Spell {
             Spell::Haste => DamageType::Force,
             Spell::SpikeGrowth => DamageType::Nature,
             Spell::LightningRod => DamageType::Electric,
+            Spell::Telekinesis => DamageType::Force,
         }
     }
 }

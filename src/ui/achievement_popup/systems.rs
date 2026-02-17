@@ -1,45 +1,52 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::AchievementId;
-use crate::game::messages::AchievementUnlockedMessage;
+use crate::game::cauldron::brews::Ingredient;
+use crate::game::messages::{AchievementUnlockedMessage, IngredientCollectedMessage};
 
-use super::components::{AchievementPopup, AchievementPopupTimer, AchievementQueue};
+use super::components::{AchievementPopup, AchievementPopupTimer, PopupEntry, PopupQueue};
 use super::constants::*;
 
-/// Queues achievements as they unlock.
-pub(super) fn queue_achievements(
+/// Queues achievements and ingredient collections as they happen.
+pub(super) fn queue_popups(
     mut achievement_events: MessageReader<AchievementUnlockedMessage>,
-    mut queue: ResMut<AchievementQueue>,
+    mut ingredient_events: MessageReader<IngredientCollectedMessage>,
+    mut queue: ResMut<PopupQueue>,
 ) {
     for event in achievement_events.read() {
-        queue.push(event.id);
+        queue.push(PopupEntry::Achievement(event.id));
+    }
+    for event in ingredient_events.read() {
+        queue.push(PopupEntry::IngredientCollected(event.ingredient));
     }
 }
 
-/// Spawns the next achievement popup from the queue if no popup is currently displayed.
+/// Spawns the next popup from the queue if no popup is currently displayed.
 pub(super) fn spawn_next_popup(
     mut commands: Commands,
-    mut queue: ResMut<AchievementQueue>,
+    mut queue: ResMut<PopupQueue>,
     active_popups: Query<&AchievementPopup>,
 ) {
-    // Only spawn a new popup if there isn't one already showing
     if active_popups.is_empty()
         && !queue.is_empty()
-        && let Some(id) = queue.pop()
+        && let Some(entry) = queue.pop()
     {
-        spawn_popup(&mut commands, id);
+        match entry {
+            PopupEntry::Achievement(id) => spawn_achievement_popup(&mut commands, id),
+            PopupEntry::IngredientCollected(ingredient) => {
+                spawn_ingredient_popup(&mut commands, ingredient)
+            }
+        }
     }
 }
 
-fn spawn_popup(commands: &mut Commands, id: AchievementId) {
+fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
     commands
         .spawn((
-            // Root: absolute-positioned container at top-center
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(30.0),
                 left: Val::Percent(50.0),
-                // Shift left by half width to center
                 margin: UiRect {
                     left: Val::Px(-150.0),
                     ..default()
@@ -54,14 +61,12 @@ fn spawn_popup(commands: &mut Commands, id: AchievementId) {
             },
             BorderColor::all(BORDER_COLOR),
             BackgroundColor(BACKGROUND_COLOR),
-            // Make the popup non-interactive so clicks pass through
             Pickable::IGNORE,
             GlobalZIndex(999),
             AchievementPopup,
             AchievementPopupTimer::new(DISPLAY_DURATION, FADE_DURATION),
         ))
         .with_children(|parent| {
-            // "Achievement Unlocked" header
             parent.spawn((
                 Text::new("Achievement Unlocked"),
                 TextFont {
@@ -72,7 +77,6 @@ fn spawn_popup(commands: &mut Commands, id: AchievementId) {
                 Pickable::IGNORE,
             ));
 
-            // Achievement name
             parent.spawn((
                 Text::new(id.display_name()),
                 TextFont {
@@ -83,7 +87,6 @@ fn spawn_popup(commands: &mut Commands, id: AchievementId) {
                 Pickable::IGNORE,
             ));
 
-            // Achievement description
             parent.spawn((
                 Text::new(id.description()),
                 TextFont {
@@ -94,7 +97,6 @@ fn spawn_popup(commands: &mut Commands, id: AchievementId) {
                 Pickable::IGNORE,
             ));
 
-            // Unlock reward (if any)
             if let Some(reward) = id.unlock_reward() {
                 parent.spawn((
                     Text::new(reward),
@@ -102,10 +104,69 @@ fn spawn_popup(commands: &mut Commands, id: AchievementId) {
                         font_size: 14.0,
                         ..default()
                     },
-                    TextColor(Color::srgb(0.4, 0.9, 0.4)), // Bright green
+                    TextColor(Color::srgb(0.4, 0.9, 0.4)),
                     Pickable::IGNORE,
                 ));
             }
+        });
+}
+
+fn spawn_ingredient_popup(commands: &mut Commands, ingredient: Ingredient) {
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(30.0),
+                left: Val::Percent(50.0),
+                margin: UiRect {
+                    left: Val::Px(-150.0),
+                    ..default()
+                },
+                width: Val::Px(300.0),
+                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(4.0),
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BorderColor::all(INGREDIENT_BORDER_COLOR),
+            BackgroundColor(INGREDIENT_BACKGROUND_COLOR),
+            Pickable::IGNORE,
+            GlobalZIndex(999),
+            AchievementPopup,
+            AchievementPopupTimer::new(DISPLAY_DURATION, FADE_DURATION),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Ingredient Discovered!"),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(INGREDIENT_HEADER_COLOR),
+                Pickable::IGNORE,
+            ));
+
+            parent.spawn((
+                Text::new(ingredient.name()),
+                TextFont {
+                    font_size: 18.0,
+                    ..default()
+                },
+                TextColor(INGREDIENT_TITLE_COLOR),
+                Pickable::IGNORE,
+            ));
+
+            parent.spawn((
+                Text::new(ingredient.description()),
+                TextFont {
+                    font_size: 13.0,
+                    ..default()
+                },
+                TextColor(DESCRIPTION_COLOR),
+                Pickable::IGNORE,
+            ));
         });
 }
 
@@ -136,12 +197,12 @@ pub(super) fn update_achievement_popups(
         let opacity = timer.opacity();
 
         // Fade background
-        let mut bg_color = BACKGROUND_COLOR.to_srgba();
+        let mut bg_color = bg.0.to_srgba();
         bg_color.alpha *= opacity;
         bg.0 = bg_color.into();
 
         // Fade border
-        let mut border_srgba = BORDER_COLOR.to_srgba();
+        let mut border_srgba = border.top.to_srgba();
         border_srgba.alpha = opacity;
         *border = BorderColor::all(border_srgba);
 

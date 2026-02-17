@@ -68,7 +68,10 @@ impl UnlockedContent {
     }
 
     fn default_spells() -> Vec<String> {
-        vec![format!("{:?}", Spell::MagicMissile)]
+        vec![
+            format!("{:?}", Spell::MagicMissile),
+            format!("{:?}", Spell::Telekinesis),
+        ]
     }
 
     fn all_ingredients() -> Vec<String> {
@@ -567,7 +570,15 @@ pub(crate) fn load_unified_save() -> Option<UnifiedSaveFile> {
     let toml_string = String::from_utf8(deobfuscated).ok()?;
 
     match toml::from_str::<UnifiedSaveFile>(&toml_string) {
-        Ok(data) => Some(data),
+        Ok(mut data) => {
+            // Migrate: ensure default spells are always unlocked in existing saves
+            for default_spell in UnlockedContent::default_spells() {
+                if !data.player.unlocked_content.spells.contains(&default_spell) {
+                    data.player.unlocked_content.spells.push(default_spell);
+                }
+            }
+            Some(data)
+        }
         Err(e) => {
             warn!("Failed to parse unified save file: {}", e);
             None

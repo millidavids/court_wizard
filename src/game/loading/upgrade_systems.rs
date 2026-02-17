@@ -130,11 +130,8 @@ fn spawn_aura_ring(
     materials: &mut Assets<StandardMaterial>,
     meshes: &mut Assets<Mesh>,
 ) {
-    // Create ring mesh (torus with very small tube radius)
-    let ring_mesh = meshes.add(Torus {
-        major_radius: ATTACKER_COMMANDER_AURA_RADIUS,
-        minor_radius: 2.0, // Thin ring
-    });
+    // Create filled circle mesh
+    let ring_mesh = meshes.add(Circle::new(ATTACKER_COMMANDER_AURA_RADIUS));
 
     // Create semi-transparent red material
     let ring_material = materials.add(StandardMaterial {
@@ -144,12 +141,11 @@ fn spawn_aura_ring(
         ..default()
     });
 
-    // Position ring at ground level (Y = 0.5 to sit just above ground)
-    let ring_position = Vec3::new(
-        parent_transform.translation.x,
-        0.5,
-        parent_transform.translation.z,
-    );
+    // Position ring at ground level relative to parent
+    // Since the ring is parented to the commander, use local coordinates (0, y_offset, 0)
+    // y_offset brings the ring down from the parent's position to ground level
+    let y_offset = 5.0 - parent_transform.translation.y;
+    let ring_position = Vec3::new(0.0, y_offset, 0.0);
 
     // Spawn ring and parent it to the commander
     let ring_entity = commands
@@ -157,7 +153,7 @@ fn spawn_aura_ring(
             Mesh3d(ring_mesh),
             MeshMaterial3d(ring_material),
             Transform::from_translation(ring_position)
-                .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)), // Rotate to lay flat
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
             OnGameplayScreen,
         ))
         .id();

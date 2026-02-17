@@ -1,25 +1,32 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::AchievementId;
+use crate::game::cauldron::brews::Ingredient;
 
-/// Marker for the achievement popup root entity.
+/// A queued popup entry — either an achievement or an ingredient collection.
+pub(super) enum PopupEntry {
+    Achievement(AchievementId),
+    IngredientCollected(Ingredient),
+}
+
+/// Marker for the popup root entity.
 #[derive(Component)]
 pub(super) struct AchievementPopup;
 
-/// Queue of achievements waiting to be displayed.
+/// Queue of popups waiting to be displayed.
 #[derive(Resource, Default)]
-pub(super) struct AchievementQueue {
-    pub queue: Vec<AchievementId>,
+pub(super) struct PopupQueue {
+    pub queue: Vec<PopupEntry>,
 }
 
-impl AchievementQueue {
-    /// Add an achievement to the queue.
-    pub fn push(&mut self, id: AchievementId) {
-        self.queue.push(id);
+impl PopupQueue {
+    /// Add an entry to the queue.
+    pub fn push(&mut self, entry: PopupEntry) {
+        self.queue.push(entry);
     }
 
-    /// Get the next achievement to display (if any).
-    pub fn pop(&mut self) -> Option<AchievementId> {
+    /// Get the next entry to display (if any).
+    pub fn pop(&mut self) -> Option<PopupEntry> {
         if self.queue.is_empty() {
             None
         } else {

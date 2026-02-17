@@ -20,3 +20,17 @@ pub(super) const DESCRIPTION_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
 
 /// "Achievement Unlocked" header color.
 pub(super) const HEADER_COLOR: Color = Color::srgb(0.70, 0.70, 0.70);
+
+// ===== Ingredient Popup Colors =====
+
+/// Background color of the ingredient popup box.
+pub(super) const INGREDIENT_BACKGROUND_COLOR: Color = Color::srgba(0.06, 0.12, 0.06, 0.92);
+
+/// Border color for ingredient popups (green).
+pub(super) const INGREDIENT_BORDER_COLOR: Color = Color::srgb(0.4, 0.9, 0.4);
+
+/// "Ingredient Discovered!" header color.
+pub(super) const INGREDIENT_HEADER_COLOR: Color = Color::srgb(0.4, 0.9, 0.4);
+
+/// Ingredient name text color.
+pub(super) const INGREDIENT_TITLE_COLOR: Color = Color::srgb(0.85, 0.95, 0.85);

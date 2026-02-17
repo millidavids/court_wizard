@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.100] - 2026-02-17
+
+### Added
+- **New spell: Telekinesis** — use this spell to pick up glowing items dropped by fallen enemies on the battlefield
+- **Ingredient drops** — enemies now occasionally drop ingredients when they die; use Telekinesis to grab them!
+- Telekinesis is available from the start alongside Magic Missile
+
+### Changed
+- Brew ingredients are no longer unlocked randomly after winning battles
+- You now discover new ingredients by collecting drops during battle — choose between casting offensive spells or grabbing ingredients!
+- Drops persist on the battlefield until the end of the level
+- A notification pops up when you collect a new ingredient
+- Enemy commanders now have a visible aura circle beneath them
+- Fewer elite enemies and commanders spawn at all levels
+
 ## [v0.1.86] - 2026-02-17
 
 ### Added

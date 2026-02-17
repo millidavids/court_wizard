@@ -12,11 +12,11 @@ use bevy::prelude::*;
 /// Minimum level at which elites can spawn.
 pub const ELITE_START_LEVEL: u32 = 3;
 
-/// Base probability of elite upgrade at the start level (5%).
-pub const ELITE_BASE_CHANCE: f32 = 0.05;
+/// Base probability of elite upgrade at the start level (2.5%).
+pub const ELITE_BASE_CHANCE: f32 = 0.025;
 
-/// Probability increase per level (+2.5% per level).
-pub const ELITE_CHANCE_PER_LEVEL: f32 = 0.025;
+/// Probability increase per level (+1.25% per level).
+pub const ELITE_CHANCE_PER_LEVEL: f32 = 0.0125;
 
 /// Maximum probability for elite upgrades (60% cap).
 /// Prevents entire army from being elite at high levels.
@@ -41,11 +41,11 @@ pub const MAX_ELITE_ARCHERS: u32 = 30;
 /// Minimum level at which commanders can spawn.
 pub const COMMANDER_START_LEVEL: u32 = 5;
 
-/// Base probability of commander upgrade at the start level (3%).
-pub const COMMANDER_BASE_CHANCE: f32 = 0.03;
+/// Base probability of commander upgrade at the start level (1.5%).
+pub const COMMANDER_BASE_CHANCE: f32 = 0.015;
 
-/// Probability increase per level (+2% per level).
-pub const COMMANDER_CHANCE_PER_LEVEL: f32 = 0.02;
+/// Probability increase per level (+1% per level).
+pub const COMMANDER_CHANCE_PER_LEVEL: f32 = 0.01;
 
 /// Maximum probability for commander upgrades (20% cap).
 /// Commanders are rare, powerful units - kept at lower cap than elites.
@@ -80,7 +80,7 @@ pub const ATTACKER_COMMANDER_DAMAGE_BUFF: f32 = 0.30;
 pub const ATTACKER_COMMANDER_SPEED_BUFF: f32 = 0.15;
 
 /// Color of the attacker commander aura ring (red, semi-transparent).
-pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.3, 0.0, 0.08);
+pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.3, 0.0, 0.03);
 
 // ============================================================================
 // Visual Differentiation - Elite Units

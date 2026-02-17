@@ -16,6 +16,7 @@ use super::raise_the_dead::RaiseTheDeadPlugin;
 use super::spike_growth::SpikeGrowthPlugin;
 use super::squall::SquallPlugin;
 use super::systems;
+use super::telekinesis::TelekinesisPlugin;
 use super::teleport::TeleportPlugin;
 use super::wall_of_fire::WallOfFirePlugin;
 use super::wall_of_stone::plugin::WallOfStonePlugin;
@@ -57,6 +58,7 @@ impl Plugin for SpellsPlugin {
             HastePlugin,
             SpikeGrowthPlugin,
             LightningRodPlugin,
+            TelekinesisPlugin,
         ))
         .add_systems(
             Update,

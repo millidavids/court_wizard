@@ -446,6 +446,7 @@ pub fn convert_dead_to_corpses(
     mut spell_kill_events: MessageWriter<DefenderKilledBySpellMessage>,
     mut enemy_kill_events: MessageWriter<EnemyKilledMessage>,
     mut scorched_earth_events: MessageWriter<ScorchedEarthMessage>,
+    mut drop_events: MessageWriter<super::drops::messages::SpawnIngredientDropMessage>,
     query: Query<
         (
             Entity,
@@ -484,6 +485,10 @@ pub fn convert_dead_to_corpses(
             // Send enemy killed message for multi-kill achievements
             if *team == Team::Attackers || *team == Team::Undead {
                 enemy_kill_events.write(EnemyKilledMessage);
+                // Notify drops system of potential ingredient drop
+                drop_events.write(super::drops::messages::SpawnIngredientDropMessage {
+                    position: transform.translation,
+                });
             }
 
             // Track spell kills on defenders and king
