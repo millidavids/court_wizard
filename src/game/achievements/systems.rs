@@ -142,6 +142,7 @@ pub(crate) fn check_archmage(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 25 {
             do_unlock(&mut res, &mut events);
+            unlock_spell(Spell::Squall);
         }
     }
 }
@@ -395,7 +396,7 @@ pub(crate) fn track_multi_kills(
         let kill_count = tracker.register_kill();
         if kill_count >= 3 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::Squall);
+            unlock_spell(Spell::LightningRod);
         }
     }
 }

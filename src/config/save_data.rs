@@ -258,10 +258,11 @@ impl AchievementId {
         match self {
             AchievementId::FirstVictory => Some("Unlocks: Fireball, Guardian Circle"),
             AchievementId::FriendlyFire => Some("Unlocks: Finger of Death"),
-            AchievementId::ChainReaction => Some("Unlocks: Squall"),
+            AchievementId::ChainReaction => Some("Unlocks: Lightning Rod"),
             AchievementId::TheKingIsDead => Some("Unlocks: Raise The Dead"),
             AchievementId::ApprenticeWizard => Some("Unlocks: Disintegrate, Teleport"),
             AchievementId::CourtWizard => Some("Unlocks: Chain Lightning, Wall of Stone"),
+            AchievementId::Archmage => Some("Unlocks: Squall"),
             AchievementId::LegendsSpeakYourName => Some("Unlocks: Black Hole"),
             AchievementId::SliderFiddler => Some("Unlocks: Arcanorouter wizard"),
             AchievementId::RandomMagicSurge => Some("Unlocks: Randomancer wizard"),

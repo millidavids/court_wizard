@@ -11,6 +11,7 @@ mod finger_of_death;
 mod fireball;
 mod guardian_circle;
 mod haste;
+mod lightning_rod;
 mod magic_missile;
 mod plugin;
 mod raise_the_dead;
@@ -31,6 +32,7 @@ pub(in crate::game::units::wizard) use finger_of_death::constants as finger_of_d
 pub(in crate::game::units::wizard) use fireball::constants as fireball_constants;
 pub(in crate::game::units::wizard) use guardian_circle::constants as guardian_circle_constants;
 pub(in crate::game::units::wizard) use haste::constants as haste_constants;
+pub(in crate::game::units::wizard) use lightning_rod::constants as lightning_rod_constants;
 pub(in crate::game::units::wizard) use magic_missile::constants as magic_missile_constants;
 pub(in crate::game::units::wizard) use raise_the_dead::constants as raise_the_dead_constants;
 pub(in crate::game::units::wizard) use spike_growth::constants as spike_growth_constants;

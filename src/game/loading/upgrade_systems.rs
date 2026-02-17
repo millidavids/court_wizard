@@ -134,7 +134,6 @@ fn spawn_aura_ring(
     let ring_mesh = meshes.add(Torus {
         major_radius: ATTACKER_COMMANDER_AURA_RADIUS,
         minor_radius: 2.0, // Thin ring
-        ..default()
     });
 
     // Create semi-transparent red material

@@ -21,6 +21,7 @@ pub enum Spell {
     Entangle,
     Haste,
     SpikeGrowth,
+    LightningRod,
 }
 
 impl Spell {
@@ -42,6 +43,7 @@ impl Spell {
             Spell::Entangle,
             Spell::Haste,
             Spell::SpikeGrowth,
+            Spell::LightningRod,
         ]
     }
 
@@ -63,6 +65,7 @@ impl Spell {
             Spell::Entangle => "Entangle",
             Spell::Haste => "Haste",
             Spell::SpikeGrowth => "Spike\nGrowth",
+            Spell::LightningRod => "Lightning\nRod",
         }
     }
 
@@ -108,6 +111,9 @@ impl Spell {
             Spell::SpikeGrowth => {
                 "Creates a persistent zone that damages and slows all units inside. Lasts 15 seconds."
             }
+            Spell::LightningRod => {
+                "Places a lightning rod that periodically attracts lightning strikes. Arcs of electricity jump to all nearby units, friend or foe."
+            }
         }
     }
 
@@ -131,6 +137,9 @@ impl Spell {
             Spell::Entangle => "Vines don't ask whose feet they're grabbing.",
             Spell::Haste => "Fast friends, fast enemies. Same spell.",
             Spell::SpikeGrowth => "Nature reclaims the battlefield. Everyone suffers equally.",
+            Spell::LightningRod => {
+                "Stand near the tall metal thing during a storm. What could go wrong?"
+            }
         }
     }
 
@@ -152,6 +161,7 @@ impl Spell {
             Spell::Entangle => "Click and hold to place",
             Spell::Haste => "Click and hold to place",
             Spell::SpikeGrowth => "Click and hold to place",
+            Spell::LightningRod => "Click and hold to place",
         }
     }
 
@@ -160,9 +170,9 @@ impl Spell {
         use crate::game::units::wizard::spells::{
             black_hole_constants, chain_lightning_constants, disintegrate_constants,
             entangle_constants, finger_of_death_constants, fireball_constants,
-            guardian_circle_constants, haste_constants, magic_missile_constants,
-            raise_the_dead_constants, spike_growth_constants, squall_constants, teleport_constants,
-            wall_of_fire_constants, wall_of_stone_constants,
+            guardian_circle_constants, haste_constants, lightning_rod_constants,
+            magic_missile_constants, raise_the_dead_constants, spike_growth_constants,
+            squall_constants, teleport_constants, wall_of_fire_constants, wall_of_stone_constants,
         };
 
         match self {
@@ -181,6 +191,7 @@ impl Spell {
             Spell::Entangle => entangle_constants::PRIMED_ENTANGLE,
             Spell::Haste => haste_constants::PRIMED_HASTE,
             Spell::SpikeGrowth => spike_growth_constants::PRIMED_SPIKE_GROWTH,
+            Spell::LightningRod => lightning_rod_constants::PRIMED_LIGHTNING_ROD,
         }
     }
 
@@ -203,6 +214,7 @@ impl Spell {
             Spell::Entangle => DamageType::Nature,
             Spell::Haste => DamageType::Force,
             Spell::SpikeGrowth => DamageType::Nature,
+            Spell::LightningRod => DamageType::Electric,
         }
     }
 }

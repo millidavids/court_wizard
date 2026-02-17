@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.86] - 2026-02-17
+
+### Added
+- **New spell: Lightning Rod** — place a metal tower on the battlefield that attracts lightning strikes every few seconds, sending arcs of electricity to all nearby units (watch out — it hits your troops too!)
+
+### Changed
+- Lightning Rod is now unlocked by the **Chain Reaction** achievement
+- **Squall** is now unlocked by the **Archmage** achievement (25 wins) instead
+
 ## [v0.1.84] - 2026-02-16
 
 ### Improved

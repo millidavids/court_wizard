@@ -10,6 +10,7 @@ use super::finger_of_death::FingerOfDeathPlugin;
 use super::fireball::FireballPlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::haste::HastePlugin;
+use super::lightning_rod::LightningRodPlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
 use super::spike_growth::SpikeGrowthPlugin;
@@ -46,6 +47,8 @@ impl Plugin for SpellsPlugin {
             FingerOfDeathPlugin,
             RaiseTheDeadPlugin,
             TeleportPlugin,
+        ))
+        .add_plugins((
             WallOfStonePlugin,
             BlackHolePlugin,
             SquallPlugin,
@@ -53,6 +56,7 @@ impl Plugin for SpellsPlugin {
             EntanglePlugin,
             HastePlugin,
             SpikeGrowthPlugin,
+            LightningRodPlugin,
         ))
         .add_systems(
             Update,
