@@ -4,9 +4,9 @@ use crate::config::save_data::load_unified_save;
 use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::input::messages::MouseClicked;
-use crate::game::resources::{CurrentLevel, GameOutcome, KillStats};
+use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
-use crate::state::{AppState, InGameState};
+use crate::state::AppState;
 use crate::ui::systems::spawn_button;
 
 use super::components::*;
@@ -14,7 +14,7 @@ use super::styles::*;
 
 /// Saves efficiency for current level to config when entering game over screen.
 ///
-/// This system runs on OnEnter(InGameState::GameOver) BEFORE setup_game_over_screen
+/// This system runs on OnEnter(InGameState::ScoreScreen) BEFORE setup_game_over_screen
 /// to save efficiency, but DOES NOT update the level yet (that happens after UI displays).
 pub(super) fn save_efficiency_to_config(
     current_level: Res<CurrentLevel>,
@@ -74,6 +74,7 @@ pub(super) fn setup_game_over_screen(
     kill_stats: Res<KillStats>,
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
+    battle_insight: Res<BattleInsightData>,
 ) {
     // Load lifetime stats (already accumulated by send_battle_ended)
     let save = load_unified_save();
@@ -165,6 +166,19 @@ pub(super) fn setup_game_over_screen(
                         &BUTTON_STYLE,
                     );
 
+                    // Return to Tower button (only on defeat)
+                    if matches!(
+                        *game_outcome,
+                        GameOutcome::Defeat | GameOutcome::DefeatKingDied
+                    ) {
+                        spawn_button(
+                            buttons,
+                            "Return to Tower",
+                            GameOverButtonAction::ReturnToTower,
+                            &BUTTON_STYLE,
+                        );
+                    }
+
                     // Return to Menu button
                     spawn_button(
                         buttons,
@@ -250,6 +264,19 @@ pub(super) fn setup_game_over_screen(
                         TextColor(TEXT_COLOR),
                     ));
 
+                    // Insight earned this battle
+                    stats.spawn((
+                        Text::new(format!(
+                            "  Insight Earned: +{}",
+                            battle_insight.insight_earned
+                        )),
+                        TextFont {
+                            font_size: 20.0,
+                            ..default()
+                        },
+                        TextColor(INSIGHT_COLOR),
+                    ));
+
                     // Past victory efficiency for current level (if exists)
                     if let Some(past_efficiency) =
                         config.efficiency_ratios.get(&current_level.0.to_string())
@@ -322,7 +349,6 @@ pub(super) fn handle_button_actions(
     button_query: Query<&GameOverButtonAction>,
     game_outcome: Res<GameOutcome>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
 ) {
@@ -330,22 +356,23 @@ pub(super) fn handle_button_actions(
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 GameOverButtonAction::PlayAgain => {
-                    // Victory: Go to Wizard Tower for progression
-                    // Defeat: Immediate retry, skip tower
                     match *game_outcome {
                         GameOutcome::Victory => {
-                            // Go to Wizard Tower (don't reset stats yet)
-                            next_in_game_state.set(InGameState::WizardTower);
+                            // Go to Wizard Tower for progression (direct, no Loading)
+                            next_app_state.set(AppState::MetaGame);
                         }
                         GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                            // Immediate retry: reset stats and reload
+                            // Immediate retry via Loading → InGame
                             kill_stats.reset();
                             next_app_state.set(AppState::Loading);
                         }
                     }
                 }
+                GameOverButtonAction::ReturnToTower => {
+                    kill_stats.reset();
+                    next_app_state.set(AppState::MetaGame);
+                }
                 GameOverButtonAction::ReturnToMenu => {
-                    // Reset stats, clear active save, and go to main menu
                     kill_stats.reset();
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);

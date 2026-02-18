@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::states::{AppState, InGameState, MenuState, PauseMenuState};
+use super::states::{AppState, InGameState, MenuState, MetaGameState, PauseMenuState};
 
 /// Manages all game states.
 ///
@@ -72,6 +72,7 @@ impl Plugin for StatePlugin {
         app.add_sub_state::<MenuState>();
         app.add_sub_state::<InGameState>();
         app.add_sub_state::<PauseMenuState>();
+        app.add_sub_state::<MetaGameState>();
 
         // Optional: Add state transition logging for debugging
         #[cfg(debug_assertions)]
@@ -82,6 +83,7 @@ impl Plugin for StatePlugin {
                 log_menu_state_transitions,
                 log_in_game_state_transitions,
                 log_pause_menu_state_transitions,
+                log_meta_game_state_transitions,
             ),
         );
     }
@@ -130,5 +132,17 @@ fn log_pause_menu_state_transitions(pause_menu_state: Option<Res<State<PauseMenu
         && state.is_changed()
     {
         info!("PauseMenuState changed to: {:?}", state.get());
+    }
+}
+
+/// Logs MetaGameState transitions for debugging.
+///
+/// Only enabled in debug builds.
+#[cfg(debug_assertions)]
+fn log_meta_game_state_transitions(meta_game_state: Option<Res<State<MetaGameState>>>) {
+    if let Some(state) = meta_game_state
+        && state.is_changed()
+    {
+        info!("MetaGameState changed to: {:?}", state.get());
     }
 }

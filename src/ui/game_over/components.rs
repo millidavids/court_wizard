@@ -8,5 +8,6 @@ pub(super) struct OnGameOverScreen;
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub(super) enum GameOverButtonAction {
     PlayAgain,
+    ReturnToTower,
     ReturnToMenu,
 }

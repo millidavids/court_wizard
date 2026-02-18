@@ -25,10 +25,10 @@ pub const DAMAGE_TYPE: DamageType = DamageType::Force;
 pub const DAMAGE_INTERVAL: f32 = 0.1;
 
 /// Width of the beam for both collision detection and visual rendering.
-pub const BEAM_WIDTH: f32 = 10.0;
+pub const BEAM_WIDTH: f32 = 16.0;
 
-/// Color of the beam (green).
-pub const BEAM_COLOR: Color = Color::srgb(0.0, 1.0, 0.0);
+/// Color of the beam (orange).
+pub const BEAM_COLOR: Color = Color::srgb(1.0, 0.6, 0.1);
 
 /// Mana cost per second while channeling.
 pub const MANA_COST_PER_SECOND: f32 = 20.0;

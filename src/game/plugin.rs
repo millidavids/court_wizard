@@ -9,9 +9,11 @@ use super::constants::ATTACK_CYCLE_DURATION;
 use super::drops::DropsPlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
-use super::messages::{AchievementUnlockedMessage, IngredientCollectedMessage};
+use super::messages::{
+    AchievementUnlockedMessage, IngredientCollectedMessage, SpellResearchedMessage,
+};
 use super::pathfinding::PathfindingPlugin;
-use super::resources::{CurrentLevel, GameOutcome, KillStats, RetryTracker};
+use super::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker};
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -78,9 +80,11 @@ impl Plugin for GamePlugin {
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()
             .init_resource::<RetryTracker>()
+            .init_resource::<BattleInsightData>()
             .insert_resource(GameOutcome::Victory)
             .add_message::<AchievementUnlockedMessage>()
             .add_message::<IngredientCollectedMessage>()
+            .add_message::<SpellResearchedMessage>()
             .add_plugins((
                 InputPlugin,
                 LoadingPlugin,
@@ -92,6 +96,10 @@ impl Plugin for GamePlugin {
                 DropsPlugin,
             ))
             .add_systems(
+                OnEnter(AppState::MetaGame),
+                shared_systems::init_level_from_config,
+            )
+            .add_systems(
                 OnEnter(AppState::InGame),
                 (
                     shared_systems::init_level_from_config,
@@ -100,7 +108,7 @@ impl Plugin for GamePlugin {
             )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             .add_systems(
-                OnExit(InGameState::GameOver),
+                OnExit(InGameState::ScoreScreen),
                 (
                     shared_systems::cleanup_for_replay,
                     shared_systems::reset_resources_for_replay,

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::state::{AppState, InGameState};
+use crate::state::InGameState;
 use crate::ui::plugin::ButtonActionSet;
 
 use super::components::SpellNameFadeTimer;
@@ -13,14 +13,8 @@ pub struct RuneDisplayPlugin;
 impl Plugin for RuneDisplayPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            OnEnter(AppState::InGame),
-            systems::spawn_rune_display.run_if(run_conditions::is_rune_caster),
-        )
-        .add_systems(
             OnEnter(InGameState::Running),
-            systems::spawn_rune_display
-                .run_if(run_conditions::coming_from_game_over)
-                .run_if(run_conditions::is_rune_caster),
+            systems::spawn_rune_display.run_if(run_conditions::is_rune_caster),
         )
         .add_systems(
             Update,

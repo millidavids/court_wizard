@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions;
-use crate::state::{AppState, InGameState};
+use crate::state::InGameState;
 use crate::ui::plugin::ButtonActionSet;
 
 use super::messages::AssignSpellToSlot;
@@ -14,11 +13,7 @@ pub struct ActionBarPlugin;
 impl Plugin for ActionBarPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<AssignSpellToSlot>()
-            .add_systems(OnEnter(AppState::InGame), systems::spawn_action_bar)
-            .add_systems(
-                OnEnter(InGameState::Running),
-                systems::spawn_action_bar.run_if(run_conditions::coming_from_game_over),
-            )
+            .add_systems(OnEnter(InGameState::Running), systems::spawn_action_bar)
             .add_systems(
                 Update,
                 (

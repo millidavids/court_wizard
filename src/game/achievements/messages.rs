@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::resources::GameOutcome;
 
-/// Message sent when a battle ends (entering GameOver state).
+/// Message sent when a battle ends (entering ScoreScreen state).
 /// Carries a snapshot of all data needed by achievement check systems.
 #[derive(Message)]
 pub(crate) struct BattleEndedMessage {

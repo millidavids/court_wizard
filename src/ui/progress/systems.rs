@@ -6,7 +6,9 @@ use bevy::prelude::*;
 use bevy::ui::ComputedNode;
 
 use crate::config::WizardType;
-use crate::config::save_data::{AchievementId, clear_progress, load_unified_save};
+use crate::config::save_data::{
+    AchievementId, clear_progress, get_insight, get_spell_research_progress, load_unified_save,
+};
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::wizard::components::Spell;
 use crate::ui::systems::spawn_button;
@@ -17,9 +19,9 @@ use super::components::{
 };
 use super::constants::{
     BUTTON_STYLE, COLUMN_GAP, COLUMN_TITLE_FONT_SIZE, COMPLETED_COLOR, DANGER_BUTTON_STYLE,
-    DESCRIPTION_COLOR, ITEM_DESC_FONT_SIZE, ITEM_NAME_FONT_SIZE, LOCKED_COLOR, MARGIN,
-    MARGIN_SMALL, SECTION_BG, SECTION_PADDING, STAT_LABEL_COLOR, STAT_VALUE_FONT_SIZE, TEXT_COLOR,
-    TITLE_FONT_SIZE, UNLOCKED_COLOR,
+    DESCRIPTION_COLOR, IN_PROGRESS_COLOR, INSIGHT_COLOR, ITEM_DESC_FONT_SIZE, ITEM_NAME_FONT_SIZE,
+    LOCKED_COLOR, MARGIN, MARGIN_SMALL, SECTION_BG, SECTION_PADDING, STAT_LABEL_COLOR,
+    STAT_VALUE_FONT_SIZE, TEXT_COLOR, TITLE_FONT_SIZE, UNLOCKED_COLOR,
 };
 
 /// Spawns the progress screen UI.
@@ -104,12 +106,14 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
             })
             .with_children(|columns| {
                 // Statistics column
+                let insight_balance = get_insight();
                 spawn_column(columns, "Statistics", |section| {
                     spawn_stat_row(section, "Games Played", total_games);
                     spawn_stat_row(section, "Victories", total_victories);
                     spawn_stat_row(section, "Attackers Killed", total_attackers);
                     spawn_stat_row(section, "Defenders Lost", total_defenders);
                     spawn_stat_row(section, "Undead Killed", total_undead);
+                    spawn_insight_row(section, "Arcane Insight", insight_balance);
                 });
 
                 // Achievements column (unlocked first)
@@ -127,27 +131,30 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                     }
                 });
 
-                // Spells column (unlocked first)
+                // Spells column (researched first, then in-progress, then locked)
                 spawn_column(columns, "Spells", |section| {
                     let mut spells: Vec<_> = Spell::all()
                         .iter()
                         .map(|spell| {
                             let debug_name = format!("{:?}", spell);
                             let is_unlocked = unlocked_content.spells.contains(&debug_name);
-                            (spell, is_unlocked)
+                            let progress = get_spell_research_progress(*spell);
+                            let cost = spell.research_cost();
+                            (spell, is_unlocked, progress, cost)
                         })
                         .collect();
-                    spells.sort_by_key(|(_, unlocked)| !unlocked);
-                    for (spell, is_unlocked) in spells {
-                        let name = spell.name().replace('\n', " ");
-                        spawn_unlockable_row(
-                            section,
-                            &name,
-                            None,
-                            spell.locked_description(),
-                            is_unlocked,
-                            false, // Don't show name when locked - only show joke text
-                        );
+                    // Sort: unlocked first, then in-progress (has progress), then locked
+                    spells.sort_by_key(|(_, unlocked, progress, _)| {
+                        if *unlocked {
+                            0
+                        } else if *progress > 0 {
+                            1
+                        } else {
+                            2
+                        }
+                    });
+                    for (spell, is_unlocked, progress, cost) in spells {
+                        spawn_spell_research_row(section, spell, is_unlocked, progress, cost);
                     }
                 });
 
@@ -319,6 +326,138 @@ fn spawn_stat_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
                 },
                 TextColor(TEXT_COLOR),
             ));
+        });
+}
+
+/// Spawns a stat row with Insight-colored value.
+fn spawn_insight_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(2.0),
+            ..default()
+        })
+        .with_children(|row| {
+            row.spawn((
+                Text::new(label),
+                TextFont {
+                    font_size: ITEM_NAME_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(STAT_LABEL_COLOR),
+            ));
+
+            row.spawn((
+                Text::new(format!("{}", value)),
+                TextFont {
+                    font_size: STAT_VALUE_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(INSIGHT_COLOR),
+            ));
+        });
+}
+
+/// Spawns a spell row showing research progress.
+fn spawn_spell_research_row(
+    parent: &mut ChildSpawnerCommands,
+    spell: &Spell,
+    is_unlocked: bool,
+    progress: u32,
+    cost: u32,
+) {
+    let is_default = cost == 0;
+
+    let (indicator, indicator_color) = if is_unlocked {
+        ("*", COMPLETED_COLOR)
+    } else if progress > 0 {
+        ("~", IN_PROGRESS_COLOR)
+    } else {
+        ("-", LOCKED_COLOR)
+    };
+
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(MARGIN_SMALL),
+            ..default()
+        })
+        .with_children(|row| {
+            // Status indicator
+            row.spawn((
+                Text::new(indicator),
+                TextFont {
+                    font_size: ITEM_NAME_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(indicator_color),
+                Node {
+                    width: Val::Px(16.0),
+                    ..default()
+                },
+            ));
+
+            if is_unlocked {
+                // Researched spell: show name
+                row.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(2.0),
+                    ..default()
+                })
+                .with_children(|col| {
+                    col.spawn((
+                        Text::new(spell.display_name()),
+                        TextFont {
+                            font_size: ITEM_NAME_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(if is_default {
+                            UNLOCKED_COLOR
+                        } else {
+                            COMPLETED_COLOR
+                        }),
+                    ));
+                });
+            } else if progress > 0 {
+                // In-progress: show name + progress
+                row.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(2.0),
+                    ..default()
+                })
+                .with_children(|col| {
+                    col.spawn((
+                        Text::new(spell.display_name()),
+                        TextFont {
+                            font_size: ITEM_NAME_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(IN_PROGRESS_COLOR),
+                    ));
+
+                    col.spawn((
+                        Text::new(format!("Researching: {}/{}", progress, cost)),
+                        TextFont {
+                            font_size: ITEM_DESC_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(IN_PROGRESS_COLOR),
+                    ));
+                });
+            } else {
+                // Locked: show flavor text only
+                row.spawn((
+                    Text::new(spell.locked_description()),
+                    TextFont {
+                        font_size: ITEM_DESC_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(LOCKED_COLOR),
+                ));
+            }
         });
 }
 

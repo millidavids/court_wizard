@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::game::units::DamageType;
 
 /// Available spells.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component, Serialize, Deserialize)]
 pub enum Spell {
     MagicMissile,
     Disintegrate,
@@ -23,6 +23,66 @@ pub enum Spell {
     SpikeGrowth,
     LightningRod,
     Telekinesis,
+}
+
+/// Spell categories for organizing the spell book.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpellCategory {
+    Offense,
+    Control,
+    Support,
+    Utility,
+}
+
+impl SpellCategory {
+    /// Returns all categories in display order.
+    pub const fn all() -> &'static [SpellCategory] {
+        &[
+            SpellCategory::Offense,
+            SpellCategory::Control,
+            SpellCategory::Support,
+            SpellCategory::Utility,
+        ]
+    }
+
+    /// Returns the display name for this category.
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            SpellCategory::Offense => "Offense",
+            SpellCategory::Control => "Control",
+            SpellCategory::Support => "Support",
+            SpellCategory::Utility => "Utility",
+        }
+    }
+
+    /// Returns all spells in this category, in display order.
+    pub const fn spells(&self) -> &'static [Spell] {
+        match self {
+            SpellCategory::Offense => &[
+                Spell::MagicMissile,
+                Spell::Disintegrate,
+                Spell::Fireball,
+                Spell::ChainLightning,
+                Spell::FingerOfDeath,
+                Spell::LightningRod,
+            ],
+            SpellCategory::Control => &[
+                Spell::BlackHole,
+                Spell::WallOfStone,
+                Spell::WallOfFire,
+                Spell::Entangle,
+                Spell::SpikeGrowth,
+                Spell::Squall,
+            ],
+            SpellCategory::Support => &[
+                Spell::GuardianCircle,
+                Spell::Haste,
+                Spell::Teleport,
+                Spell::RaiseTheDead,
+            ],
+            SpellCategory::Utility => &[Spell::Telekinesis],
+        }
+    }
 }
 
 impl Spell {
@@ -47,6 +107,55 @@ impl Spell {
             Spell::LightningRod,
             Spell::Telekinesis,
         ]
+    }
+
+    /// Returns the category this spell belongs to.
+    #[allow(dead_code)]
+    pub const fn category(&self) -> SpellCategory {
+        match self {
+            Spell::MagicMissile
+            | Spell::Disintegrate
+            | Spell::Fireball
+            | Spell::ChainLightning
+            | Spell::FingerOfDeath
+            | Spell::LightningRod => SpellCategory::Offense,
+
+            Spell::BlackHole
+            | Spell::WallOfStone
+            | Spell::WallOfFire
+            | Spell::Entangle
+            | Spell::SpikeGrowth
+            | Spell::Squall => SpellCategory::Control,
+
+            Spell::GuardianCircle | Spell::Haste | Spell::Teleport | Spell::RaiseTheDead => {
+                SpellCategory::Support
+            }
+
+            Spell::Telekinesis => SpellCategory::Utility,
+        }
+    }
+
+    /// Returns a single-line display name for UI contexts (no newlines).
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            Spell::MagicMissile => "Magic Missile",
+            Spell::Disintegrate => "Disintegrate",
+            Spell::Fireball => "Fireball",
+            Spell::GuardianCircle => "Guardian Circle",
+            Spell::ChainLightning => "Chain Lightning",
+            Spell::FingerOfDeath => "Finger of Death",
+            Spell::RaiseTheDead => "Raise The Dead",
+            Spell::Teleport => "Teleport",
+            Spell::WallOfStone => "Wall of Stone",
+            Spell::BlackHole => "Black Hole",
+            Spell::Squall => "Squall",
+            Spell::WallOfFire => "Wall of Fire",
+            Spell::Entangle => "Entangle",
+            Spell::Haste => "Haste",
+            Spell::SpikeGrowth => "Spike Growth",
+            Spell::LightningRod => "Lightning Rod",
+            Spell::Telekinesis => "Telekinesis",
+        }
     }
 
     /// Returns the display name for this spell with newlines between words.
@@ -206,11 +315,10 @@ impl Spell {
     }
 
     /// Returns the type of damage this spell deals.
-    #[allow(dead_code)]
     pub const fn damage_type(&self) -> DamageType {
         match self {
             Spell::MagicMissile => DamageType::Force,
-            Spell::Disintegrate => DamageType::Force,
+            Spell::Disintegrate => DamageType::Fire,
             Spell::Fireball => DamageType::Fire,
             Spell::ChainLightning => DamageType::Electric,
             Spell::BlackHole => DamageType::Force,
@@ -227,6 +335,77 @@ impl Spell {
             Spell::LightningRod => DamageType::Electric,
             Spell::Telekinesis => DamageType::Force,
         }
+    }
+
+    /// Returns the Arcane Insight cost to research this spell.
+    /// Default spells (MagicMissile, Telekinesis) have cost 0 — they start unlocked.
+    pub const fn research_cost(&self) -> u32 {
+        match self {
+            Spell::MagicMissile | Spell::Telekinesis => 0,
+            // Root spells (immediately researchable)
+            Spell::Disintegrate => 30,
+            Spell::Entangle => 30,
+            Spell::ChainLightning => 30,
+            Spell::FingerOfDeath => 30,
+            Spell::GuardianCircle => 30,
+            Spell::WallOfStone => 30,
+            // Second-tier (requires predecessor)
+            Spell::Fireball => 50,
+            Spell::SpikeGrowth => 60,
+            Spell::LightningRod => 60,
+            Spell::RaiseTheDead => 60,
+            Spell::Haste => 60,
+            Spell::Teleport => 60,
+            // Third-tier
+            Spell::WallOfFire => 80,
+            // Misc (require N total spells researched)
+            Spell::Squall => 70,
+            Spell::BlackHole => 120,
+        }
+    }
+
+    /// Returns the prerequisite spell that must be researched first, if any.
+    pub const fn prerequisite(&self) -> Option<Spell> {
+        match self {
+            // Fire chain: Disintegrate → Fireball → Wall of Fire
+            Spell::Fireball => Some(Spell::Disintegrate),
+            Spell::WallOfFire => Some(Spell::Fireball),
+            // Nature chain: Entangle → Spike Growth
+            Spell::SpikeGrowth => Some(Spell::Entangle),
+            // Electric chain: Chain Lightning → Lightning Rod
+            Spell::LightningRod => Some(Spell::ChainLightning),
+            // Necrotic chain: Finger of Death → Raise the Dead
+            Spell::RaiseTheDead => Some(Spell::FingerOfDeath),
+            // Force chains: Guardian Circle → Haste, Wall of Stone → Teleport
+            Spell::Haste => Some(Spell::GuardianCircle),
+            Spell::Teleport => Some(Spell::WallOfStone),
+            _ => None,
+        }
+    }
+
+    /// Returns the minimum number of total spells that must be researched
+    /// before this spell becomes available (0 = no requirement).
+    /// Used for miscellaneous spells not in a prerequisite chain.
+    pub const fn required_total_spells(&self) -> u32 {
+        match self {
+            Spell::Squall => 4,
+            Spell::BlackHole => 8,
+            _ => 0,
+        }
+    }
+
+    /// Returns true if this spell is researchable (not a default spell).
+    pub const fn is_researchable(&self) -> bool {
+        self.research_cost() > 0
+    }
+
+    /// Returns all researchable spells (excludes MagicMissile and Telekinesis).
+    pub fn researchable() -> Vec<Spell> {
+        Spell::all()
+            .iter()
+            .copied()
+            .filter(|s| s.is_researchable())
+            .collect()
     }
 }
 

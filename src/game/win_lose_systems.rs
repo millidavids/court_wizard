@@ -6,7 +6,7 @@ use super::resources::GameOutcome;
 use super::units::components::{Corpse, Team};
 use super::units::king::components::King;
 
-/// Checks win/lose conditions every frame and transitions to GameOver state.
+/// Checks win/lose conditions every frame and transitions to ScoreScreen state.
 ///
 /// Win: All Attackers AND Undead are dead (only Defenders remain)
 /// Lose: All Defenders are dead OR King is dead
@@ -20,7 +20,7 @@ pub fn check_win_lose_conditions(
     // If a dead King corpse exists, the game is lost
     if dead_kings.iter().next().is_some() {
         *game_outcome = GameOutcome::DefeatKingDied;
-        next_state.set(InGameState::GameOver);
+        next_state.set(InGameState::ScoreScreen);
         return;
     }
 
@@ -39,13 +39,13 @@ pub fn check_win_lose_conditions(
     // Check lose condition: no defenders left
     if defenders_alive == 0 {
         *game_outcome = GameOutcome::Defeat;
-        next_state.set(InGameState::GameOver);
+        next_state.set(InGameState::ScoreScreen);
         return;
     }
 
     // Check win condition: no attackers AND no undead left
     if attackers_alive == 0 && undead_alive == 0 {
         *game_outcome = GameOutcome::Victory;
-        next_state.set(InGameState::GameOver);
+        next_state.set(InGameState::ScoreScreen);
     }
 }

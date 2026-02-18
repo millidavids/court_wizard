@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.128] - 2026-02-17
+
+### Added
+- **Spell Research System** — you now learn new spells by studying them at the Wizard's Tower between battles instead of getting them from achievements
+- **Arcane Insight** — a new currency earned after every battle (wins and losses!) based on how well you fight
+- **Wizard's Tower overhaul** — the between-battle screen now shows a full spellbook with research progress for every spell
+- Spells are organized into elemental chains — master one spell to unlock the next in its school
+- Using a spell's element in battle gives double research speed for related spells
+- Achievements now grant bonus Arcane Insight instead of unlocking spells directly
+- The game over screen shows how much Insight you earned
+- The progress screen now shows your research progress and Arcane Insight balance
+- A "Spell Researched!" notification pops up when you complete a spell
+- **Redesigned Spell Book** — the in-battle spell menu now has a two-column layout with spell details on the left and a categorized spell list on the right
+- Spells are organized into categories: Offense, Control, Support, and Utility
+- Click any spell in the list to see its full description, damage type, and casting instructions
+- Assign spells to hotkey slots (1-5) directly from the spell detail panel
+- **Return to Tower button** — when you lose a battle, you can now go back to the Wizard's Tower instead of only retrying or quitting
+
+### Changed
+- Disintegrate is now a Fire spell (was Force)
+- Swapped the order of buttons on the Wizard's Tower — "Start Next Battle" is now on top
+
+### Fixed
+- Fixed the cast bar turning black and mana bar stopping after brewing a potion
+- Fixed the Wizard's Tower showing "Level 1" instead of your actual level when first loading the game
+
 ## [v0.1.100] - 2026-02-17
 
 ### Added

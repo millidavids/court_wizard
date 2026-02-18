@@ -15,7 +15,7 @@ impl Plugin for RoulettePlugin {
         app.init_resource::<RouletteState>()
             .add_message::<RouletteSpinMessage>()
             .add_systems(
-                OnEnter(InGameState::GameOver),
+                OnEnter(InGameState::ScoreScreen),
                 systems::reset_roulette_state.run_if(run_conditions::is_randomancer),
             )
             .add_systems(

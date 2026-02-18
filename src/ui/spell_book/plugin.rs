@@ -26,9 +26,11 @@ impl Plugin for SpellBookPlugin {
                 Update,
                 (
                     systems::button_action.in_set(ButtonActionSet),
+                    systems::handle_hotkey_click.in_set(ButtonActionSet),
                     systems::keyboard_input,
                     systems::handle_spell_scroll,
-                    systems::handle_spell_hover_assignment,
+                    systems::handle_number_key_assignment,
+                    systems::update_detail_panel,
                 )
                     .run_if(in_state(InGameState::SpellBook)),
             )

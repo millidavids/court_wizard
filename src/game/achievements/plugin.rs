@@ -29,7 +29,7 @@ impl Plugin for AchievementsPlugin {
             .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
-            // NOTE: send_battle_ended is registered in GameOverPlugin's chain
+            // NOTE: send_battle_ended is registered in ScoreScreenPlugin's chain
             // for explicit ordering with save_efficiency/setup_game_over_screen.
             // Victory & Progression achievement systems
             .add_systems(

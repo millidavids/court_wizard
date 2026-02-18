@@ -36,7 +36,7 @@ impl Plugin for ArcanoRouterPlugin {
                     .run_if(is_arcanorouter),
             )
             .add_systems(
-                OnEnter(InGameState::GameOver),
+                OnEnter(InGameState::ScoreScreen),
                 reset_allocations_on_game_over.run_if(is_arcanorouter),
             );
     }

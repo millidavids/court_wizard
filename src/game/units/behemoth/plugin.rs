@@ -6,7 +6,7 @@ use super::messages::*;
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;
-use crate::game::run_conditions::coming_from_game_over;
+
 use crate::game::shared_systems;
 use crate::game::units::MovementCalculationSet;
 use crate::state::InGameState;
@@ -19,11 +19,6 @@ impl Plugin for BehemothPlugin {
             // Register message
             .add_message::<BehemothAttackMessage>()
             .add_systems(Startup, resources::preload_behemoth_assets)
-            // Spawn after GameOver for replay
-            .add_systems(
-                OnEnter(InGameState::Running),
-                spawn_initial_behemoths.run_if(coming_from_game_over),
-            )
             // Update systems during Running state
             .add_systems(
                 Update,

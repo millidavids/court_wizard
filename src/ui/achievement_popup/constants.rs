@@ -34,3 +34,17 @@ pub(super) const INGREDIENT_HEADER_COLOR: Color = Color::srgb(0.4, 0.9, 0.4);
 
 /// Ingredient name text color.
 pub(super) const INGREDIENT_TITLE_COLOR: Color = Color::srgb(0.85, 0.95, 0.85);
+
+// ===== Spell Researched Popup Colors =====
+
+/// Background color of the spell researched popup.
+pub(super) const SPELL_BACKGROUND_COLOR: Color = Color::srgba(0.06, 0.08, 0.16, 0.92);
+
+/// Border color for spell researched popups (blue/arcane).
+pub(super) const SPELL_BORDER_COLOR: Color = Color::srgb(0.4, 0.6, 1.0);
+
+/// "Spell Researched!" header color.
+pub(super) const SPELL_HEADER_COLOR: Color = Color::srgb(0.5, 0.7, 1.0);
+
+/// Spell name text color.
+pub(super) const SPELL_TITLE_COLOR: Color = Color::srgb(0.85, 0.9, 1.0);

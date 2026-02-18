@@ -1,14 +1,16 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::{
-    accumulate_kill_stats, get_total_levels_completed, increment_games_played,
-    increment_levels_completed, unlock_achievement, unlock_spell,
+    accumulate_kill_stats, get_total_levels_completed, grant_achievement_insight, grant_insight,
+    increment_games_played, increment_levels_completed, unlock_achievement,
 };
 use crate::config::{GameConfig, WizardType};
 use crate::game::messages::AchievementUnlockedMessage;
-use crate::game::resources::{CurrentLevel, GameOutcome, KillStats, RetryTracker};
+use crate::game::resources::{
+    BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker,
+};
 use crate::game::units::components::{Corpse, Team};
-use crate::game::units::wizard::components::{CastingState, Spell, Wizard};
+use crate::game::units::wizard::components::{CastingState, PrimedSpell, Wizard};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
@@ -30,7 +32,7 @@ fn do_unlock<T: AchievementResource>(
 }
 
 // ---------------------------------------------------------------------------
-// send_battle_ended — runs OnEnter(InGameState::GameOver)
+// send_battle_ended — runs OnEnter(InGameState::ScoreScreen)
 // ---------------------------------------------------------------------------
 
 /// Collects battle data, updates meta-progression counters, and writes `BattleEndedMessage`.
@@ -42,6 +44,7 @@ pub(crate) fn send_battle_ended(
     kill_stats: Res<KillStats>,
     mut retry_tracker: ResMut<RetryTracker>,
     mut message: MessageWriter<BattleEndedMessage>,
+    mut battle_insight: ResMut<BattleInsightData>,
 ) {
     let is_victory = *game_outcome == GameOutcome::Victory;
 
@@ -74,6 +77,22 @@ pub(crate) fn send_battle_ended(
         config.highest_level_achieved
     };
 
+    // Calculate and grant Arcane Insight
+    let total_defenders = (crate::game::constants::INITIAL_DEFENDER_COUNT
+        + crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT)
+        as f32;
+    let defenders_lost = kill_stats.defenders_killed as f32;
+    let efficiency = 1.0 - (defenders_lost / total_defenders).min(1.0);
+
+    let mut insight = 5 + (current_level.0 * 2); // Base: 5 + level * 2
+    if is_victory {
+        insight += 10; // Victory bonus
+    }
+    insight += (efficiency * 10.0) as u32; // Efficiency bonus: 0-10
+
+    battle_insight.insight_earned = insight;
+    grant_insight(insight);
+
     message.write(BattleEndedMessage {
         outcome: *game_outcome,
         total_wins,
@@ -100,8 +119,7 @@ pub(crate) fn check_first_victory(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 1 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::Fireball);
-            unlock_spell(Spell::GuardianCircle);
+            grant_achievement_insight(FirstVictoryAchievement::achievement_id());
         }
     }
 }
@@ -114,8 +132,7 @@ pub(crate) fn check_apprentice_wizard(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 5 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::Disintegrate);
-            unlock_spell(Spell::Teleport);
+            grant_achievement_insight(ApprenticeWizardAchievement::achievement_id());
         }
     }
 }
@@ -128,8 +145,7 @@ pub(crate) fn check_court_wizard(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 10 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::ChainLightning);
-            unlock_spell(Spell::WallOfStone);
+            grant_achievement_insight(CourtWizardAchievement::achievement_id());
         }
     }
 }
@@ -142,7 +158,7 @@ pub(crate) fn check_archmage(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 25 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::Squall);
+            grant_achievement_insight(ArchmageAchievement::achievement_id());
         }
     }
 }
@@ -155,7 +171,7 @@ pub(crate) fn check_legends_speak_your_name(
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && m.total_wins >= 50 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::BlackHole);
+            grant_achievement_insight(LegendsSpeakYourNameAchievement::achievement_id());
         }
     }
 }
@@ -258,7 +274,7 @@ pub(crate) fn check_the_king_is_dead(
     for m in msg.read() {
         if m.outcome == GameOutcome::DefeatKingDied {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::RaiseTheDead);
+            grant_achievement_insight(TheKingIsDeadAchievement::achievement_id());
         }
     }
 }
@@ -376,7 +392,7 @@ pub(crate) fn check_friendly_fire(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_spell(Spell::FingerOfDeath);
+        grant_achievement_insight(FriendlyFireAchievement::achievement_id());
     }
 }
 
@@ -396,7 +412,7 @@ pub(crate) fn track_multi_kills(
         let kill_count = tracker.register_kill();
         if kill_count >= 3 {
             do_unlock(&mut res, &mut events);
-            unlock_spell(Spell::LightningRod);
+            grant_achievement_insight(ChainReactionAchievement::achievement_id());
         }
     }
 }
@@ -421,13 +437,23 @@ pub(crate) fn check_slider_fiddler(
 // ---------------------------------------------------------------------------
 
 /// Detects when the wizard's CastingState transitions to Casting and writes a SpellCastMessage.
+/// Also records the damage type of the cast spell for Insight tracking.
 pub(crate) fn detect_spell_cast(
-    wizard_query: Query<&CastingState, (With<Wizard>, Changed<CastingState>)>,
+    wizard_query: Query<
+        (&CastingState, Option<&PrimedSpell>),
+        (With<Wizard>, Changed<CastingState>),
+    >,
     mut msg: MessageWriter<SpellCastMessage>,
+    mut battle_insight: ResMut<BattleInsightData>,
 ) {
-    for casting_state in &wizard_query {
+    for (casting_state, primed_spell) in &wizard_query {
         if matches!(casting_state, CastingState::Casting { .. }) {
             msg.write(SpellCastMessage);
+            if let Some(primed) = primed_spell {
+                battle_insight
+                    .damage_types_used
+                    .insert(primed.spell.damage_type());
+            }
         }
     }
 }
@@ -510,7 +536,7 @@ pub(crate) fn check_out_of_range(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_spell(Spell::Haste);
+        grant_achievement_insight(OutOfRangeAchievement::achievement_id());
     }
 }
 
@@ -521,7 +547,7 @@ pub(crate) fn check_scorched_earth(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_spell(Spell::WallOfFire);
+        grant_achievement_insight(ScorchedEarthAchievement::achievement_id());
     }
 }
 
@@ -532,7 +558,7 @@ pub(crate) fn check_protective_instincts(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_spell(Spell::Entangle);
+        grant_achievement_insight(ProtectiveInstinctsAchievement::achievement_id());
     }
 }
 
@@ -543,6 +569,6 @@ pub(crate) fn check_friendly_thorns(
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        unlock_spell(Spell::SpikeGrowth);
+        grant_achievement_insight(FriendlyThornsAchievement::achievement_id());
     }
 }

@@ -462,13 +462,14 @@ pub(super) fn button_action(
             }
             WizardSelectButtonAction::Play => {
                 let wizard_type = preview.0;
+                // Go directly to MetaGame (wizard tower) — no Loading needed
                 if save_data::load_wizard_type_into_config(
                     wizard_type,
                     &mut game_config,
                     &mut active_save,
                 ) {
                     config_events.write(ConfigChanged);
-                    next_app_state.set(AppState::Loading);
+                    next_app_state.set(AppState::MetaGame);
                 } else {
                     let wizard_id = save_data::create_wizard(wizard_type);
                     game_config.wizard_type = wizard_type;
@@ -478,7 +479,7 @@ pub(super) fn button_action(
                     game_config.action_bar_slots = [None; 5];
                     active_save.0 = Some(wizard_id);
                     config_events.write(ConfigChanged);
-                    next_app_state.set(AppState::Loading);
+                    next_app_state.set(AppState::MetaGame);
                 }
             }
             WizardSelectButtonAction::Back => {

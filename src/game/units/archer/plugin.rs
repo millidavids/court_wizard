@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::components::{Archer, Arrow};
 use super::resources;
 use super::systems::*;
-use crate::game::run_conditions::{any_exist, coming_from_game_over};
+use crate::game::run_conditions::any_exist;
 use crate::state::InGameState;
 
 pub struct ArcherPlugin;
@@ -11,14 +11,6 @@ pub struct ArcherPlugin;
 impl Plugin for ArcherPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, resources::preload_archer_assets)
-            .add_systems(
-                OnEnter(InGameState::Running),
-                (
-                    spawn_initial_defender_archers,
-                    spawn_initial_attacker_archers,
-                )
-                    .run_if(coming_from_game_over),
-            )
             .add_systems(
                 Update,
                 (

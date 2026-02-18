@@ -7,9 +7,13 @@ use bevy::prelude::*;
 ///
 /// # State Transitions
 ///
-/// - `MainMenu` → `Loading`: Player starts a new game
+/// - `MainMenu` → `MetaGame`: Player selects a wizard and clicks Play
+/// - `MetaGame` → `Loading`: Player clicks Start Next Battle
 /// - `Loading` → `InGame`: Assets loaded and units spawned
-/// - `InGame` → `MainMenu`: Player quits to main menu from pause or game over
+/// - `InGame` → `MetaGame`: Player wins and clicks Continue (score screen)
+/// - `InGame` → `Loading`: Player loses and clicks Try Again (immediate retry)
+/// - `MetaGame` → `MainMenu`: Player clicks Return to Menu
+/// - `InGame` → `MainMenu`: Player quits from pause or score screen
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 #[allow(dead_code)] // Variants will be used as game features are implemented
 pub enum AppState {
@@ -19,6 +23,9 @@ pub enum AppState {
 
     /// Loading state - progressively spawning units to avoid blocking.
     Loading,
+
+    /// Meta-game state - wizard tower progression between battles.
+    MetaGame,
 
     /// Active gameplay state.
     InGame,
@@ -74,10 +81,7 @@ pub enum MenuState {
 /// - `SpellBook` → `Running`: Player selects a spell or closes spell book
 /// - `Running` → `CauldronMenu`: Player clicks Cauldron button
 /// - `CauldronMenu` → `Running`: Player selects a brew or closes cauldron menu
-/// - `Running` → `GameOver`: Game ends (win or lose)
-/// - `GameOver` → `WizardTower`: Player wins and clicks Continue
-/// - `GameOver` → `Loading`: Player loses and clicks Try Again (immediate retry)
-/// - `WizardTower` → `Loading`: Player clicks Start Next Battle
+/// - `Running` → `ScoreScreen`: Game ends (win or lose)
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::InGame)]
 pub enum InGameState {
@@ -94,11 +98,23 @@ pub enum InGameState {
     /// Cauldron brew selection screen.
     CauldronMenu,
 
-    /// Game over screen (win or lose).
-    GameOver,
+    /// Score screen shown after battle ends (win or lose).
+    ScoreScreen,
+}
 
-    /// Wizard's Tower screen - progression and maintenance between battles.
+/// MetaGame sub-state for wizard tower progression screens.
+///
+/// This is a SubState that only exists when AppState::MetaGame is active.
+/// When the meta-game is exited, this state is automatically cleaned up.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
+#[source(AppState = AppState::MetaGame)]
+pub enum MetaGameState {
+    /// Wizard's Tower hub screen.
+    #[default]
     WizardTower,
+
+    /// Spell research screen with allocation sliders and commit.
+    Study,
 }
 
 /// Pause menu navigation state.

@@ -10,6 +10,8 @@ pub(super) const UNLOCKED_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
 pub(super) const LOCKED_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
 pub(super) const COMPLETED_COLOR: Color = Color::srgb(0.3, 0.85, 0.3);
 pub(super) const DESCRIPTION_COLOR: Color = Color::srgb(0.6, 0.6, 0.6);
+pub(super) const INSIGHT_COLOR: Color = Color::srgb(0.5, 0.7, 1.0);
+pub(super) const IN_PROGRESS_COLOR: Color = Color::srgb(0.5, 0.65, 0.9);
 pub(super) const SECTION_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.8);
 
 // Font sizes

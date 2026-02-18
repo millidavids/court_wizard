@@ -591,9 +591,9 @@ pub fn cleanup_game(
     }
 }
 
-/// Cleans up game entities when replaying (transitioning from GameOver to Running).
+/// Cleans up game entities when replaying (transitioning from ScoreScreen).
 ///
-/// This system runs on OnExit(InGameState::GameOver) and despawns all game entities
+/// This system runs on OnExit(InGameState::ScoreScreen) and despawns all game entities
 /// in preparation for re-spawning them fresh.
 pub fn cleanup_for_replay(
     mut commands: Commands,
@@ -728,20 +728,22 @@ pub fn enforce_wall_collision(
     }
 }
 
-/// Resets game resources when replaying (transitioning from GameOver to Running).
+/// Resets game resources when replaying (transitioning from ScoreScreen).
 ///
-/// This system runs on OnExit(InGameState::GameOver) and resets resources like
+/// This system runs on OnExit(InGameState::ScoreScreen) and resets resources like
 /// the attack cycle timer and defender activation status.
 pub fn reset_resources_for_replay(
     mut attack_cycle: ResMut<super::plugin::GlobalAttackCycle>,
     mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
     mut king_spawned: ResMut<KingSpawned>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
+    mut battle_insight: ResMut<super::resources::BattleInsightData>,
 ) {
     attack_cycle.current_time = 0.0;
     defenders_activated.active = false;
     king_spawned.0 = false;
     cauldron_buffs.reset();
+    *battle_insight = Default::default();
 }
 
 /// Activates all defenders when any defender is close enough to an enemy.

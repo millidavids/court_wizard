@@ -2,11 +2,13 @@ use bevy::prelude::*;
 
 use crate::config::save_data::AchievementId;
 use crate::game::cauldron::brews::Ingredient;
+use crate::game::units::wizard::components::Spell;
 
-/// A queued popup entry — either an achievement or an ingredient collection.
+/// A queued popup entry — either an achievement, ingredient, or spell research.
 pub(super) enum PopupEntry {
     Achievement(AchievementId),
     IngredientCollected(Ingredient),
+    SpellResearched(Spell),
 }
 
 /// Marker for the popup root entity.

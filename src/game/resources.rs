@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
+use super::units::DamageType;
 use super::units::components::Team;
 
 /// Tracks kill statistics throughout the game for the score screen.
@@ -80,4 +83,13 @@ pub struct RetryTracker {
     pub level: u32,
     /// Number of consecutive attempts at this level.
     pub attempts: u32,
+}
+
+/// Tracks battle data used to calculate Arcane Insight earned.
+#[derive(Resource, Default)]
+pub struct BattleInsightData {
+    /// Set of damage types the wizard cast during this battle.
+    pub damage_types_used: HashSet<DamageType>,
+    /// Total Insight earned this battle (calculated at battle end).
+    pub insight_earned: u32,
 }

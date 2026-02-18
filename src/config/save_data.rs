@@ -48,6 +48,12 @@ pub(crate) struct PlayerMetaProgress {
     pub(crate) unlocked_achievements: Vec<String>,
     #[serde(default)]
     pub(crate) unlocked_content: UnlockedContent,
+    /// Spendable Arcane Insight currency (earned from battles).
+    #[serde(default)]
+    pub(crate) arcane_insight: u32,
+    /// Per-spell research progress: spell debug name → insight invested so far.
+    #[serde(default)]
+    pub(crate) spell_research_progress: HashMap<String, u32>,
 }
 
 /// Tracks which content the player has unlocked (spells, ingredients, wizard types).
@@ -256,25 +262,44 @@ impl AchievementId {
         }
     }
 
-    /// Returns the unlock reward for this achievement (spell or wizard type).
+    /// Returns the unlock reward text for this achievement.
     pub(crate) fn unlock_reward(&self) -> Option<&'static str> {
         match self {
-            AchievementId::FirstVictory => Some("Unlocks: Fireball, Guardian Circle"),
-            AchievementId::FriendlyFire => Some("Unlocks: Finger of Death"),
-            AchievementId::ChainReaction => Some("Unlocks: Lightning Rod"),
-            AchievementId::TheKingIsDead => Some("Unlocks: Raise The Dead"),
-            AchievementId::ApprenticeWizard => Some("Unlocks: Disintegrate, Teleport"),
-            AchievementId::CourtWizard => Some("Unlocks: Chain Lightning, Wall of Stone"),
-            AchievementId::Archmage => Some("Unlocks: Squall"),
-            AchievementId::LegendsSpeakYourName => Some("Unlocks: Black Hole"),
+            AchievementId::FirstVictory => Some("Grants: 25 Arcane Insight"),
+            AchievementId::FriendlyFire => Some("Grants: 15 Arcane Insight"),
+            AchievementId::ChainReaction => Some("Grants: 20 Arcane Insight"),
+            AchievementId::TheKingIsDead => Some("Grants: 15 Arcane Insight"),
+            AchievementId::ApprenticeWizard => Some("Grants: 40 Arcane Insight"),
+            AchievementId::CourtWizard => Some("Grants: 60 Arcane Insight"),
+            AchievementId::Archmage => Some("Grants: 80 Arcane Insight"),
+            AchievementId::LegendsSpeakYourName => Some("Grants: 100 Arcane Insight"),
             AchievementId::SliderFiddler => Some("Unlocks: Arcanorouter wizard"),
             AchievementId::RandomMagicSurge => Some("Unlocks: Randomancer wizard"),
             AchievementId::Qwer => Some("Unlocks: Rune Caster wizard"),
-            AchievementId::OutOfRange => Some("Unlocks: Haste"),
-            AchievementId::ScorchedEarth => Some("Unlocks: Wall of Fire"),
-            AchievementId::ProtectiveInstincts => Some("Unlocks: Entangle"),
-            AchievementId::FriendlyThorns => Some("Unlocks: Spike Growth"),
+            AchievementId::OutOfRange => Some("Grants: 15 Arcane Insight"),
+            AchievementId::ScorchedEarth => Some("Grants: 15 Arcane Insight"),
+            AchievementId::ProtectiveInstincts => Some("Grants: 15 Arcane Insight"),
+            AchievementId::FriendlyThorns => Some("Grants: 15 Arcane Insight"),
             _ => None,
+        }
+    }
+
+    /// Returns the Arcane Insight reward for this achievement (0 if none).
+    pub(crate) fn insight_reward(&self) -> u32 {
+        match self {
+            AchievementId::FirstVictory => 25,
+            AchievementId::FriendlyFire => 15,
+            AchievementId::ChainReaction => 20,
+            AchievementId::TheKingIsDead => 15,
+            AchievementId::ApprenticeWizard => 40,
+            AchievementId::CourtWizard => 60,
+            AchievementId::Archmage => 80,
+            AchievementId::LegendsSpeakYourName => 100,
+            AchievementId::OutOfRange => 15,
+            AchievementId::ScorchedEarth => 15,
+            AchievementId::ProtectiveInstincts => 15,
+            AchievementId::FriendlyThorns => 15,
+            _ => 0,
         }
     }
 
@@ -358,19 +383,6 @@ pub(crate) fn unlock_wizard_type(wizard_type: WizardType) -> bool {
     true
 }
 
-/// Unlock a spell and persist immediately.
-/// Returns true if the spell was newly unlocked.
-pub(crate) fn unlock_spell(spell: Spell) -> bool {
-    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
-    let name = format!("{:?}", spell);
-    if save_file.player.unlocked_content.spells.contains(&name) {
-        return false;
-    }
-    save_file.player.unlocked_content.spells.push(name);
-    save_unified(&save_file);
-    true
-}
-
 /// Unlock an ingredient and persist immediately.
 /// Returns true if the ingredient was newly unlocked.
 pub(crate) fn unlock_ingredient(ingredient: crate::game::cauldron::brews::Ingredient) -> bool {
@@ -399,6 +411,8 @@ pub(crate) fn clear_progress() {
     save_file.player.total_defenders_killed = 0;
     save_file.player.total_attackers_killed = 0;
     save_file.player.total_undead_killed = 0;
+    save_file.player.arcane_insight = 0;
+    save_file.player.spell_research_progress.clear();
 
     // Reset all wizard saves to level 1
     for wizard in &mut save_file.wizards {
@@ -730,6 +744,86 @@ pub(crate) fn get_total_levels_completed() -> u32 {
     load_unified_save()
         .map(|s| s.player.total_levels_completed)
         .unwrap_or(0)
+}
+
+// ---------------------------------------------------------------------------
+// Arcane Insight & Spell Research
+// ---------------------------------------------------------------------------
+
+/// Grant Arcane Insight to the player and persist immediately.
+pub(crate) fn grant_insight(amount: u32) {
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+    save_file.player.arcane_insight += amount;
+    save_unified(&save_file);
+}
+
+/// Spend Arcane Insight. Returns true if the player had enough and it was deducted.
+pub(crate) fn spend_insight(amount: u32) -> bool {
+    let Some(mut save_file) = load_unified_save() else {
+        return false;
+    };
+    if save_file.player.arcane_insight < amount {
+        return false;
+    }
+    save_file.player.arcane_insight -= amount;
+    save_unified(&save_file);
+    true
+}
+
+/// Returns the player's current Arcane Insight balance.
+pub(crate) fn get_insight() -> u32 {
+    load_unified_save()
+        .map(|s| s.player.arcane_insight)
+        .unwrap_or(0)
+}
+
+/// Returns the research progress (insight invested) for a specific spell.
+pub(crate) fn get_spell_research_progress(spell: Spell) -> u32 {
+    let name = format!("{:?}", spell);
+    load_unified_save()
+        .and_then(|s| s.player.spell_research_progress.get(&name).copied())
+        .unwrap_or(0)
+}
+
+/// Add research progress to a spell and persist. Also unlocks the spell if cost is met.
+/// Returns true if the spell was newly unlocked by this progress.
+pub(crate) fn add_spell_research_progress(spell: Spell, amount: u32) -> bool {
+    let Some(mut save_file) = load_unified_save() else {
+        return false;
+    };
+    let name = format!("{:?}", spell);
+    let entry = save_file
+        .player
+        .spell_research_progress
+        .entry(name.clone())
+        .or_insert(0);
+    *entry += amount;
+
+    // Check if research is complete
+    let cost = spell.research_cost();
+    let newly_unlocked =
+        if *entry >= cost && !save_file.player.unlocked_content.spells.contains(&name) {
+            // Cap progress at cost
+            *entry = cost;
+            save_file.player.unlocked_content.spells.push(name);
+            true
+        } else {
+            false
+        };
+
+    save_unified(&save_file);
+    newly_unlocked
+}
+
+/// Grant one-time Insight bonus for an achievement. Returns the amount granted (0 if none).
+pub(crate) fn grant_achievement_insight(id: AchievementId) -> u32 {
+    let amount = id.insight_reward();
+    if amount > 0 {
+        grant_insight(amount);
+    }
+    amount
 }
 
 // ---------------------------------------------------------------------------

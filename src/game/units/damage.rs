@@ -4,8 +4,7 @@ use bevy::prelude::*;
 ///
 /// Damage types enable future implementations of resistances, vulnerabilities,
 /// and elemental interactions between spells and effects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component)]
-#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component)]
 pub enum DamageType {
     /// Physical force damage
     ///
@@ -29,4 +28,18 @@ pub enum DamageType {
     ///
     /// Dealt by: Entangle, Spike Growth
     Nature,
+}
+
+impl DamageType {
+    /// Returns a human-readable display name for this damage type.
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            DamageType::Force => "Force",
+            DamageType::Fire => "Fire",
+            DamageType::Electric => "Electric",
+            DamageType::Frost => "Frost",
+            DamageType::Necrotic => "Necrotic",
+            DamageType::Nature => "Nature",
+        }
+    }
 }

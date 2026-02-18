@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::config::save_data::AchievementId;
 use crate::game::cauldron::brews::Ingredient;
+use crate::game::units::wizard::components::Spell;
 
 /// Message sent when an achievement is unlocked during gameplay.
 #[derive(Message)]
@@ -13,4 +14,10 @@ pub(crate) struct AchievementUnlockedMessage {
 #[derive(Message)]
 pub(crate) struct IngredientCollectedMessage {
     pub(crate) ingredient: Ingredient,
+}
+
+/// Message sent when a spell is fully researched on the Wizard Tower screen.
+#[derive(Message)]
+pub(crate) struct SpellResearchedMessage {
+    pub(crate) spell: Spell,
 }
