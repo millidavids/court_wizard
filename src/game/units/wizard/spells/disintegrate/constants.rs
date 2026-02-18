@@ -19,7 +19,7 @@ pub const PRIMED_DISINTEGRATE: PrimedSpell = PrimedSpell {
 pub const DAMAGE_PER_TICK: f32 = 5.0;
 
 /// Type of damage dealt by disintegrate beams.
-pub const DAMAGE_TYPE: DamageType = DamageType::Force;
+pub const DAMAGE_TYPE: DamageType = DamageType::Fire;
 
 /// Time between damage ticks (in seconds).
 pub const DAMAGE_INTERVAL: f32 = 0.1;

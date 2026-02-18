@@ -4,14 +4,16 @@ use bevy::window::PrimaryWindow;
 use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
 use super::components::*;
 use super::constants;
-use super::styles::arc_color;
+use super::styles::{arc_color_at_depth, arc_width_at_depth};
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles chain lightning casting with left-click.
@@ -75,34 +77,48 @@ pub fn handle_chain_lightning_casting(
 
                         // Apply initial damage
                         if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
-                            apply_damage_to_unit(
+                            apply_spell_damage(
+                                &mut commands,
+                                target_entity,
                                 &mut health,
                                 temp_hp.as_deref_mut(),
                                 initial_damage,
+                                constants::DAMAGE_TYPE,
                             );
-                            commands.entity(target_entity).insert(SpellDamaged);
                         }
 
-                        // Spawn first arc from wizard to target
+                        // Spawn first arc from wizard to target (depth 0 for initial arc)
                         spawn_arc(
                             &mut commands,
                             &mut meshes,
                             &mut materials,
                             wizard_pos,
                             target_pos,
+                            0,
                             primed_spell.empowerment,
                         );
 
-                        // Spawn chain lightning bolt to track bouncing
+                        // Spawn shared hit tracking group
+                        let group_entity = commands
+                            .spawn((
+                                ChainLightningGroup {
+                                    hit_entities: vec![target_entity],
+                                },
+                                OnGameplayScreen,
+                            ))
+                            .id();
+
+                        // Spawn chain lightning bolt to track splitting
                         commands.spawn((
                             ChainLightningBolt {
-                                hit_entities: vec![target_entity],
+                                group_entity,
                                 current_damage: initial_damage * constants::DAMAGE_FALLOFF,
                                 damage_type: constants::DAMAGE_TYPE,
                                 bounces_remaining: constants::MAX_BOUNCES,
                                 last_hit_position: target_pos,
                                 bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
                                 empowerment: primed_spell.empowerment,
+                                split_depth: 0,
                             },
                             OnGameplayScreen,
                         ));
@@ -175,57 +191,96 @@ fn find_target_near_position(
         .map(|(entity, transform, _)| (entity, transform.translation))
 }
 
-/// Spawns a lightning arc visual between two points.
+/// Spawns a lightning arc visual between two points as a parabolic curve.
+/// The arc rises upward at the midpoint and comes back down, creating a
+/// natural lightning-through-the-sky effect.
 fn spawn_arc(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     start: Vec3,
     end: Vec3,
+    depth: u32,
     empowerment: f32,
 ) {
-    let midpoint = (start + end) / 2.0;
-    let direction = (end - start).normalize();
-    let length = start.distance(end);
+    let arc_width = arc_width_at_depth(depth, empowerment);
+    let color = arc_color_at_depth(depth);
+    let segments = constants::ARC_SEGMENTS;
 
-    // Scale arc width by empowerment
-    let scale = empowerment;
-    let arc_width = constants::ARC_WIDTH * scale;
+    // Calculate peak height based on horizontal distance and depth.
+    // Depth 0 (initial bolt from wizard) is a straight line.
+    // Each subsequent depth arcs progressively higher.
+    let horizontal_dist = Vec3::new(start.x - end.x, 0.0, start.z - end.z).length();
+    let height_factor = constants::ARC_HEIGHT_FACTOR + constants::ARC_HEIGHT_GROWTH * depth as f32;
+    let peak_height = if depth == 0 {
+        0.0
+    } else {
+        horizontal_dist * height_factor
+    };
 
-    // Create a rectangle mesh for the arc
+    // Pre-create shared mesh and material
     let rectangle = Rectangle::new(arc_width, arc_width);
+    let mesh_handle = meshes.add(rectangle);
+    let material_handle = materials.add(StandardMaterial {
+        base_color: color,
+        unlit: true,
+        ..default()
+    });
 
-    // Calculate rotation to align Y axis with direction
-    let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
+    // Spawn segments along a parabolic curve
+    for i in 0..segments {
+        let t0 = i as f32 / segments as f32;
+        let t1 = (i + 1) as f32 / segments as f32;
 
-    commands.spawn((
-        ChainLightningArc {
-            start,
-            end,
-            lifetime: constants::ARC_LIFETIME,
-            time_alive: 0.0,
-        },
-        Mesh3d(meshes.add(rectangle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: arc_color(),
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_translation(midpoint)
-            .with_rotation(rotation)
-            .with_scale(Vec3::new(1.0, length / arc_width, 1.0)),
-        OnGameplayScreen,
-    ));
+        let p0 = arc_point(start, end, peak_height, t0);
+        let p1 = arc_point(start, end, peak_height, t1);
+
+        let seg_midpoint = (p0 + p1) / 2.0;
+        let seg_direction = (p1 - p0).normalize();
+        let seg_length = p0.distance(p1);
+
+        let rotation = Quat::from_rotation_arc(Vec3::Y, seg_direction);
+
+        commands.spawn((
+            ChainLightningArc {
+                start: p0,
+                end: p1,
+                lifetime: constants::ARC_LIFETIME,
+                time_alive: 0.0,
+                depth,
+            },
+            Mesh3d(mesh_handle.clone()),
+            MeshMaterial3d(material_handle.clone()),
+            Transform::from_translation(seg_midpoint)
+                .with_rotation(rotation)
+                .with_scale(Vec3::new(1.0, seg_length / arc_width, 1.0)),
+            OnGameplayScreen,
+        ));
+    }
 }
 
-/// Processes chain lightning bounces to nearby enemies.
-/// Targets all living units (defenders, attackers, and undead) but excludes corpses.
+/// Calculates a point along a parabolic arc between start and end.
+/// t ranges from 0.0 (start) to 1.0 (end). The arc peaks at t=0.5.
+fn arc_point(start: Vec3, end: Vec3, peak_height: f32, t: f32) -> Vec3 {
+    // Linear interpolation for the base position
+    let base = start.lerp(end, t);
+    // Parabolic height: 4 * h * t * (1 - t) peaks at h when t = 0.5
+    let height_offset = 4.0 * peak_height * t * (1.0 - t);
+    Vec3::new(base.x, base.y + height_offset, base.z)
+}
+
+/// Processes chain lightning bounces with binary splitting.
+/// Each bolt finds up to SPLIT_COUNT targets and spawns child bolts for each.
+/// All bolts from the same cast share a hit list via ChainLightningGroup.
+/// Lightning rods are valid targets — hitting one triggers an immediate strike pulse.
+#[allow(clippy::too_many_arguments)]
 pub fn process_chain_lightning_bounces(
     time: Res<Time>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut bolts: Query<(Entity, &mut ChainLightningBolt)>,
+    mut groups: Query<&mut ChainLightningGroup>,
     mut enemies: Query<
         (
             Entity,
@@ -236,68 +291,128 @@ pub fn process_chain_lightning_bounces(
         ),
         Without<Corpse>,
     >,
+    mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
     walls: Query<&WallOfStone>,
 ) {
+    // Collect bolt data to avoid borrow conflicts when spawning child bolts
+    let mut bolts_to_process: Vec<(Entity, ChainLightningBoltSnapshot)> = Vec::new();
+
     for (bolt_entity, mut bolt) in &mut bolts {
-        // Decrement bounce delay timer
         bolt.bounce_delay_timer -= time.delta_secs();
 
-        // Check if it's time to bounce
         if bolt.bounce_delay_timer <= 0.0 && bolt.bounces_remaining > 0 {
-            // Calculate empowered bounce range
-            let bounce_range = constants::BOUNCE_RANGE * bolt.empowerment;
-
-            // Find next bounce target (with wall line-of-sight check)
-            if let Some((target_entity, target_pos)) = find_next_bounce_target(
-                bolt.last_hit_position,
-                &bolt.hit_entities,
-                &enemies,
-                bounce_range,
-            )
-            .filter(|(_, pos)| {
-                !walls.iter().any(|wall| {
-                    wall.line_segment_intersects(bolt.last_hit_position, *pos)
-                        .is_some()
-                })
-            }) {
-                // Apply damage to target
-                if let Ok((_, _, _, mut health, mut temp_hp)) = enemies.get_mut(target_entity) {
-                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), bolt.current_damage);
-                    commands.entity(target_entity).insert(SpellDamaged);
-                }
-
-                // Spawn arc from last position to new target
-                spawn_arc(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    bolt.last_hit_position,
-                    target_pos,
-                    bolt.empowerment,
-                );
-
-                // Update bolt state
-                bolt.hit_entities.push(target_entity);
-                bolt.current_damage *= constants::DAMAGE_FALLOFF;
-                bolt.last_hit_position = target_pos;
-                bolt.bounces_remaining -= 1;
-                bolt.bounce_delay_timer = constants::BOUNCE_DELAY * bolt.empowerment;
-            } else {
-                // No valid targets - end chain
-                bolt.bounces_remaining = 0;
-            }
+            bolts_to_process.push((
+                bolt_entity,
+                ChainLightningBoltSnapshot {
+                    group_entity: bolt.group_entity,
+                    current_damage: bolt.current_damage,
+                    damage_type: bolt.damage_type,
+                    bounces_remaining: bolt.bounces_remaining,
+                    last_hit_position: bolt.last_hit_position,
+                    empowerment: bolt.empowerment,
+                    split_depth: bolt.split_depth,
+                },
+            ));
+            // Mark as done so it gets cleaned up
+            bolt.bounces_remaining = 0;
         }
 
-        // Despawn bolt if no more bounces
+        // Despawn bolt if no more bounces and timer expired
         if bolt.bounces_remaining == 0 && bolt.bounce_delay_timer <= 0.0 {
             commands.entity(bolt_entity).despawn();
         }
     }
+
+    // Process collected bolts
+    for (bolt_entity, snapshot) in bolts_to_process {
+        // Look up shared hit list
+        let Ok(mut group) = groups.get_mut(snapshot.group_entity) else {
+            // Group was despawned (shouldn't happen), clean up bolt
+            commands.entity(bolt_entity).try_despawn();
+            continue;
+        };
+
+        let bounce_range = constants::BOUNCE_RANGE * snapshot.empowerment;
+
+        // Find up to SPLIT_COUNT targets (units + lightning rods)
+        let targets = find_next_bounce_targets(
+            snapshot.last_hit_position,
+            &group.hit_entities,
+            &enemies,
+            &rods,
+            bounce_range,
+            constants::SPLIT_COUNT,
+            &walls,
+        );
+
+        for (target_entity, target_pos) in &targets {
+            // Check if this target is a lightning rod
+            if let Ok((_, _, mut rod)) = rods.get_mut(*target_entity) {
+                // Trigger an immediate lightning strike on the rod
+                rod.time_since_strike = f32::MAX;
+            } else {
+                // Apply damage to unit
+                if let Ok((_, _, _, mut health, mut temp_hp)) = enemies.get_mut(*target_entity) {
+                    apply_spell_damage(
+                        &mut commands,
+                        *target_entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        snapshot.current_damage,
+                        snapshot.damage_type,
+                    );
+                }
+            }
+
+            // Add to shared hit list
+            group.hit_entities.push(*target_entity);
+
+            // Spawn arc visual
+            spawn_arc(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                snapshot.last_hit_position,
+                *target_pos,
+                snapshot.split_depth + 1,
+                snapshot.empowerment,
+            );
+
+            // Spawn child bolt if more bounces remain
+            if snapshot.bounces_remaining > 1 {
+                commands.spawn((
+                    ChainLightningBolt {
+                        group_entity: snapshot.group_entity,
+                        current_damage: snapshot.current_damage * constants::DAMAGE_FALLOFF,
+                        damage_type: snapshot.damage_type,
+                        bounces_remaining: snapshot.bounces_remaining - 1,
+                        last_hit_position: *target_pos,
+                        bounce_delay_timer: constants::BOUNCE_DELAY * snapshot.empowerment,
+                        empowerment: snapshot.empowerment,
+                        split_depth: snapshot.split_depth + 1,
+                    },
+                    OnGameplayScreen,
+                ));
+            }
+        }
+    }
 }
 
-/// Finds the closest enemy within bounce range that hasn't been hit yet.
-/// Targets all living units (defenders, attackers, and undead) but excludes corpses.
-fn find_next_bounce_target(
+/// Snapshot of bolt data for deferred processing.
+struct ChainLightningBoltSnapshot {
+    group_entity: Entity,
+    current_damage: f32,
+    damage_type: DamageType,
+    bounces_remaining: u32,
+    last_hit_position: Vec3,
+    empowerment: f32,
+    split_depth: u32,
+}
+
+/// Finds up to `max_targets` enemies or lightning rods within bounce range that haven't been hit yet.
+/// Targets all living units (defenders, attackers, and undead) and lightning rods, but excludes corpses.
+/// Filters out targets blocked by WallOfStone line of sight.
+fn find_next_bounce_targets(
     origin: Vec3,
     hit_entities: &[Entity],
     enemies: &Query<
@@ -310,19 +425,60 @@ fn find_next_bounce_target(
         ),
         Without<Corpse>,
     >,
+    rods: &Query<(Entity, &Transform, &mut LightningRod)>,
     bounce_range: f32,
-) -> Option<(Entity, Vec3)> {
-    enemies
+    max_targets: usize,
+    walls: &Query<&WallOfStone>,
+) -> Vec<(Entity, Vec3)> {
+    let mut candidates: Vec<(Entity, Vec3, f32)> = enemies
         .iter()
         // No team filter - spell damages ALL units indiscriminately
         .filter(|(entity, _, _, _, _)| !hit_entities.contains(entity))
-        .filter(|(_, transform, _, _, _)| origin.distance(transform.translation) <= bounce_range)
-        .min_by(|a, b| {
-            let dist_a = origin.distance(a.1.translation);
-            let dist_b = origin.distance(b.1.translation);
-            dist_a.partial_cmp(&dist_b).unwrap()
+        .filter_map(|(entity, transform, _, _, _)| {
+            let distance = origin.distance(transform.translation);
+            if distance <= bounce_range {
+                // Check wall line-of-sight
+                let blocked = walls.iter().any(|wall| {
+                    wall.line_segment_intersects(origin, transform.translation)
+                        .is_some()
+                });
+                if !blocked {
+                    Some((entity, transform.translation, distance))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         })
-        .map(|(entity, transform, _, _, _)| (entity, transform.translation))
+        .collect();
+
+    // Also consider lightning rods as valid targets
+    for (entity, transform, _) in rods.iter() {
+        if hit_entities.contains(&entity) {
+            continue;
+        }
+        let distance = origin.distance(transform.translation);
+        if distance <= bounce_range {
+            let blocked = walls.iter().any(|wall| {
+                wall.line_segment_intersects(origin, transform.translation)
+                    .is_some()
+            });
+            if !blocked {
+                candidates.push((entity, transform.translation, distance));
+            }
+        }
+    }
+
+    // Sort by distance (closest first)
+    candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+
+    // Take up to max_targets
+    candidates
+        .into_iter()
+        .take(max_targets)
+        .map(|(entity, pos, _)| (entity, pos))
+        .collect()
 }
 
 /// Updates chain lightning arc visuals with pulsing animation.
@@ -342,14 +498,15 @@ pub fn update_chain_lightning_arcs(
         // Calculate pulsing intensity
         let intensity = 0.7 + 0.3 * (arc.time_alive * 20.0).sin();
 
-        // Update material color with pulsing effect
+        // Update material color with pulsing effect (using depth-scaled base color)
         if let Some(material) = materials.get_mut(&material_handle.0) {
-            let base = arc_color();
+            let base = arc_color_at_depth(arc.depth);
+            let base_srgba = base.to_srgba();
             material.base_color = Color::srgba(
-                base.to_srgba().red * intensity,
-                base.to_srgba().green * intensity,
-                base.to_srgba().blue * intensity,
-                base.to_srgba().alpha,
+                base_srgba.red * intensity,
+                base_srgba.green * intensity,
+                base_srgba.blue * intensity,
+                base_srgba.alpha,
             );
         }
     }
@@ -360,6 +517,20 @@ pub fn cleanup_chain_lightning(mut commands: Commands, arcs: Query<(Entity, &Cha
     for (entity, arc) in &arcs {
         if arc.lifetime <= 0.0 {
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Cleans up chain lightning groups that have no remaining bolts.
+pub fn cleanup_chain_lightning_groups(
+    mut commands: Commands,
+    groups: Query<Entity, With<ChainLightningGroup>>,
+    bolts: Query<&ChainLightningBolt>,
+) {
+    for group_entity in &groups {
+        let has_bolts = bolts.iter().any(|bolt| bolt.group_entity == group_entity);
+        if !has_bolts {
+            commands.entity(group_entity).despawn();
         }
     }
 }

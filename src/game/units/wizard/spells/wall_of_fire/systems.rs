@@ -10,7 +10,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Health, ResidualFireDamaged, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
+    Health, ResidualFireDamaged, TemporaryHitPoints, apply_spell_damage,
 };
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
@@ -267,14 +267,15 @@ pub fn apply_wall_of_fire_damage(
                 let distance = effect.distance_to_point(transform.translation);
 
                 if distance <= effect.half_width {
-                    apply_damage_to_unit(
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
                         &mut health,
                         temp_hp.as_deref_mut(),
                         effect.damage_per_tick,
+                        DamageType::Fire,
                     );
-                    commands
-                        .entity(entity)
-                        .insert((SpellDamaged, ResidualFireDamaged));
+                    commands.entity(entity).insert(ResidualFireDamaged);
                 }
             }
         }

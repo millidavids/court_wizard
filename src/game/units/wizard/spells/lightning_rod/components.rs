@@ -6,7 +6,7 @@ use bevy::prelude::*;
 ///
 /// Periodically attracts lightning strikes that arc to nearby units.
 #[derive(Component)]
-pub(super) struct LightningRod {
+pub(crate) struct LightningRod {
     /// Center position of the rod in world space.
     pub position: Vec3,
     /// Time since the rod was placed (seconds).

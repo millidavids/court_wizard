@@ -41,13 +41,6 @@ pub const EXPLOSION_RADIUS: f32 = 40.0;
 /// Lifetime of the ice explosion visual effect (seconds).
 pub const EXPLOSION_LIFETIME: f32 = 0.4;
 
-/// Duration of the frost slow effect applied to units (seconds).
-pub const FROST_SLOW_DURATION: f32 = 2.5;
-
-/// Movement speed reduction percentage from frost slow (negative value).
-/// -0.4 = 40% speed reduction
-pub const FROST_SLOW_MODIFIER: f32 = -0.4;
-
 /// Growth time for explosion visual (seconds).
 pub const EXPLOSION_GROWTH_TIME: f32 = 0.15;
 

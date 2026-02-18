@@ -32,7 +32,7 @@ fn main() {
                 primary_window: Some(Window {
                     title: "Court Wizard".into(),
                     // Default resolution - ConfigPlugin will update at Startup
-                    resolution: WindowResolution::new(1920, 1080),
+                    resolution: WindowResolution::new(1920, 1080).with_scale_factor_override(1.0),
                     canvas: Some("#bevy-canvas".to_string()),
                     fit_canvas_to_parent: true,
                     prevent_default_event_handling: true,

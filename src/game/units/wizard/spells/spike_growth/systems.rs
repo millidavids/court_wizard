@@ -9,7 +9,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::components::{
-    FrostSlowModifier, Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
+    Health, SpellDamaged, SpikeGrowthSlowModifier, TemporaryHitPoints, apply_damage_to_unit,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -171,7 +171,7 @@ pub fn apply_spike_growth_damage(
         &Transform,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
-        Option<&mut FrostSlowModifier>,
+        Option<&mut SpikeGrowthSlowModifier>,
     )>,
 ) {
     let delta = time.delta_secs();
@@ -196,11 +196,11 @@ pub fn apply_spike_growth_damage(
                     apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), zone.damage_per_tick);
                     commands.entity(entity).insert(SpellDamaged);
 
-                    // Apply or refresh slow (reuses FrostSlowModifier)
+                    // Apply or refresh spike growth slow
                     if let Some(mut slow) = existing_slow {
                         slow.refresh(zone.slow_duration);
                     } else {
-                        commands.entity(entity).insert(FrostSlowModifier::new(
+                        commands.entity(entity).insert(SpikeGrowthSlowModifier::new(
                             zone.slow_modifier,
                             zone.slow_duration,
                         ));

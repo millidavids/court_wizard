@@ -10,9 +10,7 @@ use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
-use crate::game::units::components::{
-    Health, ResidualFireDamaged, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
-};
+use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles fireball casting with left-click.
@@ -331,34 +329,29 @@ pub fn apply_explosion_damage(
                 let distance = explosion.origin.distance(transform.translation);
 
                 if distance <= current_radius {
-                    apply_damage_to_unit(
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
                         &mut health,
                         temp_hp.as_deref_mut(),
                         explosion.damage_per_tick,
+                        constants::DAMAGE_TYPE,
                     );
-                    commands.entity(entity).insert(SpellDamaged);
                 }
             }
         }
     }
 }
 
-/// Cleans up explosions that have finished animating and spawns residual fire.
+/// Cleans up explosions that have finished animating.
 pub fn cleanup_finished_explosions(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     explosions: Query<(Entity, &FireballExplosion)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= constants::EXPLOSION_DURATION {
-            // Apply empowerment scaling to residual effect
-            let scale = explosion.empowerment;
-            let residual_radius = constants::RESIDUAL_DAMAGE_RADIUS * scale;
-            let residual_damage = constants::RESIDUAL_DAMAGE_PER_TICK * scale;
-
-            // Remove the explosion obstacle (100x cost)
+            // Remove the explosion obstacle
             let buffered_explosion_radius = explosion.max_radius + OBSTACLE_BUFFER;
             let origin_2d = Vec2::new(explosion.origin.x, explosion.origin.z);
             obstacle_events.write(ObstacleChanged {
@@ -366,134 +359,6 @@ pub fn cleanup_finished_explosions(
                     origin_2d,
                     Vec2::splat(buffered_explosion_radius * 2.0),
                 ),
-                obstacle_type: ObstacleType::Removed,
-            });
-
-            // Add the burning ground obstacle (50x movement cost)
-            let buffered_residual_radius = residual_radius + OBSTACLE_BUFFER;
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(
-                    origin_2d,
-                    Vec2::splat(buffered_residual_radius * 2.0),
-                ),
-                obstacle_type: ObstacleType::Hazard,
-            });
-
-            // Spawn residual fire at explosion origin
-            let circle = Circle::new(residual_radius);
-            commands.spawn((
-                Mesh3d(meshes.add(circle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: RESIDUAL_FIRE_COLOR,
-                    unlit: true,
-                    alpha_mode: bevy::prelude::AlphaMode::Blend,
-                    cull_mode: None,
-                    ..default()
-                })),
-                Transform::from_xyz(explosion.origin.x, 5.0, explosion.origin.z)
-                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-                ResidualAreaDamageEffect::new(
-                    explosion.origin,
-                    residual_radius,
-                    residual_damage,
-                    constants::DAMAGE_TYPE,
-                    constants::RESIDUAL_TICK_INTERVAL,
-                    constants::RESIDUAL_DURATION,
-                ),
-                OnGameplayScreen,
-            ));
-            commands.entity(entity).despawn();
-        }
-    }
-}
-
-/// Applies periodic damage to units within residual fire effects.
-pub fn apply_residual_area_damage(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut effects: Query<&mut ResidualAreaDamageEffect>,
-    mut targets: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-    )>,
-) {
-    let delta = time.delta_secs();
-
-    for mut effect in &mut effects {
-        effect.time_alive += delta;
-        effect.time_since_last_tick += delta;
-
-        if effect.time_since_last_tick >= effect.tick_interval {
-            effect.time_since_last_tick = 0.0;
-
-            for (entity, transform, mut health, mut temp_hp) in &mut targets {
-                let distance = Vec3::new(
-                    effect.origin.x - transform.translation.x,
-                    0.0,
-                    effect.origin.z - transform.translation.z,
-                )
-                .length();
-
-                if distance <= effect.radius {
-                    apply_damage_to_unit(
-                        &mut health,
-                        temp_hp.as_deref_mut(),
-                        effect.damage_per_tick,
-                    );
-                    commands
-                        .entity(entity)
-                        .insert((SpellDamaged, ResidualFireDamaged));
-                }
-            }
-        }
-    }
-}
-
-/// Applies flickering fire visual and fades out residual fire effects over the last second.
-pub fn fade_residual_effects(
-    effects: Query<(&ResidualAreaDamageEffect, &MeshMaterial3d<StandardMaterial>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    for (effect, material_handle) in &effects {
-        let Some(material) = materials.get_mut(material_handle) else {
-            continue;
-        };
-
-        // Flicker using layered sine waves for organic fire look
-        let t = effect.time_alive;
-        let flicker =
-            0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
-
-        // Fade out over the last second
-        let remaining = effect.duration - t;
-        let fade = if remaining < constants::RESIDUAL_FADE_DURATION {
-            (remaining / constants::RESIDUAL_FADE_DURATION).max(0.0)
-        } else {
-            1.0
-        };
-
-        let base_alpha = 0.4 * fade * flicker;
-        // Shift color slightly between orange and yellow-orange with flicker
-        let green = 0.5 + 0.15 * (t * 11.0).sin();
-        material.base_color = Color::srgba(1.0, green, 0.0, base_alpha);
-    }
-}
-
-/// Despawns residual fire effects that have expired.
-pub fn cleanup_residual_effects(
-    mut commands: Commands,
-    effects: Query<(Entity, &ResidualAreaDamageEffect)>,
-    mut obstacle_events: MessageWriter<ObstacleChanged>,
-) {
-    for (entity, effect) in &effects {
-        if effect.time_alive >= effect.duration {
-            // Notify pathfinding system that the burning ground is removed
-            let origin_2d = Vec2::new(effect.origin.x, effect.origin.z);
-            let buffered_radius = effect.radius + OBSTACLE_BUFFER;
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
             });
 

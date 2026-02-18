@@ -1,5 +1,12 @@
 use bevy::prelude::*;
 
+use super::constants::{
+    ELECTRIC_ARC_CHANCE_PER_DAMAGE, ELECTRIC_ARC_CHANCE_PER_HIT, ELECTRIC_ARC_COOLDOWN,
+    ELECTRIC_ARC_DURATION, ELECTRIC_ARC_MAX_CHANCE, FIRE_DOT_DAMAGE_RATIO, FIRE_DOT_DURATION,
+    FIRE_DOT_MAX_DPS, FIRE_DOT_TICK_INTERVAL, FROST_SLOW_MAX,
+};
+use super::damage::DamageType;
+
 /// Team component for all units.
 ///
 /// Determines which side a unit is on. Units attack members of opposing teams.
@@ -65,6 +72,40 @@ pub struct FrostSlowModifier {
 
 impl FrostSlowModifier {
     /// Creates a new frost slow modifier with the given strength and duration.
+    pub const fn new(modifier: f32, duration: f32) -> Self {
+        Self {
+            modifier,
+            time_remaining: duration,
+        }
+    }
+
+    /// Updates the timer, returning true if expired.
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    /// Stacks additional slow and resets the duration.
+    pub fn stack(&mut self, amount: f32, duration: f32) {
+        self.modifier = (self.modifier + amount).max(FROST_SLOW_MAX);
+        self.time_remaining = duration;
+    }
+}
+
+/// Movement speed modifier from Spike Growth (nature-based slow).
+///
+/// Separate from FrostSlowModifier so it doesn't interact with the frost
+/// persistent effect stacking system. Applied as a flat slow that refreshes
+/// while units remain in the spike growth zone.
+#[derive(Component)]
+pub struct SpikeGrowthSlowModifier {
+    /// Speed reduction as a percentage (negative value).
+    pub modifier: f32,
+    /// Time remaining before the slow effect expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl SpikeGrowthSlowModifier {
     pub const fn new(modifier: f32, duration: f32) -> Self {
         Self {
             modifier,
@@ -293,6 +334,154 @@ pub struct SpellDamaged;
 /// Used to detect deaths from fireball ground fire for the Scorched Earth achievement.
 #[derive(Component)]
 pub struct ResidualFireDamaged;
+
+/// Stores the original shared material handle before persistent effect tinting.
+///
+/// Inserted when a persistent damage effect (FireDoT, FrostSlowModifier, ElectricCharge)
+/// is first applied to a unit. The unit's MeshMaterial3d is replaced with a cloned
+/// per-entity material that can be safely tinted without affecting other units.
+/// When all effects expire, the original material is restored and this component is removed.
+#[derive(Component)]
+pub struct OriginalMaterial(pub Handle<StandardMaterial>);
+
+/// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
+///
+/// A central system (`process_pending_damage_effects`) reads these each frame and
+/// creates/stacks the real `FireDoT`, `FrostSlowModifier`, or `ElectricCharge` components.
+#[derive(Component)]
+pub struct PendingDamageEffect {
+    pub damage_type: DamageType,
+    pub damage: f32,
+}
+
+/// Fire damage-over-time effect that stacks with repeated fire hits.
+///
+/// Each fire hit adds a percentage of spell damage as extra DoT DPS.
+/// Duration resets on each new fire hit.
+#[derive(Component)]
+pub struct FireDoT {
+    /// Accumulated DoT DPS (grows with each fire hit).
+    pub damage_per_tick: f32,
+    /// Time remaining before the DoT expires (resets on each fire hit).
+    pub time_remaining: f32,
+    /// Accumulator for tick timing.
+    pub tick_timer: f32,
+}
+
+impl FireDoT {
+    /// Creates a new FireDoT from the initial fire damage.
+    pub fn new(spell_damage: f32) -> Self {
+        let dps = (spell_damage * FIRE_DOT_DAMAGE_RATIO).min(FIRE_DOT_MAX_DPS);
+        Self {
+            damage_per_tick: dps,
+            time_remaining: FIRE_DOT_DURATION,
+            tick_timer: 0.0,
+        }
+    }
+
+    /// Stacks additional fire damage and resets the duration.
+    pub fn stack(&mut self, spell_damage: f32) {
+        self.damage_per_tick =
+            (self.damage_per_tick + spell_damage * FIRE_DOT_DAMAGE_RATIO).min(FIRE_DOT_MAX_DPS);
+        self.time_remaining = FIRE_DOT_DURATION;
+    }
+
+    /// Ticks the DoT timer, returning damage to apply this frame (if any).
+    /// Returns `None` if no tick happened, `Some(damage)` if a tick occurred.
+    /// Also returns `true` in the second tuple element if the DoT has expired.
+    pub fn update(&mut self, delta: f32) -> (Option<f32>, bool) {
+        self.time_remaining -= delta;
+        if self.time_remaining <= 0.0 {
+            return (None, true);
+        }
+
+        self.tick_timer += delta;
+        if self.tick_timer >= FIRE_DOT_TICK_INTERVAL {
+            self.tick_timer -= FIRE_DOT_TICK_INTERVAL;
+            let tick_damage = self.damage_per_tick * FIRE_DOT_TICK_INTERVAL;
+            (Some(tick_damage), false)
+        } else {
+            (None, false)
+        }
+    }
+}
+
+/// Electric charge effect that builds arc chance with repeated electric hits.
+///
+/// Each electric hit adds arc chance. When the charge arcs, it deals damage
+/// to nearby enemies and builds charge on them too.
+#[derive(Component)]
+pub struct ElectricCharge {
+    /// Chance per tick to arc (0.0–1.0).
+    pub arc_chance: f32,
+    /// Time remaining before the charge expires (resets on each electric hit).
+    pub time_remaining: f32,
+    /// Cooldown timer preventing arcing every frame.
+    pub arc_cooldown: f32,
+}
+
+impl ElectricCharge {
+    /// Creates a new ElectricCharge from the initial electric damage.
+    pub fn new(spell_damage: f32) -> Self {
+        let chance = (ELECTRIC_ARC_CHANCE_PER_HIT + spell_damage * ELECTRIC_ARC_CHANCE_PER_DAMAGE)
+            .min(ELECTRIC_ARC_MAX_CHANCE);
+        Self {
+            arc_chance: chance,
+            time_remaining: ELECTRIC_ARC_DURATION,
+            arc_cooldown: ELECTRIC_ARC_COOLDOWN,
+        }
+    }
+
+    /// Stacks additional electric charge and resets the duration.
+    pub fn stack(&mut self, spell_damage: f32) {
+        self.arc_chance = (self.arc_chance
+            + ELECTRIC_ARC_CHANCE_PER_HIT
+            + spell_damage * ELECTRIC_ARC_CHANCE_PER_DAMAGE)
+            .min(ELECTRIC_ARC_MAX_CHANCE);
+        self.time_remaining = ELECTRIC_ARC_DURATION;
+    }
+
+    /// Updates timers. Returns `true` if the charge has expired.
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        if self.time_remaining <= 0.0 {
+            return true;
+        }
+        self.arc_cooldown = (self.arc_cooldown - delta).max(0.0);
+        false
+    }
+
+    /// Returns `true` if arc is off cooldown.
+    pub fn can_arc(&self) -> bool {
+        self.arc_cooldown <= 0.0
+    }
+
+    /// Resets the arc cooldown after a successful arc.
+    pub fn reset_arc_cooldown(&mut self) {
+        self.arc_cooldown = ELECTRIC_ARC_COOLDOWN;
+    }
+}
+
+/// Applies spell damage to a unit and inserts a `PendingDamageEffect` marker
+/// so the persistent effect system can stack the appropriate effect.
+///
+/// This replaces the pattern of calling `apply_damage_to_unit()` + inserting
+/// `SpellDamaged` manually at each spell call site.
+pub fn apply_spell_damage(
+    commands: &mut Commands,
+    entity: Entity,
+    health: &mut Health,
+    temp_hp: Option<&mut TemporaryHitPoints>,
+    damage: f32,
+    damage_type: DamageType,
+) {
+    apply_damage_to_unit(health, temp_hp, damage);
+    commands.entity(entity).insert(SpellDamaged);
+    commands.entity(entity).insert(PendingDamageEffect {
+        damage_type,
+        damage,
+    });
+}
 
 /// Marker component for dead units (corpses).
 ///

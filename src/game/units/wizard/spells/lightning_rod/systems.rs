@@ -10,9 +10,8 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{
-    Corpse, Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
-};
+use crate::game::units::DamageType;
+use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
 };
@@ -408,8 +407,14 @@ fn spawn_arcs_to_nearby_units(
     // Apply damage and spawn arc visuals
     for (target_entity, target_pos, _) in &targets {
         if let Ok((_, _, mut health, mut temp_hp)) = units.get_mut(*target_entity) {
-            apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
-            commands.entity(*target_entity).insert(SpellDamaged);
+            apply_spell_damage(
+                commands,
+                *target_entity,
+                &mut health,
+                temp_hp.as_deref_mut(),
+                damage,
+                DamageType::Electric,
+            );
         }
 
         // Spawn arc visual

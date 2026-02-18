@@ -197,7 +197,7 @@ impl Spell {
                 "Creates a protective circle at the cursor that gives units extra temporary health."
             }
             Spell::ChainLightning => {
-                "Strikes the nearest unit with lightning that chains to nearby targets."
+                "Strikes the nearest unit with lightning that splits and spreads to nearby targets."
             }
             Spell::FingerOfDeath => {
                 "Fires a deadly beam at the cursor, dealing heavy damage to units in its path."
@@ -214,7 +214,7 @@ impl Spell {
                 "Summons a storm that rains ice down on a targeted area, dealing frost damage and slowing enemies. Requires concentration to maintain."
             }
             Spell::WallOfFire => {
-                "Drag a line of fire that burns all units walking through it. Lasts 12 seconds."
+                "Drag a line of fire that burns all units walking through it. Lasts 36 seconds."
             }
             Spell::Entangle => {
                 "Roots all units in radius, preventing movement but not attacks. Lasts 5 seconds."

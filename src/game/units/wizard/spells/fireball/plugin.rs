@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{Fireball, FireballExplosion, ResidualAreaDamageEffect};
+use super::components::{Fireball, FireballExplosion};
 use super::systems;
 use crate::state::InGameState;
 
@@ -40,13 +40,6 @@ impl Plugin for FireballPlugin {
                 )
                     .chain()
                     .run_if(any_exist::<FireballExplosion>()),
-                (
-                    systems::apply_residual_area_damage,
-                    systems::fade_residual_effects,
-                    systems::cleanup_residual_effects,
-                )
-                    .chain()
-                    .run_if(any_exist::<ResidualAreaDamageEffect>()),
             )
                 .run_if(in_state(InGameState::Running)),
         );

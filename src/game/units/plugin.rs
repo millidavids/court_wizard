@@ -46,10 +46,16 @@ impl Plugin for UnitsPlugin {
         .add_systems(
             Update,
             (
+                systems::process_pending_damage_effects,
                 systems::update_temporary_hit_points,
                 systems::update_frost_slow_modifiers,
                 systems::update_rooted_modifiers,
                 systems::update_haste_modifiers,
+                systems::update_spike_growth_slow_modifiers,
+                systems::update_fire_dot,
+                systems::update_electric_charge,
+                systems::update_electric_arc_visuals,
+                systems::update_persistent_effect_visuals,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
             )
                 .run_if(in_state(InGameState::Running)),

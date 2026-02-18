@@ -7,9 +7,7 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{
-    Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
-};
+use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 
 /// Marker component for disintegrate spell when it's actively being cast/channeled.
 ///
@@ -243,12 +241,14 @@ pub fn apply_disintegrate_damage(
                 if beam.contains_point(position) {
                     let proj = (position - beam.origin).dot(beam.direction);
                     if proj <= effective_length {
-                        apply_damage_to_unit(
+                        apply_spell_damage(
+                            &mut commands,
+                            entity,
                             &mut health,
                             temp_hp.as_deref_mut(),
                             beam.damage_per_tick(),
+                            constants::DAMAGE_TYPE,
                         );
-                        commands.entity(entity).insert(SpellDamaged);
                     }
                 }
             }

@@ -12,7 +12,8 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, FrostSlowModifier, HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed,
-    RootedModifier, RoughTerrainModifier, TargetingVelocity, Team, Teleportable,
+    RootedModifier, RoughTerrainModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team,
+    Teleportable,
 };
 use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
@@ -133,7 +134,7 @@ pub fn infantry_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
-            Option<&FrostSlowModifier>,
+            (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
             Option<&CauldronSpeedModifier>,
             Option<&RootedModifier>,
             Option<&HasteModifier>,
@@ -154,7 +155,7 @@ pub fn infantry_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
-        frost_modifier,
+        (frost_modifier, spike_growth_modifier),
         cauldron_modifier,
         rooted,
         haste_modifier,
@@ -182,6 +183,7 @@ pub fn infantry_movement(
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
+            spike_growth_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),

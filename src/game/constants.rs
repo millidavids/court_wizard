@@ -54,6 +54,10 @@ pub const UNIT_HEALTH: f32 = 50.0;
 /// Default movement speed for all units (units per second).
 pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
 
+/// Global multiplier applied to all unit movement speeds.
+/// 1.0 = normal speed, 0.8 = 20% slower, etc.
+pub const GLOBAL_SPEED_MULTIPLIER: f32 = 0.5;
+
 /// Hitbox height for defender units.
 pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0;
 

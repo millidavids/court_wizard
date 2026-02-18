@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.153] - 2026-02-18
+
+### Added
+- **Elemental damage effects** — spells now leave lasting effects on units they hit based on their element:
+  - **Fire spells** burn units over time — the more fire hits, the stronger the burn
+  - **Frost spells** slow units down — repeated hits stack the slow effect
+  - **Electric spells** build up a charge that randomly arcs lightning to nearby units (friend or foe!)
+- All elemental effects wear off after a few seconds if not refreshed
+- **Visual feedback** — units affected by elemental effects now glow with the element's color:
+  - Fire: pulsing orange-red
+  - Frost: steady blue tint
+  - Electric: flickering yellow-white
+  - Multiple effects blend together when stacked
+
+### Changed
+- All units move slower across the board
+- Electric arcs from charged units can now hit anyone nearby, not just enemies — watch your positioning!
+
 ## [v0.1.128] - 2026-02-17
 
 ### Added

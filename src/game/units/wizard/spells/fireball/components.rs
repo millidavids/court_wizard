@@ -61,7 +61,8 @@ pub struct FireballExplosion {
     pub time_alive: f32,
     /// Time since last damage tick (in seconds).
     pub time_since_last_tick: f32,
-    /// Whether this explosion is empowered (for residual effect scaling).
+    /// Empowerment multiplier for spell effectiveness.
+    #[allow(dead_code)]
     pub empowerment: f32,
 }
 
@@ -93,52 +94,5 @@ impl FireballExplosion {
 
         let growth_factor = (self.time_alive / duration).min(1.0);
         self.max_radius * growth_factor
-    }
-}
-
-/// Persistent area damage effect left on the ground.
-///
-/// Deals periodic damage to all units within its radius for a set duration.
-/// Reusable for any spell that leaves a damaging zone.
-#[derive(Component)]
-pub struct ResidualAreaDamageEffect {
-    /// Center position of the effect.
-    pub origin: Vec3,
-    /// Damage radius.
-    pub radius: f32,
-    /// Damage dealt each tick.
-    pub damage_per_tick: f32,
-    /// Type of damage dealt.
-    #[allow(dead_code)]
-    pub damage_type: DamageType,
-    /// Time between damage ticks (seconds).
-    pub tick_interval: f32,
-    /// Total lifetime (seconds).
-    pub duration: f32,
-    /// Elapsed time (seconds).
-    pub time_alive: f32,
-    /// Accumulator for tick timing.
-    pub time_since_last_tick: f32,
-}
-
-impl ResidualAreaDamageEffect {
-    pub fn new(
-        origin: Vec3,
-        radius: f32,
-        damage_per_tick: f32,
-        damage_type: DamageType,
-        tick_interval: f32,
-        duration: f32,
-    ) -> Self {
-        Self {
-            origin,
-            radius,
-            damage_per_tick,
-            damage_type,
-            tick_interval,
-            duration,
-            time_alive: 0.0,
-            time_since_last_tick: 0.0,
-        }
     }
 }

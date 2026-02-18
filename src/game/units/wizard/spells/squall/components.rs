@@ -96,6 +96,7 @@ pub(super) struct IceProjectile {
     #[allow(dead_code)]
     pub radius: f32,
     /// Empowerment multiplier.
+    #[allow(dead_code)]
     pub empowerment: f32,
 }
 
@@ -136,6 +137,7 @@ pub(super) struct IceExplosion {
     /// Whether damage has been applied yet (one-time damage).
     pub damage_applied: bool,
     /// Empowerment multiplier.
+    #[allow(dead_code)]
     pub empowerment: f32,
 }
 

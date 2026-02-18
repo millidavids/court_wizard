@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{ChainLightningArc, ChainLightningBolt};
+use super::components::{ChainLightningArc, ChainLightningBolt, ChainLightningGroup};
 use super::systems::*;
 use crate::state::InGameState;
 
@@ -22,9 +22,14 @@ impl Plugin for ChainLightningPlugin {
                     process_chain_lightning_bounces,
                     update_chain_lightning_arcs,
                     cleanup_chain_lightning,
+                    cleanup_chain_lightning_groups,
                 )
                     .chain()
-                    .run_if(any_exist::<ChainLightningBolt>().or(any_exist::<ChainLightningArc>())),
+                    .run_if(
+                        any_exist::<ChainLightningBolt>()
+                            .or(any_exist::<ChainLightningArc>())
+                            .or(any_exist::<ChainLightningGroup>()),
+                    ),
             )
                 .run_if(in_state(InGameState::Running)),
         );

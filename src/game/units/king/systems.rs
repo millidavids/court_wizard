@@ -11,8 +11,8 @@ use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, Te
 use crate::game::units::components::{
     AttackTiming, CommanderAuraSpeedModifier, Corpse, DamageMultiplier, Effectiveness,
     EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, HasteModifier, Health,
-    Hitbox, KingsGuard, MovementSpeed, RootedModifier, RoughTerrainModifier, TargetingVelocity,
-    Team, Teleportable,
+    Hitbox, KingsGuard, MovementSpeed, RootedModifier, RoughTerrainModifier,
+    SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
 
 /// Spawns the King unit at the center of the defender grid.
@@ -165,7 +165,7 @@ pub fn king_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
-            Option<&FrostSlowModifier>,
+            (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
             Option<&CauldronSpeedModifier>,
             Option<&RootedModifier>,
             Option<&HasteModifier>,
@@ -186,7 +186,7 @@ pub fn king_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
-        frost_modifier,
+        (frost_modifier, spike_growth_modifier),
         cauldron_modifier,
         rooted,
         haste_modifier,
@@ -214,6 +214,7 @@ pub fn king_movement(
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
             frost_modifier.map(|m| m.modifier),
+            spike_growth_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),

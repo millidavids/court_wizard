@@ -10,9 +10,8 @@ use super::styles::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{
-    FrostSlowModifier, Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
-};
+use crate::game::units::DamageType;
+use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
 };
@@ -464,7 +463,6 @@ pub(super) fn update_ice_explosions(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
-            Option<&mut FrostSlowModifier>,
         ),
         Without<IceExplosion>,
     >,
@@ -480,27 +478,18 @@ pub(super) fn update_ice_explosions(
         if !explosion.damage_applied {
             explosion.damage_applied = true;
 
-            for (unit_entity, unit_transform, mut health, mut temp_hp, frost_slow) in
-                units.iter_mut()
-            {
+            for (unit_entity, unit_transform, mut health, mut temp_hp) in units.iter_mut() {
                 let distance = unit_transform.translation.distance(explosion.origin);
 
                 if distance <= explosion.max_radius {
-                    // Apply frost damage to ALL units
-                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), explosion.damage);
-                    commands.entity(unit_entity).insert(SpellDamaged);
-
-                    // Apply or refresh frost slow effect
-                    if let Some(mut existing_slow) = frost_slow {
-                        // Refresh duration
-                        existing_slow.refresh(FROST_SLOW_DURATION * explosion.empowerment);
-                    } else {
-                        // Apply new frost slow
-                        commands.entity(unit_entity).insert(FrostSlowModifier::new(
-                            FROST_SLOW_MODIFIER,
-                            FROST_SLOW_DURATION * explosion.empowerment,
-                        ));
-                    }
+                    apply_spell_damage(
+                        &mut commands,
+                        unit_entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        explosion.damage,
+                        DamageType::Frost,
+                    );
                 }
             }
         }

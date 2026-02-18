@@ -9,4 +9,5 @@ pub(in crate::game::units::wizard) mod constants;
 mod plugin;
 mod systems;
 
+pub(crate) use components::LightningRod;
 pub use plugin::LightningRodPlugin;
