@@ -45,6 +45,8 @@ pub(super) struct OnStudyScreen;
 pub(super) enum StudyButtonAction {
     Commit,
     Back,
+    #[cfg(debug_assertions)]
+    DebugGrantInsight,
 }
 
 /// Scrollable container for the spell research grid.

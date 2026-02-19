@@ -14,6 +14,7 @@ use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::state::InGameState;
 use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::ButtonColors;
+use crate::ui::concentration::ConcentrationUIRoot;
 use crate::ui::systems::spawn_button;
 
 /// Resource to track when we just entered the spell book.
@@ -76,8 +77,10 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
         .spawn(Node {
             width: Val::Px(LEFT_PANEL_WIDTH),
             flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
+            align_self: AlignSelf::Center,
             row_gap: Val::Px(16.0),
+            flex_grow: 0.0,
+            flex_shrink: 0.0,
             ..default()
         })
         .with_children(|left| {
@@ -289,7 +292,7 @@ fn spawn_spell_list(
                             ..default()
                         })
                         .with_children(|section| {
-                            // Category header
+                            // Category header (full width)
                             section.spawn((
                                 Text::new(format!("-- {} --", category.display_name())),
                                 TextFont {
@@ -299,52 +302,65 @@ fn spawn_spell_list(
                                 TextColor(CATEGORY_COLOR),
                                 TextLayout::new_with_justify(Justify::Center),
                                 Node {
-                                    width: Val::Px(SPELL_BUTTON_WIDTH),
+                                    width: Val::Percent(100.0),
                                     ..default()
                                 },
                             ));
 
-                            // Spell buttons
-                            for spell in &unlocked_in_category {
-                                let is_selected = **spell == selected;
-                                let border = if is_selected {
-                                    SPELL_BUTTON_SELECTED_BORDER
-                                } else {
-                                    SPELL_BUTTON_BORDER
-                                };
+                            // Spell buttons in a wrapping row grid
+                            section
+                                .spawn(Node {
+                                    flex_direction: FlexDirection::Row,
+                                    flex_wrap: FlexWrap::Wrap,
+                                    column_gap: Val::Px(LIST_ITEM_GAP),
+                                    row_gap: Val::Px(LIST_ITEM_GAP),
+                                    ..default()
+                                })
+                                .with_children(|grid| {
+                                    for spell in &unlocked_in_category {
+                                        let is_selected = **spell == selected;
+                                        let border = if is_selected {
+                                            SPELL_BUTTON_SELECTED_BORDER
+                                        } else {
+                                            SPELL_BUTTON_BORDER
+                                        };
 
-                                section
-                                    .spawn((
-                                        Button,
-                                        Node {
-                                            width: Val::Px(SPELL_BUTTON_WIDTH),
-                                            height: Val::Px(SPELL_BUTTON_HEIGHT),
-                                            border: UiRect::all(Val::Px(SPELL_BUTTON_BORDER_WIDTH)),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..default()
-                                        },
-                                        BackgroundColor(SPELL_BUTTON_BG),
-                                        BorderColor::all(border),
-                                        BorderRadius::all(Val::Px(4.0)),
-                                        ButtonColors {
-                                            background: SPELL_BUTTON_BG,
-                                            border: SPELL_BUTTON_BORDER,
-                                        },
-                                        SpellBookButtonAction::SelectSpell(**spell),
-                                        SpellListButton(**spell),
-                                    ))
-                                    .with_children(|btn| {
-                                        btn.spawn((
-                                            Text::new(spell.display_name()),
-                                            TextFont {
-                                                font_size: SPELL_BUTTON_FONT_SIZE,
+                                        grid.spawn((
+                                            Button,
+                                            Node {
+                                                width: Val::Px(SPELL_BUTTON_WIDTH),
+                                                height: Val::Px(SPELL_BUTTON_HEIGHT),
+                                                border: UiRect::all(Val::Px(
+                                                    SPELL_BUTTON_BORDER_WIDTH,
+                                                )),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
                                                 ..default()
                                             },
-                                            TextColor(SPELL_BUTTON_TEXT_COLOR),
-                                        ));
-                                    });
-                            }
+                                            BackgroundColor(SPELL_BUTTON_BG),
+                                            BorderColor::all(border),
+                                            BorderRadius::all(Val::Px(4.0)),
+                                            ButtonColors {
+                                                background: SPELL_BUTTON_BG,
+                                                border: SPELL_BUTTON_BORDER,
+                                            },
+                                            SpellBookButtonAction::SelectSpell(**spell),
+                                            SpellListButton(**spell),
+                                        ))
+                                        .with_children(
+                                            |btn| {
+                                                btn.spawn((
+                                                    Text::new(spell.display_name()),
+                                                    TextFont {
+                                                        font_size: SPELL_BUTTON_FONT_SIZE,
+                                                        ..default()
+                                                    },
+                                                    TextColor(SPELL_BUTTON_TEXT_COLOR),
+                                                ));
+                                            },
+                                        );
+                                    }
+                                });
                         });
                 }
             });
@@ -603,4 +619,18 @@ pub(super) fn set_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBoo
 /// Clears the flag after one frame in SpellBook state.
 pub(super) fn clear_just_entered_flag(mut just_entered: ResMut<JustEnteredSpellBook>) {
     just_entered.0 = false;
+}
+
+/// Hides the concentration UI when the spell book opens.
+pub(super) fn hide_concentration_ui(mut query: Query<&mut Visibility, With<ConcentrationUIRoot>>) {
+    for mut vis in &mut query {
+        *vis = Visibility::Hidden;
+    }
+}
+
+/// Shows the concentration UI when the spell book closes.
+pub(super) fn show_concentration_ui(mut query: Query<&mut Visibility, With<ConcentrationUIRoot>>) {
+    for mut vis in &mut query {
+        *vis = Visibility::Inherited;
+    }
 }

@@ -9,9 +9,10 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::{
-    AttackTiming, CommanderAuraSpeedModifier, Corpse, DamageMultiplier, Effectiveness,
-    EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, HasteModifier, Health,
-    Hitbox, KingsGuard, MovementSpeed, RootedModifier, RoughTerrainModifier,
+    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, KingsGuard, MesmerizedModifier,
+    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
 
@@ -166,10 +167,19 @@ pub fn king_movement(
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
-            Option<&CauldronSpeedModifier>,
-            Option<&RootedModifier>,
-            Option<&HasteModifier>,
-            Option<&EliteSpeedBonus>,
+            (
+                Option<&CauldronSpeedModifier>,
+                Option<&RootedModifier>,
+                Option<&HasteModifier>,
+                Option<&EliteSpeedBonus>,
+            ),
+            (
+                Option<&MesmerizedModifier>,
+                Option<&SleepModifier>,
+                Option<&BanishedModifier>,
+                Option<&GreaseSlipModifier>,
+                Option<&PolymorphedModifier>,
+            ),
         ),
         With<King>,
     >,
@@ -187,14 +197,12 @@ pub fn king_movement(
         aura_modifier,
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
-        cauldron_modifier,
-        rooted,
-        haste_modifier,
-        elite_speed,
+        (cauldron_modifier, rooted, haste_modifier, elite_speed),
+        (mesmerized, sleeping, banished, grease, _polymorphed),
     ) in &mut king_units
     {
-        // Rooted units cannot move
-        if rooted.is_some() {
+        // CC'd units cannot move
+        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -218,6 +226,7 @@ pub fn king_movement(
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
+            grease.map(|g| g.modifier),
         );
     }
 }

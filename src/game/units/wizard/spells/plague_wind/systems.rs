@@ -1,0 +1,386 @@
+use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+
+use super::components::{PlagueWindCloud, PlagueWindIndicator};
+use super::constants;
+use crate::game::components::OnGameplayScreen;
+use crate::game::constants::ATTACKER_GRID_CENTER_ANGLE;
+use crate::game::input::MouseButtonState;
+use crate::game::input::messages::MouseLeftReleased;
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::units::DamageType;
+use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::wizard::components::{
+    CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
+};
+
+#[allow(clippy::too_many_arguments)]
+pub fn handle_plague_wind_casting(
+    time: Res<Time>,
+    mut mouse_state: ResMut<MouseButtonState>,
+    mut mouse_left_released: MessageReader<MouseLeftReleased>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<Wizard>,
+    >,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    caster_query: Query<&SpellCaster, With<Wizard>>,
+    mut indicator_query: Query<&mut PlagueWindIndicator>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
+        return;
+    };
+
+    if mouse_left_released.read().next().is_some() {
+        if let Ok(caster) = caster_query.single() {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+        casting_state.cancel();
+        return;
+    }
+
+    let Some(cursor_world_pos) = get_cursor_world_position(&camera_query, &window_query) else {
+        return;
+    };
+
+    let wizard_pos = wizard_transform.translation;
+    let scale = primed_spell.empowerment;
+    let radius = constants::CLOUD_RADIUS * scale;
+
+    let target_pos = clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range, radius);
+
+    match *casting_state {
+        CastingState::Resting => {
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
+                let circle_entity = spawn_circle_indicator(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    target_pos,
+                    scale,
+                );
+                commands
+                    .entity(wizard_entity)
+                    .insert(SpellCaster::with_indicator(circle_entity));
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+
+            if let Ok(caster) = caster_query.single()
+                && let Some(indicator_entity) = caster.indicator_entity
+                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+            {
+                indicator.position = target_pos;
+            }
+
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(constants::MANA_COST) {
+                    if let Ok(caster) = caster_query.single()
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            let pos = indicator.position;
+
+                            // Cloud drifts toward attacker spawn direction
+                            let direction = Vec3::new(
+                                ATTACKER_GRID_CENTER_ANGLE.cos(),
+                                0.0,
+                                ATTACKER_GRID_CENTER_ANGLE.sin(),
+                            )
+                            .normalize();
+
+                            let damage = constants::DAMAGE_PER_TICK * scale;
+
+                            // Notify pathfinding
+                            let origin_2d = Vec2::new(pos.x, pos.z);
+                            let buffered = radius + OBSTACLE_BUFFER;
+                            obstacle_events.write(ObstacleChanged {
+                                bounds: Rect::from_center_size(
+                                    origin_2d,
+                                    Vec2::splat(buffered * 2.0),
+                                ),
+                                obstacle_type: ObstacleType::Hazard,
+                            });
+
+                            let cloud_mesh = meshes.add(Circle::new(radius));
+                            let cloud_material = materials.add(StandardMaterial {
+                                base_color: constants::CLOUD_COLOR,
+                                unlit: true,
+                                alpha_mode: AlphaMode::Blend,
+                                cull_mode: None,
+                                ..default()
+                            });
+
+                            commands.spawn((
+                                Mesh3d(cloud_mesh),
+                                MeshMaterial3d(cloud_material),
+                                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                                    .with_rotation(Quat::from_rotation_x(
+                                        -std::f32::consts::FRAC_PI_2,
+                                    )),
+                                PlagueWindCloud::new(
+                                    pos,
+                                    radius,
+                                    damage,
+                                    constants::TICK_INTERVAL,
+                                    constants::CLOUD_DURATION * scale,
+                                    constants::CLOUD_SPEED,
+                                    direction,
+                                ),
+                                OnGameplayScreen,
+                            ));
+                        }
+
+                        commands.entity(indicator_entity).despawn();
+                    }
+
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
+                    mouse_state.left_consumed = true;
+                } else {
+                    if let Ok(caster) = caster_query.single()
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Channeling { .. } => {
+            if let Ok(caster) = caster_query.single() {
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+            }
+            casting_state.cancel();
+        }
+    }
+}
+
+pub fn update_plague_wind_indicator(
+    time: Res<Time>,
+    mut indicators: Query<(&mut PlagueWindIndicator, &mut Transform)>,
+) {
+    for (mut indicator, mut transform) in indicators.iter_mut() {
+        indicator.time_alive += time.delta_secs();
+        let pulse = indicator.pulse_scale();
+        transform.scale = Vec3::splat(pulse);
+        transform.translation.x = indicator.position.x;
+        transform.translation.y = constants::CIRCLE_Y_POSITION;
+        transform.translation.z = indicator.position.z;
+    }
+}
+
+/// Moves the plague wind cloud in its drift direction and updates pathfinding.
+pub fn move_plague_wind_cloud(
+    time: Res<Time>,
+    mut clouds: Query<(&mut PlagueWindCloud, &mut Transform)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
+    let delta = time.delta_secs();
+
+    for (mut cloud, mut transform) in clouds.iter_mut() {
+        // Remove old pathfinding bounds
+        let old_origin_2d = Vec2::new(cloud.origin.x, cloud.origin.z);
+        let buffered = cloud.radius + OBSTACLE_BUFFER;
+        obstacle_events.write(ObstacleChanged {
+            bounds: Rect::from_center_size(old_origin_2d, Vec2::splat(buffered * 2.0)),
+            obstacle_type: ObstacleType::Removed,
+        });
+
+        // Move cloud
+        let movement = cloud.direction * cloud.speed * delta;
+        cloud.origin += movement;
+        transform.translation.x = cloud.origin.x;
+        transform.translation.z = cloud.origin.z;
+
+        // Add new pathfinding bounds
+        let new_origin_2d = Vec2::new(cloud.origin.x, cloud.origin.z);
+        obstacle_events.write(ObstacleChanged {
+            bounds: Rect::from_center_size(new_origin_2d, Vec2::splat(buffered * 2.0)),
+            obstacle_type: ObstacleType::Hazard,
+        });
+    }
+}
+
+/// Applies periodic necrotic damage to all units within the cloud.
+pub fn apply_plague_wind_damage(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut clouds: Query<&mut PlagueWindCloud>,
+    mut units: Query<(
+        Entity,
+        &Transform,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+    )>,
+) {
+    let delta = time.delta_secs();
+
+    for mut cloud in &mut clouds {
+        cloud.time_alive += delta;
+        cloud.time_since_last_tick += delta;
+
+        if cloud.time_since_last_tick >= cloud.tick_interval {
+            cloud.time_since_last_tick = 0.0;
+
+            for (entity, transform, mut health, mut temp_hp) in &mut units {
+                let dist = Vec3::new(
+                    cloud.origin.x - transform.translation.x,
+                    0.0,
+                    cloud.origin.z - transform.translation.z,
+                )
+                .length();
+
+                if dist <= cloud.radius {
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        cloud.damage_per_tick,
+                        DamageType::Necrotic,
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Fades cloud visual opacity as it approaches expiration.
+pub fn fade_plague_wind_cloud(
+    clouds: Query<(&PlagueWindCloud, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (cloud, material_handle) in &clouds {
+        let Some(material) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        let remaining = cloud.duration - cloud.time_alive;
+        let fade = if remaining < constants::FADE_DURATION {
+            (remaining / constants::FADE_DURATION).max(0.0)
+        } else {
+            1.0
+        };
+
+        material.base_color = Color::srgba(0.2, 0.6, 0.1, 0.4 * fade);
+    }
+}
+
+/// Cleans up expired plague wind clouds and notifies pathfinding.
+pub fn cleanup_plague_wind_cloud(
+    mut commands: Commands,
+    clouds: Query<(Entity, &PlagueWindCloud)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
+    for (entity, cloud) in &clouds {
+        if cloud.time_alive >= cloud.duration {
+            let origin_2d = Vec2::new(cloud.origin.x, cloud.origin.z);
+            let buffered = cloud.radius + OBSTACLE_BUFFER;
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
+                obstacle_type: ObstacleType::Removed,
+            });
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+// --- Helper functions ---
+
+fn get_cursor_world_position(
+    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    window_query: &Query<&Window, With<PrimaryWindow>>,
+) -> Option<Vec3> {
+    let (camera, camera_transform) = camera_query.single().ok()?;
+    let window = window_query.single().ok()?;
+    let cursor_pos = window.cursor_position()?;
+
+    let ray = camera
+        .viewport_to_world(camera_transform, cursor_pos)
+        .ok()?;
+
+    if ray.direction.y.abs() < 0.0001 {
+        return None;
+    }
+
+    let t = -ray.origin.y / ray.direction.y;
+    if t < 0.0 {
+        return None;
+    }
+
+    Some(ray.origin + ray.direction * t)
+}
+
+fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32, radius: f32) -> Vec3 {
+    let wizard_height = wizard_pos.y;
+    let max_ground_radius = if wizard_height < spell_range {
+        (spell_range * spell_range - wizard_height * wizard_height).sqrt()
+    } else {
+        0.0
+    };
+    let max_center_distance = (max_ground_radius - radius).max(0.0);
+    let direction = target - wizard_pos;
+    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
+
+    if distance > max_center_distance && distance > 0.001 {
+        let normalized_direction = direction / distance;
+        wizard_pos + normalized_direction * max_center_distance
+    } else {
+        target
+    }
+}
+
+fn spawn_circle_indicator(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    position: Vec3,
+    empowerment: f32,
+) -> Entity {
+    let radius = constants::CLOUD_RADIUS * empowerment;
+    let circle_mesh = meshes.add(Circle::new(radius));
+    let circle_material = materials.add(StandardMaterial {
+        base_color: constants::CIRCLE_COLOR,
+        unlit: true,
+        ..default()
+    });
+
+    commands
+        .spawn((
+            Mesh3d(circle_mesh),
+            MeshMaterial3d(circle_material),
+            Transform::from_translation(Vec3::new(
+                position.x,
+                constants::CIRCLE_Y_POSITION,
+                position.z,
+            ))
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            PlagueWindIndicator::new(position),
+            OnGameplayScreen,
+        ))
+        .id()
+}

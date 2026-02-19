@@ -13,13 +13,19 @@ impl Plugin for SpellBookPlugin {
         app.init_resource::<systems::JustEnteredSpellBook>()
             .add_systems(
                 OnEnter(InGameState::SpellBook),
-                (systems::set_just_entered_flag, systems::spawn_spell_book_ui).chain(),
+                (
+                    systems::set_just_entered_flag,
+                    systems::spawn_spell_book_ui,
+                    systems::hide_concentration_ui,
+                )
+                    .chain(),
             )
             .add_systems(
                 OnExit(InGameState::SpellBook),
                 (
                     systems::despawn_spell_book_ui,
                     systems::consume_mouse_on_exit,
+                    systems::show_concentration_ui,
                 ),
             )
             .add_systems(

@@ -23,6 +23,19 @@ pub enum Spell {
     SpikeGrowth,
     LightningRod,
     Telekinesis,
+    MeteorFall,
+    MarkOfDeath,
+    PlagueWind,
+    HypnoticPattern,
+    Sleep,
+    Grease,
+    FogCloud,
+    BattleHymn,
+    HealingPlume,
+    BerserkerRage,
+    PhantasmalForce,
+    Banishment,
+    Polymorph,
 }
 
 /// Spell categories for organizing the spell book.
@@ -65,6 +78,9 @@ impl SpellCategory {
                 Spell::ChainLightning,
                 Spell::FingerOfDeath,
                 Spell::LightningRod,
+                Spell::MeteorFall,
+                Spell::MarkOfDeath,
+                Spell::PlagueWind,
             ],
             SpellCategory::Control => &[
                 Spell::BlackHole,
@@ -73,14 +89,26 @@ impl SpellCategory {
                 Spell::Entangle,
                 Spell::SpikeGrowth,
                 Spell::Squall,
+                Spell::HypnoticPattern,
+                Spell::Sleep,
+                Spell::Grease,
+                Spell::Polymorph,
             ],
             SpellCategory::Support => &[
                 Spell::GuardianCircle,
                 Spell::Haste,
                 Spell::Teleport,
                 Spell::RaiseTheDead,
+                Spell::BattleHymn,
+                Spell::HealingPlume,
+                Spell::FogCloud,
+                Spell::BerserkerRage,
             ],
-            SpellCategory::Utility => &[Spell::Telekinesis],
+            SpellCategory::Utility => &[
+                Spell::Telekinesis,
+                Spell::PhantasmalForce,
+                Spell::Banishment,
+            ],
         }
     }
 }
@@ -106,6 +134,19 @@ impl Spell {
             Spell::SpikeGrowth,
             Spell::LightningRod,
             Spell::Telekinesis,
+            Spell::MeteorFall,
+            Spell::MarkOfDeath,
+            Spell::PlagueWind,
+            Spell::HypnoticPattern,
+            Spell::Sleep,
+            Spell::Grease,
+            Spell::FogCloud,
+            Spell::BattleHymn,
+            Spell::HealingPlume,
+            Spell::BerserkerRage,
+            Spell::PhantasmalForce,
+            Spell::Banishment,
+            Spell::Polymorph,
         ]
     }
 
@@ -118,20 +159,34 @@ impl Spell {
             | Spell::Fireball
             | Spell::ChainLightning
             | Spell::FingerOfDeath
-            | Spell::LightningRod => SpellCategory::Offense,
+            | Spell::LightningRod
+            | Spell::MeteorFall
+            | Spell::MarkOfDeath
+            | Spell::PlagueWind => SpellCategory::Offense,
 
             Spell::BlackHole
             | Spell::WallOfStone
             | Spell::WallOfFire
             | Spell::Entangle
             | Spell::SpikeGrowth
-            | Spell::Squall => SpellCategory::Control,
+            | Spell::Squall
+            | Spell::HypnoticPattern
+            | Spell::Sleep
+            | Spell::Grease
+            | Spell::Polymorph => SpellCategory::Control,
 
-            Spell::GuardianCircle | Spell::Haste | Spell::Teleport | Spell::RaiseTheDead => {
-                SpellCategory::Support
+            Spell::GuardianCircle
+            | Spell::Haste
+            | Spell::Teleport
+            | Spell::RaiseTheDead
+            | Spell::BattleHymn
+            | Spell::HealingPlume
+            | Spell::FogCloud
+            | Spell::BerserkerRage => SpellCategory::Support,
+
+            Spell::Telekinesis | Spell::PhantasmalForce | Spell::Banishment => {
+                SpellCategory::Utility
             }
-
-            Spell::Telekinesis => SpellCategory::Utility,
         }
     }
 
@@ -155,6 +210,19 @@ impl Spell {
             Spell::SpikeGrowth => "Spike Growth",
             Spell::LightningRod => "Lightning Rod",
             Spell::Telekinesis => "Telekinesis",
+            Spell::MeteorFall => "Meteor Fall",
+            Spell::MarkOfDeath => "Mark of Death",
+            Spell::PlagueWind => "Plague Wind",
+            Spell::HypnoticPattern => "Hypnotic Pattern",
+            Spell::Sleep => "Sleep",
+            Spell::Grease => "Grease",
+            Spell::FogCloud => "Fog Cloud",
+            Spell::BattleHymn => "Battle Hymn",
+            Spell::HealingPlume => "Healing Plume",
+            Spell::BerserkerRage => "Berserker Rage",
+            Spell::PhantasmalForce => "Phantasmal Force",
+            Spell::Banishment => "Banishment",
+            Spell::Polymorph => "Polymorph",
         }
     }
 
@@ -178,6 +246,19 @@ impl Spell {
             Spell::SpikeGrowth => "Spike\nGrowth",
             Spell::LightningRod => "Lightning\nRod",
             Spell::Telekinesis => "Telekinesis",
+            Spell::MeteorFall => "Meteor\nFall",
+            Spell::MarkOfDeath => "Mark of\nDeath",
+            Spell::PlagueWind => "Plague\nWind",
+            Spell::HypnoticPattern => "Hypnotic\nPattern",
+            Spell::Sleep => "Sleep",
+            Spell::Grease => "Grease",
+            Spell::FogCloud => "Fog\nCloud",
+            Spell::BattleHymn => "Battle\nHymn",
+            Spell::HealingPlume => "Healing\nPlume",
+            Spell::BerserkerRage => "Berserker\nRage",
+            Spell::PhantasmalForce => "Phantasmal\nForce",
+            Spell::Banishment => "Banishment",
+            Spell::Polymorph => "Polymorph",
         }
     }
 
@@ -229,6 +310,45 @@ impl Spell {
             Spell::Telekinesis => {
                 "Retrieves ingredients dropped by fallen enemies. Click near a drop to pull it to you."
             }
+            Spell::MeteorFall => {
+                "Rains meteors from the sky, each exploding on impact and leaving persistent burning ground. Requires concentration to maintain."
+            }
+            Spell::MarkOfDeath => {
+                "Marks a single enemy for death. The marked unit takes heavily increased damage from all sources for 8 seconds."
+            }
+            Spell::PlagueWind => {
+                "Summons a toxic cloud that drifts across the battlefield, poisoning all units it passes through."
+            }
+            Spell::HypnoticPattern => {
+                "Mesmerizes all units in radius, preventing movement and attacks. Taking any damage breaks the effect."
+            }
+            Spell::Sleep => {
+                "Puts all units in radius to sleep. Sleeping units take bonus damage from the first hit that wakes them."
+            }
+            Spell::Grease => {
+                "Covers the ground in slippery oil that slows units. Can be ignited by fire spells for a devastating explosion."
+            }
+            Spell::FogCloud => {
+                "Blankets an area in supernatural fog. Units inside have a chance to evade incoming attacks. Lasts 12 seconds."
+            }
+            Spell::BattleHymn => {
+                "Chants a magical war hymn that increases damage and attack speed for all units in radius."
+            }
+            Spell::HealingPlume => {
+                "Creates a healing zone where all units slowly regenerate health over time. Lasts 10 seconds."
+            }
+            Spell::BerserkerRage => {
+                "Enrages all units in radius. They deal much more damage but also take more damage. Lasts 8 seconds."
+            }
+            Spell::PhantasmalForce => {
+                "Conjures illusory defenders that draw enemy attention. Illusions have very low health and deal no damage."
+            }
+            Spell::Banishment => {
+                "Banishes a single enemy from the battlefield for 8 seconds. The unit vanishes and returns when the effect ends."
+            }
+            Spell::Polymorph => {
+                "Transforms an enemy into a harmless sheep for 10 seconds. Kill the sheep for a permanent kill, or it reverts."
+            }
         }
     }
 
@@ -256,6 +376,19 @@ impl Spell {
                 "Stand near the tall metal thing during a storm. What could go wrong?"
             }
             Spell::Telekinesis => "Mind over matter. Literally.",
+            Spell::MeteorFall => "When one fireball just isn't enough.",
+            Spell::MarkOfDeath => "Everyone hits harder when they know where to aim.",
+            Spell::PlagueWind => "A gentle breeze. With consequences.",
+            Spell::HypnoticPattern => "Ooh, pretty lights. Why can't I move?",
+            Spell::Sleep => "Shh. They're having the best nap of their lives.",
+            Spell::Grease => "What's worse than slipping? Slipping while on fire.",
+            Spell::FogCloud => "Can't hit what you can't see.",
+            Spell::BattleHymn => "Nothing motivates like a good war song.",
+            Spell::HealingPlume => "Stand in the glowy green zone. Trust the wizard.",
+            Spell::BerserkerRage => "Hit harder. Get hit harder. Worth it.",
+            Spell::PhantasmalForce => "Are those real soldiers? Only one way to find out.",
+            Spell::Banishment => "Poof. Gone. Back in a minute.",
+            Spell::Polymorph => "Baa.",
         }
     }
 
@@ -279,18 +412,34 @@ impl Spell {
             Spell::SpikeGrowth => "Click and hold to place",
             Spell::LightningRod => "Click and hold to place",
             Spell::Telekinesis => "Click near a drop to retrieve",
+            Spell::MeteorFall => "Click and hold to place meteor storm",
+            Spell::MarkOfDeath => "Click and hold to cast",
+            Spell::PlagueWind => "Click and hold to place",
+            Spell::HypnoticPattern => "Click and hold to place",
+            Spell::Sleep => "Click and hold to place",
+            Spell::Grease => "Click and hold to place",
+            Spell::FogCloud => "Click and hold to place",
+            Spell::BattleHymn => "Click and hold to place",
+            Spell::HealingPlume => "Click and hold to place",
+            Spell::BerserkerRage => "Click and hold to place",
+            Spell::PhantasmalForce => "Click and hold to place",
+            Spell::Banishment => "Click and hold to cast",
+            Spell::Polymorph => "Click and hold to cast",
         }
     }
 
     /// Returns the PrimedSpell configuration for this spell.
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{
+            banishment_constants, battle_hymn_constants, berserker_rage_constants,
             black_hole_constants, chain_lightning_constants, disintegrate_constants,
-            entangle_constants, finger_of_death_constants, fireball_constants,
-            guardian_circle_constants, haste_constants, lightning_rod_constants,
-            magic_missile_constants, raise_the_dead_constants, spike_growth_constants,
-            squall_constants, telekinesis_constants, teleport_constants, wall_of_fire_constants,
-            wall_of_stone_constants,
+            entangle_constants, finger_of_death_constants, fireball_constants, fog_cloud_constants,
+            grease_constants, guardian_circle_constants, haste_constants, healing_plume_constants,
+            hypnotic_pattern_constants, lightning_rod_constants, magic_missile_constants,
+            mark_of_death_constants, meteor_fall_constants, phantasmal_force_constants,
+            plague_wind_constants, polymorph_constants, raise_the_dead_constants, sleep_constants,
+            spike_growth_constants, squall_constants, telekinesis_constants, teleport_constants,
+            wall_of_fire_constants, wall_of_stone_constants,
         };
 
         match self {
@@ -311,6 +460,19 @@ impl Spell {
             Spell::SpikeGrowth => spike_growth_constants::PRIMED_SPIKE_GROWTH,
             Spell::LightningRod => lightning_rod_constants::PRIMED_LIGHTNING_ROD,
             Spell::Telekinesis => telekinesis_constants::PRIMED_TELEKINESIS,
+            Spell::MeteorFall => meteor_fall_constants::PRIMED_METEOR_FALL,
+            Spell::MarkOfDeath => mark_of_death_constants::PRIMED_MARK_OF_DEATH,
+            Spell::PlagueWind => plague_wind_constants::PRIMED_PLAGUE_WIND,
+            Spell::HypnoticPattern => hypnotic_pattern_constants::PRIMED_HYPNOTIC_PATTERN,
+            Spell::Sleep => sleep_constants::PRIMED_SLEEP,
+            Spell::Grease => grease_constants::PRIMED_GREASE,
+            Spell::FogCloud => fog_cloud_constants::PRIMED_FOG_CLOUD,
+            Spell::BattleHymn => battle_hymn_constants::PRIMED_BATTLE_HYMN,
+            Spell::HealingPlume => healing_plume_constants::PRIMED_HEALING_PLUME,
+            Spell::BerserkerRage => berserker_rage_constants::PRIMED_BERSERKER_RAGE,
+            Spell::PhantasmalForce => phantasmal_force_constants::PRIMED_PHANTASMAL_FORCE,
+            Spell::Banishment => banishment_constants::PRIMED_BANISHMENT,
+            Spell::Polymorph => polymorph_constants::PRIMED_POLYMORPH,
         }
     }
 
@@ -334,6 +496,19 @@ impl Spell {
             Spell::SpikeGrowth => DamageType::Nature,
             Spell::LightningRod => DamageType::Electric,
             Spell::Telekinesis => DamageType::Force,
+            Spell::MeteorFall => DamageType::Fire,
+            Spell::MarkOfDeath => DamageType::Necrotic,
+            Spell::PlagueWind => DamageType::Necrotic,
+            Spell::HypnoticPattern => DamageType::Force,
+            Spell::Sleep => DamageType::Force,
+            Spell::Grease => DamageType::Nature,
+            Spell::FogCloud => DamageType::Frost,
+            Spell::BattleHymn => DamageType::Force,
+            Spell::HealingPlume => DamageType::Nature,
+            Spell::BerserkerRage => DamageType::Force,
+            Spell::PhantasmalForce => DamageType::Force,
+            Spell::Banishment => DamageType::Force,
+            Spell::Polymorph => DamageType::Nature,
         }
     }
 
@@ -344,13 +519,17 @@ impl Spell {
             Spell::MagicMissile | Spell::Telekinesis => 0,
             // Root spells (immediately researchable)
             Spell::Disintegrate => 30,
-            Spell::Entangle => 30,
+            Spell::Grease => 30,
             Spell::ChainLightning => 30,
             Spell::FingerOfDeath => 30,
             Spell::GuardianCircle => 30,
             Spell::WallOfStone => 30,
             // Second-tier (requires predecessor)
             Spell::Fireball => 50,
+            Spell::Entangle => 50,
+            Spell::MarkOfDeath => 50,
+            Spell::HealingPlume => 50,
+            Spell::BerserkerRage => 50,
             Spell::SpikeGrowth => 60,
             Spell::LightningRod => 60,
             Spell::RaiseTheDead => 60,
@@ -358,27 +537,46 @@ impl Spell {
             Spell::Teleport => 60,
             // Third-tier
             Spell::WallOfFire => 80,
+            Spell::BattleHymn => 80,
+            Spell::HypnoticPattern => 80,
+            Spell::PlagueWind => 80,
+            // Fourth-tier (capstones)
+            Spell::MeteorFall => 100,
             // Misc (require N total spells researched)
             Spell::Squall => 70,
+            Spell::PhantasmalForce => 50,
+            Spell::FogCloud => 60,
+            Spell::Sleep => 80,
+            Spell::Banishment => 90,
             Spell::BlackHole => 120,
+            Spell::Polymorph => 100,
         }
     }
 
     /// Returns the prerequisite spell that must be researched first, if any.
     pub const fn prerequisite(&self) -> Option<Spell> {
         match self {
-            // Fire chain: Disintegrate → Fireball → Wall of Fire
+            // Fire chain: Disintegrate → Fireball → Wall of Fire → Meteor Fall
             Spell::Fireball => Some(Spell::Disintegrate),
             Spell::WallOfFire => Some(Spell::Fireball),
-            // Nature chain: Entangle → Spike Growth
+            Spell::MeteorFall => Some(Spell::WallOfFire),
+            // Nature chain: Grease → Entangle → Spike Growth, Entangle → Healing Plume
+            Spell::Entangle => Some(Spell::Grease),
+            Spell::HealingPlume => Some(Spell::Entangle),
             Spell::SpikeGrowth => Some(Spell::Entangle),
             // Electric chain: Chain Lightning → Lightning Rod
             Spell::LightningRod => Some(Spell::ChainLightning),
-            // Necrotic chain: Finger of Death → Raise the Dead
+            // Necrotic chain: Finger of Death → Raise the Dead, → Mark of Death → Plague Wind
             Spell::RaiseTheDead => Some(Spell::FingerOfDeath),
-            // Force chains: Guardian Circle → Haste, Wall of Stone → Teleport
+            Spell::MarkOfDeath => Some(Spell::FingerOfDeath),
+            Spell::PlagueWind => Some(Spell::MarkOfDeath),
+            // Force chains: Guardian Circle → Haste → Battle Hymn, Guardian Circle → Berserker Rage
             Spell::Haste => Some(Spell::GuardianCircle),
+            Spell::BerserkerRage => Some(Spell::GuardianCircle),
+            Spell::BattleHymn => Some(Spell::Haste),
+            // Force chains: Wall of Stone → Teleport → Hypnotic Pattern
             Spell::Teleport => Some(Spell::WallOfStone),
+            Spell::HypnoticPattern => Some(Spell::Teleport),
             _ => None,
         }
     }
@@ -389,7 +587,12 @@ impl Spell {
     pub const fn required_total_spells(&self) -> u32 {
         match self {
             Spell::Squall => 4,
+            Spell::PhantasmalForce => 5,
+            Spell::FogCloud => 5,
+            Spell::Sleep => 6,
+            Spell::Banishment => 7,
             Spell::BlackHole => 8,
+            Spell::Polymorph => 8,
             _ => 0,
         }
     }

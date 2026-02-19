@@ -1,0 +1,57 @@
+use bevy::prelude::*;
+
+/// Visual indicator for the Healing Plume area during casting.
+#[derive(Component)]
+pub struct HealingPlumeIndicator {
+    pub position: Vec3,
+    pub time_alive: f32,
+    pub empowerment: f32,
+}
+
+impl HealingPlumeIndicator {
+    pub const fn new(position: Vec3, empowerment: f32) -> Self {
+        Self {
+            position,
+            time_alive: 0.0,
+            empowerment,
+        }
+    }
+
+    pub fn pulse_scale(&self) -> f32 {
+        let pulse_freq = 2.0;
+        let pulse_amplitude = 0.05;
+        1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+    }
+}
+
+/// Persistent healing zone that heals all units inside.
+#[derive(Component)]
+pub struct HealingPlumeZone {
+    pub origin: Vec3,
+    pub radius: f32,
+    pub heal_per_tick: f32,
+    pub tick_interval: f32,
+    pub duration: f32,
+    pub time_alive: f32,
+    pub time_since_last_tick: f32,
+}
+
+impl HealingPlumeZone {
+    pub fn new(
+        origin: Vec3,
+        radius: f32,
+        heal_per_tick: f32,
+        tick_interval: f32,
+        duration: f32,
+    ) -> Self {
+        Self {
+            origin,
+            radius,
+            heal_per_tick,
+            tick_interval,
+            duration,
+            time_alive: 0.0,
+            time_since_last_tick: 0.0,
+        }
+    }
+}

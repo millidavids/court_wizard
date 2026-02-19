@@ -330,8 +330,10 @@ pub fn apply_rough_terrain_slowdown(
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
+    mut commands: Commands,
     mut all_units: Query<
         (
             Entity,
@@ -343,6 +345,12 @@ pub fn combat(
             Option<&DamageMultiplier>,
             Option<&CauldronDamageBonus>,
             Option<&EliteDamageBonus>,
+            // New spell modifiers on attacker side
+            Option<&super::units::components::MesmerizedModifier>,
+            Option<&super::units::components::SleepModifier>,
+            Option<&super::units::components::BanishedModifier>,
+            Option<&super::units::components::BattleHymnModifier>,
+            Option<&super::units::components::BerserkerRageModifier>,
         ),
         Without<Corpse>,
     >,
@@ -350,6 +358,12 @@ pub fn combat(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Option<&CauldronDamageResistance>,
+        // New spell modifiers on target side
+        Option<&super::units::components::FogEvasionModifier>,
+        Option<&super::units::components::MarkedForDeathModifier>,
+        Option<&super::units::components::BerserkerRageModifier>,
+        Option<&super::units::components::SleepModifier>,
+        Option<&super::units::components::MesmerizedModifier>,
     )>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -358,10 +372,15 @@ pub fn combat(
     // Collect snapshot of all units for enemy detection
     let units_snapshot: Vec<_> = all_units
         .iter()
-        .map(|(entity, transform, hitbox, team, _, _, _, _, _)| {
-            (entity, transform.translation, *hitbox, *team)
-        })
+        .map(
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _)| {
+                (entity, transform.translation, *hitbox, *team)
+            },
+        )
         .collect();
+
+    // Collect post-combat actions to apply after the main loop
+    let mut post_combat_removes: Vec<(Entity, PostCombatAction)> = Vec::new();
 
     // Process each unit's combat
     for (
@@ -374,27 +393,31 @@ pub fn combat(
         damage_mult,
         cauldron_damage_bonus,
         elite_damage_bonus,
+        mesmerized,
+        sleeping,
+        banished,
+        battle_hymn,
+        berserker_rage_attacker,
     ) in &mut all_units
     {
+        // Skip attack if mesmerized, sleeping, or banished
+        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+            continue;
+        }
+
         // Find nearest enemy within attack range
         if let Some((target_entity, _, _)) = units_snapshot
             .iter()
             .filter(|(entity, _, _, team)| {
-                // Skip self and apply team-based targeting logic
                 *entity != attacker_entity
                     && match (attacker_team, team) {
-                        // Undead don't attack each other
                         (Team::Undead, Team::Undead) => false,
-                        // Undead attack living
                         (Team::Undead, _) => true,
-                        // Living attack undead
                         (_, Team::Undead) => true,
-                        // Normal team logic
                         _ => team != attacker_team,
                     }
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
-                // Calculate distance on XZ plane only (ignore Y axis for attack range)
                 let dx = attacker_transform.translation.x - target_pos.x;
                 let dz = attacker_transform.translation.z - target_pos.z;
                 let distance = (dx * dx + dz * dz).sqrt();
@@ -408,29 +431,100 @@ pub fn combat(
             })
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
         {
-            // Attack if we're in the unit's attack window
-            if attack_timing.can_attack(current_time, last_time)
-                && let Ok((mut target_health, mut temp_hp, target_resistance)) =
-                    health_query.get_mut(*target_entity)
+            // Calculate effective attack speed (BattleHymn makes attacks come faster)
+            let attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed);
+            let effective_last_time = if attack_speed_bonus > 0.0 {
+                // Shrink the window between last_time and current_time to simulate faster attacks
+                current_time - (current_time - last_time) * (1.0 + attack_speed_bonus)
+            } else {
+                last_time
+            };
+
+            if attack_timing.can_attack(current_time, effective_last_time)
+                && let Ok((
+                    mut target_health,
+                    mut temp_hp,
+                    target_resistance,
+                    fog_evasion,
+                    marked_for_death,
+                    berserker_rage_target,
+                    target_sleeping,
+                    target_mesmerized,
+                )) = health_query.get_mut(*target_entity)
             {
-                // Apply effectiveness and damage percentage
-                // DamageMultiplier stores percentage bonus (0.5 = +50%, 1.0 = +100%)
-                // Convert to multiplier: damage * (1.0 + percentage)
+                // Check fog evasion
+                if let Some(evasion) = fog_evasion {
+                    let roll = rand::random::<f32>();
+                    if roll < evasion.evasion_chance {
+                        // Attack evaded - still record the attack timing
+                        attack_timing.record_attack(current_time);
+                        continue;
+                    }
+                }
+
+                // Calculate base damage with attacker bonuses
                 let damage_percentage = damage_mult.map_or(0.0, |d| d.0)
                     + cauldron_damage_bonus.map_or(0.0, |b| b.0)
-                    + elite_damage_bonus.map_or(0.0, |b| b.0);
+                    + elite_damage_bonus.map_or(0.0, |b| b.0)
+                    + battle_hymn.map_or(0.0, |b| b.damage_bonus)
+                    + berserker_rage_attacker.map_or(0.0, |b| b.damage_bonus);
                 let damage_multiplier = 1.0 + damage_percentage;
                 let mut modified_damage =
                     ATTACK_DAMAGE * effectiveness.multiplier() * damage_multiplier;
+
                 // Apply target's damage resistance (Wormwood brew)
                 if let Some(resistance) = target_resistance {
                     modified_damage *= 1.0 - resistance.0;
                 }
+
+                // Apply target's Mark of Death amplification
+                if let Some(mark) = marked_for_death {
+                    modified_damage *= 1.0 + mark.damage_amplification;
+                }
+
+                // Apply target's Berserker Rage vulnerability
+                if let Some(rage) = berserker_rage_target {
+                    modified_damage *= 1.0 + rage.damage_vulnerability;
+                }
+
+                // Apply Sleep bonus damage (first hit wakes and deals bonus)
+                if let Some(sleep) = target_sleeping {
+                    modified_damage *= sleep.bonus_damage_multiplier;
+                    post_combat_removes.push((*target_entity, PostCombatAction::RemoveSleep));
+                }
+
+                // Break mesmerize on damage
+                if target_mesmerized.is_some() {
+                    post_combat_removes.push((*target_entity, PostCombatAction::RemoveMesmerize));
+                }
+
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.record_attack(current_time);
             }
         }
     }
+
+    // Apply post-combat actions
+    for (entity, action) in post_combat_removes {
+        match action {
+            PostCombatAction::RemoveSleep => {
+                commands
+                    .entity(entity)
+                    .remove::<super::units::components::SleepModifier>();
+            }
+            PostCombatAction::RemoveMesmerize => {
+                commands
+                    .entity(entity)
+                    .remove::<super::units::components::MesmerizedModifier>();
+            }
+        }
+    }
+}
+
+/// Post-combat actions to defer component removal after the main combat loop.
+enum PostCombatAction {
+    RemoveSleep,
+    RemoveMesmerize,
 }
 
 /// Converts dead units to corpses instead of despawning them.
@@ -568,7 +662,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<AttackTiming>() // Can't attack
                 .remove::<Hitbox>() // Remove collision
                 .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
-                .remove::<super::units::components::CommanderAuraSpeedModifier>() // Remove speed modifiers
+                .remove::<super::units::components::CommanderAuraSpeedModifier>()
                 .remove::<super::units::components::FrostSlowModifier>()
                 .remove::<super::units::components::RootedModifier>()
                 .remove::<super::units::components::HasteModifier>()
@@ -578,6 +672,17 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::OriginalMaterial>()
                 .remove::<super::units::components::SpikeGrowthSlowModifier>()
                 .remove::<super::units::components::RoughTerrainModifier>()
+                // New spell modifiers
+                .remove::<super::units::components::MarkedForDeathModifier>()
+                .remove::<super::units::components::MesmerizedModifier>()
+                .remove::<super::units::components::SleepModifier>()
+                .remove::<super::units::components::BattleHymnModifier>()
+                .remove::<super::units::components::BerserkerRageModifier>()
+                .remove::<super::units::components::FogEvasionModifier>()
+                .remove::<super::units::components::GreaseSlipModifier>()
+                .remove::<super::units::components::BanishedModifier>()
+                .remove::<super::units::components::PolymorphedModifier>()
+                .remove::<super::units::components::IllusionDecoy>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>();

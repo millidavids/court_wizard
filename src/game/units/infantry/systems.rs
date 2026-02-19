@@ -10,10 +10,11 @@ use crate::game::constants::{
 };
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
-    AttackTiming, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
-    FlockingVelocity, FrostSlowModifier, HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed,
-    RootedModifier, RoughTerrainModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team,
-    Teleportable,
+    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
+    EliteSpeedBonus, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
+    Health, Hitbox, KingsGuard, MesmerizedModifier, MovementSpeed, PolymorphedModifier,
+    RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
+    TargetingVelocity, Team, Teleportable,
 };
 use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
@@ -135,10 +136,19 @@ pub fn infantry_movement(
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
-            Option<&CauldronSpeedModifier>,
-            Option<&RootedModifier>,
-            Option<&HasteModifier>,
-            Option<&EliteSpeedBonus>,
+            (
+                Option<&CauldronSpeedModifier>,
+                Option<&RootedModifier>,
+                Option<&HasteModifier>,
+                Option<&EliteSpeedBonus>,
+            ),
+            (
+                Option<&MesmerizedModifier>,
+                Option<&SleepModifier>,
+                Option<&BanishedModifier>,
+                Option<&GreaseSlipModifier>,
+                Option<&PolymorphedModifier>,
+            ),
         ),
         With<Infantry>,
     >,
@@ -156,16 +166,23 @@ pub fn infantry_movement(
         aura_modifier,
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
-        cauldron_modifier,
-        rooted,
-        haste_modifier,
-        elite_speed,
+        (cauldron_modifier, rooted, haste_modifier, elite_speed),
+        (mesmerized, sleeping, banished, grease, polymorphed),
     ) in &mut infantry_units
     {
-        // Rooted units cannot move
-        if rooted.is_some() {
+        // CC'd units cannot move
+        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
+            continue;
+        }
+
+        // Polymorphed units wander randomly
+        if polymorphed.is_some() {
+            let angle = (time.elapsed_secs() * 0.5 + velocity.x.to_bits() as f32).sin()
+                * std::f32::consts::TAU;
+            velocity.x = angle.cos() * 20.0;
+            velocity.z = angle.sin() * 20.0;
             continue;
         }
 
@@ -187,6 +204,7 @@ pub fn infantry_movement(
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
+            grease.map(|g| g.modifier),
         );
     }
 }

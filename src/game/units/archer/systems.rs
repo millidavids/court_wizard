@@ -14,9 +14,10 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
-    AttackTiming, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
-    FlockingModifier, FlockingVelocity, FrostSlowModifier, HasteModifier, Health, Hitbox,
-    MovementSpeed, RootedModifier, RoughTerrainModifier, SpikeGrowthSlowModifier,
+    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
+    EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier,
+    HasteModifier, Health, Hitbox, MesmerizedModifier, MovementSpeed, PolymorphedModifier,
+    RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
@@ -53,6 +54,7 @@ pub fn update_archer_movement_timers(
 
 /// Archer melee combat system (used when enemies are in melee range).
 /// Archers deal reduced damage in melee compared to infantry.
+#[allow(clippy::type_complexity)]
 pub fn archer_melee_combat(
     attack_cycle: Res<GlobalAttackCycle>,
     mut archers: Query<
@@ -63,6 +65,9 @@ pub fn archer_melee_combat(
             &Team,
             &mut AttackTiming,
             &Effectiveness,
+            Option<&MesmerizedModifier>,
+            Option<&SleepModifier>,
+            Option<&BanishedModifier>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -85,8 +90,16 @@ pub fn archer_melee_combat(
         archer_team,
         mut attack_timing,
         effectiveness,
+        mesmerized,
+        sleeping,
+        banished,
     ) in &mut archers
     {
+        // Skip attack if mesmerized, sleeping, or banished
+        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+            continue;
+        }
+
         // Find nearest enemy within melee range
         if let Some((target_entity, _, _)) = targets_snapshot
             .iter()
@@ -123,6 +136,7 @@ pub fn archer_melee_combat(
 
 /// Archer ranged combat system that spawns arrows instead of dealing direct damage.
 /// Only fires if no melee targets are available.
+#[allow(clippy::type_complexity)]
 pub fn archer_ranged_combat(
     mut commands: Commands,
     archer_assets: Res<ArcherAssets>,
@@ -135,6 +149,9 @@ pub fn archer_ranged_combat(
             &AttackRange,
             &mut AttackTiming,
             &mut ArcherMovementTimer,
+            Option<&MesmerizedModifier>,
+            Option<&SleepModifier>,
+            Option<&BanishedModifier>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -157,8 +174,16 @@ pub fn archer_ranged_combat(
         attack_range,
         _attack_timing,
         mut movement_timer,
+        mesmerized,
+        sleeping,
+        banished,
     ) in archers.iter_mut()
     {
+        // Skip attack if mesmerized, sleeping, or banished
+        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+            continue;
+        }
+
         // Check if enough time has passed since stopping to attack
         if !movement_timer.can_attack(ARCHER_ATTACK_DELAY_AFTER_MOVEMENT) {
             continue;
@@ -486,10 +511,19 @@ pub fn archer_movement(
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
             (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
-            Option<&CauldronSpeedModifier>,
-            Option<&RootedModifier>,
-            Option<&HasteModifier>,
-            Option<&EliteSpeedBonus>,
+            (
+                Option<&CauldronSpeedModifier>,
+                Option<&RootedModifier>,
+                Option<&HasteModifier>,
+                Option<&EliteSpeedBonus>,
+            ),
+            (
+                Option<&MesmerizedModifier>,
+                Option<&SleepModifier>,
+                Option<&BanishedModifier>,
+                Option<&GreaseSlipModifier>,
+                Option<&PolymorphedModifier>,
+            ),
         ),
         With<Archer>,
     >,
@@ -507,16 +541,23 @@ pub fn archer_movement(
         aura_modifier,
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
-        cauldron_modifier,
-        rooted,
-        haste_modifier,
-        elite_speed,
+        (cauldron_modifier, rooted, haste_modifier, elite_speed),
+        (mesmerized, sleeping, banished, grease, polymorphed),
     ) in &mut archer_units
     {
-        // Rooted units cannot move
-        if rooted.is_some() {
+        // CC'd units cannot move
+        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
+            continue;
+        }
+
+        // Polymorphed units wander randomly
+        if polymorphed.is_some() {
+            let angle = (time.elapsed_secs() * 0.5 + velocity.x.to_bits() as f32).sin()
+                * std::f32::consts::TAU;
+            velocity.x = angle.cos() * 20.0;
+            velocity.z = angle.sin() * 20.0;
             continue;
         }
 
@@ -538,6 +579,7 @@ pub fn archer_movement(
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
+            grease.map(|g| g.modifier),
         );
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)

@@ -5,6 +5,10 @@ use crate::state::InGameState;
 use super::archer::ArcherPlugin;
 use super::behemoth::BehemothPlugin;
 use super::commander::CommanderPlugin;
+use super::components::{
+    BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, GreaseSlipModifier,
+    MarkedForDeathModifier, MesmerizedModifier, SleepModifier,
+};
 use super::elite::ElitePlugin;
 use super::infantry::InfantryPlugin;
 use super::king::KingPlugin;
@@ -57,6 +61,25 @@ impl Plugin for UnitsPlugin {
                 systems::update_electric_arc_visuals,
                 systems::update_persistent_effect_visuals,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
+            )
+                .run_if(in_state(InGameState::Running)),
+        )
+        .add_systems(
+            Update,
+            (
+                systems::update_mark_of_death_modifiers
+                    .run_if(any_with_component::<MarkedForDeathModifier>),
+                systems::update_mesmerized_modifiers
+                    .run_if(any_with_component::<MesmerizedModifier>),
+                systems::update_sleep_modifiers.run_if(any_with_component::<SleepModifier>),
+                systems::update_battle_hymn_modifiers
+                    .run_if(any_with_component::<BattleHymnModifier>),
+                systems::update_berserker_rage_modifiers
+                    .run_if(any_with_component::<BerserkerRageModifier>),
+                systems::update_fog_evasion_modifiers
+                    .run_if(any_with_component::<FogEvasionModifier>),
+                systems::update_grease_slip_modifiers
+                    .run_if(any_with_component::<GreaseSlipModifier>),
             )
                 .run_if(in_state(InGameState::Running)),
         );

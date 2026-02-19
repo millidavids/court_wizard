@@ -713,6 +713,288 @@ impl HasteModifier {
     }
 }
 
+/// Damage amplification modifier from Mark of Death.
+///
+/// Marked units take increased damage from ALL sources.
+/// Combat system applies: damage * (1.0 + damage_amplification).
+#[derive(Component)]
+pub struct MarkedForDeathModifier {
+    /// Damage amplification (e.g., 0.5 = +50% damage taken).
+    pub damage_amplification: f32,
+    /// Time remaining before the mark expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl MarkedForDeathModifier {
+    pub const fn new(amplification: f32, duration: f32) -> Self {
+        Self {
+            damage_amplification: amplification,
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Mesmerize effect from Hypnotic Pattern.
+///
+/// Mesmerized units cannot move or attack. Any damage received removes this effect.
+#[derive(Component)]
+pub struct MesmerizedModifier {
+    /// Time remaining before the effect expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl MesmerizedModifier {
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Sleep effect from Sleep spell.
+///
+/// Sleeping units cannot move or attack. First damage hit deals bonus damage
+/// and wakes them (removes this effect).
+#[derive(Component)]
+pub struct SleepModifier {
+    /// Time remaining before the effect expires (in seconds).
+    pub time_remaining: f32,
+    /// Bonus damage multiplier on first hit (e.g., 2.0 = double damage).
+    pub bonus_damage_multiplier: f32,
+}
+
+impl SleepModifier {
+    pub const fn new(duration: f32, bonus_multiplier: f32) -> Self {
+        Self {
+            time_remaining: duration,
+            bonus_damage_multiplier: bonus_multiplier,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Battle Hymn buff granting damage and attack speed bonuses.
+///
+/// Combat system adds damage_bonus to outgoing damage and scales attack timing.
+#[derive(Component)]
+pub struct BattleHymnModifier {
+    /// Damage bonus as a percentage (e.g., 0.4 = +40% damage).
+    pub damage_bonus: f32,
+    /// Attack speed bonus as a percentage (e.g., 0.3 = 30% faster attacks).
+    pub attack_speed: f32,
+    /// Time remaining before the buff expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl BattleHymnModifier {
+    pub const fn new(damage_bonus: f32, attack_speed: f32, duration: f32) -> Self {
+        Self {
+            damage_bonus,
+            attack_speed,
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    pub fn refresh(&mut self, duration: f32) {
+        self.time_remaining = duration;
+    }
+}
+
+/// Berserker Rage buff granting damage bonus but increasing damage taken.
+///
+/// Risk/reward buff: +damage dealt, +damage taken.
+#[derive(Component)]
+pub struct BerserkerRageModifier {
+    /// Damage bonus as a percentage (e.g., 0.8 = +80% damage dealt).
+    pub damage_bonus: f32,
+    /// Damage vulnerability as a percentage (e.g., 0.5 = +50% damage taken).
+    pub damage_vulnerability: f32,
+    /// Time remaining before the buff expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl BerserkerRageModifier {
+    pub const fn new(damage_bonus: f32, vulnerability: f32, duration: f32) -> Self {
+        Self {
+            damage_bonus,
+            damage_vulnerability: vulnerability,
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    pub fn refresh(&mut self, duration: f32) {
+        self.time_remaining = duration;
+    }
+}
+
+/// Fog evasion effect from Fog Cloud.
+///
+/// Units inside the fog have a chance to evade incoming attacks.
+#[derive(Component)]
+pub struct FogEvasionModifier {
+    /// Evasion chance (0.0–1.0, e.g., 0.4 = 40% dodge chance).
+    pub evasion_chance: f32,
+    /// Time remaining before the evasion expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl FogEvasionModifier {
+    pub const fn new(chance: f32, duration: f32) -> Self {
+        Self {
+            evasion_chance: chance,
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    pub fn refresh(&mut self, duration: f32) {
+        self.time_remaining = duration;
+    }
+}
+
+/// Grease slip effect that reduces movement speed.
+///
+/// Applied to units inside a Grease zone.
+#[derive(Component)]
+pub struct GreaseSlipModifier {
+    /// Speed reduction as a percentage (negative value, e.g., -0.4 = 40% slower).
+    pub modifier: f32,
+    /// Time remaining before the slow expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl GreaseSlipModifier {
+    pub const fn new(modifier: f32, duration: f32) -> Self {
+        Self {
+            modifier,
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    pub fn refresh(&mut self, duration: f32) {
+        self.time_remaining = duration;
+    }
+}
+
+/// Banishment effect that removes a unit from the battlefield temporarily.
+///
+/// Banished units are hidden, untargetable, and cannot act.
+/// When the effect expires, the unit reappears.
+#[derive(Component)]
+pub struct BanishedModifier {
+    /// Time remaining before the unit returns (in seconds).
+    pub time_remaining: f32,
+}
+
+impl BanishedModifier {
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Permanent marker preventing a unit from being banished again.
+#[derive(Component)]
+pub struct WasBanished;
+
+/// Polymorph effect that transforms a unit into a sheep.
+///
+/// Stores the original unit state for restoration when the effect expires.
+#[derive(Component)]
+pub struct PolymorphedModifier {
+    /// Time remaining before the unit reverts (in seconds).
+    pub time_remaining: f32,
+    /// Original current health to restore on revert.
+    pub original_health_current: f32,
+    /// Original max health to restore on revert.
+    pub original_health_max: f32,
+    /// Original material handle to restore on revert.
+    pub original_material: Handle<StandardMaterial>,
+}
+
+impl PolymorphedModifier {
+    pub fn new(
+        duration: f32,
+        health_current: f32,
+        health_max: f32,
+        material: Handle<StandardMaterial>,
+    ) -> Self {
+        Self {
+            time_remaining: duration,
+            original_health_current: health_current,
+            original_health_max: health_max,
+            original_material: material,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Marker component for illusion decoys created by Phantasmal Force.
+///
+/// Decoys are fake units that enemies target. They have very low HP and deal no damage.
+/// Cannot be resurrected by Raise the Dead.
+#[derive(Component)]
+pub struct IllusionDecoy {
+    /// Time remaining before the decoy despawns (in seconds).
+    pub time_remaining: f32,
+}
+
+impl IllusionDecoy {
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
 /// Component indicating a unit is currently engaged in melee combat with a specific team.
 ///
 /// A unit is considered in melee when there is an enemy within melee range.

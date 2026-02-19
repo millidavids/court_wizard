@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 /// Marker component for the concentration UI root container.
 #[derive(Component)]
-pub(super) struct ConcentrationUIRoot;
+pub(crate) struct ConcentrationUIRoot;
 
 /// Marker component for the concentration spell name text.
 #[derive(Component)]

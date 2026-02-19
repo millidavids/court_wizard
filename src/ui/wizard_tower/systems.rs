@@ -5,8 +5,8 @@ use bevy::ui::{ComputedNode, RelativeCursorPosition};
 
 use crate::config::ActiveSave;
 use crate::config::save_data::{
-    add_spell_research_progress, get_insight, get_spell_research_progress, load_unified_save,
-    spend_insight,
+    add_spell_research_progress, get_insight, get_spell_research_progress, grant_insight,
+    load_unified_save, spend_insight,
 };
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
@@ -36,12 +36,22 @@ const CHAINS: &[SpellChain] = &[
     SpellChain {
         label: "Fire",
         color: FIRE_COLOR,
-        spells: &[Spell::Disintegrate, Spell::Fireball, Spell::WallOfFire],
+        spells: &[
+            Spell::Disintegrate,
+            Spell::Fireball,
+            Spell::WallOfFire,
+            Spell::MeteorFall,
+        ],
     },
     SpellChain {
         label: "Nature",
         color: NATURE_COLOR,
-        spells: &[Spell::Entangle, Spell::SpikeGrowth],
+        spells: &[Spell::Grease, Spell::Entangle, Spell::SpikeGrowth],
+    },
+    SpellChain {
+        label: "",
+        color: NATURE_COLOR,
+        spells: &[Spell::Entangle, Spell::HealingPlume],
     },
     SpellChain {
         label: "Electric",
@@ -54,19 +64,37 @@ const CHAINS: &[SpellChain] = &[
         spells: &[Spell::FingerOfDeath, Spell::RaiseTheDead],
     },
     SpellChain {
+        label: "",
+        color: NECROTIC_COLOR,
+        spells: &[Spell::FingerOfDeath, Spell::MarkOfDeath, Spell::PlagueWind],
+    },
+    SpellChain {
         label: "Force",
         color: FORCE_COLOR,
-        spells: &[Spell::GuardianCircle, Spell::Haste],
+        spells: &[Spell::GuardianCircle, Spell::Haste, Spell::BattleHymn],
+    },
+    SpellChain {
+        label: "",
+        color: FORCE_COLOR,
+        spells: &[Spell::GuardianCircle, Spell::BerserkerRage],
     },
     SpellChain {
         label: "Earth",
         color: EARTH_COLOR,
-        spells: &[Spell::WallOfStone, Spell::Teleport],
+        spells: &[Spell::WallOfStone, Spell::Teleport, Spell::HypnoticPattern],
     },
 ];
 
 /// Miscellaneous spells (not in chains, require N total spells researched).
-const MISC_SPELLS: &[Spell] = &[Spell::Squall, Spell::BlackHole];
+const MISC_SPELLS: &[Spell] = &[
+    Spell::Squall,
+    Spell::PhantasmalForce,
+    Spell::FogCloud,
+    Spell::Sleep,
+    Spell::Banishment,
+    Spell::BlackHole,
+    Spell::Polymorph,
+];
 
 /// Returns the number of spells the player has fully researched.
 fn count_researched_spells() -> u32 {
@@ -370,6 +398,14 @@ pub(super) fn setup_study_screen(mut commands: Commands, battle_insight: Res<Bat
                     );
 
                     spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
+
+                    #[cfg(debug_assertions)]
+                    spawn_button(
+                        footer,
+                        "+10000 Insight",
+                        StudyButtonAction::DebugGrantInsight,
+                        &DEBUG_BUTTON_STYLE,
+                    );
                 });
         });
 }
@@ -452,6 +488,17 @@ pub(super) fn handle_study_button_actions(
 
                 // Re-setup will happen via OnEnter since we stay in Study state.
                 // Instead, rebuild inline.
+                rebuild_study_screen(&mut commands, &battle_insight);
+            }
+            #[cfg(debug_assertions)]
+            StudyButtonAction::DebugGrantInsight => {
+                grant_insight(10000);
+
+                // Rebuild UI to show updated balance
+                for entity in &screen_query {
+                    commands.entity(entity).despawn();
+                }
+                commands.remove_resource::<InsightAllocation>();
                 rebuild_study_screen(&mut commands, &battle_insight);
             }
         }
@@ -565,6 +612,14 @@ fn rebuild_study_screen(commands: &mut Commands, battle_insight: &BattleInsightD
                     );
 
                     spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
+
+                    #[cfg(debug_assertions)]
+                    spawn_button(
+                        footer,
+                        "+10000 Insight",
+                        StudyButtonAction::DebugGrantInsight,
+                        &DEBUG_BUTTON_STYLE,
+                    );
                 });
         });
 }

@@ -109,3 +109,14 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     border: Color::hsla(0.0, 0.0, 0.3, 1.0),
     text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
 };
+
+#[cfg(debug_assertions)]
+pub(super) const DEBUG_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 200.0,
+    height: 50.0,
+    border_width: 3.0,
+    font_size: 14.0,
+    background: Color::srgb(0.4, 0.1, 0.1),
+    border: Color::srgb(0.8, 0.2, 0.2),
+    text_color: Color::srgb(1.0, 0.7, 0.7),
+};

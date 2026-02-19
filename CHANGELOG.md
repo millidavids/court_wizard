@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.173] - 2026-02-18
+
+### Added
+- **13 new spells** — the wizard's arsenal has grown from 17 to 30 spells!
+  - **Meteor Fall** — rain down fiery meteors that leave burning ground behind
+  - **Mark of Death** — curse an enemy to take bonus damage from all sources
+  - **Plague Wind** — summon a toxic cloud that drifts across the battlefield
+  - **Hypnotic Pattern** — mesmerize all units in an area, freezing them until they take damage
+  - **Sleep** — put units to sleep; the first hit deals bonus damage and wakes them
+  - **Grease** — coat the ground in slippery grease that slows everyone down; hit it with fire to ignite it!
+  - **Fog Cloud** — create a foggy area where units have a chance to dodge attacks
+  - **Battle Hymn** — boost nearby units' damage and attack speed
+  - **Healing Plume** — create a healing zone that regenerates health for anyone standing in it
+  - **Berserker Rage** — units deal more damage but also take more damage
+  - **Phantasmal Force** — summon illusory decoys that distract enemies
+  - **Banishment** — temporarily remove an enemy from the battlefield
+  - **Polymorph** — turn an enemy into a helpless sheep
+- **Grease + Fire combo** — igniting grease now shows fire visually spreading from the ignition point across the pool
+- Grease can be ignited by Fireball, Wall of Fire, Disintegrate, Meteor Fall ground fires, and even chain-ignites from other burning grease pools
+- Spell Book now displays spells in a 4-column grid layout
+
+### Fixed
+- Sleep and other crowd control effects now properly stop archers from attacking (both melee and ranged)
+- Spell modifiers (Mark of Death, Sleep, Battle Hymn, etc.) now properly expire after their duration
+- End Concentration button no longer overlaps the Spell Book when it's open
+
 ## [v0.1.153] - 2026-02-18
 
 ### Added

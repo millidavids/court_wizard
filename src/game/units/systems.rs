@@ -2,9 +2,11 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity, FrostSlowModifier,
-    HasteModifier, Health, InMelee, OriginalMaterial, PendingDamageEffect, RootedModifier,
-    SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
+    BattleHymnModifier, BerserkerRageModifier, Corpse, Effectiveness, ElectricCharge, FireDoT,
+    FlockingVelocity, FogEvasionModifier, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
+    Health, InMelee, MarkedForDeathModifier, MesmerizedModifier, OriginalMaterial,
+    PendingDamageEffect, RootedModifier, SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity,
+    Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
@@ -116,6 +118,7 @@ pub fn calculate_weighted_movement(
     cauldron_modifier: Option<f32>,
     haste_modifier: Option<f32>,
     elite_speed_modifier: Option<f32>,
+    grease_modifier: Option<f32>,
 ) {
     // Use pathfinding distance (accounts for obstacles)
     let distance = flow_field_velocity.pathfinding_distance;
@@ -163,13 +166,15 @@ pub fn calculate_weighted_movement(
     let cauldron_percentage = cauldron_modifier.unwrap_or(0.0);
     let haste_percentage = haste_modifier.unwrap_or(0.0);
     let elite_speed_percentage = elite_speed_modifier.unwrap_or(0.0);
+    let grease_percentage = grease_modifier.unwrap_or(0.0);
     let total_percentage = aura_percentage
         + terrain_percentage
         + frost_percentage
         + spike_growth_percentage
         + cauldron_percentage
         + haste_percentage
-        + elite_speed_percentage;
+        + elite_speed_percentage
+        + grease_percentage;
     let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
     // Calculate max speed with effectiveness, modifiers, and melee slowdown
@@ -285,6 +290,104 @@ pub fn update_spike_growth_slow_modifiers(
     for (entity, mut slow) in query.iter_mut() {
         if slow.update(delta) {
             commands.entity(entity).remove::<SpikeGrowthSlowModifier>();
+        }
+    }
+}
+
+/// Updates all mark of death modifiers and removes expired components.
+pub fn update_mark_of_death_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut MarkedForDeathModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<MarkedForDeathModifier>();
+        }
+    }
+}
+
+/// Updates all mesmerized modifiers and removes expired components.
+pub fn update_mesmerized_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut MesmerizedModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<MesmerizedModifier>();
+        }
+    }
+}
+
+/// Updates all sleep modifiers and removes expired components.
+pub fn update_sleep_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut SleepModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<SleepModifier>();
+        }
+    }
+}
+
+/// Updates all battle hymn modifiers and removes expired components.
+pub fn update_battle_hymn_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut BattleHymnModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<BattleHymnModifier>();
+        }
+    }
+}
+
+/// Updates all berserker rage modifiers and removes expired components.
+pub fn update_berserker_rage_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut BerserkerRageModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<BerserkerRageModifier>();
+        }
+    }
+}
+
+/// Updates all fog evasion modifiers and removes expired components.
+pub fn update_fog_evasion_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut FogEvasionModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<FogEvasionModifier>();
+        }
+    }
+}
+
+/// Updates all grease slip modifiers and removes expired components.
+pub fn update_grease_slip_modifiers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut GreaseSlipModifier)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier) in query.iter_mut() {
+        if modifier.update(delta) {
+            commands.entity(entity).remove::<GreaseSlipModifier>();
         }
     }
 }
@@ -499,6 +602,7 @@ pub fn update_electric_arc_visuals(
 /// 1. Unit has effects but no OriginalMaterial: clone the material, store original
 /// 2. Unit has effects and OriginalMaterial: blend effect colors onto cloned material
 /// 3. Unit has OriginalMaterial but no effects: restore original, remove OriginalMaterial
+#[allow(clippy::type_complexity)]
 pub fn update_persistent_effect_visuals(
     mut commands: Commands,
     time: Res<Time>,
@@ -541,7 +645,9 @@ pub fn update_persistent_effect_visuals(
                 .insert(MeshMaterial3d(cloned_handle));
         } else if has_any_effect {
             // Phase 2: Blend effect colors onto the cloned material
-            let original = original_mat.expect("has_any_effect && !is_none checked");
+            let Some(original) = original_mat else {
+                continue;
+            };
             let Some(original_material) = materials.get(&original.0) else {
                 continue;
             };
@@ -573,9 +679,8 @@ pub fn update_persistent_effect_visuals(
             if let Some(cloned_material) = materials.get_mut(material_handle) {
                 cloned_material.base_color = Color::from(result_linear);
             }
-        } else if original_mat.is_some() {
+        } else if let Some(original) = original_mat {
             // Phase 3: All effects expired — restore original material
-            let original = original_mat.expect("is_some checked");
             commands
                 .entity(entity)
                 .insert(MeshMaterial3d(original.0.clone()));

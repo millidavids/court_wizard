@@ -2,17 +2,30 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 
+use super::banishment::BanishmentPlugin;
+use super::battle_hymn::BattleHymnPlugin;
+use super::berserker_rage::BerserkerRagePlugin;
 use super::black_hole::BlackHolePlugin;
 use super::chain_lightning::ChainLightningPlugin;
 use super::disintegrate::DisintegratePlugin;
 use super::entangle::EntanglePlugin;
 use super::finger_of_death::FingerOfDeathPlugin;
 use super::fireball::FireballPlugin;
+use super::fog_cloud::FogCloudPlugin;
+use super::grease::GreasePlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::haste::HastePlugin;
+use super::healing_plume::HealingPlumePlugin;
+use super::hypnotic_pattern::HypnoticPatternPlugin;
 use super::lightning_rod::LightningRodPlugin;
 use super::magic_missile::MagicMissilePlugin;
+use super::mark_of_death::MarkOfDeathPlugin;
+use super::meteor_fall::MeteorFallPlugin;
+use super::phantasmal_force::PhantasmalForcePlugin;
+use super::plague_wind::PlagueWindPlugin;
+use super::polymorph::PolymorphPlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
+use super::sleep::SleepPlugin;
 use super::spike_growth::SpikeGrowthPlugin;
 use super::squall::SquallPlugin;
 use super::systems;
@@ -22,19 +35,6 @@ use super::wall_of_fire::WallOfFirePlugin;
 use super::wall_of_stone::plugin::WallOfStonePlugin;
 
 /// Plugin that handles wizard spells and projectiles.
-///
-/// Registers systems for:
-/// - Magic missile spell (MagicMissilePlugin)
-/// - Disintegrate beam spell (DisintegratePlugin)
-/// - Fireball spell (FireballPlugin)
-/// - Guardian Circle spell (GuardianCirclePlugin)
-/// - Chain Lightning spell (ChainLightningPlugin)
-/// - Finger of Death spell (FingerOfDeathPlugin)
-/// - Raise The Dead spell (RaiseTheDeadPlugin)
-/// - Projectile movement
-/// - Projectile collision detection
-/// - Spell effect lifetime management
-/// - Projectile cleanup
 pub struct SpellsPlugin;
 
 impl Plugin for SpellsPlugin {
@@ -58,7 +58,24 @@ impl Plugin for SpellsPlugin {
             HastePlugin,
             SpikeGrowthPlugin,
             LightningRodPlugin,
+        ))
+        .add_plugins((
             TelekinesisPlugin,
+            HealingPlumePlugin,
+            BattleHymnPlugin,
+            BerserkerRagePlugin,
+            FogCloudPlugin,
+            MarkOfDeathPlugin,
+            HypnoticPatternPlugin,
+            SleepPlugin,
+        ))
+        .add_plugins((
+            GreasePlugin,
+            PlagueWindPlugin,
+            PhantasmalForcePlugin,
+            MeteorFallPlugin,
+            BanishmentPlugin,
+            PolymorphPlugin,
         ))
         .add_systems(
             Update,
