@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use super::states::{AppState, InGameState, MenuState, MetaGameState, PauseMenuState};
+use super::states::{
+    AppState, InGameState, MenuState, MetaGameState, MultiplayerGameState, PauseMenuState,
+};
 
 /// Manages all game states.
 ///
@@ -73,6 +75,7 @@ impl Plugin for StatePlugin {
         app.add_sub_state::<InGameState>();
         app.add_sub_state::<PauseMenuState>();
         app.add_sub_state::<MetaGameState>();
+        app.add_sub_state::<MultiplayerGameState>();
 
         // Optional: Add state transition logging for debugging
         #[cfg(debug_assertions)]
@@ -84,6 +87,7 @@ impl Plugin for StatePlugin {
                 log_in_game_state_transitions,
                 log_pause_menu_state_transitions,
                 log_meta_game_state_transitions,
+                log_multiplayer_game_state_transitions,
             ),
         );
     }
@@ -144,5 +148,19 @@ fn log_meta_game_state_transitions(meta_game_state: Option<Res<State<MetaGameSta
         && state.is_changed()
     {
         info!("MetaGameState changed to: {:?}", state.get());
+    }
+}
+
+/// Logs MultiplayerGameState transitions for debugging.
+///
+/// Only enabled in debug builds.
+#[cfg(debug_assertions)]
+fn log_multiplayer_game_state_transitions(
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
+) {
+    if let Some(state) = mp_state
+        && state.is_changed()
+    {
+        info!("MultiplayerGameState changed to: {:?}", state.get());
     }
 }

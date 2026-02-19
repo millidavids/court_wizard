@@ -55,7 +55,7 @@ pub const CASTLE_WIDTH: f32 = 300.0;
 pub const CASTLE_DEPTH: f32 = 2000.0;
 
 /// Wizard offset from castle position.
-const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
+pub(crate) const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
 
 // ===== Unit Positioning =====
 
@@ -66,6 +66,29 @@ pub const WIZARD_POSITION: Vec3 = Vec3::new(
     CASTLE_POSITION.y + WIZARD_OFFSET.y,
     CASTLE_POSITION.z + WIZARD_OFFSET.z,
 );
+
+// ===== Castle 2 Positioning (Multiplayer — opposite corner) =====
+
+/// Castle 2 position in 3D space (diagonally opposite from Castle 1).
+pub const CASTLE_2_POSITION: Vec3 = Vec3::new(1550.0, 1200.0, -1550.0);
+
+/// Castle 2 rotation in degrees (facing opposite direction).
+pub const CASTLE_2_ROTATION_DEGREES: f32 = CASTLE_ROTATION_DEGREES + 180.0;
+
+/// Wizard 2 position (on Castle 2 platform).
+pub const WIZARD_2_POSITION: Vec3 = Vec3::new(
+    CASTLE_2_POSITION.x - WIZARD_OFFSET.x,
+    CASTLE_2_POSITION.y + WIZARD_OFFSET.y,
+    CASTLE_2_POSITION.z - WIZARD_OFFSET.z,
+);
+
+// ===== Multiplayer Constants =====
+
+/// Fixed infantry count for each side in multiplayer (no level scaling).
+pub const MP_INFANTRY_COUNT: u32 = 60;
+
+/// Fixed archer count for each side in multiplayer.
+pub const MP_ARCHER_COUNT: u32 = 10;
 
 // ===== Gameplay Constants =====
 
@@ -311,6 +334,39 @@ pub fn calculate_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
     let radius = DEFENDER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
     let x = WIZARD_POSITION.x + radius * angle.cos();
     let z = WIZARD_POSITION.z + radius * angle.sin();
+    (x, z)
+}
+
+/// Calculates the world position of a grid cell for the guest army (mirrored from Castle 2).
+///
+/// Uses the same radial grid layout as attacker spawns but centered on Wizard 2
+/// and pointing toward the center of the battlefield.
+///
+/// # Arguments
+/// * `row` - Row index (0 = closest to wizard)
+/// * `col` - Column index (0-5, centered around center angle)
+///
+/// # Returns
+/// Tuple of (x, z) world coordinates for the cell center
+pub fn calculate_guest_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
+    let col_offset = col as f32 - 2.5; // centers 6 columns: -2.5 .. 2.5
+    // Mirror the angle: point from Castle 2 toward battlefield center
+    let mirrored_angle = ATTACKER_GRID_CENTER_ANGLE + std::f32::consts::PI;
+    let angle = mirrored_angle + col_offset * GRID_ANGULAR_SPACING;
+    let radius = ATTACKER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let x = WIZARD_2_POSITION.x + radius * angle.cos();
+    let z = WIZARD_2_POSITION.z + radius * angle.sin();
+    (x, z)
+}
+
+/// Calculates the world position of a guest defender grid cell (mirrored from Castle 2).
+pub fn calculate_guest_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
+    let col_offset = col as f32 - (DEFENDER_GRID_COLS as f32 - 1.0) / 2.0;
+    let mirrored_angle = DEFENDER_GRID_CENTER_ANGLE + std::f32::consts::PI;
+    let angle = mirrored_angle + col_offset * GRID_ANGULAR_SPACING;
+    let radius = DEFENDER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let x = WIZARD_2_POSITION.x + radius * angle.cos();
+    let z = WIZARD_2_POSITION.z + radius * angle.sin();
     (x, z)
 }
 

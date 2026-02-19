@@ -79,6 +79,14 @@ pub fn setup(mut commands: Commands) {
                 MenuButtonAction::Instructions,
                 &BUTTON_STYLE,
             );
+
+            // Multiplayer button
+            spawn_button(
+                parent,
+                "Multiplayer",
+                MenuButtonAction::Multiplayer,
+                &BUTTON_STYLE,
+            );
         });
 }
 
@@ -116,6 +124,9 @@ pub fn button_action(
                 }
                 MenuButtonAction::Progress => {
                     next_menu_state.set(MenuState::Progress);
+                }
+                MenuButtonAction::Multiplayer => {
+                    next_menu_state.set(MenuState::Multiplayer);
                 }
             }
         }

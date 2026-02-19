@@ -29,6 +29,12 @@ pub enum AppState {
 
     /// Active gameplay state.
     InGame,
+
+    /// Multiplayer loading state - progressively spawning multiplayer battlefield.
+    MultiplayerLoading,
+
+    /// Active multiplayer gameplay state.
+    MultiplayerGame,
 }
 
 /// Menu navigation state.
@@ -66,6 +72,9 @@ pub enum MenuState {
 
     /// Progress screen showing achievements and unlockables.
     Progress,
+
+    /// Multiplayer lobby for P2P WebRTC connection setup.
+    Multiplayer,
 }
 
 /// InGame sub-state.
@@ -142,4 +151,22 @@ pub enum PauseMenuState {
 
     /// Progress screen showing achievements and unlockables.
     Progress,
+}
+
+/// Multiplayer game sub-state.
+///
+/// This is a SubState that only exists when AppState::MultiplayerGame is active.
+/// Separate from InGameState to avoid any coupling with single-player systems.
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
+#[source(AppState = AppState::MultiplayerGame)]
+pub enum MultiplayerGameState {
+    /// Active multiplayer gameplay.
+    #[default]
+    Running,
+
+    /// Multiplayer game is paused.
+    Paused,
+
+    /// Score screen shown after multiplayer battle ends.
+    ScoreScreen,
 }

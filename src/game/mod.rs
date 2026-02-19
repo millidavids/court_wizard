@@ -16,6 +16,7 @@ pub(crate) mod drops;
 pub(crate) mod input;
 mod loading;
 pub(crate) mod messages;
+pub(crate) mod multiplayer;
 pub(crate) mod pathfinding;
 mod plugin;
 pub(crate) mod resources;

@@ -5,12 +5,15 @@ use bevy::window::{Window, WindowPlugin, WindowResolution};
 mod config;
 mod game;
 mod music;
+mod networking;
 mod state;
 mod ui;
 
 use config::{ConfigPlugin, GameConfig};
+use game::multiplayer::MultiplayerGamePlugin;
 use game::GamePlugin;
 use music::MusicPlugin;
+use networking::NetworkingPlugin;
 use state::StatePlugin;
 use ui::UiPlugin;
 
@@ -41,7 +44,7 @@ fn main() {
                 ..default()
             }),
     )
-    .add_plugins((ConfigPlugin, StatePlugin, MusicPlugin, UiPlugin, GamePlugin))
+    .add_plugins((ConfigPlugin, StatePlugin, NetworkingPlugin, MusicPlugin, UiPlugin, GamePlugin, MultiplayerGamePlugin))
     .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)));
 
     app.add_systems(Startup, setup)

@@ -6,6 +6,7 @@ use bevy::prelude::*;
 
 use super::changelog::ChangelogPlugin;
 use super::landing::plugin::LandingPlugin;
+use super::multiplayer::plugin::MultiplayerPlugin;
 use super::settings::plugin::SettingsPlugin;
 use super::wizard_select::plugin::WizardSelectPlugin;
 use crate::ui::instructions::MainMenuInstructionsPlugin;
@@ -30,6 +31,7 @@ impl Plugin for MainMenuPlugin {
             MainMenuInstructionsPlugin,
             MainMenuProgressPlugin,
             WizardSelectPlugin,
+            MultiplayerPlugin,
         ));
     }
 }

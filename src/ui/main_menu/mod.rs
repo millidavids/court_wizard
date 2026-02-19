@@ -5,6 +5,7 @@
 
 mod changelog;
 mod landing;
+mod multiplayer;
 mod plugin;
 pub(crate) mod settings;
 mod wizard_select;

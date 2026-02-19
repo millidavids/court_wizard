@@ -28,4 +28,7 @@ pub(super) enum MenuButtonAction {
 
     /// Open the progress screen, transitioning to `MenuState::Progress`.
     Progress,
+
+    /// Open the multiplayer lobby, transitioning to `MenuState::Multiplayer`.
+    Multiplayer,
 }
