@@ -94,6 +94,7 @@ const MISC_SPELLS: &[Spell] = &[
     Spell::Banishment,
     Spell::BlackHole,
     Spell::Polymorph,
+    Spell::ArcaneCrystal,
 ];
 
 /// Returns the number of spells the player has fully researched.

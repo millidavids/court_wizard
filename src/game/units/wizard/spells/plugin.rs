@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 
+use super::arcane_crystal::ArcaneCrystalPlugin;
 use super::banishment::BanishmentPlugin;
 use super::battle_hymn::BattleHymnPlugin;
 use super::berserker_rage::BerserkerRagePlugin;
@@ -76,6 +77,7 @@ impl Plugin for SpellsPlugin {
             MeteorFallPlugin,
             BanishmentPlugin,
             PolymorphPlugin,
+            ArcaneCrystalPlugin,
         ))
         .add_systems(
             Update,

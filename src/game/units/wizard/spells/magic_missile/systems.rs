@@ -12,6 +12,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Handles magic missile casting with left-click.
@@ -33,6 +34,7 @@ pub fn handle_magic_missile_casting(
     camera_query: Query<&GlobalTransform, With<Camera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
+    crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
 ) {
     let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
         return;
@@ -67,6 +69,7 @@ pub fn handle_magic_missile_casting(
                         &mut materials,
                         &camera_query,
                         &targets,
+                        &crystals,
                         wizard.spell_range,
                         primed_spell.empowerment,
                         cursor_pos,
@@ -94,6 +97,7 @@ pub fn handle_magic_missile_casting(
                         &mut materials,
                         &camera_query,
                         &targets,
+                        &crystals,
                         wizard.spell_range,
                         primed_spell.empowerment,
                         cursor_pos,
@@ -127,6 +131,7 @@ fn spawn_magic_missile(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     camera_query: &Query<&GlobalTransform, With<Camera>>,
     targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
+    crystals: &Query<(Entity, &Transform, &ArcaneCrystal)>,
     spell_range: f32,
     empowerment: f32,
     cursor_world_pos: Option<Vec3>,
@@ -134,73 +139,98 @@ fn spawn_magic_missile(
     // Spawn position: above the wizard
     let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
+    // Priority: if cursor is near an Arcane Crystal, target it directly
+    let crystal_target: Option<Entity> = cursor_world_pos.and_then(|cursor_pos| {
+        let mut closest: Option<(Entity, f32)> = None;
+        for (entity, transform, crystal) in crystals.iter() {
+            let dist = Vec3::new(
+                cursor_pos.x - transform.translation.x,
+                0.0,
+                cursor_pos.z - transform.translation.z,
+            )
+            .length();
+            if dist <= crystal.collision_radius * 5.0 {
+                match closest {
+                    None => closest = Some((entity, dist)),
+                    Some((_, prev_dist)) if dist < prev_dist => closest = Some((entity, dist)),
+                    _ => {}
+                }
+            }
+        }
+        closest.map(|(e, _)| e)
+    });
+
     // Select target using cursor-based weighted selection if cursor position is available
     let mut rng = rand::thread_rng();
 
-    // Collect enemies in range
-    let enemies_in_range: Vec<Entity> = targets
-        .iter()
-        .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
-        .filter(|(_, transform, _)| {
-            let distance = spawn_pos.distance(transform.translation);
-            distance <= spell_range
-        })
-        .map(|(entity, _, _)| entity)
-        .collect();
+    let target = if crystal_target.is_some() {
+        crystal_target
+    } else {
+        // Collect enemies in range
+        let enemies_in_range: Vec<Entity> = targets
+            .iter()
+            .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+            .filter(|(_, transform, _)| {
+                let distance = spawn_pos.distance(transform.translation);
+                distance <= spell_range
+            })
+            .map(|(entity, _, _)| entity)
+            .collect();
 
-    let target = if !enemies_in_range.is_empty() {
-        if let Some(cursor_pos) = cursor_world_pos {
-            // Weighted random selection based on distance from cursor
-            // Build weights and total in a single pass without intermediate Vec
-            let mut total_weight = 0.0;
-            let weighted_targets: Vec<(Entity, f32)> = enemies_in_range
-                .iter()
-                .filter_map(|&entity| {
-                    targets.get(entity).ok().map(|(_, transform, _)| {
-                        let distance = cursor_pos.distance(transform.translation);
-                        // Inverse distance squared weighting (add 1.0 to avoid division by zero)
-                        let weight =
-                            1.0 / (distance.powi(constants::CURSOR_TARGETING_WEIGHT_POWER) + 1.0);
-                        total_weight += weight;
-                        (entity, weight)
+        if !enemies_in_range.is_empty() {
+            if let Some(cursor_pos) = cursor_world_pos {
+                // Weighted random selection based on distance from cursor
+                // Build weights and total in a single pass without intermediate Vec
+                let mut total_weight = 0.0;
+                let weighted_targets: Vec<(Entity, f32)> = enemies_in_range
+                    .iter()
+                    .filter_map(|&entity| {
+                        targets.get(entity).ok().map(|(_, transform, _)| {
+                            let distance = cursor_pos.distance(transform.translation);
+                            // Inverse distance squared weighting (add 1.0 to avoid division by zero)
+                            let weight = 1.0
+                                / (distance.powi(constants::CURSOR_TARGETING_WEIGHT_POWER) + 1.0);
+                            total_weight += weight;
+                            (entity, weight)
+                        })
                     })
-                })
-                .collect();
+                    .collect();
 
-            if total_weight > 0.0 {
-                // Pick target using weighted random selection
-                let mut random_value = rng.gen_range(0.0..total_weight);
-                let mut selected_target = None;
-                for (entity, weight) in weighted_targets {
-                    random_value -= weight;
-                    if random_value <= 0.0 {
-                        selected_target = Some(entity);
-                        break;
+                if total_weight > 0.0 {
+                    // Pick target using weighted random selection
+                    let mut random_value = rng.gen_range(0.0..total_weight);
+                    let mut selected_target = None;
+                    for (entity, weight) in weighted_targets {
+                        random_value -= weight;
+                        if random_value <= 0.0 {
+                            selected_target = Some(entity);
+                            break;
+                        }
                     }
+                    // Fallback to first target if loop completes (shouldn't happen)
+                    selected_target.or_else(|| enemies_in_range.first().copied())
+                } else {
+                    // All weights are zero (shouldn't happen), pick random
+                    let index = rng.gen_range(0..enemies_in_range.len());
+                    Some(enemies_in_range[index])
                 }
-                // Fallback to first target if loop completes (shouldn't happen)
-                selected_target.or_else(|| enemies_in_range.first().copied())
             } else {
-                // All weights are zero (shouldn't happen), pick random
+                // No cursor position, pick random target within range
                 let index = rng.gen_range(0..enemies_in_range.len());
                 Some(enemies_in_range[index])
             }
         } else {
-            // No cursor position, pick random target within range
-            let index = rng.gen_range(0..enemies_in_range.len());
-            Some(enemies_in_range[index])
+            // No targets in range, find the closest enemy anywhere
+            targets
+                .iter()
+                .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+                .min_by(|a, b| {
+                    let dist_a = spawn_pos.distance(a.1.translation);
+                    let dist_b = spawn_pos.distance(b.1.translation);
+                    dist_a.partial_cmp(&dist_b).unwrap()
+                })
+                .map(|(entity, _, _)| entity)
         }
-    } else {
-        // No targets in range, find the closest enemy anywhere
-        targets
-            .iter()
-            .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
-            .min_by(|a, b| {
-                let dist_a = spawn_pos.distance(a.1.translation);
-                let dist_b = spawn_pos.distance(b.1.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            })
-            .map(|(entity, _, _)| entity)
     };
 
     // Random initial velocity: varied launch paths (up and to the sides, never down)
@@ -245,6 +275,7 @@ pub fn move_magic_missiles(
     time: Res<Time>,
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
+    crystal_transforms: Query<&Transform, (With<ArcaneCrystal>, Without<MagicMissile>)>,
     wizard_query: Query<&Wizard>,
 ) {
     let Ok(wizard) = wizard_query.single() else {
@@ -255,11 +286,10 @@ pub fn move_magic_missiles(
     for (mut missile_transform, mut missile) in &mut missiles {
         missile.time_alive += time.delta_secs();
 
-        // Check if current target still exists
-        let target_exists = missile
-            .target
-            .and_then(|target_entity| targets.get(target_entity).ok())
-            .is_some();
+        // Check if current target still exists (could be a unit or a crystal)
+        let target_exists = missile.target.is_some_and(|target_entity| {
+            targets.get(target_entity).is_ok() || crystal_transforms.get(target_entity).is_ok()
+        });
 
         // Retarget if current target despawned
         if !target_exists {
@@ -290,17 +320,22 @@ pub fn move_magic_missiles(
                     .min_by(|a, b| {
                         let dist_a = missile_transform.translation.distance(a.1.translation);
                         let dist_b = missile_transform.translation.distance(b.1.translation);
-                        dist_a.partial_cmp(&dist_b).unwrap()
+                        dist_a
+                            .partial_cmp(&dist_b)
+                            .unwrap_or(std::cmp::Ordering::Equal)
                     })
                     .map(|(entity, _, _)| entity)
             };
         }
 
-        // Get current target's transform
-        let target_transform = missile
-            .target
-            .and_then(|target_entity| targets.get(target_entity).ok())
-            .map(|(_, transform, _)| transform);
+        // Get current target's transform (check units first, then crystals)
+        let target_transform = missile.target.and_then(|target_entity| {
+            targets
+                .get(target_entity)
+                .ok()
+                .map(|(_, transform, _)| transform)
+                .or_else(|| crystal_transforms.get(target_entity).ok())
+        });
 
         if let Some(target_transform) = target_transform {
             let to_target = target_transform.translation - missile_transform.translation;

@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.198] - 2026-02-19
+
+### Added
+- **Arcane Crystal** — a new utility spell that absorbs incoming spells and re-emits smaller versions at nearby targets
+  - Place a floating crystal on the battlefield that lasts 25 seconds
+  - Hit it with any spell and it fires back mini versions at units in range
+  - Fireballs become a volley of 5 mini fireballs
+  - Disintegrate channels 5 lesser beams while you hold it on the crystal
+  - Finger of Death fires a burst of 5 purple beams
+  - Magic Missile splits into 5 homing mini missiles that target enemies
+  - Meteor Fall launches mini meteors at nearby units
+  - Chain Lightning arcs to multiple targets
+  - The crystal remembers the last spell that hit it and automatically re-casts it on a timer — stronger spells fire less often, weaker ones fire rapidly
+  - Disintegrate auto-cast channels a constant beam that tracks its target
+  - Magic Missile is a priority target — aim near the crystal and missiles will fly to it
+- Arcane Crystal is available in the Wizard Tower under Misc spells
+
+### Improved
+- Units move more organically across the battlefield instead of following rigid grid paths
+
+### Fixed
+- Magic missiles no longer orbit around their targets endlessly
+
 ## [v0.1.173] - 2026-02-18
 
 ### Added

@@ -2,6 +2,7 @@
 //!
 //! Handles wizard spells, projectiles, and spell effects.
 
+mod arcane_crystal;
 mod banishment;
 mod battle_hymn;
 mod berserker_rage;
@@ -38,6 +39,7 @@ mod wall_of_fire;
 pub(in crate::game) mod wall_of_stone;
 
 // Re-export constants for wizard setup and spell switching
+pub(in crate::game::units::wizard) use arcane_crystal::constants as arcane_crystal_constants;
 pub(in crate::game::units::wizard) use banishment::constants as banishment_constants;
 pub(in crate::game::units::wizard) use battle_hymn::constants as battle_hymn_constants;
 pub(in crate::game::units::wizard) use berserker_rage::constants as berserker_rage_constants;

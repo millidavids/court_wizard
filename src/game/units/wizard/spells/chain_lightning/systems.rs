@@ -13,6 +13,7 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -292,6 +293,7 @@ pub fn process_chain_lightning_bounces(
         Without<Corpse>,
     >,
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
+    crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     walls: Query<&WallOfStone>,
 ) {
     // Collect bolt data to avoid borrow conflicts when spawning child bolts
@@ -334,12 +336,13 @@ pub fn process_chain_lightning_bounces(
 
         let bounce_range = constants::BOUNCE_RANGE * snapshot.empowerment;
 
-        // Find up to SPLIT_COUNT targets (units + lightning rods)
+        // Find up to SPLIT_COUNT targets (units + lightning rods + crystals)
         let targets = find_next_bounce_targets(
             snapshot.last_hit_position,
             &group.hit_entities,
             &enemies,
             &rods,
+            &crystals,
             bounce_range,
             constants::SPLIT_COUNT,
             &walls,
@@ -409,9 +412,11 @@ struct ChainLightningBoltSnapshot {
     split_depth: u32,
 }
 
-/// Finds up to `max_targets` enemies or lightning rods within bounce range that haven't been hit yet.
-/// Targets all living units (defenders, attackers, and undead) and lightning rods, but excludes corpses.
+/// Finds up to `max_targets` enemies, lightning rods, or arcane crystals within bounce range
+/// that haven't been hit yet. Targets all living units (defenders, attackers, and undead),
+/// lightning rods, and arcane crystals, but excludes corpses.
 /// Filters out targets blocked by WallOfStone line of sight.
+#[allow(clippy::too_many_arguments)]
 fn find_next_bounce_targets(
     origin: Vec3,
     hit_entities: &[Entity],
@@ -426,6 +431,7 @@ fn find_next_bounce_targets(
         Without<Corpse>,
     >,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
+    crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     bounce_range: f32,
     max_targets: usize,
     walls: &Query<&WallOfStone>,
@@ -455,6 +461,23 @@ fn find_next_bounce_targets(
 
     // Also consider lightning rods as valid targets
     for (entity, transform, _) in rods.iter() {
+        if hit_entities.contains(&entity) {
+            continue;
+        }
+        let distance = origin.distance(transform.translation);
+        if distance <= bounce_range {
+            let blocked = walls.iter().any(|wall| {
+                wall.line_segment_intersects(origin, transform.translation)
+                    .is_some()
+            });
+            if !blocked {
+                candidates.push((entity, transform.translation, distance));
+            }
+        }
+    }
+
+    // Also consider arcane crystals as valid targets
+    for (entity, transform) in crystals.iter() {
         if hit_entities.contains(&entity) {
             continue;
         }

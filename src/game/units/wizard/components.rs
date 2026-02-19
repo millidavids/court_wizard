@@ -36,6 +36,7 @@ pub enum Spell {
     PhantasmalForce,
     Banishment,
     Polymorph,
+    ArcaneCrystal,
 }
 
 /// Spell categories for organizing the spell book.
@@ -108,6 +109,7 @@ impl SpellCategory {
                 Spell::Telekinesis,
                 Spell::PhantasmalForce,
                 Spell::Banishment,
+                Spell::ArcaneCrystal,
             ],
         }
     }
@@ -147,6 +149,7 @@ impl Spell {
             Spell::PhantasmalForce,
             Spell::Banishment,
             Spell::Polymorph,
+            Spell::ArcaneCrystal,
         ]
     }
 
@@ -184,9 +187,10 @@ impl Spell {
             | Spell::FogCloud
             | Spell::BerserkerRage => SpellCategory::Support,
 
-            Spell::Telekinesis | Spell::PhantasmalForce | Spell::Banishment => {
-                SpellCategory::Utility
-            }
+            Spell::Telekinesis
+            | Spell::PhantasmalForce
+            | Spell::Banishment
+            | Spell::ArcaneCrystal => SpellCategory::Utility,
         }
     }
 
@@ -223,6 +227,7 @@ impl Spell {
             Spell::PhantasmalForce => "Phantasmal Force",
             Spell::Banishment => "Banishment",
             Spell::Polymorph => "Polymorph",
+            Spell::ArcaneCrystal => "Arcane Crystal",
         }
     }
 
@@ -259,6 +264,7 @@ impl Spell {
             Spell::PhantasmalForce => "Phantasmal\nForce",
             Spell::Banishment => "Banishment",
             Spell::Polymorph => "Polymorph",
+            Spell::ArcaneCrystal => "Arcane\nCrystal",
         }
     }
 
@@ -349,6 +355,9 @@ impl Spell {
             Spell::Polymorph => {
                 "Transforms an enemy into a harmless sheep for 10 seconds. Kill the sheep for a permanent kill, or it reverts."
             }
+            Spell::ArcaneCrystal => {
+                "Places a magical crystal that amplifies your spells. Hit it with projectiles, beams, or meteors to scatter smaller copies at nearby enemies."
+            }
         }
     }
 
@@ -389,6 +398,9 @@ impl Spell {
             Spell::PhantasmalForce => "Are those real soldiers? Only one way to find out.",
             Spell::Banishment => "Poof. Gone. Back in a minute.",
             Spell::Polymorph => "Baa.",
+            Spell::ArcaneCrystal => {
+                "A prism for the ambitious. What goes in comes out... everywhere."
+            }
         }
     }
 
@@ -425,21 +437,23 @@ impl Spell {
             Spell::PhantasmalForce => "Click and hold to place",
             Spell::Banishment => "Click and hold to cast",
             Spell::Polymorph => "Click and hold to cast",
+            Spell::ArcaneCrystal => "Click and hold to place",
         }
     }
 
     /// Returns the PrimedSpell configuration for this spell.
     pub const fn primed_config(self) -> PrimedSpell {
         use crate::game::units::wizard::spells::{
-            banishment_constants, battle_hymn_constants, berserker_rage_constants,
-            black_hole_constants, chain_lightning_constants, disintegrate_constants,
-            entangle_constants, finger_of_death_constants, fireball_constants, fog_cloud_constants,
-            grease_constants, guardian_circle_constants, haste_constants, healing_plume_constants,
-            hypnotic_pattern_constants, lightning_rod_constants, magic_missile_constants,
-            mark_of_death_constants, meteor_fall_constants, phantasmal_force_constants,
-            plague_wind_constants, polymorph_constants, raise_the_dead_constants, sleep_constants,
-            spike_growth_constants, squall_constants, telekinesis_constants, teleport_constants,
-            wall_of_fire_constants, wall_of_stone_constants,
+            arcane_crystal_constants, banishment_constants, battle_hymn_constants,
+            berserker_rage_constants, black_hole_constants, chain_lightning_constants,
+            disintegrate_constants, entangle_constants, finger_of_death_constants,
+            fireball_constants, fog_cloud_constants, grease_constants, guardian_circle_constants,
+            haste_constants, healing_plume_constants, hypnotic_pattern_constants,
+            lightning_rod_constants, magic_missile_constants, mark_of_death_constants,
+            meteor_fall_constants, phantasmal_force_constants, plague_wind_constants,
+            polymorph_constants, raise_the_dead_constants, sleep_constants, spike_growth_constants,
+            squall_constants, telekinesis_constants, teleport_constants, wall_of_fire_constants,
+            wall_of_stone_constants,
         };
 
         match self {
@@ -473,6 +487,7 @@ impl Spell {
             Spell::PhantasmalForce => phantasmal_force_constants::PRIMED_PHANTASMAL_FORCE,
             Spell::Banishment => banishment_constants::PRIMED_BANISHMENT,
             Spell::Polymorph => polymorph_constants::PRIMED_POLYMORPH,
+            Spell::ArcaneCrystal => arcane_crystal_constants::PRIMED_ARCANE_CRYSTAL,
         }
     }
 
@@ -509,6 +524,7 @@ impl Spell {
             Spell::PhantasmalForce => DamageType::Force,
             Spell::Banishment => DamageType::Force,
             Spell::Polymorph => DamageType::Nature,
+            Spell::ArcaneCrystal => DamageType::Force,
         }
     }
 
@@ -550,6 +566,7 @@ impl Spell {
             Spell::Banishment => 90,
             Spell::BlackHole => 120,
             Spell::Polymorph => 100,
+            Spell::ArcaneCrystal => 80,
         }
     }
 
@@ -593,6 +610,7 @@ impl Spell {
             Spell::Banishment => 7,
             Spell::BlackHole => 8,
             Spell::Polymorph => 8,
+            Spell::ArcaneCrystal => 6,
             _ => 0,
         }
     }

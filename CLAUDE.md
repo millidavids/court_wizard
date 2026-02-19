@@ -88,6 +88,9 @@ Systems are grouped into sets with explicit ordering:
 
 ## Key Systems
 
+### General Systems
+- You **MUST** only run systems when they need to be run leveraging run_if conditionals.
+
 ### Movement System
 - Force-based physics with acceleration and velocity
 - External forces: black hole gravity, wall avoidance, flocking

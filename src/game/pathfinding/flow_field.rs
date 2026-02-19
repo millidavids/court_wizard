@@ -181,6 +181,9 @@ impl FlowField {
             satisfaction_radius_cells,
         );
 
+        // Smooth directions using Line Integral Convolution for organic movement
+        self.smooth_with_lic();
+
         // Store integration field for pathfinding distance queries (moved, not cloned)
         self.integration = integration;
     }
@@ -256,25 +259,122 @@ impl FlowField {
         }
     }
 
-    /// Samples the flow field at a world position.
+    /// Smooths the direction field using Line Integral Convolution.
     ///
-    /// Returns the direction vector to follow, or Vec3::ZERO if out of bounds.
-    pub fn sample(&self, world_pos: Vec3, world_min: Vec2, cell_size: f32) -> Vec3 {
-        // Convert world position to grid coordinates
-        let grid_x = ((world_pos.x - world_min.x) / cell_size).floor() as isize;
-        let grid_z = ((world_pos.z - world_min.y) / cell_size).floor() as isize;
+    /// For each cell, traces a streamline forward and backward through the
+    /// vector field, averaging the directions along the path. This creates
+    /// coherent, organic flow that eliminates abrupt cell-to-cell changes.
+    ///
+    /// Tracing stops at grid edges, blocked cells, or zero-direction cells,
+    /// preserving obstacle avoidance and satisfaction radius behavior.
+    fn smooth_with_lic(&mut self) {
+        const LIC_STEPS: usize = 3;
+        const STEP_SIZE: f32 = 0.5;
 
-        // Check bounds
-        if grid_x < 0
-            || grid_z < 0
-            || grid_x >= self.width as isize
-            || grid_z >= self.height as isize
-        {
+        let original_directions = self.directions.clone();
+        let width = self.width;
+        let height = self.height;
+
+        for z in 0..height {
+            for x in 0..width {
+                let idx = z * width + x;
+
+                // Skip blocked/unreachable/zero-direction cells
+                if self.costs[idx].is_infinite() || original_directions[idx] == Vec3::ZERO {
+                    continue;
+                }
+
+                let mut accumulated = original_directions[idx];
+                let mut total_weight = 1.0_f32;
+
+                // Trace in both directions: forward (+1) and backward (-1)
+                for &sign in &[1.0_f32, -1.0_f32] {
+                    let mut pos_x = x as f32 + 0.5;
+                    let mut pos_z = z as f32 + 0.5;
+
+                    for step in 0..LIC_STEPS {
+                        // Get direction at current continuous position
+                        let cell_x = pos_x.floor() as isize;
+                        let cell_z = pos_z.floor() as isize;
+
+                        if cell_x < 0
+                            || cell_z < 0
+                            || cell_x >= width as isize
+                            || cell_z >= height as isize
+                        {
+                            break;
+                        }
+
+                        let cell_idx = cell_z as usize * width + cell_x as usize;
+
+                        if self.costs[cell_idx].is_infinite()
+                            || original_directions[cell_idx] == Vec3::ZERO
+                        {
+                            break;
+                        }
+
+                        let dir = original_directions[cell_idx];
+
+                        // Advance position along the streamline
+                        pos_x += dir.x * STEP_SIZE * sign;
+                        pos_z += dir.z * STEP_SIZE * sign;
+
+                        // Weight decreases with distance from center
+                        let weight = 1.0 / (1.0 + (step + 1) as f32);
+                        accumulated += dir * weight;
+                        total_weight += weight;
+                    }
+                }
+
+                self.directions[idx] = (accumulated / total_weight).normalize_or_zero();
+            }
+        }
+    }
+
+    /// Returns the direction at a grid cell, or `Vec3::ZERO` if out of bounds.
+    #[inline]
+    fn sample_cell(&self, x: isize, z: isize) -> Vec3 {
+        if x < 0 || z < 0 || x >= self.width as isize || z >= self.height as isize {
             return Vec3::ZERO;
         }
+        self.directions[z as usize * self.width + x as usize]
+    }
 
-        let idx = self.index(grid_x as usize, grid_z as usize);
-        self.directions[idx]
+    /// Samples the flow field at a world position using bilinear interpolation.
+    ///
+    /// Blends between the 4 surrounding cell directions for smooth transitions.
+    /// Falls back to nearest-cell lookup if any neighbor is zero (obstacle/boundary).
+    pub fn sample(&self, world_pos: Vec3, world_min: Vec2, cell_size: f32) -> Vec3 {
+        // Convert world position to continuous grid coordinates (cell centers at +0.5)
+        let gx = (world_pos.x - world_min.x) / cell_size - 0.5;
+        let gz = (world_pos.z - world_min.y) / cell_size - 0.5;
+
+        let x0 = gx.floor() as isize;
+        let z0 = gz.floor() as isize;
+        let x1 = x0 + 1;
+        let z1 = z0 + 1;
+
+        let d00 = self.sample_cell(x0, z0);
+        let d10 = self.sample_cell(x1, z0);
+        let d01 = self.sample_cell(x0, z1);
+        let d11 = self.sample_cell(x1, z1);
+
+        // If any neighbor is zero (obstacle/boundary), fall back to nearest cell
+        if d00 == Vec3::ZERO || d10 == Vec3::ZERO || d01 == Vec3::ZERO || d11 == Vec3::ZERO {
+            let nearest_x = gx.round() as isize;
+            let nearest_z = gz.round() as isize;
+            return self.sample_cell(nearest_x, nearest_z);
+        }
+
+        // Bilinear interpolation weights
+        let fx = gx - x0 as f32;
+        let fz = gz - z0 as f32;
+
+        let lerp_x0 = d00 * (1.0 - fx) + d10 * fx;
+        let lerp_x1 = d01 * (1.0 - fx) + d11 * fx;
+        let blended = lerp_x0 * (1.0 - fz) + lerp_x1 * fz;
+
+        blended.normalize_or_zero()
     }
 
     /// Samples the pathfinding distance at a world position.

@@ -10,7 +10,7 @@ use crate::game::units::DamageType;
 /// Creates a gravitational sphere that pulls units inward while making them spiral.
 /// Deals damage to units in contact with the sphere, increasing over time.
 #[derive(Component)]
-pub(super) struct BlackHole {
+pub(in crate::game::units::wizard::spells) struct BlackHole {
     /// Center position of the black hole in world space.
     pub position: Vec3,
     /// Current radius of the black hole sphere.
