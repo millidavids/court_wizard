@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 
-// Archer unit colors (muted versions of infantry colors)
-pub const DEFENDER_ARCHER_COLOR: Color = Color::srgb(0.85, 0.85, 0.5); // Off-yellow
-pub const ATTACKER_ARCHER_COLOR: Color = Color::srgb(0.85, 0.5, 0.5); // Off-red
+use crate::game::constants::{ATTACKER_BASE, DEFENDER_BASE, TINT_WHITE, tint};
+
+// Archer unit colors (50% lighter than infantry to distinguish at a glance)
+pub const DEFENDER_ARCHER_COLOR: Color = tint(DEFENDER_BASE, TINT_WHITE, 0.5); // 50% toward white
+pub const ATTACKER_ARCHER_COLOR: Color = tint(ATTACKER_BASE, TINT_WHITE, 0.5); // 50% toward white
 
 // Arrow
 pub const ARROW_COLOR: Color = Color::srgb(0.45, 0.3, 0.15); // Brown

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.215] - 2026-02-19
+
+### Changed
+- **Wall of Fire** now acts as a zoning tool rather than a kill zone — walking through it does very little direct damage, but units still catch fire afterward. Duration reduced from 36 to 20 seconds
+- **Grease Fire** no longer deals burst damage when ignited — instead it applies a mild burning effect to units passing through. The slippery slow effect now continues even while the grease is on fire
+- Different hazard spells now influence pathfinding differently — weaker hazards like Wall of Fire are easier for units to walk through, while dangerous ones like Spike Growth are strongly avoided
+- Fireball no longer leaves lingering ground effects
+- Elite and commander enemies are now much rarer
+- Team colors updated — defenders are light gray, attackers are dark gray, with subtle tints for unit types (archers lighter, elites reddish, commanders orange, King blue)
+- King's aura is now a flat circle on the ground instead of a sphere
+- King and commander auras are slightly more visible
+
 ## [v0.1.199] - 2026-02-19
 
 ### Fixed

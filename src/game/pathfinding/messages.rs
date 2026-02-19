@@ -20,9 +20,10 @@ pub enum ObstacleType {
     /// The f32 value is the cost multiplier (e.g., 3.0 = 3x slower).
     #[allow(dead_code)]
     SlowTerrain(f32),
-    /// Cell is a hazard (fire, poison) with high movement cost (15x slower).
-    /// Units will strongly avoid these areas unless no other path exists.
-    Hazard,
+    /// Cell is a hazard (fire, poison) with increased movement cost.
+    /// The f32 value is the cost multiplier — higher values make units avoid more strongly.
+    /// Units will still path through if the detour is too long.
+    Hazard(f32),
     /// Obstacle was removed, reset to normal terrain.
     Removed,
 }

@@ -409,7 +409,7 @@ pub(super) fn check_meteor_collisions(
             // Notify pathfinding system about the hazard
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
-                obstacle_type: ObstacleType::Hazard,
+                obstacle_type: ObstacleType::Hazard(8.0),
             });
 
             commands.spawn((

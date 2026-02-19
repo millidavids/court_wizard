@@ -118,7 +118,7 @@ pub fn handle_plague_wind_casting(
                                     origin_2d,
                                     Vec2::splat(buffered * 2.0),
                                 ),
-                                obstacle_type: ObstacleType::Hazard,
+                                obstacle_type: ObstacleType::Hazard(10.0),
                             });
 
                             let cloud_mesh = meshes.add(Circle::new(radius));
@@ -220,7 +220,7 @@ pub fn move_plague_wind_cloud(
         let new_origin_2d = Vec2::new(cloud.origin.x, cloud.origin.z);
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(new_origin_2d, Vec2::splat(buffered * 2.0)),
-            obstacle_type: ObstacleType::Hazard,
+            obstacle_type: ObstacleType::Hazard(10.0),
         });
     }
 }

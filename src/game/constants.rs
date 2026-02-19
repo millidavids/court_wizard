@@ -5,6 +5,38 @@
 
 use bevy::prelude::*;
 
+// ===== Team Base Colors =====
+
+/// Base color for defender units (light gray).
+pub const DEFENDER_BASE: Color = Color::srgb(0.65, 0.65, 0.65);
+
+/// Base color for attacker units (dark gray).
+pub const ATTACKER_BASE: Color = Color::srgb(0.3, 0.3, 0.3);
+
+/// Blends a tint color into a base color at the given strength (0.0 = pure base, 1.0 = pure tint).
+pub const fn tint(base: Color, tint_color: Color, strength: f32) -> Color {
+    let Color::Srgba(b) = base else {
+        return base;
+    };
+    let Color::Srgba(t) = tint_color else {
+        return base;
+    };
+    Color::Srgba(bevy::color::Srgba {
+        red: b.red + (t.red - b.red) * strength,
+        green: b.green + (t.green - b.green) * strength,
+        blue: b.blue + (t.blue - b.blue) * strength,
+        alpha: b.alpha,
+    })
+}
+
+// ===== Common Tint Colors =====
+
+pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
+pub const TINT_BLUE: Color = Color::srgb(0.2, 0.2, 1.0);
+pub const TINT_ORANGE: Color = Color::srgb(1.0, 0.6, 0.0);
+pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
+pub const TINT_WHITE: Color = Color::WHITE;
+
 // ===== Battlefield Dimensions =====
 
 /// Size of the battlefield (width and depth).

@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
+use crate::game::constants::{DEFENDER_BASE, TINT_BLUE, tint};
+
 // King visual style
-pub const KING_COLOR: Color = Color::srgb(1.0, 0.6, 0.0); // Orange
+pub const KING_COLOR: Color = tint(DEFENDER_BASE, TINT_BLUE, 0.3); // Blue tint (commander)
 
 // King stats
 pub const KING_HEALTH: f32 = 100.0; // Double standard 50

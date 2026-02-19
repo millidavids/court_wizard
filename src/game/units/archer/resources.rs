@@ -42,12 +42,12 @@ pub(super) fn preload_archer_assets(
             ..default()
         }),
         defender_corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.6, 0.6, 0.4), // Grayish yellow
+            base_color: Color::srgb(0.5, 0.5, 0.5), // Darker gray (defender corpse)
             unlit: true,
             ..default()
         }),
         attacker_corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.6, 0.4, 0.4), // Grayish red
+            base_color: Color::srgb(0.25, 0.25, 0.25), // Very dark gray (attacker corpse)
             unlit: true,
             ..default()
         }),

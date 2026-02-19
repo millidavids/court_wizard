@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
+use crate::game::constants::{ATTACKER_BASE, TINT_PURPLE, tint};
+
 // Visual appearance
-pub const BEHEMOTH_COLOR: Color = Color::srgb(0.4, 0.2, 0.5); // Dark purple
+pub const BEHEMOTH_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.2); // Purple tint
 pub const BEHEMOTH_ELLIPSE_WIDTH: f32 = 20.0; // Ellipse width (X axis)
 pub const BEHEMOTH_ELLIPSE_DEPTH: f32 = 30.0; // Ellipse depth (Z axis) - longer oval
 pub const BEHEMOTH_RADIUS: f32 = 20.0; // Horizontal radius for collision detection (increased from 10.0 for easier targeting)

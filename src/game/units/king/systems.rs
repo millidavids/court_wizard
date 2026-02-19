@@ -82,25 +82,24 @@ pub fn spawn_king(
         ))
         .id();
 
-    // Spawn visual aura sphere as a child entity centered on the King
-    // The sphere's radius exactly represents the 3D distance check used by the aura system
-    let aura_sphere = Sphere::new(KING_AURA_RADIUS);
-    commands
+    // Spawn visual aura circle on the ground beneath the King
+    let aura_circle = Circle::new(KING_AURA_RADIUS);
+    let y_offset = 5.0 - spawn_y;
+    let aura_entity = commands
         .spawn((
-            Mesh3d(meshes.add(aura_sphere)),
+            Mesh3d(meshes.add(aura_circle)),
             MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgba(1.0, 0.6, 0.0, 0.05), // Very transparent orange sphere
+                base_color: KING_AURA_COLOR,
                 unlit: true,
                 alpha_mode: bevy::prelude::AlphaMode::Blend,
-                cull_mode: None, // Visible from both sides
                 ..default()
             })),
-            // Center sphere on King (relative position 0,0,0 since it's a child entity)
-            // This accurately represents the 3D spherical distance check
-            Transform::from_xyz(0.0, 0.0, 0.0),
+            Transform::from_xyz(0.0, y_offset, 0.0)
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
             OnGameplayScreen,
         ))
-        .set_parent_in_place(king_entity);
+        .id();
+    commands.entity(king_entity).add_child(aura_entity);
 
     // Mark that King has been spawned
     king_spawned.0 = true;

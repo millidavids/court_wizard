@@ -114,7 +114,7 @@ pub fn handle_wall_of_fire_casting(
                 // Notify pathfinding about hazard (AABB of rotated wall + buffer)
                 obstacle_events.write(ObstacleChanged {
                     bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
-                    obstacle_type: ObstacleType::Hazard,
+                    obstacle_type: ObstacleType::Hazard(3.0),
                 });
 
                 // Convert the preview entity into the active fire wall

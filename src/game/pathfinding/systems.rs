@@ -247,8 +247,8 @@ pub fn handle_obstacle_events(
             ObstacleType::SlowTerrain(multiplier) => {
                 pathfinding.set_terrain_cost(&affected_cells, multiplier);
             }
-            ObstacleType::Hazard => {
-                pathfinding.set_terrain_cost(&affected_cells, 15.0);
+            ObstacleType::Hazard(cost) => {
+                pathfinding.set_terrain_cost(&affected_cells, cost);
             }
             ObstacleType::Removed => {
                 pathfinding.set_terrain_cost(&affected_cells, 1.0);

@@ -5,6 +5,8 @@
 
 use bevy::prelude::*;
 
+use crate::game::constants::{ATTACKER_BASE, TINT_ORANGE, TINT_RED, tint};
+
 // ============================================================================
 // Elite Upgrade Probability
 // ============================================================================
@@ -13,14 +15,14 @@ use bevy::prelude::*;
 pub const ELITE_START_LEVEL: u32 = 3;
 
 /// Base probability of elite upgrade at the start level (2.5%).
-pub const ELITE_BASE_CHANCE: f32 = 0.025;
+pub const ELITE_BASE_CHANCE: f32 = 0.00625;
 
 /// Probability increase per level (+1.25% per level).
-pub const ELITE_CHANCE_PER_LEVEL: f32 = 0.0125;
+pub const ELITE_CHANCE_PER_LEVEL: f32 = 0.003125;
 
 /// Maximum probability for elite upgrades (60% cap).
 /// Prevents entire army from being elite at high levels.
-pub const ELITE_MAX_CHANCE: f32 = 0.60;
+pub const ELITE_MAX_CHANCE: f32 = 0.15;
 
 // ============================================================================
 // Elite Caps
@@ -42,14 +44,14 @@ pub const MAX_ELITE_ARCHERS: u32 = 30;
 pub const COMMANDER_START_LEVEL: u32 = 5;
 
 /// Base probability of commander upgrade at the start level (1.5%).
-pub const COMMANDER_BASE_CHANCE: f32 = 0.015;
+pub const COMMANDER_BASE_CHANCE: f32 = 0.00375;
 
 /// Probability increase per level (+1% per level).
-pub const COMMANDER_CHANCE_PER_LEVEL: f32 = 0.01;
+pub const COMMANDER_CHANCE_PER_LEVEL: f32 = 0.0025;
 
 /// Maximum probability for commander upgrades (20% cap).
 /// Commanders are rare, powerful units - kept at lower cap than elites.
-pub const COMMANDER_MAX_CHANCE: f32 = 0.20;
+pub const COMMANDER_MAX_CHANCE: f32 = 0.05;
 
 // ============================================================================
 // Commander Caps
@@ -79,18 +81,18 @@ pub const ATTACKER_COMMANDER_DAMAGE_BUFF: f32 = 0.30;
 /// +15% speed (vs King's +25% for defenders).
 pub const ATTACKER_COMMANDER_SPEED_BUFF: f32 = 0.15;
 
-/// Color of the attacker commander aura ring (red, semi-transparent).
-pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.3, 0.0, 0.03);
+/// Color of the attacker commander aura ring (orange-tinted, semi-transparent).
+pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.6, 0.0, 0.05);
 
 // ============================================================================
 // Visual Differentiation - Elite Units
 // ============================================================================
 
-/// Color for elite infantry units (dark crimson).
-pub const ELITE_INFANTRY_COLOR: Color = Color::srgb(0.5, 0.05, 0.05);
+/// Color for elite infantry units (attacker base + subtle red tint).
+pub const ELITE_INFANTRY_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.3);
 
-/// Color for elite archer units (dark maroon-pink).
-pub const ELITE_ARCHER_COLOR: Color = Color::srgb(0.5, 0.15, 0.2);
+/// Color for elite archer units (attacker base + red tint).
+pub const ELITE_ARCHER_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.3);
 
 /// Size multiplier for elite units (30% larger than normal).
 pub const ELITE_SIZE_MULTIPLIER: f32 = 1.3;
@@ -99,11 +101,11 @@ pub const ELITE_SIZE_MULTIPLIER: f32 = 1.3;
 // Visual Differentiation - Commander Units
 // ============================================================================
 
-/// Color for commander infantry units (orange-gold).
-pub const COMMANDER_INFANTRY_COLOR: Color = Color::srgb(1.0, 0.7, 0.0);
+/// Color for commander infantry units (attacker base + subtle orange tint).
+pub const COMMANDER_INFANTRY_COLOR: Color = tint(ATTACKER_BASE, TINT_ORANGE, 0.3);
 
-/// Color for commander archer units (yellow-gold).
-pub const COMMANDER_ARCHER_COLOR: Color = Color::srgb(1.0, 0.85, 0.0);
+/// Color for commander archer units (attacker base + orange tint).
+pub const COMMANDER_ARCHER_COLOR: Color = tint(ATTACKER_BASE, TINT_ORANGE, 0.3);
 
 /// Size multiplier for commander units (60% larger than normal).
 /// Commanders are the largest units to make them visually distinct.

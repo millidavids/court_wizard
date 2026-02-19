@@ -24,7 +24,7 @@ pub(super) fn preload_king_assets(
             ..default()
         }),
         corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.3, 0.2, 0.1), // Dark brown corpse color
+            base_color: Color::srgb(0.4, 0.4, 0.48), // Darker desaturated blue-gray (king corpse)
             unlit: true,
             ..default()
         }),

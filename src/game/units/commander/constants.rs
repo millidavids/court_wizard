@@ -13,8 +13,8 @@ pub const KING_AURA_DAMAGE_PERCENTAGE: f32 = 0.5;
 /// King's aura speed buff percentage (+25% speed to defenders)
 pub const KING_AURA_SPEED_PERCENTAGE: f32 = 0.25;
 
-/// Color of the King's aura sphere (orange transparent)
-pub const KING_AURA_COLOR: Color = Color::srgba(1.0, 0.6, 0.0, 0.05);
+/// Color of the King's aura sphere (blue transparent)
+pub const KING_AURA_COLOR: Color = Color::srgba(0.4, 0.4, 0.9, 0.08);
 
 // ============================================================================
 // Default Commander Constants (for future commander types)

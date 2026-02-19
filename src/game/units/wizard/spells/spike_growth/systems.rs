@@ -270,7 +270,7 @@ fn spawn_spike_growth_zone(
     let buffered_radius = radius + OBSTACLE_BUFFER;
     obstacle_events.write(ObstacleChanged {
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
-        obstacle_type: ObstacleType::Hazard,
+        obstacle_type: ObstacleType::Hazard(15.0),
     });
 
     let circle_mesh = meshes.add(Circle::new(radius));

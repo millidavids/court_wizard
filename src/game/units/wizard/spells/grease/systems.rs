@@ -173,9 +173,11 @@ pub fn apply_grease_slow(
     let delta = time.delta_secs();
     for mut zone in &mut zones {
         if zone.ignited {
-            continue; // Ignited zones do burn damage instead
+            // Still apply slow even when ignited — only skip time_alive tracking
+            // (ignited zones track time_alive in apply_grease_burn instead)
+        } else {
+            zone.time_alive += delta;
         }
-        zone.time_alive += delta;
         zone.time_since_last_tick += delta;
         if zone.time_since_last_tick >= zone.tick_interval {
             zone.time_since_last_tick = 0.0;
@@ -385,22 +387,24 @@ pub fn check_grease_ignition(
             ));
 
             // Apply one-time burst fire damage only near the ignition point
-            let burst_radius = zone.radius * constants::IGNITION_BURST_RADIUS_FRACTION;
-            for (entity, transform, mut health, mut temp_hp) in &mut targets {
-                let dist = Vec2::new(
-                    ign_point.x - transform.translation.x,
-                    ign_point.z - transform.translation.z,
-                )
-                .length();
-                if dist <= burst_radius {
-                    apply_spell_damage(
-                        &mut commands,
-                        entity,
-                        &mut health,
-                        temp_hp.as_deref_mut(),
-                        zone.ignite_damage * zone.empowerment,
-                        DamageType::Fire,
-                    );
+            if zone.ignite_damage > 0.0 {
+                let burst_radius = zone.radius * constants::IGNITION_BURST_RADIUS_FRACTION;
+                for (entity, transform, mut health, mut temp_hp) in &mut targets {
+                    let dist = Vec2::new(
+                        ign_point.x - transform.translation.x,
+                        ign_point.z - transform.translation.z,
+                    )
+                    .length();
+                    if dist <= burst_radius {
+                        apply_spell_damage(
+                            &mut commands,
+                            entity,
+                            &mut health,
+                            temp_hp.as_deref_mut(),
+                            zone.ignite_damage * zone.empowerment,
+                            DamageType::Fire,
+                        );
+                    }
                 }
             }
 
@@ -409,7 +413,7 @@ pub fn check_grease_ignition(
             let buffered_radius = zone.radius + OBSTACLE_BUFFER;
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
-                obstacle_type: ObstacleType::Hazard,
+                obstacle_type: ObstacleType::Hazard(5.0),
             });
         }
     }

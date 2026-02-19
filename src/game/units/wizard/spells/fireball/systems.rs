@@ -9,7 +9,6 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -174,7 +173,6 @@ pub fn check_fireball_collisions(
     fireballs: Query<(Entity, &Transform, &Fireball)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
-    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (fireball_entity, fireball_transform, fireball) in &fireballs {
         let fireball_pos = fireball_transform.translation;
@@ -188,7 +186,6 @@ pub fn check_fireball_collisions(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
-                    &mut obstacle_events,
                     explosion_pos,
                     fireball.explosion_radius,
                     fireball.damage,
@@ -211,7 +208,6 @@ pub fn check_fireball_collisions(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
-                &mut obstacle_events,
                 explosion_pos,
                 fireball.explosion_radius,
                 fireball.damage,
@@ -231,7 +227,6 @@ pub fn check_fireball_collisions(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
-                    &mut obstacle_events,
                     fireball_pos,
                     fireball.explosion_radius,
                     fireball.damage,
@@ -245,27 +240,16 @@ pub fn check_fireball_collisions(
 }
 
 /// Spawns a fireball explosion at the given position.
-#[allow(clippy::too_many_arguments)]
 fn spawn_explosion(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    obstacle_events: &mut MessageWriter<ObstacleChanged>,
     position: Vec3,
     max_radius: f32,
     damage: f32,
     empowerment: f32,
 ) {
     let sphere = Sphere::new(1.0); // Unit sphere, scaled by transform
-
-    let buffered_radius = max_radius + OBSTACLE_BUFFER;
-
-    // Notify pathfinding system about the explosion (100x movement cost)
-    let origin_2d = Vec2::new(position.x, position.z);
-    obstacle_events.write(ObstacleChanged {
-        bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
-        obstacle_type: ObstacleType::SlowTerrain(100.0),
-    });
 
     commands.spawn((
         Mesh3d(meshes.add(sphere)),
@@ -347,21 +331,9 @@ pub fn apply_explosion_damage(
 pub fn cleanup_finished_explosions(
     mut commands: Commands,
     explosions: Query<(Entity, &FireballExplosion)>,
-    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= constants::EXPLOSION_DURATION {
-            // Remove the explosion obstacle
-            let buffered_explosion_radius = explosion.max_radius + OBSTACLE_BUFFER;
-            let origin_2d = Vec2::new(explosion.origin.x, explosion.origin.z);
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(
-                    origin_2d,
-                    Vec2::splat(buffered_explosion_radius * 2.0),
-                ),
-                obstacle_type: ObstacleType::Removed,
-            });
-
             commands.entity(entity).despawn();
         }
     }
