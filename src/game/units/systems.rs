@@ -206,8 +206,10 @@ pub fn calculate_weighted_movement(
     acceleration.add_force(final_steering);
 
     // Apply damping to current velocity (allows external forces like black hole gravity)
-    velocity.x *= VELOCITY_DAMPING;
-    velocity.z *= VELOCITY_DAMPING;
+    // Frame-rate independent: normalize to 60 FPS reference rate
+    let damping = VELOCITY_DAMPING.powf(time.delta_secs() * 60.0);
+    velocity.x *= damping;
+    velocity.z *= damping;
 }
 
 /// Updates all temporary hit points timers and removes expired components.

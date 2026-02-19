@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.199] - 2026-02-19
+
+### Fixed
+- Units no longer move slower on faster computers
+
 ## [v0.1.198] - 2026-02-19
 
 ### Added
