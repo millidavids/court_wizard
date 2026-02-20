@@ -131,8 +131,9 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
     let pc_clone = pc.clone();
     let closure = Closure::wrap(Box::new(move |event: JsValue| {
         let event: RtcPeerConnectionIceEvent = event.unchecked_into();
-        if event.candidate().is_some() {
-            info!("[WebRTC] ICE candidate gathered");
+        if let Some(candidate) = event.candidate() {
+            let candidate_str = candidate.candidate();
+            info!("[WebRTC] ICE candidate gathered: {}", candidate_str);
         }
         // When candidate is null, ICE gathering is complete
         if event.candidate().is_none() {
@@ -391,6 +392,13 @@ async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
         return Err(JsValue::from_str("Expected an offer code, got an answer"));
     }
 
+    // Log ICE candidates embedded in the remote SDP
+    for line in sdp.lines() {
+        if line.starts_with("a=candidate:") {
+            info!("[WebRTC] Remote SDP candidate: {}", line);
+        }
+    }
+
     info!("[WebRTC] Creating peer connection for guest...");
     let pc = create_peer_connection()?;
 
@@ -484,6 +492,13 @@ async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
 
     if sdp_type != "answer" {
         return Err(JsValue::from_str("Expected an answer code, got an offer"));
+    }
+
+    // Log ICE candidates embedded in the remote SDP
+    for line in sdp.lines() {
+        if line.starts_with("a=candidate:") {
+            info!("[WebRTC] Remote SDP candidate: {}", line);
+        }
     }
 
     WEBRTC_STATE.with(|s| {
