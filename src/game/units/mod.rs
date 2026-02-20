@@ -14,8 +14,8 @@ pub(crate) mod damage;
 pub(in crate::game) mod elite;
 pub(in crate::game) mod infantry;
 pub(in crate::game) mod king;
-mod movement;
-mod systems;
+pub(in crate::game) mod movement;
+pub(in crate::game) mod systems;
 pub(crate) mod wizard;
 
 mod plugin;

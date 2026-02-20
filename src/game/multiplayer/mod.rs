@@ -5,6 +5,8 @@
 //! its own systems under `AppState::MultiplayerGame`.
 
 pub(crate) mod components;
+pub(in crate::game) mod guest_systems;
+pub(in crate::game) mod host_systems;
 pub(crate) mod loading;
 mod plugin;
 

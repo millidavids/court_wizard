@@ -41,17 +41,19 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn castle as a raised platform (Plane3d) above the battlefield
-    let castle_plane = Plane3d::default().mesh().size(CASTLE_WIDTH, CASTLE_DEPTH);
+    // Spawn castle as a 3D box extending from the top surface down to battlefield level
+    let castle_box = Cuboid::new(CASTLE_WIDTH, CASTLE_HEIGHT, CASTLE_DEPTH);
+    // CASTLE_POSITION is the top surface; shift down by half height to center the box
+    let castle_center = CASTLE_POSITION - Vec3::new(0.0, CASTLE_HEIGHT / 2.0, 0.0);
 
     commands.spawn((
-        Mesh3d(meshes.add(castle_plane)),
+        Mesh3d(meshes.add(castle_box)),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: CASTLE_COLOR,
             unlit: true,
             ..default()
         })),
-        Transform::from_translation(CASTLE_POSITION)
+        Transform::from_translation(castle_center)
             .with_rotation(Quat::from_rotation_y(CASTLE_ROTATION_DEGREES.to_radians())),
         Castle,
         OnGameplayScreen,

@@ -12,6 +12,7 @@ mod plugin;
 pub(crate) mod protocol;
 pub(crate) mod resources;
 pub(crate) mod session;
+pub(crate) mod snapshot;
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod webrtc;
 

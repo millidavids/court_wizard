@@ -399,7 +399,8 @@ fn spawn_mp_battlefield(
     ));
 }
 
-/// Spawns a castle platform at the given position and rotation.
+/// Spawns a castle box at the given position and rotation.
+/// `position` is the top surface; the box extends down to battlefield level.
 fn spawn_castle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -407,15 +408,16 @@ fn spawn_castle(
     position: Vec3,
     rotation_degrees: f32,
 ) {
-    let castle_plane = Plane3d::default().mesh().size(CASTLE_WIDTH, CASTLE_DEPTH);
+    let castle_box = Cuboid::new(CASTLE_WIDTH, CASTLE_HEIGHT, CASTLE_DEPTH);
+    let castle_center = position - Vec3::new(0.0, CASTLE_HEIGHT / 2.0, 0.0);
     commands.spawn((
-        Mesh3d(meshes.add(castle_plane)),
+        Mesh3d(meshes.add(castle_box)),
         MeshMaterial3d(materials.add(StandardMaterial {
             base_color: CASTLE_COLOR,
             unlit: true,
             ..default()
         })),
-        Transform::from_translation(position)
+        Transform::from_translation(castle_center)
             .with_rotation(Quat::from_rotation_y(rotation_degrees.to_radians())),
         Castle,
         OnMultiplayerGameScreen,

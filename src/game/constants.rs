@@ -50,9 +50,11 @@ pub const CASTLE_POSITION: Vec3 = Vec3::new(-1550.0, 1200.0, 1550.0);
 /// Castle rotation in degrees.
 pub const CASTLE_ROTATION_DEGREES: f32 = 45.0;
 
-/// Castle dimensions (width, depth).
+/// Castle dimensions.
 pub const CASTLE_WIDTH: f32 = 300.0;
 pub const CASTLE_DEPTH: f32 = 2000.0;
+/// Castle height — extends from the top surface down to battlefield level (Y=0).
+pub const CASTLE_HEIGHT: f32 = 1200.0;
 
 /// Wizard offset from castle position.
 pub(crate) const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
