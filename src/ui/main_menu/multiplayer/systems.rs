@@ -388,7 +388,7 @@ fn spawn_mp_detail_panel(
             // Ready/Unready button area — rebuilt dynamically when ready state changes
             bottom
                 .spawn((
-                    ReadyButtonArea,
+                    ReadyButtonArea { showing_ready: my_ready },
                     Node::default(),
                 ))
                 .with_children(|area| {
@@ -560,17 +560,7 @@ pub fn button_action(
                             .push(NetworkMessage::Unready);
                     }
                 }
-                MultiplayerButtonAction::Disconnect => {
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
-                    connection.state = ConnectionState::Disconnected;
-                    connection.role = None;
-                    connection.local_code = None;
-                    connection.ping_ms = None;
-                    connection.error = None;
-                    *lobby_phase = LobbyPhase::Connection;
-                }
-                MultiplayerButtonAction::Back => {
+                MultiplayerButtonAction::Disconnect | MultiplayerButtonAction::Back => {
                     #[cfg(target_arch = "wasm32")]
                     crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
@@ -756,7 +746,7 @@ pub fn update_ui_state(
     mut commands: Commands,
     connection: Res<NetworkConnection>,
     lobby_phase: Res<LobbyPhase>,
-    ready_button_area: Query<(Entity, &Children), With<ReadyButtonArea>>,
+    mut ready_button_area: Query<(Entity, &Children, &mut ReadyButtonArea)>,
     mut status_query: Query<
         (&mut Text, &mut TextColor),
         (With<StatusText>, Without<CodeDisplayText>, Without<PingText>),
@@ -863,14 +853,17 @@ pub fn update_ui_state(
                 }
             }
 
-            // Rebuild the ready button area to reflect current ready state
-            if let Ok((entity, children)) = ready_button_area.single() {
-                for child in children.iter() {
-                    commands.entity(child).despawn();
+            // Rebuild the ready button area only when ready state actually changes
+            if let Ok((entity, children, mut area)) = ready_button_area.single_mut() {
+                if area.showing_ready != *my_ready {
+                    area.showing_ready = *my_ready;
+                    for child in children.iter() {
+                        commands.entity(child).despawn();
+                    }
+                    commands.entity(entity).with_children(|area| {
+                        spawn_ready_button_contents(area, *my_ready);
+                    });
                 }
-                commands.entity(entity).with_children(|area| {
-                    spawn_ready_button_contents(area, *my_ready);
-                });
             }
         }
         return;

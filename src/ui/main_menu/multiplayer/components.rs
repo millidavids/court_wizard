@@ -45,8 +45,11 @@ pub(super) enum MultiplayerButtonAction {
 }
 
 /// Marker for the ready/unready button container in the detail panel.
+/// Stores the last displayed ready state to avoid rebuilding every frame.
 #[derive(Component)]
-pub(super) struct ReadyButtonArea;
+pub(super) struct ReadyButtonArea {
+    pub showing_ready: bool,
+}
 
 /// Marker component for the status text that updates based on connection state.
 #[derive(Component)]
