@@ -72,6 +72,15 @@ pub fn send_state_snapshots(
     }
 
     if let Ok(data) = bincode::serialize(&snapshot) {
+        if tick.0 % 60 == 0 {
+            info!(
+                "HOST snapshot tick={}: {} units, {} arrows, {} bytes",
+                tick.0,
+                snapshot.units.len(),
+                snapshot.arrows.len(),
+                data.len()
+            );
+        }
         connection.outgoing_unreliable.push(data);
     }
 }
