@@ -89,7 +89,38 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
     )?;
 
     let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
-    RtcPeerConnection::new_with_configuration(&rtc_config)
+    let pc = RtcPeerConnection::new_with_configuration(&rtc_config)?;
+
+    // Monitor ICE connection state changes
+    let pc_for_ice = pc.clone();
+    let on_ice_state = Closure::wrap(Box::new(move |_: JsValue| {
+        let state = Reflect::get(&pc_for_ice, &JsValue::from_str("iceConnectionState"))
+            .unwrap_or_default()
+            .as_string()
+            .unwrap_or_default();
+        info!("[WebRTC] ICE connection state: {}", state);
+    }) as Box<dyn FnMut(JsValue)>);
+    pc.set_oniceconnectionstatechange(Some(on_ice_state.as_ref().unchecked_ref()));
+    // Leak the closure to keep it alive (it's tied to the peer connection lifetime)
+    on_ice_state.forget();
+
+    // Monitor overall connection state changes
+    let pc_for_conn = pc.clone();
+    let on_conn_state = Closure::wrap(Box::new(move |_: JsValue| {
+        let state = Reflect::get(&pc_for_conn, &JsValue::from_str("connectionState"))
+            .unwrap_or_default()
+            .as_string()
+            .unwrap_or_default();
+        info!("[WebRTC] Connection state: {}", state);
+    }) as Box<dyn FnMut(JsValue)>);
+    Reflect::set(
+        &pc,
+        &JsValue::from_str("onconnectionstatechange"),
+        on_conn_state.as_ref(),
+    ).ok();
+    on_conn_state.forget();
+
+    Ok(pc)
 }
 
 /// Sets up the `onicecandidate` callback that detects when ICE gathering is complete.
