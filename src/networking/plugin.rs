@@ -93,8 +93,16 @@ fn send_ping(mut connection: ResMut<NetworkConnection>, time: Res<Time>) {
 /// Game-specific messages (PlayerInfo, SpellCommand, etc.) are left in the
 /// incoming queue for game systems to process. Only networking-level messages
 /// (Ping/Pong) are consumed here.
+///
+/// Uses a read-only check first to avoid triggering Bevy change detection
+/// on frames with no messages (which would cause UI rebuilds making buttons unclickable).
 #[cfg(target_arch = "wasm32")]
-fn handle_incoming_messages(mut connection: ResMut<NetworkConnection>) {
+fn handle_incoming_messages(connection: ResMut<NetworkConnection>) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+
+    let mut connection = connection;
     let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
 
     let mut game_messages = Vec::new();

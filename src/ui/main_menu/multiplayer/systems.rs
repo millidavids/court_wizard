@@ -468,15 +468,28 @@ pub fn button_action(
 
 /// Processes incoming network messages for the lobby (PlayerInfo exchange, wizard select, ready).
 pub fn process_lobby_messages(
-    mut connection: ResMut<NetworkConnection>,
+    connection: ResMut<NetworkConnection>,
     mut lobby_phase: ResMut<LobbyPhase>,
     mut commands: Commands,
     mut next_app_state: ResMut<NextState<AppState>>,
 ) {
+    // Check if we need to send PlayerInfo (read-only check first to avoid triggering change detection)
+    let should_send_info = connection.state == ConnectionState::Connected
+        && *lobby_phase == LobbyPhase::Connection;
+
+    // Check if there are messages to process (read-only)
+    let has_messages = !connection.incoming_messages.is_empty();
+
+    // Early return if nothing to do — avoids marking connection as changed
+    if !should_send_info && !has_messages {
+        return;
+    }
+
+    // Now take mutable access (triggers change detection, but only when we have real work)
+    let mut connection = connection;
+
     // Send PlayerInfo when first connected
-    if connection.state == ConnectionState::Connected
-        && *lobby_phase == LobbyPhase::Connection
-    {
+    if should_send_info {
         let (wizard_types, spells) = load_my_unlocked_content();
 
         connection
@@ -495,6 +508,9 @@ pub fn process_lobby_messages(
     }
 
     // Process incoming messages
+    if !has_messages {
+        return;
+    }
     let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
     let mut unhandled = Vec::new();
 
