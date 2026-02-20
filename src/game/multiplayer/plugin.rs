@@ -339,7 +339,6 @@ fn init_mp_game(mut commands: Commands) {
     commands.init_resource::<EntityIdCounter>();
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
-    commands.init_resource::<CauldronBuffs>();
     commands.insert_resource(GameOutcome::Victory);
 }
 
@@ -351,20 +350,31 @@ fn cleanup_mp_game(
     mut commands: Commands,
     mp_entities: Query<Entity, With<OnMultiplayerGameScreen>>,
     pending_rematch: Option<Res<PendingRematch>>,
+    mut attack_cycle: ResMut<GlobalAttackCycle>,
+    mut kill_stats: ResMut<KillStats>,
+    mut defenders_activated: ResMut<DefendersActivated>,
+    mut cauldron_buffs: ResMut<CauldronBuffs>,
+    mut game_outcome: ResMut<GameOutcome>,
 ) {
     for entity in &mp_entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
             ec.despawn();
         }
     }
-    commands.remove_resource::<GlobalAttackCycle>();
-    commands.remove_resource::<KillStats>();
-    commands.remove_resource::<DefendersActivated>();
+
+    // Reset globally-owned resources to defaults rather than removing them,
+    // since other plugins (GamePlugin, InfantryPlugin, CauldronPlugin) initialise
+    // these at startup and their run conditions expect them to always exist.
+    *attack_cycle = GlobalAttackCycle::default();
+    kill_stats.reset();
+    defenders_activated.active = false;
+    cauldron_buffs.active_buffs.clear();
+    *game_outcome = GameOutcome::Victory;
+
+    // Remove MP-only resources that are created in init_mp_game.
     commands.remove_resource::<EntityIdCounter>();
     commands.remove_resource::<NetworkEntityMap>();
     commands.remove_resource::<SnapshotTick>();
-    commands.remove_resource::<CauldronBuffs>();
-    commands.remove_resource::<GameOutcome>();
 
     // Only remove the session if this is NOT a rematch — keep connection alive for rematch
     if pending_rematch.is_none() {
