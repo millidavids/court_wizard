@@ -34,7 +34,6 @@ pub fn apply_state_snapshot(
     mut connection: ResMut<NetworkConnection>,
     mut entity_map: ResMut<NetworkEntityMap>,
     mut ghost_query: Query<(&mut Transform, &mut MeshMaterial3d<StandardMaterial>), With<GhostEntity>>,
-    material_assets: Res<Assets<StandardMaterial>>,
 ) {
     // Take only the latest snapshot (discard stale ones)
     let raw_snapshots: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
@@ -87,7 +86,7 @@ pub fn apply_state_snapshot(
                 transform.translation = pos;
 
                 // Update color if it changed (e.g., unit became corpse)
-                if let Some(material) = material_assets.get(&material_handle.0) {
+                if let Some(material) = materials.get(&material_handle.0) {
                     if material.base_color != color {
                         let new_material = materials.add(StandardMaterial {
                             base_color: color,

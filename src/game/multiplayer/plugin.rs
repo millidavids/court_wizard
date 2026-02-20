@@ -242,11 +242,10 @@ impl Plugin for MultiplayerGamePlugin {
                 king_systems::king_movement
                     .in_set(MpSystemSet::Movement),
                 king_systems::king_cohesion_force
-                    .after(shared_systems::apply_separation)
+                    .after(MpSystemSet::Velocity)
                     .before(MpSystemSet::Movement),
                 king_systems::snap_kings_guard_to_king
-                    .in_set(MpSystemSet::Movement)
-                    .after(king_systems::king_movement),
+                    .in_set(MpSystemSet::Movement),
             )
                 .run_if(any_exist::<King>())
                 .run_if(mp_host.clone()),

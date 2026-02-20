@@ -65,6 +65,11 @@ pub struct VelocitySystemSet;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MovementSystemSet;
 
+/// System set that runs after combat resolution (wall collision → combat → corpse conversion).
+/// Used by systems that need to react to combat results (e.g., behemoth AOE splash).
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PostCombatSet;
+
 /// Main game plugin that coordinates all gameplay sub-plugins.
 ///
 /// Registers sub-plugins for:
@@ -121,6 +126,9 @@ impl Plugin for GamePlugin {
                     MovementSystemSet
                         .run_if(in_state(InGameState::Running))
                         .after(VelocitySystemSet),
+                    PostCombatSet
+                        .run_if(in_state(InGameState::Running))
+                        .after(MovementSystemSet),
                 ),
             )
             .add_systems(
@@ -172,8 +180,7 @@ impl Plugin for GamePlugin {
                     win_lose_systems::check_win_lose_conditions,
                 )
                     .chain()
-                    .run_if(in_state(InGameState::Running))
-                    .after(MovementSystemSet),
+                    .in_set(PostCombatSet),
             );
     }
 }

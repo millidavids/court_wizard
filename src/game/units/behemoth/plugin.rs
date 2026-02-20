@@ -5,9 +5,8 @@ use super::components::*;
 use super::messages::*;
 use super::resources;
 use super::systems::*;
-use crate::game::plugin::VelocitySystemSet;
+use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 
-use crate::game::shared_systems;
 use crate::game::units::MovementCalculationSet;
 use crate::state::InGameState;
 
@@ -34,7 +33,7 @@ impl Plugin for BehemothPlugin {
             .add_systems(
                 Update,
                 behemoth_aoe_splash_damage
-                    .after(shared_systems::combat)
+                    .after(PostCombatSet)
                     .run_if(in_state(InGameState::Running))
                     .run_if(on_message::<BehemothAttackMessage>),
             );

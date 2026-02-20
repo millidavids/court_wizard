@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use crate::game::plugin::{MovementSystemSet, VelocitySystemSet};
 use crate::game::run_conditions::any_exist;
-use crate::game::shared_systems::apply_separation;
 use crate::state::InGameState;
 
 use super::components::{King, KingSpawned};
@@ -21,11 +20,10 @@ impl Plugin for KingPlugin {
                     systems::update_king_targeting.in_set(VelocitySystemSet),
                     systems::king_movement.in_set(crate::game::units::MovementCalculationSet),
                     systems::king_cohesion_force
-                        .after(apply_separation)
+                        .after(VelocitySystemSet)
                         .before(MovementSystemSet),
                     systems::snap_kings_guard_to_king
-                        .in_set(MovementSystemSet)
-                        .after(systems::king_movement),
+                        .in_set(MovementSystemSet),
                 )
                     .run_if(any_exist::<King>())
                     .run_if(in_state(InGameState::Running)),
