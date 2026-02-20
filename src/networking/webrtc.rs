@@ -108,14 +108,23 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
                 });
             }
             "disconnected" => {
-                // ICE disconnected can be transient, but if we were connected it means we lost the peer
+                // If we were connected or connecting, the peer is unreachable.
+                // During connecting, "disconnected" often precedes "failed" but
+                // some browsers skip the "failed" ICE state entirely.
                 WEBRTC_STATE.with(|s| {
                     let ws = s.borrow();
-                    if ws.state == ConnectionState::Connected {
-                        drop(ws);
+                    let current = ws.state;
+                    drop(ws);
+                    if current == ConnectionState::Connected
+                        || current == ConnectionState::Connecting
+                    {
                         let mut ws = s.borrow_mut();
                         ws.state = ConnectionState::Failed;
-                        ws.error = Some("Connection lost".to_string());
+                        ws.error = Some(if current == ConnectionState::Connected {
+                            "Connection lost".to_string()
+                        } else {
+                            "ICE connection failed — could not reach peer".to_string()
+                        });
                     }
                 });
             }
@@ -187,7 +196,14 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
                 WEBRTC_STATE.with(|s| {
                     let mut state = s.borrow_mut();
                     state.local_code = Some(encoded);
-                    state.state = ConnectionState::WaitingForSignaling;
+                    // Only set WaitingForSignaling if we haven't already progressed
+                    // past it (e.g. ICE checking may have already set Connecting)
+                    if state.state != ConnectionState::Connecting
+                        && state.state != ConnectionState::Connected
+                        && state.state != ConnectionState::Failed
+                    {
+                        state.state = ConnectionState::WaitingForSignaling;
+                    }
                 });
             }
         }
