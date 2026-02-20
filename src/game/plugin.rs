@@ -173,10 +173,19 @@ impl Plugin for GamePlugin {
                     shared_systems::enforce_wall_collision,
                     shared_systems::combat,
                     shared_systems::convert_dead_to_corpses,
-                    systems::update_billboards,
                 )
                     .chain()
                     .in_set(PostCombatSet),
+            )
+            // Billboard rotation is a visual-only system that must run for both
+            // SP host AND MP guest (ghost entities need billboard facing too).
+            // Runs during any active game state, not just gameplay simulation.
+            .add_systems(
+                Update,
+                systems::update_billboards.run_if(
+                    in_state(AppState::InGame)
+                        .or(in_state(AppState::MultiplayerGame)),
+                ),
             )
             // SP-only win/lose check — runs after combat chain, gated to InGameState
             // (MP has its own check_mp_king_death registered in MultiplayerGamePlugin)
