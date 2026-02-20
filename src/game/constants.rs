@@ -29,6 +29,21 @@ pub const fn tint(base: Color, tint_color: Color, strength: f32) -> Color {
     })
 }
 
+/// Dims a color toward gray and applies an alpha value.
+/// Used for corpse materials — tints toward gray and makes semi-transparent.
+pub const fn dim(base: Color, gray_strength: f32, alpha: f32) -> Color {
+    let Color::Srgba(b) = base else {
+        return base;
+    };
+    let gray = 0.5;
+    Color::Srgba(bevy::color::Srgba {
+        red: b.red + (gray - b.red) * gray_strength,
+        green: b.green + (gray - b.green) * gray_strength,
+        blue: b.blue + (gray - b.blue) * gray_strength,
+        alpha,
+    })
+}
+
 // ===== Common Tint Colors =====
 
 pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
@@ -36,6 +51,20 @@ pub const TINT_BLUE: Color = Color::srgb(0.2, 0.2, 1.0);
 pub const TINT_ORANGE: Color = Color::srgb(1.0, 0.6, 0.0);
 pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
 pub const TINT_WHITE: Color = Color::WHITE;
+
+// ===== Corpse Colors (tinted red then dimmed) =====
+
+/// Alpha for corpse materials — semi-transparent so alive units show through.
+pub const CORPSE_ALPHA: f32 = 0.4;
+
+/// Corpse color for defender units.
+pub const DEFENDER_CORPSE_COLOR: Color = dim(tint(DEFENDER_BASE, TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
+/// Corpse color for attacker units.
+pub const ATTACKER_CORPSE_COLOR: Color = dim(tint(ATTACKER_BASE, TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
+/// Corpse color for undead units.
+pub const UNDEAD_CORPSE_COLOR: Color = dim(tint(Color::srgb(0.3, 0.8, 0.4), TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
+/// Corpse color for the king.
+pub const KING_CORPSE_COLOR: Color = dim(tint(Color::srgb(0.65, 0.65, 0.9), TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
 
 // ===== Battlefield Dimensions =====
 
@@ -91,6 +120,31 @@ pub const MP_INFANTRY_COUNT: u32 = 60;
 
 /// Fixed archer count for each side in multiplayer.
 pub const MP_ARCHER_COUNT: u32 = 10;
+
+/// Ground-plane distance from wizard to defender spawn grid in multiplayer.
+/// Much closer than single-player so units spawn right against the castles.
+pub const MP_DEFENDER_GRID_GROUND_RANGE: f32 = 100.0;
+
+/// Calculates the world position of a defender grid cell for MP host side (Castle 1).
+pub fn calculate_mp_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
+    let col_offset = col as f32 - (DEFENDER_GRID_COLS as f32 - 1.0) / 2.0;
+    let angle = DEFENDER_GRID_CENTER_ANGLE + col_offset * GRID_ANGULAR_SPACING;
+    let radius = MP_DEFENDER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let x = WIZARD_POSITION.x + radius * angle.cos();
+    let z = WIZARD_POSITION.z + radius * angle.sin();
+    (x, z)
+}
+
+/// Calculates the world position of a guest defender grid cell for MP (Castle 2).
+pub fn calculate_mp_guest_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
+    let col_offset = col as f32 - (DEFENDER_GRID_COLS as f32 - 1.0) / 2.0;
+    let mirrored_angle = DEFENDER_GRID_CENTER_ANGLE + std::f32::consts::PI;
+    let angle = mirrored_angle + col_offset * GRID_ANGULAR_SPACING;
+    let radius = MP_DEFENDER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
+    let x = WIZARD_2_POSITION.x + radius * angle.cos();
+    let z = WIZARD_2_POSITION.z + radius * angle.sin();
+    (x, z)
+}
 
 // ===== Gameplay Constants =====
 

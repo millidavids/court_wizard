@@ -1,5 +1,9 @@
 use bevy::prelude::*;
 
+use crate::game::constants::{
+    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
+};
+
 use super::constants::ARROW_WIDTH;
 use super::styles::*;
 
@@ -42,22 +46,25 @@ pub(super) fn preload_archer_assets(
             ..default()
         }),
         defender_corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.5, 0.5, 0.5), // Darker gray (defender corpse)
+            base_color: DEFENDER_CORPSE_COLOR,
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
             ..default()
         }),
         attacker_corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.25, 0.25, 0.25), // Very dark gray (attacker corpse)
+            base_color: ATTACKER_CORPSE_COLOR,
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
             ..default()
         }),
         undead_corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.4, 0.5, 0.4), // Grayish green
+            base_color: UNDEAD_CORPSE_COLOR,
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
             ..default()
         }),
         undead_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.3, 0.8, 0.4), // Bright green (living undead)
+            base_color: Color::srgb(0.3, 0.8, 0.4),
             unlit: true,
             ..default()
         }),

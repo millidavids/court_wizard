@@ -108,25 +108,17 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
                 });
             }
             "disconnected" => {
-                // If we were connected, we lost the peer.
-                // If connecting or waiting for signaling with code ready,
-                // ICE candidates couldn't reach each other.
+                // "disconnected" is transient during initial connection — the browser
+                // will keep trying candidates and eventually reach "failed" if it can't connect.
+                // Only treat as failure if we had an established connection that was lost.
                 WEBRTC_STATE.with(|s| {
                     let ws = s.borrow();
                     let current = ws.state;
-                    let has_code = ws.local_code.is_some();
                     drop(ws);
-                    let should_fail = current == ConnectionState::Connected
-                        || current == ConnectionState::Connecting
-                        || (current == ConnectionState::WaitingForSignaling && has_code);
-                    if should_fail {
+                    if current == ConnectionState::Connected {
                         let mut ws = s.borrow_mut();
                         ws.state = ConnectionState::Failed;
-                        ws.error = Some(if current == ConnectionState::Connected {
-                            "Connection lost".to_string()
-                        } else {
-                            "ICE connection failed — could not reach peer".to_string()
-                        });
+                        ws.error = Some("Connection lost".to_string());
                     }
                 });
             }

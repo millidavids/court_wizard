@@ -9,30 +9,24 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::game::components::Billboard;
-use crate::game::constants::{ATTACKER_BASE, DEFENDER_BASE};
-use crate::game::units::archer::styles::ARCHER_RADIUS;
-use crate::game::units::infantry::styles::UNIT_RADIUS;
-use crate::game::units::king::constants::KING_RADIUS;
+use crate::game::units::archer::ArcherAssets;
+use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::king::resources::KingAssets;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{GameSnapshot, UnitFlags, u8_to_team};
 
 use super::components::{GhostEntity, OnMultiplayerGameScreen};
 
-/// Color for corpse ghost entities.
-const CORPSE_COLOR: Color = Color::srgb(0.3, 0.3, 0.3);
-
-/// Color for undead ghost entities.
-const UNDEAD_COLOR: Color = Color::srgb(0.4, 0.55, 0.4);
-
 /// Receives the latest state snapshot from the host and creates/updates/despawns
 /// ghost entities to match the host's game state.
 pub fn apply_state_snapshot(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut connection: ResMut<NetworkConnection>,
     mut entity_map: ResMut<NetworkEntityMap>,
+    infantry_assets: Res<InfantryAssets>,
+    archer_assets: Res<ArcherAssets>,
+    king_assets: Res<KingAssets>,
     mut ghost_query: Query<(&mut Transform, &mut MeshMaterial3d<StandardMaterial>), With<GhostEntity>>,
 ) {
     // Take only the latest snapshot (discard stale ones)
@@ -57,60 +51,46 @@ pub fn apply_state_snapshot(
         let is_guard = unit.flags & UnitFlags::KINGS_GUARD != 0;
         let team = u8_to_team(unit.team);
 
-        // Determine visual properties
-        let color = if is_corpse {
-            CORPSE_COLOR
-        } else {
-            match team {
-                crate::game::units::components::Team::Defenders => DEFENDER_BASE,
-                crate::game::units::components::Team::Attackers => ATTACKER_BASE,
-                crate::game::units::components::Team::Undead => UNDEAD_COLOR,
-            }
-        };
+        // Pick the correct preloaded material based on unit type, team, and alive/dead
+        let material_handle = pick_material(
+            &infantry_assets,
+            &archer_assets,
+            &king_assets,
+            team,
+            is_corpse,
+            is_king,
+            is_archer,
+            is_guard,
+        );
 
-        let radius = if is_king {
-            KING_RADIUS
-        } else if is_guard {
-            UNIT_RADIUS * 1.2
+        // Pick the correct preloaded mesh based on unit type
+        let mesh_handle = if is_king {
+            king_assets.mesh.clone()
         } else if is_archer {
-            ARCHER_RADIUS
+            archer_assets.mesh.clone()
         } else {
-            UNIT_RADIUS
+            // Infantry and King's Guard both use infantry mesh
+            infantry_assets.mesh.clone()
         };
 
         let pos = Vec3::new(unit.x, 0.0, unit.z);
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             // Update existing ghost entity
-            if let Ok((mut transform, material_handle)) = ghost_query.get_mut(local_entity) {
+            if let Ok((mut transform, material_ref)) = ghost_query.get_mut(local_entity) {
                 transform.translation = pos;
 
-                // Update color if it changed (e.g., unit became corpse)
-                if let Some(material) = materials.get(&material_handle.0) {
-                    if material.base_color != color {
-                        let new_material = materials.add(StandardMaterial {
-                            base_color: color,
-                            unlit: true,
-                            ..default()
-                        });
-                        commands.entity(local_entity).insert(MeshMaterial3d(new_material));
-                    }
+                // Update material if it changed (e.g., unit became corpse)
+                if material_ref.0 != material_handle {
+                    commands.entity(local_entity).insert(MeshMaterial3d(material_handle));
                 }
             }
         } else {
-            // Spawn new ghost entity
-            let hitbox_width = radius * 2.0;
-            let hitbox_height = if is_king { 35.0 } else { 25.0 };
-            let mesh = Rectangle::new(hitbox_width, hitbox_height);
-
+            // Spawn new ghost entity using preloaded Circle meshes
             let entity = commands
                 .spawn((
-                    Mesh3d(meshes.add(mesh)),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: color,
-                        unlit: true,
-                        ..default()
-                    })),
+                    Mesh3d(mesh_handle),
+                    MeshMaterial3d(material_handle),
                     Transform::from_translation(pos),
                     Billboard,
                     GhostEntity,
@@ -135,6 +115,55 @@ pub fn apply_state_snapshot(
             if let Ok(mut entity_commands) = commands.get_entity(entity) {
                 entity_commands.despawn();
             }
+        }
+    }
+}
+
+/// Picks the correct preloaded material handle for a ghost entity.
+///
+/// Corpse materials already have low alpha baked into the preloaded assets.
+fn pick_material(
+    infantry_assets: &InfantryAssets,
+    archer_assets: &ArcherAssets,
+    king_assets: &KingAssets,
+    team: crate::game::units::components::Team,
+    is_corpse: bool,
+    is_king: bool,
+    is_archer: bool,
+    _is_guard: bool,
+) -> Handle<StandardMaterial> {
+    use crate::game::units::components::Team;
+
+    if is_corpse {
+        if is_king {
+            king_assets.corpse_material.clone()
+        } else if is_archer {
+            match team {
+                Team::Defenders => archer_assets.defender_corpse_material.clone(),
+                Team::Attackers => archer_assets.attacker_corpse_material.clone(),
+                Team::Undead => archer_assets.undead_corpse_material.clone(),
+            }
+        } else {
+            match team {
+                Team::Defenders => infantry_assets.defender_corpse_material.clone(),
+                Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
+                Team::Undead => infantry_assets.undead_corpse_material.clone(),
+            }
+        }
+    } else if is_king {
+        king_assets.material.clone()
+    } else if is_archer {
+        match team {
+            Team::Defenders => archer_assets.defender_material.clone(),
+            Team::Attackers => archer_assets.attacker_material.clone(),
+            Team::Undead => archer_assets.undead_material.clone(),
+        }
+    } else {
+        // Infantry and King's Guard
+        match team {
+            Team::Defenders => infantry_assets.defender_material.clone(),
+            Team::Attackers => infantry_assets.attacker_material.clone(),
+            Team::Undead => infantry_assets.undead_material.clone(),
         }
     }
 }

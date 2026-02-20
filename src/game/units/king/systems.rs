@@ -238,61 +238,59 @@ pub fn king_movement(
 ///
 /// Note: Damage and speed buffs are now handled by the generic commander system.
 pub fn king_cohesion_force(
-    king_query: Query<&Transform, (With<King>, Without<Corpse>)>,
+    king_query: Query<(&Transform, &Team), (With<King>, Without<Corpse>)>,
     mut defenders: Query<
         (&Transform, &Team, &mut FlockingVelocity),
         (Without<King>, Without<Corpse>),
     >,
     all_units: Query<(&Transform, &Team), Without<Corpse>>,
 ) {
-    // Get King position (should only be one)
-    let Ok(king_transform) = king_query.single() else {
-        return;
-    };
+    // Process each King and apply cohesion to their team's units
+    for (king_transform, king_team) in &king_query {
+        let king_pos = king_transform.translation;
 
-    let king_pos = king_transform.translation;
+        // Find nearest enemy to this King
+        let nearest_enemy_distance = all_units
+            .iter()
+            .filter(|(_, team)| *team != king_team)
+            .map(|(transform, _)| transform.translation.distance(king_pos))
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(f32::MAX);
 
-    // Find nearest enemy to King
-    let nearest_enemy_distance = all_units
-        .iter()
-        .filter(|(_, team)| **team != Team::Defenders)
-        .map(|(transform, _)| transform.translation.distance(king_pos))
-        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        .unwrap_or(f32::MAX);
+        // Calculate threat level: interpolate between BASE and THREATENED
+        let threat_factor = if nearest_enemy_distance > KING_AURA_RADIUS {
+            0.0
+        } else {
+            1.0 - (nearest_enemy_distance / KING_AURA_RADIUS)
+        };
 
-    // Calculate threat level: interpolate between BASE and THREATENED
-    let threat_factor = if nearest_enemy_distance > KING_AURA_RADIUS {
-        0.0
-    } else {
-        1.0 - (nearest_enemy_distance / KING_AURA_RADIUS)
-    };
+        let cohesion_strength =
+            KING_COHESION_BASE + (KING_COHESION_THREATENED - KING_COHESION_BASE) * threat_factor;
 
-    let cohesion_strength =
-        KING_COHESION_BASE + (KING_COHESION_THREATENED - KING_COHESION_BASE) * threat_factor;
+        // Apply cohesion force to same-team defenders within aura radius
+        for (unit_transform, team, mut flocking_velocity) in &mut defenders {
+            if team != king_team {
+                continue;
+            }
 
-    // Apply cohesion force to defenders within aura radius
-    for (unit_transform, team, mut flocking_velocity) in &mut defenders {
-        if *team != Team::Defenders {
-            continue;
-        }
+            let unit_pos = unit_transform.translation;
+            let distance_to_king = unit_pos.distance(king_pos);
 
-        let unit_pos = unit_transform.translation;
-        let distance_to_king = unit_pos.distance(king_pos);
+            // Check if unit is within aura radius
+            if distance_to_king < KING_AURA_RADIUS && distance_to_king > 0.1 {
+                // Calculate direction toward King
+                let to_king = (king_pos - unit_pos).normalize_or_zero();
 
-        // Check if unit is within aura radius
-        if distance_to_king < KING_AURA_RADIUS && distance_to_king > 0.1 {
-            // Calculate direction toward King
-            let to_king = (king_pos - unit_pos).normalize_or_zero();
+                // Add cohesion force to flocking velocity
+                // Scale by distance (stronger pull when closer to edge of aura)
+                let distance_factor = distance_to_king / KING_AURA_RADIUS;
+                let cohesion_force = to_king * cohesion_strength * distance_factor;
 
-            // Add cohesion force to flocking velocity
-            // Scale by distance (stronger pull when closer to edge of aura)
-            let distance_factor = distance_to_king / KING_AURA_RADIUS;
-            let cohesion_force = to_king * cohesion_strength * distance_factor;
+                flocking_velocity.velocity += Vec3::new(cohesion_force.x, 0.0, cohesion_force.z);
 
-            flocking_velocity.velocity += Vec3::new(cohesion_force.x, 0.0, cohesion_force.z);
-
-            // Re-normalize to maintain consistent influence
-            flocking_velocity.velocity = flocking_velocity.velocity.normalize_or_zero();
+                // Re-normalize to maintain consistent influence
+                flocking_velocity.velocity = flocking_velocity.velocity.normalize_or_zero();
+            }
         }
     }
 }
@@ -302,17 +300,20 @@ pub fn king_cohesion_force(
 /// Guards orbit the King at a fixed radius. Their positions are set directly
 /// rather than using velocity/acceleration, so they stay locked to the King.
 pub fn snap_kings_guard_to_king(
-    king_query: Query<&Transform, (With<King>, Without<Corpse>)>,
-    mut guards: Query<(&KingsGuard, &mut Transform), (Without<King>, Without<Corpse>)>,
+    king_query: Query<(&Transform, &Team), (With<King>, Without<Corpse>)>,
+    mut guards: Query<(&KingsGuard, &Team, &mut Transform), (Without<King>, Without<Corpse>)>,
 ) {
-    let Ok(king_transform) = king_query.single() else {
-        return;
-    };
-    let king_pos = king_transform.translation;
+    // Snap each guard to their team's King
+    for (king_transform, king_team) in &king_query {
+        let king_pos = king_transform.translation;
 
-    for (guard, mut transform) in &mut guards {
-        let angle = guard.0 as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
-        transform.translation.x = king_pos.x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
-        transform.translation.z = king_pos.z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+        for (guard, guard_team, mut transform) in &mut guards {
+            if guard_team != king_team {
+                continue;
+            }
+            let angle = guard.0 as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
+            transform.translation.x = king_pos.x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
+            transform.translation.z = king_pos.z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+        }
     }
 }

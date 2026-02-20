@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::game::constants::KING_CORPSE_COLOR;
+
 use super::constants::*;
 
 /// Pre-loaded meshes and materials for the king unit.
@@ -24,8 +26,9 @@ pub(super) fn preload_king_assets(
             ..default()
         }),
         corpse_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.4, 0.4, 0.48), // Darker desaturated blue-gray (king corpse)
+            base_color: KING_CORPSE_COLOR,
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
             ..default()
         }),
     };

@@ -509,9 +509,9 @@ fn spawn_mp_infantry(
         let units_in_this_cell = units_per_cell[cell_idx];
         if unit_index < units_counted + units_in_this_cell {
             let (spawn_x, spawn_z) = if host_side {
-                calculate_defender_grid_position(*row, *col)
+                calculate_mp_defender_grid_position(*row, *col)
             } else {
-                calculate_guest_defender_grid_position(*row, *col)
+                calculate_mp_guest_defender_grid_position(*row, *col)
             };
             let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
@@ -583,9 +583,9 @@ fn spawn_mp_archer(
         let units_in_this_cell = units_per_cell[cell_idx as usize];
         if unit_index < units_counted + units_in_this_cell {
             let (spawn_x, spawn_z) = if host_side {
-                calculate_defender_grid_position(archer_row, cell_idx)
+                calculate_mp_defender_grid_position(archer_row, cell_idx)
             } else {
-                calculate_guest_defender_grid_position(archer_row, cell_idx)
+                calculate_mp_guest_defender_grid_position(archer_row, cell_idx)
             };
             let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
@@ -658,7 +658,7 @@ fn spawn_mp_king(
     use crate::game::units::king::components::King;
     use crate::game::units::king::constants::*;
 
-    let radius = DEFENDER_GRID_GROUND_RANGE + 600.0;
+    let radius = MP_DEFENDER_GRID_GROUND_RANGE + 600.0;
     let spawn_x = wizard_position.x + radius * center_angle.cos();
     let spawn_z = wizard_position.z + radius * center_angle.sin();
 
@@ -748,7 +748,7 @@ fn spawn_mp_kings_guard(
     use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
 
     // King's position: same calculation as spawn_mp_king
-    let radius = DEFENDER_GRID_GROUND_RANGE + 600.0;
+    let radius = MP_DEFENDER_GRID_GROUND_RANGE + 600.0;
     let king_x = wizard_position.x + radius * center_angle.cos();
     let king_z = wizard_position.z + radius * center_angle.sin();
 
