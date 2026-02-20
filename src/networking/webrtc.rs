@@ -100,8 +100,12 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
     let pc_clone = pc.clone();
     let closure = Closure::wrap(Box::new(move |event: JsValue| {
         let event: RtcPeerConnectionIceEvent = event.unchecked_into();
+        if event.candidate().is_some() {
+            info!("[WebRTC] ICE candidate gathered");
+        }
         // When candidate is null, ICE gathering is complete
         if event.candidate().is_none() {
+            info!("[WebRTC] ICE gathering complete");
             // Use Reflect to get localDescription properties (avoids feature-gating issues)
             let desc = Reflect::get(&pc_clone, &JsValue::from_str("localDescription"))
                 .unwrap_or_default();
@@ -116,6 +120,7 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
                     .unwrap_or_default();
                 let payload = format!("{}|{}", sdp_type, sdp);
                 let encoded = base64_encode(&payload);
+                info!("[WebRTC] Local SDP ready (type={}), encoding...", sdp_type);
                 WEBRTC_STATE.with(|s| {
                     let mut state = s.borrow_mut();
                     state.local_code = Some(encoded);
@@ -135,7 +140,7 @@ fn setup_data_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnMut(JsV
 
     // onopen
     let on_open = Closure::wrap(Box::new(move |_: JsValue| {
-        info!("WebRTC data channel opened");
+        info!("[WebRTC] Reliable data channel OPENED");
         WEBRTC_STATE.with(|s| {
             s.borrow_mut().state = ConnectionState::Connected;
         });
@@ -147,11 +152,19 @@ fn setup_data_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnMut(JsV
     let on_message = Closure::wrap(Box::new(move |event: JsValue| {
         let event: MessageEvent = event.unchecked_into();
         if let Some(text) = event.data().as_string() {
-            if let Ok(msg) = serde_json::from_str::<NetworkMessage>(&text) {
-                WEBRTC_STATE.with(|s| {
-                    s.borrow_mut().incoming_messages.push(msg);
-                });
+            match serde_json::from_str::<NetworkMessage>(&text) {
+                Ok(msg) => {
+                    info!("[WebRTC] Received reliable message: {:?}", msg);
+                    WEBRTC_STATE.with(|s| {
+                        s.borrow_mut().incoming_messages.push(msg);
+                    });
+                }
+                Err(e) => {
+                    warn!("[WebRTC] Failed to parse message: {} (raw: {})", e, &text[..text.len().min(100)]);
+                }
             }
+        } else {
+            warn!("[WebRTC] Received non-string data on reliable channel");
         }
     }) as Box<dyn FnMut(JsValue)>);
     dc.set_onmessage(Some(on_message.as_ref().unchecked_ref()));
@@ -159,7 +172,7 @@ fn setup_data_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnMut(JsV
 
     // onclose
     let on_close = Closure::wrap(Box::new(move |_: JsValue| {
-        warn!("WebRTC data channel closed");
+        warn!("[WebRTC] Reliable data channel CLOSED");
         WEBRTC_STATE.with(|s| {
             s.borrow_mut().state = ConnectionState::Disconnected;
         });
@@ -168,8 +181,9 @@ fn setup_data_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnMut(JsV
     closures.push(on_close);
 
     // onerror
-    let on_error = Closure::wrap(Box::new(move |_: JsValue| {
-        error!("WebRTC data channel error");
+    let on_error = Closure::wrap(Box::new(move |event: JsValue| {
+        let error_info = format!("{:?}", event);
+        error!("[WebRTC] Reliable data channel ERROR: {}", &error_info[..error_info.len().min(200)]);
         WEBRTC_STATE.with(|s| {
             let mut state = s.borrow_mut();
             state.state = ConnectionState::Failed;
@@ -196,7 +210,7 @@ fn setup_unreliable_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnM
 
     // onopen - just log
     let on_open = Closure::wrap(Box::new(move |_: JsValue| {
-        info!("WebRTC unreliable data channel opened");
+        info!("[WebRTC] Unreliable data channel OPENED");
     }) as Box<dyn FnMut(JsValue)>);
     dc.set_onopen(Some(on_open.as_ref().unchecked_ref()));
     closures.push(on_open);
@@ -219,14 +233,15 @@ fn setup_unreliable_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnM
 
     // onclose
     let on_close = Closure::wrap(Box::new(move |_: JsValue| {
-        warn!("WebRTC unreliable data channel closed");
+        warn!("[WebRTC] Unreliable data channel CLOSED");
     }) as Box<dyn FnMut(JsValue)>);
     dc.set_onclose(Some(on_close.as_ref().unchecked_ref()));
     closures.push(on_close);
 
     // onerror
-    let on_error = Closure::wrap(Box::new(move |_: JsValue| {
-        error!("WebRTC unreliable data channel error");
+    let on_error = Closure::wrap(Box::new(move |event: JsValue| {
+        let error_info = format!("{:?}", event);
+        error!("[WebRTC] Unreliable data channel ERROR: {}", &error_info[..error_info.len().min(200)]);
     }) as Box<dyn FnMut(JsValue)>);
     dc.set_onerror(Some(on_error.as_ref().unchecked_ref()));
     closures.push(on_error);
@@ -238,6 +253,7 @@ fn setup_unreliable_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnM
 ///
 /// Called from the UI when the user clicks "Host Game".
 pub fn create_host_offer() {
+    info!("[WebRTC] Creating host offer...");
     WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
         *state = WebRtcCallbackState::default();
@@ -259,7 +275,9 @@ pub fn create_host_offer() {
 }
 
 async fn async_create_host_offer() -> Result<(), JsValue> {
+    info!("[WebRTC] Creating peer connection for host...");
     let pc = create_peer_connection()?;
+    info!("[WebRTC] Peer connection created, creating data channels...");
 
     // Create the reliable data channel before creating the offer
     let dc = pc.create_data_channel(DATA_CHANNEL_NAME);
@@ -277,11 +295,14 @@ async fn async_create_host_offer() -> Result<(), JsValue> {
     let ice_closure = setup_ice_candidate_handler(&pc);
 
     // Create offer
+    info!("[WebRTC] Creating SDP offer...");
     let offer = JsFuture::from(pc.create_offer()).await?;
     let offer_sdp: RtcSessionDescriptionInit = offer.unchecked_into();
 
     // Set local description
+    info!("[WebRTC] Setting local description...");
     JsFuture::from(pc.set_local_description(&offer_sdp)).await?;
+    info!("[WebRTC] Local description set, waiting for ICE gathering...");
 
     // Store everything in thread-local state
     WEBRTC_STATE.with(|s| {
@@ -301,6 +322,7 @@ async fn async_create_host_offer() -> Result<(), JsValue> {
 ///
 /// Called from the UI when the guest pastes the host's invite code.
 pub fn create_guest_answer(host_code: &str) {
+    info!("[WebRTC] Creating guest answer (code length: {})...", host_code.len());
     let host_code = host_code.to_string();
 
     WEBRTC_STATE.with(|s| {
@@ -325,17 +347,20 @@ pub fn create_guest_answer(host_code: &str) {
 
 async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
     // Decode the host's offer
+    info!("[WebRTC] Decoding host offer...");
     let decoded = base64_decode(host_code)
         .map_err(|e| JsValue::from_str(&format!("Invalid code: {}", e)))?;
 
     let (sdp_type, sdp) = decoded
         .split_once('|')
         .ok_or_else(|| JsValue::from_str("Invalid code format"))?;
+    info!("[WebRTC] Decoded SDP type: {}", sdp_type);
 
     if sdp_type != "offer" {
         return Err(JsValue::from_str("Expected an offer code, got an answer"));
     }
 
+    info!("[WebRTC] Creating peer connection for guest...");
     let pc = create_peer_connection()?;
 
     // Set up handler for incoming data channels from host (reliable + unreliable)
@@ -343,6 +368,7 @@ async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
         let event: RtcDataChannelEvent = event.unchecked_into();
         let dc = event.channel();
         let label = dc.label();
+        info!("[WebRTC] Guest received data channel: '{}'", label);
         if label == UNRELIABLE_CHANNEL_NAME {
             let closures = setup_unreliable_channel_handlers(&dc);
             WEBRTC_STATE.with(|s| {
@@ -365,16 +391,20 @@ async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
     let ice_closure = setup_ice_candidate_handler(&pc);
 
     // Set remote description (host's offer)
+    info!("[WebRTC] Setting remote description (host's offer)...");
     let offer_init = RtcSessionDescriptionInit::new(RtcSdpType::Offer);
     offer_init.set_sdp(sdp);
     JsFuture::from(pc.set_remote_description(&offer_init)).await?;
+    info!("[WebRTC] Remote description set, creating answer...");
 
     // Create answer
     let answer = JsFuture::from(pc.create_answer()).await?;
     let answer_sdp: RtcSessionDescriptionInit = answer.unchecked_into();
 
     // Set local description
+    info!("[WebRTC] Setting local description (answer)...");
     JsFuture::from(pc.set_local_description(&answer_sdp)).await?;
+    info!("[WebRTC] Local description set, waiting for ICE gathering...");
 
     WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
@@ -390,6 +420,7 @@ async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
 ///
 /// Called from the UI when the host pastes the guest's response code.
 pub fn process_answer(guest_code: &str) {
+    info!("[WebRTC] Processing guest answer (code length: {})...", guest_code.len());
     let guest_code = guest_code.to_string();
 
     WEBRTC_STATE.with(|s| {
@@ -411,12 +442,14 @@ pub fn process_answer(guest_code: &str) {
 }
 
 async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
+    info!("[WebRTC] Decoding guest answer...");
     let decoded = base64_decode(guest_code)
         .map_err(|e| JsValue::from_str(&format!("Invalid code: {}", e)))?;
 
     let (sdp_type, sdp) = decoded
         .split_once('|')
         .ok_or_else(|| JsValue::from_str("Invalid code format"))?;
+    info!("[WebRTC] Decoded guest SDP type: {}", sdp_type);
 
     if sdp_type != "answer" {
         return Err(JsValue::from_str("Expected an answer code, got an offer"));
@@ -425,19 +458,21 @@ async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
     WEBRTC_STATE.with(|s| {
         let state = s.borrow();
         if let Some(pc) = &state.peer_connection {
+            info!("[WebRTC] Setting remote description (guest's answer)...");
             let answer_init = RtcSessionDescriptionInit::new(RtcSdpType::Answer);
             answer_init.set_sdp(sdp);
             wasm_bindgen_futures::spawn_local({
                 let pc = pc.clone();
                 async move {
                     if let Err(e) = JsFuture::from(pc.set_remote_description(&answer_init)).await {
-                        error!("Failed to set remote description: {:?}", e);
+                        error!("[WebRTC] Failed to set remote description: {:?}", e);
                         WEBRTC_STATE.with(|s| {
                             let mut state = s.borrow_mut();
                             state.state = ConnectionState::Failed;
                             state.error = Some(format!("{:?}", e));
                         });
                     } else {
+                        info!("[WebRTC] Remote description set successfully, waiting for data channel...");
                         WEBRTC_STATE.with(|s| {
                             let mut state = s.borrow_mut();
                             if state.state != ConnectionState::Connected {
@@ -525,6 +560,7 @@ pub fn sync_webrtc_state(connection: ResMut<NetworkConnection>) {
         let mut state = s.borrow_mut();
 
         if connection.state != state.state {
+            info!("[WebRTC Sync] State changed: {:?} -> {:?}", connection.state, state.state);
             connection.state = state.state;
         }
 

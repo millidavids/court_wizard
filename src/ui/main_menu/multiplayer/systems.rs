@@ -602,6 +602,7 @@ pub fn process_lobby_messages(
     if should_send_info {
         let (wizard_types, spells) = load_my_unlocked_content();
 
+        info!("[Lobby] Connected! Sending PlayerInfo ({} wizard types, {} spells)", wizard_types.len(), spells.len());
         connection
             .outgoing_messages
             .push(NetworkMessage::PlayerInfo {
@@ -610,11 +611,6 @@ pub fn process_lobby_messages(
             });
 
         *lobby_phase = LobbyPhase::WaitingForPlayerInfo;
-        info!(
-            "Sent PlayerInfo: {} wizard types, {} spells",
-            wizard_types.len(),
-            spells.len()
-        );
     }
 
     // Process incoming messages
@@ -624,12 +620,14 @@ pub fn process_lobby_messages(
     let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
     let mut unhandled = Vec::new();
 
+    info!("[Lobby] Processing {} incoming messages", messages.len());
     for msg in messages {
         match msg {
             NetworkMessage::PlayerInfo {
                 wizard_types: opponent_wt,
                 spells: _opponent_sp,
             } => {
+                info!("[Lobby] Received PlayerInfo from opponent ({} wizard types)", opponent_wt.len());
                 let (my_wt, _my_sp) = load_my_unlocked_content();
 
                 // Despawn the connection-phase UI and spawn the wizard select screen
@@ -670,6 +668,7 @@ pub fn process_lobby_messages(
                 }
             }
             NetworkMessage::ReadyUp => {
+                info!("[Lobby] Opponent readied up");
                 if let LobbyPhase::WizardSelect {
                     opponent_ready, ..
                 } = lobby_phase.as_mut()
@@ -686,6 +685,7 @@ pub fn process_lobby_messages(
                 }
             }
             NetworkMessage::StartGame => {
+                info!("[Lobby] Received StartGame from host");
                 // Guest received StartGame from host
                 if let LobbyPhase::WizardSelect {
                     my_wizard: Some(my_wiz),
@@ -725,7 +725,9 @@ pub fn process_lobby_messages(
         ..
     } = &*lobby_phase
     {
+        info!("[Lobby] Both players ready! Host: {:?}, Guest: {:?}", my_wiz, opp_wiz);
         if connection.role == Some(PeerRole::Host) {
+            info!("[Lobby] I am host, sending StartGame and transitioning to MultiplayerLoading");
             let (_my_wt, my_spells) = load_my_unlocked_content();
             let session = MultiplayerSession {
                 role: PeerRole::Host,
