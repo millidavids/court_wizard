@@ -44,10 +44,14 @@ use super::guest_systems;
 use super::host_systems;
 use super::loading;
 
-/// Run condition: true when `MultiplayerGameState::ScoreScreen` is active.
+/// Safe run condition for `MultiplayerGameState` sub-states.
 ///
-/// Unlike `in_state(MultiplayerGameState::ScoreScreen)`, this won't panic
-/// if the sub-state resource has already been removed during state transitions.
+/// Unlike `in_state(MultiplayerGameState::*)`, these won't panic if the sub-state
+/// resource has already been removed during state transitions.
+fn in_mp_running(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
+    state.is_some_and(|s| *s.get() == MultiplayerGameState::Running)
+}
+
 fn in_mp_score_screen(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
     state.is_some_and(|s| *s.get() == MultiplayerGameState::ScoreScreen)
 }
@@ -95,7 +99,7 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(OnExit(AppState::MultiplayerGame), cleanup_mp_game);
 
         // ── System Set Configuration ─────────────────────────────────
-        let mp_host = in_state(MultiplayerGameState::Running).and(is_multiplayer_host);
+        let mp_host = in_mp_running.and(is_multiplayer_host);
 
         app.configure_sets(
             Update,
@@ -284,21 +288,21 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(
             Update,
             crate::game::systems::update_billboards
-                .run_if(in_state(MultiplayerGameState::Running)),
+                .run_if(in_mp_running),
         );
 
         // ── Guest: Snapshot Rendering ────────────────────────────────
         app.add_systems(
             Update,
             guest_systems::apply_state_snapshot
-                .run_if(in_state(MultiplayerGameState::Running).and(is_multiplayer_guest)),
+                .run_if(in_mp_running.and(is_multiplayer_guest)),
         );
 
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,
             guest_systems::handle_game_over_message
-                .run_if(in_state(MultiplayerGameState::Running).and(is_multiplayer_guest)),
+                .run_if(in_mp_running.and(is_multiplayer_guest)),
         );
 
         // ── Score Screen ──────────────────────────────────────────────

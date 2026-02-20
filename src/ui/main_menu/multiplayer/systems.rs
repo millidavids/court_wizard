@@ -675,143 +675,160 @@ pub fn process_lobby_messages(
     // Check if there are messages to process (read-only)
     let has_messages = !connection.incoming_messages.is_empty();
 
-    // Early return if nothing to do — avoids marking connection as changed
-    if !should_send_info && !has_messages {
-        return;
-    }
+    // Process network messages and PlayerInfo sending
+    if should_send_info || has_messages {
+        // Now take mutable access (triggers change detection, but only when we have real work)
+        let mut connection = connection;
 
-    // Now take mutable access (triggers change detection, but only when we have real work)
-    let mut connection = connection;
+        // Send PlayerInfo when first connected
+        if should_send_info {
+            let (wizard_types, spells) = load_my_unlocked_content();
 
-    // Send PlayerInfo when first connected
-    if should_send_info {
-        let (wizard_types, spells) = load_my_unlocked_content();
+            info!("[Lobby] Connected! Sending PlayerInfo ({} wizard types, {} spells)", wizard_types.len(), spells.len());
+            connection
+                .outgoing_messages
+                .push(NetworkMessage::PlayerInfo {
+                    wizard_types: wizard_types.clone(),
+                    spells: spells.clone(),
+                });
 
-        info!("[Lobby] Connected! Sending PlayerInfo ({} wizard types, {} spells)", wizard_types.len(), spells.len());
-        connection
-            .outgoing_messages
-            .push(NetworkMessage::PlayerInfo {
-                wizard_types: wizard_types.clone(),
-                spells: spells.clone(),
-            });
+            *lobby_phase = LobbyPhase::WaitingForPlayerInfo;
+        }
 
-        *lobby_phase = LobbyPhase::WaitingForPlayerInfo;
-    }
+        // Process incoming messages
+        if has_messages {
+            let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+            let mut unhandled = Vec::new();
 
-    // Process incoming messages
-    if !has_messages {
-        return;
-    }
-    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
-    let mut unhandled = Vec::new();
+            info!("[Lobby] Processing {} incoming messages", messages.len());
+            for msg in messages {
+                match msg {
+                    NetworkMessage::PlayerInfo {
+                        wizard_types: opponent_wt,
+                        spells: _opponent_sp,
+                    } => {
+                        info!("[Lobby] Received PlayerInfo from opponent ({} wizard types)", opponent_wt.len());
+                        let (my_wt, _my_sp) = load_my_unlocked_content();
 
-    info!("[Lobby] Processing {} incoming messages", messages.len());
-    for msg in messages {
-        match msg {
-            NetworkMessage::PlayerInfo {
-                wizard_types: opponent_wt,
-                spells: _opponent_sp,
-            } => {
-                info!("[Lobby] Received PlayerInfo from opponent ({} wizard types)", opponent_wt.len());
-                let (my_wt, _my_sp) = load_my_unlocked_content();
+                        // Despawn the connection-phase UI and spawn the wizard select screen
+                        for entity in &screen_items {
+                            commands.entity(entity).despawn();
+                        }
 
-                // Despawn the connection-phase UI and spawn the wizard select screen
-                for entity in &screen_items {
-                    commands.entity(entity).despawn();
+                        let initial_wizard = my_wt[0];
+
+                        *lobby_phase = LobbyPhase::WizardSelect {
+                            my_wizard_types: my_wt.clone(),
+                            opponent_wizard_types: opponent_wt,
+                            my_wizard: Some(initial_wizard),
+                            opponent_wizard: None,
+                            my_ready: false,
+                            opponent_ready: false,
+                        };
+
+                        // Notify opponent of our initial wizard selection
+                        connection
+                            .outgoing_messages
+                            .push(NetworkMessage::WizardSelected(initial_wizard));
+
+                        spawn_wizard_select_screen(
+                            &mut commands,
+                            &my_wt,
+                            initial_wizard,
+                            false,
+                            false,
+                        );
+                    }
+                    NetworkMessage::WizardSelected(wt) => {
+                        if let LobbyPhase::WizardSelect {
+                            opponent_wizard, ..
+                        } = lobby_phase.as_mut()
+                        {
+                            *opponent_wizard = Some(wt);
+                        }
+                    }
+                    NetworkMessage::ReadyUp => {
+                        info!("[Lobby] Opponent readied up");
+                        if let LobbyPhase::WizardSelect {
+                            opponent_ready, ..
+                        } = lobby_phase.as_mut()
+                        {
+                            *opponent_ready = true;
+                        }
+                    }
+                    NetworkMessage::Unready => {
+                        if let LobbyPhase::WizardSelect {
+                            opponent_ready, ..
+                        } = lobby_phase.as_mut()
+                        {
+                            *opponent_ready = false;
+                        }
+                    }
+                    NetworkMessage::StartGame => {
+                        info!("[Lobby] Received StartGame from host");
+                        // Guest received StartGame from host
+                        if let LobbyPhase::WizardSelect {
+                            my_wizard: Some(my_wiz),
+                            opponent_wizard: Some(opp_wiz),
+                            ..
+                        } = &*lobby_phase
+                        {
+                            let (_my_wt, my_spells) = load_my_unlocked_content();
+                            let session = MultiplayerSession {
+                                role: PeerRole::Guest,
+                                host_wizard: *opp_wiz,
+                                guest_wizard: *my_wiz,
+                                host_spells: Vec::new(),
+                                guest_spells: my_spells,
+                            };
+                            commands.insert_resource(session);
+                        }
+                        next_app_state.set(AppState::MultiplayerLoading);
+                    }
+                    other => {
+                        unhandled.push(other);
+                    }
                 }
+            }
 
-                let initial_wizard = my_wt[0];
-
-                *lobby_phase = LobbyPhase::WizardSelect {
-                    my_wizard_types: my_wt.clone(),
-                    opponent_wizard_types: opponent_wt,
-                    my_wizard: Some(initial_wizard),
-                    opponent_wizard: None,
-                    my_ready: false,
-                    opponent_ready: false,
-                };
-
-                // Notify opponent of our initial wizard selection
-                connection
-                    .outgoing_messages
-                    .push(NetworkMessage::WizardSelected(initial_wizard));
-
-                spawn_wizard_select_screen(
-                    &mut commands,
-                    &my_wt,
-                    initial_wizard,
-                    false,
-                    false,
-                );
-            }
-            NetworkMessage::WizardSelected(wt) => {
-                if let LobbyPhase::WizardSelect {
-                    opponent_wizard, ..
-                } = lobby_phase.as_mut()
-                {
-                    *opponent_wizard = Some(wt);
-                }
-            }
-            NetworkMessage::ReadyUp => {
-                info!("[Lobby] Opponent readied up");
-                if let LobbyPhase::WizardSelect {
-                    opponent_ready, ..
-                } = lobby_phase.as_mut()
-                {
-                    *opponent_ready = true;
-                }
-            }
-            NetworkMessage::Unready => {
-                if let LobbyPhase::WizardSelect {
-                    opponent_ready, ..
-                } = lobby_phase.as_mut()
-                {
-                    *opponent_ready = false;
-                }
-            }
-            NetworkMessage::StartGame => {
-                info!("[Lobby] Received StartGame from host");
-                // Guest received StartGame from host
-                if let LobbyPhase::WizardSelect {
-                    my_wizard: Some(my_wiz),
-                    opponent_wizard: Some(opp_wiz),
-                    ..
-                } = &*lobby_phase
-                {
-                    let (_my_wt, my_spells) = load_my_unlocked_content();
-                    let session = MultiplayerSession {
-                        role: PeerRole::Guest,
-                        host_wizard: *opp_wiz,
-                        guest_wizard: *my_wiz,
-                        host_spells: Vec::new(),
-                        guest_spells: my_spells,
-                    };
-                    commands.insert_resource(session);
-                }
-                next_app_state.set(AppState::MultiplayerLoading);
-            }
-            other => {
-                unhandled.push(other);
+            // Put unhandled messages back
+            if !unhandled.is_empty() {
+                connection.incoming_messages.extend(unhandled);
             }
         }
+
+        // Check if both players are ready (host initiates)
+        // This runs after processing messages so opponent's ReadyUp is handled first.
+        check_both_ready(&lobby_phase, &mut connection, &mut commands, &mut next_app_state);
+        return;
     }
 
-    // Put unhandled messages back
-    if !unhandled.is_empty() {
-        connection.incoming_messages.extend(unhandled);
+    // No messages to process, but still check if both ready (handles the case
+    // where the local player clicked Ready via button_action and opponent was
+    // already ready from a previous frame).
+    if lobby_phase.is_changed() {
+        let mut connection = connection;
+        check_both_ready(&lobby_phase, &mut connection, &mut commands, &mut next_app_state);
     }
+}
 
-    // Check if both players are ready (host initiates)
+/// Checks if both players are ready and initiates the game start (host only).
+fn check_both_ready(
+    lobby_phase: &LobbyPhase,
+    connection: &mut NetworkConnection,
+    commands: &mut Commands,
+    next_app_state: &mut NextState<AppState>,
+) {
     if let LobbyPhase::WizardSelect {
         my_wizard: Some(my_wiz),
         opponent_wizard: Some(opp_wiz),
         my_ready: true,
         opponent_ready: true,
         ..
-    } = &*lobby_phase
+    } = lobby_phase
     {
-        info!("[Lobby] Both players ready! Host: {:?}, Guest: {:?}", my_wiz, opp_wiz);
         if connection.role == Some(PeerRole::Host) {
+            info!("[Lobby] Both players ready! Host: {:?}, Guest: {:?}", my_wiz, opp_wiz);
             info!("[Lobby] I am host, sending StartGame and transitioning to MultiplayerLoading");
             let (_my_wt, my_spells) = load_my_unlocked_content();
             let session = MultiplayerSession {
