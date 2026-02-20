@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
+use crate::game::run_conditions::is_gameplay_running;
 use crate::state::InGameState;
 use crate::ui::plugin::ButtonActionSet;
 
@@ -24,7 +25,7 @@ impl Plugin for RuneDisplayPlugin {
                 systems::update_rune_display,
                 systems::update_spell_name_fade.run_if(any_with_component::<SpellNameFadeTimer>),
             )
-                .run_if(in_state(InGameState::Running))
+                .run_if(is_gameplay_running)
                 .run_if(run_conditions::is_rune_caster),
         );
     }

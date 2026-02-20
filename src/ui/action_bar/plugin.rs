@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::run_conditions::is_gameplay_running;
 use crate::state::InGameState;
 use crate::ui::plugin::ButtonActionSet;
 
@@ -20,7 +21,7 @@ impl Plugin for ActionBarPlugin {
                     systems::handle_slot_click.in_set(ButtonActionSet),
                     systems::handle_keyboard_input,
                 )
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             )
             .add_systems(
                 Update,
@@ -28,7 +29,7 @@ impl Plugin for ActionBarPlugin {
                     systems::update_action_bar_slots,
                     systems::handle_spell_assignment,
                 )
-                    .run_if(in_state(InGameState::Running).or(in_state(InGameState::SpellBook))),
+                    .run_if(is_gameplay_running.or(in_state(InGameState::SpellBook))),
             );
     }
 }

@@ -8,7 +8,7 @@ use super::systems::*;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 
 use crate::game::units::MovementCalculationSet;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct BehemothPlugin;
 
@@ -26,7 +26,7 @@ impl Plugin for BehemothPlugin {
                     track_behemoth_attack_target.in_set(VelocitySystemSet),
                     behemoth_movement.in_set(MovementCalculationSet),
                 )
-                    .run_if(in_state(InGameState::Running))
+                    .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Behemoth>),
             )
             // AOE damage runs after combat when messages are present
@@ -34,7 +34,7 @@ impl Plugin for BehemothPlugin {
                 Update,
                 behemoth_aoe_splash_damage
                     .after(PostCombatSet)
-                    .run_if(in_state(InGameState::Running))
+                    .run_if(is_gameplay_running)
                     .run_if(on_message::<BehemothAttackMessage>),
             );
     }

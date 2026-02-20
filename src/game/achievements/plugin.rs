@@ -1,7 +1,7 @@
 use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
-use crate::state::AppState;
+use crate::game::run_conditions::is_gameplay_active;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
@@ -122,7 +122,7 @@ impl Plugin for AchievementsPlugin {
             .add_systems(
                 Update,
                 systems::detect_out_of_range
-                    .run_if(in_state(AppState::InGame))
+                    .run_if(is_gameplay_active)
                     .run_if(achievement_locked::<OutOfRangeAchievement>),
             )
             .add_systems(
@@ -145,7 +145,7 @@ impl Plugin for AchievementsPlugin {
             // Multi-kill tracker timer (runs during gameplay)
             .add_systems(
                 Update,
-                systems::update_multi_kill_tracker.run_if(in_state(AppState::InGame)),
+                systems::update_multi_kill_tracker.run_if(is_gameplay_active),
             )
             // SliderFiddler — settings menu
             .add_systems(
@@ -161,7 +161,7 @@ impl Plugin for AchievementsPlugin {
                     systems::detect_spell_cast,
                     systems::detect_qwer_key.run_if(achievement_locked::<QwerAchievement>),
                 )
-                    .run_if(in_state(AppState::InGame)),
+                    .run_if(is_gameplay_active),
             )
             // QWER — unlocks RuneCaster on first Q/W/E/R press
             .add_systems(

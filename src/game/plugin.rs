@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
+use super::run_conditions::is_gameplay_running;
+
 use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
@@ -122,12 +124,12 @@ impl Plugin for GamePlugin {
             .configure_sets(
                 Update,
                 (
-                    VelocitySystemSet.run_if(in_state(InGameState::Running)),
+                    VelocitySystemSet.run_if(is_gameplay_running),
                     MovementSystemSet
-                        .run_if(in_state(InGameState::Running))
+                        .run_if(is_gameplay_running)
                         .after(VelocitySystemSet),
                     PostCombatSet
-                        .run_if(in_state(InGameState::Running))
+                        .run_if(is_gameplay_running)
                         .after(MovementSystemSet),
                 ),
             )
@@ -137,7 +139,7 @@ impl Plugin for GamePlugin {
                     shared_systems::tick_attack_cycle,
                     shared_systems::tick_elapsed_time,
                 )
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             )
             .add_systems(
                 Update,
@@ -161,26 +163,28 @@ impl Plugin for GamePlugin {
                     shared_systems::apply_rough_terrain_slowdown,
                 )
                     .chain()
-                    .run_if(in_state(InGameState::Running))
+                    .run_if(is_gameplay_running)
                     .after(VelocitySystemSet)
                     .before(MovementSystemSet),
             )
             .add_systems(
                 Update,
                 (
-                    // Unit-specific movement systems run in parallel as a set
-                    // (infantry_movement and archer_movement registered in their respective plugins)
-                    // They read from TargetingVelocity set by update_targeting
                     shared_systems::enforce_wall_collision,
                     shared_systems::combat,
                     shared_systems::convert_dead_to_corpses,
-                    // Update billboards to face camera
                     systems::update_billboards,
-                    // Check win/lose conditions
-                    win_lose_systems::check_win_lose_conditions,
                 )
                     .chain()
                     .in_set(PostCombatSet),
+            )
+            // SP-only win/lose check — runs after combat chain, gated to InGameState
+            // (MP has its own check_mp_king_death registered in MultiplayerGamePlugin)
+            .add_systems(
+                Update,
+                win_lose_systems::check_win_lose_conditions
+                    .after(PostCombatSet)
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }

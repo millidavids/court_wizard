@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::SleepIndicator;
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct SleepPlugin;
 
@@ -20,7 +20,7 @@ impl Plugin for SleepPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 systems::update_sleep_indicator.run_if(any_exist::<SleepIndicator>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{Fireball, FireballExplosion};
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 /// Plugin that handles fireball spell casting and behavior.
 ///
@@ -41,7 +41,7 @@ impl Plugin for FireballPlugin {
                     .chain()
                     .run_if(any_exist::<FireballExplosion>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

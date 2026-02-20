@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::plugin::{MovementSystemSet, VelocitySystemSet};
 use crate::game::run_conditions::any_exist;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 use super::components::{King, KingSpawned};
 use super::resources;
@@ -26,7 +26,7 @@ impl Plugin for KingPlugin {
                         .in_set(MovementSystemSet),
                 )
                     .run_if(any_exist::<King>())
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             );
     }
 }

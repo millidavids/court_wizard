@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::BerserkerRageIndicator;
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct BerserkerRagePlugin;
 
@@ -21,7 +21,7 @@ impl Plugin for BerserkerRagePlugin {
                 systems::update_berserker_rage_indicator
                     .run_if(any_exist::<BerserkerRageIndicator>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

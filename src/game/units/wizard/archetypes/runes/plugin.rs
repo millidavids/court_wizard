@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 use super::messages::*;
 use super::resources::{LastActivatedSpell, RuneSequence};
@@ -25,7 +25,7 @@ impl Plugin for RunePlugin {
                     systems::update_rune_timeout,
                 )
                     .chain()
-                    .run_if(in_state(InGameState::Running))
+                    .run_if(is_gameplay_running)
                     .run_if(run_conditions::is_rune_caster),
             );
     }

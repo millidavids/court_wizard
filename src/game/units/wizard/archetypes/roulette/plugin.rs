@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
+use crate::game::run_conditions::is_gameplay_running;
 use crate::state::InGameState;
 
 use super::messages::*;
@@ -26,7 +27,7 @@ impl Plugin for RoulettePlugin {
                     systems::reset_after_cast,
                 )
                     .chain()
-                    .run_if(in_state(InGameState::Running))
+                    .run_if(is_gameplay_running)
                     .run_if(run_conditions::is_randomancer),
             );
     }

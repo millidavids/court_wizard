@@ -8,7 +8,7 @@ use super::components::{
 use super::systems::*;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 /// Plugin for the Meteor Fall spell.
 ///
@@ -44,7 +44,7 @@ impl Plugin for MeteorFallPlugin {
                     .chain()
                     .run_if(any_exist::<MeteorGroundFire>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

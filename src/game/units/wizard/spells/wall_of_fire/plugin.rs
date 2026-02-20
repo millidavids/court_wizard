@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct WallOfFirePlugin;
 
@@ -22,7 +22,7 @@ impl Plugin for WallOfFirePlugin {
                 systems::fade_wall_of_fire,
                 systems::cleanup_wall_of_fire,
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::run_conditions::is_gameplay_running;
 use crate::state::InGameState;
 
 use super::archetypes::ArchetypesPlugin;
@@ -32,7 +33,7 @@ impl Plugin for WizardPlugin {
                     systems::reset_empowerment_after_cast,
                     systems::apply_wizard_stats_to_primed_spell,
                 )
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             )
             .add_systems(OnExit(InGameState::Running), systems::cancel_active_casts);
     }

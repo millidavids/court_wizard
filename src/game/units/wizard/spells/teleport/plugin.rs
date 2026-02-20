@@ -6,7 +6,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{TeleportDestinationCircle, TeleportSourceCircle};
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 /// Plugin that handles the Teleport spell.
 ///
@@ -33,7 +33,7 @@ impl Plugin for TeleportPlugin {
                         .or(any_exist::<TeleportSourceCircle>()),
                 ),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

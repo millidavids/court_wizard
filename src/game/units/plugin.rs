@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 use super::archer::ArcherPlugin;
 use super::behemoth::BehemothPlugin;
@@ -45,7 +45,7 @@ impl Plugin for UnitsPlugin {
             Update,
             (MovementCalculationSet, ApplyTransformsSet)
                 .chain()
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         )
         .add_systems(
             Update,
@@ -62,7 +62,7 @@ impl Plugin for UnitsPlugin {
                 systems::update_persistent_effect_visuals,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         )
         .add_systems(
             Update,
@@ -81,7 +81,7 @@ impl Plugin for UnitsPlugin {
                 systems::update_grease_slip_modifiers
                     .run_if(any_with_component::<GreaseSlipModifier>),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

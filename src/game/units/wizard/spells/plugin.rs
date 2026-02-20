@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 use super::arcane_crystal::ArcaneCrystalPlugin;
 use super::banishment::BanishmentPlugin;
@@ -88,7 +88,7 @@ impl Plugin for SpellsPlugin {
                 systems::despawn_distant_projectiles,
             )
                 .chain()
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

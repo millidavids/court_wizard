@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::systems::*;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 /// Plugin for the concentration UI that appears when the wizard is concentrating on a spell.
 pub struct ConcentrationUIPlugin;
@@ -15,7 +15,7 @@ impl Plugin for ConcentrationUIPlugin {
                 update_button_hover,
                 handle_end_concentration_click,
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

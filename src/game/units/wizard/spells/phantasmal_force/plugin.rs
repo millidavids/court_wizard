@@ -5,7 +5,7 @@ use super::super::run_conditions::*;
 use super::components::PhantasmalForceIndicator;
 use super::systems;
 use crate::game::units::components::IllusionDecoy;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct PhantasmalForcePlugin;
 
@@ -23,7 +23,7 @@ impl Plugin for PhantasmalForcePlugin {
                     .run_if(any_exist::<PhantasmalForceIndicator>()),
                 systems::tick_illusion_decoys.run_if(any_exist::<IllusionDecoy>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

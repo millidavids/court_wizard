@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::run_conditions::any_exist;
 use crate::game::units::MovementCalculationSet;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 use super::components::{DefendersActivated, Infantry};
 use super::resources;
@@ -31,7 +31,7 @@ impl Plugin for InfantryPlugin {
                     systems::infantry_movement.in_set(MovementCalculationSet),
                 )
                     .run_if(any_exist::<Infantry>())
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             );
     }
 }

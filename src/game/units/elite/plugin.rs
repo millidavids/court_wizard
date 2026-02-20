@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 use super::systems;
 
@@ -14,7 +14,7 @@ impl Plugin for ElitePlugin {
                 systems::apply_elite_health_bonus,
                 systems::remove_elite_health_bonus,
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

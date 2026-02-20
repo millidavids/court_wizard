@@ -2,7 +2,8 @@
 
 use bevy::prelude::*;
 
-use crate::state::{AppState, InGameState};
+use crate::game::run_conditions::is_gameplay_running;
+use crate::state::AppState;
 use crate::ui::plugin::ButtonActionSet;
 
 use super::systems;
@@ -22,7 +23,7 @@ impl Plugin for InGamePlugin {
                 Update,
                 systems::hud_button_action
                     .in_set(ButtonActionSet)
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             )
             .add_systems(
                 Update,
@@ -34,7 +35,7 @@ impl Plugin for InGamePlugin {
                     systems::update_level_display,
                     systems::update_past_victory_display,
                 )
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             );
     }
 }

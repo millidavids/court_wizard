@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{PlagueWindCloud, PlagueWindIndicator};
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct PlagueWindPlugin;
 
@@ -28,7 +28,7 @@ impl Plugin for PlagueWindPlugin {
                     .chain()
                     .run_if(any_exist::<PlagueWindCloud>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

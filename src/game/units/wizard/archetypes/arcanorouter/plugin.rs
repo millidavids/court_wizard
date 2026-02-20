@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    game::run_conditions::is_arcanorouter,
-    state::{AppState, InGameState},
+    game::run_conditions::{is_arcanorouter, is_gameplay_active, is_gameplay_running},
+    state::InGameState,
 };
 
 use super::{messages::SliderAdjustMessage, resources::ArcanoRouterState, systems::*};
@@ -31,8 +31,8 @@ impl Plugin for ArcanoRouterPlugin {
                     apply_bonuses_to_wizard_stats,
                 )
                     .chain()
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(in_state(InGameState::Running))
+                    .run_if(is_gameplay_active)
+                    .run_if(is_gameplay_running)
                     .run_if(is_arcanorouter),
             )
             .add_systems(

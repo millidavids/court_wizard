@@ -1,30 +1,16 @@
 //! Multiplayer game plugin.
 //!
-//! Registers all multiplayer gameplay systems. This is completely independent
-//! from `GamePlugin` — it reuses shared helper functions but has its own
-//! system registrations under `AppState::MultiplayerGame`.
+//! Registers only multiplayer-specific systems. The host reuses all single-player
+//! gameplay systems (movement, combat, spells, etc.) via `is_gameplay_running`,
+//! so this plugin only adds networking, guest rendering, score screen, and
+//! disconnect detection.
 
 use bevy::prelude::*;
 
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::input::messages::MouseClicked;
-use crate::game::plugin::GlobalAttackCycle;
+use crate::game::plugin::{GlobalAttackCycle, PostCombatSet};
 use crate::game::resources::{GameOutcome, KillStats};
-use crate::game::run_conditions::any_exist;
-use crate::game::shared_systems;
-use crate::game::units::archer::components::{Archer, Arrow};
-use crate::game::units::archer::systems as archer_systems;
-use crate::game::units::components::{
-    BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, GreaseSlipModifier,
-    MarkedForDeathModifier, MesmerizedModifier, SleepModifier,
-};
-use crate::game::units::infantry::components::DefendersActivated;
-use crate::game::units::infantry::systems as infantry_systems;
-use crate::game::units::infantry::Infantry;
-use crate::game::units::king::components::King;
-use crate::game::units::king::systems as king_systems;
-use crate::game::units::movement;
-use crate::game::units::systems as unit_systems;
 use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
@@ -44,6 +30,8 @@ use super::guest_systems;
 use super::host_systems;
 use super::loading;
 
+use crate::game::units::infantry::components::DefendersActivated;
+
 /// Safe run condition for `MultiplayerGameState` sub-states.
 ///
 /// Unlike `in_state(MultiplayerGameState::*)`, these won't panic if the sub-state
@@ -56,16 +44,17 @@ fn in_mp_score_screen(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
     state.is_some_and(|s| *s.get() == MultiplayerGameState::ScoreScreen)
 }
 
-/// Multiplayer-specific system sets for ordering host simulation.
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum MpSystemSet {
-    /// Velocity/targeting calculations (parallel, immutable queries).
-    Velocity,
-    /// Movement application (after velocity).
-    Movement,
-}
-
 /// Plugin that manages multiplayer gameplay.
+///
+/// The host reuses all single-player gameplay systems (registered by `GamePlugin`,
+/// `UnitsPlugin`, `InfantryPlugin`, `ArcherPlugin`, `KingPlugin`, etc.) via the
+/// `is_gameplay_running` run condition. This plugin only adds:
+/// - Loading and camera setup
+/// - Resource init/cleanup
+/// - Host networking (ID assignment, snapshots, king death check)
+/// - Guest snapshot rendering and game-over handling
+/// - Score screen UI and rematch flow
+/// - Disconnect detection
 pub struct MultiplayerGamePlugin;
 
 impl Plugin for MultiplayerGamePlugin {
@@ -98,178 +87,15 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(OnEnter(AppState::MultiplayerGame), init_mp_game);
         app.add_systems(OnExit(AppState::MultiplayerGame), cleanup_mp_game);
 
-        // ── System Set Configuration ─────────────────────────────────
+        // ── Host: MP King Death Check ────────────────────────────────
+        // Replaces SP's check_win_lose_conditions during multiplayer.
+        // Runs after PostCombatSet so corpses have been created.
         let mp_host = in_mp_running.and(is_multiplayer_host);
 
-        app.configure_sets(
-            Update,
-            (
-                MpSystemSet::Velocity.run_if(mp_host.clone()),
-                MpSystemSet::Movement
-                    .run_if(mp_host.clone())
-                    .after(MpSystemSet::Velocity),
-            ),
-        );
-
-        // ── Host Simulation: Core Game Loop ──────────────────────────
-        // Tick timers
         app.add_systems(
             Update,
-            (
-                shared_systems::tick_attack_cycle,
-                shared_systems::tick_elapsed_time,
-            )
-                .run_if(mp_host.clone()),
-        );
-
-        // Velocity set: activation, separation, wall avoidance
-        app.add_systems(
-            Update,
-            (
-                shared_systems::activate_defenders_on_proximity,
-                shared_systems::apply_separation,
-                shared_systems::apply_wall_avoidance,
-            )
-                .chain()
-                .in_set(MpSystemSet::Velocity),
-        );
-
-        // Between velocity and movement: effectiveness, terrain slowdown
-        app.add_systems(
-            Update,
-            (
-                shared_systems::calculate_effectiveness,
-                shared_systems::apply_rough_terrain_slowdown,
-            )
-                .chain()
-                .run_if(mp_host.clone())
-                .after(MpSystemSet::Velocity)
-                .before(MpSystemSet::Movement),
-        );
-
-        // After movement: wall collision, combat, corpse conversion, king death check
-        app.add_systems(
-            Update,
-            (
-                shared_systems::enforce_wall_collision,
-                shared_systems::combat,
-                shared_systems::convert_dead_to_corpses,
-                host_systems::check_mp_king_death,
-            )
-                .chain()
-                .run_if(mp_host.clone())
-                .after(MpSystemSet::Movement),
-        );
-
-        // ── Host Simulation: Unit Systems ────────────────────────────
-        // Modifier tickers + damage effects
-        app.add_systems(
-            Update,
-            (
-                unit_systems::process_pending_damage_effects,
-                unit_systems::update_temporary_hit_points,
-                unit_systems::update_frost_slow_modifiers,
-                unit_systems::update_rooted_modifiers,
-                unit_systems::update_haste_modifiers,
-                unit_systems::update_spike_growth_slow_modifiers,
-                unit_systems::update_fire_dot,
-                unit_systems::update_electric_charge,
-                unit_systems::update_electric_arc_visuals,
-                unit_systems::update_persistent_effect_visuals,
-            )
-                .run_if(mp_host.clone()),
-        );
-
-        // Conditional modifier tickers (only when components exist)
-        app.add_systems(
-            Update,
-            (
-                unit_systems::update_mark_of_death_modifiers
-                    .run_if(any_with_component::<MarkedForDeathModifier>),
-                unit_systems::update_mesmerized_modifiers
-                    .run_if(any_with_component::<MesmerizedModifier>),
-                unit_systems::update_sleep_modifiers
-                    .run_if(any_with_component::<SleepModifier>),
-                unit_systems::update_battle_hymn_modifiers
-                    .run_if(any_with_component::<BattleHymnModifier>),
-                unit_systems::update_berserker_rage_modifiers
-                    .run_if(any_with_component::<BerserkerRageModifier>),
-                unit_systems::update_fog_evasion_modifiers
-                    .run_if(any_with_component::<FogEvasionModifier>),
-                unit_systems::update_grease_slip_modifiers
-                    .run_if(any_with_component::<GreaseSlipModifier>),
-            )
-                .run_if(mp_host.clone()),
-        );
-
-        // Unit movement application (after movement calculations)
-        app.add_systems(
-            Update,
-            movement::apply_unit_movement
-                .run_if(mp_host.clone())
-                .after(MpSystemSet::Movement),
-        );
-
-        // ── Host Simulation: Infantry ────────────────────────────────
-        app.add_systems(
-            Update,
-            (
-                infantry_systems::check_defender_activation
-                    .before(MpSystemSet::Velocity),
-                infantry_systems::update_infantry_targeting
-                    .in_set(MpSystemSet::Velocity),
-                infantry_systems::infantry_movement
-                    .in_set(MpSystemSet::Movement),
-            )
-                .run_if(any_exist::<Infantry>())
-                .run_if(mp_host.clone()),
-        );
-
-        // ── Host Simulation: Archer ──────────────────────────────────
-        app.add_systems(
-            Update,
-            (
-                archer_systems::update_archer_targeting
-                    .in_set(MpSystemSet::Velocity),
-                archer_systems::archer_movement
-                    .in_set(MpSystemSet::Movement),
-                (
-                    archer_systems::update_archer_movement_timers,
-                    archer_systems::archer_melee_combat,
-                    archer_systems::archer_ranged_combat,
-                )
-                    .chain(),
-            )
-                .run_if(any_exist::<Archer>())
-                .run_if(mp_host.clone()),
-        );
-
-        app.add_systems(
-            Update,
-            (
-                archer_systems::move_arrows,
-                archer_systems::check_arrow_collisions,
-            )
-                .chain()
-                .run_if(any_exist::<Arrow>())
-                .run_if(mp_host.clone()),
-        );
-
-        // ── Host Simulation: King ────────────────────────────────────
-        app.add_systems(
-            Update,
-            (
-                king_systems::update_king_targeting
-                    .in_set(MpSystemSet::Velocity),
-                king_systems::king_movement
-                    .in_set(MpSystemSet::Movement),
-                king_systems::king_cohesion_force
-                    .after(MpSystemSet::Velocity)
-                    .before(MpSystemSet::Movement),
-                king_systems::snap_kings_guard_to_king
-                    .in_set(MpSystemSet::Movement),
-            )
-                .run_if(any_exist::<King>())
+            host_systems::check_mp_king_death
+                .after(PostCombatSet)
                 .run_if(mp_host.clone()),
         );
 
@@ -281,14 +107,8 @@ impl Plugin for MultiplayerGamePlugin {
                 host_systems::send_state_snapshots,
             )
                 .chain()
-                .run_if(mp_host.clone()),
-        );
-
-        // ── Billboards (both host and guest) ─────────────────────────
-        app.add_systems(
-            Update,
-            crate::game::systems::update_billboards
-                .run_if(in_mp_running),
+                .after(PostCombatSet)
+                .run_if(mp_host),
         );
 
         // ── Guest: Snapshot Rendering ────────────────────────────────
@@ -332,14 +152,27 @@ impl Plugin for MultiplayerGamePlugin {
 }
 
 /// Initializes resources needed for multiplayer gameplay.
-fn init_mp_game(mut commands: Commands) {
-    commands.init_resource::<GlobalAttackCycle>();
-    commands.init_resource::<KillStats>();
-    commands.insert_resource(DefendersActivated { active: true });
+///
+/// GlobalAttackCycle, KillStats, DefendersActivated, and GameOutcome are already
+/// initialized by GamePlugin at startup. We reset them here to ensure clean state
+/// and additionally insert MP-only resources.
+fn init_mp_game(
+    mut commands: Commands,
+    mut attack_cycle: ResMut<GlobalAttackCycle>,
+    mut kill_stats: ResMut<KillStats>,
+    mut defenders_activated: ResMut<DefendersActivated>,
+    mut game_outcome: ResMut<GameOutcome>,
+) {
+    // Reset globally-owned resources to clean state for this match
+    *attack_cycle = GlobalAttackCycle::default();
+    kill_stats.reset();
+    defenders_activated.active = true;
+    *game_outcome = GameOutcome::Victory;
+
+    // Insert MP-only resources
     commands.init_resource::<EntityIdCounter>();
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
-    commands.insert_resource(GameOutcome::Victory);
 }
 
 /// Cleans up multiplayer game entities and resources.

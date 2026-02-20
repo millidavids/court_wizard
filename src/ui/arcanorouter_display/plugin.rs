@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::{game::run_conditions::is_arcanorouter, state::InGameState};
+use crate::game::run_conditions::is_arcanorouter;
+use crate::game::run_conditions::is_gameplay_running;
+use crate::state::InGameState;
 
 use super::systems::*;
 
@@ -16,7 +18,7 @@ impl Plugin for ArcanoRouterDisplayPlugin {
         .add_systems(
             Update,
             (update_slider_visuals, handle_slider_interaction)
-                .run_if(in_state(InGameState::Running))
+                .run_if(is_gameplay_running)
                 .run_if(is_arcanorouter),
         );
     }

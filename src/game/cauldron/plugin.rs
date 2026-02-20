@@ -1,7 +1,8 @@
 use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
-use crate::state::{AppState, InGameState};
+use crate::game::run_conditions::is_gameplay_running;
+use crate::state::AppState;
 
 use super::messages::*;
 use super::resources::CauldronBuffs;
@@ -51,7 +52,7 @@ impl Plugin for CauldronPlugin {
                     systems::update_brew_bubble.run_if(has_brew_bubbles),
                 )
                     .chain()
-                    .run_if(in_state(InGameState::Running)),
+                    .run_if(is_gameplay_running),
             );
     }
 }

@@ -7,7 +7,7 @@ use super::super::run_conditions::*;
 use super::components::BlackHole;
 use super::systems;
 use crate::game::units::MovementCalculationSet;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 /// Plugin that manages the Black Hole spell.
 #[derive(Default)]
@@ -34,7 +34,7 @@ impl Plugin for BlackHolePlugin {
                     .chain()
                     .run_if(any_exist::<BlackHole>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }

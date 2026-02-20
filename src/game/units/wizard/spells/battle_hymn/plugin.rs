@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::BattleHymnIndicator;
 use super::systems;
-use crate::state::InGameState;
+use crate::game::run_conditions::is_gameplay_running;
 
 pub struct BattleHymnPlugin;
 
@@ -20,7 +20,7 @@ impl Plugin for BattleHymnPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 systems::update_battle_hymn_indicator.run_if(any_exist::<BattleHymnIndicator>()),
             )
-                .run_if(in_state(InGameState::Running)),
+                .run_if(is_gameplay_running),
         );
     }
 }
