@@ -1,4 +1,7 @@
 //! Wizard select screen specific components.
+//!
+//! Shared components (DetailName, DetailDescription, DetailStatus, WizardCard,
+//! SelectedWizardPreview) live in `wizard_select_shared`.
 
 use bevy::prelude::*;
 
@@ -18,27 +21,3 @@ pub(super) enum WizardSelectButtonAction {
     /// Return to the landing screen.
     Back,
 }
-
-/// Resource tracking which wizard type is currently previewed in the detail panel.
-#[derive(Resource)]
-pub(super) struct SelectedWizardPreview(pub WizardType);
-
-/// Marker for the detail panel name text.
-#[derive(Component)]
-pub(super) struct DetailName;
-
-/// Marker for the detail panel description text.
-#[derive(Component)]
-pub(super) struct DetailDescription;
-
-/// Marker for the detail panel status text.
-#[derive(Component)]
-pub(super) struct DetailStatus;
-
-/// Marker for the detail panel container (for border color updates).
-#[derive(Component)]
-pub(super) struct DetailPanel;
-
-/// Marker for a grid card, storing which wizard type it represents.
-#[derive(Component)]
-pub(super) struct WizardCard(pub WizardType);

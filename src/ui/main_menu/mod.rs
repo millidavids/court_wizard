@@ -9,5 +9,6 @@ mod multiplayer;
 mod plugin;
 pub(crate) mod settings;
 mod wizard_select;
+mod wizard_select_shared;
 
 pub use plugin::MainMenuPlugin;

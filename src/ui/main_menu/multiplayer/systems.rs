@@ -10,20 +10,16 @@ use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
 use crate::state::{AppState, MenuState};
+use crate::ui::components::ButtonColors;
 use crate::ui::systems::spawn_button;
 
+use super::super::wizard_select_shared::{self as shared};
 use super::components::{
-    ActionBarContainer, ActiveConnectionButtons, CodeDisplayText, InitialButtons, LobbyPhase,
-    LobbySpellSlot, LobbyWizardCard, MultiplayerButtonAction, OnMultiplayerScreen,
-    OpponentInfoText, PasteResponseButton, PingText, ReadyButtonContainer, SignalingButtons,
-    StatusText, WizardSelectContainer,
+    ActiveConnectionButtons, CodeDisplayText, InitialButtons, LobbyPhase,
+    MultiplayerButtonAction, OnMultiplayerScreen, PasteResponseButton, PingText,
+    SignalingButtons, StatusText, WizardSelectScreen,
 };
-use super::constants::{
-    BUTTON_STYLE, CARD_BG, CARD_BORDER, CARD_DESC_FONT_SIZE, CARD_NAME_FONT_SIZE,
-    CARD_SELECTED_BORDER, CARD_SIZE, CODE_FONT_SIZE, ERROR_COLOR, MARGIN, READY_BUTTON_STYLE,
-    SPELL_FONT_SIZE, SPELL_SLOT_BG, SPELL_SLOT_BORDER, SPELL_SLOT_EMPTY_BG, STATUS_FONT_SIZE,
-    SUCCESS_COLOR, TEXT_COLOR, TITLE_FONT_SIZE, WAITING_COLOR,
-};
+use super::constants::*;
 
 /// Parses unlocked wizard types from save data string names.
 fn parse_wizard_types(names: &[String]) -> Vec<WizardType> {
@@ -67,9 +63,9 @@ fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
     }
 }
 
-/// Sets up the multiplayer screen UI.
+/// Sets up the multiplayer screen UI (connection phase).
 ///
-/// Spawns all elements upfront. Visibility is toggled by `update_ui_state`.
+/// Spawns all connection-phase elements upfront. Visibility is toggled by `update_ui_state`.
 pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) {
     // Reset connection state when entering the screen
     connection.state = ConnectionState::Disconnected;
@@ -107,7 +103,7 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
             parent.spawn((
                 Text::new("Multiplayer"),
                 TextFont {
-                    font_size: TITLE_FONT_SIZE,
+                    font_size: MP_TITLE_FONT_SIZE,
                     ..default()
                 },
                 TextColor(TEXT_COLOR),
@@ -178,13 +174,13 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
                         group,
                         "Host Game",
                         MultiplayerButtonAction::HostGame,
-                        &BUTTON_STYLE,
+                        &CONN_BUTTON_STYLE,
                     );
                     spawn_button(
                         group,
                         "Join Game",
                         MultiplayerButtonAction::JoinGame,
-                        &BUTTON_STYLE,
+                        &CONN_BUTTON_STYLE,
                     );
                 });
 
@@ -205,7 +201,7 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
                         group,
                         "Copy Code",
                         MultiplayerButtonAction::CopyCode,
-                        &BUTTON_STYLE,
+                        &CONN_BUTTON_STYLE,
                     );
                     group
                         .spawn((
@@ -220,14 +216,14 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
                                 wrapper,
                                 "Paste Response",
                                 MultiplayerButtonAction::PasteResponse,
-                                &BUTTON_STYLE,
+                                &CONN_BUTTON_STYLE,
                             );
                         });
                     spawn_button(
                         group,
                         "Cancel",
                         MultiplayerButtonAction::Disconnect,
-                        &BUTTON_STYLE,
+                        &CONN_BUTTON_STYLE,
                     );
                 });
 
@@ -248,72 +244,174 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
                         group,
                         "Disconnect",
                         MultiplayerButtonAction::Disconnect,
-                        &BUTTON_STYLE,
+                        &CONN_BUTTON_STYLE,
                     );
                 });
 
-            // === Wizard Select Container (hidden until wizard select phase) ===
-            parent.spawn((
-                WizardSelectContainer,
-                Node {
-                    display: Display::None,
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(MARGIN * 0.5),
-                    ..default()
-                },
-            ));
-
-            // === Opponent Info Text ===
-            parent.spawn((
-                OpponentInfoText,
-                Text::new(""),
-                TextFont {
-                    font_size: STATUS_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(WAITING_COLOR),
-                Node {
-                    display: Display::None,
-                    ..default()
-                },
-            ));
-
-            // === Action Bar Container (hidden until wizard select phase) ===
-            parent.spawn((
-                ActionBarContainer,
-                Node {
-                    display: Display::None,
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(4.0),
-                    flex_wrap: FlexWrap::Wrap,
-                    max_width: Val::Percent(80.0),
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-            ));
-
-            // === Ready Button Container ===
-            parent.spawn((
-                ReadyButtonContainer,
-                Node {
-                    display: Display::None,
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(MARGIN * 0.5),
-                    ..default()
-                },
-            ));
-
-            // Back button (always visible)
+            // Back button (always visible in connection phase)
             spawn_button(
                 parent,
                 "Back",
                 MultiplayerButtonAction::Back,
-                &BUTTON_STYLE,
+                &CONN_BUTTON_STYLE,
             );
         });
+}
+
+/// Spawns the wizard select screen layout (mirrors single-player "Choose Your Path").
+fn spawn_wizard_select_screen(
+    commands: &mut Commands,
+    unlocked_wizard_types: &[WizardType],
+    initial_wizard: WizardType,
+    opponent_wizard: Option<WizardType>,
+    my_ready: bool,
+    opponent_ready: bool,
+) {
+    let wizard_types = WizardType::all();
+    let unlocked_names: Vec<String> = unlocked_wizard_types
+        .iter()
+        .map(|wt| format!("{:?}", wt))
+        .collect();
+
+    commands.insert_resource(SelectedWizardPreview(initial_wizard));
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                padding: UiRect::all(Val::Px(MARGIN * 1.5)),
+                column_gap: Val::Px(MARGIN * 1.5),
+                ..default()
+            },
+            OnMultiplayerScreen,
+            WizardSelectScreen,
+        ))
+        .with_children(|root| {
+            // ── Left panel ──────────────────────────────────────
+            root.spawn(Node {
+                width: Val::Px(LEFT_PANEL_WIDTH),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(MARGIN),
+                ..default()
+            })
+            .with_children(|left| {
+                // Top group: title + detail card
+                left.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(MARGIN),
+                    ..default()
+                })
+                .with_children(|top| {
+                    shared::spawn_title_group(
+                        top,
+                        "Choose Your Path",
+                        "Select your wizard for this match",
+                    );
+
+                    // Detail card (multiplayer-specific bottom section)
+                    spawn_mp_detail_panel(
+                        top,
+                        initial_wizard,
+                        opponent_wizard,
+                        my_ready,
+                        opponent_ready,
+                    );
+                });
+
+                // Bottom: disconnect button
+                spawn_button(
+                    left,
+                    "Disconnect",
+                    MultiplayerButtonAction::Disconnect,
+                    &DISCONNECT_BUTTON_STYLE,
+                );
+            });
+
+            // ── Right side: grid (reuses shared grid container + card helpers) ──
+            root.spawn(grid_container_node())
+                .with_children(|grid| {
+                    for slot in 0..GRID_SLOTS {
+                        if let Some(wizard_type) = wizard_types.get(slot) {
+                            let type_name = format!("{:?}", wizard_type);
+                            if unlocked_names.contains(&type_name) {
+                                let is_selected = *wizard_type == initial_wizard;
+                                shared::spawn_wizard_card(
+                                    grid,
+                                    *wizard_type,
+                                    is_selected,
+                                    MultiplayerButtonAction::PreviewWizard(*wizard_type),
+                                );
+                            } else {
+                                shared::spawn_locked_wizard_card(grid, *wizard_type);
+                            }
+                        } else {
+                            shared::spawn_locked_card(grid);
+                        }
+                    }
+                });
+        });
+}
+
+/// Spawns the multiplayer detail panel (shared top + MP-specific bottom with opponent info + Ready).
+fn spawn_mp_detail_panel(
+    parent: &mut ChildSpawnerCommands,
+    wizard_type: WizardType,
+    opponent_wizard: Option<WizardType>,
+    my_ready: bool,
+    opponent_ready: bool,
+) {
+    shared::spawn_detail_panel_container(parent, |card| {
+        shared::spawn_detail_panel_top(card, wizard_type);
+
+        // Bottom: opponent status + ready button (MP-specific)
+        card.spawn(Node {
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(8.0),
+            align_items: AlignItems::FlexStart,
+            ..default()
+        })
+        .with_children(|bottom| {
+            let status_text = build_opponent_status_text(opponent_wizard, opponent_ready);
+            bottom.spawn((
+                Text::new(status_text),
+                TextFont {
+                    font_size: DETAIL_STATUS_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(WAITING_COLOR),
+                DetailStatus,
+            ));
+
+            if !my_ready {
+                spawn_button(
+                    bottom,
+                    "Ready!",
+                    MultiplayerButtonAction::Ready,
+                    &READY_BUTTON_STYLE,
+                );
+            } else {
+                bottom.spawn((
+                    Text::new("Waiting for opponent..."),
+                    TextFont {
+                        font_size: DETAIL_STATUS_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(SUCCESS_COLOR),
+                ));
+            }
+        });
+    });
+}
+
+/// Builds the opponent status display string.
+fn build_opponent_status_text(opponent_wizard: Option<WizardType>, opponent_ready: bool) -> String {
+    let opp_name = opponent_wizard
+        .map(|w| w.display_name().to_string())
+        .unwrap_or_else(|| "choosing...".to_string());
+    let ready_str = if opponent_ready { " (Ready!)" } else { "" };
+    format!("Opponent: {}{}", opp_name, ready_str)
 }
 
 /// Cleans up the multiplayer screen UI when exiting the state.
@@ -325,6 +423,7 @@ pub fn cleanup(
         commands.entity(entity).despawn();
     }
     commands.remove_resource::<LobbyPhase>();
+    commands.remove_resource::<SelectedWizardPreview>();
 }
 
 /// Handles multiplayer button actions.
@@ -334,6 +433,24 @@ pub fn button_action(
     mut next_menu_state: ResMut<NextState<MenuState>>,
     mut connection: ResMut<NetworkConnection>,
     mut lobby_phase: ResMut<LobbyPhase>,
+    mut preview: Option<ResMut<SelectedWizardPreview>>,
+    mut detail_name: Query<
+        &mut Text,
+        (
+            With<DetailName>,
+            Without<DetailDescription>,
+            Without<DetailStatus>,
+        ),
+    >,
+    mut detail_desc: Query<
+        &mut Text,
+        (
+            With<DetailDescription>,
+            Without<DetailName>,
+            Without<DetailStatus>,
+        ),
+    >,
+    mut card_borders: Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -384,61 +501,44 @@ pub fn button_action(
                         }
                     }
                 }
-                MultiplayerButtonAction::SelectWizard(wizard_type) => {
+                MultiplayerButtonAction::PreviewWizard(wizard_type) => {
+                    if let Some(ref mut preview) = preview {
+                        preview.0 = *wizard_type;
+                    }
+
+                    shared::update_detail_panel_text(
+                        *wizard_type,
+                        &mut detail_name,
+                        &mut detail_desc,
+                    );
+
+                    // Also update the selected wizard in lobby phase
                     if let LobbyPhase::WizardSelect {
                         my_wizard,
-                        my_action_bar,
                         my_ready,
                         ..
                     } = lobby_phase.as_mut()
                     {
                         *my_wizard = Some(*wizard_type);
-                        *my_action_bar = [None; 5];
                         *my_ready = false;
                         connection
                             .outgoing_messages
                             .push(NetworkMessage::WizardSelected(*wizard_type));
                     }
-                }
-                MultiplayerButtonAction::ToggleSpell(spell) => {
-                    if let LobbyPhase::WizardSelect {
-                        my_action_bar,
-                        my_ready,
-                        ..
-                    } = lobby_phase.as_mut()
-                    {
-                        let existing_slot = my_action_bar
-                            .iter()
-                            .position(|s| s.as_ref() == Some(spell));
-                        if let Some(idx) = existing_slot {
-                            my_action_bar[idx] = None;
-                        } else if let Some(empty) =
-                            my_action_bar.iter().position(|s| s.is_none())
-                        {
-                            my_action_bar[empty] = Some(*spell);
-                        }
-                        *my_ready = false;
-                        connection
-                            .outgoing_messages
-                            .push(NetworkMessage::ActionBarSet(*my_action_bar));
-                    }
+
+                    shared::update_card_borders(*wizard_type, &mut card_borders);
                 }
                 MultiplayerButtonAction::Ready => {
                     if let LobbyPhase::WizardSelect {
-                        my_wizard,
-                        my_action_bar,
+                        my_wizard: Some(_),
                         my_ready,
                         ..
                     } = lobby_phase.as_mut()
                     {
-                        if my_wizard.is_some()
-                            && my_action_bar.iter().any(|s| s.is_some())
-                        {
-                            *my_ready = true;
-                            connection
-                                .outgoing_messages
-                                .push(NetworkMessage::ReadyUp);
-                        }
+                        *my_ready = true;
+                        connection
+                            .outgoing_messages
+                            .push(NetworkMessage::ReadyUp);
                     }
                 }
                 MultiplayerButtonAction::Disconnect => {
@@ -472,6 +572,7 @@ pub fn process_lobby_messages(
     mut lobby_phase: ResMut<LobbyPhase>,
     mut commands: Commands,
     mut next_app_state: ResMut<NextState<AppState>>,
+    screen_items: Query<Entity, With<OnMultiplayerScreen>>,
 ) {
     // Check if we need to send PlayerInfo (read-only check first to avoid triggering change detection)
     let should_send_info = connection.state == ConnectionState::Connected
@@ -520,17 +621,32 @@ pub fn process_lobby_messages(
                 wizard_types: opponent_wt,
                 spells: _opponent_sp,
             } => {
-                let (my_wt, my_sp) = load_my_unlocked_content();
+                let (my_wt, _my_sp) = load_my_unlocked_content();
+
+                // Despawn the connection-phase UI and spawn the wizard select screen
+                for entity in &screen_items {
+                    commands.entity(entity).despawn();
+                }
+
+                let initial_wizard = my_wt[0];
+
                 *lobby_phase = LobbyPhase::WizardSelect {
-                    my_wizard_types: my_wt,
-                    my_spells: my_sp,
+                    my_wizard_types: my_wt.clone(),
                     opponent_wizard_types: opponent_wt,
                     my_wizard: None,
                     opponent_wizard: None,
-                    my_action_bar: [None; 5],
                     my_ready: false,
                     opponent_ready: false,
                 };
+
+                spawn_wizard_select_screen(
+                    &mut commands,
+                    &my_wt,
+                    initial_wizard,
+                    None,
+                    false,
+                    false,
+                );
             }
             NetworkMessage::WizardSelected(wt) => {
                 if let LobbyPhase::WizardSelect {
@@ -539,9 +655,6 @@ pub fn process_lobby_messages(
                 {
                     *opponent_wizard = Some(wt);
                 }
-            }
-            NetworkMessage::ActionBarSet(_) => {
-                // We don't need to track opponent's action bar visually
             }
             NetworkMessage::ReadyUp => {
                 if let LobbyPhase::WizardSelect {
@@ -556,19 +669,16 @@ pub fn process_lobby_messages(
                 if let LobbyPhase::WizardSelect {
                     my_wizard: Some(my_wiz),
                     opponent_wizard: Some(opp_wiz),
-                    my_spells,
-                    my_action_bar,
                     ..
                 } = &*lobby_phase
                 {
+                    let (_my_wt, my_spells) = load_my_unlocked_content();
                     let session = MultiplayerSession {
                         role: PeerRole::Guest,
                         host_wizard: *opp_wiz,
                         guest_wizard: *my_wiz,
                         host_spells: Vec::new(),
-                        guest_spells: my_spells.clone(),
-                        host_action_bar: [None; 5],
-                        guest_action_bar: *my_action_bar,
+                        guest_spells: my_spells,
                     };
                     commands.insert_resource(session);
                 }
@@ -589,22 +699,19 @@ pub fn process_lobby_messages(
     if let LobbyPhase::WizardSelect {
         my_wizard: Some(my_wiz),
         opponent_wizard: Some(opp_wiz),
-        my_spells,
-        my_action_bar,
         my_ready: true,
         opponent_ready: true,
         ..
     } = &*lobby_phase
     {
         if connection.role == Some(PeerRole::Host) {
+            let (_my_wt, my_spells) = load_my_unlocked_content();
             let session = MultiplayerSession {
                 role: PeerRole::Host,
                 host_wizard: *my_wiz,
                 guest_wizard: *opp_wiz,
-                host_spells: my_spells.clone(),
+                host_spells: my_spells,
                 guest_spells: Vec::new(),
-                host_action_bar: *my_action_bar,
-                guest_action_bar: [None; 5],
             };
             commands.insert_resource(session);
             connection
@@ -616,10 +723,12 @@ pub fn process_lobby_messages(
 }
 
 /// Updates the UI to reflect the current connection and lobby state.
+///
+/// In the connection phase, this toggles visibility of button groups and status text.
+/// In the wizard select phase, it updates the detail panel status text.
 pub fn update_ui_state(
     connection: Res<NetworkConnection>,
     lobby_phase: Res<LobbyPhase>,
-    mut commands: Commands,
     mut status_query: Query<
         (&mut Text, &mut TextColor),
         (With<StatusText>, Without<CodeDisplayText>, Without<PingText>),
@@ -634,10 +743,6 @@ pub fn update_ui_state(
             Without<SignalingButtons>,
             Without<ActiveConnectionButtons>,
             Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
         ),
     >,
     mut ping_query: Query<
@@ -650,10 +755,6 @@ pub fn update_ui_state(
             Without<SignalingButtons>,
             Without<ActiveConnectionButtons>,
             Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
         ),
     >,
     mut initial_query: Query<
@@ -665,10 +766,6 @@ pub fn update_ui_state(
             Without<CodeDisplayText>,
             Without<PingText>,
             Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
         ),
     >,
     mut signaling_query: Query<
@@ -680,10 +777,6 @@ pub fn update_ui_state(
             Without<CodeDisplayText>,
             Without<PingText>,
             Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
         ),
     >,
     mut active_query: Query<
@@ -695,10 +788,6 @@ pub fn update_ui_state(
             Without<CodeDisplayText>,
             Without<PingText>,
             Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
         ),
     >,
     mut paste_query: Query<
@@ -710,71 +799,16 @@ pub fn update_ui_state(
             Without<ActiveConnectionButtons>,
             Without<CodeDisplayText>,
             Without<PingText>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
         ),
     >,
-    mut wizard_select_query: Query<
-        (Entity, &mut Node),
+    // Wizard select phase queries
+    mut detail_status: Query<
+        (&mut Text, &mut TextColor),
         (
-            With<WizardSelectContainer>,
-            Without<InitialButtons>,
-            Without<SignalingButtons>,
-            Without<ActiveConnectionButtons>,
-            Without<CodeDisplayText>,
-            Without<PingText>,
-            Without<PasteResponseButton>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
-        ),
-    >,
-    mut opponent_info_query: Query<
-        (&mut Text, &mut Node),
-        (
-            With<OpponentInfoText>,
+            With<DetailStatus>,
             Without<StatusText>,
             Without<CodeDisplayText>,
             Without<PingText>,
-            Without<InitialButtons>,
-            Without<SignalingButtons>,
-            Without<ActiveConnectionButtons>,
-            Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<ActionBarContainer>,
-            Without<ReadyButtonContainer>,
-        ),
-    >,
-    mut action_bar_query: Query<
-        (Entity, &mut Node),
-        (
-            With<ActionBarContainer>,
-            Without<InitialButtons>,
-            Without<SignalingButtons>,
-            Without<ActiveConnectionButtons>,
-            Without<CodeDisplayText>,
-            Without<PingText>,
-            Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ReadyButtonContainer>,
-        ),
-    >,
-    mut ready_query: Query<
-        (Entity, &mut Node),
-        (
-            With<ReadyButtonContainer>,
-            Without<InitialButtons>,
-            Without<SignalingButtons>,
-            Without<ActiveConnectionButtons>,
-            Without<CodeDisplayText>,
-            Without<PingText>,
-            Without<PasteResponseButton>,
-            Without<WizardSelectContainer>,
-            Without<OpponentInfoText>,
-            Without<ActionBarContainer>,
         ),
     >,
 ) {
@@ -784,79 +818,73 @@ pub fn update_ui_state(
 
     let in_wizard_select = matches!(&*lobby_phase, LobbyPhase::WizardSelect { .. });
 
-    // Update status text
-    if let Ok((mut text, mut color)) = status_query.single_mut() {
-        if in_wizard_select {
-            if let LobbyPhase::WizardSelect {
-                my_wizard,
-                my_ready,
-                opponent_ready,
-                ..
-            } = &*lobby_phase
-            {
-                if *my_ready && *opponent_ready {
-                    **text = "Starting match...".to_string();
+    // In wizard select phase, only update the detail status text
+    if in_wizard_select {
+        if let LobbyPhase::WizardSelect {
+            opponent_wizard,
+            opponent_ready,
+            ..
+        } = &*lobby_phase
+        {
+            if let Ok((mut text, mut color)) = detail_status.single_mut() {
+                **text = build_opponent_status_text(*opponent_wizard, *opponent_ready);
+                if *opponent_ready {
                     color.0 = SUCCESS_COLOR;
-                } else if *my_ready {
-                    **text = "Waiting for opponent...".to_string();
-                    color.0 = WAITING_COLOR;
-                } else if my_wizard.is_some() {
-                    **text = "Select spells, then click Ready".to_string();
-                    color.0 = TEXT_COLOR;
                 } else {
-                    **text = "Select your wizard".to_string();
-                    color.0 = TEXT_COLOR;
+                    color.0 = WAITING_COLOR;
                 }
             }
-        } else {
-            match connection.state {
-                ConnectionState::Disconnected => {
-                    **text = "Choose an option to get started".to_string();
-                    color.0 = TEXT_COLOR;
-                }
-                ConnectionState::WaitingForSignaling => {
-                    if connection.local_code.is_some() {
-                        match connection.role {
-                            Some(PeerRole::Host) => {
-                                **text =
-                                    "Code ready! Copy it and send to your friend.".to_string();
-                            }
-                            Some(PeerRole::Guest) => {
-                                **text =
-                                    "Response ready! Copy it and send back to the host."
-                                        .to_string();
-                            }
-                            None => {
-                                **text = "Generating code...".to_string();
-                            }
+        }
+        return;
+    }
+
+    // Connection phase UI updates
+    if let Ok((mut text, mut color)) = status_query.single_mut() {
+        match connection.state {
+            ConnectionState::Disconnected => {
+                **text = "Choose an option to get started".to_string();
+                color.0 = TEXT_COLOR;
+            }
+            ConnectionState::WaitingForSignaling => {
+                if connection.local_code.is_some() {
+                    match connection.role {
+                        Some(PeerRole::Host) => {
+                            **text =
+                                "Code ready! Copy it and send to your friend.".to_string();
                         }
-                    } else {
-                        **text = "Generating code...".to_string();
+                        Some(PeerRole::Guest) => {
+                            **text =
+                                "Response ready! Copy it and send back to the host."
+                                    .to_string();
+                        }
+                        None => {
+                            **text = "Generating code...".to_string();
+                        }
                     }
-                    color.0 = WAITING_COLOR;
+                } else {
+                    **text = "Generating code...".to_string();
                 }
-                ConnectionState::Connecting => {
-                    **text = "Connecting...".to_string();
-                    color.0 = WAITING_COLOR;
-                }
-                ConnectionState::Connected => {
-                    **text = "Connected! Exchanging player info...".to_string();
-                    color.0 = SUCCESS_COLOR;
-                }
-                ConnectionState::Failed => {
-                    let msg = connection.error.as_deref().unwrap_or("Connection failed");
-                    **text = format!("Error: {}", msg);
-                    color.0 = ERROR_COLOR;
-                }
+                color.0 = WAITING_COLOR;
+            }
+            ConnectionState::Connecting => {
+                **text = "Connecting...".to_string();
+                color.0 = WAITING_COLOR;
+            }
+            ConnectionState::Connected => {
+                **text = "Connected! Exchanging player info...".to_string();
+                color.0 = SUCCESS_COLOR;
+            }
+            ConnectionState::Failed => {
+                let msg = connection.error.as_deref().unwrap_or("Connection failed");
+                **text = format!("Error: {}", msg);
+                color.0 = ERROR_COLOR;
             }
         }
     }
 
     // Update code display
     if let Ok((mut text, mut node)) = code_query.single_mut() {
-        if in_wizard_select {
-            node.display = Display::None;
-        } else if let Some(code) = &connection.local_code {
+        if let Some(code) = &connection.local_code {
             **text = code.clone();
             node.display = Display::Flex;
         } else {
@@ -877,19 +905,15 @@ pub fn update_ui_state(
     }
 
     // Toggle connection-phase button groups
-    let show_initial =
-        connection.state == ConnectionState::Disconnected && !in_wizard_select;
-    let show_signaling =
-        connection.state == ConnectionState::WaitingForSignaling && !in_wizard_select;
-    let show_active = !in_wizard_select
-        && matches!(
-            connection.state,
-            ConnectionState::Connecting | ConnectionState::Connected | ConnectionState::Failed
-        )
-        && !matches!(
-            &*lobby_phase,
-            LobbyPhase::WaitingForPlayerInfo | LobbyPhase::WizardSelect { .. }
-        );
+    let show_initial = connection.state == ConnectionState::Disconnected;
+    let show_signaling = connection.state == ConnectionState::WaitingForSignaling;
+    let show_active = matches!(
+        connection.state,
+        ConnectionState::Connecting | ConnectionState::Connected | ConnectionState::Failed
+    ) && !matches!(
+        &*lobby_phase,
+        LobbyPhase::WaitingForPlayerInfo | LobbyPhase::WizardSelect { .. }
+    );
 
     if let Ok(mut node) = initial_query.single_mut() {
         node.display = if show_initial {
@@ -924,203 +948,5 @@ pub fn update_ui_state(
         } else {
             Display::None
         };
-    }
-
-    // === Wizard Select Phase UI ===
-    if let Ok((entity, mut node)) = wizard_select_query.single_mut() {
-        if in_wizard_select {
-            node.display = Display::Flex;
-
-            if lobby_phase.is_changed() {
-                // Despawn all children and rebuild
-                commands.entity(entity).despawn_children();
-
-                if let LobbyPhase::WizardSelect {
-                    my_wizard_types,
-                    my_wizard,
-                    ..
-                } = &*lobby_phase
-                {
-                    commands.entity(entity).with_children(|parent| {
-                        parent
-                            .spawn(Node {
-                                flex_direction: FlexDirection::Row,
-                                column_gap: Val::Px(8.0),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                for wt in my_wizard_types {
-                                    let is_selected = my_wizard.as_ref() == Some(wt);
-                                    let border_color = if is_selected {
-                                        CARD_SELECTED_BORDER
-                                    } else {
-                                        CARD_BORDER
-                                    };
-                                    row.spawn((
-                                        Button,
-                                        LobbyWizardCard(*wt),
-                                        MultiplayerButtonAction::SelectWizard(*wt),
-                                        Node {
-                                            width: Val::Px(CARD_SIZE),
-                                            height: Val::Px(CARD_SIZE),
-                                            flex_direction: FlexDirection::Column,
-                                            align_items: AlignItems::Center,
-                                            justify_content: JustifyContent::Center,
-                                            padding: UiRect::all(Val::Px(8.0)),
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..default()
-                                        },
-                                        BackgroundColor(CARD_BG),
-                                        BorderColor::all(border_color),
-                                        BorderRadius::all(Val::Px(6.0)),
-                                    ))
-                                    .with_children(|card| {
-                                        card.spawn((
-                                            Text::new(wt.display_name()),
-                                            TextFont {
-                                                font_size: CARD_NAME_FONT_SIZE,
-                                                ..default()
-                                            },
-                                            TextColor(TEXT_COLOR),
-                                        ));
-                                        card.spawn((
-                                            Text::new(wt.description()),
-                                            TextFont {
-                                                font_size: CARD_DESC_FONT_SIZE,
-                                                ..default()
-                                            },
-                                            TextColor(WAITING_COLOR),
-                                        ));
-                                    });
-                                }
-                            });
-                    });
-                }
-            }
-        } else {
-            node.display = Display::None;
-        }
-    }
-
-    // === Opponent Info ===
-    if let Ok((mut text, mut node)) = opponent_info_query.single_mut() {
-        if let LobbyPhase::WizardSelect {
-            opponent_wizard,
-            opponent_ready,
-            ..
-        } = &*lobby_phase
-        {
-            node.display = Display::Flex;
-            let opp_wiz_name = opponent_wizard
-                .map(|w| w.display_name().to_string())
-                .unwrap_or_else(|| "choosing...".to_string());
-            let ready_str = if *opponent_ready { " (Ready!)" } else { "" };
-            **text = format!("Opponent: {}{}", opp_wiz_name, ready_str);
-        } else {
-            node.display = Display::None;
-        }
-    }
-
-    // === Action Bar / Spell Selection ===
-    if let Ok((entity, mut node)) = action_bar_query.single_mut() {
-        if let LobbyPhase::WizardSelect {
-            my_wizard: Some(_),
-            my_spells,
-            my_action_bar,
-            ..
-        } = &*lobby_phase
-        {
-            node.display = Display::Flex;
-
-            if lobby_phase.is_changed() {
-                commands.entity(entity).despawn_children();
-
-                commands.entity(entity).with_children(|parent| {
-                    for spell in my_spells {
-                        let is_equipped = my_action_bar.contains(&Some(*spell));
-                        let bg = if is_equipped {
-                            SPELL_SLOT_BG
-                        } else {
-                            SPELL_SLOT_EMPTY_BG
-                        };
-                        let border = if is_equipped {
-                            SPELL_SLOT_BORDER
-                        } else {
-                            CARD_BORDER
-                        };
-                        parent
-                            .spawn((
-                                Button,
-                                LobbySpellSlot(0),
-                                MultiplayerButtonAction::ToggleSpell(*spell),
-                                Node {
-                                    width: Val::Px(70.0),
-                                    height: Val::Px(40.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    border: UiRect::all(Val::Px(1.0)),
-                                    padding: UiRect::horizontal(Val::Px(4.0)),
-                                    ..default()
-                                },
-                                BackgroundColor(bg),
-                                BorderColor::all(border),
-                                BorderRadius::all(Val::Px(4.0)),
-                            ))
-                            .with_children(|btn| {
-                                btn.spawn((
-                                    Text::new(spell.name()),
-                                    TextFont {
-                                        font_size: SPELL_FONT_SIZE,
-                                        ..default()
-                                    },
-                                    TextColor(if is_equipped {
-                                        TEXT_COLOR
-                                    } else {
-                                        WAITING_COLOR
-                                    }),
-                                ));
-                            });
-                    }
-                });
-            }
-        } else {
-            node.display = Display::None;
-        }
-    }
-
-    // === Ready Button ===
-    if let Ok((entity, mut node)) = ready_query.single_mut() {
-        if let LobbyPhase::WizardSelect {
-            my_wizard: Some(_),
-            my_action_bar,
-            my_ready,
-            ..
-        } = &*lobby_phase
-        {
-            let has_spells = my_action_bar.iter().any(|s| s.is_some());
-            node.display = if has_spells { Display::Flex } else { Display::None };
-
-            if lobby_phase.is_changed() {
-                commands.entity(entity).despawn_children();
-                commands.entity(entity).with_children(|parent| {
-                    if !my_ready {
-                        spawn_button(
-                            parent,
-                            "Ready!",
-                            MultiplayerButtonAction::Ready,
-                            &READY_BUTTON_STYLE,
-                        );
-                    }
-                    spawn_button(
-                        parent,
-                        "Disconnect",
-                        MultiplayerButtonAction::Disconnect,
-                        &BUTTON_STYLE,
-                    );
-                });
-            }
-        } else {
-            node.display = Display::None;
-        }
     }
 }

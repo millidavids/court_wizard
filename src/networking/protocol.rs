@@ -27,9 +27,6 @@ pub enum NetworkMessage {
     /// Player selected a wizard type.
     WizardSelected(WizardType),
 
-    /// Player configured their action bar.
-    ActionBarSet([Option<Spell>; 5]),
-
     /// Player is ready to start the match.
     ReadyUp,
 

@@ -26,12 +26,6 @@ pub struct MultiplayerSession {
 
     /// Spells available to the guest (from their unlocked spells).
     pub guest_spells: Vec<Spell>,
-
-    /// Host's action bar configuration.
-    pub host_action_bar: [Option<Spell>; 5],
-
-    /// Guest's action bar configuration.
-    pub guest_action_bar: [Option<Spell>; 5],
 }
 
 /// Returns true when in a multiplayer game as the host.

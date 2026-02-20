@@ -1,9 +1,11 @@
 //! Multiplayer screen specific components.
+//!
+//! Shared components (DetailName, DetailDescription, DetailStatus, WizardCard,
+//! SelectedWizardPreview) live in `wizard_select_shared`.
 
 use bevy::prelude::*;
 
 use crate::config::WizardType;
-use crate::game::units::wizard::components::Spell;
 
 /// Marker component for entities that belong to the multiplayer screen.
 ///
@@ -32,13 +34,10 @@ pub(super) enum MultiplayerButtonAction {
     /// Return to the landing screen.
     Back,
 
-    /// Select a wizard type in the lobby.
-    SelectWizard(WizardType),
+    /// Preview a wizard type (show in detail panel).
+    PreviewWizard(WizardType),
 
-    /// Toggle a spell in the action bar.
-    ToggleSpell(Spell),
-
-    /// Mark as ready to start the match.
+    /// Mark as ready to start the match with the previewed wizard.
     Ready,
 }
 
@@ -70,29 +69,9 @@ pub(super) struct PasteResponseButton;
 #[derive(Component)]
 pub(super) struct ActiveConnectionButtons;
 
-/// Marker for the wizard select phase UI container.
+/// Marker for the wizard select phase container (full screen layout).
 #[derive(Component)]
-pub(super) struct WizardSelectContainer;
-
-/// Marker for the opponent info display text.
-#[derive(Component)]
-pub(super) struct OpponentInfoText;
-
-/// Marker for the ready button container.
-#[derive(Component)]
-pub(super) struct ReadyButtonContainer;
-
-/// Marker for individual wizard card in the lobby.
-#[derive(Component)]
-pub(super) struct LobbyWizardCard(pub WizardType);
-
-/// Marker for a spell slot button in the lobby.
-#[derive(Component)]
-pub(super) struct LobbySpellSlot(pub usize);
-
-/// Marker for the action bar display container.
-#[derive(Component)]
-pub(super) struct ActionBarContainer;
+pub(super) struct WizardSelectScreen;
 
 /// Tracks the current phase of the multiplayer lobby.
 #[derive(Resource, Debug, Clone, PartialEq)]
@@ -107,16 +86,12 @@ pub(super) enum LobbyPhase {
     WizardSelect {
         /// This player's unlocked wizard types.
         my_wizard_types: Vec<WizardType>,
-        /// This player's unlocked spells.
-        my_spells: Vec<Spell>,
         /// Opponent's unlocked wizard types (for display).
         opponent_wizard_types: Vec<WizardType>,
         /// This player's selected wizard.
         my_wizard: Option<WizardType>,
         /// Opponent's selected wizard.
         opponent_wizard: Option<WizardType>,
-        /// This player's action bar.
-        my_action_bar: [Option<Spell>; 5],
         /// Whether this player is ready.
         my_ready: bool,
         /// Whether the opponent is ready.

@@ -7,13 +7,28 @@ BUILD_TYPE="debug"
 OUT_DIR="./web"
 PROFILE_NAME=""
 
-if [ "$1" = "--release" ]; then
-    RELEASE_FLAG="--release"
-    BUILD_TYPE="release"
-    PROFILE_NAME="release"
-    OUT_DIR="./docs"
+SKIP_BUMP=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --release)
+            RELEASE_FLAG="--release"
+            BUILD_TYPE="release"
+            PROFILE_NAME="release"
+            OUT_DIR="./docs"
+            SKIP_BUMP=true
+            ;;
+        --no-bump)
+            SKIP_BUMP=true
+            ;;
+    esac
+done
+
+if [ "$PROFILE_NAME" = "release" ]; then
     echo "Building for WASM (RELEASE MODE - for GitHub Pages)..."
     echo "Skipping version bump (update CHANGELOG.md manually before release builds)"
+elif [ "$SKIP_BUMP" = true ]; then
+    echo "Building for WASM (debug mode - skipping version bump)..."
 else
     # Bump patch version in Cargo.toml (debug builds only)
     echo "Bumping version..."
