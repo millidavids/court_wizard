@@ -44,6 +44,9 @@ pub enum NetworkMessage {
 
     /// Host notifies guest that the game is over.
     GameOver(GameOverResult),
+
+    /// Player is ready for a rematch (sent from score screen).
+    RematchReady,
 }
 
 /// A spell command sent from the guest to the host.

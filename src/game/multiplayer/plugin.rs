@@ -7,6 +7,7 @@
 use bevy::prelude::*;
 
 use crate::game::cauldron::resources::CauldronBuffs;
+use crate::game::input::messages::MouseClicked;
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::resources::{GameOutcome, KillStats};
 use crate::game::run_conditions::any_exist;
@@ -26,11 +27,19 @@ use crate::game::units::movement;
 use crate::game::units::systems as unit_systems;
 use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
-use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host};
+use crate::networking::protocol::NetworkMessage;
+use crate::networking::resources::{ConnectionState, NetworkConnection};
+use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host, MultiplayerSession};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
+use crate::ui::components::ButtonStyle;
+use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::spawn_button;
 
-use super::components::OnMultiplayerGameScreen;
+use super::components::{
+    MpRematchState, MpScoreButtonAction, OnMpScoreScreen, OnMultiplayerGameScreen,
+    PendingRematch, RematchStatusText,
+};
 use super::guest_systems;
 use super::host_systems;
 use super::loading;
@@ -275,6 +284,45 @@ impl Plugin for MultiplayerGamePlugin {
             guest_systems::apply_state_snapshot
                 .run_if(in_state(MultiplayerGameState::Running).and(is_multiplayer_guest)),
         );
+
+        // ── Host: Win/Lose Detection ──────────────────────────────────
+        app.add_systems(
+            Update,
+            host_systems::check_mp_king_death
+                .run_if(mp_host)
+                .after(shared_systems::convert_dead_to_corpses),
+        );
+
+        // ── Guest: Game Over Message ──────────────────────────────────
+        app.add_systems(
+            Update,
+            guest_systems::handle_game_over_message
+                .run_if(in_state(MultiplayerGameState::Running).and(is_multiplayer_guest)),
+        );
+
+        // ── Score Screen ──────────────────────────────────────────────
+        app.add_systems(
+            OnEnter(MultiplayerGameState::ScoreScreen),
+            setup_mp_score_screen,
+        );
+        app.add_systems(
+            OnExit(MultiplayerGameState::ScoreScreen),
+            cleanup_mp_score_screen,
+        );
+        app.add_systems(
+            Update,
+            (
+                handle_mp_score_buttons.in_set(ButtonActionSet),
+                handle_mp_score_messages,
+            )
+                .run_if(in_state(MultiplayerGameState::ScoreScreen)),
+        );
+
+        // ── Disconnect Detection ──────────────────────────────────────
+        app.add_systems(
+            Update,
+            detect_mp_disconnect.run_if(in_state(AppState::MultiplayerGame)),
+        );
     }
 }
 
@@ -291,9 +339,13 @@ fn init_mp_game(mut commands: Commands) {
 }
 
 /// Cleans up multiplayer game entities and resources.
+///
+/// If `PendingRematch` is present, the `MultiplayerSession` is kept alive
+/// so the WebRTC connection persists through the rematch flow.
 fn cleanup_mp_game(
     mut commands: Commands,
     mp_entities: Query<Entity, With<OnMultiplayerGameScreen>>,
+    pending_rematch: Option<Res<PendingRematch>>,
 ) {
     for entity in &mp_entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
@@ -308,4 +360,224 @@ fn cleanup_mp_game(
     commands.remove_resource::<SnapshotTick>();
     commands.remove_resource::<CauldronBuffs>();
     commands.remove_resource::<GameOutcome>();
+
+    // Only remove the session if this is NOT a rematch — keep connection alive for rematch
+    if pending_rematch.is_none() {
+        commands.remove_resource::<MultiplayerSession>();
+    }
+}
+
+// ── Score Screen Constants ────────────────────────────────────────────
+
+const SCORE_BG_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
+const SCORE_TITLE_COLOR: Color = Color::srgb(0.95, 0.95, 0.95);
+const SCORE_TEXT_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
+
+const SCORE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 250.0,
+    height: 65.0,
+    border_width: 3.0,
+    font_size: 20.0,
+    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
+    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
+    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+};
+
+// ── Score Screen Systems ──────────────────────────────────────────────
+
+/// Spawns the multiplayer score screen UI.
+fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<GameOutcome>) {
+    commands.init_resource::<MpRematchState>();
+
+    let title_text = match *game_outcome {
+        GameOutcome::Victory => "VICTORY",
+        GameOutcome::Defeat | GameOutcome::DefeatKingDied => "DEFEAT",
+    };
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(SCORE_BG_COLOR),
+            OnMpScoreScreen,
+            OnMultiplayerGameScreen,
+        ))
+        .with_children(|parent| {
+            // Title
+            parent.spawn((
+                Text::new(title_text),
+                TextFont {
+                    font_size: 60.0,
+                    ..default()
+                },
+                TextColor(SCORE_TITLE_COLOR),
+            ));
+
+            // Subtitle for King death
+            if *game_outcome == GameOutcome::DefeatKingDied {
+                parent.spawn((
+                    Text::new("Your King was slain!"),
+                    TextFont {
+                        font_size: 24.0,
+                        ..default()
+                    },
+                    TextColor(SCORE_TEXT_COLOR),
+                ));
+            }
+
+            // Buttons
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    row_gap: Val::Px(15.0),
+                    margin: UiRect::top(Val::Px(20.0)),
+                    ..default()
+                })
+                .with_children(|buttons| {
+                    spawn_button(
+                        buttons,
+                        "Rematch",
+                        MpScoreButtonAction::Rematch,
+                        &SCORE_BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        buttons,
+                        "Disconnect",
+                        MpScoreButtonAction::Disconnect,
+                        &SCORE_BUTTON_STYLE,
+                    );
+                });
+
+            // Status text
+            parent.spawn((
+                RematchStatusText,
+                Text::new(""),
+                TextFont {
+                    font_size: 18.0,
+                    ..default()
+                },
+                TextColor(SCORE_TEXT_COLOR),
+            ));
+        });
+}
+
+/// Cleans up score screen entities and resources.
+fn cleanup_mp_score_screen(
+    mut commands: Commands,
+    score_entities: Query<Entity, With<OnMpScoreScreen>>,
+) {
+    for entity in &score_entities {
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+    commands.remove_resource::<MpRematchState>();
+}
+
+/// Handles score screen button clicks.
+fn handle_mp_score_buttons(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&MpScoreButtonAction>,
+    mut rematch_state: ResMut<MpRematchState>,
+    mut connection: ResMut<NetworkConnection>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut status_text: Query<&mut Text, With<RematchStatusText>>,
+    mut commands: Commands,
+) {
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                MpScoreButtonAction::Rematch => {
+                    rematch_state.local_ready = true;
+                    connection
+                        .outgoing_messages
+                        .push(NetworkMessage::RematchReady);
+
+                    if let Ok(mut text) = status_text.single_mut() {
+                        **text = "Waiting for opponent...".to_string();
+                    }
+
+                    if rematch_state.remote_ready {
+                        commands.insert_resource(PendingRematch);
+                        next_app_state.set(AppState::MainMenu);
+                    }
+                }
+                MpScoreButtonAction::Disconnect => {
+                    #[cfg(target_arch = "wasm32")]
+                    crate::networking::webrtc::disconnect();
+                    connection.state = ConnectionState::Disconnected;
+                    commands.remove_resource::<MultiplayerSession>();
+                    next_app_state.set(AppState::MainMenu);
+                }
+            }
+        }
+    }
+}
+
+/// Processes incoming network messages during the score screen.
+fn handle_mp_score_messages(
+    mut connection: ResMut<NetworkConnection>,
+    mut rematch_state: ResMut<MpRematchState>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut status_text: Query<&mut Text, With<RematchStatusText>>,
+    mut commands: Commands,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::RematchReady => {
+                rematch_state.remote_ready = true;
+
+                if let Ok(mut text) = status_text.single_mut() {
+                    if rematch_state.local_ready {
+                        **text = "Starting rematch...".to_string();
+                    } else {
+                        **text = "Opponent wants a rematch!".to_string();
+                    }
+                }
+
+                if rematch_state.local_ready {
+                    commands.insert_resource(PendingRematch);
+                    next_app_state.set(AppState::MainMenu);
+                }
+            }
+            NetworkMessage::GameOver(_) => {
+                // Already handled, ignore
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
+/// Detects connection loss during multiplayer gameplay and returns to main menu.
+fn detect_mp_disconnect(
+    connection: Res<NetworkConnection>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut commands: Commands,
+) {
+    if matches!(
+        connection.state,
+        ConnectionState::Failed | ConnectionState::Disconnected
+    ) {
+        commands.remove_resource::<MultiplayerSession>();
+        next_app_state.set(AppState::MainMenu);
+    }
 }

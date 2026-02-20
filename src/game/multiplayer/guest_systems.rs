@@ -9,12 +9,15 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::game::components::Billboard;
+use crate::game::resources::GameOutcome;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::resources::KingAssets;
 use crate::networking::entity_map::NetworkEntityMap;
+use crate::networking::protocol::{GameOverResult, NetworkMessage};
 use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{GameSnapshot, UnitFlags, u8_to_team};
+use crate::state::MultiplayerGameState;
 
 use super::components::{GhostEntity, OnMultiplayerGameScreen};
 
@@ -73,7 +76,7 @@ pub fn apply_state_snapshot(
             infantry_assets.mesh.clone()
         };
 
-        let pos = Vec3::new(unit.x, 0.0, unit.z);
+        let pos = Vec3::new(unit.x, unit.y, unit.z);
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
             // Update existing ghost entity
@@ -165,5 +168,36 @@ fn pick_material(
             Team::Attackers => infantry_assets.attacker_material.clone(),
             Team::Undead => infantry_assets.undead_material.clone(),
         }
+    }
+}
+
+/// Listens for `GameOver` messages from the host and transitions to the score screen.
+pub fn handle_game_over_message(
+    mut connection: ResMut<NetworkConnection>,
+    mut game_outcome: ResMut<GameOutcome>,
+    mut next_state: ResMut<NextState<MultiplayerGameState>>,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::GameOver(result) => {
+                *game_outcome = match result {
+                    GameOverResult::HostWins => GameOutcome::DefeatKingDied,
+                    GameOverResult::GuestWins => GameOutcome::Victory,
+                };
+                next_state.set(MultiplayerGameState::ScoreScreen);
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
     }
 }

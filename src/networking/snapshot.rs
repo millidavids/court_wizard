@@ -21,14 +21,16 @@ pub struct GameSnapshot {
     pub units: Vec<UnitSnapshot>,
 }
 
-/// Compact per-unit state (~17 bytes).
+/// Compact per-unit state (~21 bytes).
 #[derive(Serialize, Deserialize)]
 pub struct UnitSnapshot {
     /// Network entity ID assigned by the host.
     pub id: u32,
     /// World position X.
     pub x: f32,
-    /// World position Z (all ground units live at Y=0).
+    /// World position Y (height above battlefield).
+    pub y: f32,
+    /// World position Z.
     pub z: f32,
     /// Team encoded as u8: 0=Defenders, 1=Attackers, 2=Undead.
     pub team: u8,
@@ -100,6 +102,7 @@ pub fn build_unit_snapshot(
     UnitSnapshot {
         id: net_id.0,
         x: transform.translation.x,
+        y: transform.translation.y,
         z: transform.translation.z,
         team: team_to_u8(team),
         health_pct,

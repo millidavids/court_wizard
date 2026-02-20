@@ -5,12 +5,15 @@
 
 use bevy::prelude::*;
 
+use crate::game::resources::GameOutcome;
 use crate::game::units::archer::Archer;
 use crate::game::units::components::{Corpse, Health, KingsGuard, Team};
 use crate::game::units::king::components::King;
 use crate::networking::entity_map::{EntityIdCounter, NetworkEntityId};
+use crate::networking::protocol::{GameOverResult, NetworkMessage};
 use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{GameSnapshot, SnapshotTick, build_unit_snapshot};
+use crate::state::MultiplayerGameState;
 
 /// Assigns `NetworkEntityId` to newly spawned entities that have `Health` + `Team`
 /// but don't yet have a network ID.
@@ -59,5 +62,35 @@ pub fn send_state_snapshots(
 
     if let Ok(data) = bincode::serialize(&snapshot) {
         connection.outgoing_unreliable.push(data);
+    }
+}
+
+/// Checks for King death and triggers game-over transition.
+///
+/// Host = Defenders, Guest = Attackers. When a King becomes a corpse:
+/// - Defender King dies → guest wins
+/// - Attacker King dies → host wins
+pub fn check_mp_king_death(
+    mut connection: ResMut<NetworkConnection>,
+    mut game_outcome: ResMut<GameOutcome>,
+    mut next_state: ResMut<NextState<MultiplayerGameState>>,
+    dead_kings: Query<&Team, (With<King>, With<Corpse>)>,
+) {
+    for team in &dead_kings {
+        let result = match team {
+            Team::Defenders => GameOverResult::GuestWins,
+            Team::Attackers | Team::Undead => GameOverResult::HostWins,
+        };
+
+        *game_outcome = match result {
+            GameOverResult::HostWins => GameOutcome::Victory,
+            GameOverResult::GuestWins => GameOutcome::DefeatKingDied,
+        };
+
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::GameOver(result));
+        next_state.set(MultiplayerGameState::ScoreScreen);
+        return;
     }
 }

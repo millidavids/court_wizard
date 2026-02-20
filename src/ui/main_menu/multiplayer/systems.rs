@@ -6,6 +6,7 @@ use crate::config::WizardType;
 use crate::config::save_data;
 use crate::game::input::messages::MouseClicked;
 use crate::game::units::wizard::components::Spell;
+use crate::game::multiplayer::components::PendingRematch;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
@@ -65,9 +66,45 @@ fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
 
 /// Sets up the multiplayer screen UI (connection phase).
 ///
-/// Spawns all connection-phase elements upfront. Visibility is toggled by `update_ui_state`.
-pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) {
-    // Reset connection state when entering the screen
+/// If `PendingRematch` is present, skips the connection phase entirely and jumps
+/// straight to wizard select, keeping the existing WebRTC connection alive.
+pub fn setup(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    pending_rematch: Option<Res<PendingRematch>>,
+) {
+    // Rematch flow: skip connection phase, go straight to wizard select
+    if pending_rematch.is_some() {
+        commands.remove_resource::<PendingRematch>();
+
+        // Clear any stale messages from the previous game
+        connection.incoming_messages.clear();
+        connection.outgoing_messages.clear();
+        connection.incoming_unreliable.clear();
+        connection.outgoing_unreliable.clear();
+
+        let (my_wt, _my_sp) = load_my_unlocked_content();
+        let initial_wizard = my_wt[0];
+
+        commands.insert_resource(LobbyPhase::WizardSelect {
+            my_wizard_types: my_wt.clone(),
+            opponent_wizard_types: Vec::new(), // not needed for UI
+            my_wizard: Some(initial_wizard),
+            opponent_wizard: None,
+            my_ready: false,
+            opponent_ready: false,
+        });
+
+        // Notify opponent of our initial wizard selection
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::WizardSelected(initial_wizard));
+
+        spawn_wizard_select_screen(&mut commands, &my_wt, initial_wizard, false, false);
+        return;
+    }
+
+    // Normal connection flow
     connection.state = ConnectionState::Disconnected;
     connection.role = None;
     connection.local_code = None;

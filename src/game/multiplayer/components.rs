@@ -15,3 +15,35 @@ pub struct OnMultiplayerGameScreen;
 /// updated each frame from the latest snapshot received from the host.
 #[derive(Component)]
 pub struct GhostEntity;
+
+/// Marker for entities on the multiplayer score screen.
+///
+/// Used for targeted cleanup when leaving the score screen sub-state.
+#[derive(Component)]
+pub struct OnMpScoreScreen;
+
+/// Tracks rematch readiness for both players on the score screen.
+#[derive(Resource, Default)]
+pub struct MpRematchState {
+    pub local_ready: bool,
+    pub remote_ready: bool,
+}
+
+/// Button actions for the multiplayer score screen.
+#[derive(Component, Clone)]
+pub enum MpScoreButtonAction {
+    Rematch,
+    Disconnect,
+}
+
+/// Marker for the rematch status text on the score screen.
+#[derive(Component)]
+pub struct RematchStatusText;
+
+/// Marker resource inserted when both players agree to rematch.
+///
+/// Signals that the transition back to `MainMenu` → `Multiplayer` should
+/// skip the connection phase and go straight to wizard select, preserving
+/// the existing WebRTC connection.
+#[derive(Resource)]
+pub struct PendingRematch;
