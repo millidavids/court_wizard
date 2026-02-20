@@ -227,7 +227,7 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
                     );
                 });
 
-            // === Active connection buttons (Disconnect) ===
+            // === Active connection buttons (Try Again / Disconnect) ===
             parent
                 .spawn((
                     ActiveConnectionButtons,
@@ -240,6 +240,12 @@ pub fn setup(mut commands: Commands, mut connection: ResMut<NetworkConnection>) 
                     },
                 ))
                 .with_children(|group| {
+                    spawn_button(
+                        group,
+                        "Try Again",
+                        MultiplayerButtonAction::Retry,
+                        &CONN_BUTTON_STYLE,
+                    );
                     spawn_button(
                         group,
                         "Disconnect",
@@ -558,6 +564,48 @@ pub fn button_action(
                         connection
                             .outgoing_messages
                             .push(NetworkMessage::Unready);
+                    }
+                }
+                MultiplayerButtonAction::Retry => {
+                    let role = connection.role;
+                    // Clean up old connection
+                    #[cfg(target_arch = "wasm32")]
+                    crate::networking::webrtc::disconnect();
+                    connection.local_code = None;
+                    connection.ping_ms = None;
+                    connection.ping_timer = 0.0;
+                    connection.error = None;
+                    connection.incoming_messages.clear();
+                    connection.outgoing_messages.clear();
+                    connection.incoming_unreliable.clear();
+                    connection.outgoing_unreliable.clear();
+
+                    match role {
+                        Some(PeerRole::Host) => {
+                            connection.state = ConnectionState::WaitingForSignaling;
+                            #[cfg(target_arch = "wasm32")]
+                            crate::networking::webrtc::create_host_offer();
+                        }
+                        Some(PeerRole::Guest) => {
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                if let Some(code) =
+                                    crate::networking::clipboard::prompt_for_text(
+                                        "Paste the host's invite code:",
+                                    )
+                                {
+                                    connection.state = ConnectionState::WaitingForSignaling;
+                                    crate::networking::webrtc::create_guest_answer(&code);
+                                } else {
+                                    // User cancelled the prompt, go back to disconnected
+                                    connection.state = ConnectionState::Disconnected;
+                                    connection.role = None;
+                                }
+                            }
+                        }
+                        None => {
+                            connection.state = ConnectionState::Disconnected;
+                        }
                     }
                 }
                 MultiplayerButtonAction::Disconnect | MultiplayerButtonAction::Back => {

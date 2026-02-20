@@ -31,6 +31,9 @@ pub(super) enum MultiplayerButtonAction {
     /// Disconnect and return to initial multiplayer screen.
     Disconnect,
 
+    /// Retry connection after a failure (regenerate SDP/ICE).
+    Retry,
+
     /// Return to the landing screen.
     Back,
 
