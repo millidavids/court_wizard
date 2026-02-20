@@ -19,7 +19,7 @@ use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{GameSnapshot, UnitFlags, u8_to_team};
 use crate::state::MultiplayerGameState;
 
-use super::components::{GhostEntity, OnMultiplayerGameScreen};
+use super::components::{GhostArrow, GhostEntity, OnMultiplayerGameScreen};
 
 /// Receives the latest state snapshot from the host and creates/updates/despawns
 /// ghost entities to match the host's game state.
@@ -31,6 +31,7 @@ pub fn apply_state_snapshot(
     archer_assets: Res<ArcherAssets>,
     king_assets: Res<KingAssets>,
     mut ghost_query: Query<(&mut Transform, &mut MeshMaterial3d<StandardMaterial>), With<GhostEntity>>,
+    ghost_arrows: Query<Entity, With<GhostArrow>>,
 ) {
     // Take only the latest snapshot (discard stale ones)
     let raw_snapshots: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
@@ -119,6 +120,25 @@ pub fn apply_state_snapshot(
                 entity_commands.despawn();
             }
         }
+    }
+
+    // Replace all ghost arrows with fresh positions from the snapshot.
+    // Arrows are ephemeral projectiles — no stable identity tracking needed.
+    for entity in &ghost_arrows {
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+
+    for arrow in &snapshot.arrows {
+        commands.spawn((
+            Mesh3d(archer_assets.arrow_mesh.clone()),
+            MeshMaterial3d(archer_assets.arrow_material.clone()),
+            Transform::from_translation(Vec3::new(arrow.x, arrow.y, arrow.z)),
+            Billboard,
+            GhostArrow,
+            OnMultiplayerGameScreen,
+        ));
     }
 }
 

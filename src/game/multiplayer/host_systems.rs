@@ -6,13 +6,14 @@
 use bevy::prelude::*;
 
 use crate::game::resources::GameOutcome;
+use crate::game::units::archer::components::Arrow;
 use crate::game::units::archer::Archer;
 use crate::game::units::components::{Corpse, Health, KingsGuard, Team};
 use crate::game::units::king::components::King;
 use crate::networking::entity_map::{EntityIdCounter, NetworkEntityId};
 use crate::networking::protocol::{GameOverResult, NetworkMessage};
 use crate::networking::resources::NetworkConnection;
-use crate::networking::snapshot::{GameSnapshot, SnapshotTick, build_unit_snapshot};
+use crate::networking::snapshot::{ArrowSnapshot, GameSnapshot, SnapshotTick, build_unit_snapshot};
 use crate::state::MultiplayerGameState;
 
 /// Assigns `NetworkEntityId` to newly spawned entities that have `Health` + `Team`
@@ -46,18 +47,28 @@ pub fn send_state_snapshots(
         Has<Archer>,
         Has<KingsGuard>,
     )>,
+    arrows: Query<&Transform, With<Arrow>>,
 ) {
     tick.0 = tick.0.wrapping_add(1);
 
     let mut snapshot = GameSnapshot {
         tick: tick.0,
         units: Vec::with_capacity(units.iter().len()),
+        arrows: Vec::with_capacity(arrows.iter().len()),
     };
 
     for (net_id, transform, team, health, is_corpse, is_king, is_archer, is_guard) in &units {
         snapshot.units.push(build_unit_snapshot(
             net_id, transform, team, health, is_corpse, is_king, is_archer, is_guard,
         ));
+    }
+
+    for transform in &arrows {
+        snapshot.arrows.push(ArrowSnapshot {
+            x: transform.translation.x,
+            y: transform.translation.y,
+            z: transform.translation.z,
+        });
     }
 
     if let Ok(data) = bincode::serialize(&snapshot) {

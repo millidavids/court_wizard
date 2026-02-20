@@ -16,6 +16,14 @@ pub struct OnMultiplayerGameScreen;
 #[derive(Component)]
 pub struct GhostEntity;
 
+/// Marker for ghost arrow projectiles rendered on the guest.
+///
+/// Unlike `GhostEntity` (which uses `NetworkEntityMap` for stable identity),
+/// ghost arrows are ephemeral — all are despawned and re-spawned each frame
+/// from the snapshot since arrows have no stable network ID.
+#[derive(Component)]
+pub struct GhostArrow;
+
 /// Marker for entities on the multiplayer score screen.
 ///
 /// Used for targeted cleanup when leaving the score screen sub-state.

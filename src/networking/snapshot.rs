@@ -19,6 +19,8 @@ pub struct GameSnapshot {
     pub tick: u32,
     /// State of every tracked unit.
     pub units: Vec<UnitSnapshot>,
+    /// State of every in-flight arrow projectile.
+    pub arrows: Vec<ArrowSnapshot>,
 }
 
 /// Compact per-unit state (~21 bytes).
@@ -108,6 +110,17 @@ pub fn build_unit_snapshot(
         health_pct,
         flags,
     }
+}
+
+/// Compact per-arrow state (~12 bytes).
+#[derive(Serialize, Deserialize)]
+pub struct ArrowSnapshot {
+    /// World position X.
+    pub x: f32,
+    /// World position Y (height).
+    pub y: f32,
+    /// World position Z.
+    pub z: f32,
 }
 
 /// Monotonically increasing tick counter for snapshot ordering.
