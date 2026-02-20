@@ -133,7 +133,7 @@ fn pick_material(
     is_corpse: bool,
     is_king: bool,
     is_archer: bool,
-    _is_guard: bool,
+    is_guard: bool,
 ) -> Handle<StandardMaterial> {
     use crate::game::units::components::Team;
 
@@ -147,6 +147,7 @@ fn pick_material(
                 Team::Undead => archer_assets.undead_corpse_material.clone(),
             }
         } else {
+            // Infantry and King's Guard corpses use the same material
             match team {
                 Team::Defenders => infantry_assets.defender_corpse_material.clone(),
                 Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
@@ -161,8 +162,10 @@ fn pick_material(
             Team::Attackers => archer_assets.attacker_material.clone(),
             Team::Undead => archer_assets.undead_material.clone(),
         }
+    } else if is_guard {
+        infantry_assets.kings_guard_material.clone()
     } else {
-        // Infantry and King's Guard
+        // Infantry
         match team {
             Team::Defenders => infantry_assets.defender_material.clone(),
             Team::Attackers => infantry_assets.attacker_material.clone(),

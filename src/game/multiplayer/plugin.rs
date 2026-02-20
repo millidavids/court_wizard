@@ -44,6 +44,14 @@ use super::guest_systems;
 use super::host_systems;
 use super::loading;
 
+/// Run condition: true when `MultiplayerGameState::ScoreScreen` is active.
+///
+/// Unlike `in_state(MultiplayerGameState::ScoreScreen)`, this won't panic
+/// if the sub-state resource has already been removed during state transitions.
+fn in_mp_score_screen(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
+    state.is_some_and(|s| *s.get() == MultiplayerGameState::ScoreScreen)
+}
+
 /// Multiplayer-specific system sets for ordering host simulation.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MpSystemSet {
@@ -308,7 +316,7 @@ impl Plugin for MultiplayerGamePlugin {
                 handle_mp_score_buttons.in_set(ButtonActionSet),
                 handle_mp_score_messages,
             )
-                .run_if(in_state(MultiplayerGameState::ScoreScreen)),
+                .run_if(in_mp_score_screen),
         );
 
         // ── Disconnect Detection ──────────────────────────────────────
@@ -560,16 +568,22 @@ fn handle_mp_score_messages(
     }
 }
 
-/// Detects connection loss during multiplayer gameplay and returns to main menu.
+/// Detects unexpected connection loss during multiplayer gameplay and returns to main menu.
+///
+/// Only triggers on `Failed` state — intentional disconnects are handled by button actions.
 fn detect_mp_disconnect(
     connection: Res<NetworkConnection>,
+    session: Option<Res<MultiplayerSession>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut commands: Commands,
 ) {
-    if matches!(
-        connection.state,
-        ConnectionState::Failed | ConnectionState::Disconnected
-    ) {
+    // Only check if we still have an active session — avoids double-triggering
+    // after an intentional disconnect already queued a state transition.
+    if session.is_none() {
+        return;
+    }
+
+    if connection.state == ConnectionState::Failed {
         commands.remove_resource::<MultiplayerSession>();
         next_app_state.set(AppState::MainMenu);
     }
