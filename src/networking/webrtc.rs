@@ -91,7 +91,7 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
     let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
     let pc = RtcPeerConnection::new_with_configuration(&rtc_config)?;
 
-    // Monitor ICE connection state changes
+    // Monitor ICE connection state changes — transition to Failed on ICE failure
     let pc_for_ice = pc.clone();
     let on_ice_state = Closure::wrap(Box::new(move |_: JsValue| {
         let state = Reflect::get(&pc_for_ice, &JsValue::from_str("iceConnectionState"))
@@ -99,6 +99,37 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
             .as_string()
             .unwrap_or_default();
         info!("[WebRTC] ICE connection state: {}", state);
+        match state.as_str() {
+            "failed" => {
+                WEBRTC_STATE.with(|s| {
+                    let mut ws = s.borrow_mut();
+                    ws.state = ConnectionState::Failed;
+                    ws.error = Some("ICE connection failed — could not reach peer".to_string());
+                });
+            }
+            "disconnected" => {
+                // ICE disconnected can be transient, but if we were connected it means we lost the peer
+                WEBRTC_STATE.with(|s| {
+                    let ws = s.borrow();
+                    if ws.state == ConnectionState::Connected {
+                        drop(ws);
+                        let mut ws = s.borrow_mut();
+                        ws.state = ConnectionState::Failed;
+                        ws.error = Some("Connection lost".to_string());
+                    }
+                });
+            }
+            "checking" => {
+                // ICE is actively checking candidates — mark as Connecting
+                WEBRTC_STATE.with(|s| {
+                    let mut ws = s.borrow_mut();
+                    if ws.state == ConnectionState::WaitingForSignaling {
+                        ws.state = ConnectionState::Connecting;
+                    }
+                });
+            }
+            _ => {}
+        }
     }) as Box<dyn FnMut(JsValue)>);
     pc.set_oniceconnectionstatechange(Some(on_ice_state.as_ref().unchecked_ref()));
     // Leak the closure to keep it alive (it's tied to the peer connection lifetime)
