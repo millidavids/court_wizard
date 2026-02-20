@@ -45,24 +45,33 @@ pub fn initialize_pathfinding(mut commands: Commands) {
 }
 
 /// Updates King position and spawns attacker field rebuild when King moves significantly.
+///
+/// Tracks the **Defender King** specifically, since the attacker flow field guides
+/// guest-side units toward the host's (Defender) King. In single-player there is
+/// only one King (always Defenders), so the filter is a no-op.
 pub fn update_king_position(
     mut pathfinding: ResMut<PathfindingGrid>,
-    king_query: Query<&Transform, With<King>>,
+    king_query: Query<(&Transform, &Team), With<King>>,
 ) {
-    if let Ok(king_transform) = king_query.single() {
-        let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
-        let distance_moved = king_pos.distance(pathfinding.last_king_pos);
+    let Some((king_transform, _)) = king_query
+        .iter()
+        .find(|(_, team)| **team == Team::Defenders)
+    else {
+        return;
+    };
 
-        if distance_moved > KING_MOVEMENT_THRESHOLD {
-            // King moved significantly, spawn attacker field rebuild
-            if pathfinding.pending_attacker_rebuild.is_none() {
-                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
-                pathfinding.last_king_pos = king_pos;
-                debug!(
-                    "King moved {} units, rebuilding attacker field",
-                    distance_moved
-                );
-            }
+    let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
+    let distance_moved = king_pos.distance(pathfinding.last_king_pos);
+
+    if distance_moved > KING_MOVEMENT_THRESHOLD {
+        // King moved significantly, spawn attacker field rebuild
+        if pathfinding.pending_attacker_rebuild.is_none() {
+            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+            pathfinding.last_king_pos = king_pos;
+            debug!(
+                "King moved {} units, rebuilding attacker field",
+                distance_moved
+            );
         }
     }
 }
@@ -73,7 +82,7 @@ pub fn update_king_position(
 pub fn update_king_target(
     mut pathfinding: ResMut<PathfindingGrid>,
     defenders_activated: Res<DefendersActivated>,
-    king_query: Query<&Transform, With<King>>,
+    king_query: Query<(&Transform, &Team), With<King>>,
     enemy_query: Query<
         (Entity, &Transform, &Team),
         (
@@ -87,7 +96,10 @@ pub fn update_king_target(
         return;
     }
 
-    let Ok(king_transform) = king_query.single() else {
+    let Some((king_transform, _)) = king_query
+        .iter()
+        .find(|(_, team)| **team == Team::Defenders)
+    else {
         return;
     };
 
@@ -232,7 +244,7 @@ pub fn apply_completed_rebuilds(mut pathfinding: ResMut<PathfindingGrid>) {
 pub fn handle_obstacle_events(
     mut obstacle_events: MessageReader<ObstacleChanged>,
     mut pathfinding: ResMut<PathfindingGrid>,
-    king_query: Query<&Transform, With<King>>,
+    king_query: Query<(&Transform, &Team), With<King>>,
 ) {
     let mut rebuild_needed = false;
 
@@ -260,12 +272,16 @@ pub fn handle_obstacle_events(
 
     // If any obstacles changed, rebuild both fields
     if rebuild_needed {
-        // Rebuild attacker field
-        if pathfinding.pending_attacker_rebuild.is_none()
-            && let Ok(king_transform) = king_query.single()
-        {
-            let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
-            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+        // Rebuild attacker field toward Defender King
+        if pathfinding.pending_attacker_rebuild.is_none() {
+            if let Some((king_transform, _)) = king_query
+                .iter()
+                .find(|(_, team)| **team == Team::Defenders)
+            {
+                let king_pos =
+                    Vec2::new(king_transform.translation.x, king_transform.translation.z);
+                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+            }
         }
 
         // Rebuild defender field if it exists
@@ -370,20 +386,25 @@ pub fn sample_flow_fields(
     }
 }
 
-/// Generates initial attacker flow field on first frame after King spawns.
+/// Generates initial attacker flow field on first frame after Defender King spawns.
 ///
 /// This ensures the attacker field exists when attackers spawn.
 pub fn generate_initial_fields(
     mut pathfinding: ResMut<PathfindingGrid>,
-    king_query: Query<&Transform, (With<King>, Added<Transform>)>,
+    king_query: Query<(&Transform, &Team), (With<King>, Added<Transform>)>,
 ) {
-    // Only run when King first spawns
-    if let Ok(king_transform) = king_query.single() {
-        let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
-        pathfinding.last_king_pos = king_pos;
+    // Only run when the Defender King first spawns
+    let Some((king_transform, _)) = king_query
+        .iter()
+        .find(|(_, team)| **team == Team::Defenders)
+    else {
+        return;
+    };
 
-        // Spawn initial attacker field rebuild
-        spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
-        info!("Generating initial attacker flow field toward King");
-    }
+    let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
+    pathfinding.last_king_pos = king_pos;
+
+    // Spawn initial attacker field rebuild
+    spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+    info!("Generating initial attacker flow field toward Defender King");
 }
