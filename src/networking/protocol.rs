@@ -30,6 +30,9 @@ pub enum NetworkMessage {
     /// Player is ready to start the match.
     ReadyUp,
 
+    /// Player cancelled their ready state.
+    Unready,
+
     /// Host tells guest to start loading the match.
     StartGame,
 

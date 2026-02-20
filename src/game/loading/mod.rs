@@ -1,7 +1,7 @@
 mod constants;
 mod plugin;
-mod resources;
-mod spawn_queue;
+pub(in crate::game) mod resources;
+pub(in crate::game) mod spawn_queue;
 mod systems;
 mod upgrade_selection;
 mod upgrade_systems;

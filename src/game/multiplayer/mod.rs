@@ -4,7 +4,8 @@
 //! the single-player game systems. Reuses shared helper functions but registers
 //! its own systems under `AppState::MultiplayerGame`.
 
-mod components;
+pub(crate) mod components;
+pub(crate) mod loading;
 mod plugin;
 
 pub use plugin::MultiplayerGamePlugin;

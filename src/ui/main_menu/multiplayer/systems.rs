@@ -17,7 +17,7 @@ use super::super::wizard_select_shared::{self as shared};
 use super::components::{
     ActiveConnectionButtons, CodeDisplayText, InitialButtons, LobbyPhase,
     MultiplayerButtonAction, OnMultiplayerScreen, PasteResponseButton, PingText,
-    SignalingButtons, StatusText, WizardSelectScreen,
+    ReadyButtonArea, SignalingButtons, StatusText, WizardSelectScreen,
 };
 use super::constants::*;
 
@@ -263,9 +263,8 @@ fn spawn_wizard_select_screen(
     commands: &mut Commands,
     unlocked_wizard_types: &[WizardType],
     initial_wizard: WizardType,
-    opponent_wizard: Option<WizardType>,
-    my_ready: bool,
     opponent_ready: bool,
+    my_ready: bool,
 ) {
     let wizard_types = WizardType::all();
     let unlocked_names: Vec<String> = unlocked_wizard_types
@@ -314,9 +313,8 @@ fn spawn_wizard_select_screen(
                     spawn_mp_detail_panel(
                         top,
                         initial_wizard,
-                        opponent_wizard,
-                        my_ready,
                         opponent_ready,
+                        my_ready,
                     );
                 });
 
@@ -358,14 +356,13 @@ fn spawn_wizard_select_screen(
 fn spawn_mp_detail_panel(
     parent: &mut ChildSpawnerCommands,
     wizard_type: WizardType,
-    opponent_wizard: Option<WizardType>,
-    my_ready: bool,
     opponent_ready: bool,
+    my_ready: bool,
 ) {
     shared::spawn_detail_panel_container(parent, |card| {
         shared::spawn_detail_panel_top(card, wizard_type);
 
-        // Bottom: opponent status + ready button (MP-specific)
+        // Bottom: opponent status + ready/unready button (MP-specific)
         card.spawn(Node {
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(8.0),
@@ -373,45 +370,60 @@ fn spawn_mp_detail_panel(
             ..default()
         })
         .with_children(|bottom| {
-            let status_text = build_opponent_status_text(opponent_wizard, opponent_ready);
+            let status_text = build_opponent_status_text(opponent_ready);
             bottom.spawn((
                 Text::new(status_text),
                 TextFont {
                     font_size: DETAIL_STATUS_FONT_SIZE,
                     ..default()
                 },
-                TextColor(WAITING_COLOR),
+                TextColor(if opponent_ready {
+                    SUCCESS_COLOR
+                } else {
+                    WAITING_COLOR
+                }),
                 DetailStatus,
             ));
 
-            if !my_ready {
-                spawn_button(
-                    bottom,
-                    "Ready!",
-                    MultiplayerButtonAction::Ready,
-                    &READY_BUTTON_STYLE,
-                );
-            } else {
-                bottom.spawn((
-                    Text::new("Waiting for opponent..."),
-                    TextFont {
-                        font_size: DETAIL_STATUS_FONT_SIZE,
-                        ..default()
-                    },
-                    TextColor(SUCCESS_COLOR),
-                ));
-            }
+            // Ready/Unready button area — rebuilt dynamically when ready state changes
+            bottom
+                .spawn((
+                    ReadyButtonArea,
+                    Node::default(),
+                ))
+                .with_children(|area| {
+                    spawn_ready_button_contents(area, my_ready);
+                });
         });
     });
 }
 
+/// Spawns the contents of the ready button area (either Ready or Unready button).
+fn spawn_ready_button_contents(parent: &mut ChildSpawnerCommands, my_ready: bool) {
+    if my_ready {
+        spawn_button(
+            parent,
+            "Unready",
+            MultiplayerButtonAction::Unready,
+            &UNREADY_BUTTON_STYLE,
+        );
+    } else {
+        spawn_button(
+            parent,
+            "Ready!",
+            MultiplayerButtonAction::Ready,
+            &READY_BUTTON_STYLE,
+        );
+    }
+}
+
 /// Builds the opponent status display string.
-fn build_opponent_status_text(opponent_wizard: Option<WizardType>, opponent_ready: bool) -> String {
-    let opp_name = opponent_wizard
-        .map(|w| w.display_name().to_string())
-        .unwrap_or_else(|| "choosing...".to_string());
-    let ready_str = if opponent_ready { " (Ready!)" } else { "" };
-    format!("Opponent: {}{}", opp_name, ready_str)
+fn build_opponent_status_text(opponent_ready: bool) -> String {
+    if opponent_ready {
+        "Opponent: Ready!".to_string()
+    } else {
+        "Opponent: choosing...".to_string()
+    }
 }
 
 /// Cleans up the multiplayer screen UI when exiting the state.
@@ -502,6 +514,11 @@ pub fn button_action(
                     }
                 }
                 MultiplayerButtonAction::PreviewWizard(wizard_type) => {
+                    // Ignore wizard switches while readied — must unready first
+                    if let LobbyPhase::WizardSelect { my_ready: true, .. } = &*lobby_phase {
+                        continue;
+                    }
+
                     if let Some(ref mut preview) = preview {
                         preview.0 = *wizard_type;
                     }
@@ -512,15 +529,9 @@ pub fn button_action(
                         &mut detail_desc,
                     );
 
-                    // Also update the selected wizard in lobby phase
-                    if let LobbyPhase::WizardSelect {
-                        my_wizard,
-                        my_ready,
-                        ..
-                    } = lobby_phase.as_mut()
-                    {
+                    // Update the selected wizard in lobby phase
+                    if let LobbyPhase::WizardSelect { my_wizard, .. } = lobby_phase.as_mut() {
                         *my_wizard = Some(*wizard_type);
-                        *my_ready = false;
                         connection
                             .outgoing_messages
                             .push(NetworkMessage::WizardSelected(*wizard_type));
@@ -539,6 +550,14 @@ pub fn button_action(
                         connection
                             .outgoing_messages
                             .push(NetworkMessage::ReadyUp);
+                    }
+                }
+                MultiplayerButtonAction::Unready => {
+                    if let LobbyPhase::WizardSelect { my_ready, .. } = lobby_phase.as_mut() {
+                        *my_ready = false;
+                        connection
+                            .outgoing_messages
+                            .push(NetworkMessage::Unready);
                     }
                 }
                 MultiplayerButtonAction::Disconnect => {
@@ -643,7 +662,6 @@ pub fn process_lobby_messages(
                     &mut commands,
                     &my_wt,
                     initial_wizard,
-                    None,
                     false,
                     false,
                 );
@@ -662,6 +680,14 @@ pub fn process_lobby_messages(
                 } = lobby_phase.as_mut()
                 {
                     *opponent_ready = true;
+                }
+            }
+            NetworkMessage::Unready => {
+                if let LobbyPhase::WizardSelect {
+                    opponent_ready, ..
+                } = lobby_phase.as_mut()
+                {
+                    *opponent_ready = false;
                 }
             }
             NetworkMessage::StartGame => {
@@ -727,8 +753,10 @@ pub fn process_lobby_messages(
 /// In the connection phase, this toggles visibility of button groups and status text.
 /// In the wizard select phase, it updates the detail panel status text.
 pub fn update_ui_state(
+    mut commands: Commands,
     connection: Res<NetworkConnection>,
     lobby_phase: Res<LobbyPhase>,
+    ready_button_area: Query<(Entity, &Children), With<ReadyButtonArea>>,
     mut status_query: Query<
         (&mut Text, &mut TextColor),
         (With<StatusText>, Without<CodeDisplayText>, Without<PingText>),
@@ -818,21 +846,31 @@ pub fn update_ui_state(
 
     let in_wizard_select = matches!(&*lobby_phase, LobbyPhase::WizardSelect { .. });
 
-    // In wizard select phase, only update the detail status text
+    // In wizard select phase, update opponent status text + ready/unready button
     if in_wizard_select {
         if let LobbyPhase::WizardSelect {
-            opponent_wizard,
             opponent_ready,
+            my_ready,
             ..
         } = &*lobby_phase
         {
             if let Ok((mut text, mut color)) = detail_status.single_mut() {
-                **text = build_opponent_status_text(*opponent_wizard, *opponent_ready);
+                **text = build_opponent_status_text(*opponent_ready);
                 if *opponent_ready {
                     color.0 = SUCCESS_COLOR;
                 } else {
                     color.0 = WAITING_COLOR;
                 }
+            }
+
+            // Rebuild the ready button area to reflect current ready state
+            if let Ok((entity, children)) = ready_button_area.single() {
+                for child in children.iter() {
+                    commands.entity(child).despawn();
+                }
+                commands.entity(entity).with_children(|area| {
+                    spawn_ready_button_contents(area, *my_ready);
+                });
             }
         }
         return;

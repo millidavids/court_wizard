@@ -72,6 +72,17 @@ pub(super) const READY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_color: Color::hsla(120.0, 0.20, 0.85, 1.0),
 };
 
+/// Button style for the Unready button in the detail panel.
+pub(super) const UNREADY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 140.0,
+    height: 36.0,
+    border_width: 1.0,
+    font_size: 15.0,
+    background: Color::hsla(0.0, 0.30, 0.20, 1.0),
+    border: Color::hsla(0.0, 0.50, 0.35, 1.0),
+    text_color: Color::hsla(0.0, 0.20, 0.85, 1.0),
+};
+
 /// Button style for the Disconnect button in wizard select — minimal, unobtrusive.
 pub(super) const DISCONNECT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: 100.0,

@@ -2,9 +2,9 @@
 //!
 //! Handles the battlefield ground plane, castle platform, and lighting.
 
-mod components;
+pub(in crate::game) mod components;
 mod plugin;
-mod styles;
+pub(in crate::game) mod styles;
 pub(in crate::game) mod systems;
 
 pub use plugin::BattlefieldPlugin;

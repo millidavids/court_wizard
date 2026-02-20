@@ -6,14 +6,41 @@
 
 use bevy::prelude::*;
 
+use crate::state::AppState;
+
+use super::loading;
+
 /// Plugin that manages multiplayer gameplay.
-///
-/// Placeholder — systems will be registered as milestones 3 and 4 are implemented.
 pub struct MultiplayerGamePlugin;
 
 impl Plugin for MultiplayerGamePlugin {
-    fn build(&self, _app: &mut App) {
-        // TODO: Milestone 3 — multiplayer loading systems
+    fn build(&self, app: &mut App) {
+        // Multiplayer loading
+        app.add_systems(
+            OnEnter(AppState::MultiplayerLoading),
+            loading::init_mp_loading,
+        )
+        .add_systems(
+            Update,
+            loading::process_mp_spawn_queue.run_if(in_state(AppState::MultiplayerLoading)),
+        )
+        .add_systems(
+            OnExit(AppState::MultiplayerLoading),
+            loading::cleanup_mp_loading,
+        );
+
+        // Camera setup on entering multiplayer game
+        app.add_systems(
+            OnEnter(AppState::MultiplayerGame),
+            loading::setup_mp_camera,
+        );
+
+        // Camera restore on exiting multiplayer game
+        app.add_systems(
+            OnExit(AppState::MultiplayerGame),
+            loading::restore_camera,
+        );
+
         // TODO: Milestone 4 — host simulation + guest rendering systems
     }
 }

@@ -39,7 +39,14 @@ pub(super) enum MultiplayerButtonAction {
 
     /// Mark as ready to start the match with the previewed wizard.
     Ready,
+
+    /// Cancel ready state.
+    Unready,
 }
+
+/// Marker for the ready/unready button container in the detail panel.
+#[derive(Component)]
+pub(super) struct ReadyButtonArea;
 
 /// Marker component for the status text that updates based on connection state.
 #[derive(Component)]

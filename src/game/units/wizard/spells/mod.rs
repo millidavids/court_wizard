@@ -56,7 +56,7 @@ pub(in crate::game::units::wizard) use haste::constants as haste_constants;
 pub(in crate::game::units::wizard) use healing_plume::constants as healing_plume_constants;
 pub(in crate::game::units::wizard) use hypnotic_pattern::constants as hypnotic_pattern_constants;
 pub(in crate::game::units::wizard) use lightning_rod::constants as lightning_rod_constants;
-pub(in crate::game::units::wizard) use magic_missile::constants as magic_missile_constants;
+pub(in crate::game) use magic_missile::constants as magic_missile_constants;
 pub(in crate::game::units::wizard) use mark_of_death::constants as mark_of_death_constants;
 pub(in crate::game::units::wizard) use meteor_fall::constants as meteor_fall_constants;
 pub(in crate::game::units::wizard) use phantasmal_force::constants as phantasmal_force_constants;
