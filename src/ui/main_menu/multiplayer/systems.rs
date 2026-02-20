@@ -642,11 +642,16 @@ pub fn process_lobby_messages(
                 *lobby_phase = LobbyPhase::WizardSelect {
                     my_wizard_types: my_wt.clone(),
                     opponent_wizard_types: opponent_wt,
-                    my_wizard: None,
+                    my_wizard: Some(initial_wizard),
                     opponent_wizard: None,
                     my_ready: false,
                     opponent_ready: false,
                 };
+
+                // Notify opponent of our initial wizard selection
+                connection
+                    .outgoing_messages
+                    .push(NetworkMessage::WizardSelected(initial_wizard));
 
                 spawn_wizard_select_screen(
                     &mut commands,
