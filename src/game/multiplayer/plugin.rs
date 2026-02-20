@@ -135,13 +135,14 @@ impl Plugin for MultiplayerGamePlugin {
                 .before(MpSystemSet::Movement),
         );
 
-        // After movement: wall collision, combat, corpse conversion, billboards
+        // After movement: wall collision, combat, corpse conversion, king death check
         app.add_systems(
             Update,
             (
                 shared_systems::enforce_wall_collision,
                 shared_systems::combat,
                 shared_systems::convert_dead_to_corpses,
+                host_systems::check_mp_king_death,
             )
                 .chain()
                 .run_if(mp_host.clone())
@@ -283,14 +284,6 @@ impl Plugin for MultiplayerGamePlugin {
             Update,
             guest_systems::apply_state_snapshot
                 .run_if(in_state(MultiplayerGameState::Running).and(is_multiplayer_guest)),
-        );
-
-        // ── Host: Win/Lose Detection ──────────────────────────────────
-        app.add_systems(
-            Update,
-            host_systems::check_mp_king_death
-                .run_if(mp_host)
-                .after(shared_systems::convert_dead_to_corpses),
         );
 
         // ── Guest: Game Over Message ──────────────────────────────────
