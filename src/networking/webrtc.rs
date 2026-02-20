@@ -108,16 +108,18 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
                 });
             }
             "disconnected" => {
-                // If we were connected or connecting, the peer is unreachable.
-                // During connecting, "disconnected" often precedes "failed" but
-                // some browsers skip the "failed" ICE state entirely.
+                // If we were connected, we lost the peer.
+                // If connecting or waiting for signaling with code ready,
+                // ICE candidates couldn't reach each other.
                 WEBRTC_STATE.with(|s| {
                     let ws = s.borrow();
                     let current = ws.state;
+                    let has_code = ws.local_code.is_some();
                     drop(ws);
-                    if current == ConnectionState::Connected
+                    let should_fail = current == ConnectionState::Connected
                         || current == ConnectionState::Connecting
-                    {
+                        || (current == ConnectionState::WaitingForSignaling && has_code);
+                    if should_fail {
                         let mut ws = s.borrow_mut();
                         ws.state = ConnectionState::Failed;
                         ws.error = Some(if current == ConnectionState::Connected {
@@ -129,10 +131,15 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
                 });
             }
             "checking" => {
-                // ICE is actively checking candidates — mark as Connecting
+                // ICE is actively checking candidates — mark as Connecting,
+                // but only if the local code is already set (user had a chance to copy it).
+                // The guest generates its answer code *after* ICE checking starts,
+                // so we must not hide the signaling UI prematurely.
                 WEBRTC_STATE.with(|s| {
                     let mut ws = s.borrow_mut();
-                    if ws.state == ConnectionState::WaitingForSignaling {
+                    if ws.state == ConnectionState::WaitingForSignaling
+                        && ws.local_code.is_some()
+                    {
                         ws.state = ConnectionState::Connecting;
                     }
                 });
