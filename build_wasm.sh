@@ -50,7 +50,12 @@ else
     echo "Building for WASM (debug mode - for local testing)..."
 fi
 
-cargo build --target wasm32-unknown-unknown $RELEASE_FLAG
+DEBUG_FEATURES=""
+if [ "$BUILD_TYPE" = "debug" ]; then
+    DEBUG_FEATURES="--features bevy/debug"
+fi
+
+cargo build --target wasm32-unknown-unknown $DEBUG_FEATURES $RELEASE_FLAG
 
 echo "Running wasm-bindgen..."
 wasm-bindgen \
