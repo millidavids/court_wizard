@@ -28,13 +28,16 @@ pub(super) enum MultiplayerButtonAction {
     /// Paste the remote peer's response code.
     PasteResponse,
 
-    /// Disconnect and return to initial multiplayer screen.
+    /// Disconnect and return to the main menu.
     Disconnect,
+
+    /// Cancel the current connection attempt and return to the base multiplayer screen.
+    Cancel,
 
     /// Retry connection after a failure (regenerate SDP/ICE).
     Retry,
 
-    /// Return to the landing screen.
+    /// Return to the main menu landing screen.
     Back,
 
     /// Preview a wizard type (show in detail panel).
@@ -45,6 +48,12 @@ pub(super) enum MultiplayerButtonAction {
 
     /// Cancel ready state.
     Unready,
+
+    /// Start hosting a LAN game (no STUN, with BroadcastChannel auto-signaling).
+    LanHost,
+
+    /// Start joining a LAN game (no STUN, with BroadcastChannel auto-signaling).
+    LanJoin,
 }
 
 /// Marker for the ready/unready button container in the detail panel.
@@ -70,7 +79,7 @@ pub(super) struct PingText;
 #[derive(Component)]
 pub(super) struct InitialButtons;
 
-/// Marker for the signaling button group (Copy Code / Paste Response / Cancel).
+/// Marker for the signaling button group (Paste Response / Cancel).
 #[derive(Component)]
 pub(super) struct SignalingButtons;
 
@@ -78,9 +87,21 @@ pub(super) struct SignalingButtons;
 #[derive(Component)]
 pub(super) struct PasteResponseButton;
 
+/// Marker for the Copy Code button (lives in the right info column).
+#[derive(Component)]
+pub(super) struct CopyCodeButton;
+
 /// Marker for the connecting/connected/failed button group (Cancel / Disconnect / Try Again).
 #[derive(Component)]
 pub(super) struct ActiveConnectionButtons;
+
+/// Marker for the LAN button group and its section label.
+#[derive(Component)]
+pub(super) struct LanButtons;
+
+/// Marker for the Back button (hidden during signaling/active connection).
+#[derive(Component)]
+pub(super) struct BackButton;
 
 /// Marker for the wizard select phase container (full screen layout).
 #[derive(Component)]

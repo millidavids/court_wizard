@@ -5,10 +5,10 @@ use bevy::prelude::*;
 use crate::config::WizardType;
 use crate::config::save_data;
 use crate::game::input::messages::MouseClicked;
-use crate::game::units::wizard::components::Spell;
 use crate::game::multiplayer::components::PendingRematch;
+use crate::game::units::wizard::components::Spell;
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
+use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
 use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
@@ -16,9 +16,9 @@ use crate::ui::systems::spawn_button;
 
 use super::super::wizard_select_shared::{self as shared};
 use super::components::{
-    ActiveConnectionButtons, CodeDisplayText, InitialButtons, LobbyPhase,
-    MultiplayerButtonAction, OnMultiplayerScreen, PasteResponseButton, PingText,
-    ReadyButtonArea, SignalingButtons, StatusText, WizardSelectScreen,
+    ActiveConnectionButtons, BackButton, CodeDisplayText, CopyCodeButton, InitialButtons,
+    LanButtons, LobbyPhase, MultiplayerButtonAction, OnMultiplayerScreen, PasteResponseButton,
+    PingText, ReadyButtonArea, SignalingButtons, StatusText, WizardSelectScreen,
 };
 use super::constants::*;
 
@@ -57,10 +57,7 @@ fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
         let sp = parse_spells(&save.player.unlocked_content.spells);
         (wt, sp)
     } else {
-        (
-            vec![WizardType::BoringOleMage],
-            vec![Spell::MagicMissile],
-        )
+        (vec![WizardType::BoringOleMage], vec![Spell::MagicMissile])
     }
 }
 
@@ -72,6 +69,7 @@ pub fn setup(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
     pending_rematch: Option<Res<PendingRematch>>,
+    session: Option<Res<MultiplayerSession>>,
 ) {
     // Rematch flow: skip connection phase, go straight to wizard select
     if pending_rematch.is_some() {
@@ -86,11 +84,18 @@ pub fn setup(
         let (my_wt, _my_sp) = load_my_unlocked_content();
         let initial_wizard = my_wt[0];
 
+        // Pre-populate opponent's wizard from the previous game session
+        // so both players can ready up without changing wizards
+        let previous_opponent_wizard = session.as_ref().map(|s| match s.role {
+            PeerRole::Host => s.guest_wizard,
+            PeerRole::Guest => s.host_wizard,
+        });
+
         commands.insert_resource(LobbyPhase::WizardSelect {
             my_wizard_types: my_wt.clone(),
             opponent_wizard_types: Vec::new(), // not needed for UI
             my_wizard: Some(initial_wizard),
-            opponent_wizard: None,
+            opponent_wizard: previous_opponent_wizard,
             my_ready: false,
             opponent_ready: false,
         });
@@ -107,6 +112,7 @@ pub fn setup(
     // Normal connection flow
     connection.state = ConnectionState::Disconnected;
     connection.role = None;
+    connection.mode = ConnectionMode::default();
     connection.local_code = None;
     connection.incoming_messages.clear();
     connection.outgoing_messages.clear();
@@ -121,125 +127,110 @@ pub fn setup(
 
     commands.insert_resource(LobbyPhase::Connection);
 
-    // Root container
+    // Root container: two-column horizontal layout
     commands
         .spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                row_gap: Val::Px(MARGIN),
+                flex_direction: FlexDirection::Row,
+                padding: UiRect::all(Val::Px(MARGIN * 2.0)),
+                column_gap: Val::Px(MARGIN * 2.0),
                 ..default()
             },
             OnMultiplayerScreen,
         ))
-        .with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Multiplayer"),
-                TextFont {
-                    font_size: MP_TITLE_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(TEXT_COLOR),
-                Node {
-                    margin: UiRect::bottom(Val::Px(MARGIN)),
-                    ..default()
-                },
-            ));
-
-            // Status text
-            parent.spawn((
-                StatusText,
-                Text::new("Choose an option to get started"),
-                TextFont {
-                    font_size: STATUS_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(TEXT_COLOR),
-            ));
-
-            // Code display area (hidden initially)
-            parent.spawn((
-                CodeDisplayText,
-                Text::new(""),
-                TextFont {
-                    font_size: CODE_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(TEXT_COLOR),
-                TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
-                Node {
-                    display: Display::None,
-                    max_width: Val::Percent(80.0),
-                    max_height: Val::Px(80.0),
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-            ));
-
-            // Ping display (hidden initially)
-            parent.spawn((
-                PingText,
-                Text::new(""),
-                TextFont {
-                    font_size: STATUS_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(SUCCESS_COLOR),
-                Node {
-                    display: Display::None,
-                    ..default()
-                },
-            ));
-
-            // === Initial buttons (Host Game / Join Game) ===
-            parent
-                .spawn((
+        .with_children(|root| {
+            // ── Left column: buttons ──
+            root.spawn(Node {
+                width: Val::Px(CONN_LEFT_COLUMN_WIDTH),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                row_gap: Val::Px(MARGIN * 0.5),
+                ..default()
+            })
+            .with_children(|left| {
+                // === Online section ===
+                left.spawn((
                     InitialButtons,
                     Node {
                         flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
+                        align_items: AlignItems::Stretch,
                         row_gap: Val::Px(MARGIN * 0.5),
                         ..default()
                     },
                 ))
                 .with_children(|group| {
+                    // Section label
+                    group.spawn((
+                        Text::new("Online"),
+                        TextFont {
+                            font_size: SECTION_LABEL_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(SECTION_LABEL_COLOR),
+                    ));
                     spawn_button(
                         group,
-                        "Host Game",
+                        "Host Online Game",
                         MultiplayerButtonAction::HostGame,
                         &CONN_BUTTON_STYLE,
                     );
                     spawn_button(
                         group,
-                        "Join Game",
+                        "Join Online Game",
                         MultiplayerButtonAction::JoinGame,
                         &CONN_BUTTON_STYLE,
                     );
                 });
 
-            // === Signaling buttons (Copy Code / Paste Response / Cancel) ===
-            parent
-                .spawn((
+                // === LAN section ===
+                left.spawn((
+                    LanButtons,
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Stretch,
+                        row_gap: Val::Px(MARGIN * 0.5),
+                        margin: UiRect::top(Val::Px(MARGIN * 0.5)),
+                        ..default()
+                    },
+                ))
+                .with_children(|group| {
+                    // Section label
+                    group.spawn((
+                        Text::new("Local Network"),
+                        TextFont {
+                            font_size: SECTION_LABEL_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(SECTION_LABEL_COLOR),
+                    ));
+                    spawn_button(
+                        group,
+                        "Host LAN Game",
+                        MultiplayerButtonAction::LanHost,
+                        &CONN_BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        group,
+                        "Join LAN Game",
+                        MultiplayerButtonAction::LanJoin,
+                        &CONN_BUTTON_STYLE,
+                    );
+                });
+
+                // === Signaling buttons (Paste Response / Cancel) ===
+                left.spawn((
                     SignalingButtons,
                     Node {
                         display: Display::None,
                         flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
+                        align_items: AlignItems::Stretch,
                         row_gap: Val::Px(MARGIN * 0.5),
                         ..default()
                     },
                 ))
                 .with_children(|group| {
-                    spawn_button(
-                        group,
-                        "Copy Code",
-                        MultiplayerButtonAction::CopyCode,
-                        &CONN_BUTTON_STYLE,
-                    );
                     group
                         .spawn((
                             PasteResponseButton,
@@ -259,19 +250,18 @@ pub fn setup(
                     spawn_button(
                         group,
                         "Cancel",
-                        MultiplayerButtonAction::Disconnect,
+                        MultiplayerButtonAction::Cancel,
                         &CONN_BUTTON_STYLE,
                     );
                 });
 
-            // === Active connection buttons (Try Again / Disconnect) ===
-            parent
-                .spawn((
+                // === Active connection buttons (Try Again / Cancel) ===
+                left.spawn((
                     ActiveConnectionButtons,
                     Node {
                         display: Display::None,
                         flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
+                        align_items: AlignItems::Stretch,
                         row_gap: Val::Px(MARGIN * 0.5),
                         ..default()
                     },
@@ -285,19 +275,125 @@ pub fn setup(
                     );
                     spawn_button(
                         group,
-                        "Disconnect",
-                        MultiplayerButtonAction::Disconnect,
+                        "Cancel",
+                        MultiplayerButtonAction::Cancel,
                         &CONN_BUTTON_STYLE,
                     );
                 });
 
-            // Back button (always visible in connection phase)
-            spawn_button(
-                parent,
-                "Back",
-                MultiplayerButtonAction::Back,
-                &CONN_BUTTON_STYLE,
-            );
+                // Back button (visible on initial screen, hidden during connection)
+                left.spawn((
+                    BackButton,
+                    Node::default(),
+                ))
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "Back",
+                        MultiplayerButtonAction::Back,
+                        &CONN_BUTTON_STYLE,
+                    );
+                });
+            });
+
+            // ── Right column: info ──
+            root.spawn(Node {
+                flex_grow: 1.0,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(MARGIN),
+                justify_content: JustifyContent::FlexStart,
+                ..default()
+            })
+            .with_children(|right| {
+                // Title
+                right.spawn((
+                    Text::new("Multiplayer"),
+                    TextFont {
+                        font_size: MP_TITLE_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(TEXT_COLOR),
+                    Node {
+                        margin: UiRect::bottom(Val::Px(MARGIN)),
+                        ..default()
+                    },
+                ));
+
+                // Status text
+                right.spawn((
+                    StatusText,
+                    Text::new("Choose an option to get started"),
+                    TextFont {
+                        font_size: STATUS_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(TEXT_COLOR),
+                ));
+
+                // Time limit hint
+                right.spawn((
+                    Text::new(
+                        "Codes expire ~60 seconds after both are pasted — exchange quickly!",
+                    ),
+                    TextFont {
+                        font_size: 13.0,
+                        ..default()
+                    },
+                    TextColor(Color::hsla(0.0, 0.0, 0.45, 1.0)),
+                ));
+
+                // Code display area (hidden initially)
+                right.spawn((
+                    CodeDisplayText,
+                    Text::new(""),
+                    TextFont {
+                        font_size: CODE_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(TEXT_COLOR),
+                    TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
+                    Node {
+                        display: Display::None,
+                        max_width: Val::Percent(80.0),
+                        max_height: Val::Px(80.0),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                ));
+
+                // Copy Code button (hidden initially, shown when code is ready)
+                right
+                    .spawn((
+                        CopyCodeButton,
+                        Node {
+                            display: Display::None,
+                            ..default()
+                        },
+                    ))
+                    .with_children(|wrapper| {
+                        spawn_button(
+                            wrapper,
+                            "Copy Code",
+                            MultiplayerButtonAction::CopyCode,
+                            &CONN_BUTTON_STYLE,
+                        );
+                    });
+
+                // Ping display (hidden initially)
+                right.spawn((
+                    PingText,
+                    Text::new(""),
+                    TextFont {
+                        font_size: STATUS_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(SUCCESS_COLOR),
+                    Node {
+                        display: Display::None,
+                        ..default()
+                    },
+                ));
+            });
         });
 }
 
@@ -353,12 +449,7 @@ fn spawn_wizard_select_screen(
                     );
 
                     // Detail card (multiplayer-specific bottom section)
-                    spawn_mp_detail_panel(
-                        top,
-                        initial_wizard,
-                        opponent_ready,
-                        my_ready,
-                    );
+                    spawn_mp_detail_panel(top, initial_wizard, opponent_ready, my_ready);
                 });
 
                 // Bottom: disconnect button
@@ -371,27 +462,26 @@ fn spawn_wizard_select_screen(
             });
 
             // ── Right side: grid (reuses shared grid container + card helpers) ──
-            root.spawn(grid_container_node())
-                .with_children(|grid| {
-                    for slot in 0..GRID_SLOTS {
-                        if let Some(wizard_type) = wizard_types.get(slot) {
-                            let type_name = format!("{:?}", wizard_type);
-                            if unlocked_names.contains(&type_name) {
-                                let is_selected = *wizard_type == initial_wizard;
-                                shared::spawn_wizard_card(
-                                    grid,
-                                    *wizard_type,
-                                    is_selected,
-                                    MultiplayerButtonAction::PreviewWizard(*wizard_type),
-                                );
-                            } else {
-                                shared::spawn_locked_wizard_card(grid, *wizard_type);
-                            }
+            root.spawn(grid_container_node()).with_children(|grid| {
+                for slot in 0..GRID_SLOTS {
+                    if let Some(wizard_type) = wizard_types.get(slot) {
+                        let type_name = format!("{:?}", wizard_type);
+                        if unlocked_names.contains(&type_name) {
+                            let is_selected = *wizard_type == initial_wizard;
+                            shared::spawn_wizard_card(
+                                grid,
+                                *wizard_type,
+                                is_selected,
+                                MultiplayerButtonAction::PreviewWizard(*wizard_type),
+                            );
                         } else {
-                            shared::spawn_locked_card(grid);
+                            shared::spawn_locked_wizard_card(grid, *wizard_type);
                         }
+                    } else {
+                        shared::spawn_locked_card(grid);
                     }
-                });
+                }
+            });
         });
 }
 
@@ -431,7 +521,9 @@ fn spawn_mp_detail_panel(
             // Ready/Unready button area — rebuilt dynamically when ready state changes
             bottom
                 .spawn((
-                    ReadyButtonArea { showing_ready: my_ready },
+                    ReadyButtonArea {
+                        showing_ready: my_ready,
+                    },
                     Node::default(),
                 ))
                 .with_children(|area| {
@@ -470,10 +562,7 @@ fn build_opponent_status_text(opponent_ready: bool) -> String {
 }
 
 /// Cleans up the multiplayer screen UI when exiting the state.
-pub fn cleanup(
-    mut commands: Commands,
-    screen_items: Query<Entity, With<OnMultiplayerScreen>>,
-) {
+pub fn cleanup(mut commands: Commands, screen_items: Query<Entity, With<OnMultiplayerScreen>>) {
     for entity in &screen_items {
         commands.entity(entity).despawn();
     }
@@ -513,9 +602,10 @@ pub fn button_action(
             match action {
                 MultiplayerButtonAction::HostGame => {
                     connection.role = Some(PeerRole::Host);
+                    connection.mode = ConnectionMode::Online;
                     connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::create_host_offer();
+                    crate::networking::webrtc::create_host_offer(true);
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         connection.state = ConnectionState::Failed;
@@ -530,8 +620,9 @@ pub fn button_action(
                             "Paste the host's invite code:",
                         ) {
                             connection.role = Some(PeerRole::Guest);
+                            connection.mode = ConnectionMode::Online;
                             connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_guest_answer(&code);
+                            crate::networking::webrtc::create_guest_answer(&code, true);
                         }
                     }
                     #[cfg(not(target_arch = "wasm32"))]
@@ -541,7 +632,8 @@ pub fn button_action(
                             Some("Multiplayer only available in browser".to_string());
                     }
                 }
-                MultiplayerButtonAction::CopyCode => {
+                MultiplayerButtonAction::CopyCode =>
+                {
                     #[cfg(target_arch = "wasm32")]
                     if let Some(code) = &connection.local_code {
                         crate::networking::clipboard::copy_to_clipboard(code);
@@ -550,9 +642,18 @@ pub fn button_action(
                 MultiplayerButtonAction::PasteResponse => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        if let Some(code) = crate::networking::clipboard::prompt_for_text(
-                            "Paste the response code:",
-                        ) {
+                        if connection.role == Some(PeerRole::Guest)
+                            && connection.mode == ConnectionMode::Lan
+                        {
+                            // LAN guest fallback: paste host's offer code manually
+                            if let Some(code) = crate::networking::clipboard::prompt_for_text(
+                                "Paste the host's LAN code:",
+                            ) {
+                                crate::networking::webrtc::create_guest_answer(&code, false);
+                            }
+                        } else if let Some(code) =
+                            crate::networking::clipboard::prompt_for_text("Paste the response code:")
+                        {
                             crate::networking::webrtc::process_answer(&code);
                         }
                     }
@@ -591,24 +692,58 @@ pub fn button_action(
                     } = lobby_phase.as_mut()
                     {
                         *my_ready = true;
-                        connection
-                            .outgoing_messages
-                            .push(NetworkMessage::ReadyUp);
+                        connection.outgoing_messages.push(NetworkMessage::ReadyUp);
                     }
                 }
                 MultiplayerButtonAction::Unready => {
                     if let LobbyPhase::WizardSelect { my_ready, .. } = lobby_phase.as_mut() {
                         *my_ready = false;
-                        connection
-                            .outgoing_messages
-                            .push(NetworkMessage::Unready);
+                        connection.outgoing_messages.push(NetworkMessage::Unready);
+                    }
+                }
+                MultiplayerButtonAction::LanHost => {
+                    connection.role = Some(PeerRole::Host);
+                    connection.mode = ConnectionMode::Lan;
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        crate::networking::lan_signaling::start_lan_host();
+                        crate::networking::webrtc::create_host_offer(false);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        connection.state = ConnectionState::Failed;
+                        connection.error =
+                            Some("Multiplayer only available in browser".to_string());
+                    }
+                }
+                MultiplayerButtonAction::LanJoin => {
+                    connection.role = Some(PeerRole::Guest);
+                    connection.mode = ConnectionMode::Lan;
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        crate::networking::lan_signaling::start_lan_guest();
+                        // Don't create guest answer yet — wait for BroadcastChannel
+                        // to deliver the offer automatically. Signaling buttons are
+                        // shown as a fallback for cross-machine LAN.
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        connection.state = ConnectionState::Failed;
+                        connection.error =
+                            Some("Multiplayer only available in browser".to_string());
                     }
                 }
                 MultiplayerButtonAction::Retry => {
                     let role = connection.role;
+                    let use_stun = connection.mode == ConnectionMode::Online;
                     // Clean up old connection
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
+                    {
+                        crate::networking::webrtc::disconnect();
+                        crate::networking::lan_signaling::stop_lan_signaling();
+                    }
                     connection.local_code = None;
                     connection.ping_ms = None;
                     connection.ping_timer = 0.0;
@@ -622,18 +757,27 @@ pub fn button_action(
                         Some(PeerRole::Host) => {
                             connection.state = ConnectionState::WaitingForSignaling;
                             #[cfg(target_arch = "wasm32")]
-                            crate::networking::webrtc::create_host_offer();
+                            {
+                                if !use_stun {
+                                    crate::networking::lan_signaling::start_lan_host();
+                                }
+                                crate::networking::webrtc::create_host_offer(use_stun);
+                            }
                         }
                         Some(PeerRole::Guest) => {
                             #[cfg(target_arch = "wasm32")]
                             {
-                                if let Some(code) =
+                                if !use_stun {
+                                    // LAN mode: re-start BroadcastChannel listener
+                                    crate::networking::lan_signaling::start_lan_guest();
+                                    connection.state = ConnectionState::WaitingForSignaling;
+                                } else if let Some(code) =
                                     crate::networking::clipboard::prompt_for_text(
                                         "Paste the host's invite code:",
                                     )
                                 {
                                     connection.state = ConnectionState::WaitingForSignaling;
-                                    crate::networking::webrtc::create_guest_answer(&code);
+                                    crate::networking::webrtc::create_guest_answer(&code, true);
                                 } else {
                                     // User cancelled the prompt, go back to disconnected
                                     connection.state = ConnectionState::Disconnected;
@@ -646,14 +790,36 @@ pub fn button_action(
                         }
                     }
                 }
-                MultiplayerButtonAction::Disconnect | MultiplayerButtonAction::Back => {
+                MultiplayerButtonAction::Cancel => {
+                    // Return to the base multiplayer connection screen
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
+                    {
+                        crate::networking::webrtc::disconnect();
+                        crate::networking::lan_signaling::stop_lan_signaling();
+                    }
                     connection.state = ConnectionState::Disconnected;
                     connection.role = None;
+                    connection.mode = ConnectionMode::default();
                     connection.local_code = None;
                     connection.ping_ms = None;
                     connection.error = None;
+                }
+                MultiplayerButtonAction::Disconnect => {
+                    // Disconnect and return to the main menu
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        crate::networking::webrtc::disconnect();
+                        crate::networking::lan_signaling::stop_lan_signaling();
+                    }
+                    connection.state = ConnectionState::Disconnected;
+                    connection.role = None;
+                    connection.mode = ConnectionMode::default();
+                    connection.local_code = None;
+                    connection.ping_ms = None;
+                    connection.error = None;
+                    next_menu_state.set(MenuState::Landing);
+                }
+                MultiplayerButtonAction::Back => {
                     next_menu_state.set(MenuState::Landing);
                 }
             }
@@ -670,8 +836,8 @@ pub fn process_lobby_messages(
     screen_items: Query<Entity, With<OnMultiplayerScreen>>,
 ) {
     // Check if we need to send PlayerInfo (read-only check first to avoid triggering change detection)
-    let should_send_info = connection.state == ConnectionState::Connected
-        && *lobby_phase == LobbyPhase::Connection;
+    let should_send_info =
+        connection.state == ConnectionState::Connected && *lobby_phase == LobbyPhase::Connection;
 
     // Check if there are messages to process (read-only)
     let has_messages = !connection.incoming_messages.is_empty();
@@ -685,7 +851,11 @@ pub fn process_lobby_messages(
         if should_send_info {
             let (wizard_types, spells) = load_my_unlocked_content();
 
-            info!("[Lobby] Connected! Sending PlayerInfo ({} wizard types, {} spells)", wizard_types.len(), spells.len());
+            info!(
+                "[Lobby] Connected! Sending PlayerInfo ({} wizard types, {} spells)",
+                wizard_types.len(),
+                spells.len()
+            );
             connection
                 .outgoing_messages
                 .push(NetworkMessage::PlayerInfo {
@@ -708,7 +878,10 @@ pub fn process_lobby_messages(
                         wizard_types: opponent_wt,
                         spells: _opponent_sp,
                     } => {
-                        info!("[Lobby] Received PlayerInfo from opponent ({} wizard types)", opponent_wt.len());
+                        info!(
+                            "[Lobby] Received PlayerInfo from opponent ({} wizard types)",
+                            opponent_wt.len()
+                        );
                         let (my_wt, _my_sp) = load_my_unlocked_content();
 
                         // Despawn the connection-phase UI and spawn the wizard select screen
@@ -750,17 +923,15 @@ pub fn process_lobby_messages(
                     }
                     NetworkMessage::ReadyUp => {
                         info!("[Lobby] Opponent readied up");
-                        if let LobbyPhase::WizardSelect {
-                            opponent_ready, ..
-                        } = lobby_phase.as_mut()
+                        if let LobbyPhase::WizardSelect { opponent_ready, .. } =
+                            lobby_phase.as_mut()
                         {
                             *opponent_ready = true;
                         }
                     }
                     NetworkMessage::Unready => {
-                        if let LobbyPhase::WizardSelect {
-                            opponent_ready, ..
-                        } = lobby_phase.as_mut()
+                        if let LobbyPhase::WizardSelect { opponent_ready, .. } =
+                            lobby_phase.as_mut()
                         {
                             *opponent_ready = false;
                         }
@@ -800,7 +971,12 @@ pub fn process_lobby_messages(
 
         // Check if both players are ready (host initiates)
         // This runs after processing messages so opponent's ReadyUp is handled first.
-        check_both_ready(&lobby_phase, &mut connection, &mut commands, &mut next_app_state);
+        check_both_ready(
+            &lobby_phase,
+            &mut connection,
+            &mut commands,
+            &mut next_app_state,
+        );
         return;
     }
 
@@ -809,7 +985,12 @@ pub fn process_lobby_messages(
     // already ready from a previous frame).
     if lobby_phase.is_changed() {
         let mut connection = connection;
-        check_both_ready(&lobby_phase, &mut connection, &mut commands, &mut next_app_state);
+        check_both_ready(
+            &lobby_phase,
+            &mut connection,
+            &mut commands,
+            &mut next_app_state,
+        );
     }
 }
 
@@ -829,7 +1010,10 @@ fn check_both_ready(
     } = lobby_phase
         && connection.role == Some(PeerRole::Host)
     {
-        info!("[Lobby] Both players ready! Host: {:?}, Guest: {:?}", my_wiz, opp_wiz);
+        info!(
+            "[Lobby] Both players ready! Host: {:?}, Guest: {:?}",
+            my_wiz, opp_wiz
+        );
         info!("[Lobby] I am host, sending StartGame and transitioning to MultiplayerLoading");
         let (_my_wt, my_spells) = load_my_unlocked_content();
         let session = MultiplayerSession {
@@ -840,9 +1024,7 @@ fn check_both_ready(
             guest_spells: Vec::new(),
         };
         commands.insert_resource(session);
-        connection
-            .outgoing_messages
-            .push(NetworkMessage::StartGame);
+        connection.outgoing_messages.push(NetworkMessage::StartGame);
         next_app_state.set(AppState::MultiplayerLoading);
     }
 }
@@ -859,7 +1041,11 @@ pub fn update_ui_state(
     mut ready_button_area: Query<(Entity, &Children, &mut ReadyButtonArea)>,
     mut status_query: Query<
         (&mut Text, &mut TextColor),
-        (With<StatusText>, Without<CodeDisplayText>, Without<PingText>),
+        (
+            With<StatusText>,
+            Without<CodeDisplayText>,
+            Without<PingText>,
+        ),
     >,
     mut code_query: Query<
         (&mut Text, &mut Node),
@@ -871,6 +1057,9 @@ pub fn update_ui_state(
             Without<SignalingButtons>,
             Without<ActiveConnectionButtons>,
             Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
         ),
     >,
     mut ping_query: Query<
@@ -883,6 +1072,9 @@ pub fn update_ui_state(
             Without<SignalingButtons>,
             Without<ActiveConnectionButtons>,
             Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
         ),
     >,
     mut initial_query: Query<
@@ -894,6 +1086,9 @@ pub fn update_ui_state(
             Without<CodeDisplayText>,
             Without<PingText>,
             Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
         ),
     >,
     mut signaling_query: Query<
@@ -905,6 +1100,9 @@ pub fn update_ui_state(
             Without<CodeDisplayText>,
             Without<PingText>,
             Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
         ),
     >,
     mut active_query: Query<
@@ -916,6 +1114,9 @@ pub fn update_ui_state(
             Without<CodeDisplayText>,
             Without<PingText>,
             Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
         ),
     >,
     mut paste_query: Query<
@@ -927,6 +1128,51 @@ pub fn update_ui_state(
             Without<ActiveConnectionButtons>,
             Without<CodeDisplayText>,
             Without<PingText>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
+        ),
+    >,
+    mut lan_query: Query<
+        &mut Node,
+        (
+            With<LanButtons>,
+            Without<InitialButtons>,
+            Without<SignalingButtons>,
+            Without<ActiveConnectionButtons>,
+            Without<CodeDisplayText>,
+            Without<PingText>,
+            Without<PasteResponseButton>,
+            Without<CopyCodeButton>,
+            Without<BackButton>,
+        ),
+    >,
+    mut copy_code_query: Query<
+        &mut Node,
+        (
+            With<CopyCodeButton>,
+            Without<InitialButtons>,
+            Without<SignalingButtons>,
+            Without<ActiveConnectionButtons>,
+            Without<CodeDisplayText>,
+            Without<PingText>,
+            Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<BackButton>,
+        ),
+    >,
+    mut back_query: Query<
+        &mut Node,
+        (
+            With<BackButton>,
+            Without<InitialButtons>,
+            Without<SignalingButtons>,
+            Without<ActiveConnectionButtons>,
+            Without<CodeDisplayText>,
+            Without<PingText>,
+            Without<PasteResponseButton>,
+            Without<LanButtons>,
+            Without<CopyCodeButton>,
         ),
     >,
     // Wizard select phase queries
@@ -980,6 +1226,8 @@ pub fn update_ui_state(
     }
 
     // Connection phase UI updates
+    let is_lan = connection.mode == ConnectionMode::Lan;
+
     if let Ok((mut text, mut color)) = status_query.single_mut() {
         match connection.state {
             ConnectionState::Disconnected => {
@@ -987,16 +1235,37 @@ pub fn update_ui_state(
                 color.0 = TEXT_COLOR;
             }
             ConnectionState::WaitingForSignaling => {
-                if connection.local_code.is_some() {
+                if is_lan {
+                    // LAN-specific status messages
+                    match (connection.role, connection.local_code.is_some()) {
+                        (Some(PeerRole::Host), true) => {
+                            **text = "Searching for LAN player...\n\
+                                      Code ready — copy it if the other player is on a different device."
+                                .to_string();
+                        }
+                        (Some(PeerRole::Host), false) => {
+                            **text = "Generating LAN code...".to_string();
+                        }
+                        (Some(PeerRole::Guest), false) => {
+                            **text = "Looking for a LAN host...".to_string();
+                        }
+                        (Some(PeerRole::Guest), true) => {
+                            **text = "Response ready!\n\
+                                      Share with host or wait for auto-connect."
+                                .to_string();
+                        }
+                        (None, _) => {
+                            **text = "Generating code...".to_string();
+                        }
+                    }
+                } else if connection.local_code.is_some() {
                     match connection.role {
                         Some(PeerRole::Host) => {
-                            **text =
-                                "Code ready! Copy it and send to your friend.".to_string();
+                            **text = "Code ready! Copy it and send to your friend.".to_string();
                         }
                         Some(PeerRole::Guest) => {
                             **text =
-                                "Response ready! Copy it and send back to the host."
-                                    .to_string();
+                                "Response ready! Copy it and send back to the host.".to_string();
                         }
                         None => {
                             **text = "Generating code...".to_string();
@@ -1064,6 +1333,15 @@ pub fn update_ui_state(
         };
     }
 
+    // LAN buttons follow the same visibility as initial buttons
+    for mut node in &mut lan_query {
+        node.display = if show_initial {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
     if let Ok(mut node) = signaling_query.single_mut() {
         node.display = if show_signaling {
             Display::Flex
@@ -1081,10 +1359,34 @@ pub fn update_ui_state(
     }
 
     if let Ok(mut node) = paste_query.single_mut() {
-        node.display = if show_signaling
-            && connection.local_code.is_some()
-            && connection.role == Some(PeerRole::Host)
-        {
+        // Show paste button for:
+        // - Online/LAN host when code is ready (to paste guest's response)
+        // - LAN guest when waiting (to paste host's offer as fallback for cross-machine LAN)
+        let show_paste = show_signaling
+            && ((connection.local_code.is_some() && connection.role == Some(PeerRole::Host))
+                || (is_lan
+                    && connection.role == Some(PeerRole::Guest)
+                    && connection.local_code.is_none()));
+        node.display = if show_paste {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    // Show Copy Code button in the right column when code is ready
+    if let Ok(mut node) = copy_code_query.single_mut() {
+        let show_copy = show_signaling && connection.local_code.is_some();
+        node.display = if show_copy {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    // Back button only visible on the initial screen (hidden during signaling/active)
+    if let Ok(mut node) = back_query.single_mut() {
+        node.display = if show_initial {
             Display::Flex
         } else {
             Display::None

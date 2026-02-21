@@ -71,25 +71,33 @@ thread_local! {
     static WEBRTC_STATE: RefCell<WebRtcCallbackState> = RefCell::new(WebRtcCallbackState::default());
 }
 
-/// Creates an `RtcPeerConnection` with STUN server configuration.
-fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
-    let ice_server = Object::new();
-    let urls = Array::new();
-    urls.push(&JsValue::from_str(STUN_URL));
-    Reflect::set(&ice_server, &JsValue::from_str("urls"), &urls)?;
+/// Creates an `RtcPeerConnection`, optionally with STUN server configuration.
+///
+/// When `use_stun` is true, configures Google's public STUN server for NAT traversal.
+/// When false (LAN mode), uses no ICE servers — only host candidates are generated.
+fn create_peer_connection(use_stun: bool) -> Result<RtcPeerConnection, JsValue> {
+    let pc = if use_stun {
+        let ice_server = Object::new();
+        let urls = Array::new();
+        urls.push(&JsValue::from_str(STUN_URL));
+        Reflect::set(&ice_server, &JsValue::from_str("urls"), &urls)?;
 
-    let ice_servers = Array::new();
-    ice_servers.push(&ice_server);
+        let ice_servers = Array::new();
+        ice_servers.push(&ice_server);
 
-    let config = Object::new();
-    Reflect::set(
-        &config,
-        &JsValue::from_str("iceServers"),
-        &ice_servers,
-    )?;
+        let config = Object::new();
+        Reflect::set(
+            &config,
+            &JsValue::from_str("iceServers"),
+            &ice_servers,
+        )?;
 
-    let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
-    let pc = RtcPeerConnection::new_with_configuration(&rtc_config)?;
+        let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
+        RtcPeerConnection::new_with_configuration(&rtc_config)?
+    } else {
+        // LAN mode: no ICE servers, only host candidates (local IPs)
+        RtcPeerConnection::new()?
+    };
 
     // Monitor ICE connection state changes — transition to Failed on ICE failure
     let pc_for_ice = pc.clone();
@@ -147,15 +155,14 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
 
 /// Sets up the `onicecandidate` callback that detects when ICE gathering is complete.
 ///
-/// When gathering completes, the full local description (with all ICE candidates bundled)
-/// is base64-encoded and stored as `local_code` for the user to copy.
+/// When gathering completes, the local description is encoded into a compact
+/// connection code and stored as `local_code` for the user to copy.
 fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsValue)> {
     let pc_clone = pc.clone();
     let closure = Closure::wrap(Box::new(move |event: JsValue| {
         let event: RtcPeerConnectionIceEvent = event.unchecked_into();
         // When candidate is null, ICE gathering is complete
         if event.candidate().is_none() {
-            // Use Reflect to get localDescription properties (avoids feature-gating issues)
             let desc = Reflect::get(&pc_clone, &JsValue::from_str("localDescription"))
                 .unwrap_or_default();
             if !desc.is_null() && !desc.is_undefined() {
@@ -167,8 +174,13 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
                     .unwrap_or_default()
                     .as_string()
                     .unwrap_or_default();
-                let payload = format!("{}|{}", sdp_type, sdp);
-                let encoded = base64_encode(&payload);
+                let encoded = match super::connection_code::encode(&sdp, &sdp_type) {
+                    Ok(code) => code,
+                    Err(e) => {
+                        warn!("Failed to encode connection code: {}", e);
+                        return;
+                    }
+                };
                 WEBRTC_STATE.with(|s| {
                     let mut state = s.borrow_mut();
                     state.local_code = Some(encoded);
@@ -294,16 +306,17 @@ fn setup_unreliable_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnM
 
 /// Initiates the host flow: creates an offer and waits for ICE gathering.
 ///
-/// Called from the UI when the user clicks "Host Game".
-pub fn create_host_offer() {
+/// Called from the UI when the user clicks "Host Game" or "LAN Host".
+/// When `use_stun` is false (LAN mode), no STUN server is configured.
+pub fn create_host_offer(use_stun: bool) {
     WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
         *state = WebRtcCallbackState::default();
         state.state = ConnectionState::WaitingForSignaling;
     });
 
-    wasm_bindgen_futures::spawn_local(async {
-        let result = async_create_host_offer().await;
+    wasm_bindgen_futures::spawn_local(async move {
+        let result = async_create_host_offer(use_stun).await;
         if let Err(e) = result {
             let msg = format!("{:?}", e);
             WEBRTC_STATE.with(|s| {
@@ -315,8 +328,8 @@ pub fn create_host_offer() {
     });
 }
 
-async fn async_create_host_offer() -> Result<(), JsValue> {
-    let pc = create_peer_connection()?;
+async fn async_create_host_offer(use_stun: bool) -> Result<(), JsValue> {
+    let pc = create_peer_connection(use_stun)?;
 
     // Create the reliable data channel before creating the offer
     let dc = pc.create_data_channel(DATA_CHANNEL_NAME);
@@ -357,7 +370,8 @@ async fn async_create_host_offer() -> Result<(), JsValue> {
 /// Processes the host's offer code as a guest and creates an answer.
 ///
 /// Called from the UI when the guest pastes the host's invite code.
-pub fn create_guest_answer(host_code: &str) {
+/// When `use_stun` is false (LAN mode), no STUN server is configured.
+pub fn create_guest_answer(host_code: &str, use_stun: bool) {
     let host_code = host_code.to_string();
 
     WEBRTC_STATE.with(|s| {
@@ -367,7 +381,7 @@ pub fn create_guest_answer(host_code: &str) {
     });
 
     wasm_bindgen_futures::spawn_local(async move {
-        let result = async_create_guest_answer(&host_code).await;
+        let result = async_create_guest_answer(&host_code, use_stun).await;
         if let Err(e) = result {
             let msg = format!("{:?}", e);
             WEBRTC_STATE.with(|s| {
@@ -379,20 +393,19 @@ pub fn create_guest_answer(host_code: &str) {
     });
 }
 
-async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
-    // Decode the host's offer
-    let decoded = base64_decode(host_code)
+async fn async_create_guest_answer(host_code: &str, use_stun: bool) -> Result<(), JsValue> {
+    // Decode and validate the host's offer
+    let code = super::connection_code::decode(host_code)
         .map_err(|e| JsValue::from_str(&format!("Invalid code: {}", e)))?;
 
-    let (sdp_type, sdp) = decoded
-        .split_once('|')
-        .ok_or_else(|| JsValue::from_str("Invalid code format"))?;
-
-    if sdp_type != "offer" {
+    if !code.is_offer {
         return Err(JsValue::from_str("Expected an offer code, got an answer"));
     }
 
-    let pc = create_peer_connection()?;
+    // Reconstruct SDP from validated fields (never pass raw remote SDP to browser)
+    let (_, sdp) = code.to_sdp();
+
+    let pc = create_peer_connection(use_stun)?;
 
     // Set up handler for incoming data channels from host (reliable + unreliable)
     let on_datachannel = Closure::wrap(Box::new(move |event: JsValue| {
@@ -420,9 +433,9 @@ async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
     // Setup ICE candidate handler
     let ice_closure = setup_ice_candidate_handler(&pc);
 
-    // Set remote description (host's offer)
+    // Set remote description (reconstructed from template)
     let offer_init = RtcSessionDescriptionInit::new(RtcSdpType::Offer);
-    offer_init.set_sdp(sdp);
+    offer_init.set_sdp(&sdp);
     JsFuture::from(pc.set_remote_description(&offer_init)).await?;
 
     // Create answer
@@ -466,22 +479,22 @@ pub fn process_answer(guest_code: &str) {
 }
 
 async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
-    let decoded = base64_decode(guest_code)
+    // Decode and validate the guest's answer
+    let code = super::connection_code::decode(guest_code)
         .map_err(|e| JsValue::from_str(&format!("Invalid code: {}", e)))?;
 
-    let (sdp_type, sdp) = decoded
-        .split_once('|')
-        .ok_or_else(|| JsValue::from_str("Invalid code format"))?;
-
-    if sdp_type != "answer" {
+    if code.is_offer {
         return Err(JsValue::from_str("Expected an answer code, got an offer"));
     }
+
+    // Reconstruct SDP from validated fields (never pass raw remote SDP to browser)
+    let (_, sdp) = code.to_sdp();
 
     WEBRTC_STATE.with(|s| {
         let state = s.borrow();
         if let Some(pc) = &state.peer_connection {
             let answer_init = RtcSessionDescriptionInit::new(RtcSdpType::Answer);
-            answer_init.set_sdp(sdp);
+            answer_init.set_sdp(&sdp);
             wasm_bindgen_futures::spawn_local({
                 let pc = pc.clone();
                 async move {
@@ -532,20 +545,41 @@ pub fn send_unreliable(data: &[u8]) {
 }
 
 /// Resets the WebRTC state, closing any active connections.
+///
+/// Takes channels and peer connection out of state first, then resets state,
+/// then clears handlers and closes — this avoids recursive `RefCell` borrows
+/// when `close()` synchronously fires `onclose` callbacks that access state.
 pub fn disconnect() {
-    WEBRTC_STATE.with(|s| {
+    let (dc, udc, pc) = WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
-        if let Some(dc) = state.data_channel.take() {
-            dc.close();
-        }
-        if let Some(dc) = state.unreliable_data_channel.take() {
-            dc.close();
-        }
-        if let Some(pc) = state.peer_connection.take() {
-            pc.close();
-        }
+        let dc = state.data_channel.take();
+        let udc = state.unreliable_data_channel.take();
+        let pc = state.peer_connection.take();
         *state = WebRtcCallbackState::default();
+        (dc, udc, pc)
     });
+
+    // Clear handlers and close outside the borrow scope
+    if let Some(dc) = dc {
+        dc.set_onmessage(None);
+        dc.set_onclose(None);
+        dc.set_onerror(None);
+        dc.set_onopen(None);
+        dc.close();
+    }
+    if let Some(dc) = udc {
+        dc.set_onmessage(None);
+        dc.set_onclose(None);
+        dc.set_onerror(None);
+        dc.set_onopen(None);
+        dc.close();
+    }
+    if let Some(pc) = pc {
+        pc.set_onicecandidate(None);
+        pc.set_ondatachannel(None);
+        pc.set_oniceconnectionstatechange(None);
+        pc.close();
+    }
 }
 
 /// Bevy system that syncs thread-local WebRTC callback state into the `NetworkConnection` resource.
@@ -600,18 +634,3 @@ pub fn sync_webrtc_state(connection: ResMut<NetworkConnection>) {
     });
 }
 
-// Simple base64 encode/decode using js_sys (avoids adding another dependency)
-
-fn base64_encode(input: &str) -> String {
-    let window = web_sys::window().expect("no window");
-    window
-        .btoa(input)
-        .unwrap_or_else(|_| String::from("encoding_error"))
-}
-
-fn base64_decode(input: &str) -> Result<String, String> {
-    let window = web_sys::window().expect("no window");
-    window
-        .atob(input)
-        .map_err(|_| "Failed to decode base64".to_string())
-}

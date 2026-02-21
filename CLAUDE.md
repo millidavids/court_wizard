@@ -85,6 +85,7 @@ Systems are grouped into sets with explicit ordering:
 - When adding new units or spells, check existing implementations for shared patterns
 - Extract common logic into shared functions rather than duplicating code
 - Unit-specific or spell-specific behavior should be minimal overrides on top of shared systems
+- **Multiplayer reuses single-player UI and gameplay systems** — never duplicate SP systems for MP. Instead, widen run conditions (e.g., `is_local_wizard_active`), add parallel `OnEnter` hooks for MP states, and use `Option<ResMut<NextState<...>>>` to handle both SP and MP state transitions in the same system.
 
 ## Key Systems
 

@@ -48,6 +48,15 @@ pub(super) const ERROR_COLOR: Color = Color::hsla(0.0, 0.6, 0.5, 1.0);
 /// Accent color for waiting/connecting status.
 pub(super) const WAITING_COLOR: Color = Color::hsla(45.0, 0.6, 0.5, 1.0);
 
+/// Color for section divider labels ("Online" / "Local Network").
+pub(super) const SECTION_LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+
+/// Font size for section divider labels.
+pub(super) const SECTION_LABEL_FONT_SIZE: f32 = 14.0;
+
+/// Width of the left column in the connection screen layout.
+pub(super) const CONN_LEFT_COLUMN_WIDTH: f32 = 280.0;
+
 /// Button style configuration for the multiplayer connection screen.
 pub(super) const CONN_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: BUTTON_WIDTH,

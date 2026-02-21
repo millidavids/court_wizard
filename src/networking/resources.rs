@@ -4,6 +4,17 @@ use bevy::prelude::*;
 
 use super::protocol::NetworkMessage;
 
+/// Whether the connection uses internet (STUN) or LAN (no STUN).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ConnectionMode {
+    /// Online mode: uses STUN server for NAT traversal.
+    #[default]
+    Online,
+
+    /// LAN mode: no STUN, host candidates only. Works without internet.
+    Lan,
+}
+
 /// The current state of the network connection.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ConnectionState {
@@ -66,4 +77,7 @@ pub struct NetworkConnection {
 
     /// Error message if connection failed.
     pub error: Option<String>,
+
+    /// Connection mode (Online with STUN, or LAN without).
+    pub mode: ConnectionMode,
 }
