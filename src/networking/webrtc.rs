@@ -76,6 +76,10 @@ thread_local! {
 /// When `use_stun` is true, configures Google's public STUN server for NAT traversal.
 /// When false (LAN mode), uses no ICE servers — only host candidates are generated.
 fn create_peer_connection(use_stun: bool) -> Result<RtcPeerConnection, JsValue> {
+    info!(
+        "[WebRTC] Creating peer connection (STUN: {})",
+        if use_stun { "enabled" } else { "disabled (LAN)" }
+    );
     let pc = if use_stun {
         let ice_server = Object::new();
         let urls = Array::new();
@@ -106,6 +110,14 @@ fn create_peer_connection(use_stun: bool) -> Result<RtcPeerConnection, JsValue> 
             .unwrap_or_default()
             .as_string()
             .unwrap_or_default();
+        let gathering = Reflect::get(&pc_for_ice, &JsValue::from_str("iceGatheringState"))
+            .unwrap_or_default()
+            .as_string()
+            .unwrap_or_default();
+        info!(
+            "[WebRTC] ICE connection state: '{}', gathering: '{}'",
+            state, gathering
+        );
         match state.as_str() {
             "failed" => {
                 WEBRTC_STATE.with(|s| {
@@ -161,6 +173,11 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
     let pc_clone = pc.clone();
     let closure = Closure::wrap(Box::new(move |event: JsValue| {
         let event: RtcPeerConnectionIceEvent = event.unchecked_into();
+        // Log each candidate
+        if let Some(candidate) = event.candidate() {
+            let candidate_str = candidate.candidate();
+            info!("[WebRTC] ICE candidate: {}", candidate_str);
+        }
         // When candidate is null, ICE gathering is complete
         if event.candidate().is_none() {
             let desc = Reflect::get(&pc_clone, &JsValue::from_str("localDescription"))
@@ -181,6 +198,10 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
                         return;
                     }
                 };
+                info!(
+                    "[WebRTC] ICE gathering complete, code length: {} chars",
+                    encoded.len()
+                );
                 WEBRTC_STATE.with(|s| {
                     let mut state = s.borrow_mut();
                     state.local_code = Some(encoded);
@@ -207,6 +228,7 @@ fn setup_data_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnMut(JsV
 
     // onopen
     let on_open = Closure::wrap(Box::new(move |_: JsValue| {
+        info!("[WebRTC] Data channel opened — connected!");
         WEBRTC_STATE.with(|s| {
             s.borrow_mut().state = ConnectionState::Connected;
         });
@@ -329,6 +351,7 @@ pub fn create_host_offer(use_stun: bool) {
 }
 
 async fn async_create_host_offer(use_stun: bool) -> Result<(), JsValue> {
+    info!("[WebRTC] Creating host offer...");
     let pc = create_peer_connection(use_stun)?;
 
     // Create the reliable data channel before creating the offer
@@ -394,6 +417,10 @@ pub fn create_guest_answer(host_code: &str, use_stun: bool) {
 }
 
 async fn async_create_guest_answer(host_code: &str, use_stun: bool) -> Result<(), JsValue> {
+    info!(
+        "[WebRTC] Creating guest answer (code length: {})...",
+        host_code.len()
+    );
     // Decode and validate the host's offer
     let code = super::connection_code::decode(host_code)
         .map_err(|e| JsValue::from_str(&format!("Invalid code: {}", e)))?;
@@ -404,6 +431,13 @@ async fn async_create_guest_answer(host_code: &str, use_stun: bool) -> Result<()
 
     // Reconstruct SDP from validated fields (never pass raw remote SDP to browser)
     let (_, sdp) = code.to_sdp();
+
+    // Log the candidates from the decoded offer
+    for line in sdp.lines() {
+        if line.starts_with("a=candidate:") {
+            info!("[WebRTC] Host candidate from code: {}", line);
+        }
+    }
 
     let pc = create_peer_connection(use_stun)?;
 
@@ -479,6 +513,10 @@ pub fn process_answer(guest_code: &str) {
 }
 
 async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
+    info!(
+        "[WebRTC] Processing guest answer (code length: {})...",
+        guest_code.len()
+    );
     // Decode and validate the guest's answer
     let code = super::connection_code::decode(guest_code)
         .map_err(|e| JsValue::from_str(&format!("Invalid code: {}", e)))?;
@@ -490,6 +528,13 @@ async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
     // Reconstruct SDP from validated fields (never pass raw remote SDP to browser)
     let (_, sdp) = code.to_sdp();
 
+    // Log the candidates from the decoded answer
+    for line in sdp.lines() {
+        if line.starts_with("a=candidate:") {
+            info!("[WebRTC] Guest candidate from code: {}", line);
+        }
+    }
+
     WEBRTC_STATE.with(|s| {
         let state = s.borrow();
         if let Some(pc) = &state.peer_connection {
@@ -499,12 +544,14 @@ async fn async_process_answer(guest_code: &str) -> Result<(), JsValue> {
                 let pc = pc.clone();
                 async move {
                     if let Err(e) = JsFuture::from(pc.set_remote_description(&answer_init)).await {
+                        warn!("[WebRTC] Failed to set remote description: {:?}", e);
                         WEBRTC_STATE.with(|s| {
                             let mut state = s.borrow_mut();
                             state.state = ConnectionState::Failed;
                             state.error = Some(format!("{:?}", e));
                         });
                     } else {
+                        info!("[WebRTC] Remote description set, now connecting...");
                         WEBRTC_STATE.with(|s| {
                             let mut state = s.borrow_mut();
                             if state.state != ConnectionState::Connected {
