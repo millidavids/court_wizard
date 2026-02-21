@@ -121,6 +121,10 @@ pub(super) struct LanIpEntryButtons;
 #[derive(Component)]
 pub(super) struct IpDisplayText;
 
+/// Marker for the page title text (dynamically updated to show mode/role).
+#[derive(Component)]
+pub(super) struct TitleText;
+
 /// Marker for the wizard select phase container (full screen layout).
 #[derive(Component)]
 pub(super) struct WizardSelectScreen;

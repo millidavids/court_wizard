@@ -163,7 +163,7 @@ pub(crate) struct CrystalSpawn {
 /// Unlike DisintegrateBeam (which is channeled), this is a one-shot beam
 /// that persists for a short duration then despawns.
 #[derive(Component)]
-pub(super) struct CrystalBeam {
+pub(crate) struct CrystalBeam {
     /// Origin point of the beam.
     pub origin: Vec3,
     /// Normalized direction vector.
@@ -227,7 +227,7 @@ impl CrystalBeam {
 
 /// Lightning arc visual emitted by the crystal.
 #[derive(Component)]
-pub(super) struct CrystalLightningArc {
+pub(crate) struct CrystalLightningArc {
     /// Time remaining before arc despawns.
     pub lifetime: f32,
     /// Time since arc was created (for animation).

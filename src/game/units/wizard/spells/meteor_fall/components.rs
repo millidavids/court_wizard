@@ -76,7 +76,7 @@ impl MeteorFallCircleIndicator {
 
 /// Meteor projectile component - falls from the sky and explodes on impact.
 #[derive(Component)]
-pub(in crate::game::units::wizard::spells) struct MeteorProjectile {
+pub(crate) struct MeteorProjectile {
     /// Current velocity of the projectile.
     pub velocity: Vec3,
     /// Damage dealt by the explosion.
@@ -101,7 +101,7 @@ impl MeteorProjectile {
 
 /// Meteor explosion component - visual and damage effect on impact.
 #[derive(Component)]
-pub(in crate::game::units::wizard::spells) struct MeteorExplosion {
+pub(crate) struct MeteorExplosion {
     /// Center point of the explosion.
     pub origin: Vec3,
     /// Maximum radius the explosion will reach.

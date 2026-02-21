@@ -25,6 +25,12 @@ pub struct GameSnapshot {
     pub magic_missiles: Vec<MagicMissileSnapshot>,
     /// State of every active beam (disintegrate, etc.).
     pub beams: Vec<BeamSnapshot>,
+    /// Persistent spell effects (zones, walls, black holes, explosions, etc.).
+    pub spell_effects: Vec<SpellEffectSnapshot>,
+    /// Ephemeral spell projectiles (fireballs, ice, meteors in flight).
+    pub spell_projectiles: Vec<SpellProjectileSnapshot>,
+    /// Ephemeral spell arcs/beams (chain lightning, finger of death, etc.).
+    pub spell_arcs: Vec<SpellArcSnapshot>,
 }
 
 /// Compact per-unit state (~21 bytes).
@@ -163,3 +169,125 @@ pub struct BeamSnapshot {
 /// Monotonically increasing tick counter for snapshot ordering.
 #[derive(Resource, Default)]
 pub struct SnapshotTick(pub u32);
+
+/// Identifies the type of persistent spell effect for guest spawning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum SpellEffectKind {
+    // Zones (Circle meshes, face up)
+    SpikeGrowthZone = 0,
+    HealingPlumeZone = 1,
+    EntangleGround = 2,
+    FogCloudZone = 3,
+    GreaseZone = 4,
+    GreaseFire = 5,
+    PlagueWindCloud = 6,
+    MeteorGroundFire = 7,
+    // Objects (Sphere meshes)
+    BlackHole = 10,
+    ArcaneCrystal = 11,
+    LightningRod = 12,
+    // Walls (Cuboid meshes)
+    WallOfStone = 20,
+    WallOfFire = 21,
+    // Explosions (Sphere meshes, growing scale)
+    FireballExplosion = 30,
+    MeteorExplosion = 31,
+    IceExplosion = 32,
+}
+
+impl TryFrom<u8> for SpellEffectKind {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::SpikeGrowthZone),
+            1 => Ok(Self::HealingPlumeZone),
+            2 => Ok(Self::EntangleGround),
+            3 => Ok(Self::FogCloudZone),
+            4 => Ok(Self::GreaseZone),
+            5 => Ok(Self::GreaseFire),
+            6 => Ok(Self::PlagueWindCloud),
+            7 => Ok(Self::MeteorGroundFire),
+            10 => Ok(Self::BlackHole),
+            11 => Ok(Self::ArcaneCrystal),
+            12 => Ok(Self::LightningRod),
+            20 => Ok(Self::WallOfStone),
+            21 => Ok(Self::WallOfFire),
+            30 => Ok(Self::FireballExplosion),
+            31 => Ok(Self::MeteorExplosion),
+            32 => Ok(Self::IceExplosion),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Persistent spell effect snapshot (~40 bytes).
+///
+/// Sent every frame. The guest uses it at spawn time for initial parameters
+/// and on subsequent frames only checks existence (for force-despawn).
+#[derive(Serialize, Deserialize)]
+pub struct SpellEffectSnapshot {
+    /// Stable network entity ID for lifecycle tracking.
+    pub net_id: u32,
+    /// Spell effect type (SpellEffectKind as u8).
+    pub kind: u8,
+    /// World position X.
+    pub x: f32,
+    /// World position Y (height).
+    pub y: f32,
+    /// World position Z.
+    pub z: f32,
+    /// Y-axis rotation in radians (for walls).
+    pub rotation_y: f32,
+    /// Kind-specific initialization data (radius, duration, empowerment, etc.).
+    pub extra: [f32; 4],
+}
+
+/// Ephemeral spell projectile snapshot (~13 bytes).
+///
+/// Despawned and re-spawned each frame on the guest, like arrows.
+#[derive(Serialize, Deserialize)]
+pub struct SpellProjectileSnapshot {
+    /// Projectile type: 0=Fireball, 1=IceProjectile, 2=MeteorProjectile.
+    pub kind: u8,
+    /// World position X.
+    pub x: f32,
+    /// World position Y.
+    pub y: f32,
+    /// World position Z.
+    pub z: f32,
+}
+
+/// Ephemeral spell arc/beam snapshot (~25 bytes).
+///
+/// Despawned and re-spawned each frame on the guest.
+#[derive(Serialize, Deserialize)]
+pub struct SpellArcSnapshot {
+    /// Arc type: 0=ChainLightning, 1=LightningStrike, 2=CrystalBeam,
+    /// 3=CrystalLightning, 4=FingerOfDeath, 5=LightningRodArc.
+    pub kind: u8,
+    /// Origin X.
+    pub ox: f32,
+    /// Origin Y.
+    pub oy: f32,
+    /// Origin Z.
+    pub oz: f32,
+    /// Target/end X.
+    pub tx: f32,
+    /// Target/end Y.
+    pub ty: f32,
+    /// Target/end Z.
+    pub tz: f32,
+}
+
+/// Resource holding pre-collected spell snapshot data.
+///
+/// Written by `collect_spell_snapshots` and consumed by `send_state_snapshots`.
+/// Avoids exceeding Bevy's 16-parameter limit on a single system.
+#[derive(Resource, Default)]
+pub struct SpellSnapshotData {
+    pub spell_effects: Vec<SpellEffectSnapshot>,
+    pub spell_projectiles: Vec<SpellProjectileSnapshot>,
+    pub spell_arcs: Vec<SpellArcSnapshot>,
+}

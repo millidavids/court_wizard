@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 use super::arcane_crystal::ArcaneCrystalPlugin;
 use super::banishment::BanishmentPlugin;
@@ -88,7 +88,7 @@ impl Plugin for SpellsPlugin {
                 systems::despawn_distant_projectiles,
             )
                 .chain()
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

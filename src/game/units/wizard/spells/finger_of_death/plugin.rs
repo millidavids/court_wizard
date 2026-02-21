@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::FingerOfDeathBeam;
 use super::systems::*;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 pub struct FingerOfDeathPlugin;
 
@@ -26,7 +26,7 @@ impl Plugin for FingerOfDeathPlugin {
                     .chain()
                     .run_if(any_exist::<FingerOfDeathBeam>()),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

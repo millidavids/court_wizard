@@ -86,7 +86,8 @@ pub const CASTLE_DEPTH: f32 = 2000.0;
 pub const CASTLE_HEIGHT: f32 = 1200.0;
 
 /// Wizard offset from castle position.
-pub(crate) const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 30.0, 0.0);
+/// Y offset = half sprite height so the wizard's feet rest on the castle platform.
+pub(crate) const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 132.0, 0.0);
 
 // ===== Unit Positioning =====
 

@@ -6,6 +6,8 @@ use super::components::{FogCloudIndicator, FogCloudZone};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, FogEvasionModifier};
 
@@ -251,6 +253,7 @@ fn spawn_fog_cloud_zone(
             constants::TICK_INTERVAL,
             duration,
         ),
+        NetworkedSpellEffect { kind: SpellEffectKind::FogCloudZone },
         OnGameplayScreen,
     ));
 }

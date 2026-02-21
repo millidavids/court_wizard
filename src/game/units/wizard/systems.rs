@@ -1,3 +1,4 @@
+use bevy::math::Affine2;
 use bevy::prelude::*;
 
 use super::archetypes::arcanorouter::ArcanoRouterBonuses;
@@ -5,7 +6,6 @@ use super::components::*;
 use super::constants;
 use super::messages::*;
 use super::spells::magic_missile_constants;
-use super::styles::*;
 use crate::config::{GameConfig, WizardType};
 use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::{Billboard, OnGameplayScreen};
@@ -13,26 +13,41 @@ use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::units::components::{Health, Hitbox, MovementSpeed};
 
+/// Loads the wizard sprite sheet texture.
+pub fn load_wizard_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let sprite_texture = asset_server.load("images/wizard_idle-128px-9.png");
+    commands.insert_resource(WizardAssets { sprite_texture });
+}
+
 /// Sets up the wizard when entering the InGame state.
 ///
-/// Spawns the wizard entity as a triangle on the castle platform in 3D space.
+/// Spawns the wizard entity as an animated sprite billboard on the castle platform.
 pub fn setup_wizard(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     config: Res<GameConfig>,
+    wizard_assets: Res<WizardAssets>,
 ) {
-    // Define wizard hitbox (cylinder) - this determines sprite size
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
 
-    // Spawn wizard as a triangle billboard sized to match the hitbox
-    let wizard_width = hitbox.sprite_width();
-    let wizard_height = hitbox.sprite_height();
-    let wizard_triangle = Triangle2d::new(
-        Vec2::new(0.0, wizard_height / 2.0), // Top vertex
-        Vec2::new(-wizard_width / 2.0, -wizard_height / 2.0), // Bottom-left
-        Vec2::new(wizard_width / 2.0, -wizard_height / 2.0), // Bottom-right
-    );
+    // Create a quad mesh matching the sprite aspect ratio
+    let quad_mesh = Rectangle::new(constants::WIZARD_SPRITE_WIDTH, constants::WIZARD_SPRITE_HEIGHT);
+
+    // UV transform for first frame: scale to 1/3 to show only one cell
+    let grid_size = constants::WIZARD_SPRITE_GRID_SIZE as f32;
+    let frame_scale = 1.0 / grid_size;
+    let uv_transform = Affine2::from_scale(Vec2::splat(frame_scale));
+
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(wizard_assets.sprite_texture.clone()),
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        uv_transform,
+        ..default()
+    });
 
     // Build wizard with archetype-specific stat bonuses
     let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
@@ -44,12 +59,8 @@ pub fn setup_wizard(
     }
 
     let mut entity_commands = commands.spawn((
-        Mesh3d(meshes.add(wizard_triangle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: WIZARD_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(meshes.add(quad_mesh)),
+        MeshMaterial3d(material),
         Transform::from_translation(WIZARD_POSITION),
         hitbox,
         Health::new(constants::HEALTH),
@@ -60,6 +71,7 @@ pub fn setup_wizard(
         wizard,
         magic_missile_constants::PRIMED_MAGIC_MISSILE,
         LocalWizard,
+        WizardAnimation::new(),
         Billboard,
         OnGameplayScreen,
     ));
@@ -67,6 +79,32 @@ pub fn setup_wizard(
     // Add archetype-specific components
     if config.wizard_type == WizardType::Arcanorouter {
         entity_commands.insert(ArcanoRouterBonuses::default());
+    }
+}
+
+/// Updates the wizard sprite sheet animation.
+pub fn update_wizard_animation(
+    time: Res<Time>,
+    mut wizard_query: Query<
+        (&mut WizardAnimation, &MeshMaterial3d<StandardMaterial>),
+        With<Wizard>,
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    const FRAME_SCALE: f32 = 1.0 / constants::WIZARD_SPRITE_GRID_SIZE as f32;
+    let frame_scale_vec = Vec2::splat(FRAME_SCALE);
+
+    for (mut animation, material_handle) in &mut wizard_query {
+        if animation.tick(time.delta_secs()) {
+            if let Some(material) = materials.get_mut(material_handle) {
+                let (offset_x, offset_y) = animation.uv_offset();
+                material.uv_transform = Affine2::from_scale_angle_translation(
+                    frame_scale_vec,
+                    0.0,
+                    Vec2::new(offset_x, offset_y),
+                );
+            }
+        }
     }
 }
 

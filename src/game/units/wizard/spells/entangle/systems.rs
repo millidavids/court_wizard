@@ -7,6 +7,8 @@ use super::constants;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{RootedModifier, Team};
 
@@ -237,6 +239,7 @@ fn apply_entangle(
         ))
         .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
         EntangleGroundEffect::new(root_duration),
+        NetworkedSpellEffect { kind: SpellEffectKind::EntangleGround },
         OnGameplayScreen,
     ));
 }

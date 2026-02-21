@@ -26,25 +26,33 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
     SPELL_NAME_FONT_SIZE * (1.0 - t * (1.0 - min_scale))
 }
 
-/// Spawns the action bar UI at the bottom of the screen.
+/// Spawns the action bar UI at the top-center of the screen.
 pub(super) fn spawn_action_bar(
     mut commands: Commands,
     config: Res<GameConfig>,
 ) {
+    // Full-width absolute wrapper to center the action bar horizontally
     commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(ACTION_BAR_BOTTOM_MARGIN),
-                left: Val::Px(ACTION_BAR_LEFT_MARGIN),
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(SLOT_GAP),
+                top: Val::Px(ACTION_BAR_TOP_MARGIN),
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             ActionBarRoot,
             OnGameplayScreen,
         ))
-        .with_children(|parent| {
+        .with_children(|wrapper| {
+            // Inner container with the actual slot buttons
+            wrapper
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(SLOT_GAP),
+                    ..default()
+                })
+                .with_children(|parent| {
             for slot in 0..5 {
                 let hotkey_label = &(slot + 1).to_string();
                 let spell = config.action_bar_slots[slot as usize];
@@ -107,6 +115,7 @@ pub(super) fn spawn_action_bar(
                             });
                     });
             }
+                });
         });
 }
 

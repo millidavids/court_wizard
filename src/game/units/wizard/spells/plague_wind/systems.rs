@@ -5,6 +5,8 @@ use super::components::{PlagueWindCloud, PlagueWindIndicator};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::ATTACKER_GRID_CENTER_ANGLE;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
@@ -146,6 +148,7 @@ pub fn handle_plague_wind_casting(
                                     constants::CLOUD_SPEED,
                                     direction,
                                 ),
+                                NetworkedSpellEffect { kind: SpellEffectKind::PlagueWindCloud },
                                 OnGameplayScreen,
                             ));
                         }

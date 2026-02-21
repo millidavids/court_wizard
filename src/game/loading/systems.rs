@@ -94,10 +94,13 @@ pub fn init_loading_progress(
     kill_stats.total_attackers_spawned =
         total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
 
-    // 11. Wizard (controls spells)
+    // 11. Load wizard assets (sprite sheet texture)
+    queue.tasks.push(SpawnTask::LoadWizardAssets);
+
+    // 12. Wizard (controls spells)
     queue.tasks.push(SpawnTask::Wizard);
 
-    // 12. Load cauldron assets (texture for sprite sheet)
+    // 13. Load cauldron assets (texture for sprite sheet)
     queue.tasks.push(SpawnTask::LoadCauldronAssets);
 
     // 13. Cauldron (next to wizard on castle wall)
@@ -128,7 +131,10 @@ pub fn process_spawn_queue(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
-    cauldron_assets: Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
+    optional_assets: (
+        Option<Res<crate::game::units::wizard::components::WizardAssets>>,
+        Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
+    ),
     asset_server: Res<AssetServer>,
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
@@ -207,13 +213,22 @@ pub fn process_spawn_queue(
             SpawnTask::Castle => {
                 // Castle is spawned as part of battlefield setup
             }
-            SpawnTask::Wizard => {
-                crate::game::units::wizard::systems::setup_wizard(
+            SpawnTask::LoadWizardAssets => {
+                crate::game::units::wizard::systems::load_wizard_assets(
                     commands.reborrow(),
-                    meshes,
-                    materials,
-                    Res::clone(&config),
+                    Res::clone(&asset_server),
                 );
+            }
+            SpawnTask::Wizard => {
+                if let Some(ref assets) = optional_assets.0 {
+                    crate::game::units::wizard::systems::setup_wizard(
+                        commands.reborrow(),
+                        meshes,
+                        materials,
+                        Res::clone(&config),
+                        Res::clone(&assets),
+                    );
+                }
             }
             SpawnTask::LoadCauldronAssets => {
                 crate::game::cauldron::systems::load_cauldron_assets(
@@ -222,7 +237,7 @@ pub fn process_spawn_queue(
                 );
             }
             SpawnTask::Cauldron => {
-                if let Some(assets) = cauldron_assets {
+                if let Some(ref assets) = optional_assets.1 {
                     crate::game::cauldron::systems::spawn_cauldron(
                         commands.reborrow(),
                         meshes,

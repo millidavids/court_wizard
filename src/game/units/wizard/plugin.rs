@@ -36,6 +36,10 @@ impl Plugin for WizardPlugin {
             )
             .add_systems(
                 Update,
+                systems::update_wizard_animation.run_if(is_gameplay_running),
+            )
+            .add_systems(
+                Update,
                 systems::handle_prime_spell_messages.run_if(is_local_wizard_active),
             )
             .add_systems(OnExit(InGameState::Running), systems::cancel_active_casts);

@@ -19,7 +19,7 @@ use super::components::{
     ActiveConnectionButtons, BackButton, CodeDisplayText, CopyCodeButton, InitialButtons,
     IpDisplayText, LanButtons, LanIpEntryButtons, LobbyPhase, MultiplayerButtonAction,
     OnMultiplayerScreen, PasteResponseButton, PingText, ReadyButtonArea, SignalingButtons,
-    StatusText, WizardSelectScreen,
+    StatusText, TitleText, WizardSelectScreen,
 };
 use super::constants::*;
 
@@ -220,7 +220,7 @@ pub fn setup(
                     );
                 });
 
-                // === Signaling buttons (Paste Response / Cancel) ===
+                // === Signaling buttons (Cancel) ===
                 left.spawn((
                     SignalingButtons,
                     Node {
@@ -232,22 +232,6 @@ pub fn setup(
                     },
                 ))
                 .with_children(|group| {
-                    group
-                        .spawn((
-                            PasteResponseButton,
-                            Node {
-                                display: Display::None,
-                                ..default()
-                            },
-                        ))
-                        .with_children(|wrapper| {
-                            spawn_button(
-                                wrapper,
-                                "Paste Code",
-                                MultiplayerButtonAction::PasteResponse,
-                                &CONN_BUTTON_STYLE,
-                            );
-                        });
                     spawn_button(
                         group,
                         "Cancel",
@@ -346,8 +330,9 @@ pub fn setup(
                 ..default()
             })
             .with_children(|right| {
-                // Title
+                // Title (dynamically updated to show mode/role)
                 right.spawn((
+                    TitleText,
                     Text::new("Multiplayer"),
                     TextFont {
                         font_size: MP_TITLE_FONT_SIZE,
@@ -431,6 +416,24 @@ pub fn setup(
                             wrapper,
                             "Copy Code",
                             MultiplayerButtonAction::CopyCode,
+                            &CONN_BUTTON_STYLE,
+                        );
+                    });
+
+                // Paste Guest Code button (hidden initially, shown for host when code is ready)
+                right
+                    .spawn((
+                        PasteResponseButton,
+                        Node {
+                            display: Display::None,
+                            ..default()
+                        },
+                    ))
+                    .with_children(|wrapper| {
+                        spawn_button(
+                            wrapper,
+                            "Paste Guest Code",
+                            MultiplayerButtonAction::PasteResponse,
                             &CONN_BUTTON_STYLE,
                         );
                     });
@@ -1289,7 +1292,7 @@ pub fn update_ui_state(
         ),
     >,
     // Bundle these as a nested tuple to stay within Bevy's 16-param limit
-    (mut lan_ip_entry_query, mut ip_display_query, mut detail_status): (
+    (mut lan_ip_entry_query, mut ip_display_query, mut detail_status, mut title_query): (
         Query<
             &mut Node,
             (
@@ -1321,6 +1324,7 @@ pub fn update_ui_state(
                 Without<CopyCodeButton>,
                 Without<BackButton>,
                 Without<LanIpEntryButtons>,
+                Without<TitleText>,
             ),
         >,
         Query<
@@ -1331,6 +1335,18 @@ pub fn update_ui_state(
                 Without<CodeDisplayText>,
                 Without<PingText>,
                 Without<IpDisplayText>,
+                Without<TitleText>,
+            ),
+        >,
+        Query<
+            &mut Text,
+            (
+                With<TitleText>,
+                Without<StatusText>,
+                Without<CodeDisplayText>,
+                Without<PingText>,
+                Without<IpDisplayText>,
+                Without<DetailStatus>,
             ),
         >,
     ),
@@ -1341,6 +1357,34 @@ pub fn update_ui_state(
 
     let in_wizard_select = matches!(&*lobby_phase, LobbyPhase::WizardSelect { .. });
     let in_lan_ip_entry = matches!(&*lobby_phase, LobbyPhase::LanIpEntry { .. });
+
+    // Update title to reflect current mode and role
+    if let Ok(mut title) = title_query.single_mut() {
+        let mode_str = match connection.mode {
+            ConnectionMode::Online => "Online",
+            ConnectionMode::Lan => "LAN",
+        };
+        let role_str = match connection.role {
+            Some(PeerRole::Host) => "Host",
+            Some(PeerRole::Guest) => "Guest",
+            None => "",
+        };
+
+        // Determine title based on current phase
+        if in_lan_ip_entry {
+            if let LobbyPhase::LanIpEntry { role, .. } = &*lobby_phase {
+                let lan_role = match role {
+                    PeerRole::Host => "Host",
+                    PeerRole::Guest => "Guest",
+                };
+                **title = format!("Multiplayer - LAN - {}", lan_role);
+            }
+        } else if connection.state == ConnectionState::Disconnected && connection.role.is_none() {
+            **title = "Multiplayer".to_string();
+        } else {
+            **title = format!("Multiplayer - {} - {}", mode_str, role_str);
+        }
+    }
 
     // LAN IP entry phase: update IP display and status text
     if in_lan_ip_entry {

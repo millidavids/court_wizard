@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{HealingPlumeIndicator, HealingPlumeZone};
 use super::systems;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 pub struct HealingPlumePlugin;
 
@@ -28,7 +28,7 @@ impl Plugin for HealingPlumePlugin {
                     .chain()
                     .run_if(any_exist::<HealingPlumeZone>()),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

@@ -9,7 +9,7 @@ use crate::game::units::wizard::spells::run_conditions::spell_is_primed;
 use crate::game::units::wizard::spells::run_conditions::{
     mouse_held_or_wizard_casting, mouse_left_not_consumed, spell_input_not_blocked,
 };
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 /// Plugin for the Arcane Crystal spell.
 pub struct ArcaneCrystalPlugin;
@@ -48,7 +48,7 @@ impl Plugin for ArcaneCrystalPlugin {
                     .run_if(any_with_component::<CrystalSpawn>),
             )
                 .chain()
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

@@ -948,6 +948,52 @@ impl SpellCaster {
 #[derive(Component)]
 pub struct LocalWizard;
 
+/// Tracks the wizard sprite sheet animation state.
+#[derive(Component)]
+pub struct WizardAnimation {
+    pub current_frame: usize,
+    pub elapsed: f32,
+}
+
+impl WizardAnimation {
+    pub fn new() -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: 0.0,
+        }
+    }
+
+    /// Advances the animation timer and returns true if frame changed.
+    pub fn tick(&mut self, delta: f32) -> bool {
+        self.elapsed += delta;
+        if self.elapsed >= super::constants::WIZARD_FRAME_DURATION {
+            self.elapsed -= super::constants::WIZARD_FRAME_DURATION;
+            self.current_frame =
+                (self.current_frame + 1) % super::constants::WIZARD_SPRITE_FRAMES;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Calculates UV offset for current frame in a 3x3 grid.
+    pub fn uv_offset(&self) -> (f32, f32) {
+        let grid_size = super::constants::WIZARD_SPRITE_GRID_SIZE as f32;
+        let frame_size = 1.0 / grid_size;
+
+        let row = (self.current_frame / super::constants::WIZARD_SPRITE_GRID_SIZE) as f32;
+        let col = (self.current_frame % super::constants::WIZARD_SPRITE_GRID_SIZE) as f32;
+
+        (col * frame_size, row * frame_size)
+    }
+}
+
+/// Stores the wizard sprite sheet texture handle.
+#[derive(Resource)]
+pub struct WizardAssets {
+    pub sprite_texture: Handle<Image>,
+}
+
 /// Marker for the guest's wizard entity on the host.
 ///
 /// Only added in multiplayer on the host. The host processes incoming

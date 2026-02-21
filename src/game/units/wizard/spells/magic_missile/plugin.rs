@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::MagicMissile;
 use super::systems;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 /// Plugin that handles magic missile spell casting and behavior.
 ///
@@ -33,7 +33,7 @@ impl Plugin for MagicMissilePlugin {
                     .chain()
                     .run_if(any_exist::<MagicMissile>()),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

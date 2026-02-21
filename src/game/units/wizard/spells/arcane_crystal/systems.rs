@@ -8,6 +8,8 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
@@ -331,6 +333,7 @@ fn spawn_crystal(
                 ..default()
             })),
             Transform::from_translation(crystal_pos).with_scale(Vec3::new(0.7, 1.5, 0.7)), // Vertically stretched
+            NetworkedSpellEffect { kind: SpellEffectKind::ArcaneCrystal },
             OnGameplayScreen,
         ))
         .id();

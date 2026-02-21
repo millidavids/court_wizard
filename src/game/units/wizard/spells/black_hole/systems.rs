@@ -9,7 +9,9 @@ use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::units::components::{
     Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
@@ -71,6 +73,7 @@ fn spawn_black_hole(
         Mesh3d(meshes.add(sphere)),
         MeshMaterial3d(materials.add(material)),
         Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
+        NetworkedSpellEffect { kind: SpellEffectKind::BlackHole },
         OnGameplayScreen,
     ));
 }

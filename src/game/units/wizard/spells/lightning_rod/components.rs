@@ -40,7 +40,7 @@ impl LightningRod {
 
 /// Descending lightning bolt heading toward the rod.
 #[derive(Component)]
-pub(super) struct LightningStrike {
+pub(crate) struct LightningStrike {
     /// Position the bolt is heading toward (top of the rod).
     pub target_pos: Vec3,
     /// Downward speed (units/second).
@@ -55,7 +55,7 @@ pub(super) struct LightningStrike {
 
 /// Visual lightning arc between the rod and a hit target.
 #[derive(Component)]
-pub(super) struct LightningRodArc {
+pub(crate) struct LightningRodArc {
     /// Time remaining before arc despawns (seconds).
     pub lifetime: f32,
     /// Time since arc was created (for animation).

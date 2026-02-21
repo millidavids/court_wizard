@@ -6,6 +6,8 @@ use super::components::{SpikeGrowthIndicator, SpikeGrowthZone};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::components::{
@@ -300,6 +302,7 @@ fn spawn_spike_growth_zone(
             slow_dur,
             duration,
         ),
+        NetworkedSpellEffect { kind: SpellEffectKind::SpikeGrowthZone },
         OnGameplayScreen,
     ));
 }

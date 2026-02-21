@@ -10,7 +10,9 @@ use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Handles fireball casting with left-click.
 ///
@@ -266,6 +268,7 @@ fn spawn_explosion(
             constants::DAMAGE_TYPE,
             empowerment,
         ),
+        NetworkedSpellEffect { kind: SpellEffectKind::FireballExplosion },
         OnGameplayScreen,
     ));
 }

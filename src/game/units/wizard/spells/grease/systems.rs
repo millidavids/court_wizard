@@ -12,10 +12,12 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, GreaseSlipModifier, Health, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
+use crate::networking::snapshot::SpellEffectKind;
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle_grease_casting(
@@ -383,6 +385,7 @@ pub fn check_grease_ignition(
                 .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                 .with_scale(Vec3::splat(0.01)),
                 GreaseFireOverlay { zone_entity },
+                NetworkedSpellEffect { kind: SpellEffectKind::GreaseFire },
                 OnGameplayScreen,
             ));
 
@@ -636,6 +639,7 @@ fn spawn_grease_zone(
             constants::IGNITE_BURN_TICK,
             empowerment,
         ),
+        NetworkedSpellEffect { kind: SpellEffectKind::GreaseZone },
         OnGameplayScreen,
     ));
 }

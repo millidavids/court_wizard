@@ -6,6 +6,8 @@ use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 
@@ -102,6 +104,7 @@ pub fn handle_wall_of_stone_casting(
                         sinking: false,
                         empowerment: primed_spell.empowerment,
                     },
+                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfStone },
                     OnGameplayScreen,
                 ));
 

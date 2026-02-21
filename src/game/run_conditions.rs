@@ -95,6 +95,31 @@ pub fn is_local_wizard_active(
     false
 }
 
+/// Returns true when spell visual/lifecycle systems should run.
+///
+/// Similar to `is_local_wizard_active`, this returns true for both host AND guest
+/// in multiplayer. Used as the run condition for spell plugins so that visual,
+/// lifecycle, and movement systems run on the guest (where the simulation systems
+/// are safe no-ops because their queries find no entities with Health/Team).
+pub fn is_spell_effects_active(
+    sp_state: Option<Res<State<InGameState>>>,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
+) -> bool {
+    // Single-player: InGameState::Running
+    if sp_state.is_some_and(|s| *s.get() == InGameState::Running) {
+        return true;
+    }
+    // Multiplayer: Running, Paused, or SpellBook — both host AND guest
+    mp_state.is_some_and(|s| {
+        matches!(
+            *s.get(),
+            MultiplayerGameState::Running
+                | MultiplayerGameState::Paused
+                | MultiplayerGameState::SpellBook
+        )
+    })
+}
+
 /// Returns true if the active wizard type is RuneCaster.
 pub fn is_rune_caster(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::RuneCaster

@@ -124,6 +124,8 @@ impl Plugin for MultiplayerGamePlugin {
             Update,
             (
                 host_systems::assign_network_ids,
+                host_systems::collect_spell_effect_snapshots,
+                host_systems::collect_spell_projectile_snapshots,
                 host_systems::send_state_snapshots,
             )
                 .chain()
@@ -134,7 +136,11 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Guest: Snapshot Rendering ────────────────────────────────
         app.add_systems(
             Update,
-            guest_systems::apply_state_snapshot
+            (
+                guest_systems::apply_state_snapshot,
+                guest_systems::apply_spell_snapshot,
+            )
+                .chain()
                 .run_if(in_mp_running.and(is_multiplayer_guest)),
         );
 
@@ -262,10 +268,18 @@ fn init_mp_game(
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
     commands.init_resource::<spell_commands::GuestCursorPosition>();
+    commands.init_resource::<crate::networking::snapshot::SpellSnapshotData>();
+    commands.init_resource::<super::components::SpellEffectEntityMap>();
+    commands.init_resource::<guest_systems::LatestSnapshot>();
 
     // Preload ghost spell assets for guest rendering
     let ghost_assets = super::components::GhostSpellAssets::new(&mut meshes, &mut materials);
     commands.insert_resource(ghost_assets);
+
+    // Preload spell effect assets for guest-side spell rendering
+    let spell_effect_assets =
+        super::components::SpellEffectAssets::new(&mut meshes, &mut materials);
+    commands.insert_resource(spell_effect_assets);
 }
 
 /// Cleans up multiplayer game entities and resources.
@@ -304,6 +318,10 @@ fn cleanup_mp_game(
     commands.remove_resource::<SnapshotTick>();
     commands.remove_resource::<spell_commands::GuestCursorPosition>();
     commands.remove_resource::<super::components::GhostSpellAssets>();
+    commands.remove_resource::<super::components::SpellEffectAssets>();
+    commands.remove_resource::<super::components::SpellEffectEntityMap>();
+    commands.remove_resource::<crate::networking::snapshot::SpellSnapshotData>();
+    commands.remove_resource::<guest_systems::LatestSnapshot>();
 
     // Only remove the session if this is NOT a rematch — keep connection alive for rematch
     if pending_rematch.is_none() {

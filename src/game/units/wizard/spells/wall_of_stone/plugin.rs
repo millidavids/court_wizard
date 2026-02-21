@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::WallOfStone;
 use super::systems;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 /// Plugin that handles the Wall of Stone spell.
 pub struct WallOfStonePlugin;
@@ -28,7 +28,7 @@ impl Plugin for WallOfStonePlugin {
                     .chain()
                     .run_if(any_exist::<WallOfStone>()),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

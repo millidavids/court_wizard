@@ -9,6 +9,8 @@ use super::components::{
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
@@ -250,6 +252,7 @@ fn spawn_lightning_rod(
         Mesh3d(meshes.add(cylinder)),
         MeshMaterial3d(materials.add(material)),
         Transform::from_translation(spawn_pos),
+        NetworkedSpellEffect { kind: SpellEffectKind::LightningRod },
         OnGameplayScreen,
     ));
 }

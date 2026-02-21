@@ -29,7 +29,6 @@ use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::components::*;
 use crate::game::units::wizard::constants;
 use crate::game::units::wizard::spells::magic_missile_constants;
-use crate::game::units::wizard::styles::WIZARD_COLOR;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
@@ -47,6 +46,8 @@ pub enum MpSpawnTask {
     Castle2,
     /// Initialize the pathfinding grid.
     PathfindingGrid,
+    /// Load wizard sprite sheet assets.
+    LoadWizardAssets,
     /// Spawn host's wizard at Castle 1.
     HostWizard,
     /// Spawn guest's wizard at Castle 2.
@@ -148,7 +149,8 @@ pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>)
         }
     }
 
-    // Both spawn wizards (visual for guest, gameplay for host)
+    // Load wizard sprite sheet, then spawn wizards
+    queue.tasks.push(MpSpawnTask::LoadWizardAssets);
     queue.tasks.push(MpSpawnTask::HostWizard);
     queue.tasks.push(MpSpawnTask::GuestWizard);
 
@@ -171,6 +173,8 @@ pub fn process_mp_spawn_queue(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut next_state: ResMut<NextState<AppState>>,
+    asset_server: Res<AssetServer>,
+    wizard_assets: Option<Res<WizardAssets>>,
 ) {
     // Process one task per frame
     if let Some(task) = spawn_queue.pop_next() {
@@ -199,27 +203,39 @@ pub fn process_mp_spawn_queue(
             MpSpawnTask::PathfindingGrid => {
                 crate::game::pathfinding::systems::initialize_pathfinding(commands.reborrow());
             }
-            MpSpawnTask::HostWizard => {
-                spawn_mp_wizard(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    WIZARD_POSITION,
-                    session.host_wizard,
-                    session.role,
-                    true,
+            MpSpawnTask::LoadWizardAssets => {
+                crate::game::units::wizard::systems::load_wizard_assets(
+                    commands.reborrow(),
+                    Res::clone(&asset_server),
                 );
             }
+            MpSpawnTask::HostWizard => {
+                if let Some(ref assets) = wizard_assets {
+                    spawn_mp_wizard(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        WIZARD_POSITION,
+                        session.host_wizard,
+                        session.role,
+                        true,
+                        assets,
+                    );
+                }
+            }
             MpSpawnTask::GuestWizard => {
-                spawn_mp_wizard(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    WIZARD_2_POSITION,
-                    session.guest_wizard,
-                    session.role,
-                    false,
-                );
+                if let Some(ref assets) = wizard_assets {
+                    spawn_mp_wizard(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        WIZARD_2_POSITION,
+                        session.guest_wizard,
+                        session.role,
+                        false,
+                        assets,
+                    );
+                }
             }
             MpSpawnTask::HostInfantry { unit_index } => {
                 spawn_mp_infantry(
@@ -443,15 +459,27 @@ fn spawn_mp_wizard(
     wizard_type: crate::config::WizardType,
     role: PeerRole,
     is_host_wizard: bool,
+    wizard_assets: &WizardAssets,
 ) {
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
-    let wizard_width = hitbox.sprite_width();
-    let wizard_height = hitbox.sprite_height();
-    let wizard_triangle = Triangle2d::new(
-        Vec2::new(0.0, wizard_height / 2.0),
-        Vec2::new(-wizard_width / 2.0, -wizard_height / 2.0),
-        Vec2::new(wizard_width / 2.0, -wizard_height / 2.0),
-    );
+
+    // Create a quad mesh matching the sprite aspect ratio
+    let quad_mesh = Rectangle::new(constants::WIZARD_SPRITE_WIDTH, constants::WIZARD_SPRITE_HEIGHT);
+
+    // UV transform for first frame: scale to 1/3 to show only one cell
+    let grid_size = constants::WIZARD_SPRITE_GRID_SIZE as f32;
+    let frame_scale = 1.0 / grid_size;
+    let uv_transform = bevy::math::Affine2::from_scale(Vec2::splat(frame_scale));
+
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(wizard_assets.sprite_texture.clone()),
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        uv_transform,
+        ..default()
+    });
 
     let mut wizard = Wizard::new(constants::DEFAULT_SPELL_RANGE);
     if wizard_type == crate::config::WizardType::BoringOleMage {
@@ -462,12 +490,8 @@ fn spawn_mp_wizard(
     }
 
     let mut entity_commands = commands.spawn((
-        Mesh3d(meshes.add(wizard_triangle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: WIZARD_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(meshes.add(quad_mesh)),
+        MeshMaterial3d(material),
         Transform::from_translation(position),
         hitbox,
         Health::new(constants::HEALTH),
@@ -477,6 +501,7 @@ fn spawn_mp_wizard(
         CastingState::new(),
         wizard,
         magic_missile_constants::PRIMED_MAGIC_MISSILE,
+        WizardAnimation::new(),
         Billboard,
         OnMultiplayerGameScreen,
     ));

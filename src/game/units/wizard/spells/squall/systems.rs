@@ -9,6 +9,8 @@ use super::constants::*;
 use super::styles::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
@@ -448,6 +450,7 @@ fn spawn_ice_explosion(
             .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)) // Rotate to lie flat
             .with_scale(Vec3::splat(0.1)),
         IceExplosion::new(position, max_radius, damage, empowerment),
+        NetworkedSpellEffect { kind: SpellEffectKind::IceExplosion },
         OnGameplayScreen,
     ));
 }

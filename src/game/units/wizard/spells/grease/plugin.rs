@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{GreaseIndicator, GreaseZone};
 use super::systems;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 pub struct GreasePlugin;
 
@@ -30,7 +30,7 @@ impl Plugin for GreasePlugin {
                     .chain()
                     .run_if(any_exist::<GreaseZone>()),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

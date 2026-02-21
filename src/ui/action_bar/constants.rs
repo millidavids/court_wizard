@@ -29,8 +29,5 @@ pub(super) const SLOT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_color: Color::WHITE,
 };
 
-/// Bottom margin for the action bar from screen edge.
-pub(super) const ACTION_BAR_BOTTOM_MARGIN: f32 = 20.0;
-
-/// Left margin for the action bar from screen edge.
-pub(super) const ACTION_BAR_LEFT_MARGIN: f32 = 20.0;
+/// Top margin for the action bar from screen edge.
+pub(super) const ACTION_BAR_TOP_MARGIN: f32 = 15.0;

@@ -10,6 +10,8 @@ use super::components::{
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
@@ -395,6 +397,7 @@ pub(super) fn check_meteor_collisions(
                     .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                     .with_scale(Vec3::splat(0.1)),
                 MeteorExplosion::new(pos, projectile.explosion_radius, projectile.damage),
+                NetworkedSpellEffect { kind: SpellEffectKind::MeteorExplosion },
                 OnGameplayScreen,
             ));
 
@@ -430,6 +433,7 @@ pub(super) fn check_meteor_collisions(
                     GROUND_FIRE_TICK,
                     fire_duration,
                 ),
+                NetworkedSpellEffect { kind: SpellEffectKind::MeteorGroundFire },
                 OnGameplayScreen,
             ));
 

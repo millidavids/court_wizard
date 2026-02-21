@@ -33,6 +33,7 @@ pub enum SpawnTask {
     #[allow(dead_code)]
     Castle,
     Wizard,
+    LoadWizardAssets,
     LoadCauldronAssets,
     Cauldron,
     PathfindingGrid,

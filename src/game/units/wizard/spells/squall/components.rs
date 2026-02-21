@@ -82,7 +82,7 @@ impl SquallCircleIndicator {
 
 /// Ice projectile component - falls from the sky and explodes on impact.
 #[derive(Component)]
-pub(super) struct IceProjectile {
+pub(crate) struct IceProjectile {
     /// Current velocity of the projectile.
     pub velocity: Vec3,
     /// Damage dealt by the explosion.
@@ -122,7 +122,7 @@ impl IceProjectile {
 
 /// Ice explosion component - visual and damage effect on impact.
 #[derive(Component)]
-pub(super) struct IceExplosion {
+pub(crate) struct IceExplosion {
     /// Center point of the explosion.
     pub origin: Vec3,
     /// Maximum radius the explosion will reach.
