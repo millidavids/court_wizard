@@ -54,6 +54,9 @@ pub(super) const SECTION_LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
 /// Font size for section divider labels.
 pub(super) const SECTION_LABEL_FONT_SIZE: f32 = 14.0;
 
+/// Font size for the IP address display in the LAN IP entry screen.
+pub(super) const IP_DISPLAY_FONT_SIZE: f32 = 22.0;
+
 /// Width of the left column in the connection screen layout.
 pub(super) const CONN_LEFT_COLUMN_WIDTH: f32 = 280.0;
 

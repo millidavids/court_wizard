@@ -262,6 +262,53 @@ pub(super) fn unified_save_exists() -> bool {
     matches!(storage.get_item(UNIFIED_SAVE_KEY), Ok(Some(_)))
 }
 
+// ---------------------------------------------------------------------------
+// LAN IP address storage (plain string, no obfuscation)
+// ---------------------------------------------------------------------------
+
+const LAN_IP_KEY: &str = "court_wizard_lan_ip";
+
+/// Saves the LAN IP address to localStorage.
+pub(super) fn save_lan_ip(ip: &str) -> ConfigResult<()> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    storage
+        .set_item(LAN_IP_KEY, ip)
+        .map_err(|_| std::io::Error::other("Failed to save LAN IP to localStorage"))?;
+    Ok(())
+}
+
+/// Loads the saved LAN IP address from localStorage.
+pub(super) fn load_lan_ip() -> ConfigResult<String> {
+    let window = window()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No window object"))?;
+    let storage = window
+        .local_storage()
+        .map_err(|_| std::io::Error::other("Failed to get localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "localStorage not available")
+        })?;
+
+    let data = storage
+        .get_item(LAN_IP_KEY)
+        .map_err(|_| std::io::Error::other("Failed to read LAN IP from localStorage"))?
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No LAN IP found in localStorage",
+            )
+        })?;
+
+    Ok(data)
+}
+
 /// Clears config from localStorage.
 ///
 /// # Returns

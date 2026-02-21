@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 use crate::config::WizardType;
+use crate::networking::resources::PeerRole;
 
 /// Marker component for entities that belong to the multiplayer screen.
 ///
@@ -49,11 +50,20 @@ pub(super) enum MultiplayerButtonAction {
     /// Cancel ready state.
     Unready,
 
-    /// Start hosting a LAN game (no STUN, with BroadcastChannel auto-signaling).
+    /// Start hosting a LAN game (transitions to IP entry phase).
     LanHost,
 
-    /// Start joining a LAN game (no STUN, with BroadcastChannel auto-signaling).
+    /// Start joining a LAN game (transitions to IP entry phase).
     LanJoin,
+
+    /// Confirm the entered IP and proceed to LAN signaling.
+    LanConfirmIp,
+
+    /// Open a prompt to enter or change the local IP address.
+    LanEditIp,
+
+    /// Cancel LAN IP entry and return to the initial screen.
+    LanIpCancel,
 }
 
 /// Marker for the ready/unready button container in the detail panel.
@@ -103,6 +113,14 @@ pub(super) struct LanButtons;
 #[derive(Component)]
 pub(super) struct BackButton;
 
+/// Marker for the LAN IP entry button group (Change IP / Confirm / Cancel).
+#[derive(Component)]
+pub(super) struct LanIpEntryButtons;
+
+/// Marker for the IP display text in the right column during LAN IP entry.
+#[derive(Component)]
+pub(super) struct IpDisplayText;
+
 /// Marker for the wizard select phase container (full screen layout).
 #[derive(Component)]
 pub(super) struct WizardSelectScreen;
@@ -113,6 +131,14 @@ pub(super) enum LobbyPhase {
     /// Initial connection phase — showing Host/Join buttons.
     #[default]
     Connection,
+
+    /// LAN IP entry phase — user is configuring their local IP before signaling.
+    LanIpEntry {
+        /// Whether the user intends to host or join.
+        role: PeerRole,
+        /// The currently entered/displayed IP (from saved or user entry).
+        current_ip: Option<String>,
+    },
 
     /// Connected, waiting for PlayerInfo exchange.
     WaitingForPlayerInfo,

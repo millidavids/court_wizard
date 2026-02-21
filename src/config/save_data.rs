@@ -995,3 +995,17 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
 
     info!("Legacy save migration complete");
 }
+
+// ---------------------------------------------------------------------------
+// LAN IP persistence (plain string in localStorage)
+// ---------------------------------------------------------------------------
+
+/// Loads the saved LAN IP address from localStorage.
+pub(crate) fn load_lan_ip() -> Option<String> {
+    storage::load_lan_ip().ok()
+}
+
+/// Saves the LAN IP address to localStorage for future sessions.
+pub(crate) fn save_lan_ip(ip: &str) {
+    let _ = storage::save_lan_ip(ip);
+}

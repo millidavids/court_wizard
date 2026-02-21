@@ -17,8 +17,9 @@ use crate::ui::systems::spawn_button;
 use super::super::wizard_select_shared::{self as shared};
 use super::components::{
     ActiveConnectionButtons, BackButton, CodeDisplayText, CopyCodeButton, InitialButtons,
-    LanButtons, LobbyPhase, MultiplayerButtonAction, OnMultiplayerScreen, PasteResponseButton,
-    PingText, ReadyButtonArea, SignalingButtons, StatusText, WizardSelectScreen,
+    IpDisplayText, LanButtons, LanIpEntryButtons, LobbyPhase, MultiplayerButtonAction,
+    OnMultiplayerScreen, PasteResponseButton, PingText, ReadyButtonArea, SignalingButtons,
+    StatusText, WizardSelectScreen,
 };
 use super::constants::*;
 
@@ -281,6 +282,46 @@ pub fn setup(
                     );
                 });
 
+                // === LAN IP Entry buttons (hidden initially) ===
+                left.spawn((
+                    LanIpEntryButtons,
+                    Node {
+                        display: Display::None,
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Stretch,
+                        row_gap: Val::Px(MARGIN * 0.5),
+                        ..default()
+                    },
+                ))
+                .with_children(|group| {
+                    group.spawn((
+                        Text::new("LAN Setup"),
+                        TextFont {
+                            font_size: SECTION_LABEL_FONT_SIZE,
+                            ..default()
+                        },
+                        TextColor(SECTION_LABEL_COLOR),
+                    ));
+                    spawn_button(
+                        group,
+                        "Change IP",
+                        MultiplayerButtonAction::LanEditIp,
+                        &CONN_BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        group,
+                        "Confirm & Connect",
+                        MultiplayerButtonAction::LanConfirmIp,
+                        &CONN_BUTTON_STYLE,
+                    );
+                    spawn_button(
+                        group,
+                        "Cancel",
+                        MultiplayerButtonAction::LanIpCancel,
+                        &CONN_BUTTON_STYLE,
+                    );
+                });
+
                 // Back button (visible on initial screen, hidden during connection)
                 left.spawn((
                     BackButton,
@@ -328,6 +369,21 @@ pub fn setup(
                         ..default()
                     },
                     TextColor(TEXT_COLOR),
+                ));
+
+                // IP display (hidden, shown during LAN IP entry)
+                right.spawn((
+                    IpDisplayText,
+                    Text::new(""),
+                    TextFont {
+                        font_size: IP_DISPLAY_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(TEXT_COLOR),
+                    Node {
+                        display: Display::None,
+                        ..default()
+                    },
                 ));
 
                 // Time limit hint
@@ -692,49 +748,93 @@ pub fn button_action(
                     }
                 }
                 MultiplayerButtonAction::LanHost => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        if let Some(local_ip) = crate::networking::clipboard::prompt_for_text(
-                            "Enter your local IP address (e.g. 192.168.1.5):",
-                        ) {
-                            connection.role = Some(PeerRole::Host);
-                            connection.mode = ConnectionMode::Lan;
-                            connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_host_offer(Some(&local_ip));
-                        }
-                    }
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        connection.state = ConnectionState::Failed;
-                        connection.error =
-                            Some("Multiplayer only available in browser".to_string());
-                    }
+                    let saved_ip = save_data::load_lan_ip();
+                    *lobby_phase = LobbyPhase::LanIpEntry {
+                        role: PeerRole::Host,
+                        current_ip: saved_ip,
+                    };
                 }
                 MultiplayerButtonAction::LanJoin => {
+                    let saved_ip = save_data::load_lan_ip();
+                    *lobby_phase = LobbyPhase::LanIpEntry {
+                        role: PeerRole::Guest,
+                        current_ip: saved_ip,
+                    };
+                }
+                MultiplayerButtonAction::LanEditIp => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        if let Some(local_ip) = crate::networking::clipboard::prompt_for_text(
-                            "Enter your local IP address (e.g. 192.168.1.5):",
-                        ) {
-                            if let Some(code) = crate::networking::clipboard::prompt_for_text(
-                                "Paste the host's LAN code:",
-                            ) {
-                                connection.role = Some(PeerRole::Guest);
-                                connection.mode = ConnectionMode::Lan;
-                                connection.state = ConnectionState::WaitingForSignaling;
-                                crate::networking::webrtc::create_guest_answer(
-                                    &code,
-                                    Some(&local_ip),
-                                );
+                        let current = if let LobbyPhase::LanIpEntry { current_ip, .. } =
+                            &*lobby_phase
+                        {
+                            current_ip.clone()
+                        } else {
+                            None
+                        };
+                        let prompt_msg = if let Some(ip) = &current {
+                            format!("Enter your local IP address (current: {}):", ip)
+                        } else {
+                            "Enter your local IP address (e.g. 192.168.1.5):".to_string()
+                        };
+                        if let Some(new_ip) =
+                            crate::networking::clipboard::prompt_for_text(&prompt_msg)
+                        {
+                            if let LobbyPhase::LanIpEntry { current_ip, .. } =
+                                lobby_phase.as_mut()
+                            {
+                                *current_ip = Some(new_ip);
                             }
                         }
                     }
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        connection.state = ConnectionState::Failed;
-                        connection.error =
-                            Some("Multiplayer only available in browser".to_string());
+                }
+                MultiplayerButtonAction::LanConfirmIp => {
+                    if let LobbyPhase::LanIpEntry { role, current_ip } = lobby_phase.clone() {
+                        if let Some(ip) = &current_ip {
+                            // Save IP for future sessions
+                            save_data::save_lan_ip(ip);
+
+                            match role {
+                                PeerRole::Host => {
+                                    connection.role = Some(PeerRole::Host);
+                                    connection.mode = ConnectionMode::Lan;
+                                    connection.state = ConnectionState::WaitingForSignaling;
+                                    #[cfg(target_arch = "wasm32")]
+                                    crate::networking::webrtc::create_host_offer(Some(ip));
+                                    *lobby_phase = LobbyPhase::Connection;
+                                }
+                                PeerRole::Guest => {
+                                    #[cfg(target_arch = "wasm32")]
+                                    {
+                                        if let Some(code) =
+                                            crate::networking::clipboard::prompt_for_text(
+                                                "Paste the host's LAN code:",
+                                            )
+                                        {
+                                            connection.role = Some(PeerRole::Guest);
+                                            connection.mode = ConnectionMode::Lan;
+                                            connection.state =
+                                                ConnectionState::WaitingForSignaling;
+                                            crate::networking::webrtc::create_guest_answer(
+                                                &code,
+                                                Some(ip),
+                                            );
+                                            *lobby_phase = LobbyPhase::Connection;
+                                        }
+                                    }
+                                }
+                            }
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                connection.state = ConnectionState::Failed;
+                                connection.error =
+                                    Some("Multiplayer only available in browser".to_string());
+                                *lobby_phase = LobbyPhase::Connection;
+                            }
+                        }
                     }
+                }
+                MultiplayerButtonAction::LanIpCancel => {
+                    *lobby_phase = LobbyPhase::Connection;
                 }
                 MultiplayerButtonAction::Retry => {
                     let role = connection.role;
@@ -751,67 +851,42 @@ pub fn button_action(
                     connection.incoming_unreliable.clear();
                     connection.outgoing_unreliable.clear();
 
-                    match role {
-                        Some(PeerRole::Host) => {
-                            #[cfg(target_arch = "wasm32")]
-                            {
-                                let local_ip = if is_lan {
-                                    crate::networking::clipboard::prompt_for_text(
-                                        "Enter your local IP address (e.g. 192.168.1.5):",
-                                    )
-                                } else {
-                                    None
-                                };
-                                // For LAN, only proceed if user entered an IP (didn't cancel)
-                                if !is_lan || local_ip.is_some() {
-                                    connection.state = ConnectionState::WaitingForSignaling;
-                                    crate::networking::webrtc::create_host_offer(
-                                        local_ip.as_deref(),
-                                    );
-                                } else {
-                                    connection.state = ConnectionState::Disconnected;
-                                    connection.role = None;
-                                }
+                    if is_lan {
+                        // LAN retry goes back to IP entry with saved IP
+                        let saved_ip = save_data::load_lan_ip();
+                        connection.state = ConnectionState::Disconnected;
+                        *lobby_phase = LobbyPhase::LanIpEntry {
+                            role: role.unwrap_or(PeerRole::Host),
+                            current_ip: saved_ip,
+                        };
+                    } else {
+                        match role {
+                            Some(PeerRole::Host) => {
+                                connection.state = ConnectionState::WaitingForSignaling;
+                                #[cfg(target_arch = "wasm32")]
+                                crate::networking::webrtc::create_host_offer(None);
                             }
-                        }
-                        Some(PeerRole::Guest) => {
-                            #[cfg(target_arch = "wasm32")]
-                            {
-                                let local_ip = if is_lan {
-                                    crate::networking::clipboard::prompt_for_text(
-                                        "Enter your local IP address (e.g. 192.168.1.5):",
-                                    )
-                                } else {
-                                    None
-                                };
-                                // For LAN, only proceed if user entered an IP (didn't cancel)
-                                if !is_lan || local_ip.is_some() {
-                                    let prompt = if is_lan {
-                                        "Paste the host's LAN code:"
-                                    } else {
-                                        "Paste the host's invite code:"
-                                    };
+                            Some(PeerRole::Guest) => {
+                                #[cfg(target_arch = "wasm32")]
+                                {
                                     if let Some(code) =
-                                        crate::networking::clipboard::prompt_for_text(prompt)
+                                        crate::networking::clipboard::prompt_for_text(
+                                            "Paste the host's invite code:",
+                                        )
                                     {
                                         connection.state = ConnectionState::WaitingForSignaling;
                                         crate::networking::webrtc::create_guest_answer(
-                                            &code,
-                                            local_ip.as_deref(),
+                                            &code, None,
                                         );
                                     } else {
-                                        // User cancelled the prompt, go back to disconnected
                                         connection.state = ConnectionState::Disconnected;
                                         connection.role = None;
                                     }
-                                } else {
-                                    connection.state = ConnectionState::Disconnected;
-                                    connection.role = None;
                                 }
                             }
-                        }
-                        None => {
-                            connection.state = ConnectionState::Disconnected;
+                            None => {
+                                connection.state = ConnectionState::Disconnected;
+                            }
                         }
                     }
                 }
@@ -1064,6 +1139,7 @@ pub fn update_ui_state(
             With<StatusText>,
             Without<CodeDisplayText>,
             Without<PingText>,
+            Without<IpDisplayText>,
         ),
     >,
     mut code_query: Query<
@@ -1079,6 +1155,8 @@ pub fn update_ui_state(
             Without<LanButtons>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut ping_query: Query<
@@ -1094,6 +1172,8 @@ pub fn update_ui_state(
             Without<LanButtons>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut initial_query: Query<
@@ -1108,6 +1188,8 @@ pub fn update_ui_state(
             Without<LanButtons>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut signaling_query: Query<
@@ -1122,6 +1204,8 @@ pub fn update_ui_state(
             Without<LanButtons>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut active_query: Query<
@@ -1136,6 +1220,8 @@ pub fn update_ui_state(
             Without<LanButtons>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut paste_query: Query<
@@ -1150,6 +1236,8 @@ pub fn update_ui_state(
             Without<LanButtons>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut lan_query: Query<
@@ -1164,6 +1252,8 @@ pub fn update_ui_state(
             Without<PasteResponseButton>,
             Without<CopyCodeButton>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut copy_code_query: Query<
@@ -1178,6 +1268,8 @@ pub fn update_ui_state(
             Without<PasteResponseButton>,
             Without<LanButtons>,
             Without<BackButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
     mut back_query: Query<
@@ -1192,24 +1284,91 @@ pub fn update_ui_state(
             Without<PasteResponseButton>,
             Without<LanButtons>,
             Without<CopyCodeButton>,
+            Without<LanIpEntryButtons>,
+            Without<IpDisplayText>,
         ),
     >,
-    // Wizard select phase queries
-    mut detail_status: Query<
-        (&mut Text, &mut TextColor),
-        (
-            With<DetailStatus>,
-            Without<StatusText>,
-            Without<CodeDisplayText>,
-            Without<PingText>,
-        ),
-    >,
+    // Bundle these as a nested tuple to stay within Bevy's 16-param limit
+    (mut lan_ip_entry_query, mut ip_display_query, mut detail_status): (
+        Query<
+            &mut Node,
+            (
+                With<LanIpEntryButtons>,
+                Without<InitialButtons>,
+                Without<SignalingButtons>,
+                Without<ActiveConnectionButtons>,
+                Without<CodeDisplayText>,
+                Without<PingText>,
+                Without<PasteResponseButton>,
+                Without<LanButtons>,
+                Without<CopyCodeButton>,
+                Without<BackButton>,
+                Without<IpDisplayText>,
+            ),
+        >,
+        Query<
+            (&mut Text, &mut Node),
+            (
+                With<IpDisplayText>,
+                Without<StatusText>,
+                Without<CodeDisplayText>,
+                Without<PingText>,
+                Without<InitialButtons>,
+                Without<SignalingButtons>,
+                Without<ActiveConnectionButtons>,
+                Without<PasteResponseButton>,
+                Without<LanButtons>,
+                Without<CopyCodeButton>,
+                Without<BackButton>,
+                Without<LanIpEntryButtons>,
+            ),
+        >,
+        Query<
+            (&mut Text, &mut TextColor),
+            (
+                With<DetailStatus>,
+                Without<StatusText>,
+                Without<CodeDisplayText>,
+                Without<PingText>,
+                Without<IpDisplayText>,
+            ),
+        >,
+    ),
 ) {
     if !connection.is_changed() && !lobby_phase.is_changed() {
         return;
     }
 
     let in_wizard_select = matches!(&*lobby_phase, LobbyPhase::WizardSelect { .. });
+    let in_lan_ip_entry = matches!(&*lobby_phase, LobbyPhase::LanIpEntry { .. });
+
+    // LAN IP entry phase: update IP display and status text
+    if in_lan_ip_entry {
+        if let LobbyPhase::LanIpEntry { role, current_ip } = &*lobby_phase {
+            let role_str = match role {
+                PeerRole::Host => "Host",
+                PeerRole::Guest => "Join",
+            };
+            if let Ok((mut text, mut node)) = ip_display_query.single_mut() {
+                if let Some(ip) = current_ip {
+                    **text = format!("LAN {} — Your IP: {}", role_str, ip);
+                } else {
+                    **text = format!("LAN {} — No IP set", role_str);
+                }
+                node.display = Display::Flex;
+            }
+            if let Ok((mut text, mut color)) = status_query.single_mut() {
+                if current_ip.is_some() {
+                    **text = "IP configured. Click 'Confirm & Connect' to proceed.".to_string();
+                } else {
+                    **text = "Click 'Change IP' to enter your local IP address.".to_string();
+                }
+                color.0 = TEXT_COLOR;
+            }
+        }
+    } else if let Ok((_, mut node)) = ip_display_query.single_mut() {
+        node.display = Display::None;
+    }
 
     // In wizard select phase, update opponent status text + ready/unready button
     if in_wizard_select {
@@ -1244,8 +1403,8 @@ pub fn update_ui_state(
         return;
     }
 
-    // Connection phase UI updates
-    if let Ok((mut text, mut color)) = status_query.single_mut() {
+    // Connection phase UI updates (skip if in LAN IP entry — that phase sets its own status)
+    if !in_lan_ip_entry && let Ok((mut text, mut color)) = status_query.single_mut() {
         match connection.state {
             ConnectionState::Disconnected => {
                 **text = "Choose an option to get started".to_string();
@@ -1309,14 +1468,18 @@ pub fn update_ui_state(
     }
 
     // Toggle connection-phase button groups
-    let show_initial = connection.state == ConnectionState::Disconnected;
-    let show_signaling = connection.state == ConnectionState::WaitingForSignaling;
+    let show_initial =
+        connection.state == ConnectionState::Disconnected && !in_lan_ip_entry;
+    let show_signaling =
+        connection.state == ConnectionState::WaitingForSignaling && !in_lan_ip_entry;
     let show_active = matches!(
         connection.state,
         ConnectionState::Connecting | ConnectionState::Connected | ConnectionState::Failed
     ) && !matches!(
         &*lobby_phase,
-        LobbyPhase::WaitingForPlayerInfo | LobbyPhase::WizardSelect { .. }
+        LobbyPhase::WaitingForPlayerInfo
+            | LobbyPhase::WizardSelect { .. }
+            | LobbyPhase::LanIpEntry { .. }
     );
 
     if let Ok(mut node) = initial_query.single_mut() {
@@ -1368,6 +1531,15 @@ pub fn update_ui_state(
     if let Ok(mut node) = copy_code_query.single_mut() {
         let show_copy = show_signaling && connection.local_code.is_some();
         node.display = if show_copy {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    // LAN IP entry buttons
+    if let Ok(mut node) = lan_ip_entry_query.single_mut() {
+        node.display = if in_lan_ip_entry {
             Display::Flex
         } else {
             Display::None
