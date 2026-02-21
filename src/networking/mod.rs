@@ -9,8 +9,6 @@ pub(crate) mod clipboard;
 mod connection_code;
 mod constants;
 pub(crate) mod entity_map;
-#[cfg(target_arch = "wasm32")]
-pub(crate) mod lan_signaling;
 mod messages;
 mod plugin;
 pub(crate) mod protocol;

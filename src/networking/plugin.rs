@@ -6,10 +6,7 @@ use bevy::prelude::*;
 
 use super::constants::PING_INTERVAL_SECS;
 use super::protocol::NetworkMessage;
-use super::resources::{ConnectionState, NetworkConnection, PeerRole};
-
-#[cfg(target_arch = "wasm32")]
-use super::resources::ConnectionMode;
+use super::resources::{ConnectionState, NetworkConnection};
 
 /// Plugin that manages P2P networking via WebRTC.
 ///
@@ -29,7 +26,6 @@ impl Plugin for NetworkingPlugin {
                 Update,
                 (
                     super::webrtc::sync_webrtc_state,
-                    poll_lan_signaling,
                     send_outgoing_messages,
                     send_outgoing_unreliable,
                     send_ping,
@@ -45,47 +41,6 @@ impl Plugin for NetworkingPlugin {
 /// Run condition: returns true when the network connection is not disconnected.
 fn is_networking_active(connection: Res<NetworkConnection>) -> bool {
     connection.state != ConnectionState::Disconnected
-}
-
-/// Polls the BroadcastChannel for LAN auto-signaling.
-///
-/// In LAN mode, automatically exchanges offer/answer codes between tabs on
-/// the same machine. For different LAN machines, this is a no-op and the
-/// manual copy-paste fallback is used.
-#[cfg(target_arch = "wasm32")]
-fn poll_lan_signaling(connection: Res<NetworkConnection>) {
-    if connection.mode != ConnectionMode::Lan {
-        return;
-    }
-
-    // HOST: broadcast offer when local_code ready, check for auto-received answers
-    if connection.role == Some(PeerRole::Host)
-        && connection.state == ConnectionState::WaitingForSignaling
-        && connection.local_code.is_some()
-    {
-        super::lan_signaling::broadcast_offer(connection.local_code.as_ref().unwrap());
-        if let Some(answer) = super::lan_signaling::take_received_answer() {
-            super::webrtc::process_answer(&answer);
-        }
-    }
-
-    // GUEST: check for auto-received offers (before we have our own code)
-    if connection.role == Some(PeerRole::Guest)
-        && connection.state == ConnectionState::WaitingForSignaling
-        && connection.local_code.is_none()
-    {
-        if let Some(offer) = super::lan_signaling::take_received_offer() {
-            super::webrtc::create_guest_answer(&offer, false);
-        }
-    }
-
-    // GUEST: broadcast answer when local_code ready
-    if connection.role == Some(PeerRole::Guest)
-        && connection.state == ConnectionState::WaitingForSignaling
-        && connection.local_code.is_some()
-    {
-        super::lan_signaling::broadcast_answer(connection.local_code.as_ref().unwrap());
-    }
 }
 
 /// Serializes and sends all queued outgoing messages over the data channel.

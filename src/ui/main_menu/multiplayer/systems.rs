@@ -242,7 +242,7 @@ pub fn setup(
                         .with_children(|wrapper| {
                             spawn_button(
                                 wrapper,
-                                "Paste Response",
+                                "Paste Code",
                                 MultiplayerButtonAction::PasteResponse,
                                 &CONN_BUTTON_STYLE,
                             );
@@ -639,23 +639,13 @@ pub fn button_action(
                         crate::networking::clipboard::copy_to_clipboard(code);
                     }
                 }
-                MultiplayerButtonAction::PasteResponse => {
+                MultiplayerButtonAction::PasteResponse =>
+                {
                     #[cfg(target_arch = "wasm32")]
+                    if let Some(code) =
+                        crate::networking::clipboard::prompt_for_text("Paste the response code:")
                     {
-                        if connection.role == Some(PeerRole::Guest)
-                            && connection.mode == ConnectionMode::Lan
-                        {
-                            // LAN guest fallback: paste host's offer code manually
-                            if let Some(code) = crate::networking::clipboard::prompt_for_text(
-                                "Paste the host's LAN code:",
-                            ) {
-                                crate::networking::webrtc::create_guest_answer(&code, false);
-                            }
-                        } else if let Some(code) =
-                            crate::networking::clipboard::prompt_for_text("Paste the response code:")
-                        {
-                            crate::networking::webrtc::process_answer(&code);
-                        }
+                        crate::networking::webrtc::process_answer(&code);
                     }
                 }
                 MultiplayerButtonAction::PreviewWizard(wizard_type) => {
@@ -706,10 +696,7 @@ pub fn button_action(
                     connection.mode = ConnectionMode::Lan;
                     connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
-                    {
-                        crate::networking::lan_signaling::start_lan_host();
-                        crate::networking::webrtc::create_host_offer(false);
-                    }
+                    crate::networking::webrtc::create_host_offer(false);
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         connection.state = ConnectionState::Failed;
@@ -718,15 +705,16 @@ pub fn button_action(
                     }
                 }
                 MultiplayerButtonAction::LanJoin => {
-                    connection.role = Some(PeerRole::Guest);
-                    connection.mode = ConnectionMode::Lan;
-                    connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
                     {
-                        crate::networking::lan_signaling::start_lan_guest();
-                        // Don't create guest answer yet — wait for BroadcastChannel
-                        // to deliver the offer automatically. Signaling buttons are
-                        // shown as a fallback for cross-machine LAN.
+                        if let Some(code) = crate::networking::clipboard::prompt_for_text(
+                            "Paste the host's LAN code:",
+                        ) {
+                            connection.role = Some(PeerRole::Guest);
+                            connection.mode = ConnectionMode::Lan;
+                            connection.state = ConnectionState::WaitingForSignaling;
+                            crate::networking::webrtc::create_guest_answer(&code, false);
+                        }
                     }
                     #[cfg(not(target_arch = "wasm32"))]
                     {
@@ -740,10 +728,7 @@ pub fn button_action(
                     let use_stun = connection.mode == ConnectionMode::Online;
                     // Clean up old connection
                     #[cfg(target_arch = "wasm32")]
-                    {
-                        crate::networking::webrtc::disconnect();
-                        crate::networking::lan_signaling::stop_lan_signaling();
-                    }
+                    crate::networking::webrtc::disconnect();
                     connection.local_code = None;
                     connection.ping_ms = None;
                     connection.ping_timer = 0.0;
@@ -757,27 +742,23 @@ pub fn button_action(
                         Some(PeerRole::Host) => {
                             connection.state = ConnectionState::WaitingForSignaling;
                             #[cfg(target_arch = "wasm32")]
-                            {
-                                if !use_stun {
-                                    crate::networking::lan_signaling::start_lan_host();
-                                }
-                                crate::networking::webrtc::create_host_offer(use_stun);
-                            }
+                            crate::networking::webrtc::create_host_offer(use_stun);
                         }
                         Some(PeerRole::Guest) => {
                             #[cfg(target_arch = "wasm32")]
                             {
-                                if !use_stun {
-                                    // LAN mode: re-start BroadcastChannel listener
-                                    crate::networking::lan_signaling::start_lan_guest();
-                                    connection.state = ConnectionState::WaitingForSignaling;
-                                } else if let Some(code) =
-                                    crate::networking::clipboard::prompt_for_text(
-                                        "Paste the host's invite code:",
-                                    )
+                                let prompt = if use_stun {
+                                    "Paste the host's invite code:"
+                                } else {
+                                    "Paste the host's LAN code:"
+                                };
+                                if let Some(code) =
+                                    crate::networking::clipboard::prompt_for_text(prompt)
                                 {
                                     connection.state = ConnectionState::WaitingForSignaling;
-                                    crate::networking::webrtc::create_guest_answer(&code, true);
+                                    crate::networking::webrtc::create_guest_answer(
+                                        &code, use_stun,
+                                    );
                                 } else {
                                     // User cancelled the prompt, go back to disconnected
                                     connection.state = ConnectionState::Disconnected;
@@ -793,10 +774,7 @@ pub fn button_action(
                 MultiplayerButtonAction::Cancel => {
                     // Return to the base multiplayer connection screen
                     #[cfg(target_arch = "wasm32")]
-                    {
-                        crate::networking::webrtc::disconnect();
-                        crate::networking::lan_signaling::stop_lan_signaling();
-                    }
+                    crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
                     connection.role = None;
                     connection.mode = ConnectionMode::default();
@@ -807,10 +785,7 @@ pub fn button_action(
                 MultiplayerButtonAction::Disconnect => {
                     // Disconnect and return to the main menu
                     #[cfg(target_arch = "wasm32")]
-                    {
-                        crate::networking::webrtc::disconnect();
-                        crate::networking::lan_signaling::stop_lan_signaling();
-                    }
+                    crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
                     connection.role = None;
                     connection.mode = ConnectionMode::default();
@@ -1226,8 +1201,6 @@ pub fn update_ui_state(
     }
 
     // Connection phase UI updates
-    let is_lan = connection.mode == ConnectionMode::Lan;
-
     if let Ok((mut text, mut color)) = status_query.single_mut() {
         match connection.state {
             ConnectionState::Disconnected => {
@@ -1235,30 +1208,7 @@ pub fn update_ui_state(
                 color.0 = TEXT_COLOR;
             }
             ConnectionState::WaitingForSignaling => {
-                if is_lan {
-                    // LAN-specific status messages
-                    match (connection.role, connection.local_code.is_some()) {
-                        (Some(PeerRole::Host), true) => {
-                            **text = "Searching for LAN player...\n\
-                                      Code ready — copy it if the other player is on a different device."
-                                .to_string();
-                        }
-                        (Some(PeerRole::Host), false) => {
-                            **text = "Generating LAN code...".to_string();
-                        }
-                        (Some(PeerRole::Guest), false) => {
-                            **text = "Looking for a LAN host...".to_string();
-                        }
-                        (Some(PeerRole::Guest), true) => {
-                            **text = "Response ready!\n\
-                                      Share with host or wait for auto-connect."
-                                .to_string();
-                        }
-                        (None, _) => {
-                            **text = "Generating code...".to_string();
-                        }
-                    }
-                } else if connection.local_code.is_some() {
+                if connection.local_code.is_some() {
                     match connection.role {
                         Some(PeerRole::Host) => {
                             **text = "Code ready! Copy it and send to your friend.".to_string();
@@ -1359,14 +1309,10 @@ pub fn update_ui_state(
     }
 
     if let Ok(mut node) = paste_query.single_mut() {
-        // Show paste button for:
-        // - Online/LAN host when code is ready (to paste guest's response)
-        // - LAN guest when waiting (to paste host's offer as fallback for cross-machine LAN)
+        // Show paste button for host when code is ready (to paste guest's response)
         let show_paste = show_signaling
-            && ((connection.local_code.is_some() && connection.role == Some(PeerRole::Host))
-                || (is_lan
-                    && connection.role == Some(PeerRole::Guest)
-                    && connection.local_code.is_none()));
+            && connection.local_code.is_some()
+            && connection.role == Some(PeerRole::Host);
         node.display = if show_paste {
             Display::Flex
         } else {

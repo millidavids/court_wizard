@@ -14,6 +14,3 @@ pub(super) const PING_INTERVAL_SECS: f32 = 2.0;
 
 /// Format version for the compact binary connection code.
 pub(super) const CONNECTION_CODE_VERSION: u8 = 1;
-
-/// Name of the BroadcastChannel used for same-machine LAN signaling.
-pub(super) const LAN_BROADCAST_CHANNEL: &str = "court_wizard_lan";
