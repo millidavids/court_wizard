@@ -605,7 +605,7 @@ pub fn button_action(
                     connection.mode = ConnectionMode::Online;
                     connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::create_host_offer(true);
+                    crate::networking::webrtc::create_host_offer();
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         connection.state = ConnectionState::Failed;
@@ -622,7 +622,7 @@ pub fn button_action(
                             connection.role = Some(PeerRole::Guest);
                             connection.mode = ConnectionMode::Online;
                             connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_guest_answer(&code, true);
+                            crate::networking::webrtc::create_guest_answer(&code);
                         }
                     }
                     #[cfg(not(target_arch = "wasm32"))]
@@ -696,7 +696,7 @@ pub fn button_action(
                     connection.mode = ConnectionMode::Lan;
                     connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::create_host_offer(false);
+                    crate::networking::webrtc::create_host_offer();
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         connection.state = ConnectionState::Failed;
@@ -713,7 +713,7 @@ pub fn button_action(
                             connection.role = Some(PeerRole::Guest);
                             connection.mode = ConnectionMode::Lan;
                             connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_guest_answer(&code, false);
+                            crate::networking::webrtc::create_guest_answer(&code);
                         }
                     }
                     #[cfg(not(target_arch = "wasm32"))]
@@ -725,7 +725,7 @@ pub fn button_action(
                 }
                 MultiplayerButtonAction::Retry => {
                     let role = connection.role;
-                    let use_stun = connection.mode == ConnectionMode::Online;
+                    let is_lan = connection.mode == ConnectionMode::Lan;
                     // Clean up old connection
                     #[cfg(target_arch = "wasm32")]
                     crate::networking::webrtc::disconnect();
@@ -742,23 +742,21 @@ pub fn button_action(
                         Some(PeerRole::Host) => {
                             connection.state = ConnectionState::WaitingForSignaling;
                             #[cfg(target_arch = "wasm32")]
-                            crate::networking::webrtc::create_host_offer(use_stun);
+                            crate::networking::webrtc::create_host_offer();
                         }
                         Some(PeerRole::Guest) => {
                             #[cfg(target_arch = "wasm32")]
                             {
-                                let prompt = if use_stun {
-                                    "Paste the host's invite code:"
-                                } else {
+                                let prompt = if is_lan {
                                     "Paste the host's LAN code:"
+                                } else {
+                                    "Paste the host's invite code:"
                                 };
                                 if let Some(code) =
                                     crate::networking::clipboard::prompt_for_text(prompt)
                                 {
                                     connection.state = ConnectionState::WaitingForSignaling;
-                                    crate::networking::webrtc::create_guest_answer(
-                                        &code, use_stun,
-                                    );
+                                    crate::networking::webrtc::create_guest_answer(&code);
                                 } else {
                                     // User cancelled the prompt, go back to disconnected
                                     connection.state = ConnectionState::Disconnected;

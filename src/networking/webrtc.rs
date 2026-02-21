@@ -71,37 +71,30 @@ thread_local! {
     static WEBRTC_STATE: RefCell<WebRtcCallbackState> = RefCell::new(WebRtcCallbackState::default());
 }
 
-/// Creates an `RtcPeerConnection`, optionally with STUN server configuration.
+/// Creates an `RtcPeerConnection` with STUN server configuration.
 ///
-/// When `use_stun` is true, configures Google's public STUN server for NAT traversal.
-/// When false (LAN mode), uses no ICE servers — only host candidates are generated.
-fn create_peer_connection(use_stun: bool) -> Result<RtcPeerConnection, JsValue> {
-    info!(
-        "[WebRTC] Creating peer connection (STUN: {})",
-        if use_stun { "enabled" } else { "disabled (LAN)" }
-    );
-    let pc = if use_stun {
-        let ice_server = Object::new();
-        let urls = Array::new();
-        urls.push(&JsValue::from_str(STUN_URL));
-        Reflect::set(&ice_server, &JsValue::from_str("urls"), &urls)?;
+/// Always uses Google's public STUN server. This is needed even for LAN connections
+/// because modern browsers hide local IPs behind mDNS hostnames — STUN forces the
+/// browser to also generate candidates with real IP addresses.
+fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
+    info!("[WebRTC] Creating peer connection");
+    let ice_server = Object::new();
+    let urls = Array::new();
+    urls.push(&JsValue::from_str(STUN_URL));
+    Reflect::set(&ice_server, &JsValue::from_str("urls"), &urls)?;
 
-        let ice_servers = Array::new();
-        ice_servers.push(&ice_server);
+    let ice_servers = Array::new();
+    ice_servers.push(&ice_server);
 
-        let config = Object::new();
-        Reflect::set(
-            &config,
-            &JsValue::from_str("iceServers"),
-            &ice_servers,
-        )?;
+    let config = Object::new();
+    Reflect::set(
+        &config,
+        &JsValue::from_str("iceServers"),
+        &ice_servers,
+    )?;
 
-        let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
-        RtcPeerConnection::new_with_configuration(&rtc_config)?
-    } else {
-        // LAN mode: no ICE servers, only host candidates (local IPs)
-        RtcPeerConnection::new()?
-    };
+    let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
+    let pc = RtcPeerConnection::new_with_configuration(&rtc_config)?;
 
     // Monitor ICE connection state changes — transition to Failed on ICE failure
     let pc_for_ice = pc.clone();
@@ -329,8 +322,7 @@ fn setup_unreliable_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnM
 /// Initiates the host flow: creates an offer and waits for ICE gathering.
 ///
 /// Called from the UI when the user clicks "Host Game" or "LAN Host".
-/// When `use_stun` is false (LAN mode), no STUN server is configured.
-pub fn create_host_offer(use_stun: bool) {
+pub fn create_host_offer() {
     WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
         *state = WebRtcCallbackState::default();
@@ -338,7 +330,7 @@ pub fn create_host_offer(use_stun: bool) {
     });
 
     wasm_bindgen_futures::spawn_local(async move {
-        let result = async_create_host_offer(use_stun).await;
+        let result = async_create_host_offer().await;
         if let Err(e) = result {
             let msg = format!("{:?}", e);
             WEBRTC_STATE.with(|s| {
@@ -350,9 +342,9 @@ pub fn create_host_offer(use_stun: bool) {
     });
 }
 
-async fn async_create_host_offer(use_stun: bool) -> Result<(), JsValue> {
+async fn async_create_host_offer() -> Result<(), JsValue> {
     info!("[WebRTC] Creating host offer...");
-    let pc = create_peer_connection(use_stun)?;
+    let pc = create_peer_connection()?;
 
     // Create the reliable data channel before creating the offer
     let dc = pc.create_data_channel(DATA_CHANNEL_NAME);
@@ -393,8 +385,7 @@ async fn async_create_host_offer(use_stun: bool) -> Result<(), JsValue> {
 /// Processes the host's offer code as a guest and creates an answer.
 ///
 /// Called from the UI when the guest pastes the host's invite code.
-/// When `use_stun` is false (LAN mode), no STUN server is configured.
-pub fn create_guest_answer(host_code: &str, use_stun: bool) {
+pub fn create_guest_answer(host_code: &str) {
     let host_code = host_code.to_string();
 
     WEBRTC_STATE.with(|s| {
@@ -404,7 +395,7 @@ pub fn create_guest_answer(host_code: &str, use_stun: bool) {
     });
 
     wasm_bindgen_futures::spawn_local(async move {
-        let result = async_create_guest_answer(&host_code, use_stun).await;
+        let result = async_create_guest_answer(&host_code).await;
         if let Err(e) = result {
             let msg = format!("{:?}", e);
             WEBRTC_STATE.with(|s| {
@@ -416,7 +407,7 @@ pub fn create_guest_answer(host_code: &str, use_stun: bool) {
     });
 }
 
-async fn async_create_guest_answer(host_code: &str, use_stun: bool) -> Result<(), JsValue> {
+async fn async_create_guest_answer(host_code: &str) -> Result<(), JsValue> {
     info!(
         "[WebRTC] Creating guest answer (code length: {})...",
         host_code.len()
@@ -439,7 +430,7 @@ async fn async_create_guest_answer(host_code: &str, use_stun: bool) -> Result<()
         }
     }
 
-    let pc = create_peer_connection(use_stun)?;
+    let pc = create_peer_connection()?;
 
     // Set up handler for incoming data channels from host (reliable + unreliable)
     let on_datachannel = Closure::wrap(Box::new(move |event: JsValue| {
