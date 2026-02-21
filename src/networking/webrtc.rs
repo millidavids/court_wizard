@@ -47,6 +47,9 @@ struct WebRtcCallbackState {
     /// Error message if something went wrong.
     error: Option<String>,
 
+    /// User-provided local IP address for LAN mode (injected as host candidate).
+    local_ip: Option<String>,
+
     /// Closures that must be kept alive for the duration of the connection.
     _closures: Vec<Closure<dyn FnMut(JsValue)>>,
 }
@@ -62,6 +65,7 @@ impl Default for WebRtcCallbackState {
             incoming_unreliable: Vec::new(),
             state: ConnectionState::Disconnected,
             error: None,
+            local_ip: None,
             _closures: Vec::new(),
         }
     }
@@ -162,6 +166,8 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
 ///
 /// When gathering completes, the local description is encoded into a compact
 /// connection code and stored as `local_code` for the user to copy.
+/// If a `local_ip` was provided (LAN mode), it is injected as an additional
+/// host candidate line in the SDP before encoding.
 fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsValue)> {
     let pc_clone = pc.clone();
     let closure = Closure::wrap(Box::new(move |event: JsValue| {
@@ -176,7 +182,7 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
             let desc = Reflect::get(&pc_clone, &JsValue::from_str("localDescription"))
                 .unwrap_or_default();
             if !desc.is_null() && !desc.is_undefined() {
-                let sdp = Reflect::get(&desc, &JsValue::from_str("sdp"))
+                let mut sdp = Reflect::get(&desc, &JsValue::from_str("sdp"))
                     .unwrap_or_default()
                     .as_string()
                     .unwrap_or_default();
@@ -184,6 +190,42 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
                     .unwrap_or_default()
                     .as_string()
                     .unwrap_or_default();
+
+                // If a local IP was provided, inject it as a host candidate.
+                // Reuse the port from the first existing host candidate so ICE
+                // can reach the same local DTLS/SCTP listener.
+                WEBRTC_STATE.with(|s| {
+                    let state = s.borrow();
+                    if let Some(local_ip) = &state.local_ip {
+                        let port = sdp
+                            .lines()
+                            .filter(|l| l.contains("typ host"))
+                            .find_map(|l| {
+                                let parts: Vec<&str> = l.split_whitespace().collect();
+                                if parts.len() >= 6 {
+                                    parts[5].parse::<u16>().ok()
+                                } else {
+                                    None
+                                }
+                            });
+                        if let Some(port) = port {
+                            let candidate_line = format!(
+                                "a=candidate:local 1 udp 2130706431 {} {} typ host\r\n",
+                                local_ip, port
+                            );
+                            info!(
+                                "[WebRTC] Injecting local IP candidate: {}",
+                                candidate_line.trim()
+                            );
+                            sdp.push_str(&candidate_line);
+                        } else {
+                            warn!(
+                                "[WebRTC] No host candidate port found to reuse for local IP injection"
+                            );
+                        }
+                    }
+                });
+
                 let encoded = match super::connection_code::encode(&sdp, &sdp_type) {
                     Ok(code) => code,
                     Err(e) => {
@@ -322,11 +364,16 @@ fn setup_unreliable_channel_handlers(dc: &RtcDataChannel) -> Vec<Closure<dyn FnM
 /// Initiates the host flow: creates an offer and waits for ICE gathering.
 ///
 /// Called from the UI when the user clicks "Host Game" or "LAN Host".
-pub fn create_host_offer() {
+/// For LAN mode, `local_ip` should be the user's local network IP (e.g., "192.168.1.5")
+/// which will be injected as a host candidate alongside the browser's own candidates.
+pub fn create_host_offer(local_ip: Option<&str>) {
+    let local_ip = local_ip.map(|s| s.to_string());
+
     WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
         *state = WebRtcCallbackState::default();
         state.state = ConnectionState::WaitingForSignaling;
+        state.local_ip = local_ip;
     });
 
     wasm_bindgen_futures::spawn_local(async move {
@@ -385,13 +432,17 @@ async fn async_create_host_offer() -> Result<(), JsValue> {
 /// Processes the host's offer code as a guest and creates an answer.
 ///
 /// Called from the UI when the guest pastes the host's invite code.
-pub fn create_guest_answer(host_code: &str) {
+/// For LAN mode, `local_ip` should be the user's local network IP (e.g., "192.168.1.5")
+/// which will be injected as a host candidate alongside the browser's own candidates.
+pub fn create_guest_answer(host_code: &str, local_ip: Option<&str>) {
     let host_code = host_code.to_string();
+    let local_ip = local_ip.map(|s| s.to_string());
 
     WEBRTC_STATE.with(|s| {
         let mut state = s.borrow_mut();
         *state = WebRtcCallbackState::default();
         state.state = ConnectionState::WaitingForSignaling;
+        state.local_ip = local_ip;
     });
 
     wasm_bindgen_futures::spawn_local(async move {

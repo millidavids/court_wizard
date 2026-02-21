@@ -605,7 +605,7 @@ pub fn button_action(
                     connection.mode = ConnectionMode::Online;
                     connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::create_host_offer();
+                    crate::networking::webrtc::create_host_offer(None);
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         connection.state = ConnectionState::Failed;
@@ -622,7 +622,7 @@ pub fn button_action(
                             connection.role = Some(PeerRole::Guest);
                             connection.mode = ConnectionMode::Online;
                             connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_guest_answer(&code);
+                            crate::networking::webrtc::create_guest_answer(&code, None);
                         }
                     }
                     #[cfg(not(target_arch = "wasm32"))]
@@ -692,11 +692,17 @@ pub fn button_action(
                     }
                 }
                 MultiplayerButtonAction::LanHost => {
-                    connection.role = Some(PeerRole::Host);
-                    connection.mode = ConnectionMode::Lan;
-                    connection.state = ConnectionState::WaitingForSignaling;
                     #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::create_host_offer();
+                    {
+                        if let Some(local_ip) = crate::networking::clipboard::prompt_for_text(
+                            "Enter your local IP address (e.g. 192.168.1.5):",
+                        ) {
+                            connection.role = Some(PeerRole::Host);
+                            connection.mode = ConnectionMode::Lan;
+                            connection.state = ConnectionState::WaitingForSignaling;
+                            crate::networking::webrtc::create_host_offer(Some(&local_ip));
+                        }
+                    }
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         connection.state = ConnectionState::Failed;
@@ -707,13 +713,20 @@ pub fn button_action(
                 MultiplayerButtonAction::LanJoin => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        if let Some(code) = crate::networking::clipboard::prompt_for_text(
-                            "Paste the host's LAN code:",
+                        if let Some(local_ip) = crate::networking::clipboard::prompt_for_text(
+                            "Enter your local IP address (e.g. 192.168.1.5):",
                         ) {
-                            connection.role = Some(PeerRole::Guest);
-                            connection.mode = ConnectionMode::Lan;
-                            connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_guest_answer(&code);
+                            if let Some(code) = crate::networking::clipboard::prompt_for_text(
+                                "Paste the host's LAN code:",
+                            ) {
+                                connection.role = Some(PeerRole::Guest);
+                                connection.mode = ConnectionMode::Lan;
+                                connection.state = ConnectionState::WaitingForSignaling;
+                                crate::networking::webrtc::create_guest_answer(
+                                    &code,
+                                    Some(&local_ip),
+                                );
+                            }
                         }
                     }
                     #[cfg(not(target_arch = "wasm32"))]
@@ -740,25 +753,58 @@ pub fn button_action(
 
                     match role {
                         Some(PeerRole::Host) => {
-                            connection.state = ConnectionState::WaitingForSignaling;
                             #[cfg(target_arch = "wasm32")]
-                            crate::networking::webrtc::create_host_offer();
+                            {
+                                let local_ip = if is_lan {
+                                    crate::networking::clipboard::prompt_for_text(
+                                        "Enter your local IP address (e.g. 192.168.1.5):",
+                                    )
+                                } else {
+                                    None
+                                };
+                                // For LAN, only proceed if user entered an IP (didn't cancel)
+                                if !is_lan || local_ip.is_some() {
+                                    connection.state = ConnectionState::WaitingForSignaling;
+                                    crate::networking::webrtc::create_host_offer(
+                                        local_ip.as_deref(),
+                                    );
+                                } else {
+                                    connection.state = ConnectionState::Disconnected;
+                                    connection.role = None;
+                                }
+                            }
                         }
                         Some(PeerRole::Guest) => {
                             #[cfg(target_arch = "wasm32")]
                             {
-                                let prompt = if is_lan {
-                                    "Paste the host's LAN code:"
+                                let local_ip = if is_lan {
+                                    crate::networking::clipboard::prompt_for_text(
+                                        "Enter your local IP address (e.g. 192.168.1.5):",
+                                    )
                                 } else {
-                                    "Paste the host's invite code:"
+                                    None
                                 };
-                                if let Some(code) =
-                                    crate::networking::clipboard::prompt_for_text(prompt)
-                                {
-                                    connection.state = ConnectionState::WaitingForSignaling;
-                                    crate::networking::webrtc::create_guest_answer(&code);
+                                // For LAN, only proceed if user entered an IP (didn't cancel)
+                                if !is_lan || local_ip.is_some() {
+                                    let prompt = if is_lan {
+                                        "Paste the host's LAN code:"
+                                    } else {
+                                        "Paste the host's invite code:"
+                                    };
+                                    if let Some(code) =
+                                        crate::networking::clipboard::prompt_for_text(prompt)
+                                    {
+                                        connection.state = ConnectionState::WaitingForSignaling;
+                                        crate::networking::webrtc::create_guest_answer(
+                                            &code,
+                                            local_ip.as_deref(),
+                                        );
+                                    } else {
+                                        // User cancelled the prompt, go back to disconnected
+                                        connection.state = ConnectionState::Disconnected;
+                                        connection.role = None;
+                                    }
                                 } else {
-                                    // User cancelled the prompt, go back to disconnected
                                     connection.state = ConnectionState::Disconnected;
                                     connection.role = None;
                                 }

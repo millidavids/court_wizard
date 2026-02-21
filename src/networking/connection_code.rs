@@ -563,13 +563,21 @@ impl ConnectionCode {
                     CandidateAddress::Ip(ip) => ip.to_string(),
                     CandidateAddress::Hostname(h) => h.clone(),
                 };
+                // srflx/relay candidates require raddr/rport per RFC 8445
+                let raddr_suffix = match c.candidate_type {
+                    CandidateType::Host => String::new(),
+                    CandidateType::Srflx | CandidateType::Relay => {
+                        " raddr 0.0.0.0 rport 0".to_string()
+                    }
+                };
                 format!(
-                    "a=candidate:{} 1 udp {} {} {} typ {}\r\n",
+                    "a=candidate:{} 1 udp {} {} {} typ {}{}\r\n",
                     i + 1,
                     priority,
                     addr,
                     c.port,
                     type_str,
+                    raddr_suffix,
                 )
             })
             .collect();
