@@ -53,10 +53,18 @@ pub(super) enum CandidateType {
     Relay = 2,
 }
 
+/// Address of an ICE candidate — either a parsed IP or an opaque hostname
+/// (e.g., mDNS `.local` addresses that browsers generate for LAN candidates).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum CandidateAddress {
+    Ip(IpAddr),
+    Hostname(String),
+}
+
 /// A single ICE candidate with only the fields needed for connection.
 #[derive(Debug, Clone)]
 pub(super) struct IceCandidate {
-    pub ip: IpAddr,
+    pub address: CandidateAddress,
     pub port: u16,
     pub candidate_type: CandidateType,
 }
@@ -187,8 +195,7 @@ fn parse_fingerprint(sdp: &str) -> Result<[u8; 32], ConnectionCodeError> {
 
 /// Parses all ICE candidates from an SDP string.
 ///
-/// Skips candidates that can't be parsed (e.g., mDNS `.local` hostnames,
-/// prflx candidates) since they aren't useful for copy-paste signaling.
+/// Includes both IP-based and hostname-based (mDNS `.local`) candidates.
 fn parse_candidates(sdp: &str) -> Vec<IceCandidate> {
     sdp.lines()
         .filter(|l| l.starts_with("a=candidate:"))
@@ -198,8 +205,10 @@ fn parse_candidates(sdp: &str) -> Vec<IceCandidate> {
 
 /// Parses a single `a=candidate:` SDP line.
 ///
-/// Format: `a=candidate:foundation component transport priority ip port typ type [...]`
-/// Indices:    [0]            [1]       [2]       [3]    [4] [5]  [6] [7]
+/// Format: `a=candidate:foundation component transport priority address port typ type [...]`
+/// Indices:    [0]            [1]       [2]       [3]    [4]     [5]  [6] [7]
+///
+/// The address field (index 4) can be an IP address or an mDNS hostname.
 fn parse_single_candidate(line: &str) -> Result<IceCandidate, ConnectionCodeError> {
     let parts: Vec<&str> = line.split_whitespace().collect();
     if parts.len() < 8 {
@@ -220,10 +229,6 @@ fn parse_single_candidate(line: &str) -> Result<IceCandidate, ConnectionCodeErro
         ));
     }
 
-    let ip: IpAddr = parts[4]
-        .parse()
-        .map_err(|_| ConnectionCodeError::InvalidCandidate(format!("bad IP: {}", parts[4])))?;
-
     let port: u16 = parts[5]
         .parse()
         .map_err(|_| ConnectionCodeError::InvalidCandidate(format!("bad port: {}", parts[5])))?;
@@ -241,8 +246,22 @@ fn parse_single_candidate(line: &str) -> Result<IceCandidate, ConnectionCodeErro
         }
     };
 
+    // Try parsing as IP first; if that fails, treat as hostname
+    let address = if let Ok(ip) = parts[4].parse::<IpAddr>() {
+        CandidateAddress::Ip(ip)
+    } else {
+        // Hostname candidate (e.g., mDNS .local address)
+        let hostname = parts[4];
+        if hostname.len() > 255 {
+            return Err(ConnectionCodeError::InvalidCandidate(
+                "hostname too long".into(),
+            ));
+        }
+        CandidateAddress::Hostname(hostname.to_string())
+    };
+
     Ok(IceCandidate {
-        ip,
+        address,
         port,
         candidate_type,
     })
@@ -286,6 +305,11 @@ fn validate_pwd(pwd: &str) -> Result<(), ConnectionCodeError> {
 // ===== Encoding (SDP → Connection Code) =====
 
 /// Encodes an SDP string and type into a compact connection code.
+///
+/// Candidate flags byte layout:
+/// - bit 0: IPv6 flag (only meaningful when bit 3 = 0)
+/// - bits 1-2: candidate type (host=0, srflx=1, relay=2)
+/// - bit 3: hostname flag (1 = hostname string, 0 = IP address)
 pub(super) fn encode(sdp: &str, sdp_type: &str) -> Result<String, ConnectionCodeError> {
     let is_offer = match sdp_type {
         "offer" => true,
@@ -308,7 +332,6 @@ pub(super) fn encode(sdp: &str, sdp_type: &str) -> Result<String, ConnectionCode
 
     let fingerprint = parse_fingerprint(sdp)?;
 
-    // Skip unparseable candidates (mDNS .local hostnames, prflx, etc.)
     let candidates: Vec<IceCandidate> = parse_candidates(sdp);
 
     validate_ufrag(&ufrag)?;
@@ -343,14 +366,28 @@ pub(super) fn encode(sdp: &str, sdp_type: &str) -> Result<String, ConnectionCode
 
     // Candidates
     for c in &candidates {
-        let is_ipv6 = matches!(c.ip, IpAddr::V6(_));
-        let type_bits = (c.candidate_type as u8) << 1;
-        let flags = u8::from(is_ipv6) | type_bits;
-        buf.push(flags);
+        match &c.address {
+            CandidateAddress::Ip(ip) => {
+                let is_ipv6 = matches!(ip, IpAddr::V6(_));
+                let type_bits = (c.candidate_type as u8) << 1;
+                let flags = u8::from(is_ipv6) | type_bits;
+                buf.push(flags);
 
-        match c.ip {
-            IpAddr::V4(v4) => buf.extend_from_slice(&v4.octets()),
-            IpAddr::V6(v6) => buf.extend_from_slice(&v6.octets()),
+                match ip {
+                    IpAddr::V4(v4) => buf.extend_from_slice(&v4.octets()),
+                    IpAddr::V6(v6) => buf.extend_from_slice(&v6.octets()),
+                }
+            }
+            CandidateAddress::Hostname(hostname) => {
+                let type_bits = (c.candidate_type as u8) << 1;
+                // bit 3 = 1 signals hostname
+                let flags = type_bits | 0x08;
+                buf.push(flags);
+
+                // Length-prefixed hostname string
+                buf.push(hostname.len() as u8);
+                buf.extend_from_slice(hostname.as_bytes());
+            }
         }
 
         buf.extend_from_slice(&c.port.to_be_bytes());
@@ -418,7 +455,7 @@ pub(super) fn decode(code: &str) -> Result<ConnectionCode, ConnectionCodeError> 
     let mut candidates = Vec::with_capacity(candidate_count);
     for _ in 0..candidate_count {
         let flags = read_byte(&mut pos)?;
-        let is_ipv6 = flags & 1 == 1;
+        let is_hostname = flags & 0x08 != 0;
         let type_val = (flags >> 1) & 0x03;
 
         let candidate_type = match type_val {
@@ -433,16 +470,29 @@ pub(super) fn decode(code: &str) -> Result<ConnectionCode, ConnectionCodeError> 
             }
         };
 
-        let ip = if is_ipv6 {
-            let octets = read_bytes(&mut pos, 16)?;
-            let mut arr = [0u8; 16];
-            arr.copy_from_slice(octets);
-            IpAddr::V6(Ipv6Addr::from(arr))
+        let address = if is_hostname {
+            let hostname_len = read_byte(&mut pos)? as usize;
+            let hostname_bytes = read_bytes(&mut pos, hostname_len)?;
+            let hostname = std::str::from_utf8(hostname_bytes)
+                .map_err(|_| {
+                    ConnectionCodeError::InvalidCandidate("hostname not valid UTF-8".into())
+                })?
+                .to_string();
+            CandidateAddress::Hostname(hostname)
         } else {
-            let octets = read_bytes(&mut pos, 4)?;
-            let mut arr = [0u8; 4];
-            arr.copy_from_slice(octets);
-            IpAddr::V4(Ipv4Addr::from(arr))
+            let is_ipv6 = flags & 1 == 1;
+            let ip = if is_ipv6 {
+                let octets = read_bytes(&mut pos, 16)?;
+                let mut arr = [0u8; 16];
+                arr.copy_from_slice(octets);
+                IpAddr::V6(Ipv6Addr::from(arr))
+            } else {
+                let octets = read_bytes(&mut pos, 4)?;
+                let mut arr = [0u8; 4];
+                arr.copy_from_slice(octets);
+                IpAddr::V4(Ipv4Addr::from(arr))
+            };
+            CandidateAddress::Ip(ip)
         };
 
         let port_bytes = read_bytes(&mut pos, 2)?;
@@ -454,7 +504,7 @@ pub(super) fn decode(code: &str) -> Result<ConnectionCode, ConnectionCodeError> 
         }
 
         candidates.push(IceCandidate {
-            ip,
+            address,
             port,
             candidate_type,
         });
@@ -509,11 +559,15 @@ impl ConnectionCode {
                     CandidateType::Srflx => 1694498815u32,
                     CandidateType::Relay => 16777215u32,
                 };
+                let addr = match &c.address {
+                    CandidateAddress::Ip(ip) => ip.to_string(),
+                    CandidateAddress::Hostname(h) => h.clone(),
+                };
                 format!(
                     "a=candidate:{} 1 udp {} {} {} typ {}\r\n",
                     i + 1,
                     priority,
-                    c.ip,
+                    addr,
                     c.port,
                     type_str,
                 )
@@ -648,16 +702,16 @@ mod tests {
 
         // First candidate: host
         assert_eq!(
-            decoded.candidates[0].ip,
-            IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100))
+            decoded.candidates[0].address,
+            CandidateAddress::Ip(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)))
         );
         assert_eq!(decoded.candidates[0].port, 54321);
         assert_eq!(decoded.candidates[0].candidate_type, CandidateType::Host);
 
         // Second candidate: srflx
         assert_eq!(
-            decoded.candidates[1].ip,
-            IpAddr::V4(Ipv4Addr::new(203, 0, 113, 141))
+            decoded.candidates[1].address,
+            CandidateAddress::Ip(IpAddr::V4(Ipv4Addr::new(203, 0, 113, 141)))
         );
         assert_eq!(decoded.candidates[1].port, 8998);
         assert_eq!(decoded.candidates[1].candidate_type, CandidateType::Srflx);
@@ -764,9 +818,9 @@ mod tests {
     #[test]
     fn ipv6_candidate_roundtrip() {
         let candidate = IceCandidate {
-            ip: IpAddr::V6(Ipv6Addr::new(
+            address: CandidateAddress::Ip(IpAddr::V6(Ipv6Addr::new(
                 0x2001, 0xdb8, 0, 0, 0, 0, 0, 1,
-            )),
+            ))),
             port: 8080,
             candidate_type: CandidateType::Host,
         };
@@ -788,8 +842,8 @@ mod tests {
         let decoded = decode(&encoded).unwrap();
         assert_eq!(decoded.candidates.len(), 1);
         assert_eq!(
-            decoded.candidates[0].ip,
-            IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1))
+            decoded.candidates[0].address,
+            CandidateAddress::Ip(IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)))
         );
         assert_eq!(decoded.candidates[0].port, 8080);
     }
@@ -806,5 +860,114 @@ mod tests {
         );
         // And dramatically shorter than the raw SDP
         assert!(code.len() < sdp.len() / 3);
+    }
+
+    #[test]
+    fn mdns_candidate_roundtrip() {
+        let sdp = "v=0\r\n\
+             o=- 0 0 IN IP4 127.0.0.1\r\n\
+             s=-\r\n\
+             t=0 0\r\n\
+             a=group:BUNDLE 0\r\n\
+             a=msid-semantic: WMS\r\n\
+             m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n\
+             c=IN IP4 0.0.0.0\r\n\
+             a=mid:0\r\n\
+             a=ice-ufrag:r/af\r\n\
+             a=ice-pwd:aabbccddee11223344556677\r\n\
+             a=ice-options:trickle\r\n\
+             a=fingerprint:sha-256 A0:B1:C2:D3:E4:F5:06:17:28:39:4A:5B:6C:7D:8E:9F:A0:B1:C2:D3:E4:F5:06:17:28:39:4A:5B:6C:7D:8E:9F\r\n\
+             a=setup:actpass\r\n\
+             a=sctp-port:5000\r\n\
+             a=max-message-size:262144\r\n\
+             a=candidate:1 1 udp 2113937151 868c901c-fce5-428b-82db-2788de923a91.local 59705 typ host\r\n";
+
+        let code = encode(sdp, "offer").unwrap();
+        let decoded = decode(&code).unwrap();
+
+        assert_eq!(decoded.candidates.len(), 1);
+        assert_eq!(
+            decoded.candidates[0].address,
+            CandidateAddress::Hostname(
+                "868c901c-fce5-428b-82db-2788de923a91.local".to_string()
+            )
+        );
+        assert_eq!(decoded.candidates[0].port, 59705);
+        assert_eq!(decoded.candidates[0].candidate_type, CandidateType::Host);
+
+        // Verify SDP reconstruction includes the mDNS hostname
+        let (_, reconstructed) = decoded.to_sdp();
+        assert!(reconstructed.contains("868c901c-fce5-428b-82db-2788de923a91.local"));
+        assert!(reconstructed.contains("59705"));
+    }
+
+    #[test]
+    fn mdns_candidate_code_is_still_short() {
+        // mDNS hostname is ~42 chars, so the code should be around 150 chars
+        let sdp = "v=0\r\n\
+             o=- 0 0 IN IP4 127.0.0.1\r\n\
+             s=-\r\n\
+             t=0 0\r\n\
+             a=group:BUNDLE 0\r\n\
+             a=msid-semantic: WMS\r\n\
+             m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n\
+             c=IN IP4 0.0.0.0\r\n\
+             a=mid:0\r\n\
+             a=ice-ufrag:abcd\r\n\
+             a=ice-pwd:aabbccddee11223344556677\r\n\
+             a=ice-options:trickle\r\n\
+             a=fingerprint:sha-256 A0:B1:C2:D3:E4:F5:06:17:28:39:4A:5B:6C:7D:8E:9F:A0:B1:C2:D3:E4:F5:06:17:28:39:4A:5B:6C:7D:8E:9F\r\n\
+             a=setup:actpass\r\n\
+             a=sctp-port:5000\r\n\
+             a=max-message-size:262144\r\n\
+             a=candidate:1 1 udp 2113937151 868c901c-fce5-428b-82db-2788de923a91.local 59705 typ host\r\n";
+
+        let code = encode(sdp, "offer").unwrap();
+        // With hostname (~42 bytes) instead of IPv4 (4 bytes), adds ~38 bytes = ~51 base64 chars
+        // Should still be well under 200 chars total
+        assert!(
+            code.len() < 200,
+            "mDNS code should be < 200 chars, got {}",
+            code.len()
+        );
+    }
+
+    #[test]
+    fn mixed_ip_and_mdns_candidates() {
+        let sdp = "v=0\r\n\
+             o=- 0 0 IN IP4 127.0.0.1\r\n\
+             s=-\r\n\
+             t=0 0\r\n\
+             a=group:BUNDLE 0\r\n\
+             a=msid-semantic: WMS\r\n\
+             m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n\
+             c=IN IP4 0.0.0.0\r\n\
+             a=mid:0\r\n\
+             a=ice-ufrag:abcd\r\n\
+             a=ice-pwd:aabbccddee11223344556677\r\n\
+             a=ice-options:trickle\r\n\
+             a=fingerprint:sha-256 A0:B1:C2:D3:E4:F5:06:17:28:39:4A:5B:6C:7D:8E:9F:A0:B1:C2:D3:E4:F5:06:17:28:39:4A:5B:6C:7D:8E:9F\r\n\
+             a=setup:actpass\r\n\
+             a=sctp-port:5000\r\n\
+             a=max-message-size:262144\r\n\
+             a=candidate:1 1 udp 2113937151 868c901c-fce5-428b-82db-2788de923a91.local 59705 typ host\r\n\
+             a=candidate:2 1 udp 1694498815 203.0.113.141 8998 typ srflx\r\n";
+
+        let code = encode(sdp, "offer").unwrap();
+        let decoded = decode(&code).unwrap();
+
+        assert_eq!(decoded.candidates.len(), 2);
+        // First: mDNS hostname
+        assert_eq!(
+            decoded.candidates[0].address,
+            CandidateAddress::Hostname(
+                "868c901c-fce5-428b-82db-2788de923a91.local".to_string()
+            )
+        );
+        // Second: regular IP
+        assert_eq!(
+            decoded.candidates[1].address,
+            CandidateAddress::Ip(IpAddr::V4(Ipv4Addr::new(203, 0, 113, 141)))
+        );
     }
 }
