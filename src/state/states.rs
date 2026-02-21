@@ -164,9 +164,12 @@ pub enum MultiplayerGameState {
     #[default]
     Running,
 
-    /// Multiplayer game is paused.
+    /// Escape menu overlay (gameplay continues in background).
     Paused,
 
     /// Score screen shown after multiplayer battle ends.
     ScoreScreen,
+
+    /// Connection lost — shows disconnect message with Return to Menu button.
+    Disconnected,
 }

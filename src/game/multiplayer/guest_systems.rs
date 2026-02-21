@@ -36,10 +36,6 @@ pub fn apply_state_snapshot(
     // Take only the latest snapshot (discard stale ones)
     let raw_snapshots: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
     if raw_snapshots.is_empty() {
-        // Log periodically to confirm system is running but no data arriving
-        if entity_map.remote_to_local.is_empty() {
-            info!("GUEST: apply_state_snapshot running, 0 snapshots received, 0 ghost entities");
-        }
         return;
     }
 
@@ -49,18 +45,11 @@ pub fn apply_state_snapshot(
 
     let Ok(snapshot) = bincode::deserialize::<GameSnapshot>(latest_data) else {
         warn!(
-            "GUEST: Failed to deserialize snapshot ({} bytes)",
+            "Failed to deserialize snapshot ({} bytes)",
             latest_data.len()
         );
         return;
     };
-
-    info!(
-        "GUEST: Received snapshot with {} units, {} arrows ({} bytes)",
-        snapshot.units.len(),
-        snapshot.arrows.len(),
-        latest_data.len()
-    );
 
     // Track which IDs are present in this snapshot
     let mut seen_ids = HashSet::with_capacity(snapshot.units.len());

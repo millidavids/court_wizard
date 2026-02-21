@@ -33,8 +33,13 @@ pub fn is_gameplay_running(
     if sp_state.is_some_and(|s| *s.get() == InGameState::Running) {
         return true;
     }
-    // Multiplayer host: MultiplayerGameState::Running + host role
-    if mp_state.is_some_and(|s| *s.get() == MultiplayerGameState::Running) {
+    // Multiplayer host: Running or Paused (escape menu doesn't pause gameplay)
+    if mp_state.is_some_and(|s| {
+        matches!(
+            *s.get(),
+            MultiplayerGameState::Running | MultiplayerGameState::Paused
+        )
+    }) {
         return session.is_some_and(|s| s.role == PeerRole::Host);
     }
     false

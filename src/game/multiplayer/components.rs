@@ -55,3 +55,22 @@ pub struct RematchStatusText;
 /// the existing WebRTC connection.
 #[derive(Resource)]
 pub struct PendingRematch;
+
+/// Marker for entities on the MP escape menu overlay.
+#[derive(Component)]
+pub struct OnMpPauseScreen;
+
+/// Button actions for the MP escape menu.
+#[derive(Component, Clone)]
+pub enum MpPauseButtonAction {
+    Resume,
+    Disconnect,
+}
+
+/// Marker for entities on the MP disconnected overlay.
+#[derive(Component)]
+pub struct OnMpDisconnectedScreen;
+
+/// Button action for the disconnected overlay.
+#[derive(Component, Clone)]
+pub struct MpDisconnectedButtonAction;

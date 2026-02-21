@@ -22,8 +22,11 @@ use crate::ui::components::ButtonStyle;
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::spawn_button;
 
+use bevy::input::keyboard::KeyCode;
+
 use super::components::{
-    MpRematchState, MpScoreButtonAction, OnMpScoreScreen, OnMultiplayerGameScreen,
+    MpDisconnectedButtonAction, MpPauseButtonAction, MpRematchState, MpScoreButtonAction,
+    OnMpDisconnectedScreen, OnMpPauseScreen, OnMpScoreScreen, OnMultiplayerGameScreen,
     PendingRematch, RematchStatusText,
 };
 use super::guest_systems;
@@ -34,14 +37,28 @@ use crate::game::units::infantry::components::DefendersActivated;
 
 /// Safe run condition for `MultiplayerGameState` sub-states.
 ///
-/// Unlike `in_state(MultiplayerGameState::*)`, these won't panic if the sub-state
-/// resource has already been removed during state transitions.
+/// Returns true for both Running and Paused states, since the escape menu
+/// overlay does not pause gameplay. Unlike `in_state(MultiplayerGameState::*)`,
+/// these won't panic if the sub-state resource has already been removed.
 fn in_mp_running(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
-    state.is_some_and(|s| *s.get() == MultiplayerGameState::Running)
+    state.is_some_and(|s| {
+        matches!(
+            *s.get(),
+            MultiplayerGameState::Running | MultiplayerGameState::Paused
+        )
+    })
 }
 
 fn in_mp_score_screen(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
     state.is_some_and(|s| *s.get() == MultiplayerGameState::ScoreScreen)
+}
+
+fn in_mp_paused(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
+    state.is_some_and(|s| *s.get() == MultiplayerGameState::Paused)
+}
+
+fn in_mp_disconnected(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
+    state.is_some_and(|s| *s.get() == MultiplayerGameState::Disconnected)
 }
 
 /// Plugin that manages multiplayer gameplay.
@@ -123,6 +140,47 @@ impl Plugin for MultiplayerGamePlugin {
             Update,
             guest_systems::handle_game_over_message
                 .run_if(in_mp_running.and(is_multiplayer_guest)),
+        );
+
+        // ── Escape Key (Running → Paused toggle) ──────────────────────
+        app.add_systems(
+            Update,
+            mp_escape_key_handler.run_if(
+                in_state(AppState::MultiplayerGame)
+                    .and(in_mp_running.or(in_mp_paused)),
+            ),
+        );
+
+        // ── Escape Menu (Paused overlay) ──────────────────────────────
+        app.add_systems(
+            OnEnter(MultiplayerGameState::Paused),
+            setup_mp_pause_menu,
+        );
+        app.add_systems(
+            OnExit(MultiplayerGameState::Paused),
+            cleanup_mp_pause_menu,
+        );
+        app.add_systems(
+            Update,
+            handle_mp_pause_buttons
+                .in_set(ButtonActionSet)
+                .run_if(in_mp_paused),
+        );
+
+        // ── Disconnected Overlay ──────────────────────────────────────
+        app.add_systems(
+            OnEnter(MultiplayerGameState::Disconnected),
+            setup_mp_disconnected,
+        );
+        app.add_systems(
+            OnExit(MultiplayerGameState::Disconnected),
+            cleanup_mp_disconnected,
+        );
+        app.add_systems(
+            Update,
+            handle_mp_disconnected_buttons
+                .in_set(ButtonActionSet)
+                .run_if(in_mp_disconnected),
         );
 
         // ── Score Screen ──────────────────────────────────────────────
@@ -415,14 +473,14 @@ fn handle_mp_score_messages(
     }
 }
 
-/// Detects unexpected connection loss during multiplayer gameplay and returns to main menu.
+/// Detects unexpected connection loss and transitions to the Disconnected overlay.
 ///
 /// Only triggers on `Failed` state — intentional disconnects are handled by button actions.
 fn detect_mp_disconnect(
     connection: Res<NetworkConnection>,
     session: Option<Res<MultiplayerSession>>,
-    mut next_app_state: ResMut<NextState<AppState>>,
-    mut commands: Commands,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
+    mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
 ) {
     // Only check if we still have an active session — avoids double-triggering
     // after an intentional disconnect already queued a state transition.
@@ -430,8 +488,215 @@ fn detect_mp_disconnect(
         return;
     }
 
+    // Don't re-trigger if already on the Disconnected screen
+    if mp_state.is_some_and(|s| *s.get() == MultiplayerGameState::Disconnected) {
+        return;
+    }
+
     if connection.state == ConnectionState::Failed {
-        commands.remove_resource::<MultiplayerSession>();
-        next_app_state.set(AppState::MainMenu);
+        next_mp_state.set(MultiplayerGameState::Disconnected);
+    }
+}
+
+// ── Escape Key Handler ──────────────────────────────────────────────
+
+/// Toggles the escape menu overlay during multiplayer gameplay.
+fn mp_escape_key_handler(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
+    mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
+) {
+    if !keyboard.just_pressed(KeyCode::Escape) {
+        return;
+    }
+
+    let Some(state) = mp_state else { return };
+
+    match *state.get() {
+        MultiplayerGameState::Running => {
+            next_mp_state.set(MultiplayerGameState::Paused);
+        }
+        MultiplayerGameState::Paused => {
+            next_mp_state.set(MultiplayerGameState::Running);
+        }
+        _ => {}
+    }
+}
+
+// ── Escape Menu (Paused Overlay) ────────────────────────────────────
+
+const PAUSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 250.0,
+    height: 65.0,
+    border_width: 3.0,
+    font_size: 20.0,
+    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
+    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
+    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+};
+
+/// Spawns the MP escape menu overlay.
+fn setup_mp_pause_menu(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::BLACK.with_alpha(0.7)),
+            GlobalZIndex(500),
+            OnMpPauseScreen,
+            OnMultiplayerGameScreen,
+        ))
+        .with_children(|parent| {
+            // Title
+            parent.spawn((
+                Text::new("Menu"),
+                TextFont {
+                    font_size: 40.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                Node {
+                    margin: UiRect::bottom(Val::Px(20.0)),
+                    ..default()
+                },
+            ));
+
+            spawn_button(
+                parent,
+                "Resume",
+                MpPauseButtonAction::Resume,
+                &PAUSE_BUTTON_STYLE,
+            );
+            spawn_button(
+                parent,
+                "Disconnect",
+                MpPauseButtonAction::Disconnect,
+                &PAUSE_BUTTON_STYLE,
+            );
+        });
+}
+
+/// Cleans up the MP escape menu overlay.
+fn cleanup_mp_pause_menu(
+    mut commands: Commands,
+    entities: Query<Entity, With<OnMpPauseScreen>>,
+) {
+    for entity in &entities {
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+}
+
+/// Handles MP escape menu button clicks.
+fn handle_mp_pause_buttons(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&MpPauseButtonAction>,
+    mut connection: ResMut<NetworkConnection>,
+    mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut commands: Commands,
+) {
+    for event in button_clicked.read() {
+        if let Ok(action) = button_query.get(event.button) {
+            match action {
+                MpPauseButtonAction::Resume => {
+                    next_mp_state.set(MultiplayerGameState::Running);
+                }
+                MpPauseButtonAction::Disconnect => {
+                    #[cfg(target_arch = "wasm32")]
+                    crate::networking::webrtc::disconnect();
+                    connection.state = ConnectionState::Disconnected;
+                    commands.remove_resource::<MultiplayerSession>();
+                    next_app_state.set(AppState::MainMenu);
+                }
+            }
+        }
+    }
+}
+
+// ── Disconnected Overlay ────────────────────────────────────────────
+
+/// Spawns the disconnected overlay informing the player of connection loss.
+fn setup_mp_disconnected(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::BLACK.with_alpha(0.85)),
+            GlobalZIndex(600),
+            OnMpDisconnectedScreen,
+            OnMultiplayerGameScreen,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Disconnected"),
+                TextFont {
+                    font_size: 48.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.95, 0.3, 0.3)),
+            ));
+
+            parent.spawn((
+                Text::new("The connection to your opponent was lost."),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                Node {
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    ..default()
+                },
+            ));
+
+            spawn_button(
+                parent,
+                "Return to Menu",
+                MpDisconnectedButtonAction,
+                &PAUSE_BUTTON_STYLE,
+            );
+        });
+}
+
+/// Cleans up the disconnected overlay.
+fn cleanup_mp_disconnected(
+    mut commands: Commands,
+    entities: Query<Entity, With<OnMpDisconnectedScreen>>,
+) {
+    for entity in &entities {
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+}
+
+/// Handles the Return to Menu button on the disconnected overlay.
+fn handle_mp_disconnected_buttons(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&MpDisconnectedButtonAction>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut commands: Commands,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
+            commands.remove_resource::<MultiplayerSession>();
+            next_app_state.set(AppState::MainMenu);
+        }
     }
 }
