@@ -10,8 +10,10 @@ use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
-use crate::state::InGameState;
+use crate::game::units::wizard::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell,
+};
+use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::systems::spawn_button;
 
 /// Blocks spell input when any button is being interacted with.
@@ -30,13 +32,20 @@ pub(super) fn block_spell_input_on_button_interaction(
     }
 }
 
-/// Handles keyboard input during active gameplay.
+/// Handles keyboard input during active gameplay (single-player only).
 ///
 /// - Escape: Pause the game, transitioning to `InGameState::Paused`
+///
+/// In multiplayer, `mp_escape_key_handler` handles Escape instead.
 pub(super) fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
+    // Don't handle Escape in multiplayer — mp_escape_key_handler does it
+    if mp_state.is_some() {
+        return;
+    }
     if keyboard.just_pressed(KeyCode::Escape) {
         next_in_game_state.set(InGameState::Paused);
     }
@@ -236,29 +245,143 @@ pub(super) fn spawn_hud(
         });
 }
 
+/// Spawns a simplified HUD for multiplayer games.
+///
+/// Like `spawn_hud` but without the Cauldron button, level display, and past victory display
+/// (those are single-player only concepts).
+pub(super) fn spawn_mp_hud(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                padding: UiRect::all(HUD_MARGIN),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::FlexEnd,
+                ..default()
+            },
+            HudRoot,
+            OnGameplayScreen,
+        ))
+        .with_children(|parent| {
+            // Top row (spell book button on left)
+            parent
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::FlexStart,
+                    ..default()
+                })
+                .with_children(|row| {
+                    // Button group (top-left) — Spells only, no Cauldron in MP
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(10.0),
+                        ..default()
+                    })
+                    .with_children(|buttons| {
+                        spawn_button(
+                            buttons,
+                            "Spells",
+                            HudButtonAction::OpenSpellBook,
+                            &BUTTON_STYLE,
+                        );
+                    });
+                });
+
+            // Bottom-right bars container (mana bar + cast bar)
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::FlexEnd,
+                    row_gap: HUD_ELEMENT_GAP,
+                    ..default()
+                })
+                .with_children(|bars| {
+                    // Mana bar
+                    bars.spawn((
+                        Node {
+                            width: MANA_BAR_WIDTH,
+                            height: MANA_BAR_HEIGHT,
+                            border: UiRect::all(Val::Px(2.0)),
+                            justify_content: JustifyContent::FlexEnd,
+                            ..default()
+                        },
+                        BackgroundColor(MANA_BAR_BG_COLOR),
+                    ))
+                    .with_children(|mana| {
+                        mana.spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            BackgroundColor(MANA_BAR_FILL_COLOR),
+                            ManaBarFill,
+                        ));
+                    });
+
+                    // Cast bar
+                    bars.spawn((
+                        Node {
+                            width: CAST_BAR_WIDTH,
+                            height: CAST_BAR_HEIGHT,
+                            border: UiRect::all(Val::Px(2.0)),
+                            justify_content: JustifyContent::FlexEnd,
+                            ..default()
+                        },
+                        BackgroundColor(CAST_BAR_BG_COLOR),
+                    ))
+                    .with_children(|cast_bar| {
+                        cast_bar.spawn((
+                            Node {
+                                width: Val::Percent(0.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            BackgroundColor(CAST_BAR_FILL_COLOR),
+                            CastBarFill,
+                        ));
+                    });
+                });
+        });
+}
+
 /// Handles HUD button click actions.
+///
+/// Sets the appropriate state for SP or MP depending on which is active.
 pub(super) fn hud_button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&HudButtonAction>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
+    mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
+    mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 HudButtonAction::OpenSpellBook => {
-                    next_in_game_state.set(InGameState::SpellBook);
+                    if let Some(ref mut next_sp) = next_in_game_state {
+                        next_sp.set(InGameState::SpellBook);
+                    }
+                    if let Some(ref mut next_mp) = next_mp_state {
+                        next_mp.set(MultiplayerGameState::SpellBook);
+                    }
                 }
                 HudButtonAction::OpenCauldronMenu => {
-                    next_in_game_state.set(InGameState::CauldronMenu);
+                    // Cauldron only exists in single-player
+                    if let Some(ref mut next_sp) = next_in_game_state {
+                        next_sp.set(InGameState::CauldronMenu);
+                    }
                 }
             }
         }
     }
 }
 
-/// Updates the mana bar width based on current wizard mana.
+/// Updates the mana bar width based on the local wizard's mana.
 pub(super) fn update_mana_bar(
-    wizard_query: Query<&Mana, With<Wizard>>,
+    wizard_query: Query<&Mana, With<LocalWizard>>,
     mut mana_bar_query: Query<&mut Node, With<ManaBarFill>>,
 ) {
     if let Ok(mana) = wizard_query.single()
@@ -277,7 +400,7 @@ pub(super) fn update_mana_bar(
 ///
 /// Otherwise shows normal cast progress with gold fill.
 pub(super) fn update_cast_bar(
-    wizard_query: Query<(&CastingState, &PrimedSpell), With<Wizard>>,
+    wizard_query: Query<(&CastingState, &PrimedSpell), With<LocalWizard>>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     mut cast_bar_query: Query<(&mut Node, &mut BackgroundColor), With<CastBarFill>>,
     mut overlay_query: Query<&mut Visibility, With<BrewingOverlay>>,

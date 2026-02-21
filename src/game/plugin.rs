@@ -114,6 +114,12 @@ impl Plugin for GamePlugin {
                 ),
             )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
+            // Also clean up OnGameplayScreen entities when leaving MP
+            // (HUD, action bar, and other shared UI use this marker)
+            .add_systems(
+                OnExit(AppState::MultiplayerGame),
+                shared_systems::cleanup_game,
+            )
             .add_systems(
                 OnExit(InGameState::ScoreScreen),
                 (

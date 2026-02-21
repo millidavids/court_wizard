@@ -33,11 +33,13 @@ pub fn is_gameplay_running(
     if sp_state.is_some_and(|s| *s.get() == InGameState::Running) {
         return true;
     }
-    // Multiplayer host: Running or Paused (escape menu doesn't pause gameplay)
+    // Multiplayer host: Running, Paused, or SpellBook (overlays don't pause gameplay)
     if mp_state.is_some_and(|s| {
         matches!(
             *s.get(),
-            MultiplayerGameState::Running | MultiplayerGameState::Paused
+            MultiplayerGameState::Running
+                | MultiplayerGameState::Paused
+                | MultiplayerGameState::SpellBook
         )
     }) {
         return session.is_some_and(|s| s.role == PeerRole::Host);
@@ -62,6 +64,33 @@ pub fn is_gameplay_active(
     // Multiplayer host: any MultiplayerGameState exists + host role
     if mp_state.is_some() {
         return session.is_some_and(|s| s.role == PeerRole::Host);
+    }
+    false
+}
+
+/// Returns true when any local wizard should process input.
+///
+/// Similar to `is_gameplay_running`, but also returns true for the multiplayer
+/// guest. This allows both host and guest to prime spells locally and process
+/// local wizard input (e.g., spell priming from action bar).
+pub fn is_local_wizard_active(
+    sp_state: Option<Res<State<InGameState>>>,
+    mp_state: Option<Res<State<MultiplayerGameState>>>,
+) -> bool {
+    // Single-player: InGameState::Running
+    if sp_state.is_some_and(|s| *s.get() == InGameState::Running) {
+        return true;
+    }
+    // Multiplayer: Running, Paused, or SpellBook — both host AND guest
+    if mp_state.is_some_and(|s| {
+        matches!(
+            *s.get(),
+            MultiplayerGameState::Running
+                | MultiplayerGameState::Paused
+                | MultiplayerGameState::SpellBook
+        )
+    }) {
+        return true;
     }
     false
 }

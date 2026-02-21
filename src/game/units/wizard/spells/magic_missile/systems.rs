@@ -2,12 +2,11 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, LocalWizard, Mana, PrimedSpell, Wizard};
 use super::components::*;
 use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
@@ -29,16 +28,23 @@ pub fn handle_magic_missile_casting(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell, &Wizard), With<Wizard>>,
+    mut wizard_query: Query<
+        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        With<LocalWizard>,
+    >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
 ) {
-    let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
+    let spawn_origin = wizard_transform.translation;
+    let target_teams = TargetTeams::AttackersAndUndead;
 
     // Check for release event - this is spell-specific logic
     if mouse_left_released.read().next().is_some() {
@@ -73,6 +79,8 @@ pub fn handle_magic_missile_casting(
                         wizard.spell_range,
                         primed_spell.empowerment,
                         cursor_pos,
+                        spawn_origin,
+                        target_teams,
                     );
                     casting_state.reset_channel_interval();
                 } else {
@@ -101,6 +109,8 @@ pub fn handle_magic_missile_casting(
                         wizard.spell_range,
                         primed_spell.empowerment,
                         cursor_pos,
+                        spawn_origin,
+                        target_teams,
                     );
                     casting_state.start_channeling();
                 } else {
@@ -125,7 +135,7 @@ pub fn handle_magic_missile_casting(
 /// If cursor position is provided, preferentially targets enemies near cursor using weighted random selection.
 /// Falls back to closest target if no enemies are in range.
 #[allow(clippy::too_many_arguments)]
-fn spawn_magic_missile(
+pub(crate) fn spawn_magic_missile(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -135,9 +145,11 @@ fn spawn_magic_missile(
     spell_range: f32,
     empowerment: f32,
     cursor_world_pos: Option<Vec3>,
+    spawn_origin: Vec3,
+    target_teams: TargetTeams,
 ) {
     // Spawn position: above the wizard
-    let spawn_pos = WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+    let spawn_pos = spawn_origin + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
     // Priority: if cursor is near an Arcane Crystal, target it directly
     let crystal_target: Option<Entity> = cursor_world_pos.and_then(|cursor_pos| {
@@ -169,7 +181,7 @@ fn spawn_magic_missile(
         // Collect enemies in range
         let enemies_in_range: Vec<Entity> = targets
             .iter()
-            .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+            .filter(|(_, _, team)| target_teams.matches(team))
             .filter(|(_, transform, _)| {
                 let distance = spawn_pos.distance(transform.translation);
                 distance <= spell_range
@@ -223,7 +235,7 @@ fn spawn_magic_missile(
             // No targets in range, find the closest enemy anywhere
             targets
                 .iter()
-                .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+                .filter(|(_, _, team)| target_teams.matches(team))
                 .min_by(|a, b| {
                     let dist_a = spawn_pos.distance(a.1.translation);
                     let dist_b = spawn_pos.distance(b.1.translation);
@@ -263,7 +275,15 @@ fn spawn_magic_missile(
             ..default()
         })),
         Transform::from_translation(spawn_pos),
-        MagicMissile::new(initial_velocity, wobble_offset, target, empowerment),
+        MagicMissile::new(
+            initial_velocity,
+            wobble_offset,
+            target,
+            empowerment,
+            target_teams,
+            spell_range,
+            spawn_pos,
+        ),
         OnGameplayScreen,
     ));
 }
@@ -276,13 +296,7 @@ pub fn move_magic_missiles(
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystal_transforms: Query<&Transform, (With<ArcaneCrystal>, Without<MagicMissile>)>,
-    wizard_query: Query<&Wizard>,
 ) {
-    let Ok(wizard) = wizard_query.single() else {
-        return;
-    };
-    let spell_range = wizard.spell_range;
-
     for (mut missile_transform, mut missile) in &mut missiles {
         missile.time_alive += time.delta_secs();
 
@@ -298,12 +312,12 @@ pub fn move_magic_missiles(
 
             let enemies_in_range: Vec<Entity> = targets
                 .iter()
-                .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+                .filter(|(_, _, team)| missile.target_teams.matches(team))
                 .filter(|(_, transform, _)| {
                     let distance = missile_transform
                         .translation
                         .distance(transform.translation);
-                    distance <= spell_range
+                    distance <= missile.spell_range
                 })
                 .map(|(entity, _, _)| entity)
                 .collect();
@@ -316,7 +330,7 @@ pub fn move_magic_missiles(
                 // No targets in range, find the closest enemy anywhere
                 targets
                     .iter()
-                    .filter(|(_, _, team)| **team == Team::Attackers || **team == Team::Undead)
+                    .filter(|(_, _, team)| missile.target_teams.matches(team))
                     .min_by(|a, b| {
                         let dist_a = missile_transform.translation.distance(a.1.translation);
                         let dist_b = missile_transform.translation.distance(b.1.translation);
@@ -440,8 +454,7 @@ pub fn check_magic_missile_collisions(
         }
 
         for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
-            // Magic Missile targets Attackers and Undead
-            if *team != Team::Attackers && *team != Team::Undead {
+            if !missile.target_teams.matches(team) {
                 continue;
             }
 
@@ -459,24 +472,14 @@ pub fn check_magic_missile_collisions(
     }
 }
 
-/// Despawns magic missiles that exit the wizard's spell range.
+/// Despawns magic missiles that exit their spell range from their origin.
 pub fn despawn_distant_magic_missiles(
     mut commands: Commands,
-    missiles: Query<(Entity, &Transform), With<MagicMissile>>,
-    wizard_query: Query<(&Transform, &Wizard), Without<MagicMissile>>,
+    missiles: Query<(Entity, &Transform, &MagicMissile)>,
 ) {
-    // Get wizard position and spell range
-    let Ok((wizard_transform, wizard)) = wizard_query.single() else {
-        return;
-    };
-
-    let wizard_pos = wizard_transform.translation;
-    let spell_range = wizard.spell_range;
-
-    for (entity, transform) in &missiles {
-        let distance_from_wizard = transform.translation.distance(wizard_pos);
-
-        if distance_from_wizard > spell_range {
+    for (entity, transform, missile) in &missiles {
+        let distance_from_origin = transform.translation.distance(missile.origin_pos);
+        if distance_from_origin > missile.spell_range {
             commands.entity(entity).despawn();
         }
     }

@@ -14,14 +14,14 @@ use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
+    CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard,
 };
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::constants as cl_constants;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::finger_of_death::components::FingerOfDeathBeam;
 use crate::game::units::wizard::spells::fireball::components::{Fireball, FireballExplosion};
-use crate::game::units::wizard::spells::magic_missile::components::MagicMissile;
+use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
@@ -155,11 +155,11 @@ pub(super) fn handle_arcane_crystal_casting(
             &mut Mana,
             &PrimedSpell,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<LocalWizard>>,
     mut indicator_query: Query<&mut ArcaneCrystalCircleIndicator>,
 ) {
     let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
@@ -997,6 +997,9 @@ pub(super) fn detect_magic_missile_hits(
                         wobble_offset,
                         Some(*target_entity),
                         DAMAGE_SCALE,
+                        TargetTeams::AttackersAndUndead,
+                        crystal.range,
+                        crystal.position,
                     );
                     mini_missile.time_alive = MINI_MISSILE_HOMING_ADVANCE;
 
@@ -1368,10 +1371,8 @@ fn handle_auto_disintegrate(
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
                 }
-            } else {
-                if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
-                    crystal.auto_disintegrate_beam = None;
-                }
+            } else if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
+                crystal.auto_disintegrate_beam = None;
             }
             return;
         } else {
@@ -1455,6 +1456,9 @@ fn auto_cast_magic_missiles(
             wobble_offset,
             Some(*target_entity),
             DAMAGE_SCALE,
+            TargetTeams::AttackersAndUndead,
+            range,
+            position,
         );
         mini_missile.time_alive = MINI_MISSILE_HOMING_ADVANCE;
 

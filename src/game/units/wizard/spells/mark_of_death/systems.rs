@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard};
 use super::components::ActiveMarkOfDeath;
 use super::constants;
 use crate::game::input::MouseButtonState;
@@ -14,7 +14,7 @@ pub fn handle_mark_of_death_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<Wizard>>,
+    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,

@@ -482,6 +482,7 @@ pub fn cleanup(
 }
 
 /// Handles multiplayer button actions.
+#[allow(clippy::too_many_arguments)]
 pub fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MultiplayerButtonAction>,
@@ -826,24 +827,23 @@ fn check_both_ready(
         opponent_ready: true,
         ..
     } = lobby_phase
+        && connection.role == Some(PeerRole::Host)
     {
-        if connection.role == Some(PeerRole::Host) {
-            info!("[Lobby] Both players ready! Host: {:?}, Guest: {:?}", my_wiz, opp_wiz);
-            info!("[Lobby] I am host, sending StartGame and transitioning to MultiplayerLoading");
-            let (_my_wt, my_spells) = load_my_unlocked_content();
-            let session = MultiplayerSession {
-                role: PeerRole::Host,
-                host_wizard: *my_wiz,
-                guest_wizard: *opp_wiz,
-                host_spells: my_spells,
-                guest_spells: Vec::new(),
-            };
-            commands.insert_resource(session);
-            connection
-                .outgoing_messages
-                .push(NetworkMessage::StartGame);
-            next_app_state.set(AppState::MultiplayerLoading);
-        }
+        info!("[Lobby] Both players ready! Host: {:?}, Guest: {:?}", my_wiz, opp_wiz);
+        info!("[Lobby] I am host, sending StartGame and transitioning to MultiplayerLoading");
+        let (_my_wt, my_spells) = load_my_unlocked_content();
+        let session = MultiplayerSession {
+            role: PeerRole::Host,
+            host_wizard: *my_wiz,
+            guest_wizard: *opp_wiz,
+            host_spells: my_spells,
+            guest_spells: Vec::new(),
+        };
+        commands.insert_resource(session);
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::StartGame);
+        next_app_state.set(AppState::MultiplayerLoading);
     }
 }
 
@@ -851,6 +851,7 @@ fn check_both_ready(
 ///
 /// In the connection phase, this toggles visibility of button groups and status text.
 /// In the wizard select phase, it updates the detail panel status text.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn update_ui_state(
     mut commands: Commands,
     connection: Res<NetworkConnection>,
@@ -963,16 +964,16 @@ pub fn update_ui_state(
             }
 
             // Rebuild the ready button area only when ready state actually changes
-            if let Ok((entity, children, mut area)) = ready_button_area.single_mut() {
-                if area.showing_ready != *my_ready {
-                    area.showing_ready = *my_ready;
-                    for child in children.iter() {
-                        commands.entity(child).despawn();
-                    }
-                    commands.entity(entity).with_children(|area| {
-                        spawn_ready_button_contents(area, *my_ready);
-                    });
+            if let Ok((entity, children, mut area)) = ready_button_area.single_mut()
+                && area.showing_ready != *my_ready
+            {
+                area.showing_ready = *my_ready;
+                for child in children.iter() {
+                    commands.entity(child).despawn();
                 }
+                commands.entity(entity).with_children(|area| {
+                    spawn_ready_button_contents(area, *my_ready);
+                });
             }
         }
         return;

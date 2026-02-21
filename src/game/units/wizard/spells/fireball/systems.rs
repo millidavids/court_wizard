@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard};
 use super::components::*;
 use super::constants;
 use super::styles::*;
@@ -27,8 +27,8 @@ pub fn handle_fireball_casting(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell), With<Wizard>>,
-    caster_query: Query<&SpellCaster, With<Wizard>>,
+    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
+    caster_query: Query<&SpellCaster, With<LocalWizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
@@ -343,7 +343,7 @@ pub fn cleanup_finished_explosions(
 pub fn despawn_distant_fireballs(
     mut commands: Commands,
     fireballs: Query<(Entity, &Transform), With<Fireball>>,
-    wizard_query: Query<(&Transform, &Wizard), Without<Fireball>>,
+    wizard_query: Query<(&Transform, &Wizard), (With<LocalWizard>, Without<Fireball>)>,
 ) {
     let Ok((wizard_transform, wizard)) = wizard_query.single() else {
         return;

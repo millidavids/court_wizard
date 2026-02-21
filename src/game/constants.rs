@@ -404,6 +404,7 @@ pub fn calculate_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
 ///
 /// # Returns
 /// Tuple of (x, z) world coordinates for the cell center
+#[allow(dead_code)]
 pub fn calculate_guest_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
     let col_offset = col as f32 - 2.5; // centers 6 columns: -2.5 .. 2.5
     // Mirror the angle: point from Castle 2 toward battlefield center
@@ -416,6 +417,7 @@ pub fn calculate_guest_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
 }
 
 /// Calculates the world position of a guest defender grid cell (mirrored from Castle 2).
+#[allow(dead_code)]
 pub fn calculate_guest_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
     let col_offset = col as f32 - (DEFENDER_GRID_COLS as f32 - 1.0) / 2.0;
     let mirrored_angle = DEFENDER_GRID_CENTER_ANGLE + std::f32::consts::PI;

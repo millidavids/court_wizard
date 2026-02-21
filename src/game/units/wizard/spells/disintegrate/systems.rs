@@ -1,11 +1,10 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
 use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 
@@ -27,18 +26,25 @@ pub fn handle_disintegrate_casting(
     time: Res<Time>,
     mut left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard)>,
+    mut wizard_query: Query<
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        With<LocalWizard>,
+    >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut beams: Query<(Entity, &mut DisintegrateBeam)>,
+    mut beams: Query<
+        (Entity, &mut DisintegrateBeam),
+        Without<crate::game::multiplayer::spell_commands::GuestBeam>,
+    >,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell, wizard)) =
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
         wizard_query.single_mut()
     else {
         return;
     };
+    let wizard_pos = wizard_transform.translation;
 
     // Check for release event - this is spell-specific logic
     if left_released.read().next().is_some() {
@@ -71,7 +77,7 @@ pub fn handle_disintegrate_casting(
                 // Update beam position based on cursor
                 if let Some(target_pos) = get_cursor_world_position(&camera_query, &window_query) {
                     let beam_origin =
-                        WIZARD_POSITION + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
+                        wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
 
                     // Clamp target position to spell range
                     let to_target = target_pos - beam_origin;
@@ -133,7 +139,7 @@ pub fn handle_disintegrate_casting(
                 // Spawn initial beam
                 if let Some(target_pos) = get_cursor_world_position(&camera_query, &window_query) {
                     let beam_origin =
-                        WIZARD_POSITION + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
+                        wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
 
                     // Clamp target position to spell range
                     let to_target = target_pos - beam_origin;
@@ -259,14 +265,23 @@ pub fn apply_disintegrate_damage(
 }
 
 /// System that despawns beams when wizard is not actively channeling disintegrate.
+///
+/// Only cleans up beams without `GuestBeam` marker — guest beams are cleaned
+/// up by `cleanup_guest_beams_on_cancel` in the multiplayer spell commands module.
 pub fn cleanup_beams_on_cancel(
     mut commands: Commands,
-    wizard_query: Query<&CastingState, (With<Wizard>, Without<DisintegrateCaster>)>,
-    beam_query: Query<Entity, With<DisintegrateBeam>>,
+    wizard_query: Query<&CastingState, (With<LocalWizard>, Without<DisintegrateCaster>)>,
+    beam_query: Query<
+        Entity,
+        (
+            With<DisintegrateBeam>,
+            Without<crate::game::multiplayer::spell_commands::GuestBeam>,
+        ),
+    >,
 ) {
     // Only cleanup if wizard is not a disintegrate caster
     if wizard_query.single().is_ok() {
-        // Wizard is resting or casting something else, despawn all disintegrate beams
+        // Wizard is resting or casting something else, despawn host's disintegrate beams
         for entity in beam_query.iter() {
             commands.entity(entity).despawn();
         }

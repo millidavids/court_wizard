@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
@@ -26,11 +26,11 @@ pub fn handle_wall_of_stone_casting(
             &mut Mana,
             &PrimedSpell,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut caster_query: Query<&mut WallOfStoneCaster, With<Wizard>>,
+    mut caster_query: Query<&mut WallOfStoneCaster, With<LocalWizard>>,
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
@@ -204,8 +204,8 @@ pub fn handle_wall_of_stone_casting(
 pub fn handle_wall_of_stone_cancel(
     mut mouse_right_pressed: MessageReader<crate::game::input::messages::MouseRightPressed>,
     mut commands: Commands,
-    mut wizard_query: Query<&mut CastingState, With<Wizard>>,
-    mut caster_query: Query<&mut WallOfStoneCaster, With<Wizard>>,
+    mut wizard_query: Query<&mut CastingState, With<LocalWizard>>,
+    mut caster_query: Query<&mut WallOfStoneCaster, With<LocalWizard>>,
     mut mouse_state: ResMut<MouseButtonState>,
 ) {
     if mouse_right_pressed.read().next().is_none() {

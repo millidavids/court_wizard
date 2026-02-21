@@ -9,7 +9,7 @@ use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::units::components::{
     Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Wizard};
+use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
 
 /// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
@@ -91,7 +91,7 @@ pub(super) fn handle_black_hole_casting(
             &PrimedSpell,
             &Wizard,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,

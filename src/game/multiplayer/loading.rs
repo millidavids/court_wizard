@@ -206,6 +206,8 @@ pub fn process_mp_spawn_queue(
                     &mut materials,
                     WIZARD_POSITION,
                     session.host_wizard,
+                    session.role,
+                    true,
                 );
             }
             MpSpawnTask::GuestWizard => {
@@ -215,6 +217,8 @@ pub fn process_mp_spawn_queue(
                     &mut materials,
                     WIZARD_2_POSITION,
                     session.guest_wizard,
+                    session.role,
+                    false,
                 );
             }
             MpSpawnTask::HostInfantry { unit_index } => {
@@ -343,13 +347,12 @@ pub fn setup_mp_camera(
     session: Res<MultiplayerSession>,
     mut camera_query: Query<&mut Transform, With<Camera3d>>,
 ) {
-    if let Ok(mut transform) = camera_query.single_mut() {
-        if session.role == PeerRole::Guest {
-            // Mirrored camera: opposite corner looking at origin
-            *transform = Transform::from_xyz(1000.0, 2500.0, -2500.0)
-                .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y);
-        }
-        // Host keeps the default camera position from main.rs
+    if let Ok(mut transform) = camera_query.single_mut()
+        && session.role == PeerRole::Guest
+    {
+        // Mirrored camera: opposite corner looking at origin
+        *transform = Transform::from_xyz(1000.0, 2500.0, -2500.0)
+            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y);
     }
 }
 
@@ -425,12 +428,21 @@ fn spawn_castle(
 }
 
 /// Spawns a wizard at the given position for multiplayer.
+///
+/// `is_host_wizard` indicates whether this is the host's wizard (castle 1) or
+/// the guest's wizard (castle 2). Combined with `role`, this determines which
+/// marker components are added:
+/// - Host wizard + Host role → `LocalWizard` (host controls this wizard)
+/// - Guest wizard + Guest role → `LocalWizard` (guest controls this wizard)
+/// - Guest wizard + Host role → `GuestWizard` (host simulates guest's spells)
 fn spawn_mp_wizard(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     wizard_type: crate::config::WizardType,
+    role: PeerRole,
+    is_host_wizard: bool,
 ) {
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
     let wizard_width = hitbox.sprite_width();
@@ -468,6 +480,18 @@ fn spawn_mp_wizard(
         Billboard,
         OnMultiplayerGameScreen,
     ));
+
+    // Add wizard role markers
+    // LocalWizard: the wizard this player controls (host's own or guest's own)
+    // GuestWizard: the guest's wizard as seen by the host (for spell command processing)
+    if (is_host_wizard && role == PeerRole::Host)
+        || (!is_host_wizard && role == PeerRole::Guest)
+    {
+        entity_commands.insert(LocalWizard);
+    }
+    if !is_host_wizard && role == PeerRole::Host {
+        entity_commands.insert(GuestWizard);
+    }
 
     if wizard_type == crate::config::WizardType::Arcanorouter {
         entity_commands.insert(
@@ -643,6 +667,7 @@ fn spawn_mp_archer(
 }
 
 /// Spawns a King unit at the given position origin for multiplayer.
+#[allow(clippy::too_many_arguments)]
 fn spawn_mp_king(
     commands: &mut Commands,
     king_assets: &crate::game::units::king::resources::KingAssets,

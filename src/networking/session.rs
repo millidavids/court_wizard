@@ -22,9 +22,11 @@ pub struct MultiplayerSession {
     pub guest_wizard: WizardType,
 
     /// Spells available to the host (from their unlocked spells).
+    #[allow(dead_code)]
     pub host_spells: Vec<Spell>,
 
     /// Spells available to the guest (from their unlocked spells).
+    #[allow(dead_code)]
     pub guest_spells: Vec<Spell>,
 }
 

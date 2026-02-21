@@ -24,6 +24,53 @@ pub struct GhostEntity;
 #[derive(Component)]
 pub struct GhostArrow;
 
+/// Marker for ghost magic missile projectiles rendered on the guest.
+///
+/// Ephemeral like `GhostArrow` — despawned and re-spawned each frame.
+#[derive(Component)]
+pub struct GhostMagicMissile;
+
+/// Marker for ghost beam effects rendered on the guest.
+///
+/// Ephemeral like `GhostArrow` — despawned and re-spawned each frame.
+#[derive(Component)]
+pub struct GhostBeam;
+
+/// Preloaded mesh and material handles for ghost spell effects on the guest.
+#[derive(Resource)]
+pub struct GhostSpellAssets {
+    /// Small pink circle mesh for ghost magic missiles.
+    pub missile_mesh: Handle<Mesh>,
+    /// Unlit pink material for ghost magic missiles.
+    pub missile_material: Handle<StandardMaterial>,
+    /// Small rectangle mesh for ghost beams (unit size, scaled by transform).
+    pub beam_mesh: Handle<Mesh>,
+    /// Unlit orange material for ghost beams.
+    pub beam_material: Handle<StandardMaterial>,
+}
+
+impl GhostSpellAssets {
+    pub fn new(
+        meshes: &mut Assets<Mesh>,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Self {
+        Self {
+            missile_mesh: meshes.add(Circle::new(8.0)),
+            missile_material: materials.add(StandardMaterial {
+                base_color: Color::srgb(1.0, 0.4, 0.7),
+                unlit: true,
+                ..default()
+            }),
+            beam_mesh: meshes.add(Rectangle::new(1.0, 1.0)),
+            beam_material: materials.add(StandardMaterial {
+                base_color: Color::srgb(1.0, 0.6, 0.1),
+                unlit: true,
+                ..default()
+            }),
+        }
+    }
+}
+
 /// Marker for entities on the multiplayer score screen.
 ///
 /// Used for targeted cleanup when leaving the score screen sub-state.

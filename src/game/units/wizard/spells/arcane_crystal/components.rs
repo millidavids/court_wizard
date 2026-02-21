@@ -5,7 +5,7 @@ use bevy::prelude::*;
 /// The type of spell the crystal has most recently absorbed.
 /// Used for auto-casting on a timer.
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub(in crate::game::units::wizard::spells) enum RememberedSpell {
+pub(crate) enum RememberedSpell {
     Fireball,
     Disintegrate,
     FingerOfDeath,
@@ -47,7 +47,7 @@ impl RememberedSpell {
 /// Absorbs incoming spell projectiles/beams and re-emits smaller versions
 /// at random enemies within range.
 #[derive(Component)]
-pub(in crate::game::units::wizard::spells) struct ArcaneCrystal {
+pub(crate) struct ArcaneCrystal {
     /// World position of the crystal.
     pub position: Vec3,
     /// Range within which the crystal targets enemies and limits projectiles.

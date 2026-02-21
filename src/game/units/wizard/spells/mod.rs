@@ -2,14 +2,14 @@
 //!
 //! Handles wizard spells, projectiles, and spell effects.
 
-mod arcane_crystal;
+pub(crate) mod arcane_crystal;
 mod banishment;
 mod battle_hymn;
 mod berserker_rage;
 mod black_hole;
 mod chain_lightning;
 mod components;
-mod disintegrate;
+pub(crate) mod disintegrate;
 mod entangle;
 mod finger_of_death;
 mod fireball;
@@ -20,7 +20,7 @@ mod haste;
 mod healing_plume;
 mod hypnotic_pattern;
 mod lightning_rod;
-mod magic_missile;
+pub(crate) mod magic_missile;
 mod mark_of_death;
 pub(crate) mod meteor_fall;
 mod phantasmal_force;

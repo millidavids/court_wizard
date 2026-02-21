@@ -51,12 +51,8 @@ fn send_outgoing_messages(mut connection: ResMut<NetworkConnection>) {
     }
 
     let messages: Vec<NetworkMessage> = connection.outgoing_messages.drain(..).collect();
-    if !messages.is_empty() {
-        info!("[Net] Sending {} outgoing messages", messages.len());
-    }
     for msg in &messages {
         if let Ok(json) = serde_json::to_string(msg) {
-            info!("[Net] Sending: {:?}", msg);
             super::webrtc::send_message(&json);
         }
     }

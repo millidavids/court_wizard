@@ -11,7 +11,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{Spell, SpellCategory};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
-use crate::state::InGameState;
+use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::ButtonColors;
 use crate::ui::concentration::ConcentrationUIRoot;
@@ -372,12 +372,15 @@ fn spawn_spell_list(
 // ---------------------------------------------------------------------------
 
 /// Handles button click actions in the spell book.
+///
+/// Closes to the appropriate state (SP or MP) depending on which is active.
 pub(super) fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&SpellBookButtonAction>,
     mut selected: ResMut<SelectedSpellPreview>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
+    mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
+    mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -389,10 +392,20 @@ pub(super) fn button_action(
                     prime_spell.write(PrimeSpellMessage {
                         spell: selected.0.primed_config(),
                     });
-                    next_in_game_state.set(InGameState::Running);
+                    if let Some(ref mut next_sp) = next_in_game_state {
+                        next_sp.set(InGameState::Running);
+                    }
+                    if let Some(ref mut next_mp) = next_mp_state {
+                        next_mp.set(MultiplayerGameState::Running);
+                    }
                 }
                 SpellBookButtonAction::Close => {
-                    next_in_game_state.set(InGameState::Running);
+                    if let Some(ref mut next_sp) = next_in_game_state {
+                        next_sp.set(InGameState::Running);
+                    }
+                    if let Some(ref mut next_mp) = next_mp_state {
+                        next_mp.set(MultiplayerGameState::Running);
+                    }
                 }
             }
         }
@@ -588,10 +601,16 @@ pub(super) fn handle_spell_scroll(
 /// Handles keyboard input (ESC to close).
 pub(super) fn keyboard_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
+    mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
+    mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
 ) {
     if keys.just_pressed(KeyCode::Escape) {
-        next_in_game_state.set(InGameState::Running);
+        if let Some(ref mut next_sp) = next_in_game_state {
+            next_sp.set(InGameState::Running);
+        }
+        if let Some(ref mut next_mp) = next_mp_state {
+            next_mp.set(MultiplayerGameState::Running);
+        }
     }
 }
 

@@ -87,9 +87,10 @@ pub(super) struct ActiveConnectionButtons;
 pub(super) struct WizardSelectScreen;
 
 /// Tracks the current phase of the multiplayer lobby.
-#[derive(Resource, Debug, Clone, PartialEq)]
+#[derive(Resource, Debug, Clone, PartialEq, Default)]
 pub(super) enum LobbyPhase {
     /// Initial connection phase — showing Host/Join buttons.
+    #[default]
     Connection,
 
     /// Connected, waiting for PlayerInfo exchange.
@@ -112,8 +113,3 @@ pub(super) enum LobbyPhase {
     },
 }
 
-impl Default for LobbyPhase {
-    fn default() -> Self {
-        Self::Connection
-    }
-}

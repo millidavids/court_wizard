@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard};
 use super::components::BerserkerRageIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -26,11 +26,11 @@ pub fn handle_berserker_rage_casting(
             &mut Mana,
             &PrimedSpell,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<LocalWizard>>,
     mut indicator_query: Query<&mut BerserkerRageIndicator>,
     mut targets_query: Query<
         (Entity, &Transform, Option<&mut BerserkerRageModifier>),

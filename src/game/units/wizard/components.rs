@@ -938,3 +938,19 @@ impl SpellCaster {
         }
     }
 }
+
+/// Marker for the locally-controlled wizard.
+///
+/// In single-player, the one wizard gets this marker.
+/// In multiplayer, each peer's own wizard gets this marker.
+/// Spell casting systems query `With<LocalWizard>` instead of `With<Wizard>`
+/// to ensure `single()` works with two wizard entities present.
+#[derive(Component)]
+pub struct LocalWizard;
+
+/// Marker for the guest's wizard entity on the host.
+///
+/// Only added in multiplayer on the host. The host processes incoming
+/// `SpellCommand` messages and drives this wizard's casting state.
+#[derive(Component)]
+pub struct GuestWizard;

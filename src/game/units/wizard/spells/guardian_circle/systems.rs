@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard};
 use super::components::GuardianCircleIndicator;
 use super::constants;
 use super::styles::CIRCLE_COLOR;
@@ -35,11 +35,11 @@ pub fn handle_guardian_circle_casting(
             &mut Mana,
             &PrimedSpell,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<LocalWizard>>,
     mut indicator_query: Query<&mut GuardianCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
     mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,

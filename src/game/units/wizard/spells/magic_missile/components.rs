@@ -2,6 +2,26 @@ use bevy::prelude::*;
 
 use super::constants;
 use crate::game::units::DamageType;
+use crate::game::units::components::Team;
+
+/// Defines which teams a magic missile can target.
+#[derive(Clone, Copy)]
+pub enum TargetTeams {
+    /// Host wizard: targets Attackers and Undead.
+    AttackersAndUndead,
+    /// Guest wizard: targets Defenders and Undead.
+    DefendersAndUndead,
+}
+
+impl TargetTeams {
+    /// Returns true if the given team is a valid target.
+    pub fn matches(&self, team: &Team) -> bool {
+        match self {
+            TargetTeams::AttackersAndUndead => *team == Team::Attackers || *team == Team::Undead,
+            TargetTeams::DefendersAndUndead => *team == Team::Defenders || *team == Team::Undead,
+        }
+    }
+}
 
 /// Component for magic missile projectiles.
 ///
@@ -27,6 +47,12 @@ pub struct MagicMissile {
     pub target: Option<Entity>,
     /// Whether this missile is empowered.
     pub empowerment: f32,
+    /// Which teams this missile targets.
+    pub target_teams: TargetTeams,
+    /// The wizard's spell range (for despawn distance and retargeting).
+    pub spell_range: f32,
+    /// Where the missile was spawned from (for despawn distance check).
+    pub origin_pos: Vec3,
 }
 
 impl MagicMissile {
@@ -37,12 +63,18 @@ impl MagicMissile {
     /// * `initial_velocity` - Starting velocity vector
     /// * `wobble_offset` - Random offset for wobble pattern
     /// * `target` - Initial target entity to lock onto
-    /// * `empowered` - Whether this missile is empowered (25% bonus)
+    /// * `empowerment` - Damage/effect multiplier
+    /// * `target_teams` - Which teams to target
+    /// * `spell_range` - Wizard's spell range for retargeting/despawn
+    /// * `origin_pos` - Spawn position for despawn distance check
     pub fn new(
         initial_velocity: Vec3,
         wobble_offset: f32,
         target: Option<Entity>,
         empowerment: f32,
+        target_teams: TargetTeams,
+        spell_range: f32,
+        origin_pos: Vec3,
     ) -> Self {
         let scale = empowerment;
         Self {
@@ -55,6 +87,9 @@ impl MagicMissile {
             wobble_offset,
             target,
             empowerment,
+            target_teams,
+            spell_range,
+            origin_pos,
         }
     }
 

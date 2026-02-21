@@ -273,15 +273,14 @@ pub fn handle_obstacle_events(
     // If any obstacles changed, rebuild both fields
     if rebuild_needed {
         // Rebuild attacker field toward Defender King
-        if pathfinding.pending_attacker_rebuild.is_none() {
-            if let Some((king_transform, _)) = king_query
+        if pathfinding.pending_attacker_rebuild.is_none()
+            && let Some((king_transform, _)) = king_query
                 .iter()
                 .find(|(_, team)| **team == Team::Defenders)
-            {
-                let king_pos =
-                    Vec2::new(king_transform.translation.x, king_transform.translation.z);
-                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
-            }
+        {
+            let king_pos =
+                Vec2::new(king_transform.translation.x, king_transform.translation.z);
+            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
         }
 
         // Rebuild defender field if it exists

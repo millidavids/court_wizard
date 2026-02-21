@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
 use crate::state::InGameState;
 
 use super::archetypes::ArchetypesPlugin;
@@ -29,11 +29,14 @@ impl Plugin for WizardPlugin {
                 Update,
                 (
                     systems::regenerate_mana,
-                    systems::handle_prime_spell_messages,
                     systems::reset_empowerment_after_cast,
                     systems::apply_wizard_stats_to_primed_spell,
                 )
                     .run_if(is_gameplay_running),
+            )
+            .add_systems(
+                Update,
+                systems::handle_prime_spell_messages.run_if(is_local_wizard_active),
             )
             .add_systems(OnExit(InGameState::Running), systems::cancel_active_casts);
     }

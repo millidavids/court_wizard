@@ -59,6 +59,7 @@ pub fn setup_wizard(
         CastingState::new(),
         wizard,
         magic_missile_constants::PRIMED_MAGIC_MISSILE,
+        LocalWizard,
         Billboard,
         OnGameplayScreen,
     ));
@@ -87,7 +88,7 @@ pub fn regenerate_mana(
 pub fn handle_prime_spell_messages(
     mut messages: MessageReader<PrimeSpellMessage>,
     cauldron_buffs: Res<CauldronBuffs>,
-    mut wizard_query: Query<&mut PrimedSpell, With<Wizard>>,
+    mut wizard_query: Query<&mut PrimedSpell, With<LocalWizard>>,
 ) {
     for message in messages.read() {
         if let Ok(mut primed_spell) = wizard_query.single_mut() {
@@ -143,7 +144,7 @@ pub fn reset_empowerment_after_cast(
 /// Prevents spells from continuing to cast when entering menus or paused state.
 /// Also resets the mouse button state to prevent lingering input.
 pub fn cancel_active_casts(
-    mut wizard_query: Query<&mut CastingState, With<Wizard>>,
+    mut wizard_query: Query<&mut CastingState, With<LocalWizard>>,
     mut mouse_state: ResMut<MouseButtonState>,
 ) {
     if let Ok(mut casting_state) = wizard_query.single_mut()

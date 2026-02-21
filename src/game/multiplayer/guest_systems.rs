@@ -19,10 +19,14 @@ use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{GameSnapshot, UnitFlags, u8_to_team};
 use crate::state::MultiplayerGameState;
 
-use super::components::{GhostArrow, GhostEntity, OnMultiplayerGameScreen};
+use super::components::{
+    GhostArrow, GhostBeam, GhostEntity, GhostMagicMissile, GhostSpellAssets,
+    OnMultiplayerGameScreen,
+};
 
 /// Receives the latest state snapshot from the host and creates/updates/despawns
 /// ghost entities to match the host's game state.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_state_snapshot(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
@@ -30,8 +34,11 @@ pub fn apply_state_snapshot(
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
     king_assets: Res<KingAssets>,
+    spell_assets: Option<Res<GhostSpellAssets>>,
     mut ghost_query: Query<(&mut Transform, &mut MeshMaterial3d<StandardMaterial>), With<GhostEntity>>,
     ghost_arrows: Query<Entity, With<GhostArrow>>,
+    ghost_missiles: Query<Entity, With<GhostMagicMissile>>,
+    ghost_beams: Query<Entity, With<GhostBeam>>,
 ) {
     // Take only the latest snapshot (discard stale ones)
     let raw_snapshots: Vec<Vec<u8>> = connection.incoming_unreliable.drain(..).collect();
@@ -123,10 +130,10 @@ pub fn apply_state_snapshot(
         .collect();
 
     for stale_id in stale_ids {
-        if let Some(entity) = entity_map.remove_by_remote(stale_id) {
-            if let Ok(mut entity_commands) = commands.get_entity(entity) {
-                entity_commands.despawn();
-            }
+        if let Some(entity) = entity_map.remove_by_remote(stale_id)
+            && let Ok(mut entity_commands) = commands.get_entity(entity)
+        {
+            entity_commands.despawn();
         }
     }
 
@@ -148,11 +155,59 @@ pub fn apply_state_snapshot(
             OnMultiplayerGameScreen,
         ));
     }
+
+    // Replace all ghost magic missiles with fresh positions from the snapshot.
+    for entity in &ghost_missiles {
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+
+    // Replace all ghost beams with fresh data from the snapshot.
+    for entity in &ghost_beams {
+        if let Ok(mut ec) = commands.get_entity(entity) {
+            ec.despawn();
+        }
+    }
+
+    if let Some(spell_assets) = spell_assets {
+        for missile in &snapshot.magic_missiles {
+            commands.spawn((
+                Mesh3d(spell_assets.missile_mesh.clone()),
+                MeshMaterial3d(spell_assets.missile_material.clone()),
+                Transform::from_translation(Vec3::new(missile.x, missile.y, missile.z)),
+                Billboard,
+                GhostMagicMissile,
+                OnMultiplayerGameScreen,
+            ));
+        }
+
+        for beam in &snapshot.beams {
+            let origin = Vec3::new(beam.ox, beam.oy, beam.oz);
+            let direction = Vec3::new(beam.dx, beam.dy, beam.dz);
+            let length = beam.length;
+
+            // Position at beam midpoint, rotate to align with direction, scale to length
+            let midpoint = origin + direction * (length / 2.0);
+            let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
+
+            commands.spawn((
+                Mesh3d(spell_assets.beam_mesh.clone()),
+                MeshMaterial3d(spell_assets.beam_material.clone()),
+                Transform::from_translation(midpoint)
+                    .with_rotation(rotation)
+                    .with_scale(Vec3::new(30.0, length, 1.0)),
+                GhostBeam,
+                OnMultiplayerGameScreen,
+            ));
+        }
+    }
 }
 
 /// Picks the correct preloaded material handle for a ghost entity.
 ///
 /// Corpse materials already have low alpha baked into the preloaded assets.
+#[allow(clippy::too_many_arguments)]
 fn pick_material(
     infantry_assets: &InfantryAssets,
     archer_assets: &ArcherAssets,

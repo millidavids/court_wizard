@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
 use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -27,7 +27,7 @@ pub fn handle_finger_of_death_casting(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<(Entity, &mut CastingState, &Mana, &PrimedSpell, &Wizard)>,
+    mut wizard_query: Query<(Entity, &mut CastingState, &Mana, &PrimedSpell, &Wizard), With<LocalWizard>>,
     awaiting_release_query: Query<(), With<AwaitingFingerOfDeathRelease>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -231,7 +231,7 @@ pub fn apply_finger_of_death_damage(
         ),
         Without<Wizard>,
     >,
-    mut wizard_query: Query<(&mut Mana, &mut CastingState), With<Wizard>>,
+    mut wizard_query: Query<(&mut Mana, &mut CastingState), With<LocalWizard>>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
 ) {
     for mut beam in beams.iter_mut() {
@@ -345,7 +345,7 @@ pub fn update_finger_of_death_beam_visuals(
 pub fn cleanup_finger_of_death_beams(
     mut commands: Commands,
     beams: Query<(Entity, &FingerOfDeathBeam)>,
-    wizard_query: Query<&CastingState, With<Wizard>>,
+    wizard_query: Query<&CastingState, With<LocalWizard>>,
 ) {
     let wizard_state = wizard_query.single();
 

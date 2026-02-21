@@ -32,6 +32,7 @@ use super::components::{
 use super::guest_systems;
 use super::host_systems;
 use super::loading;
+use super::spell_commands;
 
 use crate::game::units::infantry::components::DefendersActivated;
 
@@ -44,7 +45,9 @@ fn in_mp_running(state: Option<Res<State<MultiplayerGameState>>>) -> bool {
     state.is_some_and(|s| {
         matches!(
             *s.get(),
-            MultiplayerGameState::Running | MultiplayerGameState::Paused
+            MultiplayerGameState::Running
+                | MultiplayerGameState::Paused
+                | MultiplayerGameState::SpellBook
         )
     })
 }
@@ -142,6 +145,31 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(in_mp_running.and(is_multiplayer_guest)),
         );
 
+        // ── Guest: Spell Input Sending ──────────────────────────────────
+        let mp_guest = in_mp_running.and(is_multiplayer_guest);
+        app.add_systems(
+            Update,
+            (
+                spell_commands::send_guest_prime_spell,
+                spell_commands::send_guest_spell_commands,
+            )
+                .run_if(mp_guest),
+        );
+
+        // ── Host: Guest Spell Command Processing ──────────────────────
+        let mp_host_spells = in_mp_running.and(is_multiplayer_host);
+        app.add_systems(
+            Update,
+            (
+                spell_commands::process_guest_spell_commands,
+                spell_commands::handle_guest_magic_missile_casting,
+                spell_commands::handle_guest_disintegrate_casting,
+                spell_commands::cleanup_guest_beams_on_cancel,
+            )
+                .chain()
+                .run_if(mp_host_spells),
+        );
+
         // ── Escape Key (Running → Paused toggle) ──────────────────────
         app.add_systems(
             Update,
@@ -220,6 +248,8 @@ fn init_mp_game(
     mut kill_stats: ResMut<KillStats>,
     mut defenders_activated: ResMut<DefendersActivated>,
     mut game_outcome: ResMut<GameOutcome>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Reset globally-owned resources to clean state for this match
     *attack_cycle = GlobalAttackCycle::default();
@@ -231,12 +261,18 @@ fn init_mp_game(
     commands.init_resource::<EntityIdCounter>();
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
+    commands.init_resource::<spell_commands::GuestCursorPosition>();
+
+    // Preload ghost spell assets for guest rendering
+    let ghost_assets = super::components::GhostSpellAssets::new(&mut meshes, &mut materials);
+    commands.insert_resource(ghost_assets);
 }
 
 /// Cleans up multiplayer game entities and resources.
 ///
 /// If `PendingRematch` is present, the `MultiplayerSession` is kept alive
 /// so the WebRTC connection persists through the rematch flow.
+#[allow(clippy::too_many_arguments)]
 fn cleanup_mp_game(
     mut commands: Commands,
     mp_entities: Query<Entity, With<OnMultiplayerGameScreen>>,
@@ -266,6 +302,8 @@ fn cleanup_mp_game(
     commands.remove_resource::<EntityIdCounter>();
     commands.remove_resource::<NetworkEntityMap>();
     commands.remove_resource::<SnapshotTick>();
+    commands.remove_resource::<spell_commands::GuestCursorPosition>();
+    commands.remove_resource::<super::components::GhostSpellAssets>();
 
     // Only remove the session if this is NOT a rematch — keep connection alive for rematch
     if pending_rematch.is_none() {
@@ -516,7 +554,7 @@ fn mp_escape_key_handler(
         MultiplayerGameState::Running => {
             next_mp_state.set(MultiplayerGameState::Paused);
         }
-        MultiplayerGameState::Paused => {
+        MultiplayerGameState::Paused | MultiplayerGameState::SpellBook => {
             next_mp_state.set(MultiplayerGameState::Running);
         }
         _ => {}

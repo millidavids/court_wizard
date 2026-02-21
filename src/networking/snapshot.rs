@@ -21,6 +21,10 @@ pub struct GameSnapshot {
     pub units: Vec<UnitSnapshot>,
     /// State of every in-flight arrow projectile.
     pub arrows: Vec<ArrowSnapshot>,
+    /// State of every in-flight magic missile.
+    pub magic_missiles: Vec<MagicMissileSnapshot>,
+    /// State of every active beam (disintegrate, etc.).
+    pub beams: Vec<BeamSnapshot>,
 }
 
 /// Compact per-unit state (~21 bytes).
@@ -71,6 +75,7 @@ pub fn u8_to_team(val: u8) -> Team {
 }
 
 /// Builds a `UnitSnapshot` from an entity's components.
+#[allow(clippy::too_many_arguments)]
 pub fn build_unit_snapshot(
     net_id: &NetworkEntityId,
     transform: &Transform,
@@ -121,6 +126,38 @@ pub struct ArrowSnapshot {
     pub y: f32,
     /// World position Z.
     pub z: f32,
+}
+
+/// Compact per-magic-missile state (~12 bytes).
+#[derive(Serialize, Deserialize)]
+pub struct MagicMissileSnapshot {
+    /// World position X.
+    pub x: f32,
+    /// World position Y (height).
+    pub y: f32,
+    /// World position Z.
+    pub z: f32,
+}
+
+/// Compact per-beam state (~28 bytes).
+///
+/// Encodes origin, direction, and length for disintegrate and similar beams.
+#[derive(Serialize, Deserialize)]
+pub struct BeamSnapshot {
+    /// Origin X.
+    pub ox: f32,
+    /// Origin Y.
+    pub oy: f32,
+    /// Origin Z.
+    pub oz: f32,
+    /// Direction X.
+    pub dx: f32,
+    /// Direction Y.
+    pub dy: f32,
+    /// Direction Z.
+    pub dz: f32,
+    /// Beam length.
+    pub length: f32,
 }
 
 /// Monotonically increasing tick counter for snapshot ordering.

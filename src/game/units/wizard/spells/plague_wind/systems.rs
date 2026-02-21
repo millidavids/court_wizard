@@ -11,7 +11,7 @@ use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
+    CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -31,11 +31,11 @@ pub fn handle_plague_wind_casting(
             &mut Mana,
             &PrimedSpell,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<LocalWizard>>,
     mut indicator_query: Query<&mut PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {

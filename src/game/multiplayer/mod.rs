@@ -9,5 +9,6 @@ pub(in crate::game) mod guest_systems;
 pub(in crate::game) mod host_systems;
 pub(crate) mod loading;
 mod plugin;
+pub(crate) mod spell_commands;
 
 pub use plugin::MultiplayerGamePlugin;

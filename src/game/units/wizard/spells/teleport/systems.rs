@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Wizard};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
 use super::components::{TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
@@ -20,8 +20,8 @@ use crate::game::units::components::Teleportable;
 pub fn handle_teleport_cancel(
     mut mouse_right_pressed: MessageReader<MouseRightPressed>,
     mut commands: Commands,
-    mut wizard_query: Query<(&mut CastingState, Entity), With<Wizard>>,
-    mut caster_query: Query<&mut TeleportCaster, With<Wizard>>,
+    mut wizard_query: Query<(&mut CastingState, Entity), With<LocalWizard>>,
+    mut caster_query: Query<&mut TeleportCaster, With<LocalWizard>>,
     mut mouse_state: ResMut<MouseButtonState>,
 ) {
     // Only process if right-click occurred
@@ -81,14 +81,14 @@ pub fn handle_teleport_casting(
             &PrimedSpell,
         ),
         (
-            With<Wizard>,
+            With<LocalWizard>,
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
         ),
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut caster_query: Query<&mut TeleportCaster, With<Wizard>>,
+    mut caster_query: Query<&mut TeleportCaster, With<LocalWizard>>,
     mut destination_query: Query<
         (&mut Transform, &mut TeleportDestinationCircle),
         (

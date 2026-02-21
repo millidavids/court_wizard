@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::game::run_conditions::is_gameplay_running;
-use crate::state::InGameState;
+use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
+use crate::state::{InGameState, MultiplayerGameState};
 
 use super::{
     components::{
@@ -48,6 +48,10 @@ impl Plugin for InputPlugin {
                 OnEnter(InGameState::Running),
                 systems::clear_mouse_input_state,
             )
+            .add_systems(
+                OnEnter(MultiplayerGameState::Running),
+                systems::clear_mouse_input_state,
+            )
             // Add input detection systems
             .add_systems(
                 Update,
@@ -57,23 +61,31 @@ impl Plugin for InputPlugin {
                 )
                     .run_if(is_gameplay_running),
             )
+            // Keyboard input: use is_local_wizard_active so guest can use number keys too
             .add_systems(
                 Update,
-                systems::detect_keyboard_input
-                    .run_if(is_gameplay_running.or(in_state(InGameState::SpellBook))),
+                systems::detect_keyboard_input.run_if(
+                    is_local_wizard_active
+                        .or(in_state(InGameState::SpellBook))
+                        .or(in_state(MultiplayerGameState::SpellBook)),
+                ),
             )
             // Rune input (Q/W/E/R + spacebar activate) - RuneCaster only
             .add_systems(
                 Update,
                 systems::detect_rune_input
-                    .run_if(is_gameplay_running.or(in_state(InGameState::SpellBook)))
+                    .run_if(
+                        is_local_wizard_active
+                            .or(in_state(InGameState::SpellBook))
+                            .or(in_state(MultiplayerGameState::SpellBook)),
+                    )
                     .run_if(run_conditions::is_rune_caster),
             )
             // Roulette input (spacebar to spin) - Randomancer only
             .add_systems(
                 Update,
                 systems::detect_roulette_input
-                    .run_if(is_gameplay_running)
+                    .run_if(is_local_wizard_active)
                     .run_if(run_conditions::is_randomancer),
             );
     }

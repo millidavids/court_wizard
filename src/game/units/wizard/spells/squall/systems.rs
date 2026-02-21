@@ -13,7 +13,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, SpellCaster, Wizard,
+    CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard,
 };
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -126,11 +126,11 @@ pub(super) fn handle_squall_casting(
             &mut Mana,
             &PrimedSpell,
         ),
-        With<Wizard>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<Wizard>>,
+    caster_query: Query<&SpellCaster, With<LocalWizard>>,
     mut indicator_query: Query<&mut SquallCircleIndicator>,
     existing_storms: Query<Entity, With<SquallStorm>>,
 ) {
