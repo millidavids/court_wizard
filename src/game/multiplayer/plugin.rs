@@ -160,13 +160,16 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(in_mp_running.and(is_multiplayer_guest)),
         );
 
-        // ── Guest: Spell Input Sending ──────────────────────────────────
+        // ── Guest: Spell Input Sending + Local UI ──────────────────────
         let mp_guest = in_mp_running.and(is_multiplayer_guest);
         app.add_systems(
             Update,
             (
                 spell_commands::send_guest_prime_spell,
                 spell_commands::send_guest_spell_commands,
+                // Drives CastingState locally so the guest's cast bar works.
+                // Does NOT spawn any spell entities — the host handles that.
+                spell_commands::update_guest_local_casting,
             )
                 .run_if(mp_guest),
         );

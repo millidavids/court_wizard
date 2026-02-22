@@ -615,6 +615,17 @@ impl Spell {
         }
     }
 
+    /// Returns true if this spell transitions to channeling after the cast completes.
+    ///
+    /// Channeled spells keep CastingState::Channeling while the mouse is held,
+    /// producing repeated effects over time.
+    pub const fn is_channeled(&self) -> bool {
+        matches!(
+            self,
+            Spell::MagicMissile | Spell::Disintegrate | Spell::RaiseTheDead
+        )
+    }
+
     /// Returns true if this spell is researchable (not a default spell).
     pub const fn is_researchable(&self) -> bool {
         self.research_cost() > 0

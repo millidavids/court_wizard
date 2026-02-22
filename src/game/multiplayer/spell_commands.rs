@@ -168,6 +168,67 @@ pub fn process_guest_spell_commands(
     }
 }
 
+// ── Guest UI Systems ──────────────────────────────────────────────────
+
+/// Updates the guest's local wizard CastingState for UI feedback (cast bar).
+///
+/// The guest doesn't run full spell casting systems (those only run on the host
+/// to avoid spawning duplicate entities). This lightweight system reads the mouse
+/// directly and drives CastingState transitions so the cast bar displays correctly.
+pub fn update_guest_local_casting(
+    time: Res<Time>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut wizard_query: Query<(&mut CastingState, &PrimedSpell, &Mana), With<LocalWizard>>,
+) {
+    let Ok((mut casting_state, primed_spell, mana)) = wizard_query.single_mut() else {
+        return;
+    };
+
+    let just_released = mouse.just_released(MouseButton::Left);
+    let pressed = mouse.pressed(MouseButton::Left);
+    let just_pressed = mouse.just_pressed(MouseButton::Left);
+
+    // Handle release — cancel casting
+    if just_released {
+        casting_state.cancel();
+        return;
+    }
+
+    match *casting_state {
+        CastingState::Casting { .. } => {
+            if pressed {
+                // Advance cast time
+                casting_state.advance(time.delta_secs());
+                // When cast completes, transition to channeling or back to resting
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    // For channeled spells, transition to channeling
+                    // For instant-cast spells, return to resting
+                    if primed_spell.spell.is_channeled() {
+                        casting_state.start_channeling();
+                    } else {
+                        casting_state.cancel();
+                    }
+                }
+            } else {
+                // Mouse not held — cancel
+                casting_state.cancel();
+            }
+        }
+        CastingState::Channeling { .. } => {
+            if pressed {
+                casting_state.advance_channel(time.delta_secs());
+            } else {
+                casting_state.cancel();
+            }
+        }
+        CastingState::Resting => {
+            if (just_pressed || pressed) && mana.percentage() > 0.0 {
+                casting_state.start_cast();
+            }
+        }
+    }
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 /// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
