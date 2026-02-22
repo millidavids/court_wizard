@@ -2,12 +2,13 @@
 
 use bevy::prelude::*;
 
-use super::components::{ArcaneCrystal, CrystalBeam, CrystalLightningArc, CrystalSpawn};
+use super::components::{ArcaneCrystal, ArcaneCrystalCircleIndicator, CrystalBeam, CrystalLightningArc, CrystalSpawn};
 use super::systems;
 use crate::game::units::wizard::components::Spell;
-use crate::game::units::wizard::spells::run_conditions::spell_is_primed;
 use crate::game::units::wizard::spells::run_conditions::{
+    spell_is_primed, guest_spell_is_primed,
     mouse_held_or_wizard_casting, mouse_left_not_consumed, spell_input_not_blocked,
+    guest_input_or_wizard_casting, any_exist,
 };
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -19,13 +20,17 @@ impl Plugin for ArcaneCrystalPlugin {
         app.add_systems(
             Update,
             (
-                // Casting
+                // Local wizard casting (mouse input)
                 systems::handle_arcane_crystal_casting
                     .run_if(spell_is_primed(Spell::ArcaneCrystal))
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::update_circle_indicator,
+                // Guest wizard casting (network signals)
+                systems::handle_arcane_crystal_casting_guest
+                    .run_if(guest_spell_is_primed(Spell::ArcaneCrystal))
+                    .run_if(guest_input_or_wizard_casting),
+                systems::update_circle_indicator.run_if(any_exist::<ArcaneCrystalCircleIndicator>()),
                 // Crystal lifetime & visuals
                 systems::update_crystal_visuals.run_if(any_with_component::<ArcaneCrystal>),
                 systems::cleanup_expired_crystals.run_if(any_with_component::<ArcaneCrystal>),

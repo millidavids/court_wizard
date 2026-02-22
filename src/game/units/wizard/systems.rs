@@ -182,13 +182,13 @@ pub fn reset_empowerment_after_cast(
 /// Prevents spells from continuing to cast when entering menus or paused state.
 /// Also resets the mouse button state to prevent lingering input.
 pub fn cancel_active_casts(
-    mut wizard_query: Query<&mut CastingState, With<LocalWizard>>,
+    mut wizard_query: Query<&mut CastingState, With<Wizard>>,
     mut mouse_state: ResMut<MouseButtonState>,
 ) {
-    if let Ok(mut casting_state) = wizard_query.single_mut()
-        && !matches!(*casting_state, CastingState::Resting)
-    {
-        casting_state.cancel();
+    for mut casting_state in &mut wizard_query {
+        if !matches!(*casting_state, CastingState::Resting) {
+            casting_state.cancel();
+        }
     }
     // Reset mouse state when exiting running state
     mouse_state.left_consumed = false;

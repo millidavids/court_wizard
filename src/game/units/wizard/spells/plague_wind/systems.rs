@@ -14,10 +14,16 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::wizard::components::{
-    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard,
+    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
 
-/// Handles plague wind casting for both local and guest wizards.
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Local wizard plague wind casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_plague_wind_casting(
     time: Res<Time>,
@@ -34,33 +40,293 @@ pub fn handle_plague_wind_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
-            Option<&GuestWizard>,
         ),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::PlagueWind { continue; }
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::PlagueWind { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let wizard_pos = wizard_transform.translation;
+    let scale = primed_spell.empowerment;
+    let radius = constants::CLOUD_RADIUS * scale;
+    let clamped_pos = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range, radius));
 
-        // Check for release event
-        if released {
+    // Spawn indicator on Resting -> Casting transition
+    if matches!(*casting_state, CastingState::Resting)
+        && caster_query.get(wizard_entity).is_err()
+        && mana.can_afford(constants::MANA_COST)
+        && let Some(pos) = clamped_pos
+    {
+        let circle_entity = spawn_circle_indicator(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            pos,
+            scale,
+        );
+        commands
+            .entity(wizard_entity)
+            .insert(SpellCaster::with_indicator(circle_entity));
+    }
+
+    // Update indicator position during casting
+    if matches!(*casting_state, CastingState::Casting { .. }) {
+        if let Some(pos) = clamped_pos
+            && let Ok(caster) = caster_query.get(wizard_entity)
+            && let Some(indicator_entity) = caster.indicator_entity
+            && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+        {
+            indicator.position = pos;
+        }
+    }
+
+    // Get the final spawn position from indicator if available
+    let indicator_pos = caster_query
+        .get(wizard_entity)
+        .ok()
+        .and_then(|caster| caster.indicator_entity)
+        .and_then(|ie| indicator_query.get(ie).ok())
+        .map(|indicator| indicator.position);
+
+    let effective_input = WizardInput {
+        cursor_pos: indicator_pos.or(clamped_pos),
+        ..input
+    };
+
+    let cast_result = plague_wind_casting_logic(
+        &effective_input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut obstacle_events,
+    );
+
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard plague wind casting -- reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_plague_wind_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<GuestWizard>,
+    >,
+    caster_query: Query<&SpellCaster>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::PlagueWind { return; }
+
+    let wizard_pos = wizard_transform.translation;
+    let scale = primed_spell.empowerment;
+    let radius = constants::CLOUD_RADIUS * scale;
+
+    // Insert SpellCaster::new() (no indicator) on Resting -> Casting transition
+    if matches!(*casting_state, CastingState::Resting)
+        && (input.just_pressed || input.pressed)
+        && caster_query.get(wizard_entity).is_err()
+        && mana.can_afford(constants::MANA_COST)
+        && input.cursor_pos.is_some()
+    {
+        commands
+            .entity(wizard_entity)
+            .insert(SpellCaster::new());
+    }
+
+    // Clamp cursor for guest
+    let clamped_input = WizardInput {
+        cursor_pos: input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range, radius)),
+        ..input
+    };
+
+    plague_wind_casting_logic(
+        &clamped_input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut obstacle_events,
+    );
+}
+
+/// Core plague wind casting logic -- called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn plague_wind_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_entity: Entity,
+    wizard_transform: &Transform,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster_query: &Query<&SpellCaster>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    let wizard_pos = wizard_transform.translation;
+    let scale = primed_spell.empowerment;
+    let radius = constants::CLOUD_RADIUS * scale;
+
+    // Check for release event
+    if input.just_released {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+        casting_state.cancel();
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed)
+                && caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(constants::MANA_COST)
+                && input.cursor_pos.is_some()
+            {
+                // SpellCaster insertion handled by the wrapper
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(constants::MANA_COST) {
+                    let pos = input.cursor_pos.unwrap_or(wizard_pos);
+
+                    // Cloud drifts toward attacker spawn direction
+                    let direction = Vec3::new(
+                        ATTACKER_GRID_CENTER_ANGLE.cos(),
+                        0.0,
+                        ATTACKER_GRID_CENTER_ANGLE.sin(),
+                    )
+                    .normalize();
+
+                    let damage = constants::DAMAGE_PER_TICK * scale;
+
+                    // Notify pathfinding
+                    let origin_2d = Vec2::new(pos.x, pos.z);
+                    let buffered = radius + OBSTACLE_BUFFER;
+                    obstacle_events.write(ObstacleChanged {
+                        bounds: Rect::from_center_size(
+                            origin_2d,
+                            Vec2::splat(buffered * 2.0),
+                        ),
+                        obstacle_type: ObstacleType::Hazard(10.0),
+                    });
+
+                    let cloud_mesh = meshes.add(Circle::new(radius));
+                    let cloud_material = materials.add(StandardMaterial {
+                        base_color: constants::CLOUD_COLOR,
+                        unlit: true,
+                        alpha_mode: AlphaMode::Blend,
+                        cull_mode: None,
+                        ..default()
+                    });
+
+                    commands.spawn((
+                        Mesh3d(cloud_mesh),
+                        MeshMaterial3d(cloud_material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(Quat::from_rotation_x(
+                                -std::f32::consts::FRAC_PI_2,
+                            )),
+                        PlagueWindCloud::new(
+                            pos,
+                            radius,
+                            damage,
+                            constants::TICK_INTERVAL,
+                            constants::CLOUD_DURATION * scale,
+                            constants::CLOUD_SPEED,
+                            direction,
+                        ),
+                        NetworkedSpellEffect { kind: SpellEffectKind::PlagueWindCloud },
+                        OnGameplayScreen,
+                    ));
+
+                    result.completed = true;
+
+                    // Clean up indicator
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
+                } else {
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
                     commands.entity(indicator_entity).despawn();
@@ -68,145 +334,10 @@ pub fn handle_plague_wind_casting(
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
             casting_state.cancel();
-            continue;
-        }
-
-        let cursor_world_pos = if is_guest {
-            guest_cursor.as_ref().and_then(|c| c.position)
-        } else {
-            get_cursor_world_position(&camera_query, &window_query)
-        };
-
-        let Some(cursor_world_pos) = cursor_world_pos else {
-            continue;
-        };
-
-        let wizard_pos = wizard_transform.translation;
-        let scale = primed_spell.empowerment;
-        let radius = constants::CLOUD_RADIUS * scale;
-
-        let target_pos = clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range, radius);
-
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
-                    let circle_entity = spawn_circle_indicator(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        target_pos,
-                        scale,
-                    );
-                    commands
-                        .entity(wizard_entity)
-                        .insert(SpellCaster::with_indicator(circle_entity));
-                    casting_state.start_cast();
-                }
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-                {
-                    indicator.position = target_pos;
-                }
-
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    if mana.consume(constants::MANA_COST) {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                let pos = indicator.position;
-
-                                // Cloud drifts toward attacker spawn direction
-                                let direction = Vec3::new(
-                                    ATTACKER_GRID_CENTER_ANGLE.cos(),
-                                    0.0,
-                                    ATTACKER_GRID_CENTER_ANGLE.sin(),
-                                )
-                                .normalize();
-
-                                let damage = constants::DAMAGE_PER_TICK * scale;
-
-                                // Notify pathfinding
-                                let origin_2d = Vec2::new(pos.x, pos.z);
-                                let buffered = radius + OBSTACLE_BUFFER;
-                                obstacle_events.write(ObstacleChanged {
-                                    bounds: Rect::from_center_size(
-                                        origin_2d,
-                                        Vec2::splat(buffered * 2.0),
-                                    ),
-                                    obstacle_type: ObstacleType::Hazard(10.0),
-                                });
-
-                                let cloud_mesh = meshes.add(Circle::new(radius));
-                                let cloud_material = materials.add(StandardMaterial {
-                                    base_color: constants::CLOUD_COLOR,
-                                    unlit: true,
-                                    alpha_mode: AlphaMode::Blend,
-                                    cull_mode: None,
-                                    ..default()
-                                });
-
-                                commands.spawn((
-                                    Mesh3d(cloud_mesh),
-                                    MeshMaterial3d(cloud_material),
-                                    Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                                        .with_rotation(Quat::from_rotation_x(
-                                            -std::f32::consts::FRAC_PI_2,
-                                        )),
-                                    PlagueWindCloud::new(
-                                        pos,
-                                        radius,
-                                        damage,
-                                        constants::TICK_INTERVAL,
-                                        constants::CLOUD_DURATION * scale,
-                                        constants::CLOUD_SPEED,
-                                        direction,
-                                    ),
-                                    NetworkedSpellEffect { kind: SpellEffectKind::PlagueWindCloud },
-                                    OnGameplayScreen,
-                                ));
-                            }
-
-                            commands.entity(indicator_entity).despawn();
-                        }
-
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
-                        casting_state.cancel();
-                        if !is_guest {
-                            mouse_state.left_consumed = true;
-                        }
-                    } else {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            commands.entity(indicator_entity).despawn();
-                        }
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
-                        casting_state.cancel();
-                    }
-                }
-            }
-            CastingState::Channeling { .. } => {
-                if let Ok(caster) = caster_query.get(wizard_entity) {
-                    if let Some(indicator_entity) = caster.indicator_entity {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                }
-                casting_state.cancel();
-            }
         }
     }
+
+    result
 }
 
 pub fn update_plague_wind_indicator(

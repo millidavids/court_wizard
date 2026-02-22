@@ -16,8 +16,272 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::wizard::components::{
-    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard,
+    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
+
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Local wizard Lightning Rod casting -- reads mouse input.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_lightning_rod_casting(
+    time: Res<Time>,
+    mut mouse_state: ResMut<MouseButtonState>,
+    mut mouse_left_released: MessageReader<MouseLeftReleased>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<LocalWizard>,
+    >,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    caster_query: Query<&SpellCaster>,
+    mut indicator_query: Query<&mut LightningRodCircleIndicator>,
+) {
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::LightningRod { return; }
+
+    let wizard_pos = wizard_transform.translation;
+    let clamped_pos = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range));
+
+    // Spawn indicator on Resting -> Casting transition
+    if matches!(*casting_state, CastingState::Resting)
+        && caster_query.get(wizard_entity).is_err()
+        && mana.can_afford(MANA_COST)
+        && let Some(pos) = clamped_pos
+    {
+        let circle_entity = spawn_circle_indicator(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            pos,
+            primed_spell.empowerment,
+        );
+        commands
+            .entity(wizard_entity)
+            .insert(SpellCaster::with_indicator(circle_entity));
+    }
+
+    // Update indicator position during casting
+    if matches!(*casting_state, CastingState::Casting { .. }) {
+        if let Some(pos) = clamped_pos
+            && let Ok(caster) = caster_query.get(wizard_entity)
+            && let Some(indicator_entity) = caster.indicator_entity
+            && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+        {
+            indicator.position = pos;
+        }
+    }
+
+    // Get the final spawn position from indicator if available
+    let indicator_pos = caster_query
+        .get(wizard_entity)
+        .ok()
+        .and_then(|caster| caster.indicator_entity)
+        .and_then(|ie| indicator_query.get(ie).ok())
+        .map(|indicator| indicator.position);
+
+    // Override cursor_pos with indicator position for shared logic
+    let effective_input = WizardInput {
+        cursor_pos: indicator_pos.or(clamped_pos).map(|p| p),
+        ..input
+    };
+
+    let cast_result = lightning_rod_casting_logic(
+        &effective_input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        wizard,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+    );
+
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard Lightning Rod casting -- reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_lightning_rod_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<GuestWizard>,
+    >,
+    caster_query: Query<&SpellCaster>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::LightningRod { return; }
+
+    // Insert SpellCaster::new() (no indicator) on Resting -> Casting transition
+    if matches!(*casting_state, CastingState::Resting)
+        && (input.just_pressed || input.pressed)
+        && caster_query.get(wizard_entity).is_err()
+        && mana.can_afford(MANA_COST)
+        && input.cursor_pos.is_some()
+    {
+        commands
+            .entity(wizard_entity)
+            .insert(SpellCaster::new());
+    }
+
+    // Clamp cursor for guest too
+    let wizard_pos = wizard_transform.translation;
+    let clamped_input = WizardInput {
+        cursor_pos: input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range)),
+        ..input
+    };
+
+    lightning_rod_casting_logic(
+        &clamped_input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        wizard,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+    );
+}
+
+/// Core Lightning Rod casting logic -- called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn lightning_rod_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_entity: Entity,
+    wizard_transform: &Transform,
+    _wizard: &Wizard,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster_query: &Query<&SpellCaster>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    let wizard_pos = wizard_transform.translation;
+
+    // Check for release event - cancel cast
+    if input.just_released {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+        casting_state.cancel();
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed)
+                && caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(MANA_COST)
+                && input.cursor_pos.is_some()
+            {
+                // SpellCaster insertion handled by the wrapper
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(MANA_COST) {
+                    let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
+
+                    spawn_lightning_rod(
+                        commands,
+                        meshes,
+                        materials,
+                        spawn_pos,
+                        primed_spell.empowerment,
+                    );
+                    result.completed = true;
+                }
+
+                // Clean up indicator and caster
+                if let Ok(caster) = caster_query.get(wizard_entity)
+                    && let Some(indicator_entity) = caster.indicator_entity
+                {
+                    commands.entity(indicator_entity).despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+                casting_state.cancel();
+            }
+        }
+        CastingState::Channeling { .. } => {
+            if let Ok(caster) = caster_query.get(wizard_entity) {
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+            }
+            casting_state.cancel();
+        }
+    }
+
+    result
+}
 
 /// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
@@ -92,156 +356,6 @@ fn spawn_circle_indicator(
             OnGameplayScreen,
         ))
         .id()
-}
-
-/// Handles Lightning Rod spell casting with circle indicator.
-///
-/// Left-click starts cast. Must hold for full cast time.
-/// After cast completes, spawns lightning rod tower at cursor position.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn handle_lightning_rod_casting(
-    time: Res<Time>,
-    mut mouse_state: ResMut<MouseButtonState>,
-    mut mouse_left_released: MessageReader<MouseLeftReleased>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<
-        (
-            Entity,
-            &Transform,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-            Option<&GuestWizard>,
-        ),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
-    >,
-    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut LightningRodCircleIndicator>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
-) {
-    let local_released = mouse_left_released.read().next().is_some();
-
-    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::LightningRod { continue; }
-
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
-
-        // Check for release event - cancel cast
-        if released {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
-            casting_state.cancel();
-            continue;
-        }
-
-        // Get cursor world position and clamp to wizard's spell range
-        let cursor_world_pos = if is_guest {
-            guest_cursor.as_ref().and_then(|c| c.position)
-        } else {
-            get_cursor_world_position(&camera_query, &window_query)
-        };
-        let Some(cursor_world_pos) = cursor_world_pos else {
-            continue;
-        };
-
-        let wizard_pos = wizard_transform.translation;
-        let clamped_pos = clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range);
-
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true
-                };
-                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(MANA_COST) {
-                    let circle_entity = spawn_circle_indicator(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        clamped_pos,
-                        primed_spell.empowerment,
-                    );
-
-                    commands
-                        .entity(wizard_entity)
-                        .insert(SpellCaster::with_indicator(circle_entity));
-
-                    casting_state.start_cast();
-                }
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-
-                // Update circle position to follow cursor
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-                {
-                    indicator.position = clamped_pos;
-                }
-
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    if mana.consume(MANA_COST) {
-                        // Get final indicator position
-                        let spawn_pos = if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                            && let Ok(indicator) = indicator_query.get(indicator_entity)
-                        {
-                            indicator.position
-                        } else {
-                            clamped_pos
-                        };
-
-                        // Spawn the lightning rod tower
-                        spawn_lightning_rod(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            spawn_pos,
-                            primed_spell.empowerment,
-                        );
-                    }
-
-                    // Clean up indicator and caster
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
-                    if !is_guest {
-                        mouse_state.left_consumed = true;
-                    }
-                }
-            }
-            CastingState::Channeling { .. } => {
-                if let Ok(caster) = caster_query.get(wizard_entity) {
-                    if let Some(indicator_entity) = caster.indicator_entity {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                }
-                casting_state.cancel();
-            }
-        }
-    }
 }
 
 /// Spawns the lightning rod tower entity.

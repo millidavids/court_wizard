@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
 use super::components::*;
 use super::constants;
 use super::styles::{arc_color_at_depth, arc_width_at_depth};
@@ -17,7 +17,7 @@ use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrysta
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
-/// Handles chain lightning casting for both local and guest wizards.
+/// Local wizard chain lightning casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_chain_lightning_casting(
     time: Res<Time>,
@@ -27,130 +27,205 @@ pub fn handle_chain_lightning_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true,
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (_wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::ChainLightning { continue; }
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::ChainLightning { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = chain_lightning_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &enemies_query,
+        &mut health_query,
+    );
 
-        // Check for release event
-        if released {
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard chain lightning casting — reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_chain_lightning_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<GuestWizard>,
+    >,
+    enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::ChainLightning { return; }
+
+    chain_lightning_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &enemies_query,
+        &mut health_query,
+    );
+}
+
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Core chain lightning casting logic — called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn chain_lightning_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    _wizard_entity: Entity,
+    wizard_transform: &Transform,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    // Check for release event
+    if input.just_released {
+        casting_state.cancel();
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Channeling { .. } => {
             casting_state.cancel();
-            continue;
         }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
 
-        match *casting_state {
-            CastingState::Channeling { .. } => {
-                casting_state.cancel();
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    let cursor_pos = if is_guest {
-                        guest_cursor.as_ref().and_then(|c| c.position)
-                    } else {
-                        get_cursor_world_position(&camera_query, &window_query)
-                    };
-
-                    if mana.consume(constants::MANA_COST)
-                        && let Some(cursor_pos) = cursor_pos
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(constants::MANA_COST)
+                    && let Some(cursor_pos) = input.cursor_pos
+                {
+                    // Find enemy near cursor
+                    if let Some((target_entity, target_pos)) =
+                        find_target_near_position(cursor_pos, enemies_query)
                     {
-                        // Find enemy near cursor
-                        if let Some((target_entity, target_pos)) =
-                            find_target_near_position(cursor_pos, &enemies_query)
-                        {
-                            let wizard_pos =
-                                wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                        let wizard_pos =
+                            wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
-                            // Scale damage by empowerment
-                            let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
+                        // Scale damage by empowerment
+                        let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
 
-                            // Apply initial damage
-                            if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
-                                apply_spell_damage(
-                                    &mut commands,
-                                    target_entity,
-                                    &mut health,
-                                    temp_hp.as_deref_mut(),
-                                    initial_damage,
-                                    constants::DAMAGE_TYPE,
-                                );
-                            }
-
-                            // Spawn first arc from wizard to target (depth 0 for initial arc)
-                            spawn_arc(
-                                &mut commands,
-                                &mut meshes,
-                                &mut materials,
-                                wizard_pos,
-                                target_pos,
-                                0,
-                                primed_spell.empowerment,
+                        // Apply initial damage
+                        if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
+                            apply_spell_damage(
+                                commands,
+                                target_entity,
+                                &mut health,
+                                temp_hp.as_deref_mut(),
+                                initial_damage,
+                                constants::DAMAGE_TYPE,
                             );
+                        }
 
-                            // Spawn shared hit tracking group
-                            let group_entity = commands
-                                .spawn((
-                                    ChainLightningGroup {
-                                        hit_entities: vec![target_entity],
-                                    },
-                                    OnGameplayScreen,
-                                ))
-                                .id();
+                        // Spawn first arc from wizard to target (depth 0 for initial arc)
+                        spawn_arc(
+                            commands,
+                            meshes,
+                            materials,
+                            wizard_pos,
+                            target_pos,
+                            0,
+                            primed_spell.empowerment,
+                        );
 
-                            // Spawn chain lightning bolt to track splitting
-                            commands.spawn((
-                                ChainLightningBolt {
-                                    group_entity,
-                                    current_damage: initial_damage * constants::DAMAGE_FALLOFF,
-                                    damage_type: constants::DAMAGE_TYPE,
-                                    bounces_remaining: constants::MAX_BOUNCES,
-                                    last_hit_position: target_pos,
-                                    bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
-                                    empowerment: primed_spell.empowerment,
-                                    split_depth: 0,
+                        // Spawn shared hit tracking group
+                        let group_entity = commands
+                            .spawn((
+                                ChainLightningGroup {
+                                    hit_entities: vec![target_entity],
                                 },
                                 OnGameplayScreen,
-                            ));
-                        }
-                    }
+                            ))
+                            .id();
 
-                    casting_state.cancel();
-                    if !is_guest {
-                        mouse_state.left_consumed = true;
+                        // Spawn chain lightning bolt to track splitting
+                        commands.spawn((
+                            ChainLightningBolt {
+                                group_entity,
+                                current_damage: initial_damage * constants::DAMAGE_FALLOFF,
+                                damage_type: constants::DAMAGE_TYPE,
+                                bounces_remaining: constants::MAX_BOUNCES,
+                                last_hit_position: target_pos,
+                                bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
+                                empowerment: primed_spell.empowerment,
+                                split_depth: 0,
+                            },
+                            OnGameplayScreen,
+                        ));
                     }
+                    result.completed = true;
                 }
+
+                casting_state.cancel();
             }
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if has_input && mana.can_afford(constants::MANA_COST) {
-                    casting_state.start_cast();
-                }
+        }
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed) && mana.can_afford(constants::MANA_COST) {
+                casting_state.start_cast();
             }
         }
     }
+
+    result
 }
 
 /// Gets the cursor position projected onto the battlefield surface (Y=0 plane).

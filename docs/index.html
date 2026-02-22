@@ -7,6 +7,20 @@
         <link rel="icon" type="image/svg+xml" href="wizard_hat.svg" />
         <link rel="alternate icon" href="wizard_hat.svg" />
         <style>
+            @font-face {
+                font-family: "Cinzel";
+                src: url("assets/fonts/Cinzel-SemiBold.ttf") format("truetype");
+                font-weight: 400;
+                font-style: normal;
+            }
+
+            @font-face {
+                font-family: "Cinzel";
+                src: url("assets/fonts/Cinzel-Bold.ttf") format("truetype");
+                font-weight: 700;
+                font-style: normal;
+            }
+
             * {
                 margin: 0;
                 padding: 0;
@@ -67,9 +81,7 @@
                 justify-content: center;
                 text-align: center;
                 color: rgb(230, 230, 230);
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    sans-serif;
+                font-family: "Cinzel", serif;
             }
 
             /* Animated Spinner */
@@ -174,9 +186,7 @@
                             cursor: pointer;
                             box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
                             transition: all 0.3s ease;
-                            font-family:
-                                -apple-system, BlinkMacSystemFont,
-                                &quot;Segoe UI&quot;, Roboto, sans-serif;
+                            font-family: &quot;Cinzel&quot;, serif;
                         "
                         onmouseover="
                             this.style.transform = 'translateY(-2px)';

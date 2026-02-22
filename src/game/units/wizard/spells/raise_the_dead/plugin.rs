@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::systems::*;
+use super::systems;
 use crate::game::run_conditions::is_gameplay_running;
 
 /// Plugin for the Raise The Dead spell.
@@ -14,11 +14,18 @@ impl Plugin for RaiseTheDeadPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            handle_raise_the_dead_casting
-                .run_if(spell_is_primed(Spell::RaiseTheDead))
-                .run_if(spell_input_not_blocked)
-                .run_if(mouse_left_not_consumed)
-                .run_if(mouse_held_or_wizard_casting)
+            (
+                // Local wizard casting (mouse input)
+                systems::handle_raise_the_dead_casting
+                    .run_if(spell_is_primed(Spell::RaiseTheDead))
+                    .run_if(spell_input_not_blocked)
+                    .run_if(mouse_left_not_consumed)
+                    .run_if(mouse_held_or_wizard_casting),
+                // Guest wizard casting (network signals)
+                systems::handle_raise_the_dead_casting_guest
+                    .run_if(guest_spell_is_primed(Spell::RaiseTheDead))
+                    .run_if(guest_input_or_wizard_casting),
+            )
                 .run_if(is_gameplay_running),
         );
     }

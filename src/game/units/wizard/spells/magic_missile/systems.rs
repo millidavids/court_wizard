@@ -2,11 +2,12 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, GuestWizard, LocalWizard, Mana, PrimedSpell, Spell, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput};
 use super::components::*;
 use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::components::{
@@ -15,128 +16,210 @@ use crate::game::units::components::{
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
-/// Handles magic missile casting for both local and guest wizards.
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed its initial cast (entered channeling).
+    completed: bool,
+}
+
+/// Local wizard magic missile casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_magic_missile_casting(
     time: Res<Time>,
+    mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        With<LocalWizard>,
     >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_transform, mut casting_state, mut mana, primed_spell, wizard, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::MagicMissile { continue; }
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::MagicMissile { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = magic_missile_casting_logic(
+        &input,
+        &time,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        wizard,
+        TargetTeams::AttackersAndUndead,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &camera_query,
+        &targets,
+        &crystals,
+    );
 
-        let spawn_origin = wizard_transform.translation;
-        let target_teams = if is_guest {
-            TargetTeams::DefendersAndUndead
-        } else {
-            TargetTeams::AttackersAndUndead
-        };
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
 
-        if released {
-            casting_state.cancel();
-            continue;
-        }
+/// Guest wizard magic missile casting — reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_magic_missile_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        With<GuestWizard>,
+    >,
+    camera_query: Query<&GlobalTransform, With<Camera>>,
+    targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
+    crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
 
-        match *casting_state {
-            CastingState::Channeling { .. } => {
-                casting_state.advance_channel(time.delta_secs());
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::MagicMissile { return; }
 
-                if casting_state.should_channel(
-                    constants::INITIAL_CHANNEL_INTERVAL,
-                    constants::MIN_CHANNEL_INTERVAL,
-                    constants::CHANNEL_RAMP_TIME,
-                ) {
-                    let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
-                    if mana.consume(mana_cost) {
-                        let cursor_pos = if is_guest {
-                            guest_cursor.as_ref().and_then(|c| c.position)
-                        } else {
-                            get_cursor_world_position(&camera_query_3d, &window_query)
-                        };
-                        spawn_magic_missile(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            &camera_query,
-                            &targets,
-                            &crystals,
-                            wizard.spell_range,
-                            primed_spell.empowerment,
-                            cursor_pos,
-                            spawn_origin,
-                            target_teams,
-                        );
-                        casting_state.reset_channel_interval();
-                    } else {
-                        casting_state.cancel();
-                    }
-                }
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
+    magic_missile_casting_logic(
+        &input,
+        &time,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        wizard,
+        TargetTeams::DefendersAndUndead,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &camera_query,
+        &targets,
+        &crystals,
+    );
+}
 
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
-                    if mana.consume(mana_cost) {
-                        let cursor_pos = if is_guest {
-                            guest_cursor.as_ref().and_then(|c| c.position)
-                        } else {
-                            get_cursor_world_position(&camera_query_3d, &window_query)
-                        };
-                        spawn_magic_missile(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            &camera_query,
-                            &targets,
-                            &crystals,
-                            wizard.spell_range,
-                            primed_spell.empowerment,
-                            cursor_pos,
-                            spawn_origin,
-                            target_teams,
-                        );
-                        casting_state.start_channeling();
-                    } else {
-                        casting_state.cancel();
-                    }
-                }
-            }
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true
-                };
+/// Core magic missile casting logic — called by both local and guest systems.
+///
+/// Handles the full Resting -> Casting -> Channeling state machine.
+/// During channeling, spawns missiles at increasing frequency.
+#[allow(clippy::too_many_arguments)]
+fn magic_missile_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_transform: &Transform,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    wizard: &Wizard,
+    target_teams: TargetTeams,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    camera_query: &Query<&GlobalTransform, With<Camera>>,
+    targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
+    crystals: &Query<(Entity, &Transform, &ArcaneCrystal)>,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    let spawn_origin = wizard_transform.translation;
+
+    // Check for release event
+    if input.just_released {
+        casting_state.cancel();
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Channeling { .. } => {
+            casting_state.advance_channel(time.delta_secs());
+
+            if casting_state.should_channel(
+                constants::INITIAL_CHANNEL_INTERVAL,
+                constants::MIN_CHANNEL_INTERVAL,
+                constants::CHANNEL_RAMP_TIME,
+            ) {
                 let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
-                if has_input && mana.can_afford(mana_cost) {
-                    casting_state.start_cast();
+                if mana.consume(mana_cost) {
+                    spawn_magic_missile(
+                        commands,
+                        meshes,
+                        materials,
+                        camera_query,
+                        targets,
+                        crystals,
+                        wizard.spell_range,
+                        primed_spell.empowerment,
+                        input.cursor_pos,
+                        spawn_origin,
+                        target_teams,
+                    );
+                    casting_state.reset_channel_interval();
+                } else {
+                    casting_state.cancel();
                 }
+            }
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+
+            if casting_state.is_complete(primed_spell.cast_time) {
+                let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
+                if mana.consume(mana_cost) {
+                    spawn_magic_missile(
+                        commands,
+                        meshes,
+                        materials,
+                        camera_query,
+                        targets,
+                        crystals,
+                        wizard.spell_range,
+                        primed_spell.empowerment,
+                        input.cursor_pos,
+                        spawn_origin,
+                        target_teams,
+                    );
+                    casting_state.start_channeling();
+                    result.completed = true;
+                } else {
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Resting => {
+            let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
+            if (input.just_pressed || input.pressed) && mana.can_afford(mana_cost) {
+                casting_state.start_cast();
             }
         }
     }
+
+    result
 }
 
 /// Spawns a single magic missile projectile.
@@ -496,8 +579,6 @@ pub fn despawn_distant_magic_missiles(
 }
 
 /// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
-///
-/// TODO: Extract this to shared wizard utilities - duplicated across 11 spells.
 fn get_cursor_world_position(
     camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: &Query<&Window, With<PrimaryWindow>>,

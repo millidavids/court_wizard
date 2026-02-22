@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
 use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -13,13 +13,38 @@ use crate::game::units::components::{
     Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
 };
 
-/// Handles Finger of Death casting with left-click for both local and guest wizards.
-///
-/// Left-click starts cast (if mana > 0). Beam spawns immediately and grows during cast.
-/// After 2s cast completes, beam fires instantly dealing massive damage.
-/// Only casts when Finger of Death is the primed spell.
-///
-/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
+/// Action the shared logic requests the wrapper to perform on beams.
+enum BeamAction {
+    /// Update existing beam with new data.
+    UpdateBeam {
+        origin: Vec3,
+        direction: Vec3,
+        length: f32,
+        cast_progress: f32,
+        delta_secs: f32,
+    },
+    /// Spawn a new beam (optionally with initial cast progress).
+    SpawnBeam {
+        origin: Vec3,
+        direction: Vec3,
+        length: f32,
+        empowerment: f32,
+        cast_progress: f32,
+    },
+    /// Despawn all beams for this wizard.
+    DespawnAll,
+    /// No beam action needed.
+    None,
+}
+
+/// Result from the shared casting logic.
+struct CastingResult {
+    beam_action: BeamAction,
+    /// Whether to remove the AwaitingFingerOfDeathRelease component.
+    remove_awaiting_release: bool,
+}
+
+/// Local wizard Finger of Death casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finger_of_death_casting(
     time: Res<Time>,
@@ -28,74 +53,242 @@ pub fn handle_finger_of_death_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &Mana, &PrimedSpell, &Wizard, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (Entity, &Transform, &mut CastingState, &Mana, &PrimedSpell, &Wizard),
+        With<LocalWizard>,
     >,
     awaiting_release_query: Query<(), With<AwaitingFingerOfDeathRelease>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut local_beams: Query<(Entity, &mut FingerOfDeathBeam), Without<GuestBeam>>,
-    mut guest_beams: Query<(Entity, &mut FingerOfDeathBeam), With<GuestBeam>>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
+    mut beams: Query<(Entity, &mut FingerOfDeathBeam), Without<GuestBeam>>,
 ) {
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true,
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, mut casting_state, mana, primed_spell, wizard, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::FingerOfDeath { continue; }
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::FingerOfDeath { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let awaiting_release = awaiting_release_query.get(wizard_entity).is_ok();
+    let has_existing_beam = beams.iter().next().is_some();
 
-        let wizard_pos = wizard_transform.translation;
+    let result = finger_of_death_casting_logic(
+        &input,
+        &time,
+        wizard_transform,
+        &mut casting_state,
+        mana,
+        primed_spell,
+        wizard,
+        awaiting_release,
+        has_existing_beam,
+    );
 
-        // Check for release event - this is spell-specific logic
-        if released {
-            // Remove awaiting release marker (allows next cast)
-            commands
-                .entity(wizard_entity)
-                .remove::<AwaitingFingerOfDeathRelease>();
+    // Apply component changes
+    if result.remove_awaiting_release {
+        commands.entity(wizard_entity).remove::<AwaitingFingerOfDeathRelease>();
+    }
 
-            // Cancel cast on release - despawn beam
-            casting_state.cancel();
-
-            // Despawn beams for this wizard
-            if is_guest {
-                for (beam_entity, _) in guest_beams.iter() {
-                    commands.entity(beam_entity).despawn();
-                }
-            } else {
-                for (beam_entity, _) in local_beams.iter() {
-                    commands.entity(beam_entity).despawn();
-                }
+    // Apply beam action
+    match result.beam_action {
+        BeamAction::UpdateBeam { origin, direction, length, cast_progress, delta_secs } => {
+            if let Some((_, mut beam)) = beams.iter_mut().next() {
+                beam.origin = origin;
+                beam.direction = direction;
+                beam.length = length;
+                beam.cast_progress = cast_progress;
+                beam.time_alive += delta_secs;
             }
-
-            continue;
         }
-
-        // Mouse is held - handle casting based on state
-        match *casting_state {
-            CastingState::Channeling { .. } => {
-                // Finger of Death doesn't channel - just cancel
-                casting_state.cancel();
+        BeamAction::SpawnBeam { origin, direction, length, empowerment, cast_progress } => {
+            let mut new_beam = FingerOfDeathBeam::new(origin, direction, length, empowerment);
+            new_beam.cast_progress = cast_progress;
+            spawn_beam_with_marker(&mut commands, &mut meshes, &mut materials, new_beam, false);
+        }
+        BeamAction::DespawnAll => {
+            for (beam_entity, _) in beams.iter() {
+                commands.entity(beam_entity).despawn();
             }
-            CastingState::Casting { .. } => {
-                // Currently casting - advance cast time
-                casting_state.advance(time.delta_secs());
+        }
+        BeamAction::None => {}
+    }
+}
 
-                // Get cursor position based on wizard type
-                let cursor_pos = if is_guest {
-                    guest_cursor.as_ref().and_then(|c| c.position)
+/// Guest wizard Finger of Death casting -- reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_finger_of_death_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (Entity, &Transform, &mut CastingState, &Mana, &PrimedSpell, &Wizard),
+        With<GuestWizard>,
+    >,
+    awaiting_release_query: Query<(), With<AwaitingFingerOfDeathRelease>>,
+    mut beams: Query<(Entity, &mut FingerOfDeathBeam), With<GuestBeam>>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::FingerOfDeath { return; }
+
+    let awaiting_release = awaiting_release_query.get(wizard_entity).is_ok();
+    let has_existing_beam = beams.iter().next().is_some();
+
+    let result = finger_of_death_casting_logic(
+        &input,
+        &time,
+        wizard_transform,
+        &mut casting_state,
+        mana,
+        primed_spell,
+        wizard,
+        awaiting_release,
+        has_existing_beam,
+    );
+
+    // Apply component changes
+    if result.remove_awaiting_release {
+        commands.entity(wizard_entity).remove::<AwaitingFingerOfDeathRelease>();
+    }
+
+    // Apply beam action
+    match result.beam_action {
+        BeamAction::UpdateBeam { origin, direction, length, cast_progress, delta_secs } => {
+            if let Some((_, mut beam)) = beams.iter_mut().next() {
+                beam.origin = origin;
+                beam.direction = direction;
+                beam.length = length;
+                beam.cast_progress = cast_progress;
+                beam.time_alive += delta_secs;
+            }
+        }
+        BeamAction::SpawnBeam { origin, direction, length, empowerment, cast_progress } => {
+            let mut new_beam = FingerOfDeathBeam::new(origin, direction, length, empowerment);
+            new_beam.cast_progress = cast_progress;
+            spawn_beam_with_marker(&mut commands, &mut meshes, &mut materials, new_beam, true);
+        }
+        BeamAction::DespawnAll => {
+            for (beam_entity, _) in beams.iter() {
+                commands.entity(beam_entity).despawn();
+            }
+        }
+        BeamAction::None => {}
+    }
+}
+
+/// Core Finger of Death casting logic -- called by both local and guest systems.
+///
+/// Takes extracted data from queries and returns actions for the wrapper to apply.
+#[allow(clippy::too_many_arguments)]
+fn finger_of_death_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_transform: &Transform,
+    casting_state: &mut CastingState,
+    mana: &Mana,
+    primed_spell: &PrimedSpell,
+    wizard: &Wizard,
+    awaiting_release: bool,
+    has_existing_beam: bool,
+) -> CastingResult {
+    let mut result = CastingResult {
+        beam_action: BeamAction::None,
+        remove_awaiting_release: false,
+    };
+
+    let wizard_pos = wizard_transform.translation;
+
+    // Check for release event
+    if input.just_released {
+        result.remove_awaiting_release = true;
+        casting_state.cancel();
+        result.beam_action = BeamAction::DespawnAll;
+        return result;
+    }
+
+    // Mouse is held - handle casting based on state
+    match *casting_state {
+        CastingState::Channeling { .. } => {
+            // Finger of Death doesn't channel - just cancel
+            casting_state.cancel();
+        }
+        CastingState::Casting { .. } => {
+            // Currently casting - advance cast time
+            casting_state.advance(time.delta_secs());
+
+            // Calculate beam target
+            if let Some(cursor_pos) = input.cursor_pos {
+                let beam_origin =
+                    wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
+
+                // Clamp target position to spell range
+                let to_target = cursor_pos - beam_origin;
+                let distance = to_target.length();
+                let clamped_target = if distance > wizard.spell_range {
+                    beam_origin + to_target.normalize() * wizard.spell_range
                 } else {
-                    get_cursor_world_position(&camera_query, &window_query)
+                    cursor_pos
                 };
 
-                // Update beam position/direction to follow cursor
-                if let Some(cursor_pos) = cursor_pos {
+                let direction = (clamped_target - beam_origin).normalize();
+                let beam_length = (clamped_target - beam_origin)
+                    .length()
+                    .min(constants::BEAM_LENGTH);
+
+                // Calculate cast progress
+                let cast_progress = (casting_state.progress(primed_spell.cast_time)).min(1.0);
+
+                // Update existing beam or spawn new one
+                if has_existing_beam {
+                    result.beam_action = BeamAction::UpdateBeam {
+                        origin: beam_origin,
+                        direction,
+                        length: beam_length,
+                        cast_progress,
+                        delta_secs: time.delta_secs(),
+                    };
+                } else {
+                    result.beam_action = BeamAction::SpawnBeam {
+                        origin: beam_origin,
+                        direction,
+                        length: beam_length,
+                        empowerment: primed_spell.empowerment,
+                        cast_progress,
+                    };
+                }
+            }
+        }
+        CastingState::Resting => {
+            // Not casting - check if we're waiting for mouse release first
+            if awaiting_release {
+                return result;
+            }
+
+            // Check for active input
+            if (input.just_pressed || input.pressed)
+                && mana.percentage() >= constants::MANA_REQUIREMENT_PERCENT
+            {
+                casting_state.start_cast();
+
+                // Spawn initial beam
+                if let Some(cursor_pos) = input.cursor_pos {
                     let beam_origin =
                         wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
 
@@ -113,101 +306,19 @@ pub fn handle_finger_of_death_casting(
                         .length()
                         .min(constants::BEAM_LENGTH);
 
-                    // Calculate cast progress
-                    let cast_progress = (casting_state.progress(primed_spell.cast_time)).min(1.0);
-
-                    // Update existing beam or spawn new one
-                    if is_guest {
-                        if let Some((_, mut beam)) = guest_beams.iter_mut().next() {
-                            beam.origin = beam_origin;
-                            beam.direction = direction;
-                            beam.length = beam_length;
-                            beam.cast_progress = cast_progress;
-                            beam.time_alive += time.delta_secs();
-                        } else {
-                            let mut new_beam = FingerOfDeathBeam::new(
-                                beam_origin,
-                                direction,
-                                beam_length,
-                                primed_spell.empowerment,
-                            );
-                            new_beam.cast_progress = cast_progress;
-                            spawn_beam_with_marker(&mut commands, &mut meshes, &mut materials, new_beam, true);
-                        }
-                    } else if let Some((_, mut beam)) = local_beams.iter_mut().next() {
-                        beam.origin = beam_origin;
-                        beam.direction = direction;
-                        beam.length = beam_length;
-                        beam.cast_progress = cast_progress;
-                        beam.time_alive += time.delta_secs();
-                    } else {
-                        let mut new_beam = FingerOfDeathBeam::new(
-                            beam_origin,
-                            direction,
-                            beam_length,
-                            primed_spell.empowerment,
-                        );
-                        new_beam.cast_progress = cast_progress;
-                        spawn_beam_with_marker(&mut commands, &mut meshes, &mut materials, new_beam, false);
-                    }
-                }
-            }
-            CastingState::Resting => {
-                // Not casting - check if we're waiting for mouse release first
-                // If so, don't start a new cast even if mana is full
-                if awaiting_release_query.get(wizard_entity).is_ok() {
-                    continue;
-                }
-
-                // For guest wizard, check that they have active input
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true
-                };
-
-                // Check for 50% mana requirement before starting cast
-                if has_input && mana.percentage() >= constants::MANA_REQUIREMENT_PERCENT {
-                    casting_state.start_cast();
-
-                    // Get cursor position based on wizard type
-                    let cursor_pos = if is_guest {
-                        guest_cursor.as_ref().and_then(|c| c.position)
-                    } else {
-                        get_cursor_world_position(&camera_query, &window_query)
+                    result.beam_action = BeamAction::SpawnBeam {
+                        origin: beam_origin,
+                        direction,
+                        length: beam_length,
+                        empowerment: primed_spell.empowerment,
+                        cast_progress: 0.0,
                     };
-
-                    // Spawn initial beam
-                    if let Some(cursor_pos) = cursor_pos {
-                        let beam_origin =
-                            wizard_pos + Vec3::new(0.0, constants::BEAM_ORIGIN_HEIGHT_OFFSET, 0.0);
-
-                        // Clamp target position to spell range
-                        let to_target = cursor_pos - beam_origin;
-                        let distance = to_target.length();
-                        let clamped_target = if distance > wizard.spell_range {
-                            beam_origin + to_target.normalize() * wizard.spell_range
-                        } else {
-                            cursor_pos
-                        };
-
-                        let direction = (clamped_target - beam_origin).normalize();
-                        let beam_length = (clamped_target - beam_origin)
-                            .length()
-                            .min(constants::BEAM_LENGTH);
-
-                        let beam = FingerOfDeathBeam::new(
-                            beam_origin,
-                            direction,
-                            beam_length,
-                            primed_spell.empowerment,
-                        );
-                        spawn_beam_with_marker(&mut commands, &mut meshes, &mut materials, beam, is_guest);
-                    }
                 }
             }
         }
     }
+
+    result
 }
 
 /// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
@@ -296,7 +407,7 @@ pub fn apply_finger_of_death_damage(
     >,
     mut wizard_query: Query<
         (Entity, &mut Mana, &mut CastingState),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        With<Wizard>,
     >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
 ) {

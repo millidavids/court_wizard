@@ -10,6 +10,7 @@ use crate::game::run_conditions::is_spell_effects_active;
 ///
 /// Registers systems for:
 /// - Casting fireballs with mouse button and cast time
+/// - Guest wizard fireball casting via network signals
 /// - Fireball projectile movement
 /// - Collision detection (units and ground)
 /// - Explosion animation and damage
@@ -21,11 +22,16 @@ impl Plugin for FireballPlugin {
         app.add_systems(
             Update,
             (
+                // Local wizard casting (mouse input)
                 systems::handle_fireball_casting
                     .run_if(spell_is_primed(Spell::Fireball))
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
+                // Guest wizard casting (network signals)
+                systems::handle_fireball_casting_guest
+                    .run_if(guest_spell_is_primed(Spell::Fireball))
+                    .run_if(guest_input_or_wizard_casting),
                 (
                     systems::move_fireballs,
                     systems::check_fireball_collisions,

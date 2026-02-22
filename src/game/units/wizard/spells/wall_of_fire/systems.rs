@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
 use super::components::{WallOfFireCaster, WallOfFireEffect, WallOfFirePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
@@ -46,7 +46,26 @@ fn wall_obstacle_bounds(start: Vec3, end: Vec3, half_width: f32) -> Rect {
     )
 }
 
-/// Handles Wall of Fire casting — click to anchor, drag to extend, release to place fire line.
+/// Data returned by shared logic so the wrapper can decide what to do with preview/mouse.
+struct WallOfFireCastResult {
+    /// Whether the spell completed successfully (fire wall was placed).
+    completed: bool,
+    /// Whether the cast was released but failed (too short / can't afford) — preview should be despawned.
+    despawn_preview: bool,
+    /// If the wall was placed, stores the wall segment info so local wrapper can convert preview.
+    wall_placed: Option<WallPlacedInfo>,
+}
+
+/// Info about a successfully placed fire wall, used by the local wrapper to convert preview.
+struct WallPlacedInfo {
+    wall_start: Vec3,
+    wall_end: Vec3,
+    half_width: f32,
+    damage: f32,
+    fire_duration: f32,
+}
+
+/// Local wizard Wall of Fire casting — reads mouse input, manages preview.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_wall_of_fire_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
@@ -62,218 +81,325 @@ pub fn handle_wall_of_fire_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
-            Option<&GuestWizard>,
         ),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut caster_query: Query<&mut WallOfFireCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfFirePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::WallOfFire { continue; }
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
+        return;
+    };
+    if primed_spell.spell != Spell::WallOfFire {
+        return;
+    }
 
-        let is_guest = is_guest.is_some();
+    let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
+        c
+    } else {
+        commands
+            .entity(wizard_entity)
+            .insert(WallOfFireCaster::new());
+        return;
+    };
 
-        let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
-            c
-        } else {
-            commands
-                .entity(wizard_entity)
-                .insert(WallOfFireCaster::new());
-            continue;
-        };
+    let clamped_pos = input.cursor_pos.map(|pos| {
+        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
+    });
 
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = wall_of_fire_casting_logic(
+        &input,
+        clamped_pos,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut caster,
+        &mut obstacle_events,
+    );
 
-        let cursor_pos = if is_guest {
-            guest_cursor.as_ref().and_then(|c| c.position)
-        } else {
-            get_cursor_world_position(&camera_query, &window_query)
-        };
-        let Some(cursor_pos) = cursor_pos else {
-            continue;
-        };
-        let clamped_pos =
-            clamp_to_spell_range(cursor_pos, wizard_transform.translation, wizard.spell_range);
+    // Handle preview spawning on cast start (anchor set, no preview yet)
+    if caster.anchor.is_some() && caster.preview_entity.is_none() {
+        if let Some(pos) = clamped_pos {
+            let preview_height = 10.0;
+            let preview_entity = commands
+                .spawn((
+                    Mesh3d(meshes.add(Cuboid::new(1.0, preview_height, WALL_WIDTH))),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: PREVIEW_COLOR,
+                        alpha_mode: AlphaMode::Blend,
+                        unlit: true,
+                        cull_mode: None,
+                        ..default()
+                    })),
+                    Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
+                        .with_scale(Vec3::new(0.0, 1.0, 1.0)),
+                    WallOfFirePreview,
+                    OnGameplayScreen,
+                ))
+                .id();
 
-        // Handle release — place fire wall or cancel
-        if released {
-            if let Some(anchor) = caster.anchor {
-                let diff = Vec3::new(clamped_pos.x - anchor.x, 0.0, clamped_pos.z - anchor.z);
-                let length = diff.length();
-
-                if length >= MIN_WALL_LENGTH && mana.can_afford(MANA_COST) {
-                    let clamped_length = length.min(MAX_WALL_LENGTH);
-                    let forward = diff.normalize();
-
-                    mana.consume(MANA_COST);
-
-                    let scale = primed_spell.empowerment;
-                    let fire_duration = FIRE_DURATION * scale;
-                    let damage = DAMAGE_PER_TICK * scale;
-                    let half_width = WALL_WIDTH / 2.0 * scale;
-
-                    let wall_start = anchor;
-                    let wall_end = anchor + forward * clamped_length;
-
-                    // Notify pathfinding about hazard (AABB of rotated wall + buffer)
-                    obstacle_events.write(ObstacleChanged {
-                        bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
-                        obstacle_type: ObstacleType::Hazard(3.0),
-                    });
-
-                    if !is_guest {
-                        // Convert the preview entity into the active fire wall (local only)
-                        if let Some(preview_entity) = caster.preview_entity {
-                            commands
-                                .entity(preview_entity)
-                                .remove::<WallOfFirePreview>()
-                                .insert((
-                                    MeshMaterial3d(materials.add(StandardMaterial {
-                                        base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
-                                        unlit: true,
-                                        alpha_mode: AlphaMode::Blend,
-                                        cull_mode: None,
-                                        ..default()
-                                    })),
-                                    WallOfFireEffect::new(
-                                        wall_start,
-                                        wall_end,
-                                        half_width,
-                                        damage,
-                                        DamageType::Fire,
-                                        TICK_INTERVAL,
-                                        fire_duration,
-                                    ),
-                                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
-                                ));
-                        }
-                    } else {
-                        // Guest: spawn fire wall effect entity directly (no preview to convert)
-                        let wall_length = (wall_end - wall_start).length();
-                        let wall_forward = (wall_end - wall_start).normalize();
-                        let wall_center = wall_start + wall_forward * (wall_length / 2.0);
-                        let rotation = Quat::from_rotation_arc(Vec3::X, wall_forward);
-                        let preview_height = 10.0;
-
-                        commands.spawn((
-                            Mesh3d(meshes.add(Cuboid::new(wall_length, preview_height, WALL_WIDTH))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
-                                unlit: true,
-                                alpha_mode: AlphaMode::Blend,
-                                cull_mode: None,
-                                ..default()
-                            })),
-                            Transform::from_xyz(wall_center.x, preview_height / 2.0, wall_center.z)
-                                .with_rotation(rotation),
-                            WallOfFireEffect::new(
-                                wall_start,
-                                wall_end,
-                                half_width,
-                                damage,
-                                DamageType::Fire,
-                                TICK_INTERVAL,
-                                fire_duration,
-                            ),
-                            NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
-                            OnGameplayScreen,
-                        ));
-                    }
-                } else if !is_guest {
-                    // Too short or can't afford — despawn preview (local only)
-                    if let Some(preview_entity) = caster.preview_entity {
-                        commands.entity(preview_entity).despawn();
-                    }
-                }
-
-                caster.anchor = None;
-                caster.preview_entity = None;
-                casting_state.cancel();
-                if !is_guest {
-                    mouse_state.left_consumed = true;
-                }
-            }
-            continue;
-        }
-
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if !has_input || !mana.can_afford(MANA_COST) {
-                    continue;
-                }
-
-                // Set anchor and spawn preview (local wizard only)
-                caster.anchor = Some(clamped_pos);
-
-                if !is_guest {
-                    let preview_height = 10.0;
-                    let preview_entity = commands
-                        .spawn((
-                            Mesh3d(meshes.add(Cuboid::new(1.0, preview_height, WALL_WIDTH))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: PREVIEW_COLOR,
-                                alpha_mode: AlphaMode::Blend,
-                                unlit: true,
-                                cull_mode: None,
-                                ..default()
-                            })),
-                            Transform::from_xyz(clamped_pos.x, preview_height / 2.0, clamped_pos.z)
-                                .with_scale(Vec3::new(0.0, 1.0, 1.0)),
-                            WallOfFirePreview,
-                            OnGameplayScreen,
-                        ))
-                        .id();
-
-                    caster.preview_entity = Some(preview_entity);
-                }
-
-                casting_state.start_cast();
-            }
-            CastingState::Casting { .. } => {
-                // Update preview to stretch from anchor to cursor (local wizard only)
-                if !is_guest {
-                    if let Some(anchor) = caster.anchor
-                        && let Some(preview_entity) = caster.preview_entity
-                        && let Ok(mut preview_transform) = preview_query.get_mut(preview_entity)
-                    {
-                        let diff = Vec3::new(clamped_pos.x - anchor.x, 0.0, clamped_pos.z - anchor.z);
-                        let length = diff.length().min(MAX_WALL_LENGTH);
-
-                        if length > 0.1 {
-                            let forward = diff.normalize();
-                            let center = anchor + forward * (length / 2.0);
-                            let rotation = Quat::from_rotation_arc(Vec3::X, forward);
-                            let preview_height = 10.0;
-
-                            preview_transform.translation =
-                                Vec3::new(center.x, preview_height / 2.0, center.z);
-                            preview_transform.rotation = rotation;
-                            preview_transform.scale = Vec3::new(length, 1.0, 1.0);
-                        }
-                    }
-                }
-            }
-            _ => {}
+            caster.preview_entity = Some(preview_entity);
         }
     }
+
+    // Update preview during casting
+    if matches!(*casting_state, CastingState::Casting { .. }) {
+        if let Some(anchor) = caster.anchor
+            && let Some(preview_entity) = caster.preview_entity
+            && let Ok(mut preview_transform) = preview_query.get_mut(preview_entity)
+            && let Some(pos) = clamped_pos
+        {
+            let diff = Vec3::new(pos.x - anchor.x, 0.0, pos.z - anchor.z);
+            let length = diff.length().min(MAX_WALL_LENGTH);
+
+            if length > 0.1 {
+                let forward = diff.normalize();
+                let center = anchor + forward * (length / 2.0);
+                let rotation = Quat::from_rotation_arc(Vec3::X, forward);
+                let preview_height = 10.0;
+
+                preview_transform.translation =
+                    Vec3::new(center.x, preview_height / 2.0, center.z);
+                preview_transform.rotation = rotation;
+                preview_transform.scale = Vec3::new(length, 1.0, 1.0);
+            }
+        }
+    }
+
+    // On successful placement, convert preview entity to active fire wall
+    if let Some(info) = cast_result.wall_placed {
+        if let Some(preview_entity) = caster.preview_entity {
+            commands
+                .entity(preview_entity)
+                .remove::<WallOfFirePreview>()
+                .insert((
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
+                        unlit: true,
+                        alpha_mode: AlphaMode::Blend,
+                        cull_mode: None,
+                        ..default()
+                    })),
+                    WallOfFireEffect::new(
+                        info.wall_start,
+                        info.wall_end,
+                        info.half_width,
+                        info.damage,
+                        DamageType::Fire,
+                        TICK_INTERVAL,
+                        info.fire_duration,
+                    ),
+                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
+                ));
+        }
+        caster.preview_entity = None;
+    }
+
+    // Despawn preview on failure (too short / can't afford)
+    if cast_result.despawn_preview {
+        if let Some(preview_entity) = caster.preview_entity {
+            commands.entity(preview_entity).despawn();
+        }
+        caster.preview_entity = None;
+    }
+
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard Wall of Fire casting — reads network signals, no preview.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_wall_of_fire_casting_guest(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<GuestWizard>,
+    >,
+    mut caster_query: Query<&mut WallOfFireCaster>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
+        return;
+    };
+    if primed_spell.spell != Spell::WallOfFire {
+        return;
+    }
+
+    let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
+        c
+    } else {
+        commands
+            .entity(wizard_entity)
+            .insert(WallOfFireCaster::new());
+        return;
+    };
+
+    let clamped_pos = input.cursor_pos.map(|pos| {
+        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
+    });
+
+    let cast_result = wall_of_fire_casting_logic(
+        &input,
+        clamped_pos,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut caster,
+        &mut obstacle_events,
+    );
+
+    // Guest: spawn fire wall entity directly (no preview to convert)
+    if let Some(info) = cast_result.wall_placed {
+        let wall_length = (info.wall_end - info.wall_start).length();
+        let wall_forward = (info.wall_end - info.wall_start).normalize();
+        let wall_center = info.wall_start + wall_forward * (wall_length / 2.0);
+        let rotation = Quat::from_rotation_arc(Vec3::X, wall_forward);
+        let preview_height = 10.0;
+
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(wall_length, preview_height, WALL_WIDTH))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
+                unlit: true,
+                alpha_mode: AlphaMode::Blend,
+                cull_mode: None,
+                ..default()
+            })),
+            Transform::from_xyz(wall_center.x, preview_height / 2.0, wall_center.z)
+                .with_rotation(rotation),
+            WallOfFireEffect::new(
+                info.wall_start,
+                info.wall_end,
+                info.half_width,
+                info.damage,
+                DamageType::Fire,
+                TICK_INTERVAL,
+                info.fire_duration,
+            ),
+            NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
+            OnGameplayScreen,
+        ));
+    }
+}
+
+/// Core Wall of Fire casting logic — called by both local and guest systems.
+///
+/// Handles state machine transitions, mana consumption, and obstacle events.
+/// Does NOT manage preview entities — that is the responsibility of the wrapper.
+#[allow(clippy::too_many_arguments)]
+fn wall_of_fire_casting_logic(
+    input: &WizardInput,
+    clamped_pos: Option<Vec3>,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster: &mut WallOfFireCaster,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
+) -> WallOfFireCastResult {
+    let mut result = WallOfFireCastResult {
+        completed: false,
+        despawn_preview: false,
+        wall_placed: None,
+    };
+
+    let Some(clamped_pos) = clamped_pos else {
+        return result;
+    };
+
+    // Handle release — place fire wall or cancel
+    if input.just_released {
+        if let Some(anchor) = caster.anchor {
+            let diff = Vec3::new(clamped_pos.x - anchor.x, 0.0, clamped_pos.z - anchor.z);
+            let length = diff.length();
+
+            if length >= MIN_WALL_LENGTH && mana.can_afford(MANA_COST) {
+                let clamped_length = length.min(MAX_WALL_LENGTH);
+                let forward = diff.normalize();
+
+                mana.consume(MANA_COST);
+
+                let scale = primed_spell.empowerment;
+                let fire_duration = FIRE_DURATION * scale;
+                let damage = DAMAGE_PER_TICK * scale;
+                let half_width = WALL_WIDTH / 2.0 * scale;
+
+                let wall_start = anchor;
+                let wall_end = anchor + forward * clamped_length;
+
+                // Notify pathfinding about hazard
+                obstacle_events.write(ObstacleChanged {
+                    bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
+                    obstacle_type: ObstacleType::Hazard(3.0),
+                });
+
+                result.wall_placed = Some(WallPlacedInfo {
+                    wall_start,
+                    wall_end,
+                    half_width,
+                    damage,
+                    fire_duration,
+                });
+                result.completed = true;
+            } else {
+                // Too short or can't afford
+                result.despawn_preview = true;
+            }
+
+            caster.anchor = None;
+            casting_state.cancel();
+        }
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed) && mana.can_afford(MANA_COST) {
+                caster.anchor = Some(clamped_pos);
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            // Preview update is handled by the local wrapper only
+        }
+        _ => {}
+    }
+
+    result
 }
 
 /// Handles right-click cancellation of wall of fire placement.

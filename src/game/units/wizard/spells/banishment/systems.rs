@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
 use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::components::{BanishedModifier, Corpse, Team, WasBanished};
 
-/// Handles banishment casting for both local and guest wizards.
+/// Local wizard banishment casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_banishment_casting(
     time: Res<Time>,
@@ -16,8 +16,8 @@ pub fn handle_banishment_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -29,82 +29,153 @@ pub fn handle_banishment_casting(
             Without<BanishedModifier>,
         ),
     >,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true,
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::Banishment { continue; }
+    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::Banishment { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = banishment_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut commands,
+        &enemies_query,
+    );
 
-        // Check for release event
-        if released {
-            casting_state.cancel();
-            continue;
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard banishment casting — reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_banishment_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut wizard_query: Query<
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<GuestWizard>,
+    >,
+    enemies_query: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<WasBanished>,
+            Without<BanishedModifier>,
+        ),
+    >,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::Banishment { return; }
+
+    banishment_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut commands,
+        &enemies_query,
+    );
+}
+
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Core banishment casting logic — called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn banishment_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    commands: &mut Commands,
+    enemies_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<WasBanished>,
+            Without<BanishedModifier>,
+        ),
+    >,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    // Check for release event
+    if input.just_released {
+        casting_state.cancel();
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed) && mana.can_afford(constants::MANA_COST) {
+                casting_state.start_cast();
+            }
         }
-
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if has_input && mana.can_afford(constants::MANA_COST) {
-                    casting_state.start_cast();
-                }
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    let cursor_pos = if is_guest {
-                        guest_cursor.as_ref().and_then(|c| c.position)
-                    } else {
-                        get_cursor_world_position(&camera_query, &window_query)
-                    };
-
-                    if mana.consume(constants::MANA_COST) {
-                        if let Some(cursor_pos) = cursor_pos
-                            && let Some((target_entity, _)) = enemies_query
-                                .iter()
-                                .filter(|(_, _, team)| {
-                                    **team == Team::Attackers || **team == Team::Undead
-                                })
-                                .filter_map(|(entity, transform, _)| {
-                                    let dist = transform.translation.distance(cursor_pos);
-                                    if dist <= constants::TARGET_SEARCH_RADIUS {
-                                        Some((entity, dist))
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-                        {
-                            let duration = constants::BANISH_DURATION * primed_spell.empowerment;
-                            commands
-                                .entity(target_entity)
-                                .insert((BanishedModifier::new(duration), Visibility::Hidden));
-                        }
-                        if !is_guest {
-                            mouse_state.left_consumed = true;
-                        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(constants::MANA_COST) {
+                    if let Some(cursor_pos) = input.cursor_pos
+                        && let Some((target_entity, _)) = enemies_query
+                            .iter()
+                            .filter(|(_, _, team)| {
+                                **team == Team::Attackers || **team == Team::Undead
+                            })
+                            .filter_map(|(entity, transform, _)| {
+                                let dist = transform.translation.distance(cursor_pos);
+                                if dist <= constants::TARGET_SEARCH_RADIUS {
+                                    Some((entity, dist))
+                                } else {
+                                    None
+                                }
+                            })
+                            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    {
+                        let duration = constants::BANISH_DURATION * primed_spell.empowerment;
+                        commands
+                            .entity(target_entity)
+                            .insert((BanishedModifier::new(duration), Visibility::Hidden));
                     }
-                    casting_state.cancel();
+                    result.completed = true;
                 }
-            }
-            CastingState::Channeling { .. } => {
                 casting_state.cancel();
             }
         }
+        CastingState::Channeling { .. } => {
+            casting_state.cancel();
+        }
     }
+
+    result
 }
 
 /// Ticks banished unit timers and restores them when expired.

@@ -1000,3 +1000,19 @@ pub struct WizardAssets {
 /// `SpellCommand` messages and drives this wizard's casting state.
 #[derive(Component)]
 pub struct GuestWizard;
+
+/// Abstract wizard input for spell casting — same shape regardless of source.
+///
+/// Local wizard builds this from mouse state + camera raycast.
+/// Guest wizard builds this from `GuestInputState` + `GuestCursorPosition`.
+/// Spell casting logic consumes this without knowing the input source.
+pub struct WizardInput {
+    /// True on the frame the cast button was first pressed.
+    pub just_pressed: bool,
+    /// True while the cast button is held.
+    pub pressed: bool,
+    /// True on the frame the cast button was released.
+    pub just_released: bool,
+    /// Cursor world position on the battlefield (Y=0 plane).
+    pub cursor_pos: Option<Vec3>,
+}

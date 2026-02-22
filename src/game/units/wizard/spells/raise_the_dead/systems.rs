@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, LocalWizard, Mana, PrimedSpell, Spell};
+use super::super::super::components::{CastingState, GuestWizard, LocalWizard, Mana, PrimedSpell, Spell, WizardInput};
 use super::components::*;
 use super::constants::{
     CHANNEL_RAMP_TIME, INITIAL_CHANNEL_INTERVAL, MANA_COST_PER_CORPSE, MIN_CHANNEL_INTERVAL,
@@ -23,15 +23,15 @@ use crate::game::units::infantry::resources::InfantryAssets;
 /// Unit radius for infantry hitboxes (matches infantry/styles.rs::UNIT_RADIUS)
 const UNIT_RADIUS: f32 = 8.0;
 
-/// Handles Raise The Dead spell casting for both local and guest wizards.
+/// Local wizard Raise The Dead casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_raise_the_dead_casting(
     time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (&mut CastingState, &mut Mana, &PrimedSpell, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (&mut CastingState, &mut Mana, &PrimedSpell),
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -47,92 +47,164 @@ pub fn handle_raise_the_dead_casting(
     >,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true,
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::RaiseTheDead { continue; }
+    let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::RaiseTheDead { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    raise_the_dead_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut commands,
+        &corpse_query,
+        &infantry_assets,
+        &archer_assets,
+    );
+}
 
-        if released {
-            casting_state.cancel();
-            continue;
-        }
+/// Guest wizard Raise The Dead casting — reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_raise_the_dead_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut wizard_query: Query<
+        (&mut CastingState, &mut Mana, &PrimedSpell),
+        With<GuestWizard>,
+    >,
+    corpse_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&Infantry>,
+            Option<&Archer>,
+        ),
+        (With<Corpse>, Without<PermanentCorpse>),
+    >,
+    infantry_assets: Res<InfantryAssets>,
+    archer_assets: Res<ArcherAssets>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
 
-        match *casting_state {
-            CastingState::Channeling { .. } => {
-                casting_state.advance_channel(time.delta_secs());
+    let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::RaiseTheDead { return; }
 
-                if casting_state.should_channel(
-                    INITIAL_CHANNEL_INTERVAL,
-                    MIN_CHANNEL_INTERVAL,
-                    CHANNEL_RAMP_TIME,
-                ) {
-                    if mana.consume(MANA_COST_PER_CORPSE) {
-                        let cursor_pos = if is_guest {
-                            guest_cursor.as_ref().and_then(|c| c.position)
-                        } else {
-                            get_cursor_world_position(&camera_query, &window_query)
-                        };
-                        if let Some(cursor_pos) = cursor_pos {
-                            resurrect_nearest_corpse(
-                                &mut commands,
-                                cursor_pos,
-                                &corpse_query,
-                                &infantry_assets,
-                                &archer_assets,
-                                primed_spell.empowerment,
-                            );
-                            casting_state.reset_channel_interval();
-                        }
-                    } else {
-                        casting_state.cancel();
+    raise_the_dead_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut commands,
+        &corpse_query,
+        &infantry_assets,
+        &archer_assets,
+    );
+}
+
+/// Core Raise The Dead casting logic — called by both local and guest systems.
+///
+/// Handles the full Resting -> Casting -> Channeling state machine.
+/// During channeling, resurrects corpses at increasing frequency.
+#[allow(clippy::too_many_arguments)]
+fn raise_the_dead_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    commands: &mut Commands,
+    corpse_query: &Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&Infantry>,
+            Option<&Archer>,
+        ),
+        (With<Corpse>, Without<PermanentCorpse>),
+    >,
+    infantry_assets: &Res<InfantryAssets>,
+    archer_assets: &Res<ArcherAssets>,
+) {
+    // Check for release event
+    if input.just_released {
+        casting_state.cancel();
+        return;
+    }
+
+    match *casting_state {
+        CastingState::Channeling { .. } => {
+            casting_state.advance_channel(time.delta_secs());
+
+            if casting_state.should_channel(
+                INITIAL_CHANNEL_INTERVAL,
+                MIN_CHANNEL_INTERVAL,
+                CHANNEL_RAMP_TIME,
+            ) {
+                if mana.consume(MANA_COST_PER_CORPSE) {
+                    if let Some(cursor_pos) = input.cursor_pos {
+                        resurrect_nearest_corpse(
+                            commands,
+                            cursor_pos,
+                            corpse_query,
+                            infantry_assets,
+                            archer_assets,
+                            primed_spell.empowerment,
+                        );
+                        casting_state.reset_channel_interval();
                     }
-                }
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    if mana.consume(MANA_COST_PER_CORPSE) {
-                        let cursor_pos = if is_guest {
-                            guest_cursor.as_ref().and_then(|c| c.position)
-                        } else {
-                            get_cursor_world_position(&camera_query, &window_query)
-                        };
-                        if let Some(cursor_pos) = cursor_pos {
-                            resurrect_nearest_corpse(
-                                &mut commands,
-                                cursor_pos,
-                                &corpse_query,
-                                &infantry_assets,
-                                &archer_assets,
-                                primed_spell.empowerment,
-                            );
-                            casting_state.start_channeling();
-                        }
-                    } else {
-                        casting_state.cancel();
-                    }
-                }
-            }
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
                 } else {
-                    true
-                };
-                if has_input && mana.can_afford(MANA_COST_PER_CORPSE) {
-                    casting_state.start_cast();
+                    casting_state.cancel();
                 }
+            }
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(MANA_COST_PER_CORPSE) {
+                    if let Some(cursor_pos) = input.cursor_pos {
+                        resurrect_nearest_corpse(
+                            commands,
+                            cursor_pos,
+                            corpse_query,
+                            infantry_assets,
+                            archer_assets,
+                            primed_spell.empowerment,
+                        );
+                        casting_state.start_channeling();
+                    }
+                } else {
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed) && mana.can_afford(MANA_COST_PER_CORPSE) {
+                casting_state.start_cast();
             }
         }
     }
@@ -142,10 +214,6 @@ pub fn handle_raise_the_dead_casting(
 ///
 /// Searches for corpses within RESURRECTION_RADIUS and resurrects the closest one.
 /// All raised undead are infantry units.
-///
-/// # Arguments
-///
-/// * `empowered` - Whether the spell is empowered (applies 1.25x stat scaling)
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
@@ -229,9 +297,7 @@ fn resurrect_nearest_corpse(
     }
 }
 
-/// Gets cursor position projected onto Y=0 plane (same as other spells).
-///
-/// Returns None if cursor is not in window or ray doesn't intersect Y=0 plane.
+/// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
     camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: &Query<&Window, With<PrimaryWindow>>,

@@ -21,12 +21,16 @@ impl Plugin for MeteorFallPlugin {
         app.add_systems(
             Update,
             (
-                // Casting system (only when MeteorFall is primed and mouse conditions met)
+                // Local wizard casting (mouse input)
                 handle_meteor_fall_casting
                     .run_if(spell_is_primed(Spell::MeteorFall))
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
+                // Guest wizard casting (network signals)
+                handle_meteor_fall_casting_guest
+                    .run_if(guest_spell_is_primed(Spell::MeteorFall))
+                    .run_if(guest_input_or_wizard_casting),
                 // Circle indicator updates
                 update_circle_indicator.run_if(any_exist::<MeteorFallCircleIndicator>()),
                 // Storm systems (spawn projectiles, update physics, check collisions)

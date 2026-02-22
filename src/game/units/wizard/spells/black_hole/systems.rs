@@ -13,8 +13,18 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
-use crate::game::units::wizard::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard};
+use crate::game::units::wizard::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
 use crate::networking::snapshot::SpellEffectKind;
+
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+    /// The spawn position for the black hole, if the cast completed.
+    spawn_pos: Option<Vec3>,
+    /// Empowerment level for the spawned black hole.
+    empowerment: f32,
+}
 
 /// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
@@ -81,7 +91,7 @@ fn spawn_black_hole(
     ));
 }
 
-/// Handles Black Hole spell casting for both local and guest wizards.
+/// Local wizard Black Hole casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_black_hole_casting(
     time: Res<Time>,
@@ -89,83 +99,156 @@ pub(super) fn handle_black_hole_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true,
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (_wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, wizard, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::BlackHole { continue; }
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::BlackHole { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = black_hole_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        wizard_transform,
+        wizard,
+    );
 
-        // Check for release event
-        if released {
-            casting_state.cancel();
-            continue;
+    if cast_result.completed {
+        if let Some(pos) = cast_result.spawn_pos {
+            spawn_black_hole(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                pos,
+                cast_result.empowerment,
+            );
         }
+        mouse_state.left_consumed = true;
+    }
+}
 
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if has_input && mana.can_afford(MANA_COST) {
-                    casting_state.start_cast();
-                }
+/// Guest wizard Black Hole casting -- reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_black_hole_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut wizard_query: Query<
+        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        With<GuestWizard>,
+    >,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::BlackHole { return; }
+
+    let cast_result = black_hole_casting_logic(
+        &input,
+        &time,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        wizard_transform,
+        wizard,
+    );
+
+    if cast_result.completed {
+        if let Some(pos) = cast_result.spawn_pos {
+            spawn_black_hole(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                pos,
+                cast_result.empowerment,
+            );
+        }
+    }
+}
+
+/// Core Black Hole casting logic -- called by both local and guest systems.
+///
+/// Handles CastingState transitions, mana consumption, and cursor clamping.
+/// Does NOT spawn the black hole or manage mouse_state -- those are the wrapper's job.
+fn black_hole_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    wizard_transform: &Transform,
+    wizard: &Wizard,
+) -> CastResult {
+    let mut result = CastResult {
+        completed: false,
+        spawn_pos: None,
+        empowerment: primed_spell.empowerment,
+    };
+
+    // Check for release event
+    if input.just_released {
+        casting_state.cancel();
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed) && mana.can_afford(MANA_COST) {
+                casting_state.start_cast();
             }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
 
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    let cursor_pos = if is_guest {
-                        guest_cursor.as_ref().and_then(|c| c.position)
-                    } else {
-                        get_cursor_world_position(&camera_query, &window_query)
-                    };
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if let Some(cursor_pos) = input.cursor_pos {
+                    let wizard_pos = wizard_transform.translation;
+                    let clamped_pos =
+                        clamp_to_spell_range(cursor_pos, wizard_pos, wizard.spell_range);
 
-                    if let Some(cursor_pos) = cursor_pos {
-                        let wizard_pos = wizard_transform.translation;
-                        let clamped_pos =
-                            clamp_to_spell_range(cursor_pos, wizard_pos, wizard.spell_range);
-
-                        if mana.consume(MANA_COST) {
-                            spawn_black_hole(
-                                &mut commands,
-                                &mut meshes,
-                                &mut materials,
-                                clamped_pos,
-                                primed_spell.empowerment,
-                            );
-                        }
-                    }
-
-                    casting_state.cancel();
-                    if !is_guest {
-                        mouse_state.left_consumed = true;
+                    if mana.consume(MANA_COST) {
+                        result.completed = true;
+                        result.spawn_pos = Some(clamped_pos);
                     }
                 }
-            }
-            CastingState::Channeling { .. } => {
+
                 casting_state.cancel();
             }
         }
+        CastingState::Channeling { .. } => {
+            casting_state.cancel();
+        }
     }
+
+    result
 }
 
 /// Applies gravitational forces to all living units near black holes.

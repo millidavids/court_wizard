@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
@@ -12,7 +12,15 @@ use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 
-/// Handles Wall of Stone casting — click to anchor, drag to extend, release to place.
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (wall was placed).
+    completed: bool,
+    /// Whether preview should be despawned (release with too-short drag or no mana).
+    despawn_preview: bool,
+}
+
+/// Local wizard Wall of Stone casting — reads mouse input, manages preview.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_wall_of_stone_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
@@ -28,209 +36,316 @@ pub fn handle_wall_of_stone_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
-            Option<&GuestWizard>,
         ),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut caster_query: Query<&mut WallOfStoneCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::WallOfStone { continue; }
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
+        return;
+    };
+    if primed_spell.spell != Spell::WallOfStone {
+        return;
+    }
 
-        let is_guest = is_guest.is_some();
+    let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
+        c
+    } else {
+        commands
+            .entity(wizard_entity)
+            .insert(WallOfStoneCaster::new());
+        return;
+    };
 
-        let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
-            c
-        } else {
-            commands
-                .entity(wizard_entity)
-                .insert(WallOfStoneCaster::new());
-            continue;
-        };
+    let clamped_pos = input.cursor_pos.map(|pos| {
+        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
+    });
 
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = wall_of_stone_casting_logic(
+        &input,
+        clamped_pos,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut caster,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut obstacle_events,
+    );
 
-        // Get cursor world position
-        let cursor_pos = if is_guest {
-            guest_cursor.as_ref().and_then(|c| c.position)
-        } else {
-            get_cursor_world_position(&camera_query, &window_query)
-        };
-        let Some(cursor_pos) = cursor_pos else {
-            continue;
-        };
-        let clamped_pos =
-            clamp_to_spell_range(cursor_pos, wizard_transform.translation, wizard.spell_range);
-
-        // Handle release — place wall or cancel
-        if released {
-            if let Some(anchor) = caster.anchor {
-                let diff = Vec3::new(clamped_pos.x - anchor.x, 0.0, clamped_pos.z - anchor.z);
-                let length = diff.length();
-
-                if length >= MIN_WALL_LENGTH && mana.can_afford(MANA_COST) {
-                    let clamped_length = length.min(MAX_WALL_LENGTH);
-                    let forward = diff.normalize();
-                    let right = Vec3::new(-forward.z, 0.0, forward.x);
-                    let center = anchor + forward * (clamped_length / 2.0);
-
-                    mana.consume(MANA_COST);
-
-                    // Spawn the actual wall
-                    let wall_mesh = Cuboid::new(clamped_length, WALL_HEIGHT, WALL_WIDTH);
-                    let rotation = Quat::from_rotation_arc(Vec3::X, forward);
-
-                    // Apply empowerment scaling
-                    let scale = primed_spell.empowerment;
-                    let wall_width = WALL_WIDTH * scale;
-                    let wall_height = WALL_HEIGHT * scale;
-                    let wall_duration = WALL_DURATION * scale;
-
-                    commands.spawn((
-                        Mesh3d(meshes.add(wall_mesh)),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: WALL_COLOR,
-                            ..default()
-                        })),
-                        Transform::from_xyz(center.x, wall_height / 2.0, center.z)
-                            .with_rotation(rotation),
-                        WallOfStone {
-                            center,
-                            half_length: clamped_length / 2.0,
-                            half_width: wall_width / 2.0,
-                            forward,
-                            right,
-                            height: wall_height,
-                            time_alive: 0.0,
-                            duration: wall_duration,
-                            sinking: false,
-                            empowerment: primed_spell.empowerment,
-                        },
-                        NetworkedSpellEffect { kind: SpellEffectKind::WallOfStone },
-                        OnGameplayScreen,
-                    ));
-
-                    // Notify pathfinding system about the new obstacle
-                    // Calculate unbuffered bounding box first
-                    let unbuffered_min_x =
-                        center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
-                    let unbuffered_max_x =
-                        center.x + forward.x * (clamped_length / 2.0) + right.x * (wall_width / 2.0);
-                    let unbuffered_min_z =
-                        center.z - forward.z * (clamped_length / 2.0) - right.z * (wall_width / 2.0);
-                    let unbuffered_max_z =
-                        center.z + forward.z * (clamped_length / 2.0) + right.z * (wall_width / 2.0);
-
-                    // Expand the bounding box uniformly
-                    let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
-                    let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
-                    let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
-                    let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
-
-                    obstacle_events.write(ObstacleChanged {
-                        bounds: Rect::new(
-                            min_x.min(max_x),
-                            min_z.min(max_z),
-                            (max_x - min_x).abs(),
-                            (max_z - min_z).abs(),
-                        ),
-                        obstacle_type: ObstacleType::Blocked,
-                    });
-                }
-
-                // Despawn preview (only exists for local wizard)
-                if !is_guest {
-                    if let Some(preview_entity) = caster.preview_entity {
-                        commands.entity(preview_entity).despawn();
-                    }
-                }
-
-                caster.anchor = None;
-                caster.preview_entity = None;
-                casting_state.cancel();
-                if !is_guest {
-                    mouse_state.left_consumed = true;
-                }
-            }
-            continue;
+    // Local-only: manage preview
+    match *casting_state {
+        CastingState::Resting => {
+            // If we just transitioned to Resting and there's an anchor, we just started — spawn preview
+            // But actually, if casting_logic set anchor and started cast, spawn preview now
         }
+        _ => {}
+    }
 
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if !has_input || !mana.can_afford(MANA_COST) {
-                    continue;
-                }
+    // Handle preview spawning on cast start
+    // The shared logic sets anchor and starts cast. We check if anchor is set but no preview exists.
+    if caster.anchor.is_some() && caster.preview_entity.is_none() {
+        if let Some(pos) = clamped_pos {
+            let preview_entity = commands
+                .spawn((
+                    Mesh3d(meshes.add(Cuboid::new(1.0, WALL_HEIGHT, WALL_WIDTH))),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: WALL_PREVIEW_COLOR,
+                        alpha_mode: AlphaMode::Blend,
+                        unlit: true,
+                        cull_mode: None,
+                        ..default()
+                    })),
+                    Transform::from_xyz(pos.x, WALL_HEIGHT / 2.0, pos.z)
+                        .with_scale(Vec3::new(0.0, 1.0, 1.0)),
+                    WallOfStonePreview,
+                    OnGameplayScreen,
+                ))
+                .id();
 
-                // Set anchor and spawn preview (only for local wizard)
-                caster.anchor = Some(clamped_pos);
-
-                if !is_guest {
-                    let preview_entity = commands
-                        .spawn((
-                            Mesh3d(meshes.add(Cuboid::new(1.0, WALL_HEIGHT, WALL_WIDTH))),
-                            MeshMaterial3d(materials.add(StandardMaterial {
-                                base_color: WALL_PREVIEW_COLOR,
-                                alpha_mode: AlphaMode::Blend,
-                                unlit: true,
-                                cull_mode: None,
-                                ..default()
-                            })),
-                            Transform::from_xyz(clamped_pos.x, WALL_HEIGHT / 2.0, clamped_pos.z)
-                                .with_scale(Vec3::new(0.0, 1.0, 1.0)),
-                            WallOfStonePreview,
-                            OnGameplayScreen,
-                        ))
-                        .id();
-
-                    caster.preview_entity = Some(preview_entity);
-                }
-
-                casting_state.start_cast();
-            }
-            CastingState::Casting { .. } => {
-                // Update preview to stretch from anchor to cursor (local wizard only)
-                if !is_guest {
-                    if let Some(anchor) = caster.anchor
-                        && let Some(preview_entity) = caster.preview_entity
-                        && let Ok(mut preview_transform) = preview_query.get_mut(preview_entity)
-                    {
-                        let diff = Vec3::new(clamped_pos.x - anchor.x, 0.0, clamped_pos.z - anchor.z);
-                        let length = diff.length().min(MAX_WALL_LENGTH);
-
-                        if length > 0.1 {
-                            let forward = diff.normalize();
-                            let center = anchor + forward * (length / 2.0);
-                            let rotation = Quat::from_rotation_arc(Vec3::X, forward);
-
-                            preview_transform.translation =
-                                Vec3::new(center.x, WALL_HEIGHT / 2.0, center.z);
-                            preview_transform.rotation = rotation;
-                            preview_transform.scale = Vec3::new(length, 1.0, 1.0);
-                        }
-                    }
-                }
-            }
-            _ => {}
+            caster.preview_entity = Some(preview_entity);
         }
     }
+
+    // Update preview during casting
+    if matches!(*casting_state, CastingState::Casting { .. }) {
+        if let Some(anchor) = caster.anchor
+            && let Some(preview_entity) = caster.preview_entity
+            && let Ok(mut preview_transform) = preview_query.get_mut(preview_entity)
+            && let Some(pos) = clamped_pos
+        {
+            let diff = Vec3::new(pos.x - anchor.x, 0.0, pos.z - anchor.z);
+            let length = diff.length().min(MAX_WALL_LENGTH);
+
+            if length > 0.1 {
+                let forward = diff.normalize();
+                let center = anchor + forward * (length / 2.0);
+                let rotation = Quat::from_rotation_arc(Vec3::X, forward);
+
+                preview_transform.translation =
+                    Vec3::new(center.x, WALL_HEIGHT / 2.0, center.z);
+                preview_transform.rotation = rotation;
+                preview_transform.scale = Vec3::new(length, 1.0, 1.0);
+            }
+        }
+    }
+
+    // Despawn preview on completion or cancel
+    if cast_result.completed || cast_result.despawn_preview {
+        if let Some(preview_entity) = caster.preview_entity {
+            commands.entity(preview_entity).despawn();
+        }
+        caster.preview_entity = None;
+    }
+
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard Wall of Stone casting — reads network signals, no preview.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_wall_of_stone_casting_guest(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<GuestWizard>,
+    >,
+    mut caster_query: Query<&mut WallOfStoneCaster>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
+        return;
+    };
+    if primed_spell.spell != Spell::WallOfStone {
+        return;
+    }
+
+    let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
+        c
+    } else {
+        commands
+            .entity(wizard_entity)
+            .insert(WallOfStoneCaster::new());
+        return;
+    };
+
+    let clamped_pos = input.cursor_pos.map(|pos| {
+        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
+    });
+
+    wall_of_stone_casting_logic(
+        &input,
+        clamped_pos,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &mut caster,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut obstacle_events,
+    );
+}
+
+/// Core Wall of Stone casting logic — called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn wall_of_stone_casting_logic(
+    input: &WizardInput,
+    clamped_pos: Option<Vec3>,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster: &mut WallOfStoneCaster,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
+) -> CastResult {
+    let mut result = CastResult {
+        completed: false,
+        despawn_preview: false,
+    };
+
+    let Some(clamped_pos) = clamped_pos else {
+        return result;
+    };
+
+    // Handle release — place wall or cancel
+    if input.just_released {
+        if let Some(anchor) = caster.anchor {
+            let diff = Vec3::new(clamped_pos.x - anchor.x, 0.0, clamped_pos.z - anchor.z);
+            let length = diff.length();
+
+            if length >= MIN_WALL_LENGTH && mana.can_afford(MANA_COST) {
+                let clamped_length = length.min(MAX_WALL_LENGTH);
+                let forward = diff.normalize();
+                let right = Vec3::new(-forward.z, 0.0, forward.x);
+                let center = anchor + forward * (clamped_length / 2.0);
+
+                mana.consume(MANA_COST);
+
+                // Spawn the actual wall
+                let wall_mesh = Cuboid::new(clamped_length, WALL_HEIGHT, WALL_WIDTH);
+                let rotation = Quat::from_rotation_arc(Vec3::X, forward);
+
+                // Apply empowerment scaling
+                let scale = primed_spell.empowerment;
+                let wall_width = WALL_WIDTH * scale;
+                let wall_height = WALL_HEIGHT * scale;
+                let wall_duration = WALL_DURATION * scale;
+
+                commands.spawn((
+                    Mesh3d(meshes.add(wall_mesh)),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: WALL_COLOR,
+                        ..default()
+                    })),
+                    Transform::from_xyz(center.x, wall_height / 2.0, center.z)
+                        .with_rotation(rotation),
+                    WallOfStone {
+                        center,
+                        half_length: clamped_length / 2.0,
+                        half_width: wall_width / 2.0,
+                        forward,
+                        right,
+                        height: wall_height,
+                        time_alive: 0.0,
+                        duration: wall_duration,
+                        sinking: false,
+                        empowerment: primed_spell.empowerment,
+                    },
+                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfStone },
+                    OnGameplayScreen,
+                ));
+
+                // Notify pathfinding system about the new obstacle
+                let unbuffered_min_x =
+                    center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
+                let unbuffered_max_x =
+                    center.x + forward.x * (clamped_length / 2.0) + right.x * (wall_width / 2.0);
+                let unbuffered_min_z =
+                    center.z - forward.z * (clamped_length / 2.0) - right.z * (wall_width / 2.0);
+                let unbuffered_max_z =
+                    center.z + forward.z * (clamped_length / 2.0) + right.z * (wall_width / 2.0);
+
+                let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
+                let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
+                let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
+                let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
+
+                obstacle_events.write(ObstacleChanged {
+                    bounds: Rect::new(
+                        min_x.min(max_x),
+                        min_z.min(max_z),
+                        (max_x - min_x).abs(),
+                        (max_z - min_z).abs(),
+                    ),
+                    obstacle_type: ObstacleType::Blocked,
+                });
+
+                result.completed = true;
+            } else {
+                // Too short or can't afford — signal preview despawn
+                result.despawn_preview = true;
+            }
+
+            caster.anchor = None;
+            casting_state.cancel();
+        }
+        return result;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed) && mana.can_afford(MANA_COST) {
+                caster.anchor = Some(clamped_pos);
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            // Preview update is handled by the local wrapper only
+        }
+        _ => {}
+    }
+
+    result
 }
 
 /// Handles right-click cancellation of wall placement.
@@ -297,7 +412,6 @@ pub fn cleanup_expired_walls(
             commands.entity(entity).despawn();
 
             // Notify pathfinding system that the obstacle is removed
-            // Calculate unbuffered bounding box first
             let unbuffered_min_x =
                 wall.center.x - wall.forward.x * wall.half_length - wall.right.x * wall.half_width;
             let unbuffered_max_x =
@@ -307,7 +421,6 @@ pub fn cleanup_expired_walls(
             let unbuffered_max_z =
                 wall.center.z + wall.forward.z * wall.half_length + wall.right.z * wall.half_width;
 
-            // Expand the bounding box uniformly
             let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
             let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
             let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;

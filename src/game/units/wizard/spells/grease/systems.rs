@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
 use super::components::{GreaseFireOverlay, GreaseIndicator, GreaseZone};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -20,6 +20,13 @@ use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFir
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::networking::snapshot::SpellEffectKind;
 
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Local wizard grease casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_grease_casting(
     time: Res<Time>,
@@ -36,31 +43,243 @@ pub fn handle_grease_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
-            Option<&GuestWizard>,
         ),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut GreaseIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions already ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::Grease { continue; }
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::Grease { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = grease_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        wizard,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut indicator_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut obstacle_events,
+        true, // is_local
+    );
 
-        if released {
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard grease casting -- reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_grease_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<GuestWizard>,
+    >,
+    caster_query: Query<&SpellCaster>,
+    mut indicator_query: Query<&mut GreaseIndicator>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::Grease { return; }
+
+    grease_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        wizard,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut indicator_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &mut obstacle_events,
+        false, // is_local
+    );
+}
+
+/// Core grease casting logic -- called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn grease_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_entity: Entity,
+    wizard_transform: &Transform,
+    wizard: &Wizard,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster_query: &Query<&SpellCaster>,
+    indicator_query: &mut Query<&mut GreaseIndicator>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
+    is_local: bool,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    if input.just_released {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+        casting_state.cancel();
+        return result;
+    }
+
+    let Some(mut cursor_world_pos) = input.cursor_pos else {
+        return result;
+    };
+
+    let wizard_pos = wizard_transform.translation;
+    let wizard_height = wizard_pos.y;
+    let max_ground_radius = if wizard_height < wizard.spell_range {
+        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
+    } else {
+        0.0
+    };
+    let scale = primed_spell.empowerment;
+    let circle_radius = constants::CIRCLE_RADIUS * scale;
+    let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
+    let direction = cursor_world_pos - wizard_pos;
+    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
+    if distance > max_center_distance && distance > 0.001 {
+        let normalized_direction = direction / distance;
+        cursor_world_pos = wizard_pos + normalized_direction * max_center_distance;
+    }
+
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed)
+                && caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(constants::MANA_COST)
+            {
+                if is_local {
+                    let circle_entity = spawn_circle_indicator(
+                        commands,
+                        meshes,
+                        materials,
+                        cursor_world_pos,
+                        primed_spell.empowerment,
+                    );
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::with_indicator(circle_entity));
+                } else {
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::new());
+                }
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+            if is_local {
+                if let Ok(caster) = caster_query.get(wizard_entity)
+                    && let Some(indicator_entity) = caster.indicator_entity
+                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+                {
+                    indicator.position = cursor_world_pos;
+                }
+            }
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(constants::MANA_COST) {
+                    if is_local {
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                                spawn_grease_zone(
+                                    commands,
+                                    meshes,
+                                    materials,
+                                    indicator.position,
+                                    radius,
+                                    indicator.empowerment,
+                                    obstacle_events,
+                                );
+                            }
+                            commands.entity(indicator_entity).despawn();
+                        }
+                    } else {
+                        // Guest: spawn grease zone at cursor position directly
+                        let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
+                        spawn_grease_zone(
+                            commands,
+                            meshes,
+                            materials,
+                            cursor_world_pos,
+                            radius,
+                            primed_spell.empowerment,
+                            obstacle_events,
+                        );
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
+                    result.completed = true;
+                } else {
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
+                }
+            }
+        }
+        CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
                     commands.entity(indicator_entity).despawn();
@@ -68,110 +287,10 @@ pub fn handle_grease_casting(
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
             casting_state.cancel();
-            continue;
-        }
-
-        let cursor_world_pos = if is_guest {
-            guest_cursor.as_ref().and_then(|c| c.position)
-        } else {
-            get_cursor_world_position(&camera_query, &window_query)
-        };
-        let Some(mut cursor_world_pos) = cursor_world_pos else {
-            continue;
-        };
-
-        let wizard_pos = wizard_transform.translation;
-        let wizard_height = wizard_pos.y;
-        let max_ground_radius = if wizard_height < wizard.spell_range {
-            (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-        } else {
-            0.0
-        };
-        let scale = primed_spell.empowerment;
-        let circle_radius = constants::CIRCLE_RADIUS * scale;
-        let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
-        let direction = cursor_world_pos - wizard_pos;
-        let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
-        if distance > max_center_distance && distance > 0.001 {
-            let normalized_direction = direction / distance;
-            cursor_world_pos = wizard_pos + normalized_direction * max_center_distance;
-        }
-
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true
-                };
-                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
-                    let circle_entity = spawn_circle_indicator(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        cursor_world_pos,
-                        primed_spell.empowerment,
-                    );
-                    commands
-                        .entity(wizard_entity)
-                        .insert(SpellCaster::with_indicator(circle_entity));
-                    casting_state.start_cast();
-                }
-            }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-                {
-                    indicator.position = cursor_world_pos;
-                }
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    if mana.consume(constants::MANA_COST) {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                                spawn_grease_zone(
-                                    &mut commands,
-                                    &mut meshes,
-                                    &mut materials,
-                                    indicator.position,
-                                    radius,
-                                    indicator.empowerment,
-                                    &mut obstacle_events,
-                                );
-                            }
-                            commands.entity(indicator_entity).despawn();
-                        }
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
-                        casting_state.cancel();
-                        if !is_guest {
-                            mouse_state.left_consumed = true;
-                        }
-                    } else {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            commands.entity(indicator_entity).despawn();
-                        }
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
-                        casting_state.cancel();
-                    }
-                }
-            }
-            CastingState::Channeling { .. } => {
-                if let Ok(caster) = caster_query.get(wizard_entity) {
-                    if let Some(indicator_entity) = caster.indicator_entity {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                }
-                casting_state.cancel();
-            }
         }
     }
+
+    result
 }
 
 pub fn update_grease_indicator(

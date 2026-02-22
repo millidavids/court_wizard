@@ -35,6 +35,7 @@ use super::loading;
 use super::spell_commands;
 
 use crate::game::units::infantry::components::DefendersActivated;
+use crate::game::units::wizard::systems::cancel_active_casts;
 
 /// Safe run condition for `MultiplayerGameState` sub-states.
 ///
@@ -106,6 +107,14 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Resource Init / Cleanup ──────────────────────────────────
         app.add_systems(OnEnter(AppState::MultiplayerGame), init_mp_game);
         app.add_systems(OnExit(AppState::MultiplayerGame), cleanup_mp_game);
+
+        // ── Cancel casts on exit Running ─────────────────────────────
+        // Reuses the SP cancel_active_casts system so both wizards'
+        // CastingState gets reset when transitioning to ScoreScreen/Paused.
+        app.add_systems(
+            OnExit(MultiplayerGameState::Running),
+            cancel_active_casts,
+        );
 
         // ── Host: MP King Death Check ────────────────────────────────
         // Replaces SP's check_win_lose_conditions during multiplayer.

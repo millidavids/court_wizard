@@ -10,56 +10,65 @@ pub use crate::game::input::run_conditions::{
 };
 pub use crate::game::run_conditions::any_exist;
 
-/// Check if specific spell is primed on the local wizard OR the guest wizard.
+// ── Local Wizard Run Conditions ──────────────────────────────────────
+
+/// Check if specific spell is primed on the local wizard.
 pub fn spell_is_primed(
     spell: Spell,
-) -> impl Fn(
-    Query<&PrimedSpell, With<LocalWizard>>,
-    Query<&PrimedSpell, With<GuestWizard>>,
-) -> bool
-       + Clone {
-    move |local_query: Query<&PrimedSpell, With<LocalWizard>>,
-          guest_query: Query<&PrimedSpell, With<GuestWizard>>| {
-        let local_primed = local_query
+) -> impl Fn(Query<&PrimedSpell, With<LocalWizard>>) -> bool + Clone {
+    move |local_query: Query<&PrimedSpell, With<LocalWizard>>| {
+        local_query
             .single()
             .map(|primed| primed.spell == spell)
-            .unwrap_or(false);
-        let guest_primed = guest_query
-            .single()
-            .map(|primed| primed.spell == spell)
-            .unwrap_or(false);
-        local_primed || guest_primed
+            .unwrap_or(false)
     }
 }
 
-/// Check if the local wizard OR guest wizard is currently casting or channeling.
-/// This allows the system to run even when mouse is released, to handle cancellation.
+/// Check if the local wizard is currently casting or channeling.
 pub fn wizard_is_casting_or_channeling(
     local_query: Query<&CastingState, With<LocalWizard>>,
-    guest_query: Query<&CastingState, (With<GuestWizard>, Without<LocalWizard>)>,
 ) -> bool {
-    let local_casting = local_query
+    local_query
         .single()
         .map(|state| !matches!(state, CastingState::Resting))
-        .unwrap_or(false);
-    let guest_casting = guest_query
-        .single()
-        .map(|state| !matches!(state, CastingState::Resting))
-        .unwrap_or(false);
-    local_casting || guest_casting
+        .unwrap_or(false)
 }
 
-/// Check if mouse is held OR any wizard is currently casting/channeling, OR
-/// the guest has input this frame.
-/// This ensures the system runs both during active casting and when releasing to cancel.
+/// Check if local mouse is held OR local wizard is currently casting/channeling.
+/// This ensures the local system runs both during active casting and when releasing to cancel.
 pub fn mouse_held_or_wizard_casting(
     mouse_held: Res<MouseLeftHeldThisFrame>,
-    guest_input: Option<Res<GuestInputState>>,
     local_query: Query<&CastingState, With<LocalWizard>>,
+) -> bool {
+    mouse_held.held || wizard_is_casting_or_channeling(local_query)
+}
+
+// ── Guest Wizard Run Conditions ──────────────────────────────────────
+
+/// Check if specific spell is primed on the guest wizard.
+pub fn guest_spell_is_primed(
+    spell: Spell,
+) -> impl Fn(Query<&PrimedSpell, With<GuestWizard>>) -> bool + Clone {
+    move |guest_query: Query<&PrimedSpell, With<GuestWizard>>| {
+        guest_query
+            .single()
+            .map(|primed| primed.spell == spell)
+            .unwrap_or(false)
+    }
+}
+
+/// Check if the guest wizard has input this frame OR is currently casting/channeling.
+/// This is the guest equivalent of `mouse_held_or_wizard_casting`.
+pub fn guest_input_or_wizard_casting(
+    guest_input: Option<Res<GuestInputState>>,
     guest_query: Query<&CastingState, (With<GuestWizard>, Without<LocalWizard>)>,
 ) -> bool {
     let guest_active = guest_input
         .as_ref()
         .is_some_and(|i| i.pressed || i.just_pressed || i.just_released);
-    mouse_held.held || guest_active || wizard_is_casting_or_channeling(local_query, guest_query)
+    let guest_casting = guest_query
+        .single()
+        .map(|state| !matches!(state, CastingState::Resting))
+        .unwrap_or(false);
+    guest_active || guest_casting
 }

@@ -13,11 +13,16 @@ impl Plugin for GreasePlugin {
         app.add_systems(
             Update,
             (
+                // Local wizard casting (mouse input)
                 systems::handle_grease_casting
                     .run_if(spell_is_primed(Spell::Grease))
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
+                // Guest wizard casting (network signals)
+                systems::handle_grease_casting_guest
+                    .run_if(guest_spell_is_primed(Spell::Grease))
+                    .run_if(guest_input_or_wizard_casting),
                 systems::update_grease_indicator.run_if(any_exist::<GreaseIndicator>()),
                 (
                     systems::apply_grease_slow,

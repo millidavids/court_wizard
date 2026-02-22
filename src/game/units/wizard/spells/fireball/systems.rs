@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
 use super::components::*;
 use super::constants;
 use super::styles::*;
@@ -14,7 +14,7 @@ use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputSt
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
 
-/// Handles fireball casting for both local and guest wizards.
+/// Local wizard fireball casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_fireball_casting(
     time: Res<Time>,
@@ -24,84 +24,158 @@ pub fn handle_fireball_casting(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, Option<&GuestWizard>),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<LocalWizard>,
     >,
     caster_query: Query<&SpellCaster>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::Fireball { continue; }
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::Fireball { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = fireball_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+    );
 
-        // Check for release event
-        if released {
-            if caster_query.get(wizard_entity).is_ok() {
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
-            casting_state.cancel();
-            continue;
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard fireball casting — reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_fireball_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<GuestWizard>,
+    >,
+    caster_query: Query<&SpellCaster>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::Fireball { return; }
+
+    fireball_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+    );
+}
+
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Core fireball casting logic — called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn fireball_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_entity: Entity,
+    wizard_transform: &Transform,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster_query: &Query<&SpellCaster>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    // Check for release event
+    if input.just_released {
+        if caster_query.get(wizard_entity).is_ok() {
+            commands.entity(wizard_entity).remove::<SpellCaster>();
         }
+        casting_state.cancel();
+        return result;
+    }
 
-        match *casting_state {
-            CastingState::Channeling { .. } => {
+    match *casting_state {
+        CastingState::Channeling { .. } => {
+            casting_state.cancel();
+        }
+        CastingState::Casting { .. } => {
+            casting_state.advance(time.delta_secs());
+
+            if casting_state.is_complete(primed_spell.cast_time) {
+                if mana.consume(constants::MANA_COST)
+                    && let Some(target_pos) = input.cursor_pos
+                {
+                    let spawn_origin = wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    spawn_fireball(
+                        commands,
+                        meshes,
+                        materials,
+                        spawn_origin,
+                        target_pos,
+                        primed_spell,
+                    );
+                    result.completed = true;
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
                 casting_state.cancel();
             }
-            CastingState::Casting { .. } => {
-                casting_state.advance(time.delta_secs());
-
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    let cursor_pos = if is_guest {
-                        guest_cursor.as_ref().and_then(|c| c.position)
-                    } else {
-                        get_cursor_world_position(&camera_query, &window_query)
-                    };
-
-                    if mana.consume(constants::MANA_COST)
-                        && let Some(target_pos) = cursor_pos
-                    {
-                        let spawn_origin = wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
-                        spawn_fireball(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            spawn_origin,
-                            target_pos,
-                            primed_spell,
-                        );
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
-                    if !is_guest {
-                        mouse_state.left_consumed = true;
-                    }
-                }
-            }
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
-                } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
-                    commands.entity(wizard_entity).insert(SpellCaster::new());
-                    casting_state.start_cast();
-                }
+        }
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed)
+                && caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(constants::MANA_COST)
+            {
+                commands.entity(wizard_entity).insert(SpellCaster::new());
+                casting_state.start_cast();
             }
         }
     }
+
+    result
 }
 
 /// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
@@ -113,15 +187,10 @@ fn get_cursor_world_position(
     let window = window_query.single().ok()?;
     let cursor_pos = window.cursor_position()?;
 
-    // Create a ray from the camera through the cursor position
     let ray = camera
         .viewport_to_world(camera_transform, cursor_pos)
         .ok()?;
 
-    // Intersect ray with Y=0 plane (battlefield surface)
-    // Ray equation: origin + direction * t
-    // Plane equation: y = 0
-    // Solve for t: origin.y + direction.y * t = 0
     let t = -ray.origin.y / ray.direction.y;
 
     if t > 0.0 {
@@ -214,7 +283,6 @@ pub fn check_fireball_collisions(
 
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {
-            // Hit ground - spawn explosion at ground level
             let explosion_pos = Vec3::new(fireball_pos.x, 0.0, fireball_pos.z);
             spawn_explosion(
                 &mut commands,
@@ -234,7 +302,6 @@ pub fn check_fireball_collisions(
             let distance = fireball_pos.distance(target_transform.translation);
 
             if distance < fireball.radius {
-                // Hit unit - spawn explosion at impact point
                 spawn_explosion(
                     &mut commands,
                     &mut meshes,
@@ -261,7 +328,7 @@ fn spawn_explosion(
     damage: f32,
     empowerment: f32,
 ) {
-    let sphere = Sphere::new(1.0); // Unit sphere, scaled by transform
+    let sphere = Sphere::new(1.0);
 
     commands.spawn((
         Mesh3d(meshes.add(sphere)),
@@ -292,18 +359,12 @@ pub fn update_explosions(
         explosion.time_alive += time.delta_secs();
         explosion.time_since_last_tick += time.delta_secs();
 
-        // Calculate current radius based on time
         let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
-
-        // Scale the sphere mesh to match current radius
-        // The mesh is a unit sphere (radius 1.0), so we scale it
         transform.scale = Vec3::splat(current_radius);
     }
 }
 
 /// Applies damage to units hit by the explosion on a tick interval.
-///
-/// Targets closer to the center stay in the explosion longer and take more damage.
 pub fn apply_explosion_damage(
     mut commands: Commands,
     mut explosions: Query<&mut FireballExplosion>,
@@ -315,13 +376,11 @@ pub fn apply_explosion_damage(
     )>,
 ) {
     for mut explosion in &mut explosions {
-        // Check if it's time for a damage tick
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
             explosion.time_since_last_tick = 0.0;
 
             let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
 
-            // Apply damage to all units within the current explosion radius
             for (entity, transform, mut health, mut temp_hp) in &mut targets {
                 let distance = explosion.origin.distance(transform.translation);
 

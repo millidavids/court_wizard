@@ -18,7 +18,7 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::wizard::components::{
-    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard,
+    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
 
 /// Gets cursor position projected onto Y=0 plane.
@@ -109,10 +109,13 @@ fn spawn_circle_indicator(
         .id()
 }
 
-/// Handles Meteor Fall spell casting with circle indicator.
-///
-/// Left-click starts cast. Must hold for full cast time.
-/// After cast completes, spawns meteor fall storm entity that persists until concentration ends.
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned).
+    completed: bool,
+}
+
+/// Local wizard meteor fall casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_meteor_fall_casting(
     time: Res<Time>,
@@ -129,194 +132,276 @@ pub(super) fn handle_meteor_fall_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
-            Option<&GuestWizard>,
         ),
-        Or<(With<LocalWizard>, With<GuestWizard>)>,
+        With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut MeteorFallCircleIndicator>,
     existing_storms: Query<Entity, With<MeteorFallStorm>>,
-    guest_cursor: Option<Res<GuestCursorPosition>>,
-    guest_input: Option<Res<GuestInputState>>,
 ) {
-    // Read local input once before the loop
-    let local_released = mouse_left_released.read().next().is_some();
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let input = WizardInput {
+        just_pressed: true, // Run conditions already ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
-    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
-        if primed_spell.spell != Spell::MeteorFall { continue; }
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::MeteorFall { return; }
 
-        let is_guest = is_guest.is_some();
-        let released = if is_guest {
-            guest_input.as_ref().is_some_and(|i| i.just_released)
-        } else {
-            local_released
-        };
+    let cast_result = meteor_fall_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        wizard,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut indicator_query,
+        &existing_storms,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        true, // is_local
+    );
 
-        // Check for release event - cancel cast
-        if released {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                // Despawn circle indicator if it exists
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
-                }
-                // Remove caster marker
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
+    }
+}
+
+/// Guest wizard meteor fall casting -- reads network signals.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_meteor_fall_casting_guest(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut wizard_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Wizard,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
+        With<GuestWizard>,
+    >,
+    caster_query: Query<&SpellCaster>,
+    mut indicator_query: Query<&mut MeteorFallCircleIndicator>,
+    existing_storms: Query<Entity, With<MeteorFallStorm>>,
+    guest_cursor: Res<GuestCursorPosition>,
+    guest_input: Res<GuestInputState>,
+) {
+    let input = WizardInput {
+        just_pressed: guest_input.just_pressed,
+        pressed: guest_input.pressed,
+        just_released: guest_input.just_released,
+        cursor_pos: guest_cursor.position,
+    };
+
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell != Spell::MeteorFall { return; }
+
+    meteor_fall_casting_logic(
+        &input,
+        &time,
+        wizard_entity,
+        wizard_transform,
+        wizard,
+        &mut casting_state,
+        &mut mana,
+        primed_spell,
+        &caster_query,
+        &mut indicator_query,
+        &existing_storms,
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        false, // is_local
+    );
+}
+
+/// Core meteor fall casting logic -- called by both local and guest systems.
+#[allow(clippy::too_many_arguments)]
+fn meteor_fall_casting_logic(
+    input: &WizardInput,
+    time: &Time,
+    wizard_entity: Entity,
+    wizard_transform: &Transform,
+    wizard: &Wizard,
+    casting_state: &mut CastingState,
+    mana: &mut Mana,
+    primed_spell: &PrimedSpell,
+    caster_query: &Query<&SpellCaster>,
+    indicator_query: &mut Query<&mut MeteorFallCircleIndicator>,
+    existing_storms: &Query<Entity, With<MeteorFallStorm>>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    is_local: bool,
+) -> CastResult {
+    let mut result = CastResult { completed: false };
+
+    // Check for release event - cancel cast
+    if input.just_released {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).despawn();
             }
-            casting_state.cancel();
-            continue;
+            commands.entity(wizard_entity).remove::<SpellCaster>();
         }
+        casting_state.cancel();
+        return result;
+    }
 
-        // Get cursor world position and clamp to wizard's spell range
-        let cursor_world_pos = if is_guest {
-            guest_cursor.as_ref().and_then(|c| c.position)
-        } else {
-            get_cursor_world_position(&camera_query, &window_query)
-        };
-        let Some(mut cursor_world_pos) = cursor_world_pos else {
-            continue;
-        };
+    // Get cursor world position and clamp to wizard's spell range
+    let Some(mut cursor_world_pos) = input.cursor_pos else {
+        return result;
+    };
 
-        let wizard_pos = wizard_transform.translation;
-        let scale = primed_spell.empowerment;
-        let storm_radius = STORM_RADIUS * scale;
+    let wizard_pos = wizard_transform.translation;
+    let scale = primed_spell.empowerment;
+    let storm_radius = STORM_RADIUS * scale;
 
-        cursor_world_pos = clamp_to_spell_range(
-            cursor_world_pos,
-            wizard_pos,
-            wizard.spell_range,
-            storm_radius,
-        );
+    cursor_world_pos = clamp_to_spell_range(
+        cursor_world_pos,
+        wizard_pos,
+        wizard.spell_range,
+        storm_radius,
+    );
 
-        // Mouse is held - handle casting based on state
-        match *casting_state {
-            CastingState::Resting => {
-                let has_input = if is_guest {
-                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+    // Handle casting based on state
+    match *casting_state {
+        CastingState::Resting => {
+            if (input.just_pressed || input.pressed)
+                && caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(MANA_COST)
+            {
+                // Start casting - spawn circle indicator (local wizard only)
+                if is_local {
+                    let circle_entity = spawn_circle_indicator(
+                        commands,
+                        meshes,
+                        materials,
+                        cursor_world_pos,
+                        primed_spell.empowerment,
+                    );
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::with_indicator(circle_entity));
                 } else {
-                    true // Run conditions already ensure mouse is held for local wizard
-                };
-                // Only start if we don't have a caster marker and have enough mana
-                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(MANA_COST) {
-                    // Start casting - spawn circle indicator (local wizard only)
-                    if !is_guest {
-                        let circle_entity = spawn_circle_indicator(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            cursor_world_pos,
-                            primed_spell.empowerment,
-                        );
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::new());
+                }
 
-                        // Mark wizard as casting Meteor Fall
-                        commands
-                            .entity(wizard_entity)
-                            .insert(SpellCaster::with_indicator(circle_entity));
-                    } else {
-                        commands
-                            .entity(wizard_entity)
-                            .insert(SpellCaster::new());
-                    }
+                // Start the cast
+                casting_state.start_cast();
+            }
+        }
+        CastingState::Casting { .. } => {
+            // Currently casting - advance cast time
+            casting_state.advance(time.delta_secs());
 
-                    // Start the cast
-                    casting_state.start_cast();
+            // Update circle position to follow cursor (local wizard only)
+            if is_local {
+                if let Ok(caster) = caster_query.get(wizard_entity)
+                    && let Some(indicator_entity) = caster.indicator_entity
+                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+                {
+                    indicator.position = cursor_world_pos;
                 }
             }
-            CastingState::Casting { .. } => {
-                // Currently casting - advance cast time
-                casting_state.advance(time.delta_secs());
 
-                // Update circle position to follow cursor (local wizard only)
-                if !is_guest {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                        && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-                    {
-                        indicator.position = cursor_world_pos;
+            // Check if cast is complete
+            if casting_state.is_complete(primed_spell.cast_time) {
+                // Cast complete - spawn storm entity
+                if mana.consume(MANA_COST) {
+                    // Despawn any existing storms (only one storm at a time)
+                    for existing_storm in existing_storms.iter() {
+                        commands.entity(existing_storm).despawn();
                     }
-                }
 
-                // Check if cast is complete
-                if casting_state.is_complete(primed_spell.cast_time) {
-                    // Cast complete - spawn storm entity
-                    if mana.consume(MANA_COST) {
-                        // Despawn any existing storms (only one storm at a time)
-                        for existing_storm in existing_storms.iter() {
-                            commands.entity(existing_storm).despawn();
-                        }
-
-                        if !is_guest {
-                            // Get final circle position and spawn storm
-                            if let Ok(caster) = caster_query.get(wizard_entity)
-                                && let Some(indicator_entity) = caster.indicator_entity
-                            {
-                                if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                    // Spawn the storm entity (invisible marker)
-                                    commands.spawn((
-                                        MeteorFallStorm::new(
-                                            indicator.position,
-                                            storm_radius,
-                                            primed_spell.empowerment,
-                                        ),
-                                        ConcentrationSpell {
-                                            spell_name: "Meteor Fall",
-                                        },
-                                        OnGameplayScreen,
-                                    ));
-                                }
-
-                                // Despawn circle indicator
-                                commands.entity(indicator_entity).despawn();
-                            }
-                        } else {
-                            // Guest: spawn storm at cursor position directly
-                            commands.spawn((
-                                MeteorFallStorm::new(
-                                    cursor_world_pos,
-                                    storm_radius,
-                                    primed_spell.empowerment,
-                                ),
-                                ConcentrationSpell {
-                                    spell_name: "Meteor Fall",
-                                },
-                                OnGameplayScreen,
-                            ));
-                        }
-
-                        // Remove caster marker immediately (don't keep it blocking future casts)
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
-
-                        // Return to resting state
-                        casting_state.cancel();
-                        // Consume mouse to require release before next cast
-                        if !is_guest {
-                            mouse_state.left_consumed = true;
-                        }
-                    } else {
-                        // Out of mana - cancel cast
+                    if is_local {
+                        // Get final circle position and spawn storm
                         if let Ok(caster) = caster_query.get(wizard_entity)
                             && let Some(indicator_entity) = caster.indicator_entity
                         {
+                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                                commands.spawn((
+                                    MeteorFallStorm::new(
+                                        indicator.position,
+                                        storm_radius,
+                                        primed_spell.empowerment,
+                                    ),
+                                    ConcentrationSpell {
+                                        spell_name: "Meteor Fall",
+                                    },
+                                    OnGameplayScreen,
+                                ));
+                            }
+
+                            // Despawn circle indicator
                             commands.entity(indicator_entity).despawn();
                         }
-                        commands.entity(wizard_entity).remove::<SpellCaster>();
-                        casting_state.cancel();
+                    } else {
+                        // Guest: spawn storm at cursor position directly
+                        commands.spawn((
+                            MeteorFallStorm::new(
+                                cursor_world_pos,
+                                storm_radius,
+                                primed_spell.empowerment,
+                            ),
+                            ConcentrationSpell {
+                                spell_name: "Meteor Fall",
+                            },
+                            OnGameplayScreen,
+                        ));
                     }
-                }
-            }
-            CastingState::Channeling { .. } => {
-                // Meteor Fall doesn't use channeling, cancel if we somehow get here
-                if let Ok(caster) = caster_query.get(wizard_entity) {
-                    if let Some(indicator_entity) = caster.indicator_entity {
+
+                    // Remove caster marker immediately
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+
+                    // Return to resting state
+                    casting_state.cancel();
+                    result.completed = true;
+                } else {
+                    // Out of mana - cancel cast
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
                         commands.entity(indicator_entity).despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
+                    casting_state.cancel();
                 }
-                casting_state.cancel();
             }
         }
+        CastingState::Channeling { .. } => {
+            // Meteor Fall doesn't use channeling, cancel if we somehow get here
+            if let Ok(caster) = caster_query.get(wizard_entity) {
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+            }
+            casting_state.cancel();
+        }
     }
+
+    result
 }
 
 /// Updates circle indicator visuals during casting.

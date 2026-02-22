@@ -9,7 +9,8 @@ use crate::game::run_conditions::is_spell_effects_active;
 /// Plugin that handles disintegrate spell casting and behavior.
 ///
 /// Registers systems for:
-/// - Casting disintegrate beam with right-click
+/// - Local wizard disintegrate casting (mouse input)
+/// - Guest wizard disintegrate casting (network signals)
 /// - Beam damage application
 /// - Beam visual updates
 /// - Cleanup when casting stops
@@ -20,11 +21,16 @@ impl Plugin for DisintegratePlugin {
         app.add_systems(
             Update,
             (
+                // Local wizard casting (mouse input)
                 systems::handle_disintegrate_casting
                     .run_if(spell_is_primed(Spell::Disintegrate))
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
+                // Guest wizard casting (network signals)
+                systems::handle_disintegrate_casting_guest
+                    .run_if(guest_spell_is_primed(Spell::Disintegrate))
+                    .run_if(guest_input_or_wizard_casting),
                 (
                     systems::update_beam_visuals,
                     systems::apply_disintegrate_damage,
