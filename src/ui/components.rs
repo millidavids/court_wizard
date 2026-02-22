@@ -8,8 +8,8 @@ use bevy::prelude::*;
 /// After this runs, every `TextFont::default()` and `TextFont::from_font_size()`
 /// automatically uses Cinzel Bold without needing an explicit font handle.
 pub fn set_default_font(mut fonts: ResMut<Assets<Font>>) {
-    let font_data = include_bytes!("../../assets/fonts/Cinzel-Bold.ttf");
-    let font = Font::try_from_bytes(font_data.to_vec()).expect("Failed to load Cinzel-Bold.ttf");
+    let font_data = include_bytes!("../../assets/fonts/Cinzel-Regular.ttf");
+    let font = Font::try_from_bytes(font_data.to_vec()).expect("Failed to load Cinzel-Regular.ttf");
     fonts
         .insert(AssetId::default(), font)
         .expect("Failed to insert default font");
