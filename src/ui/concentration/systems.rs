@@ -49,11 +49,7 @@ pub(super) fn spawn_concentration_ui(
             .with_children(|button| {
                 button.spawn((
                     Text::new(format!("End Concentration: {}", spell_name)),
-                    TextFont {
-                        // font removed (using default),
-                        font_size: BUTTON_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(BUTTON_FONT_SIZE),
                     TextColor(BUTTON_TEXT_COLOR),
                     ConcentrationSpellNameText,
                 ));

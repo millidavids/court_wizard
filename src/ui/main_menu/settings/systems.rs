@@ -65,11 +65,7 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                     // Title
                     parent.spawn((
                         Text::new("Settings"),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: TITLE_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(TITLE_FONT_SIZE),
                         TextColor(TEXT_COLOR),
                         Node {
                             margin: UiRect::bottom(Val::Px(MARGIN)),
@@ -182,11 +178,7 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                         .with_children(|button| {
                             button.spawn((
                                 Text::new("Back"),
-                                TextFont {
-                                    // font removed (using default),
-                                    font_size: BUTTON_FONT_SIZE,
-                                    ..default()
-                                },
+                                TextFont::from_font_size(BUTTON_FONT_SIZE),
                                 TextColor(TEXT_COLOR),
                             ));
                         });
@@ -212,11 +204,7 @@ fn spawn_section(
             // Section title
             section.spawn((
                 Text::new(title),
-                TextFont {
-                    // font removed (using default),
-                    font_size: SECTION_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(SECTION_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
                     margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
@@ -246,11 +234,7 @@ fn spawn_option_row(
             // Label
             row.spawn((
                 Text::new(label),
-                TextFont {
-                    // font removed (using default),
-                    font_size: LABEL_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(LABEL_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
                     width: Val::Px(200.0),
@@ -307,11 +291,7 @@ fn spawn_option_button(
     entity.with_children(|button| {
         button.spawn((
             Text::new(text),
-            TextFont {
-                // font removed (using default),
-                font_size: BUTTON_FONT_SIZE,
-                ..default()
-            },
+            TextFont::from_font_size(BUTTON_FONT_SIZE),
             TextColor(TEXT_COLOR),
         ));
     });
@@ -374,11 +354,7 @@ fn spawn_slider_row<
             // Label
             row.spawn((
                 Text::new(label),
-                TextFont {
-                    // font removed (using default),
-                    font_size: LABEL_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(LABEL_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
                     width: Val::Px(200.0),
@@ -417,11 +393,7 @@ fn spawn_slider_row<
                     .with_children(|button| {
                         button.spawn((
                             Text::new("-"),
-                            TextFont {
-                                // font removed (using default),
-                                font_size: BUTTON_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(BUTTON_FONT_SIZE),
                             TextColor(TEXT_COLOR),
                         ));
                     });
@@ -506,11 +478,7 @@ fn spawn_slider_row<
                     .with_children(|button| {
                         button.spawn((
                             Text::new("+"),
-                            TextFont {
-                                // font removed (using default),
-                                font_size: BUTTON_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(BUTTON_FONT_SIZE),
                             TextColor(TEXT_COLOR),
                         ));
                     });
@@ -518,11 +486,7 @@ fn spawn_slider_row<
                 // Value display
                 controls.spawn((
                     Text::new(format!("{}%", (current_value * 100.0) as u8)),
-                    TextFont {
-                        // font removed (using default),
-                        font_size: LABEL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(LABEL_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     Node {
                         width: Val::Px(60.0),

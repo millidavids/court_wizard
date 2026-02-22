@@ -39,7 +39,9 @@ pub(super) fn spawn_next_popup(
         && let Some(entry) = queue.pop()
     {
         match entry {
-            PopupEntry::Achievement(id) => spawn_achievement_popup(&mut commands, id),
+            PopupEntry::Achievement(id) => {
+                spawn_achievement_popup(&mut commands, id)
+            }
             PopupEntry::IngredientCollected(ingredient) => {
                 spawn_ingredient_popup(&mut commands, ingredient)
             }
@@ -79,30 +81,21 @@ fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Achievement Unlocked"),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
+                TextFont::from_font_size(12.0),
                 TextColor(HEADER_COLOR),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
                 Text::new(id.display_name()),
-                TextFont {
-                    font_size: 18.0,
-                    ..default()
-                },
+                TextFont::from_font_size(18.0),
                 TextColor(TITLE_COLOR),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
                 Text::new(id.description()),
-                TextFont {
-                    font_size: 13.0,
-                    ..default()
-                },
+                TextFont::from_font_size(13.0),
                 TextColor(DESCRIPTION_COLOR),
                 Pickable::IGNORE,
             ));
@@ -110,10 +103,7 @@ fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
             if let Some(reward) = id.unlock_reward() {
                 parent.spawn((
                     Text::new(reward),
-                    TextFont {
-                        font_size: 14.0,
-                        ..default()
-                    },
+                    TextFont::from_font_size(14.0),
                     TextColor(Color::srgb(0.4, 0.9, 0.4)),
                     Pickable::IGNORE,
                 ));
@@ -150,30 +140,21 @@ fn spawn_ingredient_popup(commands: &mut Commands, ingredient: Ingredient) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Ingredient Discovered!"),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
+                TextFont::from_font_size(12.0),
                 TextColor(INGREDIENT_HEADER_COLOR),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
                 Text::new(ingredient.name()),
-                TextFont {
-                    font_size: 18.0,
-                    ..default()
-                },
+                TextFont::from_font_size(18.0),
                 TextColor(INGREDIENT_TITLE_COLOR),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
                 Text::new(ingredient.description()),
-                TextFont {
-                    font_size: 13.0,
-                    ..default()
-                },
+                TextFont::from_font_size(13.0),
                 TextColor(DESCRIPTION_COLOR),
                 Pickable::IGNORE,
             ));
@@ -209,30 +190,21 @@ fn spawn_spell_researched_popup(commands: &mut Commands, spell: Spell) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Spell Researched!"),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
+                TextFont::from_font_size(12.0),
                 TextColor(SPELL_HEADER_COLOR),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
                 Text::new(spell.display_name()),
-                TextFont {
-                    font_size: 18.0,
-                    ..default()
-                },
+                TextFont::from_font_size(18.0),
                 TextColor(SPELL_TITLE_COLOR),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
                 Text::new(spell.description()),
-                TextFont {
-                    font_size: 13.0,
-                    ..default()
-                },
+                TextFont::from_font_size(13.0),
                 TextColor(DESCRIPTION_COLOR),
                 Pickable::IGNORE,
             ));

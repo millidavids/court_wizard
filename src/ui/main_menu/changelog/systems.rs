@@ -36,11 +36,7 @@ pub(super) fn setup(mut commands: Commands) {
             // Title
             parent.spawn((
                 Text::new("Changelog"),
-                TextFont {
-                    // font removed (using default),
-                    font_size: 48.0,
-                    ..default()
-                },
+                TextFont::from_font_size(48.0),
                 TextColor(TEXT_COLOR),
                 Node {
                     margin: UiRect::bottom(Val::Px(20.0)),
@@ -73,11 +69,7 @@ pub(super) fn setup(mut commands: Commands) {
                         .with_children(|parent| {
                             parent.spawn((
                                 Text::new(CHANGELOG_TEXT),
-                                TextFont {
-                                    // font removed (using default),
-                                    font_size: 16.0,
-                                    ..default()
-                                },
+                                TextFont::from_font_size(16.0),
                                 TextColor(TEXT_COLOR),
                             ));
                         });
@@ -104,11 +96,7 @@ pub(super) fn setup(mut commands: Commands) {
                 .with_children(|parent| {
                     parent.spawn((
                         Text::new("Back"),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 32.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(32.0),
                         TextColor(TEXT_COLOR),
                     ));
                 });

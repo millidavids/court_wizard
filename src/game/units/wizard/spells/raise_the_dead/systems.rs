@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell};
+use super::super::super::components::{CastingState, GuestWizard, LocalWizard, Mana, PrimedSpell, Spell};
 use super::components::*;
 use super::constants::{
     CHANNEL_RAMP_TIME, INITIAL_CHANNEL_INTERVAL, MANA_COST_PER_CORPSE, MIN_CHANNEL_INTERVAL,
@@ -10,6 +10,7 @@ use super::constants::{
 use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::resources::ArcherAssets;
 use crate::game::units::components::{
@@ -22,19 +23,16 @@ use crate::game::units::infantry::resources::InfantryAssets;
 /// Unit radius for infantry hitboxes (matches infantry/styles.rs::UNIT_RADIUS)
 const UNIT_RADIUS: f32 = 8.0;
 
-/// Handles Raise The Dead spell casting and channeling.
-///
-/// Left-click starts cast. Must hold for full cast time.
-/// After cast completes, enters channeling state where corpses are resurrected continuously.
-/// Only casts when Raise The Dead is the primed spell.
-///
-/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
+/// Handles Raise The Dead spell casting for both local and guest wizards.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_raise_the_dead_casting(
     time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell)>,
+    mut wizard_query: Query<
+        (&mut CastingState, &mut Mana, &PrimedSpell, Option<&GuestWizard>),
+        Or<(With<LocalWizard>, With<GuestWizard>)>,
+    >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     corpse_query: Query<
@@ -49,83 +47,92 @@ pub fn handle_raise_the_dead_casting(
     >,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // Check for release event - this is spell-specific logic
-    if mouse_left_released.read().next().is_some() {
-        // Cancel cast/channel on release
-        casting_state.cancel();
-        return;
-    }
+    for (mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::RaiseTheDead { continue; }
 
-    // Mouse is held - handle casting or channeling based on state
-    match *casting_state {
-        CastingState::Channeling { .. } => {
-            // Already channeling - advance channel time
-            casting_state.advance_channel(time.delta_secs());
+        let is_guest = is_guest.is_some();
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
 
-            // Check if enough time has passed to resurrect another corpse
-            if casting_state.should_channel(
-                INITIAL_CHANNEL_INTERVAL,
-                MIN_CHANNEL_INTERVAL,
-                CHANNEL_RAMP_TIME,
-            ) {
-                // Try to resurrect corpse if we have mana
-                if mana.consume(MANA_COST_PER_CORPSE) {
-                    // Find corpse near cursor
-                    if let Some(cursor_pos) =
-                        get_cursor_world_position(&camera_query, &window_query)
-                    {
-                        resurrect_nearest_corpse(
-                            &mut commands,
-                            cursor_pos,
-                            &corpse_query,
-                            &infantry_assets,
-                            &archer_assets,
-                            primed_spell.empowerment,
-                        );
-                        casting_state.reset_channel_interval();
+        if released {
+            casting_state.cancel();
+            continue;
+        }
+
+        match *casting_state {
+            CastingState::Channeling { .. } => {
+                casting_state.advance_channel(time.delta_secs());
+
+                if casting_state.should_channel(
+                    INITIAL_CHANNEL_INTERVAL,
+                    MIN_CHANNEL_INTERVAL,
+                    CHANNEL_RAMP_TIME,
+                ) {
+                    if mana.consume(MANA_COST_PER_CORPSE) {
+                        let cursor_pos = if is_guest {
+                            guest_cursor.as_ref().and_then(|c| c.position)
+                        } else {
+                            get_cursor_world_position(&camera_query, &window_query)
+                        };
+                        if let Some(cursor_pos) = cursor_pos {
+                            resurrect_nearest_corpse(
+                                &mut commands,
+                                cursor_pos,
+                                &corpse_query,
+                                &infantry_assets,
+                                &archer_assets,
+                                primed_spell.empowerment,
+                            );
+                            casting_state.reset_channel_interval();
+                        }
+                    } else {
+                        casting_state.cancel();
                     }
-                } else {
-                    // Out of mana - cancel channeling
-                    casting_state.cancel();
                 }
             }
-        }
-        CastingState::Casting { .. } => {
-            // Currently casting - advance cast time
-            casting_state.advance(time.delta_secs());
+            CastingState::Casting { .. } => {
+                casting_state.advance(time.delta_secs());
 
-            // Check if cast is complete
-            if casting_state.is_complete(primed_spell.cast_time) {
-                // Cast complete - transition to channeling and resurrect first corpse
-                if mana.consume(MANA_COST_PER_CORPSE) {
-                    if let Some(cursor_pos) =
-                        get_cursor_world_position(&camera_query, &window_query)
-                    {
-                        resurrect_nearest_corpse(
-                            &mut commands,
-                            cursor_pos,
-                            &corpse_query,
-                            &infantry_assets,
-                            &archer_assets,
-                            primed_spell.empowerment,
-                        );
-                        casting_state.start_channeling();
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    if mana.consume(MANA_COST_PER_CORPSE) {
+                        let cursor_pos = if is_guest {
+                            guest_cursor.as_ref().and_then(|c| c.position)
+                        } else {
+                            get_cursor_world_position(&camera_query, &window_query)
+                        };
+                        if let Some(cursor_pos) = cursor_pos {
+                            resurrect_nearest_corpse(
+                                &mut commands,
+                                cursor_pos,
+                                &corpse_query,
+                                &infantry_assets,
+                                &archer_assets,
+                                primed_spell.empowerment,
+                            );
+                            casting_state.start_channeling();
+                        }
+                    } else {
+                        casting_state.cancel();
                     }
-                } else {
-                    // Out of mana - cancel cast
-                    casting_state.cancel();
                 }
             }
-        }
-        CastingState::Resting => {
-            // Not casting yet - start cast if we have mana
-            if mana.can_afford(MANA_COST_PER_CORPSE) {
-                casting_state.start_cast();
+            CastingState::Resting => {
+                let has_input = if is_guest {
+                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+                } else {
+                    true
+                };
+                if has_input && mana.can_afford(MANA_COST_PER_CORPSE) {
+                    casting_state.start_cast();
+                }
             }
         }
     }

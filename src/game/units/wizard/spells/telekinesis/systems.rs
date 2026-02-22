@@ -1,15 +1,16 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard};
 use super::components::TelekinesisIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 
-/// Handles Telekinesis casting with left-click.
+/// Handles Telekinesis casting for both local and guest wizards.
 ///
 /// Click near an ingredient drop to start casting. Hold for cast time.
 /// On completion, the drop flies to the wizard for collection.
@@ -29,143 +30,166 @@ pub(super) fn handle_telekinesis_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
+            Option<&GuestWizard>,
         ),
-        With<LocalWizard>,
+        Or<(With<LocalWizard>, With<GuestWizard>)>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<LocalWizard>>,
+    caster_query: Query<&SpellCaster>,
     drops_query: Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: Query<&TelekinesisIndicator>,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
-    else {
-        return;
-    };
+    // Read local input once before the loop
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // Check for release event
-    if mouse_left_released.read().next().is_some() {
-        if let Ok(caster) = caster_query.single() {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
-        return;
-    }
+    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::Telekinesis { continue; }
 
-    // Get cursor world position
-    let Some(cursor_world_pos) = get_cursor_world_position(&camera_query, &window_query) else {
-        return;
-    };
+        let is_guest = is_guest.is_some();
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
 
-    match *casting_state {
-        CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
-                // Find nearest drop within pickup radius of cursor
-                let Some((drop_entity, drop_transform, _drop)) =
-                    find_nearest_drop(&cursor_world_pos, &drops_query)
-                else {
-                    return;
-                };
-
-                // Check if drop is within wizard's spell range
-                let wizard_pos = wizard_transform.translation;
-                let drop_pos = drop_transform.translation;
-                let wizard_height = wizard_pos.y;
-                let max_ground_radius = if wizard_height < wizard.spell_range {
-                    (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-                } else {
-                    0.0
-                };
-                let dx = drop_pos.x - wizard_pos.x;
-                let dz = drop_pos.z - wizard_pos.z;
-                let ground_distance = (dx * dx + dz * dz).sqrt();
-                if ground_distance > max_ground_radius {
-                    return;
-                }
-
-                // Spawn indicator on the drop
-                let indicator_entity = spawn_indicator(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    drop_transform.translation,
-                    drop_entity,
-                );
-
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(indicator_entity));
-
-                casting_state.start_cast();
-            }
-        }
-        CastingState::Casting { .. } => {
-            casting_state.advance(time.delta_secs());
-
-            if casting_state.is_complete(primed_spell.cast_time) {
-                // Find the targeted drop via the indicator
-                let target_drop = caster_query
-                    .single()
-                    .ok()
-                    .and_then(|caster| caster.indicator_entity)
-                    .and_then(|indicator_entity| indicator_query.get(indicator_entity).ok())
-                    .map(|indicator| indicator.target_drop);
-
-                if let Some(drop_entity) = target_drop
-                    && mana.consume(constants::MANA_COST)
-                {
-                    if let Ok((_entity, drop_transform, drop_component)) =
-                        drops_query.get(drop_entity)
-                    {
-                        let start_pos = drop_transform.translation;
-                        let total_distance =
-                            start_pos.distance(crate::game::constants::WIZARD_POSITION);
-
-                        // Convert drop to flying state
-                        commands
-                            .entity(drop_entity)
-                            .remove::<IngredientDrop>()
-                            .insert(FlyingToWizard {
-                                ingredient: drop_component.ingredient,
-                                start_pos,
-                                total_distance,
-                            });
-                    }
-
-                    // Cleanup indicator and caster
-                    if let Ok(caster) = caster_query.single()
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
-                    mouse_state.left_consumed = true;
-                } else {
-                    // Out of mana or no valid target
-                    if let Ok(caster) = caster_query.single()
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
-                }
-            }
-        }
-        CastingState::Channeling { .. } => {
-            // Telekinesis doesn't channel
-            if let Ok(caster) = caster_query.single() {
+        // Check for release event
+        if released {
+            if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
                     commands.entity(indicator_entity).despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
             casting_state.cancel();
+            continue;
+        }
+
+        // Get cursor world position
+        let cursor_world_pos = if is_guest {
+            guest_cursor.as_ref().and_then(|c| c.position)
+        } else {
+            get_cursor_world_position(&camera_query, &window_query)
+        };
+        let Some(cursor_world_pos) = cursor_world_pos else {
+            continue;
+        };
+
+        match *casting_state {
+            CastingState::Resting => {
+                let has_input = if is_guest {
+                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+                } else {
+                    true // Run conditions already ensure mouse is held for local wizard
+                };
+                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
+                    // Find nearest drop within pickup radius of cursor
+                    let Some((drop_entity, drop_transform, _drop)) =
+                        find_nearest_drop(&cursor_world_pos, &drops_query)
+                    else {
+                        continue;
+                    };
+
+                    // Check if drop is within wizard's spell range
+                    let wizard_pos = wizard_transform.translation;
+                    let drop_pos = drop_transform.translation;
+                    let wizard_height = wizard_pos.y;
+                    let max_ground_radius = if wizard_height < wizard.spell_range {
+                        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
+                    } else {
+                        0.0
+                    };
+                    let dx = drop_pos.x - wizard_pos.x;
+                    let dz = drop_pos.z - wizard_pos.z;
+                    let ground_distance = (dx * dx + dz * dz).sqrt();
+                    if ground_distance > max_ground_radius {
+                        continue;
+                    }
+
+                    // Spawn indicator on the drop
+                    let indicator_entity = spawn_indicator(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        drop_transform.translation,
+                        drop_entity,
+                    );
+
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::with_indicator(indicator_entity));
+
+                    casting_state.start_cast();
+                }
+            }
+            CastingState::Casting { .. } => {
+                casting_state.advance(time.delta_secs());
+
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    // Find the targeted drop via the indicator
+                    let target_drop = caster_query
+                        .get(wizard_entity)
+                        .ok()
+                        .and_then(|caster| caster.indicator_entity)
+                        .and_then(|indicator_entity| indicator_query.get(indicator_entity).ok())
+                        .map(|indicator| indicator.target_drop);
+
+                    if let Some(drop_entity) = target_drop
+                        && mana.consume(constants::MANA_COST)
+                    {
+                        if let Ok((_entity, drop_transform, drop_component)) =
+                            drops_query.get(drop_entity)
+                        {
+                            let start_pos = drop_transform.translation;
+                            let total_distance =
+                                start_pos.distance(crate::game::constants::WIZARD_POSITION);
+
+                            // Convert drop to flying state
+                            commands
+                                .entity(drop_entity)
+                                .remove::<IngredientDrop>()
+                                .insert(FlyingToWizard {
+                                    ingredient: drop_component.ingredient,
+                                    start_pos,
+                                    total_distance,
+                                });
+                        }
+
+                        // Cleanup indicator and caster
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            commands.entity(indicator_entity).despawn();
+                        }
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                        casting_state.cancel();
+                        if !is_guest {
+                            mouse_state.left_consumed = true;
+                        }
+                    } else {
+                        // Out of mana or no valid target
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            commands.entity(indicator_entity).despawn();
+                        }
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                        casting_state.cancel();
+                    }
+                }
+            }
+            CastingState::Channeling { .. } => {
+                // Telekinesis doesn't channel
+                if let Ok(caster) = caster_query.get(wizard_entity) {
+                    if let Some(indicator_entity) = caster.indicator_entity {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                }
+                casting_state.cancel();
+            }
         }
     }
 }

@@ -130,11 +130,7 @@ pub(super) fn setup_game_over_screen(
 
                     buttons.spawn((
                         Text::new(title_text),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 60.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(60.0),
                         TextColor(TITLE_COLOR),
                     ));
 
@@ -142,11 +138,7 @@ pub(super) fn setup_game_over_screen(
                     if *game_outcome == GameOutcome::DefeatKingDied {
                         buttons.spawn((
                             Text::new("The King died!"),
-                            TextFont {
-                                // font removed (using default),
-                                font_size: 24.0,
-                                ..default()
-                            },
+                            TextFont::from_font_size(24.0),
                             TextColor(TEXT_COLOR),
                         ));
                     }
@@ -201,32 +193,20 @@ pub(super) fn setup_game_over_screen(
                     // Current Level
                     stats.spawn((
                         Text::new(format!("Current Level: {}", current_level.0)),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 28.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(28.0),
                         TextColor(TITLE_COLOR),
                     ));
 
                     // Kill Statistics header
                     stats.spawn((
                         Text::new("Kill Statistics:"),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 24.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(24.0),
                         TextColor(TEXT_COLOR),
                     ));
 
                     stats.spawn((
                         Text::new(format!("  Defenders Lost: {}", kill_stats.defenders_killed)),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
 
@@ -235,32 +215,20 @@ pub(super) fn setup_game_over_screen(
                             "  Attackers Killed: {}",
                             kill_stats.attackers_killed
                         )),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
 
                     stats.spawn((
                         Text::new(format!("  Undead Killed: {}", kill_stats.undead_killed)),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
 
                     // Current efficiency
                     stats.spawn((
                         Text::new(format!("  Efficiency: {:.1}%", current_efficiency)),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
 
@@ -270,10 +238,7 @@ pub(super) fn setup_game_over_screen(
                             "  Insight Earned: +{}",
                             battle_insight.insight_earned
                         )),
-                        TextFont {
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(INSIGHT_COLOR),
                     ));
 
@@ -283,10 +248,7 @@ pub(super) fn setup_game_over_screen(
                     {
                         stats.spawn((
                             Text::new("Past Victory:"),
-                            TextFont {
-                                font_size: 24.0,
-                                ..default()
-                            },
+                            TextFont::from_font_size(24.0),
                             TextColor(TEXT_COLOR),
                         ));
 
@@ -296,10 +258,7 @@ pub(super) fn setup_game_over_screen(
                                 current_level.0,
                                 past_efficiency * 100.0
                             )),
-                            TextFont {
-                                font_size: 18.0,
-                                ..default()
-                            },
+                            TextFont::from_font_size(18.0),
                             TextColor(TEXT_COLOR),
                         ));
                     }
@@ -307,37 +266,25 @@ pub(super) fn setup_game_over_screen(
                     // Lifetime stats
                     stats.spawn((
                         Text::new("Lifetime:"),
-                        TextFont {
-                            font_size: 24.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(24.0),
                         TextColor(TEXT_COLOR),
                     ));
 
                     stats.spawn((
                         Text::new(format!("  Attackers Killed: {}", lifetime_attackers)),
-                        TextFont {
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
 
                     stats.spawn((
                         Text::new(format!("  Defenders Lost: {}", lifetime_defenders)),
-                        TextFont {
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
 
                     stats.spawn((
                         Text::new(format!("  Undead Killed: {}", lifetime_undead)),
-                        TextFont {
-                            font_size: 20.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
                 });

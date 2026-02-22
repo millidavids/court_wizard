@@ -7,7 +7,6 @@ use bevy::ui::ComputedNode;
 
 use super::components::{BackButton, OnInstructionsScreen, ScrollableInstructionsContainer};
 use super::constants::INSTRUCTIONS_TEXT;
-
 // UI colors for instructions screen
 const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
@@ -45,11 +44,7 @@ pub(super) fn setup(mut commands: Commands, transparent_bg: bool) {
         // Title
         parent.spawn((
             Text::new("Instructions"),
-            TextFont {
-                // font removed (using default),
-                font_size: 48.0,
-                ..default()
-            },
+            TextFont::from_font_size(48.0),
             TextColor(TEXT_COLOR),
             Node {
                 margin: UiRect::bottom(Val::Px(20.0)),
@@ -82,11 +77,7 @@ pub(super) fn setup(mut commands: Commands, transparent_bg: bool) {
                     .with_children(|parent| {
                         parent.spawn((
                             Text::new(INSTRUCTIONS_TEXT),
-                            TextFont {
-                                // font removed (using default),
-                                font_size: 16.0,
-                                ..default()
-                            },
+                            TextFont::from_font_size(16.0),
                             TextColor(TEXT_COLOR),
                             TextLayout::new_with_linebreak(bevy::text::LineBreak::WordBoundary),
                         ));
@@ -114,11 +105,7 @@ pub(super) fn setup(mut commands: Commands, transparent_bg: bool) {
             .with_children(|parent| {
                 parent.spawn((
                     Text::new("Back"),
-                    TextFont {
-                        // font removed (using default),
-                        font_size: 32.0,
-                        ..default()
-                    },
+                    TextFont::from_font_size(32.0),
                     TextColor(TEXT_COLOR),
                 ));
             });

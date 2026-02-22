@@ -170,20 +170,14 @@ pub(super) fn spawn_wizard_card(
         .with_children(|card| {
             card.spawn((
                 Text::new(wizard_type.display_name()),
-                TextFont {
-                    font_size: CARD_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(CARD_NAME_FONT_SIZE),
                 TextColor(CARD_NAME_COLOR),
                 TextLayout::new_with_justify(Justify::Center),
             ));
 
             card.spawn((
                 Text::new(wizard_type.locked_description()),
-                TextFont {
-                    font_size: CARD_DESC_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(CARD_DESC_FONT_SIZE),
                 TextColor(DESCRIPTION_COLOR),
                 TextLayout::new_with_justify(Justify::Center),
                 Node {
@@ -219,10 +213,7 @@ pub(super) fn spawn_locked_wizard_card(
         .with_children(|card| {
             card.spawn((
                 Text::new(wizard_type.locked_description()),
-                TextFont {
-                    font_size: CARD_DESC_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(CARD_DESC_FONT_SIZE),
                 TextColor(LOCKED_TEXT_COLOR),
                 TextLayout::new_with_justify(Justify::Center),
                 Node {
@@ -253,10 +244,7 @@ pub(super) fn spawn_locked_card(parent: &mut ChildSpawnerCommands) {
         .with_children(|card| {
             card.spawn((
                 Text::new("???"),
-                TextFont {
-                    font_size: CARD_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(CARD_NAME_FONT_SIZE),
                 TextColor(LOCKED_TEXT_COLOR),
             ));
         });
@@ -277,18 +265,12 @@ pub(super) fn spawn_title_group(
         .with_children(|title_group| {
             title_group.spawn((
                 Text::new(title.to_string()),
-                TextFont {
-                    font_size: TITLE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(TITLE_FONT_SIZE),
                 TextColor(TEXT_COLOR),
             ));
             title_group.spawn((
                 Text::new(subtitle.to_string()),
-                TextFont {
-                    font_size: SUBTITLE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(SUBTITLE_FONT_SIZE),
                 TextColor(SUBTITLE_COLOR),
             ));
         });
@@ -341,20 +323,14 @@ pub(super) fn spawn_detail_panel_top(
         .with_children(|top| {
             top.spawn((
                 Text::new(wizard_type.display_name()),
-                TextFont {
-                    font_size: DETAIL_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(DETAIL_NAME_FONT_SIZE),
                 TextColor(CARD_NAME_COLOR),
                 DetailName,
             ));
 
             top.spawn((
                 Text::new(wizard_type.long_description()),
-                TextFont {
-                    font_size: DETAIL_DESC_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
                 TextColor(DETAIL_DESC_COLOR),
                 Node {
                     max_width: Val::Px(LEFT_PANEL_WIDTH - 36.0),

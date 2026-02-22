@@ -105,11 +105,7 @@ pub(super) fn spawn_arcanorouter_display(
                                 // Label text at bottom
                                 slider_parent.spawn((
                                     Text::new(slider_label(slider_type)),
-                                    TextFont {
-                                        // font removed (using default),
-                                        font_size: LABEL_FONT_SIZE,
-                                        ..default()
-                                    },
+                                    TextFont::from_font_size(LABEL_FONT_SIZE),
                                     TextColor(TEXT_COLOR),
                                 ));
                             });

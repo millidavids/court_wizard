@@ -147,10 +147,7 @@ fn spawn_detail_panel(
         .with_children(|bottom| {
             bottom.spawn((
                 Text::new(status_text),
-                TextFont {
-                    font_size: DETAIL_STATUS_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(DETAIL_STATUS_FONT_SIZE),
                 TextColor(status_color),
                 DetailStatus,
             ));

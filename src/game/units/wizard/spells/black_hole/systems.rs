@@ -10,7 +10,10 @@ use crate::game::units::components::{
     Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
+use crate::game::input::MouseButtonState;
+use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
+use crate::game::units::wizard::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard};
 use crate::networking::snapshot::SpellEffectKind;
 
 /// Gets cursor position projected onto Y=0 plane.
@@ -78,74 +81,89 @@ fn spawn_black_hole(
     ));
 }
 
-/// Handles Black Hole spell casting.
-///
-/// Left-click starts cast. After cast completes, spawns black hole at cursor position.
-/// Black hole persists for LIFETIME seconds as a fixture.
+/// Handles Black Hole spell casting for both local and guest wizards.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_black_hole_casting(
     time: Res<Time>,
+    mut mouse_state: ResMut<MouseButtonState>,
+    mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (
-            &Transform,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-            &Wizard,
-        ),
-        With<LocalWizard>,
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard, Option<&GuestWizard>),
+        Or<(With<LocalWizard>, With<GuestWizard>)>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
-        wizard_query.single_mut()
-    else {
-        return;
-    };
+    // Read local input once before the loop
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // State machine
-    match *casting_state {
-        CastingState::Resting => {
-            // Check mana before starting cast
-            if mana.can_afford(MANA_COST) {
-                casting_state.start_cast();
-            }
+    for (_wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, wizard, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::BlackHole { continue; }
+
+        let is_guest = is_guest.is_some();
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
+
+        // Check for release event
+        if released {
+            casting_state.cancel();
+            continue;
         }
-        CastingState::Casting { .. } => {
-            // Advance cast time
-            casting_state.advance(time.delta_secs());
 
-            // Check if cast complete
-            if casting_state.is_complete(primed_spell.cast_time) {
-                // Get cursor position and spawn black hole
-                if let Some(cursor_pos) = get_cursor_world_position(&camera_query, &window_query) {
-                    let wizard_pos = wizard_transform.translation;
-                    let clamped_pos =
-                        clamp_to_spell_range(cursor_pos, wizard_pos, wizard.spell_range);
+        match *casting_state {
+            CastingState::Resting => {
+                let has_input = if is_guest {
+                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+                } else {
+                    true // Run conditions already ensure mouse is held for local wizard
+                };
+                if has_input && mana.can_afford(MANA_COST) {
+                    casting_state.start_cast();
+                }
+            }
+            CastingState::Casting { .. } => {
+                casting_state.advance(time.delta_secs());
 
-                    // Consume mana and spawn black hole
-                    if mana.consume(MANA_COST) {
-                        spawn_black_hole(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            clamped_pos,
-                            primed_spell.empowerment,
-                        );
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    let cursor_pos = if is_guest {
+                        guest_cursor.as_ref().and_then(|c| c.position)
+                    } else {
+                        get_cursor_world_position(&camera_query, &window_query)
+                    };
+
+                    if let Some(cursor_pos) = cursor_pos {
+                        let wizard_pos = wizard_transform.translation;
+                        let clamped_pos =
+                            clamp_to_spell_range(cursor_pos, wizard_pos, wizard.spell_range);
+
+                        if mana.consume(MANA_COST) {
+                            spawn_black_hole(
+                                &mut commands,
+                                &mut meshes,
+                                &mut materials,
+                                clamped_pos,
+                                primed_spell.empowerment,
+                            );
+                        }
+                    }
+
+                    casting_state.cancel();
+                    if !is_guest {
+                        mouse_state.left_consumed = true;
                     }
                 }
-
-                // Return to resting state
+            }
+            CastingState::Channeling { .. } => {
                 casting_state.cancel();
             }
-        }
-        CastingState::Channeling { .. } => {
-            // Should never be in channeling state for this spell
-            casting_state.cancel();
         }
     }
 }

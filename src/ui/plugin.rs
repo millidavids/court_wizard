@@ -19,6 +19,7 @@ use super::pause_menu::plugin::PauseMenuPlugin;
 use super::roulette_display::RouletteDisplayPlugin;
 use super::rune_display::RuneDisplayPlugin;
 use super::spell_book::SpellBookPlugin;
+use super::components::set_default_font;
 use super::systems;
 use super::version::VersionPlugin;
 use super::wizard_tower::WizardTowerPlugin;
@@ -59,6 +60,7 @@ impl Plugin for UiPlugin {
             Update,
             ButtonActionSet.run_if(systems::on_message::<MouseClicked>),
         )
+        .add_systems(Startup, set_default_font)
         .add_systems(
             Update,
             (

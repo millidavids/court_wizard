@@ -39,11 +39,7 @@ pub(super) fn spawn_rune_display(mut commands: Commands) {
                     // Sequence text above buttons
                     inner.spawn((
                         Text::new(""),
-                        TextFont {
-                            // font removed (using default),
-                            font_size: RUNE_SEQUENCE_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(RUNE_SEQUENCE_FONT_SIZE),
                         TextColor(SEQUENCE_TEXT_COLOR),
                         Node {
                             min_height: Val::Px(RUNE_SEQUENCE_FONT_SIZE + 4.0),
@@ -85,11 +81,7 @@ pub(super) fn spawn_rune_display(mut commands: Commands) {
                                 .with_children(|button| {
                                     button.spawn((
                                         Text::new(format!("{}", rune.as_char())),
-                                        TextFont {
-                                            // font removed (using default),
-                                            font_size: RUNE_BUTTON_STYLE.font_size,
-                                            ..default()
-                                        },
+                                        TextFont::from_font_size(RUNE_BUTTON_STYLE.font_size),
                                         TextColor(RUNE_BUTTON_STYLE.text_color),
                                     ));
                                 });

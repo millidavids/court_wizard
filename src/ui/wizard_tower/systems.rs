@@ -187,30 +187,21 @@ pub(super) fn setup_wizard_tower_main(mut commands: Commands, current_level: Res
             // Title
             parent.spawn((
                 Text::new("Wizard's Tower"),
-                TextFont {
-                    font_size: TITLE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(TITLE_FONT_SIZE),
                 TextColor(TITLE_COLOR),
             ));
 
             // Level display
             parent.spawn((
                 Text::new(format!("Level {}", current_level.0)),
-                TextFont {
-                    font_size: LEVEL_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(LEVEL_FONT_SIZE),
                 TextColor(TEXT_COLOR),
             ));
 
             // Insight balance
             parent.spawn((
                 Text::new(format!("Arcane Insight: {}", insight_balance)),
-                TextFont {
-                    font_size: INSIGHT_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(INSIGHT_FONT_SIZE),
                 TextColor(INSIGHT_COLOR),
                 InsightDisplay,
             ));
@@ -328,29 +319,20 @@ pub(super) fn setup_study_screen(mut commands: Commands, battle_insight: Res<Bat
                 .with_children(|header| {
                     header.spawn((
                         Text::new("Study Spells"),
-                        TextFont {
-                            font_size: TITLE_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(TITLE_FONT_SIZE),
                         TextColor(TITLE_COLOR),
                     ));
 
                     header.spawn((
                         Text::new(format!("Arcane Insight: {}", insight_balance)),
-                        TextFont {
-                            font_size: INSIGHT_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
                         TextColor(INSIGHT_COLOR),
                         StudyInsightDisplay,
                     ));
 
                     header.spawn((
                         Text::new("Pending: 0"),
-                        TextFont {
-                            font_size: INSIGHT_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
                         TextColor(PENDING_COLOR),
                         PendingInsightDisplay,
                     ));
@@ -542,29 +524,20 @@ fn rebuild_study_screen(commands: &mut Commands, battle_insight: &BattleInsightD
                 .with_children(|header| {
                     header.spawn((
                         Text::new("Study Spells"),
-                        TextFont {
-                            font_size: TITLE_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(TITLE_FONT_SIZE),
                         TextColor(TITLE_COLOR),
                     ));
 
                     header.spawn((
                         Text::new(format!("Arcane Insight: {}", insight_balance)),
-                        TextFont {
-                            font_size: INSIGHT_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
                         TextColor(INSIGHT_COLOR),
                         StudyInsightDisplay,
                     ));
 
                     header.spawn((
                         Text::new("Pending: 0"),
-                        TextFont {
-                            font_size: INSIGHT_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
                         TextColor(PENDING_COLOR),
                         PendingInsightDisplay,
                     ));
@@ -653,10 +626,7 @@ fn spawn_chain_row(
             .with_children(|label_container| {
                 label_container.spawn((
                     Text::new(chain.label),
-                    TextFont {
-                        font_size: CHAIN_LABEL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(CHAIN_LABEL_FONT_SIZE),
                     TextColor(chain.color),
                 ));
             });
@@ -665,10 +635,7 @@ fn spawn_chain_row(
                 if i > 0 {
                     row.spawn((
                         Text::new(">"),
-                        TextFont {
-                            font_size: 18.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(18.0),
                         TextColor(ARROW_COLOR),
                     ));
                 }
@@ -700,10 +667,7 @@ fn spawn_misc_section(
             .with_children(|label_container| {
                 label_container.spawn((
                     Text::new("Misc"),
-                    TextFont {
-                        font_size: CHAIN_LABEL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(CHAIN_LABEL_FONT_SIZE),
                     TextColor(MISC_COLOR),
                 ));
             });
@@ -757,28 +721,19 @@ fn spawn_spell_card(
                 // Researched: show name + element + "Researched"
                 card.spawn((
                     Text::new(spell.display_name()),
-                    TextFont {
-                        font_size: SPELL_NAME_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_NAME_FONT_SIZE),
                     TextColor(COMPLETED_COLOR),
                 ));
 
                 card.spawn((
                     Text::new(spell.damage_type().display_name()),
-                    TextFont {
-                        font_size: SPELL_DETAIL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
                     TextColor(element_color(spell.damage_type())),
                 ));
 
                 card.spawn((
                     Text::new("Researched"),
-                    TextFont {
-                        font_size: SPELL_DETAIL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
                     TextColor(COMPLETED_COLOR),
                 ));
 
@@ -790,10 +745,7 @@ fn spawn_spell_card(
                 // Available: show name, element+affinity, progress bar, slider
                 card.spawn((
                     Text::new(spell.display_name()),
-                    TextFont {
-                        font_size: SPELL_NAME_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_NAME_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                 ));
 
@@ -810,10 +762,7 @@ fn spawn_spell_card(
 
                 card.spawn((
                     Text::new(element_text),
-                    TextFont {
-                        font_size: SPELL_DETAIL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
                     TextColor(element_text_color),
                 ));
 
@@ -832,10 +781,7 @@ fn spawn_spell_card(
                 // Allocation text: "current+pending / total"
                 card.spawn((
                     Text::new(format!("{}/{}", progress, cost)),
-                    TextFont {
-                        font_size: SPELL_DETAIL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     AllocationText { spell },
                 ));
@@ -843,10 +789,7 @@ fn spawn_spell_card(
                 // Locked: show only flavor text (no name!)
                 card.spawn((
                     Text::new(spell.locked_description()),
-                    TextFont {
-                        font_size: SPELL_DETAIL_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
                     TextColor(LOCKED_TEXT_COLOR),
                     Node {
                         margin: UiRect::top(Val::Px(4.0)),

@@ -35,11 +35,7 @@ pub(super) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
             // Selected spell text (above wheel)
             parent.spawn((
                 Text::new(""),
-                TextFont {
-                    // font removed (using default),
-                    font_size: SELECTED_SPELL_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(SELECTED_SPELL_FONT_SIZE),
                 TextColor(SELECTED_SPELL_COLOR),
                 RouletteSelectedText,
             ));
@@ -83,11 +79,7 @@ pub(super) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
             // Prompt text (below wheel)
             parent.spawn((
                 Text::new("Press SPACE to spin"),
-                TextFont {
-                    // font removed (using default),
-                    font_size: PROMPT_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(PROMPT_FONT_SIZE),
                 TextColor(PROMPT_COLOR),
                 RoulettePromptText,
             ));

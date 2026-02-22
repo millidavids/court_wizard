@@ -120,11 +120,7 @@ pub(super) fn spawn_hud(
                         // Level display
                         level_container.spawn((
                             Text::new(format!("Level: {}", current_level.0)),
-                            TextFont {
-                                // font removed (using default),
-                                font_size: 30.0,
-                                ..default()
-                            },
+                            TextFont::from_font_size(30.0),
                             TextColor(Color::WHITE),
                             LevelDisplay,
                         ));
@@ -135,11 +131,7 @@ pub(super) fn spawn_hud(
                         {
                             level_container.spawn((
                                 Text::new(format!("Best: {:.1}%", past_efficiency * 100.0)),
-                                TextFont {
-                                    // font removed (using default),
-                                    font_size: 20.0,
-                                    ..default()
-                                },
+                                TextFont::from_font_size(20.0),
                                 TextColor(Color::srgba(0.8, 0.8, 0.8, 0.9)),
                                 PastVictoryDisplay,
                             ));
@@ -147,11 +139,7 @@ pub(super) fn spawn_hud(
                             // Spawn empty placeholder so the component exists
                             level_container.spawn((
                                 Text::new(""),
-                                TextFont {
-                                    // font removed (using default),
-                                    font_size: 20.0,
-                                    ..default()
-                                },
+                                TextFont::from_font_size(20.0),
                                 TextColor(Color::srgba(0.8, 0.8, 0.8, 0.9)),
                                 PastVictoryDisplay,
                             ));
@@ -232,11 +220,7 @@ pub(super) fn spawn_hud(
                             .with_children(|overlay| {
                                 overlay.spawn((
                                     Text::new("Brewing..."),
-                                    TextFont {
-                                        // font removed (using default),
-                                        font_size: 12.0,
-                                        ..default()
-                                    },
+                                    TextFont::from_font_size(12.0),
                                     TextColor(Color::WHITE),
                                 ));
                             });

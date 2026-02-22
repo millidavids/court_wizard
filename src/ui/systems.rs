@@ -118,10 +118,7 @@ pub fn spawn_button(
         .with_children(|button| {
             button.spawn((
                 Text::new(text),
-                TextFont {
-                    font_size: style.font_size,
-                    ..default()
-                },
+                TextFont::from_font_size(style.font_size),
                 TextColor(style.text_color),
                 TextLayout::new_with_justify(Justify::Center),
             ));

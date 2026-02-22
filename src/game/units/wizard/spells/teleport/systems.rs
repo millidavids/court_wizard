@@ -4,13 +4,14 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard};
 use super::components::{TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::BATTLEFIELD_SIZE;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::components::Teleportable;
 
 /// Handles right-click to cancel/reset the teleport spell.
@@ -79,16 +80,17 @@ pub fn handle_teleport_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
+            Option<&GuestWizard>,
         ),
         (
-            With<LocalWizard>,
+            Or<(With<LocalWizard>, With<GuestWizard>)>,
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
         ),
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut caster_query: Query<&mut TeleportCaster, With<LocalWizard>>,
+    mut caster_query: Query<&mut TeleportCaster>,
     mut destination_query: Query<
         (&mut Transform, &mut TeleportDestinationCircle),
         (
@@ -111,131 +113,159 @@ pub fn handle_teleport_casting(
             Without<TeleportSourceCircle>,
         ),
     >,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
-    else {
-        return;
-    };
+    // Read local input once before the loop
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // Get or create caster component
-    let mut caster = if let Ok(c) = caster_query.single_mut() {
-        c
-    } else {
-        commands.entity(wizard_entity).insert(TeleportCaster::new());
-        return; // Wait for next frame to query it
-    };
+    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::Teleport { continue; }
 
-    // Safety check - if consumed is somehow true, don't do anything
-    // This shouldn't happen due to run_if conditions, but prevents edge cases
-    if mouse_state.left_consumed {
-        return;
-    }
+        let is_guest = is_guest.is_some();
 
-    // Check for release event
-    let mouse_released = mouse_left_released.read().next().is_some();
+        // Get or create caster component
+        let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
+            c
+        } else {
+            commands.entity(wizard_entity).insert(TeleportCaster::new());
+            continue; // Wait for next frame to query it
+        };
 
-    // Handle release during first cast - finalize destination position
-    if mouse_released
-        && !caster.has_destination()
-        && matches!(*casting_state, CastingState::Casting { .. })
-    {
-        if let Some(cursor_world_pos) = get_cursor_world_position(&camera_query, &window_query) {
-            let wizard_pos = wizard_transform.translation;
-            let clamped_pos =
-                clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range);
-
-            caster.destination_position = Some(clamped_pos);
-            casting_state.cancel(); // Return to resting for phase 2
-            mouse_state.left_consumed = true; // Require new click for second cast
+        // Safety check - if consumed is somehow true, don't do anything
+        // This shouldn't happen due to run_if conditions, but prevents edge cases
+        if !is_guest && mouse_state.left_consumed {
+            continue;
         }
-        return;
-    }
 
-    // Handle release during second cast - completes teleport early
-    if mouse_released && caster.has_destination() && caster.source_circle.is_some() {
-        if let CastingState::Casting { elapsed } = *casting_state {
-            // Get source circle position
-            if let Some(source_entity) = caster.source_circle
-                && let Ok((transform, source_circle)) = source_query.get(source_entity)
-            {
-                let source_pos = transform.translation;
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
 
-                // Calculate current circle radius based on growth
-                let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
-                let scale = source_circle.empowerment;
-                let current_radius = CIRCLE_RADIUS * scale * growth;
+        // Handle release during first cast - finalize destination position
+        if released
+            && !caster.has_destination()
+            && matches!(*casting_state, CastingState::Casting { .. })
+        {
+            let cursor_pos = if is_guest {
+                guest_cursor.as_ref().and_then(|c| c.position)
+            } else {
+                get_cursor_world_position(&camera_query, &window_query)
+            };
+            if let Some(cursor_world_pos) = cursor_pos {
+                let wizard_pos = wizard_transform.translation;
+                let clamped_pos =
+                    clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range);
 
-                // Check mana and execute teleport
-                if mana.can_afford(MANA_COST) {
-                    mana.consume(MANA_COST);
-
-                    if let Some(dest_pos) = caster.destination_position {
-                        teleport_units_with_radius(
-                            source_pos,
-                            dest_pos,
-                            current_radius,
-                            &units_query,
-                            &mut commands,
-                        );
-                    }
-
-                    // Cleanup
-                    if let Some(dest_entity) = caster.destination_circle {
-                        commands.entity(dest_entity).despawn();
-                    }
-                    commands.entity(source_entity).despawn();
-
-                    caster.destination_circle = None;
-                    caster.destination_position = None;
-                    caster.source_circle = None;
-
-                    casting_state.cancel();
-                    mouse_state.left_consumed = true;
+                caster.destination_position = Some(clamped_pos);
+                casting_state.cancel(); // Return to resting for phase 2
+                if !is_guest {
+                    mouse_state.left_consumed = true; // Require new click for second cast
                 }
             }
+            continue;
         }
-        return;
-    }
 
-    // Get cursor world position
-    let Some(cursor_world_pos) = get_cursor_world_position(&camera_query, &window_query) else {
-        return;
-    };
+        // Handle release during second cast - completes teleport early
+        if released && caster.has_destination() && caster.source_circle.is_some() {
+            if let CastingState::Casting { elapsed } = *casting_state {
+                // Get source circle position
+                if let Some(source_entity) = caster.source_circle
+                    && let Ok((transform, source_circle)) = source_query.get(source_entity)
+                {
+                    let source_pos = transform.translation;
 
-    // Clamp to spell range
-    let wizard_pos = wizard_transform.translation;
-    let clamped_pos = clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range);
+                    // Calculate current circle radius based on growth
+                    let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
+                    let scale = source_circle.empowerment;
+                    let current_radius = CIRCLE_RADIUS * scale * growth;
 
-    // State machine based on whether destination exists
-    if !caster.has_destination() {
-        // PHASE 1: Placing destination circle
-        handle_first_cast(
-            &mut casting_state,
-            &mut caster,
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut destination_query,
-            clamped_pos,
-            primed_spell,
-        );
-    } else {
-        // PHASE 2: Placing source circle and teleporting
-        handle_second_cast(
-            &time,
-            &mut casting_state,
-            &mut mouse_state,
-            &mut mana,
-            &mut caster,
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            &mut source_query,
-            clamped_pos,
-            primed_spell,
-            &units_query,
-        );
+                    // Check mana and execute teleport
+                    if mana.can_afford(MANA_COST) {
+                        mana.consume(MANA_COST);
+
+                        if let Some(dest_pos) = caster.destination_position {
+                            teleport_units_with_radius(
+                                source_pos,
+                                dest_pos,
+                                current_radius,
+                                &units_query,
+                                &mut commands,
+                            );
+                        }
+
+                        // Cleanup
+                        if !is_guest {
+                            if let Some(dest_entity) = caster.destination_circle {
+                                commands.entity(dest_entity).despawn();
+                            }
+                            commands.entity(source_entity).despawn();
+                        }
+
+                        caster.destination_circle = None;
+                        caster.destination_position = None;
+                        caster.source_circle = None;
+
+                        casting_state.cancel();
+                        if !is_guest {
+                            mouse_state.left_consumed = true;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Get cursor world position
+        let cursor_pos = if is_guest {
+            guest_cursor.as_ref().and_then(|c| c.position)
+        } else {
+            get_cursor_world_position(&camera_query, &window_query)
+        };
+        let Some(cursor_world_pos) = cursor_pos else {
+            continue;
+        };
+
+        // Clamp to spell range
+        let wizard_pos = wizard_transform.translation;
+        let clamped_pos = clamp_to_spell_range(cursor_world_pos, wizard_pos, wizard.spell_range);
+
+        // State machine based on whether destination exists
+        if !caster.has_destination() {
+            // PHASE 1: Placing destination circle
+            handle_first_cast(
+                &mut casting_state,
+                &mut caster,
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &mut destination_query,
+                clamped_pos,
+                primed_spell,
+                is_guest,
+                &guest_input,
+            );
+        } else {
+            // PHASE 2: Placing source circle and teleporting
+            handle_second_cast(
+                &time,
+                &mut casting_state,
+                &mut mouse_state,
+                &mut mana,
+                &mut caster,
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &mut source_query,
+                clamped_pos,
+                primed_spell,
+                &units_query,
+                is_guest,
+                &guest_input,
+            );
+        }
     }
 }
 
@@ -256,39 +286,54 @@ fn handle_first_cast(
     >,
     position: Vec3,
     primed_spell: &PrimedSpell,
+    is_guest: bool,
+    guest_input: &Option<Res<GuestInputState>>,
 ) {
     match *casting_state {
         CastingState::Resting => {
-            // Start showing crosshair on mouse down
-            let radius = primed_spell.scale(CROSSHAIR_RADIUS);
-            let crosshair_mesh = meshes.add(Circle::new(radius));
-            let crosshair_material = materials.add(StandardMaterial {
-                base_color: DESTINATION_COLOR,
-                unlit: true,
-                ..default()
-            });
+            let has_input = if is_guest {
+                guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+            } else {
+                true // Run conditions already ensure mouse is held for local wizard
+            };
+            if !has_input {
+                return;
+            }
 
-            let crosshair_entity = commands
-                .spawn((
-                    Mesh3d(crosshair_mesh),
-                    MeshMaterial3d(crosshair_material),
-                    Transform::from_xyz(position.x, 1.0, position.z)
-                        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-                    TeleportDestinationCircle::new(primed_spell.empowerment),
-                    OnGameplayScreen,
-                ))
-                .id();
+            if !is_guest {
+                // Start showing crosshair on mouse down (local wizard only)
+                let radius = primed_spell.scale(CROSSHAIR_RADIUS);
+                let crosshair_mesh = meshes.add(Circle::new(radius));
+                let crosshair_material = materials.add(StandardMaterial {
+                    base_color: DESTINATION_COLOR,
+                    unlit: true,
+                    ..default()
+                });
 
-            caster.destination_circle = Some(crosshair_entity);
+                let crosshair_entity = commands
+                    .spawn((
+                        Mesh3d(crosshair_mesh),
+                        MeshMaterial3d(crosshair_material),
+                        Transform::from_xyz(position.x, 1.0, position.z)
+                            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+                        TeleportDestinationCircle::new(primed_spell.empowerment),
+                        OnGameplayScreen,
+                    ))
+                    .id();
+
+                caster.destination_circle = Some(crosshair_entity);
+            }
             casting_state.start_cast(); // Enter casting state to track mouse movement
         }
         CastingState::Casting { .. } => {
-            // Update crosshair position to follow mouse while button is held
-            if let Some(circle_entity) = caster.destination_circle
-                && let Ok((mut transform, _)) = destination_query.get_mut(circle_entity)
-            {
-                transform.translation.x = position.x;
-                transform.translation.z = position.z;
+            // Update crosshair position to follow mouse while button is held (local only)
+            if !is_guest {
+                if let Some(circle_entity) = caster.destination_circle
+                    && let Ok((mut transform, _)) = destination_query.get_mut(circle_entity)
+                {
+                    transform.translation.x = position.x;
+                    transform.translation.z = position.z;
+                }
             }
         }
         CastingState::Channeling { .. } => {
@@ -325,6 +370,8 @@ fn handle_second_cast(
             Without<TeleportSourceCircle>,
         ),
     >,
+    is_guest: bool,
+    guest_input: &Option<Res<GuestInputState>>,
 ) {
     match *casting_state {
         CastingState::Resting => {
@@ -333,49 +380,62 @@ fn handle_second_cast(
                 return;
             }
 
+            let has_input = if is_guest {
+                guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+            } else {
+                true // Run conditions already ensure mouse is held for local wizard
+            };
+            if !has_input {
+                return;
+            }
+
             // Start casting second phase
             casting_state.start_cast();
 
-            // Spawn source circle
-            let radius = primed_spell.scale(CIRCLE_RADIUS);
-            let circle_mesh = meshes.add(Circle::new(radius));
-            let circle_material = materials.add(StandardMaterial {
-                base_color: SOURCE_COLOR,
-                unlit: true,
-                ..default()
-            });
+            if !is_guest {
+                // Spawn source circle (local wizard only)
+                let radius = primed_spell.scale(CIRCLE_RADIUS);
+                let circle_mesh = meshes.add(Circle::new(radius));
+                let circle_material = materials.add(StandardMaterial {
+                    base_color: SOURCE_COLOR,
+                    unlit: true,
+                    ..default()
+                });
 
-            let circle_entity = commands
-                .spawn((
-                    Mesh3d(circle_mesh),
-                    MeshMaterial3d(circle_material),
-                    Transform::from_xyz(position.x, 1.0, position.z)
-                        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                        .with_scale(Vec3::ZERO), // Start at zero size
-                    TeleportSourceCircle::new(position, primed_spell.empowerment),
-                    OnGameplayScreen,
-                ))
-                .id();
+                let circle_entity = commands
+                    .spawn((
+                        Mesh3d(circle_mesh),
+                        MeshMaterial3d(circle_material),
+                        Transform::from_xyz(position.x, 1.0, position.z)
+                            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                            .with_scale(Vec3::ZERO), // Start at zero size
+                        TeleportSourceCircle::new(position, primed_spell.empowerment),
+                        OnGameplayScreen,
+                    ))
+                    .id();
 
-            caster.source_circle = Some(circle_entity);
+                caster.source_circle = Some(circle_entity);
+            }
         }
         CastingState::Casting { ref mut elapsed } => {
             // Advance cast
             *elapsed += time.delta_secs();
 
-            // Update circle position during cast
-            if let Some(circle_entity) = caster.source_circle
-                && let Ok((mut transform, mut indicator)) = source_query.get_mut(circle_entity)
-            {
-                transform.translation.x = position.x;
-                transform.translation.z = position.z;
+            // Update circle position during cast (local wizard only)
+            if !is_guest {
+                if let Some(circle_entity) = caster.source_circle
+                    && let Ok((mut transform, mut indicator)) = source_query.get_mut(circle_entity)
+                {
+                    transform.translation.x = position.x;
+                    transform.translation.z = position.z;
 
-                // Grow circle from 0 to full radius
-                let growth = (*elapsed / SECOND_CAST_TIME).min(1.0);
-                transform.scale = Vec3::splat(growth);
+                    // Grow circle from 0 to full radius
+                    let growth = (*elapsed / SECOND_CAST_TIME).min(1.0);
+                    transform.scale = Vec3::splat(growth);
 
-                indicator.position = position;
-                indicator.time_alive += time.delta_secs();
+                    indicator.position = position;
+                    indicator.time_alive += time.delta_secs();
+                }
             }
 
             // Check if cast complete
@@ -389,12 +449,14 @@ fn handle_second_cast(
                     teleport_units(position, dest_pos, radius, units_query, commands);
                 }
 
-                // Despawn both circles
-                if let Some(dest_entity) = caster.destination_circle {
-                    commands.entity(dest_entity).despawn();
-                }
-                if let Some(source_entity) = caster.source_circle {
-                    commands.entity(source_entity).despawn();
+                if !is_guest {
+                    // Despawn both circles (local wizard only)
+                    if let Some(dest_entity) = caster.destination_circle {
+                        commands.entity(dest_entity).despawn();
+                    }
+                    if let Some(source_entity) = caster.source_circle {
+                        commands.entity(source_entity).despawn();
+                    }
                 }
 
                 // Reset caster state completely
@@ -403,7 +465,9 @@ fn handle_second_cast(
                 caster.source_circle = None;
 
                 casting_state.cancel(); // Return to resting immediately
-                mouse_state.left_consumed = true; // Prevent immediate restart while mouse held// Don't process anything else this frame
+                if !is_guest {
+                    mouse_state.left_consumed = true; // Prevent immediate restart while mouse held
+                }
             }
         }
         _ => {}

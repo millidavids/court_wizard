@@ -14,8 +14,9 @@ use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard,
+    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard,
 };
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -127,104 +128,151 @@ pub(super) fn handle_squall_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
+            Option<&GuestWizard>,
         ),
-        With<LocalWizard>,
+        Or<(With<LocalWizard>, With<GuestWizard>)>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<LocalWizard>>,
+    caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SquallCircleIndicator>,
     existing_storms: Query<Entity, With<SquallStorm>>,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
-    else {
-        return;
-    };
+    // Read local input once before the loop
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // Check for release event - cancel cast
-    if mouse_left_released.read().next().is_some() {
-        if let Ok(caster) = caster_query.single() {
-            // Despawn circle indicator if it exists
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::Squall { continue; }
+
+        let is_guest = is_guest.is_some();
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
+
+        // Check for release event - cancel cast
+        if released {
+            if let Ok(caster) = caster_query.get(wizard_entity) {
+                // Despawn circle indicator if it exists
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).despawn();
+                }
+                // Remove caster marker
+                commands.entity(wizard_entity).remove::<SpellCaster>();
             }
-            // Remove caster marker
-            commands.entity(wizard_entity).remove::<SpellCaster>();
+            casting_state.cancel();
+            continue;
         }
-        casting_state.cancel();
-        return;
-    }
 
-    // Get cursor world position and clamp to wizard's spell range
-    let Some(mut cursor_world_pos) = get_cursor_world_position(&camera_query, &window_query) else {
-        return;
-    };
+        // Get cursor world position and clamp to wizard's spell range
+        let cursor_world_pos = if is_guest {
+            guest_cursor.as_ref().and_then(|c| c.position)
+        } else {
+            get_cursor_world_position(&camera_query, &window_query)
+        };
+        let Some(mut cursor_world_pos) = cursor_world_pos else {
+            continue;
+        };
 
-    let wizard_pos = wizard_transform.translation;
-    let scale = primed_spell.empowerment;
-    let storm_radius = STORM_RADIUS * scale;
+        let wizard_pos = wizard_transform.translation;
+        let scale = primed_spell.empowerment;
+        let storm_radius = STORM_RADIUS * scale;
 
-    cursor_world_pos = clamp_to_spell_range(
-        cursor_world_pos,
-        wizard_pos,
-        wizard.spell_range,
-        storm_radius,
-    );
+        cursor_world_pos = clamp_to_spell_range(
+            cursor_world_pos,
+            wizard_pos,
+            wizard.spell_range,
+            storm_radius,
+        );
 
-    // Mouse is held - handle casting based on state
-    match *casting_state {
-        CastingState::Resting => {
-            // Only start if we don't have a caster marker and have enough mana
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(MANA_COST) {
-                // Start casting - spawn circle indicator
-                let circle_entity = spawn_circle_indicator(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    cursor_world_pos,
-                    primed_spell.empowerment,
-                );
+        // Mouse is held - handle casting based on state
+        match *casting_state {
+            CastingState::Resting => {
+                let has_input = if is_guest {
+                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+                } else {
+                    true // Run conditions already ensure mouse is held for local wizard
+                };
+                // Only start if we don't have a caster marker and have enough mana
+                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(MANA_COST) {
+                    // Start casting - spawn circle indicator (local wizard only)
+                    if !is_guest {
+                        let circle_entity = spawn_circle_indicator(
+                            &mut commands,
+                            &mut meshes,
+                            &mut materials,
+                            cursor_world_pos,
+                            primed_spell.empowerment,
+                        );
 
-                // Mark wizard as casting Squall
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-
-                // Start the cast
-                casting_state.start_cast();
-            }
-        }
-        CastingState::Casting { .. } => {
-            // Currently casting - advance cast time
-            casting_state.advance(time.delta_secs());
-
-            // Update circle position to follow cursor
-            if let Ok(caster) = caster_query.single()
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
-
-            // Check if cast is complete
-            if casting_state.is_complete(primed_spell.cast_time) {
-                // Cast complete - spawn storm entity
-                if mana.consume(MANA_COST) {
-                    // Despawn any existing storms (only one storm at a time)
-                    for existing_storm in existing_storms.iter() {
-                        commands.entity(existing_storm).despawn();
+                        // Mark wizard as casting Squall
+                        commands
+                            .entity(wizard_entity)
+                            .insert(SpellCaster::with_indicator(circle_entity));
+                    } else {
+                        commands
+                            .entity(wizard_entity)
+                            .insert(SpellCaster::new());
                     }
 
-                    // Get final circle position and spawn storm
-                    if let Ok(caster) = caster_query.single()
+                    // Start the cast
+                    casting_state.start_cast();
+                }
+            }
+            CastingState::Casting { .. } => {
+                // Currently casting - advance cast time
+                casting_state.advance(time.delta_secs());
+
+                // Update circle position to follow cursor (local wizard only)
+                if !is_guest {
+                    if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
+                        && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
                     {
-                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            // Spawn the storm entity (invisible marker)
+                        indicator.position = cursor_world_pos;
+                    }
+                }
+
+                // Check if cast is complete
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    // Cast complete - spawn storm entity
+                    if mana.consume(MANA_COST) {
+                        // Despawn any existing storms (only one storm at a time)
+                        for existing_storm in existing_storms.iter() {
+                            commands.entity(existing_storm).despawn();
+                        }
+
+                        if !is_guest {
+                            // Get final circle position and spawn storm
+                            if let Ok(caster) = caster_query.get(wizard_entity)
+                                && let Some(indicator_entity) = caster.indicator_entity
+                            {
+                                if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                                    // Spawn the storm entity (invisible marker)
+                                    commands.spawn((
+                                        SquallStorm::new(
+                                            indicator.position,
+                                            storm_radius,
+                                            primed_spell.empowerment,
+                                        ),
+                                        ConcentrationSpell {
+                                            spell_name: "Squall",
+                                        },
+                                        OnGameplayScreen,
+                                    ));
+                                }
+
+                                // Despawn circle indicator
+                                commands.entity(indicator_entity).despawn();
+                            }
+                        } else {
+                            // Guest: spawn storm at cursor position directly
                             commands.spawn((
                                 SquallStorm::new(
-                                    indicator.position,
+                                    cursor_world_pos,
                                     storm_radius,
                                     primed_spell.empowerment,
                                 ),
@@ -235,38 +283,37 @@ pub(super) fn handle_squall_casting(
                             ));
                         }
 
-                        // Despawn circle indicator
-                        commands.entity(indicator_entity).despawn();
-                    }
+                        // Remove caster marker immediately (don't keep it blocking future casts)
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
 
-                    // Remove caster marker immediately (don't keep it blocking future casts)
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-
-                    // Return to resting state
-                    casting_state.cancel();
-                    // Consume mouse to require release before next cast
-                    mouse_state.left_consumed = true;
-                } else {
-                    // Out of mana - cancel cast
-                    if let Ok(caster) = caster_query.single()
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
+                        // Return to resting state
+                        casting_state.cancel();
+                        // Consume mouse to require release before next cast
+                        if !is_guest {
+                            mouse_state.left_consumed = true;
+                        }
+                    } else {
+                        // Out of mana - cancel cast
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            commands.entity(indicator_entity).despawn();
+                        }
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                        casting_state.cancel();
                     }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
                 }
             }
-        }
-        CastingState::Channeling { .. } => {
-            // Squall doesn't use channeling, cancel if we somehow get here
-            if let Ok(caster) = caster_query.single() {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+            CastingState::Channeling { .. } => {
+                // Squall doesn't use channeling, cancel if we somehow get here
+                if let Ok(caster) = caster_query.get(wizard_entity) {
+                    if let Some(indicator_entity) = caster.indicator_entity {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
                 }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+                casting_state.cancel();
             }
-            casting_state.cancel();
         }
     }
 }

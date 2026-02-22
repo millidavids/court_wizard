@@ -84,10 +84,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
         // Title
         parent.spawn((
             Text::new("Progress"),
-            TextFont {
-                font_size: TITLE_FONT_SIZE,
-                ..default()
-            },
+            TextFont::from_font_size(TITLE_FONT_SIZE),
             TextColor(TEXT_COLOR),
             Node {
                 margin: UiRect::bottom(Val::Px(MARGIN)),
@@ -154,7 +151,13 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                         }
                     });
                     for (spell, is_unlocked, progress, cost) in spells {
-                        spawn_spell_research_row(section, spell, is_unlocked, progress, cost);
+                        spawn_spell_research_row(
+                            section,
+                            spell,
+                            is_unlocked,
+                            progress,
+                            cost,
+                        );
                     }
                 });
 
@@ -248,10 +251,7 @@ fn spawn_column(
             // Column title (fixed, non-scrolling)
             column.spawn((
                 Text::new(title),
-                TextFont {
-                    font_size: COLUMN_TITLE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(COLUMN_TITLE_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
                     padding: UiRect::new(
@@ -311,26 +311,24 @@ fn spawn_stat_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
         .with_children(|row| {
             row.spawn((
                 Text::new(label),
-                TextFont {
-                    font_size: ITEM_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                 TextColor(STAT_LABEL_COLOR),
             ));
 
             row.spawn((
                 Text::new(format!("{}", value)),
-                TextFont {
-                    font_size: STAT_VALUE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(STAT_VALUE_FONT_SIZE),
                 TextColor(TEXT_COLOR),
             ));
         });
 }
 
 /// Spawns a stat row with Insight-colored value.
-fn spawn_insight_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
+fn spawn_insight_row(
+    parent: &mut ChildSpawnerCommands,
+    label: &str,
+    value: u32,
+) {
     parent
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -341,19 +339,13 @@ fn spawn_insight_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32)
         .with_children(|row| {
             row.spawn((
                 Text::new(label),
-                TextFont {
-                    font_size: ITEM_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                 TextColor(STAT_LABEL_COLOR),
             ));
 
             row.spawn((
                 Text::new(format!("{}", value)),
-                TextFont {
-                    font_size: STAT_VALUE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(STAT_VALUE_FONT_SIZE),
                 TextColor(INSIGHT_COLOR),
             ));
         });
@@ -389,10 +381,7 @@ fn spawn_spell_research_row(
             // Status indicator
             row.spawn((
                 Text::new(indicator),
-                TextFont {
-                    font_size: ITEM_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                 TextColor(indicator_color),
                 Node {
                     width: Val::Px(16.0),
@@ -410,10 +399,7 @@ fn spawn_spell_research_row(
                 .with_children(|col| {
                     col.spawn((
                         Text::new(spell.display_name()),
-                        TextFont {
-                            font_size: ITEM_NAME_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                         TextColor(if is_default {
                             UNLOCKED_COLOR
                         } else {
@@ -431,19 +417,13 @@ fn spawn_spell_research_row(
                 .with_children(|col| {
                     col.spawn((
                         Text::new(spell.display_name()),
-                        TextFont {
-                            font_size: ITEM_NAME_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                         TextColor(IN_PROGRESS_COLOR),
                     ));
 
                     col.spawn((
                         Text::new(format!("Researching: {}/{}", progress, cost)),
-                        TextFont {
-                            font_size: ITEM_DESC_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                         TextColor(IN_PROGRESS_COLOR),
                     ));
                 });
@@ -451,10 +431,7 @@ fn spawn_spell_research_row(
                 // Locked: show flavor text only
                 row.spawn((
                     Text::new(spell.locked_description()),
-                    TextFont {
-                        font_size: ITEM_DESC_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                     TextColor(LOCKED_COLOR),
                 ));
             }
@@ -495,10 +472,7 @@ fn spawn_achievement_row(
             // Status indicator
             row.spawn((
                 Text::new(indicator),
-                TextFont {
-                    font_size: ITEM_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                 TextColor(indicator_color),
                 Node {
                     width: Val::Px(16.0),
@@ -516,19 +490,13 @@ fn spawn_achievement_row(
                 .with_children(|col| {
                     col.spawn((
                         Text::new(achievement.display_name()),
-                        TextFont {
-                            font_size: ITEM_NAME_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                         TextColor(name_color),
                     ));
 
                     col.spawn((
                         Text::new(achievement.description()),
-                        TextFont {
-                            font_size: ITEM_DESC_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                         TextColor(desc_color),
                     ));
 
@@ -536,10 +504,7 @@ fn spawn_achievement_row(
                     if let Some(reward) = achievement.unlock_reward() {
                         col.spawn((
                             Text::new(reward),
-                            TextFont {
-                                font_size: ITEM_DESC_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                             TextColor(COMPLETED_COLOR),
                         ));
                     }
@@ -548,10 +513,7 @@ fn spawn_achievement_row(
                 // Locked: only show the description as a hint
                 row.spawn((
                     Text::new(achievement.description()),
-                    TextFont {
-                        font_size: ITEM_DESC_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                     TextColor(LOCKED_COLOR),
                 ));
             }
@@ -586,10 +548,7 @@ fn spawn_unlockable_row(
             // Status indicator
             row.spawn((
                 Text::new(indicator),
-                TextFont {
-                    font_size: ITEM_NAME_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                 TextColor(indicator_color),
                 Node {
                     width: Val::Px(16.0),
@@ -608,19 +567,13 @@ fn spawn_unlockable_row(
                     .with_children(|col| {
                         col.spawn((
                             Text::new(name),
-                            TextFont {
-                                font_size: ITEM_NAME_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                             TextColor(UNLOCKED_COLOR),
                         ));
 
                         col.spawn((
                             Text::new(desc),
-                            TextFont {
-                                font_size: ITEM_DESC_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                             TextColor(DESCRIPTION_COLOR),
                         ));
                     });
@@ -628,10 +581,7 @@ fn spawn_unlockable_row(
                     // Name only
                     row.spawn((
                         Text::new(name),
-                        TextFont {
-                            font_size: ITEM_NAME_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                         TextColor(UNLOCKED_COLOR),
                     ));
                 }
@@ -646,19 +596,13 @@ fn spawn_unlockable_row(
                     .with_children(|col| {
                         col.spawn((
                             Text::new(name),
-                            TextFont {
-                                font_size: ITEM_NAME_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
                             TextColor(LOCKED_COLOR),
                         ));
 
                         col.spawn((
                             Text::new(locked_hint),
-                            TextFont {
-                                font_size: ITEM_DESC_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                             TextColor(LOCKED_COLOR),
                         ));
                     });
@@ -666,10 +610,7 @@ fn spawn_unlockable_row(
                     // Only show the locked hint (no name)
                     row.spawn((
                         Text::new(locked_hint),
-                        TextFont {
-                            font_size: ITEM_DESC_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(ITEM_DESC_FONT_SIZE),
                         TextColor(LOCKED_COLOR),
                     ));
                 }
@@ -713,10 +654,7 @@ pub(super) fn spawn_confirmation_popup(commands: &mut Commands) {
                     // Title
                     popup.spawn((
                         Text::new("Clear All Progress?"),
-                        TextFont {
-                            font_size: 24.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(24.0),
                         TextColor(Color::srgb(1.0, 0.4, 0.4)),
                     ));
 
@@ -730,10 +668,7 @@ pub(super) fn spawn_confirmation_popup(commands: &mut Commands) {
                             - All statistics\n\n\
                             This action cannot be undone!",
                         ),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(16.0),
                         TextColor(Color::srgb(0.9, 0.9, 0.9)),
                         TextLayout::new_with_justify(Justify::Left),
                         Node {
@@ -750,7 +685,12 @@ pub(super) fn spawn_confirmation_popup(commands: &mut Commands) {
                             ..default()
                         })
                         .with_children(|buttons| {
-                            spawn_button(buttons, "Cancel", CancelClearButton, &BUTTON_STYLE);
+                            spawn_button(
+                                buttons,
+                                "Cancel",
+                                CancelClearButton,
+                                &BUTTON_STYLE,
+                            );
                             spawn_button(
                                 buttons,
                                 "Clear Everything",

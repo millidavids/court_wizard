@@ -165,10 +165,7 @@ pub fn setup(
                     // Section label
                     group.spawn((
                         Text::new("Online"),
-                        TextFont {
-                            font_size: SECTION_LABEL_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
                         TextColor(SECTION_LABEL_COLOR),
                     ));
                     spawn_button(
@@ -200,10 +197,7 @@ pub fn setup(
                     // Section label
                     group.spawn((
                         Text::new("Local Network"),
-                        TextFont {
-                            font_size: SECTION_LABEL_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
                         TextColor(SECTION_LABEL_COLOR),
                     ));
                     spawn_button(
@@ -280,10 +274,7 @@ pub fn setup(
                 .with_children(|group| {
                     group.spawn((
                         Text::new("LAN Setup"),
-                        TextFont {
-                            font_size: SECTION_LABEL_FONT_SIZE,
-                            ..default()
-                        },
+                        TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
                         TextColor(SECTION_LABEL_COLOR),
                     ));
                     spawn_button(
@@ -334,10 +325,7 @@ pub fn setup(
                 right.spawn((
                     TitleText,
                     Text::new("Multiplayer"),
-                    TextFont {
-                        font_size: MP_TITLE_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(MP_TITLE_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     Node {
                         margin: UiRect::bottom(Val::Px(MARGIN)),
@@ -349,10 +337,7 @@ pub fn setup(
                 right.spawn((
                     StatusText,
                     Text::new("Choose an option to get started"),
-                    TextFont {
-                        font_size: STATUS_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(STATUS_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                 ));
 
@@ -360,10 +345,7 @@ pub fn setup(
                 right.spawn((
                     IpDisplayText,
                     Text::new(""),
-                    TextFont {
-                        font_size: IP_DISPLAY_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(IP_DISPLAY_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     Node {
                         display: Display::None,
@@ -376,10 +358,7 @@ pub fn setup(
                     Text::new(
                         "Codes expire ~60 seconds after both are pasted — exchange quickly!",
                     ),
-                    TextFont {
-                        font_size: 13.0,
-                        ..default()
-                    },
+                    TextFont::from_font_size(13.0),
                     TextColor(Color::hsla(0.0, 0.0, 0.45, 1.0)),
                 ));
 
@@ -387,10 +366,7 @@ pub fn setup(
                 right.spawn((
                     CodeDisplayText,
                     Text::new(""),
-                    TextFont {
-                        font_size: CODE_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(CODE_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
                     Node {
@@ -442,10 +418,7 @@ pub fn setup(
                 right.spawn((
                     PingText,
                     Text::new(""),
-                    TextFont {
-                        font_size: STATUS_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(STATUS_FONT_SIZE),
                     TextColor(SUCCESS_COLOR),
                     Node {
                         display: Display::None,
@@ -565,10 +538,7 @@ fn spawn_mp_detail_panel(
             let status_text = build_opponent_status_text(opponent_ready);
             bottom.spawn((
                 Text::new(status_text),
-                TextFont {
-                    font_size: DETAIL_STATUS_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(DETAIL_STATUS_FONT_SIZE),
                 TextColor(if opponent_ready {
                     SUCCESS_COLOR
                 } else {

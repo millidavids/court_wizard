@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, SpellCaster, LocalWizard, Wizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard};
 use super::components::GuardianCircleIndicator;
 use super::constants;
 use super::styles::CIRCLE_COLOR;
@@ -9,15 +9,10 @@ use crate::game::achievements::messages::GuardianCircleHitAttackerMessage;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::components::{Team, TemporaryHitPoints};
 
-/// Handles Guardian Circle casting with left-click.
-///
-/// Left-click starts cast. Must hold for full cast time.
-/// After cast completes, applies temporary HP to all units in radius.
-/// Only casts when Guardian Circle is the primed spell.
-///
-/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
+/// Handles Guardian Circle casting for both local and guest wizards.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_guardian_circle_casting(
     time: Res<Time>,
@@ -34,164 +29,146 @@ pub fn handle_guardian_circle_casting(
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
+            Option<&GuestWizard>,
         ),
-        With<LocalWizard>,
+        Or<(With<LocalWizard>, With<GuestWizard>)>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    caster_query: Query<&SpellCaster, With<LocalWizard>>,
+    caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut GuardianCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
     mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
-    else {
-        return;
-    };
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // Check for release event - this is spell-specific logic
-    if mouse_left_released.read().next().is_some() {
-        // Cancel cast on release
-        if let Ok(caster) = caster_query.single() {
-            // Despawn circle indicator if it exists
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
-            }
-            // Remove caster marker
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
-        return;
-    }
+    for (wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::GuardianCircle { continue; }
 
-    // Get cursor world position and clamp to wizard's spell range
-    let Some(mut cursor_world_pos) = get_cursor_world_position(&camera_query, &window_query) else {
-        return;
-    };
+        let is_guest = is_guest.is_some();
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
 
-    // Clamp cursor position to be within wizard's spell range
-    // Use the same 3D distance calculation as the spell range indicator
-    let wizard_pos = wizard_transform.translation;
-    let wizard_height = wizard_pos.y;
-
-    // Calculate the actual ground circle radius using Pythagorean theorem
-    // spell_range² = circle_radius² + wizard_height²
-    // Therefore: circle_radius = √(spell_range² - wizard_height²)
-    let max_ground_radius = if wizard_height < wizard.spell_range {
-        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
-
-    // Account for the Guardian Circle's radius so the entire circle stays within range
-    // Scale radius by empowerment
-    let scale = primed_spell.empowerment;
-    let circle_radius = constants::CIRCLE_RADIUS * scale;
-    let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
-
-    // Calculate XZ plane distance from wizard to cursor
-    let direction = cursor_world_pos - wizard_pos;
-    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
-
-    if distance > max_center_distance && distance > 0.001 {
-        // Clamp to ensure the entire circle stays within spell range
-        let normalized_direction = direction / distance;
-        cursor_world_pos = wizard_pos + normalized_direction * max_center_distance;
-    }
-
-    // Mouse is held - handle casting based on state
-    match *casting_state {
-        CastingState::Resting => {
-            // Only start a new cast if we don't have a caster marker and have enough mana
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
-                // Start casting - spawn circle indicator
-                let circle_entity = spawn_circle_indicator(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    cursor_world_pos,
-                    primed_spell.empowerment,
-                );
-
-                // Mark wizard as casting Guardian Circle
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-
-                // Start the cast
-                casting_state.start_cast();
-            }
-        }
-        CastingState::Casting { .. } => {
-            // Currently casting - advance cast time
-            casting_state.advance(time.delta_secs());
-
-            // Update circle position to follow cursor
-            if let Ok(caster) = caster_query.single()
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
-
-            // Check if cast is complete
-            if casting_state.is_complete(primed_spell.cast_time) {
-                // Cast complete - apply buff to units in radius
-                if mana.consume(constants::MANA_COST) {
-                    // Get final circle position and apply buff
-                    if let Ok(caster) = caster_query.single()
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            // Scale radius by empowerment
-                            let scale = indicator.empowerment;
-                            let radius = constants::CIRCLE_RADIUS * scale;
-
-                            apply_guardian_circle_buff(
-                                &mut commands,
-                                indicator.position,
-                                radius,
-                                constants::TEMP_HP_AMOUNT,
-                                constants::TEMP_HP_DURATION,
-                                indicator.empowerment,
-                                &mut targets_query,
-                                &mut attacker_hit_msg,
-                            );
-                        }
-
-                        // Despawn circle indicator
-                        commands.entity(indicator_entity).despawn();
-                    }
-
-                    // Remove caster marker immediately (don't keep it blocking future casts)
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-
-                    // Return to resting state
-                    casting_state.cancel();
-                    // Consume mouse to require release before next cast
-                    mouse_state.left_consumed = true;
-                } else {
-                    // Out of mana - cancel cast
-                    if let Ok(caster) = caster_query.single()
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
-                }
-            }
-        }
-        CastingState::Channeling { .. } => {
-            // Guardian Circle doesn't use channeling, cancel if we somehow get here
-            if let Ok(caster) = caster_query.single() {
+        if released {
+            if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
                     commands.entity(indicator_entity).despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
             casting_state.cancel();
+            continue;
+        }
+
+        let cursor_world_pos = if is_guest {
+            guest_cursor.as_ref().and_then(|c| c.position)
+        } else {
+            get_cursor_world_position(&camera_query, &window_query)
+        };
+        let Some(mut cursor_world_pos) = cursor_world_pos else {
+            continue;
+        };
+
+        let wizard_pos = wizard_transform.translation;
+        let wizard_height = wizard_pos.y;
+        let max_ground_radius = if wizard_height < wizard.spell_range {
+            (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
+        } else {
+            0.0
+        };
+        let scale = primed_spell.empowerment;
+        let circle_radius = constants::CIRCLE_RADIUS * scale;
+        let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
+        let direction = cursor_world_pos - wizard_pos;
+        let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
+        if distance > max_center_distance && distance > 0.001 {
+            let normalized_direction = direction / distance;
+            cursor_world_pos = wizard_pos + normalized_direction * max_center_distance;
+        }
+
+        match *casting_state {
+            CastingState::Resting => {
+                let has_input = if is_guest {
+                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+                } else {
+                    true
+                };
+                if has_input && caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
+                    let circle_entity = spawn_circle_indicator(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        cursor_world_pos,
+                        primed_spell.empowerment,
+                    );
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::with_indicator(circle_entity));
+                    casting_state.start_cast();
+                }
+            }
+            CastingState::Casting { .. } => {
+                casting_state.advance(time.delta_secs());
+
+                if let Ok(caster) = caster_query.get(wizard_entity)
+                    && let Some(indicator_entity) = caster.indicator_entity
+                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+                {
+                    indicator.position = cursor_world_pos;
+                }
+
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    if mana.consume(constants::MANA_COST) {
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                                let scale = indicator.empowerment;
+                                let radius = constants::CIRCLE_RADIUS * scale;
+
+                                apply_guardian_circle_buff(
+                                    &mut commands,
+                                    indicator.position,
+                                    radius,
+                                    constants::TEMP_HP_AMOUNT,
+                                    constants::TEMP_HP_DURATION,
+                                    indicator.empowerment,
+                                    &mut targets_query,
+                                    &mut attacker_hit_msg,
+                                );
+                            }
+                            commands.entity(indicator_entity).despawn();
+                        }
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                        casting_state.cancel();
+                        if !is_guest {
+                            mouse_state.left_consumed = true;
+                        }
+                    } else {
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            commands.entity(indicator_entity).despawn();
+                        }
+                        commands.entity(wizard_entity).remove::<SpellCaster>();
+                        casting_state.cancel();
+                    }
+                }
+            }
+            CastingState::Channeling { .. } => {
+                if let Ok(caster) = caster_query.get(wizard_entity) {
+                    if let Some(indicator_entity) = caster.indicator_entity {
+                        commands.entity(indicator_entity).despawn();
+                    }
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                }
+                casting_state.cancel();
+            }
         }
     }
 }

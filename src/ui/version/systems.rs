@@ -10,11 +10,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(super) fn setup(mut commands: Commands) {
     commands.spawn((
         Text::new(format!("v{}", VERSION)),
-        TextFont {
-            // font removed (using default),
-            font_size: 14.0,
-            ..default()
-        },
+        TextFont::from_font_size(14.0),
         TextColor(Color::hsla(0.0, 0.0, 0.6, 1.0)),
         Node {
             position_type: PositionType::Absolute,

@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, LocalWizard};
+use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard};
 use super::components::*;
 use super::constants;
 use super::styles::{arc_color_at_depth, arc_width_at_depth};
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
@@ -17,13 +17,7 @@ use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrysta
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
-/// Handles chain lightning casting with left-click.
-///
-/// Left-click starts cast. Must hold for full cast time.
-/// After cast completes, finds enemy under cursor and spawns chain lightning bolt.
-/// Only casts when ChainLightning is the primed spell.
-///
-/// Note: Spell priming, input blocking, and mouse state checks are handled by run_if conditions.
+/// Handles chain lightning casting for both local and guest wizards.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_chain_lightning_casting(
     time: Res<Time>,
@@ -32,109 +26,128 @@ pub fn handle_chain_lightning_casting(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
+    mut wizard_query: Query<
+        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, Option<&GuestWizard>),
+        Or<(With<LocalWizard>, With<GuestWizard>)>,
+    >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    guest_cursor: Option<Res<GuestCursorPosition>>,
+    guest_input: Option<Res<GuestInputState>>,
 ) {
-    let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
+    // Read local input once before the loop
+    let local_released = mouse_left_released.read().next().is_some();
 
-    // Check for release event - this is spell-specific logic
-    if mouse_left_released.read().next().is_some() {
-        // Cancel cast on release
-        casting_state.cancel();
-        return;
-    }
+    for (_wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, is_guest) in wizard_query.iter_mut() {
+        if primed_spell.spell != Spell::ChainLightning { continue; }
 
-    // Mouse is held - handle casting based on state
-    match *casting_state {
-        CastingState::Channeling { .. } => {
-            // Chain Lightning doesn't channel - just cancel
+        let is_guest = is_guest.is_some();
+        let released = if is_guest {
+            guest_input.as_ref().is_some_and(|i| i.just_released)
+        } else {
+            local_released
+        };
+
+        // Check for release event
+        if released {
             casting_state.cancel();
+            continue;
         }
-        CastingState::Casting { .. } => {
-            // Currently casting - advance cast time
-            casting_state.advance(time.delta_secs());
 
-            // Check if cast is complete
-            if casting_state.is_complete(primed_spell.cast_time) {
-                // Cast complete - consume mana and find initial target
-                if mana.consume(constants::MANA_COST)
-                    && let Some(cursor_pos) =
+        match *casting_state {
+            CastingState::Channeling { .. } => {
+                casting_state.cancel();
+            }
+            CastingState::Casting { .. } => {
+                casting_state.advance(time.delta_secs());
+
+                if casting_state.is_complete(primed_spell.cast_time) {
+                    let cursor_pos = if is_guest {
+                        guest_cursor.as_ref().and_then(|c| c.position)
+                    } else {
                         get_cursor_world_position(&camera_query, &window_query)
-                {
-                    // Find enemy near cursor
-                    if let Some((target_entity, target_pos)) =
-                        find_target_near_position(cursor_pos, &enemies_query)
+                    };
+
+                    if mana.consume(constants::MANA_COST)
+                        && let Some(cursor_pos) = cursor_pos
                     {
-                        let wizard_pos =
-                            WIZARD_POSITION + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                        // Find enemy near cursor
+                        if let Some((target_entity, target_pos)) =
+                            find_target_near_position(cursor_pos, &enemies_query)
+                        {
+                            let wizard_pos =
+                                wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
-                        // Scale damage by empowerment
-                        let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
+                            // Scale damage by empowerment
+                            let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
 
-                        // Apply initial damage
-                        if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
-                            apply_spell_damage(
+                            // Apply initial damage
+                            if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
+                                apply_spell_damage(
+                                    &mut commands,
+                                    target_entity,
+                                    &mut health,
+                                    temp_hp.as_deref_mut(),
+                                    initial_damage,
+                                    constants::DAMAGE_TYPE,
+                                );
+                            }
+
+                            // Spawn first arc from wizard to target (depth 0 for initial arc)
+                            spawn_arc(
                                 &mut commands,
-                                target_entity,
-                                &mut health,
-                                temp_hp.as_deref_mut(),
-                                initial_damage,
-                                constants::DAMAGE_TYPE,
+                                &mut meshes,
+                                &mut materials,
+                                wizard_pos,
+                                target_pos,
+                                0,
+                                primed_spell.empowerment,
                             );
-                        }
 
-                        // Spawn first arc from wizard to target (depth 0 for initial arc)
-                        spawn_arc(
-                            &mut commands,
-                            &mut meshes,
-                            &mut materials,
-                            wizard_pos,
-                            target_pos,
-                            0,
-                            primed_spell.empowerment,
-                        );
+                            // Spawn shared hit tracking group
+                            let group_entity = commands
+                                .spawn((
+                                    ChainLightningGroup {
+                                        hit_entities: vec![target_entity],
+                                    },
+                                    OnGameplayScreen,
+                                ))
+                                .id();
 
-                        // Spawn shared hit tracking group
-                        let group_entity = commands
-                            .spawn((
-                                ChainLightningGroup {
-                                    hit_entities: vec![target_entity],
+                            // Spawn chain lightning bolt to track splitting
+                            commands.spawn((
+                                ChainLightningBolt {
+                                    group_entity,
+                                    current_damage: initial_damage * constants::DAMAGE_FALLOFF,
+                                    damage_type: constants::DAMAGE_TYPE,
+                                    bounces_remaining: constants::MAX_BOUNCES,
+                                    last_hit_position: target_pos,
+                                    bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
+                                    empowerment: primed_spell.empowerment,
+                                    split_depth: 0,
                                 },
                                 OnGameplayScreen,
-                            ))
-                            .id();
+                            ));
+                        }
+                    }
 
-                        // Spawn chain lightning bolt to track splitting
-                        commands.spawn((
-                            ChainLightningBolt {
-                                group_entity,
-                                current_damage: initial_damage * constants::DAMAGE_FALLOFF,
-                                damage_type: constants::DAMAGE_TYPE,
-                                bounces_remaining: constants::MAX_BOUNCES,
-                                last_hit_position: target_pos,
-                                bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
-                                empowerment: primed_spell.empowerment,
-                                split_depth: 0,
-                            },
-                            OnGameplayScreen,
-                        ));
+                    casting_state.cancel();
+                    if !is_guest {
+                        mouse_state.left_consumed = true;
                     }
                 }
-
-                // Return to resting state (no channeling)
-                casting_state.cancel();
-                mouse_state.left_consumed = true; // Require release before next cast
             }
-        }
-        CastingState::Resting => {
-            // Not casting - check mana before starting cast
-            if mana.can_afford(constants::MANA_COST) {
-                casting_state.start_cast();
+            CastingState::Resting => {
+                let has_input = if is_guest {
+                    guest_input.as_ref().is_some_and(|i| i.just_pressed || i.pressed)
+                } else {
+                    true // Run conditions already ensure mouse is held for local wizard
+                };
+                if has_input && mana.can_afford(constants::MANA_COST) {
+                    casting_state.start_cast();
+                }
             }
         }
     }

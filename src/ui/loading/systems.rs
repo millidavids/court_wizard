@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-
 /// Marker component for loading screen root.
 #[derive(Component)]
 pub struct LoadingScreen;
@@ -24,11 +23,7 @@ pub fn spawn_loading_screen(mut commands: Commands) {
             // "Loading..." text
             parent.spawn((
                 Text::new("Loading..."),
-                TextFont {
-                    // font removed (using default),
-                    font_size: 60.0,
-                    ..default()
-                },
+                TextFont::from_font_size(60.0),
                 TextColor(Color::WHITE),
             ));
         });

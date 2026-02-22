@@ -101,10 +101,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                 // Spell name
                 panel.spawn((
                     Text::new(spell.display_name()),
-                    TextFont {
-                        font_size: DETAIL_NAME_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(DETAIL_NAME_FONT_SIZE),
                     TextColor(DETAIL_NAME_COLOR),
                     DetailName,
                 ));
@@ -112,10 +109,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                 // Damage type
                 panel.spawn((
                     Text::new(spell.damage_type().display_name()),
-                    TextFont {
-                        font_size: DETAIL_TYPE_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(DETAIL_TYPE_FONT_SIZE),
                     TextColor(DETAIL_TYPE_COLOR),
                     DetailDamageType,
                 ));
@@ -123,10 +117,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                 // Description
                 panel.spawn((
                     Text::new(spell.description()),
-                    TextFont {
-                        font_size: DETAIL_DESC_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
                     TextColor(DETAIL_DESC_COLOR),
                     Node {
                         max_width: Val::Px(LEFT_PANEL_WIDTH - DETAIL_PADDING * 2.0),
@@ -138,10 +129,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                 // Instructions
                 panel.spawn((
                     Text::new(spell.instructions()),
-                    TextFont {
-                        font_size: DETAIL_INSTRUCTIONS_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(DETAIL_INSTRUCTIONS_FONT_SIZE),
                     TextColor(DETAIL_INSTRUCTIONS_COLOR),
                     DetailInstructions,
                 ));
@@ -157,10 +145,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                         // Label
                         hotkey_section.spawn((
                             Text::new("Assign Hotkey"),
-                            TextFont {
-                                font_size: LABEL_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(LABEL_FONT_SIZE),
                             TextColor(LABEL_COLOR),
                         ));
 
@@ -207,10 +192,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                                     .with_children(|btn| {
                                         btn.spawn((
                                             Text::new(format!("{}", slot + 1)),
-                                            TextFont {
-                                                font_size: HOTKEY_FONT_SIZE,
-                                                ..default()
-                                            },
+                                            TextFont::from_font_size(HOTKEY_FONT_SIZE),
                                             TextColor(text_color),
                                         ));
                                     });
@@ -295,10 +277,7 @@ fn spawn_spell_list(
                             // Category header (full width)
                             section.spawn((
                                 Text::new(format!("-- {} --", category.display_name())),
-                                TextFont {
-                                    font_size: CATEGORY_FONT_SIZE,
-                                    ..default()
-                                },
+                                TextFont::from_font_size(CATEGORY_FONT_SIZE),
                                 TextColor(CATEGORY_COLOR),
                                 TextLayout::new_with_justify(Justify::Center),
                                 Node {
@@ -351,10 +330,7 @@ fn spawn_spell_list(
                                             |btn| {
                                                 btn.spawn((
                                                     Text::new(spell.display_name()),
-                                                    TextFont {
-                                                        font_size: SPELL_BUTTON_FONT_SIZE,
-                                                        ..default()
-                                                    },
+                                                    TextFont::from_font_size(SPELL_BUTTON_FONT_SIZE),
                                                     TextColor(SPELL_BUTTON_TEXT_COLOR),
                                                 ));
                                             },

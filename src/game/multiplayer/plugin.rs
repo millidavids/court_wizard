@@ -163,16 +163,12 @@ impl Plugin for MultiplayerGamePlugin {
         );
 
         // ── Host: Guest Spell Command Processing ──────────────────────
+        // Only processes network messages into GuestInputState/GuestCursorPosition.
+        // The actual casting is handled by the widened SP spell systems.
         let mp_host_spells = in_mp_running.and(is_multiplayer_host);
         app.add_systems(
             Update,
-            (
-                spell_commands::process_guest_spell_commands,
-                spell_commands::handle_guest_magic_missile_casting,
-                spell_commands::handle_guest_disintegrate_casting,
-                spell_commands::cleanup_guest_beams_on_cancel,
-            )
-                .chain()
+            spell_commands::process_guest_spell_commands
                 .run_if(mp_host_spells),
         );
 
@@ -268,6 +264,7 @@ fn init_mp_game(
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
     commands.init_resource::<spell_commands::GuestCursorPosition>();
+    commands.init_resource::<spell_commands::GuestInputState>();
     commands.init_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.init_resource::<super::components::SpellEffectEntityMap>();
     commands.init_resource::<guest_systems::LatestSnapshot>();
@@ -317,6 +314,7 @@ fn cleanup_mp_game(
     commands.remove_resource::<NetworkEntityMap>();
     commands.remove_resource::<SnapshotTick>();
     commands.remove_resource::<spell_commands::GuestCursorPosition>();
+    commands.remove_resource::<spell_commands::GuestInputState>();
     commands.remove_resource::<super::components::GhostSpellAssets>();
     commands.remove_resource::<super::components::SpellEffectAssets>();
     commands.remove_resource::<super::components::SpellEffectEntityMap>();
@@ -375,10 +373,7 @@ fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<GameOutcome>)
             // Title
             parent.spawn((
                 Text::new(title_text),
-                TextFont {
-                    font_size: 60.0,
-                    ..default()
-                },
+                TextFont::from_font_size(60.0),
                 TextColor(SCORE_TITLE_COLOR),
             ));
 
@@ -386,10 +381,7 @@ fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<GameOutcome>)
             if *game_outcome == GameOutcome::DefeatKingDied {
                 parent.spawn((
                     Text::new("Your King was slain!"),
-                    TextFont {
-                        font_size: 24.0,
-                        ..default()
-                    },
+                    TextFont::from_font_size(24.0),
                     TextColor(SCORE_TEXT_COLOR),
                 ));
             }
@@ -422,10 +414,7 @@ fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<GameOutcome>)
             parent.spawn((
                 RematchStatusText,
                 Text::new(""),
-                TextFont {
-                    font_size: 18.0,
-                    ..default()
-                },
+                TextFont::from_font_size(18.0),
                 TextColor(SCORE_TEXT_COLOR),
             ));
         });
@@ -613,10 +602,7 @@ fn setup_mp_pause_menu(mut commands: Commands) {
             // Title
             parent.spawn((
                 Text::new("Menu"),
-                TextFont {
-                    font_size: 40.0,
-                    ..default()
-                },
+                TextFont::from_font_size(40.0),
                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
                 Node {
                     margin: UiRect::bottom(Val::Px(20.0)),
@@ -701,19 +687,13 @@ fn setup_mp_disconnected(mut commands: Commands) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Disconnected"),
-                TextFont {
-                    font_size: 48.0,
-                    ..default()
-                },
+                TextFont::from_font_size(48.0),
                 TextColor(Color::srgb(0.95, 0.3, 0.3)),
             ));
 
             parent.spawn((
                 Text::new("The connection to your opponent was lost."),
-                TextFont {
-                    font_size: 20.0,
-                    ..default()
-                },
+                TextFont::from_font_size(20.0),
                 TextColor(Color::srgb(0.8, 0.8, 0.8)),
                 Node {
                     margin: UiRect::bottom(Val::Px(10.0)),

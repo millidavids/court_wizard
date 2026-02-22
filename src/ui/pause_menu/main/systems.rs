@@ -37,11 +37,7 @@ pub fn setup(mut commands: Commands) {
             // Title text
             parent.spawn((
                 Text::new("Paused"),
-                TextFont {
-                    // font removed (using default),
-                    font_size: TITLE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(TITLE_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
                     margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),

@@ -60,10 +60,7 @@ fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientS
             // Title
             parent.spawn((
                 Text::new("Cauldron"),
-                TextFont {
-                    font_size: TITLE_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(TITLE_FONT_SIZE),
                 TextColor(TEXT_COLOR),
             ));
 
@@ -71,10 +68,7 @@ fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientS
                 // Show brewing status
                 parent.spawn((
                     Text::new("Brewing in progress..."),
-                    TextFont {
-                        font_size: BREWING_STATUS_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(BREWING_STATUS_FONT_SIZE),
                     TextColor(BREWING_STATUS_COLOR),
                 ));
 
@@ -188,10 +182,7 @@ fn spawn_ingredient_card(
 
             card.spawn((
                 Text::new(ingredient.description()),
-                TextFont {
-                    font_size: DESCRIPTION_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
                 TextColor(text_color),
                 TextLayout::new_with_justify(Justify::Center),
             ));
@@ -215,10 +206,7 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
                     recipe.brew_time(),
                     recipe.buff_duration()
                 )),
-                TextFont {
-                    font_size: BREW_INFO_FONT_SIZE,
-                    ..default()
-                },
+                TextFont::from_font_size(BREW_INFO_FONT_SIZE),
                 TextColor(BREW_INFO_COLOR),
             ));
 
@@ -258,10 +246,7 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
                 };
                 preview.spawn((
                     Text::new(text),
-                    TextFont {
-                        font_size: EFFECT_PREVIEW_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
                     TextColor(EFFECT_PREVIEW_COLOR),
                 ));
             }
@@ -273,10 +258,7 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
                         "Dilution: {:.0}% strength per ingredient",
                         recipe.dilution_factor() * 100.0
                     )),
-                    TextFont {
-                        font_size: EFFECT_PREVIEW_FONT_SIZE,
-                        ..default()
-                    },
+                    TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
                     TextColor(DISABLED_TEXT_COLOR),
                 ));
             }

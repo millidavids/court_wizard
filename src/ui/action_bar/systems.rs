@@ -83,11 +83,7 @@ pub(super) fn spawn_action_bar(
                         // Hotkey indicator at top
                         button.spawn((
                             Text::new(hotkey_label),
-                            TextFont {
-                                // font removed (using default),
-                                font_size: HOTKEY_FONT_SIZE,
-                                ..default()
-                            },
+                            TextFont::from_font_size(HOTKEY_FONT_SIZE),
                             TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
                             ActionBarHotkeyText,
                         ));
@@ -98,11 +94,7 @@ pub(super) fn spawn_action_bar(
                         button
                             .spawn((
                                 Text::new(spell_name),
-                                TextFont {
-                                    // font removed (using default),
-                                    font_size,
-                                    ..default()
-                                },
+                                TextFont::from_font_size(font_size),
                                 TextColor(SLOT_BUTTON_STYLE.text_color),
                                 TextLayout::new_with_justify(Justify::Center),
                                 ActionBarSlotText { slot },
