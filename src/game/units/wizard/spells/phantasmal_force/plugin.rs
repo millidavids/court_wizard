@@ -23,11 +23,14 @@ impl Plugin for PhantasmalForcePlugin {
         );
         app.add_systems(
             Update,
-            (
-                systems::update_phantasmal_force_indicator
-                    .run_if(any_exist::<PhantasmalForceIndicator>()),
-                systems::tick_illusion_decoys.run_if(any_exist::<IllusionDecoy>()),
-            )
+            systems::update_phantasmal_force_indicator
+                .run_if(any_exist::<PhantasmalForceIndicator>())
+                .run_if(is_spell_effects_active),
+        );
+        app.add_systems(
+            Update,
+            systems::tick_illusion_decoys
+                .run_if(any_exist::<IllusionDecoy>())
                 .run_if(is_gameplay_running),
         );
     }

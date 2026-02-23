@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
+use crate::game::run_conditions::{is_local_wizard_active, is_spell_effects_active};
 use crate::state::InGameState;
 
 use super::archetypes::ArchetypesPlugin;
@@ -32,11 +32,11 @@ impl Plugin for WizardPlugin {
                     systems::reset_empowerment_after_cast,
                     systems::apply_wizard_stats_to_primed_spell,
                 )
-                    .run_if(is_gameplay_running),
+                    .run_if(is_spell_effects_active),
             )
             .add_systems(
                 Update,
-                systems::update_wizard_animation.run_if(is_gameplay_running),
+                systems::update_wizard_animation.run_if(is_spell_effects_active),
             )
             .add_systems(
                 Update,

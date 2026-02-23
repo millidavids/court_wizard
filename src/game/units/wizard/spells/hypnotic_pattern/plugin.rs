@@ -5,7 +5,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::HypnoticPatternIndicator;
 use super::systems;
-use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use crate::game::run_conditions::is_spell_effects_active;
 
 pub struct HypnoticPatternPlugin;
 
@@ -25,7 +25,7 @@ impl Plugin for HypnoticPatternPlugin {
             Update,
             systems::update_hypnotic_pattern_indicator
                 .run_if(any_exist::<HypnoticPatternIndicator>())
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

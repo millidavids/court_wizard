@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::GuardianCircleIndicator;
 use super::systems;
-use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use crate::game::run_conditions::is_spell_effects_active;
 
 /// Plugin that handles Guardian Circle spell casting and behavior.
 ///
@@ -31,7 +31,7 @@ impl Plugin for GuardianCirclePlugin {
             Update,
             systems::update_circle_indicator
                 .run_if(any_exist::<GuardianCircleIndicator>())
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

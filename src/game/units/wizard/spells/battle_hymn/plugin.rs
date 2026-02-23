@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::BattleHymnIndicator;
 use super::systems;
-use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
+use crate::game::run_conditions::is_spell_effects_active;
 
 pub struct BattleHymnPlugin;
 
@@ -24,7 +24,7 @@ impl Plugin for BattleHymnPlugin {
             Update,
             systems::update_battle_hymn_indicator
                 .run_if(any_exist::<BattleHymnIndicator>())
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }
