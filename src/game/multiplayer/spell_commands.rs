@@ -149,7 +149,7 @@ pub fn spawn_guest_spell_entities(
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
     infantry_assets: Option<Res<crate::game::units::infantry::resources::InfantryAssets>>,
     existing_marks: Query<Entity, With<crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath>>,
-    polymorph_query: Query<(Entity, &Transform, &Health, &MeshMaterial3d<StandardMaterial>), (Without<Corpse>, Without<PolymorphedModifier>)>,
+    polymorph_query: Query<(Entity, &Transform, &MeshMaterial3d<StandardMaterial>), (Without<Corpse>, Without<PolymorphedModifier>, Without<Wizard>)>,
 ) {
     let actions: Vec<_> = pending.actions.drain(..).collect();
 
@@ -200,7 +200,7 @@ fn spawn_guest_spell(
     health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
     infantry_assets: Option<&crate::game::units::infantry::resources::InfantryAssets>,
     existing_marks: &Query<Entity, With<crate::game::units::wizard::spells::mark_of_death::components::ActiveMarkOfDeath>>,
-    polymorph_query: &Query<(Entity, &Transform, &Health, &MeshMaterial3d<StandardMaterial>), (Without<Corpse>, Without<PolymorphedModifier>)>,
+    polymorph_query: &Query<(Entity, &Transform, &MeshMaterial3d<StandardMaterial>), (Without<Corpse>, Without<PolymorphedModifier>, Without<Wizard>)>,
 ) {
     use crate::game::units::wizard::spells::*;
 
@@ -429,22 +429,26 @@ fn spawn_guest_spell(
         }
 
         Spell::Polymorph => {
-            if let Some((target_entity, _, target_health, target_material)) =
+            if let Some((target_entity, target_material)) =
                 polymorph_query
                     .iter()
-                    .filter_map(|(entity, transform, health, material)| {
+                    .filter_map(|(entity, transform, material)| {
                         let dist = transform.translation.distance(cursor_pos);
                         if dist <= polymorph::constants::TARGET_SEARCH_RADIUS {
-                            Some((entity, dist, health, material))
+                            Some((entity, dist, material))
                         } else {
                             None
                         }
                     })
                     .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-                    .map(|(e, _, h, m)| (e, (), h, m))
+                    .map(|(e, _, m)| (e, m))
             {
                 let duration = polymorph::constants::POLYMORPH_DURATION * empowerment;
                 let original_material = target_material.0.clone();
+                let (current_hp, max_hp) = health_query
+                    .get(target_entity)
+                    .map(|(h, _)| (h.current, h.max))
+                    .unwrap_or((1.0, 1.0));
                 let sheep_material = materials.add(StandardMaterial {
                     base_color: polymorph::constants::SHEEP_COLOR,
                     ..default()
@@ -452,8 +456,8 @@ fn spawn_guest_spell(
                 commands.entity(target_entity).insert((
                     PolymorphedModifier::new(
                         duration,
-                        target_health.current,
-                        target_health.max,
+                        current_hp,
+                        max_hp,
                         original_material,
                     ),
                     MeshMaterial3d(sheep_material),
