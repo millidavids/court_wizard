@@ -19,10 +19,6 @@ impl Plugin for ChainLightningPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                // Guest wizard casting (network signals)
-                systems::handle_chain_lightning_casting_guest
-                    .run_if(guest_spell_is_primed(Spell::ChainLightning))
-                    .run_if(guest_input_or_wizard_casting),
                 (
                     systems::process_chain_lightning_bounces,
                     systems::update_chain_lightning_arcs,

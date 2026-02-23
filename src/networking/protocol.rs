@@ -39,8 +39,8 @@ pub enum NetworkMessage {
     /// Player has finished loading.
     GameLoaded,
 
-    /// Guest sends a spell command to the host for simulation.
-    SpellCommand(SpellCommand),
+    /// Guest sends a spell result to the host for spawning.
+    SpellResult(SpellAction),
 
     /// Host notifies guest that the game is over.
     GameOver(GameOverResult),
@@ -49,29 +49,40 @@ pub enum NetworkMessage {
     RematchReady,
 }
 
-/// A spell command sent from the guest to the host.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpellCommand {
-    pub action: SpellAction,
-}
-
-/// Specific spell input actions.
+/// Spell result actions sent from the guest to the host.
+///
+/// Each client runs its own casting pipeline (cast time, mana, cast bar).
+/// When a spell completes, the client sends the result with only the data
+/// the host needs to spawn the spell effect.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SpellAction {
-    /// Start casting a spell at the given world position.
-    StartCast {
+    /// Fire-and-forget spell completed casting.
+    SpellCast {
         spell: Spell,
         cursor_pos: [f32; 3],
+        empowerment: f32,
     },
 
-    /// Continue a channeled/drag spell at updated cursor position.
-    ContinueCast { cursor_pos: [f32; 3] },
+    /// Drag-to-place spell completed (wall of stone, wall of fire).
+    DragSpellCast {
+        spell: Spell,
+        anchor: [f32; 3],
+        end_pos: [f32; 3],
+        empowerment: f32,
+    },
 
-    /// Release the current spell cast.
-    ReleaseCast,
+    /// Channeled spell started (cast time completed, entering channeling).
+    ChannelStarted {
+        spell: Spell,
+        cursor_pos: [f32; 3],
+        empowerment: f32,
+    },
 
-    /// Prime/select a spell in the action bar.
-    PrimeSpell { spell: Spell },
+    /// Channeled spell cursor update (each frame during channeling).
+    ChannelUpdate { cursor_pos: [f32; 3] },
+
+    /// Channeled spell ended (mouse released or mana ran out).
+    ChannelEnded,
 }
 
 /// Result of a multiplayer match.

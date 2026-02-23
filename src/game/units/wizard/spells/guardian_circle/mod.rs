@@ -2,10 +2,10 @@
 //!
 //! Handles defensive spell that grants temporary hit points to units in an area.
 
-mod components;
-pub(in crate::game::units::wizard) mod constants;
+pub(crate) mod components;
+pub(crate) mod constants;
 mod plugin;
 mod styles;
-mod systems;
+pub(crate) mod systems;
 
 pub(super) use plugin::GuardianCirclePlugin;

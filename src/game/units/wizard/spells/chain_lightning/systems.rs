@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
 use super::components::*;
 use super::constants;
 use super::styles::{arc_color_at_depth, arc_width_at_depth};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
+use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
@@ -16,6 +16,16 @@ use crate::game::units::components::{
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
+
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned/skipped).
+    completed: bool,
+    /// Cursor position at time of completion (for network message).
+    cursor_pos: Option<Vec3>,
+}
 
 /// Local wizard chain lightning casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -34,6 +44,8 @@ pub fn handle_chain_lightning_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -49,6 +61,8 @@ pub fn handle_chain_lightning_casting(
     };
     if primed_spell.spell != Spell::ChainLightning { return; }
 
+    let skip_spawn = skip_spawning.is_some();
+
     let cast_result = chain_lightning_casting_logic(
         &input,
         &time,
@@ -62,64 +76,27 @@ pub fn handle_chain_lightning_casting(
         &mut materials,
         &enemies_query,
         &mut health_query,
+        skip_spawn,
     );
 
     if cast_result.completed {
         mouse_state.left_consumed = true;
+
+        if skip_spawn {
+            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::SpellCast {
+                        spell: Spell::ChainLightning,
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                        empowerment: primed_spell.empowerment,
+                    },
+                ));
+            }
+        }
     }
 }
 
-/// Guest wizard chain lightning casting — reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_chain_lightning_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
-        With<GuestWizard>,
-    >,
-    enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
-    };
-
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::ChainLightning { return; }
-
-    chain_lightning_casting_logic(
-        &input,
-        &time,
-        wizard_entity,
-        wizard_transform,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &enemies_query,
-        &mut health_query,
-    );
-}
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned).
-    completed: bool,
-}
-
-/// Core chain lightning casting logic — called by both local and guest systems.
+/// Core chain lightning casting logic.
 #[allow(clippy::too_many_arguments)]
 fn chain_lightning_casting_logic(
     input: &WizardInput,
@@ -134,8 +111,9 @@ fn chain_lightning_casting_logic(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
     health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    skip_spawn: bool,
 ) -> CastResult {
-    let mut result = CastResult { completed: false };
+    let mut result = CastResult { completed: false, cursor_pos: None };
 
     // Check for release event
     if input.just_released {
@@ -154,65 +132,68 @@ fn chain_lightning_casting_logic(
                 if mana.consume(constants::MANA_COST)
                     && let Some(cursor_pos) = input.cursor_pos
                 {
-                    // Find enemy near cursor
-                    if let Some((target_entity, target_pos)) =
-                        find_target_near_position(cursor_pos, enemies_query)
-                    {
-                        let wizard_pos =
-                            wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    if !skip_spawn {
+                        // Find enemy near cursor
+                        if let Some((target_entity, target_pos)) =
+                            find_target_near_position(cursor_pos, enemies_query)
+                        {
+                            let wizard_pos =
+                                wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
-                        // Scale damage by empowerment
-                        let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
+                            // Scale damage by empowerment
+                            let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
 
-                        // Apply initial damage
-                        if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
-                            apply_spell_damage(
+                            // Apply initial damage
+                            if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
+                                apply_spell_damage(
+                                    commands,
+                                    target_entity,
+                                    &mut health,
+                                    temp_hp.as_deref_mut(),
+                                    initial_damage,
+                                    constants::DAMAGE_TYPE,
+                                );
+                            }
+
+                            // Spawn first arc from wizard to target (depth 0 for initial arc)
+                            spawn_arc(
                                 commands,
-                                target_entity,
-                                &mut health,
-                                temp_hp.as_deref_mut(),
-                                initial_damage,
-                                constants::DAMAGE_TYPE,
+                                meshes,
+                                materials,
+                                wizard_pos,
+                                target_pos,
+                                0,
+                                primed_spell.empowerment,
                             );
-                        }
 
-                        // Spawn first arc from wizard to target (depth 0 for initial arc)
-                        spawn_arc(
-                            commands,
-                            meshes,
-                            materials,
-                            wizard_pos,
-                            target_pos,
-                            0,
-                            primed_spell.empowerment,
-                        );
+                            // Spawn shared hit tracking group
+                            let group_entity = commands
+                                .spawn((
+                                    ChainLightningGroup {
+                                        hit_entities: vec![target_entity],
+                                    },
+                                    OnGameplayScreen,
+                                ))
+                                .id();
 
-                        // Spawn shared hit tracking group
-                        let group_entity = commands
-                            .spawn((
-                                ChainLightningGroup {
-                                    hit_entities: vec![target_entity],
+                            // Spawn chain lightning bolt to track splitting
+                            commands.spawn((
+                                ChainLightningBolt {
+                                    group_entity,
+                                    current_damage: initial_damage * constants::DAMAGE_FALLOFF,
+                                    damage_type: constants::DAMAGE_TYPE,
+                                    bounces_remaining: constants::MAX_BOUNCES,
+                                    last_hit_position: target_pos,
+                                    bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
+                                    empowerment: primed_spell.empowerment,
+                                    split_depth: 0,
                                 },
                                 OnGameplayScreen,
-                            ))
-                            .id();
-
-                        // Spawn chain lightning bolt to track splitting
-                        commands.spawn((
-                            ChainLightningBolt {
-                                group_entity,
-                                current_damage: initial_damage * constants::DAMAGE_FALLOFF,
-                                damage_type: constants::DAMAGE_TYPE,
-                                bounces_remaining: constants::MAX_BOUNCES,
-                                last_hit_position: target_pos,
-                                bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
-                                empowerment: primed_spell.empowerment,
-                                split_depth: 0,
-                            },
-                            OnGameplayScreen,
-                        ));
+                            ));
+                        }
                     }
                     result.completed = true;
+                    result.cursor_pos = Some(cursor_pos);
                 }
 
                 casting_state.cancel();
@@ -283,7 +264,7 @@ fn find_target_near_position(
 /// Spawns a lightning arc visual between two points as a parabolic curve.
 /// The arc rises upward at the midpoint and comes back down, creating a
 /// natural lightning-through-the-sky effect.
-fn spawn_arc(
+pub(crate) fn spawn_arc(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,

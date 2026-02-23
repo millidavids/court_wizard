@@ -1,6 +1,6 @@
-mod components;
-pub(in crate::game::units::wizard) mod constants;
+pub(crate) mod components;
+pub(crate) mod constants;
 mod plugin;
-mod systems;
+pub(crate) mod systems;
 
 pub(super) use plugin::PhantasmalForcePlugin;

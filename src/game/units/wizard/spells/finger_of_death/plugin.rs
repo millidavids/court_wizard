@@ -19,10 +19,6 @@ impl Plugin for FingerOfDeathPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                // Guest wizard casting (network signals)
-                handle_finger_of_death_casting_guest
-                    .run_if(guest_spell_is_primed(Spell::FingerOfDeath))
-                    .run_if(guest_input_or_wizard_casting),
                 (
                     apply_finger_of_death_damage,
                     update_finger_of_death_beam_visuals,

@@ -10,7 +10,9 @@ use super::constants::{
 use crate::game::components::{Acceleration, Billboard, Velocity};
 use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
+use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState, SkipSpellSpawning};
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::resources::ArcherAssets;
 use crate::game::units::components::{
@@ -47,6 +49,8 @@ pub fn handle_raise_the_dead_casting(
     >,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -62,7 +66,9 @@ pub fn handle_raise_the_dead_casting(
     };
     if primed_spell.spell != Spell::RaiseTheDead { return; }
 
-    raise_the_dead_casting_logic(
+    let skip_spawn = skip_spawning.is_some();
+
+    let cast_result = raise_the_dead_casting_logic(
         &input,
         &time,
         &mut casting_state,
@@ -72,7 +78,43 @@ pub fn handle_raise_the_dead_casting(
         &corpse_query,
         &infantry_assets,
         &archer_assets,
+        skip_spawn,
     );
+
+    // Guest: send channel messages
+    if skip_spawn {
+        if cast_result.channel_started {
+            if let Some(conn) = connection.as_mut() {
+                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::ChannelStarted {
+                        spell: Spell::RaiseTheDead,
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                        empowerment: primed_spell.empowerment,
+                    },
+                ));
+            }
+        }
+
+        if cast_result.channeling {
+            if let Some(conn) = connection.as_mut() {
+                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::ChannelUpdate {
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                    },
+                ));
+            }
+        }
+
+        if cast_result.channel_ended {
+            if let Some(conn) = connection.as_mut() {
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::ChannelEnded,
+                ));
+            }
+        }
+    }
 }
 
 /// Guest wizard Raise The Dead casting — reads network signals.
@@ -121,10 +163,18 @@ pub fn handle_raise_the_dead_casting_guest(
         &corpse_query,
         &infantry_assets,
         &archer_assets,
+        false, // Host always spawns
     );
 }
 
-/// Core Raise The Dead casting logic — called by both local and guest systems.
+/// Result from raise the dead casting logic.
+struct RaiseTheDeadCastResult {
+    channel_started: bool,
+    channeling: bool,
+    channel_ended: bool,
+}
+
+/// Core Raise The Dead casting logic.
 ///
 /// Handles the full Resting -> Casting -> Channeling state machine.
 /// During channeling, resurrects corpses at increasing frequency.
@@ -148,16 +198,28 @@ fn raise_the_dead_casting_logic(
     >,
     infantry_assets: &Res<InfantryAssets>,
     archer_assets: &Res<ArcherAssets>,
-) {
+    skip_spawn: bool,
+) -> RaiseTheDeadCastResult {
+    let mut result = RaiseTheDeadCastResult {
+        channel_started: false,
+        channeling: false,
+        channel_ended: false,
+    };
+
     // Check for release event
     if input.just_released {
+        let was_channeling = matches!(*casting_state, CastingState::Channeling { .. });
         casting_state.cancel();
-        return;
+        if was_channeling {
+            result.channel_ended = true;
+        }
+        return result;
     }
 
     match *casting_state {
         CastingState::Channeling { .. } => {
             casting_state.advance_channel(time.delta_secs());
+            result.channeling = true;
 
             if casting_state.should_channel(
                 INITIAL_CHANNEL_INTERVAL,
@@ -165,19 +227,23 @@ fn raise_the_dead_casting_logic(
                 CHANNEL_RAMP_TIME,
             ) {
                 if mana.consume(MANA_COST_PER_CORPSE) {
-                    if let Some(cursor_pos) = input.cursor_pos {
-                        resurrect_nearest_corpse(
-                            commands,
-                            cursor_pos,
-                            corpse_query,
-                            infantry_assets,
-                            archer_assets,
-                            primed_spell.empowerment,
-                        );
-                        casting_state.reset_channel_interval();
+                    if !skip_spawn {
+                        if let Some(cursor_pos) = input.cursor_pos {
+                            resurrect_nearest_corpse(
+                                commands,
+                                cursor_pos,
+                                corpse_query,
+                                infantry_assets,
+                                archer_assets,
+                                primed_spell.empowerment,
+                            );
+                        }
                     }
+                    casting_state.reset_channel_interval();
                 } else {
                     casting_state.cancel();
+                    result.channeling = false;
+                    result.channel_ended = true;
                 }
             }
         }
@@ -186,17 +252,20 @@ fn raise_the_dead_casting_logic(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST_PER_CORPSE) {
-                    if let Some(cursor_pos) = input.cursor_pos {
-                        resurrect_nearest_corpse(
-                            commands,
-                            cursor_pos,
-                            corpse_query,
-                            infantry_assets,
-                            archer_assets,
-                            primed_spell.empowerment,
-                        );
-                        casting_state.start_channeling();
+                    if !skip_spawn {
+                        if let Some(cursor_pos) = input.cursor_pos {
+                            resurrect_nearest_corpse(
+                                commands,
+                                cursor_pos,
+                                corpse_query,
+                                infantry_assets,
+                                archer_assets,
+                                primed_spell.empowerment,
+                            );
+                        }
                     }
+                    casting_state.start_channeling();
+                    result.channel_started = true;
                 } else {
                     casting_state.cancel();
                 }
@@ -208,6 +277,8 @@ fn raise_the_dead_casting_logic(
             }
         }
     }
+
+    result
 }
 
 /// Resurrects the nearest corpse to the target position as infantry.

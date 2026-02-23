@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions;
-use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
+use crate::game::run_conditions::is_local_wizard_active;
 use crate::state::{InGameState, MultiplayerGameState};
 
 use super::{
@@ -59,7 +59,7 @@ impl Plugin for InputPlugin {
                     systems::detect_mouse_input,
                     systems::update_input_state_for_run_conditions,
                 )
-                    .run_if(is_gameplay_running),
+                    .run_if(is_local_wizard_active),
             )
             // Keyboard input: use is_local_wizard_active so guest can use number keys too
             .add_systems(

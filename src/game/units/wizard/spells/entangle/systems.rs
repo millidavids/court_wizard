@@ -1,14 +1,16 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
 use super::components::{EntangleGroundEffect, EntangleIndicator};
 use super::constants;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
+use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{RootedModifier, Team};
@@ -39,6 +41,8 @@ pub fn handle_entangle_casting(
     mut indicator_query: Query<&mut EntangleIndicator>,
     targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
     mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -72,6 +76,8 @@ pub fn handle_entangle_casting(
     let Some(clamped_cursor) = clamped_cursor else {
         return;
     };
+
+    let skip_spawn = skip_spawning.is_some();
 
     match *casting_state {
         CastingState::Resting => {
@@ -109,24 +115,39 @@ pub fn handle_entangle_casting(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            let root_duration = constants::ROOT_DURATION * indicator.empowerment;
-                            apply_entangle(
-                                &mut commands,
-                                &mut meshes,
-                                &mut materials,
-                                indicator.position,
-                                radius,
-                                root_duration,
-                                &targets_query,
-                                &mut defender_hit_msg,
-                            );
+                            let cast_pos = indicator.position;
+                            if !skip_spawn {
+                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                                let root_duration = constants::ROOT_DURATION * indicator.empowerment;
+                                apply_entangle(
+                                    &mut commands,
+                                    &mut meshes,
+                                    &mut materials,
+                                    cast_pos,
+                                    radius,
+                                    root_duration,
+                                    &targets_query,
+                                    &mut defender_hit_msg,
+                                );
+                            }
                         }
                         commands.entity(indicator_entity).despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
                     mouse_state.left_consumed = true;
+
+                    if skip_spawn {
+                        if let (Some(conn), Some(pos)) = (connection.as_mut(), Some(clamped_cursor)) {
+                            conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                                SpellAction::SpellCast {
+                                    spell: Spell::Entangle,
+                                    cursor_pos: [pos.x, pos.y, pos.z],
+                                    empowerment: primed_spell.empowerment,
+                                },
+                            ));
+                        }
+                    }
                 } else {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
@@ -148,130 +169,6 @@ pub fn handle_entangle_casting(
             casting_state.cancel();
         }
     }
-}
-
-/// Guest wizard entangle casting — reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_entangle_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<
-        (
-            Entity,
-            &Transform,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
-        With<GuestWizard>,
-    >,
-    targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
-    mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
-    };
-
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::Entangle { return; }
-
-    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
-
-    let cast_result = entangle_casting_logic(
-        &input,
-        &time,
-        wizard_entity,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        clamped_cursor,
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &targets_query,
-        &mut defender_hit_msg,
-    );
-
-    let _ = cast_result;
-}
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned).
-    completed: bool,
-}
-
-/// Core entangle casting logic for guest — no indicator management.
-#[allow(clippy::too_many_arguments)]
-fn entangle_casting_logic(
-    input: &WizardInput,
-    time: &Time,
-    _wizard_entity: Entity,
-    casting_state: &mut CastingState,
-    mana: &mut Mana,
-    primed_spell: &PrimedSpell,
-    clamped_cursor: Option<Vec3>,
-    commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    targets_query: &Query<(Entity, &Transform, &Team), Without<Wizard>>,
-    defender_hit_msg: &mut MessageWriter<EntangleHitDefenderMessage>,
-) -> CastResult {
-    let mut result = CastResult { completed: false };
-
-    if input.just_released {
-        casting_state.cancel();
-        return result;
-    }
-
-    let Some(clamped_cursor) = clamped_cursor else {
-        return result;
-    };
-
-    match *casting_state {
-        CastingState::Resting => {
-            if (input.just_pressed || input.pressed) && mana.can_afford(constants::MANA_COST) {
-                casting_state.start_cast();
-            }
-        }
-        CastingState::Casting { .. } => {
-            casting_state.advance(time.delta_secs());
-
-            if casting_state.is_complete(primed_spell.cast_time) {
-                if mana.consume(constants::MANA_COST) {
-                    let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
-                    let root_duration = constants::ROOT_DURATION * primed_spell.empowerment;
-                    apply_entangle(
-                        commands,
-                        meshes,
-                        materials,
-                        clamped_cursor,
-                        radius,
-                        root_duration,
-                        targets_query,
-                        defender_hit_msg,
-                    );
-                    result.completed = true;
-                }
-                casting_state.cancel();
-            }
-        }
-        CastingState::Channeling { .. } => {
-            casting_state.cancel();
-        }
-    }
-
-    result
 }
 
 /// Clamps cursor position to wizard's spell range, accounting for the circle radius.
@@ -348,7 +245,7 @@ pub fn cleanup_entangle_ground_effect(
 
 /// Applies root to ALL units in radius (magic is indiscriminate).
 #[allow(clippy::too_many_arguments)]
-fn apply_entangle(
+pub(crate) fn apply_entangle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,

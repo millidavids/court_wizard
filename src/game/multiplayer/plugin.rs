@@ -14,7 +14,7 @@ use crate::game::resources::{GameOutcome, KillStats};
 use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionState, NetworkConnection};
+use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host, MultiplayerSession};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
@@ -160,27 +160,17 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(in_mp_running.and(is_multiplayer_guest)),
         );
 
-        // ── Guest: Spell Input Sending + Local UI ──────────────────────
-        let mp_guest = in_mp_running.and(is_multiplayer_guest);
-        app.add_systems(
-            Update,
-            (
-                spell_commands::send_guest_prime_spell,
-                spell_commands::send_guest_spell_commands,
-                // Drives CastingState locally so the guest's cast bar works.
-                // Does NOT spawn any spell entities — the host handles that.
-                spell_commands::update_guest_local_casting,
-            )
-                .run_if(mp_guest),
-        );
-
-        // ── Host: Guest Spell Command Processing ──────────────────────
-        // Only processes network messages into GuestInputState/GuestCursorPosition.
-        // The actual casting is handled by the widened SP spell systems.
+        // ── Host: Guest Spell Result Processing ──────────────────────
+        // Two-phase system: first extracts spell actions from network messages,
+        // then spawns entities in a separate system with all needed queries.
         let mp_host_spells = in_mp_running.and(is_multiplayer_host);
         app.add_systems(
             Update,
-            spell_commands::process_guest_spell_commands
+            (
+                spell_commands::process_guest_spell_results,
+                spell_commands::spawn_guest_spell_entities,
+            )
+                .chain()
                 .run_if(mp_host_spells),
         );
 
@@ -264,6 +254,7 @@ fn init_mp_game(
     mut game_outcome: ResMut<GameOutcome>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    session: Res<MultiplayerSession>,
 ) {
     // Reset globally-owned resources to clean state for this match
     *attack_cycle = GlobalAttackCycle::default();
@@ -271,12 +262,19 @@ fn init_mp_game(
     defenders_activated.active = true;
     *game_outcome = GameOutcome::Victory;
 
+    // Guest: insert SkipSpellSpawning so casting systems skip entity spawning
+    // and send network messages instead.
+    if session.role == PeerRole::Guest {
+        commands.insert_resource(spell_commands::SkipSpellSpawning);
+    }
+
     // Insert MP-only resources
     commands.init_resource::<EntityIdCounter>();
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
     commands.init_resource::<spell_commands::GuestCursorPosition>();
     commands.init_resource::<spell_commands::GuestInputState>();
+    commands.init_resource::<spell_commands::PendingGuestSpellActions>();
     commands.init_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.init_resource::<super::components::SpellEffectEntityMap>();
     commands.init_resource::<guest_systems::LatestSnapshot>();
@@ -327,11 +325,13 @@ fn cleanup_mp_game(
     commands.remove_resource::<SnapshotTick>();
     commands.remove_resource::<spell_commands::GuestCursorPosition>();
     commands.remove_resource::<spell_commands::GuestInputState>();
+    commands.remove_resource::<spell_commands::PendingGuestSpellActions>();
     commands.remove_resource::<super::components::GhostSpellAssets>();
     commands.remove_resource::<super::components::SpellEffectAssets>();
     commands.remove_resource::<super::components::SpellEffectEntityMap>();
     commands.remove_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.remove_resource::<guest_systems::LatestSnapshot>();
+    commands.remove_resource::<spell_commands::SkipSpellSpawning>();
 
     // Only remove the session if this is NOT a rematch — keep connection alive for rematch
     if pending_rematch.is_none() {

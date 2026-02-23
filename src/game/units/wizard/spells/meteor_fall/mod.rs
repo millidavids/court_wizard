@@ -4,8 +4,8 @@
 //! dealing fire damage on impact and leaving persistent burning ground hazards.
 
 pub(crate) mod components;
-pub(in crate::game::units::wizard) mod constants;
+pub(crate) mod constants;
 mod plugin;
-mod systems;
+pub(crate) mod systems;
 
 pub use plugin::MeteorFallPlugin;

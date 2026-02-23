@@ -6,7 +6,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{TeleportDestinationCircle, TeleportSourceCircle};
 use super::systems;
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_spell_effects_active;
 
 /// Plugin that handles the Teleport spell.
 ///
@@ -29,16 +29,12 @@ impl Plugin for TeleportPlugin {
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_right_not_held)
                     .run_if(mouse_held_or_wizard_casting),
-                // Guest wizard casting (network signals)
-                systems::handle_teleport_casting_guest
-                    .run_if(guest_spell_is_primed(Spell::Teleport))
-                    .run_if(guest_input_or_wizard_casting),
                 systems::update_circle_animations.run_if(
                     any_exist::<TeleportDestinationCircle>()
                         .or(any_exist::<TeleportSourceCircle>()),
                 ),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         );
     }
 }

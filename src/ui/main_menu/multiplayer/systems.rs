@@ -37,29 +37,18 @@ fn parse_wizard_types(names: &[String]) -> Vec<WizardType> {
         .collect()
 }
 
-/// Parses unlocked spells from save data string names.
-fn parse_spells(names: &[String]) -> Vec<Spell> {
-    names
-        .iter()
-        .filter_map(|name| {
-            Spell::all()
-                .iter()
-                .find(|s| format!("{:?}", s) == *name)
-                .copied()
-        })
-        .collect()
-}
-
-/// Loads this player's unlocked wizard types and spells from save data.
+/// Loads this player's unlocked wizard types from save data.
+///
+/// All spells are available in multiplayer regardless of single-player progression.
 fn load_my_unlocked_content() -> (Vec<WizardType>, Vec<Spell>) {
     let save = save_data::load_unified_save();
-    if let Some(save) = &save {
-        let wt = parse_wizard_types(&save.player.unlocked_content.wizard_types);
-        let sp = parse_spells(&save.player.unlocked_content.spells);
-        (wt, sp)
+    let wt = if let Some(save) = &save {
+        parse_wizard_types(&save.player.unlocked_content.wizard_types)
     } else {
-        (vec![WizardType::BoringOleMage], vec![Spell::MagicMissile])
-    }
+        vec![WizardType::BoringOleMage]
+    };
+    let sp = Spell::all().to_vec();
+    (wt, sp)
 }
 
 /// Sets up the multiplayer screen UI (connection phase).

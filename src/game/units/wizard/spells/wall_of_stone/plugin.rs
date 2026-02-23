@@ -21,10 +21,6 @@ impl Plugin for WallOfStonePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                // Guest wizard casting (network signals)
-                systems::handle_wall_of_stone_casting_guest
-                    .run_if(guest_spell_is_primed(Spell::WallOfStone))
-                    .run_if(guest_input_or_wizard_casting),
                 (
                     systems::tick_wall_lifetime,
                     systems::animate_sinking_walls,

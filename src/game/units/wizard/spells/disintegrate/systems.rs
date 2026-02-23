@@ -6,7 +6,9 @@ use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestBeam, GuestCursorPosition, GuestInputState};
+use crate::game::multiplayer::spell_commands::{GuestBeam, GuestCursorPosition, GuestInputState, SkipSpellSpawning};
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 
 /// Marker component for disintegrate spell when it's actively being cast/channeled.
@@ -34,6 +36,12 @@ struct CastingResult {
     insert_caster: bool,
     /// Whether to remove the DisintegrateCaster component.
     remove_caster: bool,
+    /// Whether channel just started (cast completed, entered channeling).
+    channel_started: bool,
+    /// Whether actively channeling this frame.
+    channeling: bool,
+    /// Whether channel just ended this frame.
+    channel_ended: bool,
 }
 
 /// Local wizard disintegrate casting -- reads mouse input.
@@ -54,6 +62,8 @@ pub fn handle_disintegrate_casting(
     >,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -69,6 +79,7 @@ pub fn handle_disintegrate_casting(
     };
     if primed_spell.spell != Spell::Disintegrate { return; }
 
+    let skip_spawn = skip_spawning.is_some();
     let has_existing_beam = beams.iter().next().is_some();
 
     let result = disintegrate_casting_logic(
@@ -90,33 +101,70 @@ pub fn handle_disintegrate_casting(
         commands.entity(wizard_entity).remove::<DisintegrateCaster>();
     }
 
-    // Apply beam action
-    match result.beam_action {
-        BeamAction::UpdateBeam { origin, direction, length } => {
-            if let Some((_, mut beam)) = beams.iter_mut().next() {
-                beam.origin = origin;
-                beam.direction = direction;
-                beam.length = length;
+    if !skip_spawn {
+        // Apply beam action (host/single-player only)
+        match result.beam_action {
+            BeamAction::UpdateBeam { origin, direction, length } => {
+                if let Some((_, mut beam)) = beams.iter_mut().next() {
+                    beam.origin = origin;
+                    beam.direction = direction;
+                    beam.length = length;
+                }
+            }
+            BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
+                spawn_beam_with_marker(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    origin,
+                    direction,
+                    length,
+                    empowerment,
+                    false,
+                );
+            }
+            BeamAction::DespawnAll => {
+                for (entity, _) in beams.iter() {
+                    commands.entity(entity).despawn();
+                }
+            }
+            BeamAction::None => {}
+        }
+    }
+
+    // Guest: send channel messages
+    if skip_spawn {
+        if result.channel_started {
+            if let Some(conn) = connection.as_mut() {
+                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::ChannelStarted {
+                        spell: Spell::Disintegrate,
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                        empowerment: primed_spell.empowerment,
+                    },
+                ));
             }
         }
-        BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
-            spawn_beam_with_marker(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                origin,
-                direction,
-                length,
-                empowerment,
-                false,
-            );
-        }
-        BeamAction::DespawnAll => {
-            for (entity, _) in beams.iter() {
-                commands.entity(entity).despawn();
+
+        if result.channeling {
+            if let Some(conn) = connection.as_mut() {
+                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::ChannelUpdate {
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                    },
+                ));
             }
         }
-        BeamAction::None => {}
+
+        if result.channel_ended {
+            if let Some(conn) = connection.as_mut() {
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::ChannelEnded,
+                ));
+            }
+        }
     }
 }
 
@@ -220,21 +268,29 @@ fn disintegrate_casting_logic(
         beam_action: BeamAction::None,
         insert_caster: false,
         remove_caster: false,
+        channel_started: false,
+        channeling: false,
+        channel_ended: false,
     };
 
     let wizard_pos = wizard_transform.translation;
 
     // Check for release
     if input.just_released {
+        let was_channeling = matches!(*casting_state, CastingState::Channeling { .. });
         casting_state.cancel();
         result.remove_caster = true;
         result.beam_action = BeamAction::DespawnAll;
+        if was_channeling {
+            result.channel_ended = true;
+        }
         return result;
     }
 
     match *casting_state {
         CastingState::Channeling { .. } => {
             casting_state.advance_channel(time.delta_secs());
+            result.channeling = true;
 
             let mana_cost = constants::MANA_COST_PER_SECOND * time.delta_secs();
 
@@ -275,6 +331,8 @@ fn disintegrate_casting_logic(
                 casting_state.cancel();
                 result.remove_caster = true;
                 result.beam_action = BeamAction::DespawnAll;
+                result.channeling = false;
+                result.channel_ended = true;
             }
         }
         CastingState::Casting { .. } => {
@@ -282,6 +340,7 @@ fn disintegrate_casting_logic(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 casting_state.start_channeling();
+                result.channel_started = true;
 
                 if let Some(target_pos) = input.cursor_pos {
                     let beam_origin =

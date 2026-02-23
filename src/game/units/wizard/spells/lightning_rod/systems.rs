@@ -10,22 +10,30 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
 use crate::game::units::wizard::components::{
-    CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
+    CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned).
+    /// Whether the spell completed (cast finished and effect spawned/skipped).
     completed: bool,
+    /// Cursor position at time of completion (for network message).
+    cursor_pos: Option<Vec3>,
 }
 
 /// Local wizard Lightning Rod casting -- reads mouse input.
+///
+/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
+/// runs normally (CastingState, mana, cast bar) but entity spawning is skipped.
+/// Instead, a `SpellCast` message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_lightning_rod_casting(
     time: Res<Time>,
@@ -49,6 +57,8 @@ pub(super) fn handle_lightning_rod_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut LightningRodCircleIndicator>,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -63,6 +73,8 @@ pub(super) fn handle_lightning_rod_casting(
         return;
     };
     if primed_spell.spell != Spell::LightningRod { return; }
+
+    let skip_spawn = skip_spawning.is_some();
 
     let wizard_pos = wizard_transform.translation;
     let clamped_pos = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range));
@@ -123,83 +135,31 @@ pub(super) fn handle_lightning_rod_casting(
         &mut commands,
         &mut meshes,
         &mut materials,
+        skip_spawn,
     );
 
     if cast_result.completed {
         mouse_state.left_consumed = true;
+
+        if skip_spawn {
+            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::SpellCast {
+                        spell: Spell::LightningRod,
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                        empowerment: primed_spell.empowerment,
+                    },
+                ));
+            }
+        }
     }
 }
 
-/// Guest wizard Lightning Rod casting -- reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn handle_lightning_rod_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<
-        (
-            Entity,
-            &Transform,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
-        With<GuestWizard>,
-    >,
-    caster_query: Query<&SpellCaster>,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
-    };
-
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::LightningRod { return; }
-
-    // Insert SpellCaster::new() (no indicator) on Resting -> Casting transition
-    if matches!(*casting_state, CastingState::Resting)
-        && (input.just_pressed || input.pressed)
-        && caster_query.get(wizard_entity).is_err()
-        && mana.can_afford(MANA_COST)
-        && input.cursor_pos.is_some()
-    {
-        commands
-            .entity(wizard_entity)
-            .insert(SpellCaster::new());
-    }
-
-    // Clamp cursor for guest too
-    let wizard_pos = wizard_transform.translation;
-    let clamped_input = WizardInput {
-        cursor_pos: input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range)),
-        ..input
-    };
-
-    lightning_rod_casting_logic(
-        &clamped_input,
-        &time,
-        wizard_entity,
-        wizard_transform,
-        wizard,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        &caster_query,
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-    );
-}
-
-/// Core Lightning Rod casting logic -- called by both local and guest systems.
+/// Core Lightning Rod casting logic.
+///
+/// When `skip_spawn` is true, the casting pipeline runs normally but
+/// entity spawning is skipped. The cursor position is returned in `CastResult`
+/// so the caller can send a network message.
 #[allow(clippy::too_many_arguments)]
 fn lightning_rod_casting_logic(
     input: &WizardInput,
@@ -214,8 +174,9 @@ fn lightning_rod_casting_logic(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    skip_spawn: bool,
 ) -> CastResult {
-    let mut result = CastResult { completed: false };
+    let mut result = CastResult { completed: false, cursor_pos: None };
 
     let wizard_pos = wizard_transform.translation;
 
@@ -248,14 +209,17 @@ fn lightning_rod_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST) {
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
+                    result.cursor_pos = Some(spawn_pos);
 
-                    spawn_lightning_rod(
-                        commands,
-                        meshes,
-                        materials,
-                        spawn_pos,
-                        primed_spell.empowerment,
-                    );
+                    if !skip_spawn {
+                        spawn_lightning_rod(
+                            commands,
+                            meshes,
+                            materials,
+                            spawn_pos,
+                            primed_spell.empowerment,
+                        );
+                    }
                     result.completed = true;
                 }
 
@@ -359,7 +323,7 @@ fn spawn_circle_indicator(
 }
 
 /// Spawns the lightning rod tower entity.
-fn spawn_lightning_rod(
+pub(crate) fn spawn_lightning_rod(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,

@@ -4,9 +4,9 @@
 //! dealing frost damage and slowing enemy movement.
 
 pub(crate) mod components;
-pub(in crate::game::units::wizard) mod constants;
+pub(crate) mod constants;
 mod plugin;
 mod styles;
-mod systems;
+pub(crate) mod systems;
 
 pub use plugin::SquallPlugin;

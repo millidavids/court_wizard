@@ -1,22 +1,31 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
 use super::components::BattleHymnIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
+use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::BattleHymnModifier;
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned).
+    /// Whether the spell completed (cast finished and effect spawned/skipped).
     completed: bool,
+    /// Cursor position at time of completion (for network message).
+    cursor_pos: Option<Vec3>,
 }
 
 /// Local wizard battle hymn casting -- reads mouse input.
+///
+/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
+/// runs normally (CastingState, mana, cast bar, indicator) but the spell
+/// effect (apply_battle_hymn_buff) is skipped. Instead, a `SpellCast`
+/// message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_battle_hymn_casting(
     time: Res<Time>,
@@ -44,6 +53,8 @@ pub fn handle_battle_hymn_casting(
         (Entity, &Transform, Option<&mut BattleHymnModifier>),
         Without<Wizard>,
     >,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -58,6 +69,8 @@ pub fn handle_battle_hymn_casting(
         return;
     };
     if primed_spell.spell != Spell::BattleHymn { return; }
+
+    let skip_spawn = skip_spawning.is_some();
 
     // Clamp cursor to spell range
     let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
@@ -121,142 +134,62 @@ pub fn handle_battle_hymn_casting(
         &mut mana,
         primed_spell,
         clamped_cursor,
-        &mut commands,
-        &mut targets_query,
     );
 
     if cast_result.completed {
-        // Apply buff using indicator position
-        if let Ok(caster) = caster_query.get(wizard_entity)
-            && let Some(indicator_entity) = caster.indicator_entity
-        {
-            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                apply_battle_hymn_buff(
-                    &mut commands,
-                    indicator.position,
-                    radius,
-                    indicator.empowerment,
-                    &mut targets_query,
-                );
+        if !skip_spawn {
+            // Apply buff using indicator position
+            if let Ok(caster) = caster_query.get(wizard_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+            {
+                if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                    let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                    apply_battle_hymn_buff(
+                        &mut commands,
+                        indicator.position,
+                        radius,
+                        indicator.empowerment,
+                        &mut targets_query,
+                    );
+                }
+                commands.entity(indicator_entity).despawn();
             }
-            commands.entity(indicator_entity).despawn();
+        } else {
+            // Skip spawn: clean up indicator
+            if let Ok(caster) = caster_query.get(wizard_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+            {
+                commands.entity(indicator_entity).despawn();
+            }
+
+            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::SpellCast {
+                        spell: Spell::BattleHymn,
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                        empowerment: primed_spell.empowerment,
+                    },
+                ));
+            }
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;
     }
 }
 
-/// Guest wizard battle hymn casting -- reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_battle_hymn_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut wizard_query: Query<
-        (
-            Entity,
-            &Transform,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
-        With<GuestWizard>,
-    >,
-    caster_query: Query<&SpellCaster>,
-    mut targets_query: Query<
-        (Entity, &Transform, Option<&mut BattleHymnModifier>),
-        Without<Wizard>,
-    >,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
-    };
-
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::BattleHymn { return; }
-
-    // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
-
-    // Handle release
-    if input.just_released {
-        if caster_query.get(wizard_entity).is_ok() {
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
-        return;
-    }
-
-    // Manage SpellCaster for guest (no indicator)
-    match *casting_state {
-        CastingState::Resting => {
-            if (input.just_pressed || input.pressed)
-                && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
-            {
-                commands.entity(wizard_entity).insert(SpellCaster::new());
-            }
-        }
-        CastingState::Channeling { .. } => {
-            if caster_query.get(wizard_entity).is_ok() {
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
-        }
-        _ => {}
-    }
-
-    let cast_result = battle_hymn_casting_logic(
-        &input,
-        &time,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        clamped_cursor,
-        &mut commands,
-        &mut targets_query,
-    );
-
-    if cast_result.completed {
-        // Apply buff at cursor position for guest
-        if let Some(pos) = clamped_cursor {
-            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
-            apply_battle_hymn_buff(
-                &mut commands,
-                pos,
-                radius,
-                primed_spell.empowerment,
-                &mut targets_query,
-            );
-        }
-        commands.entity(wizard_entity).remove::<SpellCaster>();
-    }
-}
-
-/// Core battle hymn casting logic -- called by both local and guest systems.
+/// Core battle hymn casting logic.
 ///
 /// Handles CastingState transitions and mana consumption.
 /// Does NOT manage SpellCaster, indicators, or mouse_state -- those are the wrapper's job.
-/// Does NOT apply the spell effect -- the wrapper does that using the CastResult.
-#[allow(clippy::too_many_arguments)]
 fn battle_hymn_casting_logic(
     input: &WizardInput,
     time: &Time,
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
-    _clamped_cursor: Option<Vec3>,
-    _commands: &mut Commands,
-    _targets_query: &mut Query<(Entity, &Transform, Option<&mut BattleHymnModifier>), Without<Wizard>>,
+    clamped_cursor: Option<Vec3>,
 ) -> CastResult {
-    let mut result = CastResult { completed: false };
+    let mut result = CastResult { completed: false, cursor_pos: None };
 
     // Release is handled by the wrappers before calling this function
     if input.just_released {
@@ -273,6 +206,7 @@ fn battle_hymn_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
                     result.completed = true;
+                    result.cursor_pos = clamped_cursor;
                 }
                 casting_state.cancel();
             }
@@ -330,7 +264,7 @@ pub fn update_battle_hymn_indicator(
     }
 }
 
-fn apply_battle_hymn_buff(
+pub(crate) fn apply_battle_hymn_buff(
     commands: &mut Commands,
     circle_pos: Vec3,
     radius: f32,

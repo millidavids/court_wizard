@@ -11,6 +11,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{Spell, SpellCategory};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
+use crate::networking::session::MultiplayerSession;
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::ButtonColors;
@@ -27,13 +28,26 @@ pub(super) struct JustEnteredSpellBook(pub bool);
 // ---------------------------------------------------------------------------
 
 /// Spawns the spell book UI when entering the SpellBook state.
-pub(super) fn spawn_spell_book_ui(mut commands: Commands, config: Res<GameConfig>) {
-    // Load unlocked spells from save data
-    let unlocked_spells: Vec<String> = load_unified_save()
-        .map(|s| s.player.unlocked_content.spells)
-        .unwrap_or_default();
+pub(super) fn spawn_spell_book_ui(
+    mut commands: Commands,
+    config: Res<GameConfig>,
+    mp_session: Option<Res<MultiplayerSession>>,
+) {
+    // In multiplayer, all spells are available regardless of single-player progression.
+    let is_multiplayer = mp_session.is_some();
 
-    let is_unlocked = |spell: &Spell| {
+    let unlocked_spells: Vec<String> = if is_multiplayer {
+        Vec::new() // Not needed — is_unlocked always returns true
+    } else {
+        load_unified_save()
+            .map(|s| s.player.unlocked_content.spells)
+            .unwrap_or_default()
+    };
+
+    let is_unlocked = move |spell: &Spell| {
+        if is_multiplayer {
+            return true;
+        }
         let debug_name = format!("{:?}", spell);
         unlocked_spells.contains(&debug_name)
     };

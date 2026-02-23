@@ -1,16 +1,31 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
 use super::components::HasteIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState};
+use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::HasteModifier;
+use crate::networking::protocol::{NetworkMessage, SpellAction};
+use crate::networking::resources::NetworkConnection;
 
-/// Local wizard haste casting — reads mouse input.
+/// Result from spell casting logic, used to communicate state back to the wrapper.
+struct CastResult {
+    /// Whether the spell completed (cast finished and effect spawned/skipped).
+    completed: bool,
+    /// Cursor position at time of completion (for network message).
+    cursor_pos: Option<Vec3>,
+}
+
+/// Local wizard haste casting -- reads mouse input.
+///
+/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
+/// runs normally (CastingState, mana, cast bar, indicator) but the spell
+/// effect (apply_haste_buff) is skipped. Instead, a `SpellCast` message is
+/// sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_haste_casting(
     time: Res<Time>,
@@ -35,6 +50,8 @@ pub fn handle_haste_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut HasteIndicator>,
     mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
+    skip_spawning: Option<Res<SkipSpellSpawning>>,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -50,10 +67,12 @@ pub fn handle_haste_casting(
     };
     if primed_spell.spell != Spell::Haste { return; }
 
+    let skip_spawn = skip_spawning.is_some();
+
     // Clamp cursor to spell range
     let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
 
-    // Handle release — clean up indicator
+    // Handle release -- clean up indicator
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
@@ -68,6 +87,8 @@ pub fn handle_haste_casting(
     let Some(clamped_cursor) = clamped_cursor else {
         return;
     };
+
+    let mut cast_result = CastResult { completed: false, cursor_pos: None };
 
     match *casting_state {
         CastingState::Resting => {
@@ -101,24 +122,31 @@ pub fn handle_haste_casting(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
+                    if !skip_spawn {
+                        if let Ok(caster) = caster_query.get(wizard_entity)
+                            && let Some(indicator_entity) = caster.indicator_entity
+                        {
+                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                                apply_haste_buff(
+                                    &mut commands,
+                                    indicator.position,
+                                    radius,
+                                    indicator.empowerment,
+                                    &mut targets_query,
+                                );
+                            }
+                        }
+                    }
+                    cast_result.completed = true;
+                    cast_result.cursor_pos = Some(clamped_cursor);
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
-                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            apply_haste_buff(
-                                &mut commands,
-                                indicator.position,
-                                radius,
-                                indicator.empowerment,
-                                &mut targets_query,
-                            );
-                        }
                         commands.entity(indicator_entity).despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
-                    mouse_state.left_consumed = true;
                 } else {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
@@ -140,115 +168,22 @@ pub fn handle_haste_casting(
             casting_state.cancel();
         }
     }
-}
 
-/// Guest wizard haste casting — reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_haste_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut wizard_query: Query<
-        (
-            Entity,
-            &Transform,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
-        With<GuestWizard>,
-    >,
-    mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
-    };
+    if cast_result.completed {
+        mouse_state.left_consumed = true;
 
-    let Ok((_wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::Haste { return; }
-
-    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
-
-    let cast_result = haste_casting_logic(
-        &input,
-        &time,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        clamped_cursor,
-        &mut commands,
-        &mut targets_query,
-    );
-
-    let _ = cast_result;
-}
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned).
-    completed: bool,
-}
-
-/// Core haste casting logic for guest — no indicator management.
-#[allow(clippy::too_many_arguments)]
-fn haste_casting_logic(
-    input: &WizardInput,
-    time: &Time,
-    casting_state: &mut CastingState,
-    mana: &mut Mana,
-    primed_spell: &PrimedSpell,
-    clamped_cursor: Option<Vec3>,
-    commands: &mut Commands,
-    targets_query: &mut Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
-) -> CastResult {
-    let mut result = CastResult { completed: false };
-
-    if input.just_released {
-        casting_state.cancel();
-        return result;
-    }
-
-    let Some(clamped_cursor) = clamped_cursor else {
-        return result;
-    };
-
-    match *casting_state {
-        CastingState::Resting => {
-            if (input.just_pressed || input.pressed) && mana.can_afford(constants::MANA_COST) {
-                casting_state.start_cast();
+        if skip_spawn {
+            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
+                conn.outgoing_messages.push(NetworkMessage::SpellResult(
+                    SpellAction::SpellCast {
+                        spell: Spell::Haste,
+                        cursor_pos: [pos.x, pos.y, pos.z],
+                        empowerment: primed_spell.empowerment,
+                    },
+                ));
             }
         }
-        CastingState::Casting { .. } => {
-            casting_state.advance(time.delta_secs());
-
-            if casting_state.is_complete(primed_spell.cast_time) {
-                if mana.consume(constants::MANA_COST) {
-                    let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
-                    apply_haste_buff(
-                        commands,
-                        clamped_cursor,
-                        radius,
-                        primed_spell.empowerment,
-                        targets_query,
-                    );
-                    result.completed = true;
-                }
-                casting_state.cancel();
-            }
-        }
-        CastingState::Channeling { .. } => {
-            casting_state.cancel();
-        }
     }
-
-    result
 }
 
 /// Clamps cursor position to wizard's spell range, accounting for the circle radius.
@@ -295,7 +230,7 @@ pub fn update_haste_indicator(
 }
 
 /// Applies haste buff to ALL units in radius (magic is indiscriminate).
-fn apply_haste_buff(
+pub(crate) fn apply_haste_buff(
     commands: &mut Commands,
     circle_pos: Vec3,
     radius: f32,

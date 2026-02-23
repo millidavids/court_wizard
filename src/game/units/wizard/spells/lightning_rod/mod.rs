@@ -5,9 +5,9 @@
 //! electricity jump to all nearby units, damaging friend and foe alike.
 
 pub(crate) mod components;
-pub(in crate::game::units::wizard) mod constants;
+pub(crate) mod constants;
 mod plugin;
-mod systems;
+pub(crate) mod systems;
 
 pub(crate) use components::LightningRod;
 pub use plugin::LightningRodPlugin;

@@ -24,10 +24,6 @@ impl Plugin for BlackHolePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                // Guest wizard casting (network signals)
-                systems::handle_black_hole_casting_guest
-                    .run_if(guest_spell_is_primed(Spell::BlackHole))
-                    .run_if(guest_input_or_wizard_casting),
                 (
                     systems::apply_gravitational_forces.in_set(MovementCalculationSet),
                     systems::apply_corpse_gravity_and_despawn.in_set(MovementCalculationSet),
