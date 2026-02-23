@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
-use crate::state::{AppState, MultiplayerGameState};
+use crate::state::AppState;
 use crate::ui::plugin::ButtonActionSet;
 
 use super::systems;
@@ -22,9 +22,11 @@ impl Plugin for InGamePlugin {
         app
             // SP HUD spawn
             .add_systems(OnEnter(AppState::InGame), systems::spawn_hud)
-            // MP HUD spawn (no cauldron, no level display)
+            // MP HUD spawn (no cauldron, no level display).
+            // Use AppState::MultiplayerGame so it spawns once, not on every
+            // Running re-entry from SpellBook/Paused.
             .add_systems(
-                OnEnter(MultiplayerGameState::Running),
+                OnEnter(AppState::MultiplayerGame),
                 systems::spawn_mp_hud,
             )
             .add_systems(
