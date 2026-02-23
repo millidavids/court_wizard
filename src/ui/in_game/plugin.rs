@@ -35,8 +35,12 @@ impl Plugin for InGamePlugin {
             )
             .add_systems(
                 Update,
+                systems::block_spell_input_on_button_interaction
+                    .run_if(is_local_wizard_active),
+            )
+            .add_systems(
+                Update,
                 (
-                    systems::block_spell_input_on_button_interaction,
                     systems::keyboard_input,
                     systems::update_level_display,
                     systems::update_past_victory_display,

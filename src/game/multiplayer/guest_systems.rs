@@ -404,6 +404,7 @@ pub fn apply_spell_snapshot(
             3 => assets.crystal_arc_material.clone(),
             4 => assets.finger_of_death_material.clone(),
             5 => assets.lightning_rod_arc_material.clone(),
+            6 => assets.disintegrate_beam_material.clone(),
             _ => continue,
         };
 
@@ -424,6 +425,7 @@ pub fn apply_spell_snapshot(
             0 | 3 | 5 => 6.0,   // chain lightning, crystal arc, rod arc
             1 => 8.0,            // lightning strike
             2 | 4 => 20.0,      // crystal beam, finger of death
+            6 => 16.0,          // disintegrate beam
             _ => 6.0,
         };
 

@@ -142,6 +142,7 @@ pub struct SpellEffectAssets {
     pub crystal_beam_material: Handle<StandardMaterial>,
     pub crystal_arc_material: Handle<StandardMaterial>,
     pub finger_of_death_material: Handle<StandardMaterial>,
+    pub disintegrate_beam_material: Handle<StandardMaterial>,
 }
 
 impl SpellEffectAssets {
@@ -217,6 +218,7 @@ impl SpellEffectAssets {
             crystal_beam_material: materials.add(unlit(Color::srgb(1.0, 0.6, 0.1))),
             crystal_arc_material: materials.add(unlit(Color::srgba(0.6, 0.4, 1.0, 0.9))),
             finger_of_death_material: materials.add(unlit(Color::srgb(0.8, 0.0, 1.0))),
+            disintegrate_beam_material: materials.add(unlit(Color::srgb(1.0, 0.6, 0.1))),
         }
     }
 }

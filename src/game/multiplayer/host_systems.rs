@@ -313,6 +313,7 @@ pub fn collect_spell_projectile_snapshots(
     crystal_beams: Query<&CrystalBeam>,
     crystal_arcs: Query<(&CrystalLightningArc, &Transform)>,
     fod_beams: Query<&FingerOfDeathBeam>,
+    disintegrate_beams: Query<&DisintegrateBeam>,
 ) {
     spell_data.spell_projectiles.clear();
     spell_data.spell_arcs.clear();
@@ -435,6 +436,20 @@ pub fn collect_spell_projectile_snapshots(
             ox: start.x,
             oy: start.y,
             oz: start.z,
+            tx: end.x,
+            ty: end.y,
+            tz: end.z,
+        });
+    }
+
+    // Disintegrate beams
+    for beam in &disintegrate_beams {
+        let end = beam.origin + beam.direction * beam.current_length();
+        spell_data.spell_arcs.push(SpellArcSnapshot {
+            kind: 6,
+            ox: beam.origin.x,
+            oy: beam.origin.y,
+            oz: beam.origin.z,
             tx: end.x,
             ty: end.y,
             tz: end.z,

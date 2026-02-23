@@ -101,35 +101,34 @@ pub fn handle_disintegrate_casting(
         commands.entity(wizard_entity).remove::<DisintegrateCaster>();
     }
 
-    if !skip_spawn {
-        // Apply beam action (host/single-player only)
-        match result.beam_action {
-            BeamAction::UpdateBeam { origin, direction, length } => {
-                if let Some((_, mut beam)) = beams.iter_mut().next() {
-                    beam.origin = origin;
-                    beam.direction = direction;
-                    beam.length = length;
-                }
+    // Always apply beam action locally (guest needs visual feedback too).
+    // Guest has no Health entities, so damage system is a no-op there.
+    match result.beam_action {
+        BeamAction::UpdateBeam { origin, direction, length } => {
+            if let Some((_, mut beam)) = beams.iter_mut().next() {
+                beam.origin = origin;
+                beam.direction = direction;
+                beam.length = length;
             }
-            BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
-                spawn_beam_with_marker(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    origin,
-                    direction,
-                    length,
-                    empowerment,
-                    false,
-                );
-            }
-            BeamAction::DespawnAll => {
-                for (entity, _) in beams.iter() {
-                    commands.entity(entity).despawn();
-                }
-            }
-            BeamAction::None => {}
         }
+        BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
+            spawn_beam_with_marker(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                origin,
+                direction,
+                length,
+                empowerment,
+                false,
+            );
+        }
+        BeamAction::DespawnAll => {
+            for (entity, _) in beams.iter() {
+                commands.entity(entity).despawn();
+            }
+        }
+        BeamAction::None => {}
     }
 
     // Guest: send channel messages
