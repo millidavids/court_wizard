@@ -7,7 +7,6 @@ use super::components::*;
 use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState, SkipSpellSpawning};
 use crate::networking::protocol::{NetworkMessage, SpellAction};
@@ -32,7 +31,6 @@ struct CastResult {
 #[allow(clippy::too_many_arguments)]
 pub fn handle_magic_missile_casting(
     time: Res<Time>,
-    mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -84,8 +82,6 @@ pub fn handle_magic_missile_casting(
     );
 
     if cast_result.completed {
-        mouse_state.left_consumed = true;
-
         // Guest: notify host that channeling started
         if skip_spawn {
             if let Some(conn) = connection.as_mut() {
