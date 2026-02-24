@@ -123,6 +123,57 @@ pub fn check_mp_king_death(
     }
 }
 
+/// Receives `TeleportUnits` messages from the guest and executes the teleport on the host.
+///
+/// Unit positions are host-authoritative, so when the guest casts Teleport it sends
+/// a message with source/dest/radius. The host applies the actual position changes.
+pub fn receive_teleport_message(
+    mut commands: Commands,
+    mut connection: ResMut<NetworkConnection>,
+    units_query: Query<
+        (Entity, &Transform),
+        (
+            With<crate::game::units::components::Teleportable>,
+            Without<crate::game::units::wizard::spells::teleport::components::TeleportDestinationCircle>,
+            Without<crate::game::units::wizard::spells::teleport::components::TeleportSourceCircle>,
+        ),
+    >,
+) {
+    if connection.incoming_messages.is_empty() {
+        return;
+    }
+
+    let messages: Vec<NetworkMessage> = connection.incoming_messages.drain(..).collect();
+    let mut unhandled = Vec::new();
+
+    for msg in messages {
+        match msg {
+            NetworkMessage::TeleportUnits {
+                source_x,
+                source_z,
+                dest_x,
+                dest_z,
+                radius,
+            } => {
+                let source = Vec3::new(source_x, 0.0, source_z);
+                let dest = Vec3::new(dest_x, 0.0, dest_z);
+                crate::game::units::wizard::spells::teleport::systems::teleport_units_with_radius(
+                    source,
+                    dest,
+                    radius,
+                    &units_query,
+                    &mut commands,
+                );
+            }
+            other => unhandled.push(other),
+        }
+    }
+
+    if !unhandled.is_empty() {
+        connection.incoming_messages.extend(unhandled);
+    }
+}
+
 /// Receives CRDT health updates from the guest and merges into local unit state.
 ///
 /// The guest sends its CRDT counters (guest spell damage/healing) over the

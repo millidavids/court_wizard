@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.191] - 2026-02-24
+
+### Fixed
+- **Teleport** source circle (blue portal) no longer gets stuck on the battlefield after casting
+- **Teleport** timer completion now teleports units from the correct location instead of wherever your mouse was pointing
+- **Teleport** now works properly when cast by the guest player in multiplayer
+
 ## [v0.2.189] - 2026-02-24
 
 ### Fixed

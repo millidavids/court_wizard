@@ -13,6 +13,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::Teleportable;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::resources::NetworkConnection;
 
 /// Result from teleport casting logic, used to communicate state back to the wrapper.
 struct TeleportCastResult {
@@ -20,6 +21,8 @@ struct TeleportCastResult {
     completed: bool,
     /// Whether the first phase was finalized (destination locked in on release).
     first_phase_released: bool,
+    /// Teleport parameters for network sync: (source_x, source_z, dest_x, dest_z, radius).
+    teleport_params: Option<(f32, f32, f32, f32, f32)>,
 }
 
 /// Handles right-click to cancel/reset the teleport spell.
@@ -114,6 +117,7 @@ pub fn handle_teleport_casting(
             Without<TeleportSourceCircle>,
         ),
     >,
+    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -257,6 +261,21 @@ pub fn handle_teleport_casting(
         caster.destination_circle = None;
         caster.source_circle = None;
         mouse_state.left_consumed = true;
+
+        // Send teleport params over the network so the host can move units
+        if let Some((source_x, source_z, dest_x, dest_z, radius)) = cast_result.teleport_params {
+            if let Some(ref mut conn) = connection {
+                conn.outgoing_messages.push(
+                    crate::networking::protocol::NetworkMessage::TeleportUnits {
+                        source_x,
+                        source_z,
+                        dest_x,
+                        dest_z,
+                        radius,
+                    },
+                );
+            }
+        }
     }
 
     if cast_result.first_phase_released {
@@ -276,7 +295,7 @@ fn teleport_casting_logic(
     clamped_pos: Option<Vec3>,
     casting_state: &mut CastingState,
     mana: &mut Mana,
-    primed_spell: &PrimedSpell,
+    _primed_spell: &PrimedSpell,
     caster: &mut TeleportCaster,
     commands: &mut Commands,
     units_query: &Query<
@@ -298,6 +317,7 @@ fn teleport_casting_logic(
     let mut result = TeleportCastResult {
         completed: false,
         first_phase_released: false,
+        teleport_params: None,
     };
 
     // Handle release during first cast — finalize destination position
@@ -335,10 +355,16 @@ fn teleport_casting_logic(
                             units_query,
                             commands,
                         );
+                        result.teleport_params = Some((
+                            source_pos.x,
+                            source_pos.z,
+                            dest_pos.x,
+                            dest_pos.z,
+                            current_radius,
+                        ));
                     }
 
                     caster.destination_position = None;
-                    caster.source_circle = None;
                     casting_state.cancel();
                     result.completed = true;
                 }
@@ -347,7 +373,7 @@ fn teleport_casting_logic(
         return result;
     }
 
-    let Some(clamped_pos) = clamped_pos else {
+    let Some(_clamped_pos) = clamped_pos else {
         return result;
     };
 
@@ -381,17 +407,35 @@ fn teleport_casting_logic(
 
                 // Check if cast complete
                 if *elapsed >= SECOND_CAST_TIME {
-                    mana.consume(MANA_COST);
+                    if let Some(source_entity) = caster.source_circle
+                        && let Ok((transform, source_circle)) = source_query.get(source_entity)
+                    {
+                        let source_pos = transform.translation;
+                        let radius = CIRCLE_RADIUS * source_circle.empowerment;
 
-                    let radius = primed_spell.scale(CIRCLE_RADIUS);
-                    if let Some(dest_pos) = caster.destination_position {
-                        teleport_units(clamped_pos, dest_pos, radius, units_query, commands);
+                        mana.consume(MANA_COST);
+
+                        if let Some(dest_pos) = caster.destination_position {
+                            teleport_units_with_radius(
+                                source_pos,
+                                dest_pos,
+                                radius,
+                                units_query,
+                                commands,
+                            );
+                            result.teleport_params = Some((
+                                source_pos.x,
+                                source_pos.z,
+                                dest_pos.x,
+                                dest_pos.z,
+                                radius,
+                            ));
+                        }
+
+                        caster.destination_position = None;
+                        casting_state.cancel();
+                        result.completed = true;
                     }
-
-                    caster.destination_position = None;
-                    caster.source_circle = None;
-                    casting_state.cancel();
-                    result.completed = true;
                 }
             }
             _ => {}
@@ -399,24 +443,6 @@ fn teleport_casting_logic(
     }
 
     result
-}
-
-/// Teleports all units within the source circle to random positions within the destination circle.
-fn teleport_units(
-    source_center: Vec3,
-    dest_center: Vec3,
-    radius: f32,
-    units_query: &Query<
-        (Entity, &Transform),
-        (
-            With<Teleportable>,
-            Without<TeleportDestinationCircle>,
-            Without<TeleportSourceCircle>,
-        ),
-    >,
-    commands: &mut Commands,
-) {
-    teleport_units_with_radius(source_center, dest_center, radius, units_query, commands);
 }
 
 /// Teleports all units within a specified radius of the source center to random positions

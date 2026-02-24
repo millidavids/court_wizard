@@ -211,6 +211,13 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(mp_running.clone().and(is_multiplayer_host)),
         );
 
+        // ── Host: Receive Guest Teleport Messages ────────────────────
+        app.add_systems(
+            Update,
+            host_systems::receive_teleport_message
+                .run_if(mp_running.clone().and(is_multiplayer_host)),
+        );
+
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,

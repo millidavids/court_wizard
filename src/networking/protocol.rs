@@ -55,6 +55,18 @@ pub enum NetworkMessage {
         /// true = wall placed (Blocked), false = wall removed (Removed).
         placed: bool,
     },
+
+    /// Guest tells the host to teleport units within a radius.
+    ///
+    /// Unit positions are host-authoritative, so the guest sends this message
+    /// instead of moving units locally.
+    TeleportUnits {
+        source_x: f32,
+        source_z: f32,
+        dest_x: f32,
+        dest_z: f32,
+        radius: f32,
+    },
 }
 
 /// Result of a multiplayer match.
