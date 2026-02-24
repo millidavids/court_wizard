@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.205] - 2026-02-24
+
+### Added
+- **Boss battles** — every 5th level, instead of the usual army, you'll face a single massive boss. It's huge, tough, and gets angrier as it takes damage
+  - **Enrage** — the boss speeds up and hits harder at 75%, 50%, and 25% health, turning visibly redder as it rages
+  - **Melee knockback** — the boss's attacks send defenders tumbling across the battlefield, with a smooth sliding effect as they skid through the dirt
+  - **Boss health bar** — a health bar with percentage appears at the top of the screen during boss fights
+  - **Archers focus fire** — defender archers will now prioritize shooting the boss even when other enemies are in melee range
+  - The boss can't be pushed around by other units
+
+### Fixed
+- **Disintegrate** now properly hits large units — previously you had to aim right at the center of big targets like the boss, now aiming anywhere on the sprite works
+- Fixed duplicate spells appearing in the spell research tree
+- Action bar moved back to the lower left corner of the screen
+
 ## [v0.2.191] - 2026-02-24
 
 ### Fixed

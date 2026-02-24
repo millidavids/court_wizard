@@ -26,7 +26,16 @@ pub(super) enum WizardTowerButtonAction {
     StudySpells,
     StartNextBattle,
     ReturnToMenu,
+    #[cfg(debug_assertions)]
+    DebugLevelUp,
+    #[cfg(debug_assertions)]
+    DebugLevelDown,
 }
+
+/// Marker for the level display text on the hub screen (for reactive updates).
+#[cfg(debug_assertions)]
+#[derive(Component)]
+pub(super) struct LevelDisplay;
 
 /// Insight balance text on the hub.
 #[derive(Component)]

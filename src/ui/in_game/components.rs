@@ -30,3 +30,15 @@ pub(super) struct LevelDisplay;
 /// Marker component for the past victory display text.
 #[derive(Component)]
 pub(super) struct PastVictoryDisplay;
+
+/// Marker component for the boss health bar root container.
+#[derive(Component)]
+pub(super) struct BossHealthBarRoot;
+
+/// Marker component for the boss health bar fill element.
+#[derive(Component)]
+pub(super) struct BossHealthBarFill;
+
+/// Marker component for the boss health bar text (percentage).
+#[derive(Component)]
+pub(super) struct BossHealthBarText;

@@ -6,7 +6,7 @@ use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -243,6 +243,7 @@ pub fn apply_disintegrate_damage(
         (
             Entity,
             &Transform,
+            &Hitbox,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
@@ -267,12 +268,12 @@ pub fn apply_disintegrate_damage(
         let effective_length = beam.current_length() * max_t;
 
         if beam.should_damage() {
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in target_query.iter_mut() {
+            for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in target_query.iter_mut() {
                 let position = transform.translation;
-                // Check if point is in beam AND before the wall
-                if beam.contains_point(position) {
+                // Check if unit's hitbox intersects beam AND is before the wall
+                if beam.contains_point_with_radius(position, hitbox.radius) {
                     let proj = (position - beam.origin).dot(beam.direction);
-                    if proj <= effective_length {
+                    if proj <= effective_length + hitbox.radius {
                         apply_spell_damage(
                             &mut commands,
                             entity,

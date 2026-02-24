@@ -451,6 +451,7 @@ fn spawn_castle(
 /// - Host wizard + Host role → `LocalWizard` (host controls this wizard)
 /// - Guest wizard + Guest role → `LocalWizard` (guest controls this wizard)
 /// - Guest wizard + Host role → `GuestWizard` (host simulates guest's spells)
+#[allow(clippy::too_many_arguments)]
 fn spawn_mp_wizard(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,

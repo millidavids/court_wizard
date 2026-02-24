@@ -57,42 +57,55 @@ pub fn init_loading_progress(
             .push(SpawnTask::DefenderInfantry { unit_index: i });
     }
 
-    // 7. Attacker Infantry
-    let total_attackers = calculate_total_infantry(level);
-    for i in 0..total_attackers {
-        queue.tasks.push(SpawnTask::AttackerInfantry {
-            unit_index: i,
-            level,
-        });
+    // Check if this is a boss level
+    use crate::game::units::boss::constants::BOSS_SPAWN_LEVEL_INTERVAL;
+    let is_boss_level =
+        level >= BOSS_SPAWN_LEVEL_INTERVAL && level.is_multiple_of(BOSS_SPAWN_LEVEL_INTERVAL);
+
+    if is_boss_level {
+        // Boss level: only spawn the boss, no other attackers
+        queue.tasks.push(SpawnTask::Boss);
+        kill_stats.total_attackers_spawned = 1;
+    } else {
+        // Normal level: spawn infantry, archers, and possibly behemoth
+
+        // 7. Attacker Infantry
+        let total_attackers = calculate_total_infantry(level);
+        for i in 0..total_attackers {
+            queue.tasks.push(SpawnTask::AttackerInfantry {
+                unit_index: i,
+                level,
+            });
+        }
+
+        // 8. Attacker Archers
+        let total_attacker_archers = calculate_total_archers(level);
+        for i in 0..total_attacker_archers {
+            queue.tasks.push(SpawnTask::AttackerArcher {
+                unit_index: i,
+                level,
+            });
+        }
+
+        // 9. Behemoth (if level qualifies)
+        const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3;
+        let has_behemoth = level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL
+            && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL);
+        if has_behemoth {
+            queue.tasks.push(SpawnTask::Behemoth);
+        }
+
+        // Record total attackers spawned for achievement tracking
+        kill_stats.total_attackers_spawned =
+            total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
     }
 
-    // 8. Defender Archers
+    // 8. Defender Archers (always spawn regardless of boss level)
     for i in 0..INITIAL_ARCHER_DEFENDER_COUNT {
         queue
             .tasks
             .push(SpawnTask::DefenderArcher { unit_index: i });
     }
-
-    // 9. Attacker Archers
-    let total_attacker_archers = calculate_total_archers(level);
-    for i in 0..total_attacker_archers {
-        queue.tasks.push(SpawnTask::AttackerArcher {
-            unit_index: i,
-            level,
-        });
-    }
-
-    // 10. Behemoth (if level qualifies)
-    const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3;
-    let has_behemoth = level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL
-        && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL);
-    if has_behemoth {
-        queue.tasks.push(SpawnTask::Behemoth);
-    }
-
-    // Record total attackers spawned for achievement tracking
-    kill_stats.total_attackers_spawned =
-        total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
 
     // Track initial defender count for spell shield threshold (multiplayer)
     commands.insert_resource(InitialDefenderCount(
@@ -131,7 +144,10 @@ pub fn process_spawn_queue(
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
-    behemoth_assets: Res<crate::game::units::behemoth::resources::BehemothAssets>,
+    attacker_assets: (
+        Res<crate::game::units::behemoth::resources::BehemothAssets>,
+        Res<crate::game::units::boss::resources::BossAssets>,
+    ),
     current_level: Res<CurrentLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -204,8 +220,14 @@ pub fn process_spawn_queue(
             SpawnTask::Behemoth => {
                 crate::game::units::behemoth::systems::spawn_initial_behemoths(
                     commands.reborrow(),
-                    Res::clone(&behemoth_assets),
+                    Res::clone(&attacker_assets.0),
                     Res::clone(&current_level),
+                );
+            }
+            SpawnTask::Boss => {
+                crate::game::units::boss::systems::spawn_boss(
+                    commands.reborrow(),
+                    Res::clone(&attacker_assets.1),
                 );
             }
             SpawnTask::Battlefield => {
@@ -231,7 +253,7 @@ pub fn process_spawn_queue(
                         meshes,
                         materials,
                         Res::clone(&config),
-                        Res::clone(&assets),
+                        Res::clone(assets),
                     );
                 }
             }
@@ -247,7 +269,7 @@ pub fn process_spawn_queue(
                         commands.reborrow(),
                         meshes,
                         materials,
-                        Res::clone(&assets),
+                        Res::clone(assets),
                         queries.p0(),
                     );
                 }

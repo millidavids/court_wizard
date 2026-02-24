@@ -26,19 +26,17 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
     SPELL_NAME_FONT_SIZE * (1.0 - t * (1.0 - min_scale))
 }
 
-/// Spawns the action bar UI at the top-center of the screen.
+/// Spawns the action bar UI at the bottom-left of the screen.
 pub(super) fn spawn_action_bar(
     mut commands: Commands,
     config: Res<GameConfig>,
 ) {
-    // Full-width absolute wrapper to center the action bar horizontally
     commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                top: Val::Px(ACTION_BAR_TOP_MARGIN),
-                width: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
+                bottom: Val::Px(ACTION_BAR_BOTTOM_MARGIN),
+                left: Val::Px(ACTION_BAR_LEFT_MARGIN),
                 ..default()
             },
             ActionBarRoot,

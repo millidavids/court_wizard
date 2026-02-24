@@ -54,6 +54,15 @@ impl Plugin for InGamePlugin {
                 Update,
                 (systems::update_mana_bar, systems::update_cast_bar)
                     .run_if(is_local_wizard_active),
+            )
+            // Boss health bar: spawn when boss appears, update each frame
+            .add_systems(
+                Update,
+                (
+                    systems::spawn_boss_health_bar,
+                    systems::update_boss_health_bar,
+                )
+                    .run_if(is_gameplay_running),
             );
     }
 }

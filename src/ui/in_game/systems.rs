@@ -10,6 +10,8 @@ use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
+use crate::game::units::boss::components::Boss;
+use crate::game::units::components::{Corpse, Health};
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell,
 };
@@ -446,6 +448,114 @@ pub(super) fn update_past_victory_display(
             **text = format!("Best: {:.1}%", past_efficiency * 100.0);
         } else {
             **text = String::new();
+        }
+    }
+}
+
+/// Spawns the boss health bar when a boss appears and no bar exists yet.
+pub(super) fn spawn_boss_health_bar(
+    mut commands: Commands,
+    boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
+    bar_query: Query<Entity, With<BossHealthBarRoot>>,
+) {
+    let boss_exists = boss_query.iter().next().is_some();
+    let bar_exists = bar_query.iter().next().is_some();
+
+    if boss_exists && !bar_exists {
+        // Top-center absolute container
+        commands
+            .spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(BOSS_HEALTH_BAR_TOP_MARGIN),
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    row_gap: Val::Px(4.0),
+                    ..default()
+                },
+                BossHealthBarRoot,
+                OnGameplayScreen,
+            ))
+            .with_children(|parent| {
+                // Boss name
+                parent.spawn((
+                    Text::new("Boss"),
+                    TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
+                    TextColor(Color::WHITE),
+                ));
+
+                // Health bar background
+                parent
+                    .spawn((
+                        Node {
+                            width: BOSS_HEALTH_BAR_WIDTH,
+                            height: BOSS_HEALTH_BAR_HEIGHT,
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
+                        BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
+                        BorderRadius::all(Val::Px(3.0)),
+                    ))
+                    .with_children(|bar| {
+                        // Health bar fill
+                        bar.spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            BackgroundColor(BOSS_HEALTH_BAR_FILL_COLOR),
+                            BorderRadius::all(Val::Px(2.0)),
+                            BossHealthBarFill,
+                        ));
+
+                        // Health percentage text — absolute overlay centered on full bar
+                        bar.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|overlay| {
+                            overlay.spawn((
+                                Text::new("100%"),
+                                TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                                TextColor(Color::WHITE),
+                                BossHealthBarText,
+                            ));
+                        });
+                    });
+            });
+    }
+}
+
+/// Updates the boss health bar fill and text. Despawns the bar when the boss dies.
+pub(super) fn update_boss_health_bar(
+    mut commands: Commands,
+    boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
+    bar_query: Query<Entity, With<BossHealthBarRoot>>,
+    mut fill_query: Query<&mut Node, With<BossHealthBarFill>>,
+    mut text_query: Query<&mut Text, With<BossHealthBarText>>,
+) {
+    if let Some(health) = boss_query.iter().next() {
+        // Update fill width and text
+        let hp_percent = (health.current / health.max * 100.0).clamp(0.0, 100.0);
+        if let Ok(mut node) = fill_query.single_mut() {
+            node.width = Val::Percent(hp_percent);
+        }
+        if let Ok(mut text) = text_query.single_mut() {
+            **text = format!("{:.0}%", hp_percent);
+        }
+    } else {
+        // Boss is dead or doesn't exist — remove the bar
+        for entity in &bar_query {
+            commands.entity(entity).despawn();
         }
     }
 }

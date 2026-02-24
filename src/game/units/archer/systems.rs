@@ -162,6 +162,7 @@ pub fn archer_ranged_combat(
             &Team,
             &Hitbox,
             Option<&crate::game::units::components::InMelee>,
+            Has<crate::game::units::boss::components::Boss>,
         ),
         Without<Corpse>,
     >,
@@ -199,7 +200,7 @@ pub fn archer_ranged_combat(
         // Exclude targets in melee with someone on the archer's own team
         let nearest_enemy = targets
             .iter()
-            .filter(|(entity, _, team, _, in_melee)| {
+            .filter(|(entity, _, team, _, in_melee, is_boss)| {
                 // Skip self
                 if *entity == archer_entity {
                     return false;
@@ -209,14 +210,16 @@ pub fn archer_ranged_combat(
                     return false;
                 }
                 // Skip if target is in melee with archer's own team
-                if let Some(in_melee_component) = in_melee
+                // (but always allow targeting the boss even when in melee)
+                if !is_boss
+                    && let Some(in_melee_component) = in_melee
                     && in_melee_component.0 == *archer_team
                 {
                     return false;
                 }
                 true
             })
-            .filter(|(_, transform, _, _, _)| {
+            .filter(|(_, transform, _, _, _, _)| {
                 let distance = archer_transform.translation.distance(transform.translation);
                 distance <= attack_range.max_range && distance >= attack_range.min_range
             })
@@ -226,7 +229,7 @@ pub fn archer_ranged_combat(
                 dist_a.partial_cmp(&dist_b).unwrap()
             });
 
-        if let Some((_, target_transform, _, _, _)) = nearest_enemy {
+        if let Some((_, target_transform, _, _, _, _)) = nearest_enemy {
             // Spawn arrow projectile directly above the archer
             spawn_arrow(
                 &mut commands,

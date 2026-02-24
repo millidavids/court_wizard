@@ -106,19 +106,27 @@ impl DisintegrateBeam {
     ///
     /// True if the point is within the beam's width and length.
     pub fn contains_point(&self, point: Vec3) -> bool {
+        self.contains_point_with_radius(point, 0.0)
+    }
+
+    /// Checks if a unit with the given hitbox radius is hit by the beam.
+    ///
+    /// The beam hits if the distance from the beam centerline to the unit center
+    /// is less than beam_width + unit_radius.
+    pub fn contains_point_with_radius(&self, point: Vec3, unit_radius: f32) -> bool {
         let to_point = point - self.origin;
         let projection_length = to_point.dot(self.direction);
 
-        // Check if point is within current animated beam length
+        // Check if point is within current animated beam length (accounting for unit radius)
         let current_len = self.current_length();
-        if projection_length < 0.0 || projection_length > current_len {
+        if projection_length < -unit_radius || projection_length > current_len + unit_radius {
             return false;
         }
 
         // Check distance from beam centerline
-        let closest_point_on_beam = self.origin + self.direction * projection_length;
+        let closest_point_on_beam = self.origin + self.direction * projection_length.clamp(0.0, current_len);
         let distance_from_beam = point.distance(closest_point_on_beam);
 
-        distance_from_beam <= self.beam_width()
+        distance_from_beam <= self.beam_width() + unit_radius
     }
 }

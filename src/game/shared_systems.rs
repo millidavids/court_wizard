@@ -16,6 +16,7 @@ use super::units::components::{
     MovementSpeed, ResidualFireDamaged, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
+use super::units::boss::components::Boss;
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 
@@ -120,6 +121,7 @@ pub fn apply_separation(
             &Hitbox,
             &Team,
             Option<&super::units::components::FlockingModifier>,
+            Has<super::units::boss::components::Boss>,
         ),
         Without<Corpse>,
     >,
@@ -129,7 +131,7 @@ pub fn apply_separation(
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
         .iter()
-        .map(|(entity, transform, velocity, _, hitbox, _, _)| {
+        .map(|(entity, transform, velocity, _, hitbox, _, _, _)| {
             (
                 entity,
                 transform.translation,
@@ -144,10 +146,17 @@ pub fn apply_separation(
     for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
-            .map(|(entity, transform, _, _, hitbox, _, _)| (entity, transform.translation, *hitbox))
+            .map(|(entity, transform, _, _, hitbox, _, _, _)| {
+                (entity, transform.translation, *hitbox)
+            })
             .collect();
 
-        for (entity, mut transform, _, _, hitbox, _, _) in units.iter_mut() {
+        for (entity, mut transform, _, _, hitbox, _, _, is_boss) in units.iter_mut() {
+            // Boss is immovable — other units get pushed away from it, not the other way around
+            if is_boss {
+                continue;
+            }
+
             let mut total_correction = Vec3::ZERO;
             let mut overlap_count = 0;
 
@@ -188,7 +197,7 @@ pub fn apply_separation(
     }
 
     // Second pass: calculate flocking velocity (separation, alignment, cohesion)
-    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod) in
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _) in
         units.iter_mut()
     {
         // Defenders have alignment/cohesion disabled when not activated
@@ -352,7 +361,7 @@ pub fn combat(
             Option<&super::units::components::BattleHymnModifier>,
             Option<&super::units::components::BerserkerRageModifier>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Boss>),
     >,
     mut health_query: Query<(
         &mut Health,

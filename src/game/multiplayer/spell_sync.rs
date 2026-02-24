@@ -209,6 +209,7 @@ pub fn collect_spell_effect_snapshots(
 
 /// Collects ephemeral spell projectiles and arcs into the snapshot data.
 #[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn collect_spell_projectile_snapshots(
     mut spell_data: ResMut<SpellSnapshotData>,
     fireballs: Query<&Transform, With<Fireball>>,
@@ -441,10 +442,10 @@ pub fn apply_remote_spell_snapshot(
         seen_effect_ids.insert(effect.net_id);
 
         if let Some(&local_entity) = effect_map.remote_to_local.get(&effect.net_id) {
-            if effect.kind == SpellEffectKind::GreaseFire as u8 {
-                if let Ok(mut transform) = effect_transforms.get_mut(local_entity) {
-                    transform.scale = Vec3::splat(effect.extra[0].max(0.01));
-                }
+            if effect.kind == SpellEffectKind::GreaseFire as u8
+                && let Ok(mut transform) = effect_transforms.get_mut(local_entity)
+            {
+                transform.scale = Vec3::splat(effect.extra[0].max(0.01));
             }
             continue;
         }

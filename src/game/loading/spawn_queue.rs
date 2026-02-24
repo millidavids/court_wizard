@@ -29,6 +29,7 @@ pub enum SpawnTask {
         guard_index: u32,
     },
     Behemoth,
+    Boss,
     Battlefield,
     #[allow(dead_code)]
     Castle,

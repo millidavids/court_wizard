@@ -4,6 +4,7 @@ use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
 use super::archer::ArcherPlugin;
 use super::behemoth::BehemothPlugin;
+use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, GreaseSlipModifier,
@@ -39,6 +40,7 @@ impl Plugin for UnitsPlugin {
             InfantryPlugin,
             ArcherPlugin,
             BehemothPlugin,
+            BossPlugin,
             KingPlugin,
         ))
         .configure_sets(

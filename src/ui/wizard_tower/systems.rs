@@ -51,7 +51,7 @@ const CHAINS: &[SpellChain] = &[
     SpellChain {
         label: "",
         color: NATURE_COLOR,
-        spells: &[Spell::Entangle, Spell::HealingPlume],
+        spells: &[Spell::HealingPlume],
     },
     SpellChain {
         label: "Electric",
@@ -66,7 +66,7 @@ const CHAINS: &[SpellChain] = &[
     SpellChain {
         label: "",
         color: NECROTIC_COLOR,
-        spells: &[Spell::FingerOfDeath, Spell::MarkOfDeath, Spell::PlagueWind],
+        spells: &[Spell::MarkOfDeath, Spell::PlagueWind],
     },
     SpellChain {
         label: "Force",
@@ -76,7 +76,7 @@ const CHAINS: &[SpellChain] = &[
     SpellChain {
         label: "",
         color: FORCE_COLOR,
-        spells: &[Spell::GuardianCircle, Spell::BerserkerRage],
+        spells: &[Spell::BerserkerRage],
     },
     SpellChain {
         label: "Earth",
@@ -192,6 +192,14 @@ pub(super) fn setup_wizard_tower_main(mut commands: Commands, current_level: Res
             ));
 
             // Level display
+            #[cfg(debug_assertions)]
+            parent.spawn((
+                Text::new(format!("Level {}", current_level.0)),
+                TextFont::from_font_size(LEVEL_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                LevelDisplay,
+            ));
+            #[cfg(not(debug_assertions))]
             parent.spawn((
                 Text::new(format!("Level {}", current_level.0)),
                 TextFont::from_font_size(LEVEL_FONT_SIZE),
@@ -236,6 +244,33 @@ pub(super) fn setup_wizard_tower_main(mut commands: Commands, current_level: Res
                         WizardTowerButtonAction::ReturnToMenu,
                         &BUTTON_STYLE,
                     );
+
+                    // Debug level controls
+                    #[cfg(debug_assertions)]
+                    {
+                        buttons
+                            .spawn(Node {
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(10.0),
+                                margin: UiRect::top(Val::Px(10.0)),
+                                ..default()
+                            })
+                            .with_children(|row| {
+                                spawn_button(
+                                    row,
+                                    "Level -1",
+                                    WizardTowerButtonAction::DebugLevelDown,
+                                    &DEBUG_BUTTON_STYLE,
+                                );
+                                spawn_button(
+                                    row,
+                                    "Level +1",
+                                    WizardTowerButtonAction::DebugLevelUp,
+                                    &DEBUG_BUTTON_STYLE,
+                                );
+                            });
+                    }
                 });
         });
 }
@@ -251,6 +286,7 @@ pub(super) fn cleanup_main_screen(
 }
 
 /// Handles button actions on the hub screen.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_main_button_actions(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&WizardTowerButtonAction>,
@@ -258,6 +294,9 @@ pub(super) fn handle_main_button_actions(
     mut next_wt_state: ResMut<NextState<MetaGameState>>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
+    #[cfg(debug_assertions)] mut current_level: ResMut<CurrentLevel>,
+    #[cfg(debug_assertions)] mut config: ResMut<crate::config::GameConfig>,
+    #[cfg(debug_assertions)] mut level_texts: Query<&mut Text, With<LevelDisplay>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -273,6 +312,24 @@ pub(super) fn handle_main_button_actions(
                     kill_stats.reset();
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
+                }
+                #[cfg(debug_assertions)]
+                WizardTowerButtonAction::DebugLevelUp => {
+                    current_level.0 += 1;
+                    config.current_level = current_level.0;
+                    for mut text in &mut level_texts {
+                        text.0 = format!("Level {}", current_level.0);
+                    }
+                }
+                #[cfg(debug_assertions)]
+                WizardTowerButtonAction::DebugLevelDown => {
+                    if current_level.0 > 1 {
+                        current_level.0 -= 1;
+                        config.current_level = current_level.0;
+                        for mut text in &mut level_texts {
+                            text.0 = format!("Level {}", current_level.0);
+                        }
+                    }
                 }
             }
         }

@@ -125,18 +125,18 @@ impl Plugin for MultiplayerGamePlugin {
         app.add_systems(
             Update,
             crdt_sync::attach_crdt_health
-                .run_if(mp_running.clone()),
+                .run_if(mp_running),
         );
         app.add_systems(
             Update,
             crdt_sync::sync_health_to_crdt
                 .after(PostCombatSet)
-                .run_if(mp_running.clone()),
+                .run_if(mp_running),
         );
         app.add_systems(
             Update,
             crdt_sync::receive_wall_placement
-                .run_if(mp_running.clone()),
+                .run_if(mp_running),
         );
 
         // ── Host: MP King Death Check ────────────────────────────────
@@ -175,7 +175,7 @@ impl Plugin for MultiplayerGamePlugin {
             )
                 .chain()
                 .after(PostCombatSet)
-                .run_if(mp_running.clone()),
+                .run_if(mp_running),
         );
 
         app.add_systems(
@@ -185,7 +185,7 @@ impl Plugin for MultiplayerGamePlugin {
                 spell_sync::apply_remote_spell_snapshot,
             )
                 .chain()
-                .run_if(mp_running.clone()),
+                .run_if(mp_running),
         );
 
         // ── Guest: Unit Snapshot Rendering + CRDT Send ─────────────────
@@ -196,7 +196,7 @@ impl Plugin for MultiplayerGamePlugin {
                 guest_systems::send_crdt_snapshot,
             )
                 .chain()
-                .run_if(mp_running.clone().and(is_multiplayer_guest)),
+                .run_if(mp_running.and(is_multiplayer_guest)),
         );
 
         // ── Host: Receive Guest CRDT Updates ──────────────────────────
@@ -208,14 +208,14 @@ impl Plugin for MultiplayerGamePlugin {
             host_systems::receive_crdt_snapshot
                 .after(PostCombatSet)
                 .before(crdt_sync::sync_health_to_crdt)
-                .run_if(mp_running.clone().and(is_multiplayer_host)),
+                .run_if(mp_running.and(is_multiplayer_host)),
         );
 
         // ── Host: Receive Guest Teleport Messages ────────────────────
         app.add_systems(
             Update,
             host_systems::receive_teleport_message
-                .run_if(mp_running.clone().and(is_multiplayer_host)),
+                .run_if(mp_running.and(is_multiplayer_host)),
         );
 
         // ── Guest: Game Over Message ──────────────────────────────────
