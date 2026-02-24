@@ -1,7 +1,5 @@
 //! Arcane Crystal spell constants.
 
-use bevy::prelude::*;
-
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 /// PrimedSpell constant for Arcane Crystal.
@@ -69,9 +67,6 @@ pub const MINI_METEOR_SPAWN_HEIGHT: f32 = 200.0;
 
 /// Y position of the range indicator circle.
 pub const RANGE_INDICATOR_Y: f32 = 1.0;
-
-/// Color of mini lightning arcs.
-pub const MINI_LIGHTNING_COLOR: Color = Color::srgba(0.6, 0.4, 1.0, 0.9);
 
 /// Rotation speed of the crystal (radians/sec).
 pub const ROTATION_SPEED: f32 = 0.5;

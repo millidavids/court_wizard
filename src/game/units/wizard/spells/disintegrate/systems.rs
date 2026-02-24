@@ -8,6 +8,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Action the shared logic requests the wrapper to perform on beams.
@@ -293,10 +294,11 @@ pub fn apply_disintegrate_damage(
 /// System that despawns beams when wizard is not actively casting/channeling disintegrate.
 ///
 /// Checks CastingState directly to avoid deferred command timing issues.
+/// Excludes crystal-spawned beams (those with CrystalSpawn) — they're managed by the crystal.
 pub fn cleanup_beams_on_cancel(
     mut commands: Commands,
     wizard_query: Query<&CastingState, With<LocalWizard>>,
-    beam_query: Query<Entity, With<DisintegrateBeam>>,
+    beam_query: Query<Entity, (With<DisintegrateBeam>, Without<CrystalSpawn>)>,
 ) {
     if let Ok(casting_state) = wizard_query.single() {
         if matches!(casting_state, CastingState::Resting) {
@@ -308,14 +310,14 @@ pub fn cleanup_beams_on_cancel(
 }
 
 /// Spawns a beam entity with a cylinder mesh visible from all angles.
-fn spawn_beam(
+pub(crate) fn spawn_beam(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     origin: Vec3,
     direction: Vec3,
     length: f32,
     empowerment: f32,
-) {
+) -> Entity {
     let midpoint = origin + direction * (length / 2.0);
 
     commands.spawn((
@@ -324,7 +326,32 @@ fn spawn_beam(
         MeshMaterial3d(assets.disintegrate_beam.clone()),
         Transform::from_translation(midpoint),
         OnGameplayScreen,
-    ));
+    )).id()
+}
+
+/// Spawns a beam entity with custom damage per tick (for crystal use).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_beam_with_damage(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    origin: Vec3,
+    direction: Vec3,
+    length: f32,
+    empowerment: f32,
+    damage_per_tick: f32,
+) -> Entity {
+    let midpoint = origin + direction * (length / 2.0);
+
+    let mut beam = DisintegrateBeam::new(origin, direction, length, empowerment);
+    beam.damage_per_tick_override = Some(damage_per_tick);
+
+    commands.spawn((
+        beam,
+        Mesh3d(assets.unit_cylinder.clone()),
+        MeshMaterial3d(assets.disintegrate_beam.clone()),
+        Transform::from_translation(midpoint),
+        OnGameplayScreen,
+    )).id()
 }
 
 /// System that updates beam cylinder transform to match beam data.

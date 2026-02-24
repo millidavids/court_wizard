@@ -237,9 +237,42 @@ pub(crate) fn spawn_magic_missile(
     let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
     // Spawn magic missile as a small pink circle
+    spawn_magic_missile_entity(
+        commands,
+        assets.magic_missile_mesh.clone(),
+        assets.magic_missile.clone(),
+        spawn_pos,
+        initial_velocity,
+        wobble_offset,
+        target,
+        empowerment,
+        target_teams,
+        spell_range,
+        spawn_pos,
+    );
+}
+
+/// Spawns a raw magic missile entity with explicit parameters.
+///
+/// Used by both wizard casting (via `spawn_magic_missile`) and crystal absorption.
+/// Takes mesh/material as params since crystal uses different visuals.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_magic_missile_entity(
+    commands: &mut Commands,
+    mesh: Handle<Mesh>,
+    material: Handle<StandardMaterial>,
+    spawn_pos: Vec3,
+    initial_velocity: Vec3,
+    wobble_offset: f32,
+    target: Option<Entity>,
+    empowerment: f32,
+    target_teams: TargetTeams,
+    spell_range: f32,
+    origin_pos: Vec3,
+) -> Entity {
     commands.spawn((
-        Mesh3d(assets.magic_missile_mesh.clone()),
-        MeshMaterial3d(assets.magic_missile.clone()),
+        Mesh3d(mesh),
+        MeshMaterial3d(material),
         Transform::from_translation(spawn_pos),
         MagicMissile::new(
             initial_velocity,
@@ -248,10 +281,10 @@ pub(crate) fn spawn_magic_missile(
             empowerment,
             target_teams,
             spell_range,
-            spawn_pos,
+            origin_pos,
         ),
         OnGameplayScreen,
-    ));
+    )).id()
 }
 
 /// Updates magic missile movement with homing and wobble.

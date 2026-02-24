@@ -33,6 +33,8 @@ pub fn handle_chain_lightning_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
+    crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
 ) {
     let released = mouse_left_released.read().next().is_some();
@@ -60,6 +62,8 @@ pub fn handle_chain_lightning_casting(
         &mut commands,
         &visual_assets,
         &enemies_query,
+        &rods_query,
+        &crystals_query,
         &mut health_query,
     );
 
@@ -81,6 +85,8 @@ fn chain_lightning_casting_logic(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    rods_query: &Query<(Entity, &Transform, &mut LightningRod)>,
+    crystals_query: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
 ) -> bool {
     let mut completed = false;
@@ -102,9 +108,9 @@ fn chain_lightning_casting_logic(
                 if mana.consume(constants::MANA_COST)
                     && let Some(cursor_pos) = input.cursor_pos
                 {
-                    // Find enemy near cursor
+                    // Find enemy, rod, or crystal near cursor
                     if let Some((target_entity, target_pos)) =
-                        find_target_near_position(cursor_pos, enemies_query)
+                        find_target_near_position(cursor_pos, enemies_query, rods_query, crystals_query)
                     {
                         let wizard_pos =
                             wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
@@ -200,32 +206,46 @@ fn get_cursor_world_position(
     }
 }
 
-/// Finds the closest enemy near the given position within TARGETING_RADIUS.
+/// Finds the closest enemy, lightning rod, or arcane crystal near the given position
+/// within TARGETING_RADIUS.
 /// Note: position should be at Y=0 (battlefield plane). Uses XZ distance for targeting.
-/// Targets all living units (defenders, attackers, and undead) but excludes corpses.
+/// Targets all living units (defenders, attackers, and undead), lightning rods, and
+/// arcane crystals, but excludes corpses.
 fn find_target_near_position(
     position: Vec3,
     enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    rods: &Query<(Entity, &Transform, &mut LightningRod)>,
+    crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
 ) -> Option<(Entity, Vec3)> {
     // Use XZ distance only (ignore Y difference) for targeting
     let target_pos_2d = Vec3::new(position.x, 0.0, position.z);
 
-    enemies
+    let unit_candidates = enemies
         .iter()
-        // No team filter - spell damages ALL units indiscriminately
-        .filter(|(_, transform, _)| {
-            let unit_pos_2d = Vec3::new(transform.translation.x, 0.0, transform.translation.z);
-            let distance = target_pos_2d.distance(unit_pos_2d);
-            distance <= constants::TARGETING_RADIUS
+        .map(|(entity, transform, _)| (entity, transform.translation));
+
+    let rod_candidates = rods
+        .iter()
+        .map(|(entity, transform, _)| (entity, transform.translation));
+
+    let crystal_candidates = crystals
+        .iter()
+        .map(|(entity, transform)| (entity, transform.translation));
+
+    unit_candidates
+        .chain(rod_candidates)
+        .chain(crystal_candidates)
+        .filter(|(_, pos)| {
+            let pos_2d = Vec3::new(pos.x, 0.0, pos.z);
+            target_pos_2d.distance(pos_2d) <= constants::TARGETING_RADIUS
         })
         .min_by(|a, b| {
-            let a_pos_2d = Vec3::new(a.1.translation.x, 0.0, a.1.translation.z);
-            let b_pos_2d = Vec3::new(b.1.translation.x, 0.0, b.1.translation.z);
+            let a_pos_2d = Vec3::new(a.1.x, 0.0, a.1.z);
+            let b_pos_2d = Vec3::new(b.1.x, 0.0, b.1.z);
             let dist_a = target_pos_2d.distance(a_pos_2d);
             let dist_b = target_pos_2d.distance(b_pos_2d);
             dist_a.partial_cmp(&dist_b).unwrap()
         })
-        .map(|(entity, transform, _)| (entity, transform.translation))
 }
 
 /// Spawns a lightning arc visual between two points as a parabolic curve.

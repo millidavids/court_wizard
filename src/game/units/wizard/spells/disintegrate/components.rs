@@ -23,6 +23,8 @@ pub struct DisintegrateBeam {
     pub time_alive: f32,
     /// Whether this beam is empowered.
     pub empowerment: f32,
+    /// Optional damage override (used by crystal beams with custom damage).
+    pub damage_per_tick_override: Option<f32>,
 }
 
 impl DisintegrateBeam {
@@ -33,7 +35,7 @@ impl DisintegrateBeam {
     /// * `origin` - Starting position of the beam
     /// * `direction` - Direction the beam points (will be normalized)
     /// * `length` - Length of the beam
-    /// * `empowered` - Whether this beam is empowered (25% bonus)
+    /// * `empowerment` - Empowerment multiplier
     pub fn new(origin: Vec3, direction: Vec3, length: f32, empowerment: f32) -> Self {
         Self {
             origin,
@@ -43,13 +45,17 @@ impl DisintegrateBeam {
             time_since_damage: 0.0,
             time_alive: 0.0,
             empowerment,
+            damage_per_tick_override: None,
         }
     }
 
-    /// Gets the damage per tick, scaled by empowerment.
+    /// Gets the damage per tick, using override if set, otherwise scaled by empowerment.
     pub fn damage_per_tick(&self) -> f32 {
-        let scale = self.empowerment;
-        constants::DAMAGE_PER_TICK * scale
+        if let Some(override_damage) = self.damage_per_tick_override {
+            override_damage * self.empowerment
+        } else {
+            constants::DAMAGE_PER_TICK * self.empowerment
+        }
     }
 
     /// Gets the beam width, scaled by empowerment.

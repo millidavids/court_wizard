@@ -8,6 +8,7 @@ use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::units::DamageType;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -149,7 +150,7 @@ fn get_cursor_world_position(
     }
 }
 
-/// Spawns a fireball projectile.
+/// Spawns a fireball projectile from a PrimedSpell (wizard casting).
 pub(crate) fn spawn_fireball(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -161,22 +162,50 @@ pub(crate) fn spawn_fireball(
     let speed = primed_spell.scale(constants::PROJECTILE_SPEED);
     let velocity = direction * speed;
 
-    let radius = primed_spell.scale(FIREBALL_RADIUS);
+    spawn_fireball_entity(
+        commands,
+        assets,
+        origin,
+        velocity,
+        primed_spell.scale(constants::DAMAGE_PER_TICK),
+        constants::DAMAGE_TYPE,
+        primed_spell.scale(constants::EXPLOSION_RADIUS),
+        primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS),
+        primed_spell.empowerment,
+        primed_spell.scale(FIREBALL_RADIUS),
+    );
+}
 
+/// Spawns a raw fireball entity with explicit parameters.
+///
+/// Used by both wizard casting (via `spawn_fireball`) and crystal absorption.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_fireball_entity(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    origin: Vec3,
+    velocity: Vec3,
+    damage: f32,
+    damage_type: DamageType,
+    explosion_radius: f32,
+    collision_radius: f32,
+    empowerment: f32,
+    visual_radius: f32,
+) -> Entity {
     commands.spawn((
         Mesh3d(assets.unit_sphere.clone()),
         MeshMaterial3d(assets.fireball_projectile.clone()),
-        Transform::from_translation(origin).with_scale(Vec3::splat(radius)),
+        Transform::from_translation(origin).with_scale(Vec3::splat(visual_radius)),
         Fireball::new(
             velocity,
-            primed_spell.scale(constants::DAMAGE_PER_TICK),
-            constants::DAMAGE_TYPE,
-            primed_spell.scale(constants::EXPLOSION_RADIUS),
-            primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS),
-            primed_spell.empowerment,
+            damage,
+            damage_type,
+            explosion_radius,
+            collision_radius,
+            empowerment,
         ),
         OnGameplayScreen,
-    ));
+    )).id()
 }
 
 /// Updates fireball projectile positions based on velocity.

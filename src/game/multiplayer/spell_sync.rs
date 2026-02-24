@@ -15,9 +15,7 @@ use crate::game::multiplayer::components::{
     NetworkedSpellEffect, OnMultiplayerGameScreen, SpellEffectEntityMap,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::arcane_crystal::components::{
-    ArcaneCrystal, CrystalBeam, CrystalLightningArc,
-};
+use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::components::ChainLightningArc;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
@@ -219,8 +217,6 @@ pub fn collect_spell_projectile_snapshots(
     chain_arcs: Query<&ChainLightningArc>,
     lightning_strikes: Query<(&LightningStrike, &Transform)>,
     lightning_rod_arcs: Query<(&LightningRodArc, &Transform)>,
-    crystal_beams: Query<&CrystalBeam>,
-    crystal_arcs: Query<(&CrystalLightningArc, &Transform)>,
     fod_beams: Query<&FingerOfDeathBeam>,
     disintegrate_beams: Query<&DisintegrateBeam>,
 ) {
@@ -278,36 +274,9 @@ pub fn collect_spell_projectile_snapshots(
         });
     }
 
-    for beam in &crystal_beams {
-        let end = beam.origin + beam.direction * beam.current_length();
-        spell_data.spell_arcs.push(SpellArcSnapshot {
-            kind: 2,
-            ox: beam.origin.x,
-            oy: beam.origin.y,
-            oz: beam.origin.z,
-            tx: end.x,
-            ty: end.y,
-            tz: end.z,
-        });
-    }
-
-    for (_arc, transform) in &crystal_arcs {
-        let pos = transform.translation;
-        let scale = transform.scale;
-        let up = transform.rotation * Vec3::Y;
-        let half_len = scale.y * 0.5;
-        let start = pos - up * half_len;
-        let end = pos + up * half_len;
-        spell_data.spell_arcs.push(SpellArcSnapshot {
-            kind: 3,
-            ox: start.x,
-            oy: start.y,
-            oz: start.z,
-            tx: end.x,
-            ty: end.y,
-            tz: end.z,
-        });
-    }
+    // Crystal beams (kind=2) and crystal arcs (kind=3) are now represented as
+    // DisintegrateBeam and ChainLightningArc entities respectively, captured
+    // by the existing disintegrate_beams and chain_arcs queries above.
 
     for beam in &fod_beams {
         let end = beam.origin + beam.direction * beam.length;

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::{ArcaneCrystal, ArcaneCrystalCircleIndicator, CrystalBeam, CrystalLightningArc, CrystalSpawn};
+use super::components::{ArcaneCrystal, ArcaneCrystalCircleIndicator, CrystalSpawn};
 use super::systems;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::{
@@ -40,10 +40,6 @@ impl Plugin for ArcaneCrystalPlugin {
                 systems::detect_chain_lightning_hits.run_if(any_with_component::<ArcaneCrystal>),
                 // Auto-casting
                 systems::auto_cast_remembered_spell.run_if(any_with_component::<ArcaneCrystal>),
-                // Crystal emissions
-                systems::update_crystal_beams.run_if(any_with_component::<CrystalBeam>),
-                systems::update_crystal_lightning_arcs
-                    .run_if(any_with_component::<CrystalLightningArc>),
                 // Range-limiting
                 systems::despawn_out_of_range_crystal_spawns
                     .run_if(any_with_component::<CrystalSpawn>),

@@ -363,21 +363,41 @@ pub(super) fn spawn_meteor_projectiles(
             let damage = METEOR_DAMAGE * storm.empowerment;
             let explosion_radius = EXPLOSION_RADIUS * storm.empowerment;
 
-            commands.spawn((
-                MeteorProjectile::new(
-                    Vec3::new(0.0, METEOR_INITIAL_VELOCITY, 0.0),
-                    damage,
-                    explosion_radius,
-                    storm.empowerment,
-                ),
-                Mesh3d(visual_assets.unit_sphere.clone()),
-                MeshMaterial3d(visual_assets.meteor_projectile.clone()),
-                Transform::from_translation(spawn_pos)
-                    .with_scale(Vec3::splat(METEOR_MESH_RADIUS)),
-                OnGameplayScreen,
-            ));
+            spawn_meteor_projectile_entity(
+                &mut commands,
+                &visual_assets,
+                spawn_pos,
+                Vec3::new(0.0, METEOR_INITIAL_VELOCITY, 0.0),
+                damage,
+                explosion_radius,
+                storm.empowerment,
+                METEOR_MESH_RADIUS,
+            );
         }
     }
+}
+
+/// Spawns a raw meteor projectile entity with explicit parameters.
+///
+/// Used by both storm spawning and crystal absorption/auto-cast.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_meteor_projectile_entity(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    spawn_pos: Vec3,
+    velocity: Vec3,
+    damage: f32,
+    explosion_radius: f32,
+    empowerment: f32,
+    mesh_radius: f32,
+) -> Entity {
+    commands.spawn((
+        MeteorProjectile::new(velocity, damage, explosion_radius, empowerment),
+        Mesh3d(assets.unit_sphere.clone()),
+        MeshMaterial3d(assets.meteor_projectile.clone()),
+        Transform::from_translation(spawn_pos).with_scale(Vec3::splat(mesh_radius)),
+        OnGameplayScreen,
+    )).id()
 }
 
 /// Updates meteor projectile physics - applies gravity and moves projectiles.

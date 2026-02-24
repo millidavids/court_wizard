@@ -21,11 +21,15 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::constants as cl_constants;
+use crate::game::units::wizard::spells::chain_lightning::systems as chain_lightning_systems;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
+use crate::game::units::wizard::spells::disintegrate::systems as disintegrate_systems;
 use crate::game::units::wizard::spells::finger_of_death::components::FingerOfDeathBeam;
-use crate::game::units::wizard::spells::fireball::components::{Fireball, FireballExplosion};
+use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
+use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
 use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
+use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
@@ -554,36 +558,27 @@ pub(super) fn detect_fireball_hits(
                 let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
 
                 for (_, target_pos) in &enemies {
-                    // Aim at ground level (Y=0) at the target's XZ position
                     let ground_target = Vec3::new(target_pos.x, 0.0, target_pos.z);
                     let direction = (ground_target - crystal.position).normalize();
                     let speed = fireball_constants::PROJECTILE_SPEED * SPEED_SCALE;
                     let velocity = direction * speed;
 
-                    let damage = fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE;
-                    let explosion_radius = fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE;
-                    let collision_radius =
-                        fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE;
-
-                    commands.spawn((
-                        Fireball::new(
-                            velocity,
-                            damage,
-                            fireball_constants::DAMAGE_TYPE,
-                            explosion_radius,
-                            collision_radius,
-                            explosion.empowerment * DAMAGE_SCALE,
-                        ),
-                        CrystalSpawn {
-                            origin: crystal.position,
-                            max_range: crystal.range,
-                        },
-                        Mesh3d(visual_assets.unit_sphere.clone()),
-                        MeshMaterial3d(visual_assets.fireball_projectile.clone()),
-                        Transform::from_translation(crystal.position)
-                            .with_scale(Vec3::splat(mini_radius)),
-                        OnGameplayScreen,
-                    ));
+                    let entity = fireball_systems::spawn_fireball_entity(
+                        &mut commands,
+                        &visual_assets,
+                        crystal.position,
+                        velocity,
+                        fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE,
+                        fireball_constants::DAMAGE_TYPE,
+                        fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE,
+                        fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE,
+                        explosion.empowerment * DAMAGE_SCALE,
+                        mini_radius,
+                    );
+                    commands.entity(entity).insert(CrystalSpawn {
+                        origin: crystal.position,
+                        max_range: crystal.range,
+                    });
                 }
             }
         }
@@ -594,16 +589,17 @@ pub(super) fn detect_fireball_hits(
 
 /// Detects disintegrate and finger of death beams hitting crystals.
 ///
-/// Disintegrate: Maintains 5 persistent beams that update each frame while channeling.
-/// Finger of Death: One-shot burst of 5 beams when the damage beam strikes.
+/// Disintegrate: Maintains persistent beams that update each frame while channeling.
+/// Finger of Death: One-shot burst of beams when the damage beam strikes.
+/// All crystal beams are now real DisintegrateBeam entities with CrystalSpawn marker.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_beam_hits(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
-    disintegrate_beams: Query<&DisintegrateBeam>,
+    disintegrate_beams: Query<&DisintegrateBeam, Without<CrystalSpawn>>,
     fod_beams: Query<(Entity, &FingerOfDeathBeam)>,
-    mut crystal_beams: Query<(Entity, &mut CrystalBeam)>,
+    mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
 ) {
     for mut crystal in &mut crystals {
@@ -640,13 +636,13 @@ pub(super) fn detect_beam_hits(
                     )
                     .length();
                     if dist <= crystal.range {
-                        // Target still valid — update beam direction to track it
-                        if let Ok((_, mut beam)) = crystal_beams.get_mut(*beam_entity) {
-                            beam.retarget(
-                                crystal.position,
-                                target_transform.translation,
-                                crystal.range,
-                            );
+                        // Target still valid — update beam to track it
+                        if let Ok(mut beam) = crystal_beams.get_mut(*beam_entity).map(|(_, beam)| beam) {
+                            let direction = (target_transform.translation - crystal.position).normalize();
+                            let length = crystal.position.distance(target_transform.translation).min(crystal.range);
+                            beam.origin = crystal.position;
+                            beam.direction = direction;
+                            beam.length = length;
                         }
                         used_targets.push(*target_entity);
                         continue;
@@ -684,8 +680,12 @@ pub(super) fn detect_beam_hits(
                     if let Some((new_target, new_pos)) = candidates.get(idx) {
                         let (beam_entity, _) = crystal.active_beams[*beam_idx];
                         crystal.active_beams[*beam_idx] = (beam_entity, *new_target);
-                        if let Ok((_, mut beam)) = crystal_beams.get_mut(beam_entity) {
-                            beam.retarget(crystal.position, *new_pos, crystal.range);
+                        if let Ok(mut beam) = crystal_beams.get_mut(beam_entity).map(|(_, beam)| beam) {
+                            let direction = (*new_pos - crystal.position).normalize();
+                            let length = crystal.position.distance(*new_pos).min(crystal.range);
+                            beam.origin = crystal.position;
+                            beam.direction = direction;
+                            beam.length = length;
                         }
                         used_targets.push(*new_target);
                     } else {
@@ -731,18 +731,21 @@ pub(super) fn detect_beam_hits(
                 candidates.truncate(needed);
 
                 for (target_entity, target_pos) in &candidates {
-                    let beam_entity = spawn_crystal_beam(
+                    let direction = (*target_pos - crystal.position).normalize();
+                    let length = crystal.position.distance(*target_pos).min(crystal.range);
+                    let beam_entity = disintegrate_systems::spawn_beam_with_damage(
                         &mut commands,
                         &visual_assets,
                         crystal.position,
-                        *target_pos,
-                        crystal.range,
-                        disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
-                        disintegrate_constants::DAMAGE_INTERVAL,
-                        disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
+                        direction,
+                        length,
                         crystal.empowerment,
-                        true,
+                        disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
                     );
+                    commands.entity(beam_entity).insert(CrystalSpawn {
+                        origin: crystal.position,
+                        max_range: crystal.range,
+                    });
                     crystal.active_beams.push((beam_entity, *target_entity));
                 }
             }
@@ -754,7 +757,7 @@ pub(super) fn detect_beam_hits(
             }
         }
 
-        // === Finger of Death: one-shot burst of 5 beams ===
+        // === Finger of Death: one-shot burst of beams ===
         for (fod_entity, fod_beam) in &fod_beams {
             if !fod_beam.has_fired || crystal.fod_beams_processed.contains(&fod_entity) {
                 continue;
@@ -772,126 +775,24 @@ pub(super) fn detect_beam_hits(
                     BEAM_COUNT,
                     &targets,
                 );
+                let fod_damage_per_tick = finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE
+                    / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
                 for (_, target_pos) in &enemies {
-                    spawn_crystal_beam(
+                    let direction = (*target_pos - crystal.position).normalize();
+                    let length = crystal.position.distance(*target_pos).min(crystal.range);
+                    let beam_entity = disintegrate_systems::spawn_beam_with_damage(
                         &mut commands,
                         &visual_assets,
                         crystal.position,
-                        *target_pos,
-                        crystal.range,
-                        finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE
-                            / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL),
-                        disintegrate_constants::DAMAGE_INTERVAL,
-                        finger_of_death_constants::BEAM_WIDTH * SIZE_SCALE,
+                        direction,
+                        length,
                         crystal.empowerment,
-                        false,
+                        fod_damage_per_tick,
                     );
-                }
-            }
-        }
-    }
-}
-
-/// Spawns a crystal beam entity toward a target position. Returns the entity ID.
-#[allow(clippy::too_many_arguments)]
-fn spawn_crystal_beam(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    origin: Vec3,
-    target: Vec3,
-    max_range: f32,
-    damage_per_tick: f32,
-    damage_interval: f32,
-    beam_width: f32,
-    empowerment: f32,
-    persistent: bool,
-) -> Entity {
-    let direction = (target - origin).normalize();
-    let distance_to_target = origin.distance(target);
-    let length = distance_to_target.min(max_range);
-
-    let midpoint = origin + direction * (length / 2.0);
-
-    commands
-        .spawn((
-            CrystalBeam {
-                origin,
-                direction,
-                length,
-                damage_per_tick,
-                damage_interval,
-                time_since_damage: 0.0,
-                time_alive: 0.0,
-                beam_duration: BEAM_DURATION,
-                beam_width,
-                empowerment,
-                persistent,
-            },
-            Mesh3d(assets.unit_rect.clone()),
-            MeshMaterial3d(assets.crystal_beam.clone()),
-            Transform::from_translation(midpoint)
-                .with_scale(Vec3::new(beam_width, beam_width, beam_width)),
-            OnGameplayScreen,
-        ))
-        .id()
-}
-
-// ===== Crystal Beam Systems =====
-
-/// Updates crystal beam visuals, damage, and lifetime.
-pub(super) fn update_crystal_beams(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut beams: Query<(Entity, &mut CrystalBeam, &mut Transform)>,
-    mut targets: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-        ),
-        Without<CrystalBeam>,
-    >,
-) {
-    let delta = time.delta_secs();
-
-    for (beam_entity, mut beam, mut transform) in &mut beams {
-        beam.time_alive += delta;
-        beam.time_since_damage += delta;
-
-        // Despawn after duration (persistent beams are managed externally)
-        if !beam.persistent && beam.time_alive >= beam.beam_duration {
-            commands.entity(beam_entity).despawn();
-            continue;
-        }
-
-        // Update visual
-        let current_len = beam.current_length();
-        let midpoint = beam.origin + beam.direction * (current_len / 2.0);
-        transform.translation = midpoint;
-
-        let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
-        transform.rotation = rotation;
-
-        let scale_y = current_len / beam.beam_width;
-        transform.scale = Vec3::new(beam.beam_width, scale_y * beam.beam_width, beam.beam_width);
-
-        // Apply damage
-        if beam.time_since_damage >= beam.damage_interval {
-            beam.time_since_damage = 0.0;
-
-            for (entity, target_transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
-                if beam.contains_point(target_transform.translation) {
-                    apply_spell_damage(
-                        &mut commands,
-                        entity,
-                        &mut health,
-                        temp_hp.as_deref_mut(),
-                        beam.damage_per_tick * beam.empowerment,
-                        DamageType::Force,
-                        has_spell_shield,
-                    );
+                    commands.entity(beam_entity).insert(CrystalSpawn {
+                        origin: crystal.position,
+                        max_range: crystal.range,
+                    });
                 }
             }
         }
@@ -936,29 +837,24 @@ pub(super) fn detect_meteor_hits(
                     find_random_targets_in_range(crystal.position, crystal.range, 2, &targets);
 
                 for (_, target_pos) in &enemies {
-                    // Launch a mini meteor from above the target
                     let spawn_pos = Vec3::new(target_pos.x, MINI_METEOR_SPAWN_HEIGHT, target_pos.z);
-
                     let damage = meteor.damage * DAMAGE_SCALE;
                     let explosion_radius = meteor.explosion_radius * SIZE_SCALE;
 
-                    commands.spawn((
-                        MeteorProjectile::new(
-                            Vec3::new(0.0, meteor_fall_constants::METEOR_INITIAL_VELOCITY, 0.0),
-                            damage,
-                            explosion_radius,
-                            meteor.empowerment,
-                        ),
-                        CrystalSpawn {
-                            origin: crystal.position,
-                            max_range: crystal.range,
-                        },
-                        Mesh3d(visual_assets.unit_sphere.clone()),
-                        MeshMaterial3d(visual_assets.meteor_projectile.clone()),
-                        Transform::from_translation(spawn_pos)
-                            .with_scale(Vec3::splat(mini_radius)),
-                        OnGameplayScreen,
-                    ));
+                    let entity = meteor_fall_systems::spawn_meteor_projectile_entity(
+                        &mut commands,
+                        &visual_assets,
+                        spawn_pos,
+                        Vec3::new(0.0, meteor_fall_constants::METEOR_INITIAL_VELOCITY, 0.0),
+                        damage,
+                        explosion_radius,
+                        meteor.empowerment,
+                        mini_radius,
+                    );
+                    commands.entity(entity).insert(CrystalSpawn {
+                        origin: crystal.position,
+                        max_range: crystal.range,
+                    });
                 }
 
                 break;
@@ -1007,29 +903,16 @@ pub(super) fn detect_magic_missile_hits(
                     let mut rng = rand::thread_rng();
                     let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
-                    let mut mini_missile = MagicMissile::new(
+                    spawn_crystal_mini_missile(
+                        &mut commands,
+                        &visual_assets,
+                        crystal.position,
+                        crystal.range,
                         initial_velocity,
                         wobble_offset,
                         Some(*target_entity),
-                        DAMAGE_SCALE,
-                        TargetTeams::AttackersAndUndead,
-                        crystal.range,
-                        crystal.position,
+                        mini_radius,
                     );
-                    mini_missile.time_alive = MINI_MISSILE_HOMING_ADVANCE;
-
-                    commands.spawn((
-                        mini_missile,
-                        CrystalSpawn {
-                            origin: crystal.position,
-                            max_range: crystal.range,
-                        },
-                        Mesh3d(visual_assets.unit_circle.clone()),
-                        MeshMaterial3d(visual_assets.crystal_mini_missile.clone()),
-                        Transform::from_translation(crystal.position)
-                            .with_scale(Vec3::splat(mini_radius)),
-                        OnGameplayScreen,
-                    ));
                 }
 
                 break;
@@ -1104,46 +987,20 @@ pub(super) fn detect_chain_lightning_hits(
                     );
                 }
 
-                // Spawn arc visual
-                spawn_crystal_arc(
+                // Spawn arc visual using shared chain lightning helper
+                chain_lightning_systems::spawn_arc(
                     &mut commands,
                     &visual_assets,
                     crystal.position,
                     *target_pos,
+                    0,
+                    crystal.empowerment,
                 );
             }
 
             break; // Only process once per crystal per frame
         }
     }
-}
-
-/// Spawns a visual lightning arc from crystal to target.
-fn spawn_crystal_arc(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    start: Vec3,
-    end: Vec3,
-) {
-    let midpoint = (start + end) / 2.0;
-    let direction = (end - start).normalize();
-    let length = start.distance(end);
-    let arc_width = cl_constants::MIN_ARC_WIDTH;
-
-    let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
-
-    commands.spawn((
-        CrystalLightningArc {
-            lifetime: cl_constants::ARC_LIFETIME,
-            time_alive: 0.0,
-        },
-        Mesh3d(assets.unit_rect.clone()),
-        MeshMaterial3d(assets.crystal_arc.clone()),
-        Transform::from_translation(midpoint)
-            .with_rotation(rotation)
-            .with_scale(Vec3::new(arc_width, length, arc_width)),
-        OnGameplayScreen,
-    ));
 }
 
 // ===== Auto-Cast System =====
@@ -1159,7 +1016,7 @@ pub(super) fn auto_cast_remembered_spell(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
-    crystal_beams: Query<(Entity, &mut CrystalBeam)>,
+    mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
@@ -1205,7 +1062,7 @@ pub(super) fn auto_cast_remembered_spell(
                 auto_beam,
                 &mut commands,
                 &visual_assets,
-                &crystal_beams,
+                &mut crystal_beams,
                 &targets,
                 &mut crystals,
             );
@@ -1296,6 +1153,10 @@ pub(super) fn auto_cast_remembered_spell(
 }
 
 /// Manages a single persistent auto-disintegrate beam.
+///
+/// Instead of despawning/respawning the beam every frame (which resets time_alive
+/// and breaks the growth animation + damage), we update the beam's fields in-place.
+/// A new beam is only spawned when the old target dies/leaves range.
 #[allow(clippy::too_many_arguments)]
 fn handle_auto_disintegrate(
     crystal_idx: usize,
@@ -1305,7 +1166,7 @@ fn handle_auto_disintegrate(
     auto_beam: Option<(Entity, Entity)>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    crystal_beams: &Query<(Entity, &mut CrystalBeam)>,
+    crystal_beams: &mut Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
     crystals: &mut Query<&mut ArcaneCrystal>,
 ) {
@@ -1325,40 +1186,22 @@ fn handle_auto_disintegrate(
             )
             .length();
             if dist <= range {
-                // Target still valid — despawn old beam, respawn aimed at current position
-                commands.entity(beam_entity).try_despawn();
-                let new_beam = spawn_crystal_beam(
-                    commands,
-                    assets,
-                    position,
-                    target_transform.translation,
-                    range,
-                    disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
-                    disintegrate_constants::DAMAGE_INTERVAL,
-                    disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
-                    empowerment,
-                    true,
-                );
-                if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
-                    crystal.auto_disintegrate_beam = Some((new_beam, target_entity));
+                // Target still valid — update beam to track it in-place
+                if let Ok((_, mut beam)) = crystal_beams.get_mut(beam_entity) {
+                    let direction = (target_transform.translation - position).normalize();
+                    let length = position.distance(target_transform.translation).min(range);
+                    beam.origin = position;
+                    beam.direction = direction;
+                    beam.length = length;
                 }
                 return;
             }
-            // Target out of range — find new target
+            // Target out of range — despawn old beam and find new target
             commands.entity(beam_entity).try_despawn();
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
-                let new_beam = spawn_crystal_beam(
-                    commands,
-                    assets,
-                    position,
-                    *new_pos,
-                    range,
-                    disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
-                    disintegrate_constants::DAMAGE_INTERVAL,
-                    disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
-                    empowerment,
-                    true,
+                let new_beam = spawn_crystal_disintegrate_beam(
+                    commands, assets, position, *new_pos, range, empowerment,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
@@ -1368,30 +1211,18 @@ fn handle_auto_disintegrate(
             }
             return;
         } else {
-            // Target dead — find new target
+            // Target dead — despawn old beam and find new target
+            commands.entity(beam_entity).try_despawn();
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
-                commands.entity(beam_entity).try_despawn();
-                let new_beam = spawn_crystal_beam(
-                    commands,
-                    assets,
-                    position,
-                    *new_pos,
-                    range,
-                    disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
-                    disintegrate_constants::DAMAGE_INTERVAL,
-                    disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
-                    empowerment,
-                    true,
+                let new_beam = spawn_crystal_disintegrate_beam(
+                    commands, assets, position, *new_pos, range, empowerment,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
                 }
-            } else {
-                commands.entity(beam_entity).try_despawn();
-                if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
-                    crystal.auto_disintegrate_beam = None;
-                }
+            } else if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
+                crystal.auto_disintegrate_beam = None;
             }
             return;
         }
@@ -1400,22 +1231,40 @@ fn handle_auto_disintegrate(
     // No beam exists — try to spawn one
     let new_targets = find_random_targets_in_range(position, range, 1, targets);
     if let Some((target_entity, target_pos)) = new_targets.first() {
-        let beam_entity = spawn_crystal_beam(
-            commands,
-            assets,
-            position,
-            *target_pos,
-            range,
-            disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
-            disintegrate_constants::DAMAGE_INTERVAL,
-            disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
-            empowerment,
-            true,
+        let beam_entity = spawn_crystal_disintegrate_beam(
+            commands, assets, position, *target_pos, range, empowerment,
         );
         if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
             crystal.auto_disintegrate_beam = Some((beam_entity, *target_entity));
         }
     }
+}
+
+/// Spawns a DisintegrateBeam with crystal damage scaling and CrystalSpawn marker.
+fn spawn_crystal_disintegrate_beam(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    origin: Vec3,
+    target: Vec3,
+    max_range: f32,
+    empowerment: f32,
+) -> Entity {
+    let direction = (target - origin).normalize();
+    let length = origin.distance(target).min(max_range);
+    let beam_entity = disintegrate_systems::spawn_beam_with_damage(
+        commands,
+        assets,
+        origin,
+        direction,
+        length,
+        empowerment,
+        disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
+    );
+    commands.entity(beam_entity).insert(CrystalSpawn {
+        origin,
+        max_range,
+    });
+    beam_entity
 }
 
 /// Auto-casts mini magic missiles at random enemies (not defenders).
@@ -1438,29 +1287,16 @@ fn auto_cast_magic_missiles(
         let mut rng = rand::thread_rng();
         let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
-        let mut mini_missile = MagicMissile::new(
+        spawn_crystal_mini_missile(
+            commands,
+            assets,
+            position,
+            range,
             initial_velocity,
             wobble_offset,
             Some(*target_entity),
-            DAMAGE_SCALE,
-            TargetTeams::AttackersAndUndead,
-            range,
-            position,
+            mini_radius,
         );
-        mini_missile.time_alive = MINI_MISSILE_HOMING_ADVANCE;
-
-        commands.spawn((
-            mini_missile,
-            CrystalSpawn {
-                origin: position,
-                max_range: range,
-            },
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.crystal_mini_missile.clone()),
-            Transform::from_translation(position)
-                .with_scale(Vec3::splat(mini_radius)),
-            OnGameplayScreen,
-        ));
     }
 }
 
@@ -1482,29 +1318,22 @@ fn auto_cast_fireballs(
         let speed = fireball_constants::PROJECTILE_SPEED * SPEED_SCALE;
         let velocity = direction * speed;
 
-        let damage = fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE;
-        let explosion_radius = fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE;
-        let collision_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE;
-
-        commands.spawn((
-            Fireball::new(
-                velocity,
-                damage,
-                fireball_constants::DAMAGE_TYPE,
-                explosion_radius,
-                collision_radius,
-                empowerment * DAMAGE_SCALE,
-            ),
-            CrystalSpawn {
-                origin: position,
-                max_range: range,
-            },
-            Mesh3d(assets.unit_sphere.clone()),
-            MeshMaterial3d(assets.fireball_projectile.clone()),
-            Transform::from_translation(position)
-                .with_scale(Vec3::splat(mini_radius)),
-            OnGameplayScreen,
-        ));
+        let entity = fireball_systems::spawn_fireball_entity(
+            commands,
+            assets,
+            position,
+            velocity,
+            fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE,
+            fireball_constants::DAMAGE_TYPE,
+            fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE,
+            fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE,
+            empowerment * DAMAGE_SCALE,
+            mini_radius,
+        );
+        commands.entity(entity).insert(CrystalSpawn {
+            origin: position,
+            max_range: range,
+        });
     }
 }
 
@@ -1535,7 +1364,7 @@ fn auto_cast_chain_lightning(
             );
         }
 
-        spawn_crystal_arc(commands, assets, position, *target_pos);
+        chain_lightning_systems::spawn_arc(commands, assets, position, *target_pos, 0, empowerment);
     }
 }
 
@@ -1556,23 +1385,20 @@ fn auto_cast_meteors(
         let damage = meteor_fall_constants::METEOR_DAMAGE * DAMAGE_SCALE;
         let explosion_radius = meteor_fall_constants::EXPLOSION_RADIUS * SIZE_SCALE;
 
-        commands.spawn((
-            MeteorProjectile::new(
-                Vec3::new(0.0, meteor_fall_constants::METEOR_INITIAL_VELOCITY, 0.0),
-                damage,
-                explosion_radius,
-                empowerment,
-            ),
-            CrystalSpawn {
-                origin: position,
-                max_range: range,
-            },
-            Mesh3d(assets.unit_sphere.clone()),
-            MeshMaterial3d(assets.meteor_projectile.clone()),
-            Transform::from_translation(spawn_pos)
-                .with_scale(Vec3::splat(mini_radius)),
-            OnGameplayScreen,
-        ));
+        let entity = meteor_fall_systems::spawn_meteor_projectile_entity(
+            commands,
+            assets,
+            spawn_pos,
+            Vec3::new(0.0, meteor_fall_constants::METEOR_INITIAL_VELOCITY, 0.0),
+            damage,
+            explosion_radius,
+            empowerment,
+            mini_radius,
+        );
+        commands.entity(entity).insert(CrystalSpawn {
+            origin: position,
+            max_range: range,
+        });
     }
 }
 
@@ -1586,53 +1412,62 @@ fn auto_cast_fod_beams(
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
 ) {
     let enemies = find_random_targets_in_range(position, range, BEAM_COUNT, targets);
+    let fod_damage_per_tick = finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE
+        / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
     for (_, target_pos) in &enemies {
-        spawn_crystal_beam(
+        let direction = (*target_pos - position).normalize();
+        let length = position.distance(*target_pos).min(range);
+        let beam_entity = disintegrate_systems::spawn_beam_with_damage(
             commands,
             assets,
             position,
-            *target_pos,
-            range,
-            finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE
-                / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL),
-            disintegrate_constants::DAMAGE_INTERVAL,
-            finger_of_death_constants::BEAM_WIDTH * SIZE_SCALE,
+            direction,
+            length,
             empowerment,
-            false,
+            fod_damage_per_tick,
         );
+        commands.entity(beam_entity).insert(CrystalSpawn {
+            origin: position,
+            max_range: range,
+        });
     }
 }
 
-/// Updates crystal lightning arc visuals and despawns expired arcs.
-pub(super) fn update_crystal_lightning_arcs(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut arcs: Query<(
-        Entity,
-        &mut CrystalLightningArc,
-        &MeshMaterial3d<StandardMaterial>,
-    )>,
-    mut arc_materials: ResMut<Assets<StandardMaterial>>,
+/// Spawns a crystal mini magic missile with pre-advanced homing.
+///
+/// Shared helper for both absorption and auto-cast.
+#[allow(clippy::too_many_arguments)]
+fn spawn_crystal_mini_missile(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    crystal_position: Vec3,
+    crystal_range: f32,
+    initial_velocity: Vec3,
+    wobble_offset: f32,
+    target: Option<Entity>,
+    visual_radius: f32,
 ) {
-    for (entity, mut arc, material_handle) in &mut arcs {
-        arc.time_alive += time.delta_secs();
-        arc.lifetime -= time.delta_secs();
+    let mut mini_missile = crate::game::units::wizard::spells::magic_missile::components::MagicMissile::new(
+        initial_velocity,
+        wobble_offset,
+        target,
+        DAMAGE_SCALE,
+        TargetTeams::AttackersAndUndead,
+        crystal_range,
+        crystal_position,
+    );
+    mini_missile.time_alive = MINI_MISSILE_HOMING_ADVANCE;
 
-        if arc.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
-            continue;
-        }
-
-        // Pulsing effect
-        if let Some(material) = arc_materials.get_mut(&material_handle.0) {
-            let intensity = 0.7 + 0.3 * (arc.time_alive * 20.0).sin();
-            let base = MINI_LIGHTNING_COLOR.to_srgba();
-            material.base_color = Color::srgba(
-                base.red * intensity,
-                base.green * intensity,
-                base.blue * intensity,
-                base.alpha,
-            );
-        }
-    }
+    commands.spawn((
+        mini_missile,
+        CrystalSpawn {
+            origin: crystal_position,
+            max_range: crystal_range,
+        },
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(assets.crystal_mini_missile.clone()),
+        Transform::from_translation(crystal_position)
+            .with_scale(Vec3::splat(visual_radius)),
+        OnGameplayScreen,
+    ));
 }

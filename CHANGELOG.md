@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.189] - 2026-02-24
+
+### Fixed
+- **Chain Lightning** can now directly target the Arcane Crystal — previously you had to hit a nearby unit and hope it bounced to the crystal
+- **Arcane Crystal** now properly auto-casts Disintegrate — the beam was invisible and not dealing damage after absorbing the spell
+
 ## [v0.2.186] - 2026-02-24
 
 ### Changed

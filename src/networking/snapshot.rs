@@ -348,8 +348,8 @@ pub struct SpellProjectileSnapshot {
 /// Despawned and re-spawned each frame on the guest.
 #[derive(Serialize, Deserialize)]
 pub struct SpellArcSnapshot {
-    /// Arc type: 0=ChainLightning, 1=LightningStrike, 2=CrystalBeam,
-    /// 3=CrystalLightning, 4=FingerOfDeath, 5=LightningRodArc.
+    /// Arc type: 0=ChainLightning, 1=LightningStrike,
+    /// 4=FingerOfDeath, 5=LightningRodArc, 6=Disintegrate.
     pub kind: u8,
     /// Origin X.
     pub ox: f32,
