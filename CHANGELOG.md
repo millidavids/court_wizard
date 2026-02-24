@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.182] - 2026-02-23
+
+### Added
+- **Multiplayer** — play against another wizard in real-time! One player hosts and the other joins using invite codes. Each wizard controls their own army and spells
+  - **Lobby system** — host or join a game, pick your wizard, and ready up before the match starts. Both players can see each other's ready status
+  - **Peer-to-peer connection** — games connect directly between browsers using WebRTC, no server needed. Supports both copy-paste invite codes and LAN connections
+  - **Full spell sync** — Spell zones, explosions, walls, projectiles, and beams all appear on both screens
+  - **Status effects sync** — burning, frozen, and electrified visual effects show up on both clients
+  - **King's Spell Shield** — in multiplayer, each King is protected by a translucent barrier that blocks all spell damage until fewer than 10% of that King's defenders remain. This prevents instant wins from targeting the King directly with powerful spells
+
+### Changed
+- Loading screen updated with a custom font
+
 ## [v0.1.215] - 2026-02-19
 
 ### Changed
