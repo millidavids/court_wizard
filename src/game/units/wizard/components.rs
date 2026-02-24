@@ -272,7 +272,7 @@ impl Spell {
     pub const fn description(&self) -> &'static str {
         match self {
             Spell::MagicMissile => {
-                "Fires homing missiles that seek nearby units. Channels faster over time."
+                "Fires a volley of 3 homing missiles that seek nearby units."
             }
             Spell::Disintegrate => {
                 "Projects a beam toward the cursor, dealing continuous damage to units in its path."
@@ -407,7 +407,7 @@ impl Spell {
     /// Returns the control instructions for this spell.
     pub const fn instructions(&self) -> &'static str {
         match self {
-            Spell::MagicMissile => "Click and hold to channel",
+            Spell::MagicMissile => "Click to fire",
             Spell::Disintegrate => "Click and hold to channel",
             Spell::Fireball => "Click and hold to cast",
             Spell::GuardianCircle => "Click and hold to place",

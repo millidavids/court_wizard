@@ -33,8 +33,5 @@ pub const MIN_WALL_LENGTH: f32 = 20.0;
 /// Maximum wall length.
 pub const MAX_WALL_LENGTH: f32 = 400.0;
 
-/// Color for the placed wall.
-pub const WALL_COLOR: Color = Color::srgba(0.75, 0.6, 0.45, 1.0);
-
 /// Color for the wall preview during drag.
 pub const WALL_PREVIEW_COLOR: Color = Color::srgba(0.55, 0.35, 0.15, 0.4);

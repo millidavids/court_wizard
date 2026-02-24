@@ -1,5 +1,3 @@
-use bevy::prelude::*;
-
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 pub const PRIMED_SPIKE_GROWTH: PrimedSpell = PrimedSpell {
@@ -20,6 +18,4 @@ pub const ZONE_DURATION: f32 = 15.0;
 pub const SLOW_MODIFIER: f32 = -0.3;
 pub const SLOW_DURATION: f32 = 2.0;
 pub const CIRCLE_Y_POSITION: f32 = 1.0;
-pub const CIRCLE_COLOR: Color = Color::srgba(0.2, 0.45, 0.1, 0.3);
-pub const ZONE_COLOR: Color = Color::srgba(0.15, 0.4, 0.05, 0.4);
 pub const FADE_DURATION: f32 = 2.0;

@@ -1,7 +1,6 @@
 //! Meteor Fall spell constants.
 
 use crate::game::units::wizard::components::PrimedSpell;
-use bevy::prelude::*;
 
 /// Primed Meteor Fall spell configuration.
 pub const PRIMED_METEOR_FALL: PrimedSpell = PrimedSpell {
@@ -66,15 +65,3 @@ pub const GROUND_FIRE_TICK: f32 = 0.5;
 
 /// Duration of the fade-out effect before ground fire expires (seconds).
 pub const GROUND_FIRE_FADE_DURATION: f32 = 2.0;
-
-/// Color of the storm circle indicator (fiery orange).
-pub const CIRCLE_COLOR: Color = Color::srgba(0.9, 0.3, 0.1, 0.25);
-
-/// Color of the meteor projectile (bright orange-red).
-pub const METEOR_COLOR: Color = Color::srgba(1.0, 0.4, 0.1, 1.0);
-
-/// Color of the meteor explosion (fiery orange).
-pub const EXPLOSION_COLOR: Color = Color::srgba(1.0, 0.5, 0.1, 0.6);
-
-/// Color of the persistent ground fire (dark red-orange).
-pub const GROUND_FIRE_COLOR: Color = Color::srgba(0.9, 0.25, 0.05, 0.5);

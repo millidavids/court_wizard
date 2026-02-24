@@ -1,5 +1,4 @@
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
-use bevy::prelude::*;
 
 pub const PRIMED_HYPNOTIC_PATTERN: PrimedSpell = PrimedSpell {
     spell: Spell::HypnoticPattern,
@@ -15,4 +14,3 @@ pub const MANA_COST: f32 = 40.0;
 pub const CIRCLE_RADIUS: f32 = 150.0;
 pub const MESMERIZE_DURATION: f32 = 6.0;
 pub const CIRCLE_Y_POSITION: f32 = 1.0;
-pub const CIRCLE_COLOR: Color = Color::srgba(0.6, 0.3, 0.8, 0.3);

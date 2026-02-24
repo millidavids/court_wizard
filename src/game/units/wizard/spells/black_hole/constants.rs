@@ -1,7 +1,5 @@
 //! Black Hole spell constants.
 
-use bevy::prelude::*;
-
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
@@ -73,12 +71,6 @@ pub const DAMAGE_RAMP_TIME: f32 = 3.0;
 pub const MAX_DAMAGE_MULTIPLIER: f32 = 3.0;
 
 // ===== Visual =====
-
-/// Color of the black hole sphere (very dark with slight purple tint).
-pub const BLACK_HOLE_COLOR: Color = Color::srgb(0.05, 0.0, 0.1);
-
-/// Emissive color for the glow effect around edges.
-pub const BLACK_HOLE_EMISSIVE: Color = Color::srgb(0.2, 0.0, 0.4);
 
 /// Amplitude of the vibration effect (in units).
 pub const VIBRATION_AMPLITUDE: f32 = 2.0;

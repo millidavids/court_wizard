@@ -1,5 +1,3 @@
-use bevy::prelude::*;
-
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
 pub const PRIMED_HASTE: PrimedSpell = PrimedSpell {
@@ -17,4 +15,3 @@ pub const CIRCLE_RADIUS: f32 = 150.0;
 pub const HASTE_MODIFIER: f32 = 0.5;
 pub const HASTE_DURATION: f32 = 10.0;
 pub const CIRCLE_Y_POSITION: f32 = 1.0;
-pub const CIRCLE_COLOR: Color = Color::srgba(1.0, 0.85, 0.0, 0.3);

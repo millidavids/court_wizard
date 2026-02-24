@@ -56,11 +56,13 @@ impl CrdtHealth {
     }
 
     /// Returns true if the unit is dead (current HP <= 0).
+    #[cfg(test)]
     pub fn is_dead(&self) -> bool {
         self.current_hp() <= 0.0
     }
 
     /// Returns current HP as a 0-100 percentage.
+    #[cfg(test)]
     pub fn health_pct(&self) -> u8 {
         if self.max_hp > 0.0 {
             ((self.current_hp() / self.max_hp) * 100.0).clamp(0.0, 100.0) as u8

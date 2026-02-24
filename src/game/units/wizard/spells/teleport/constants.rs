@@ -1,7 +1,5 @@
 //! Constants for the Teleport spell.
 
-use bevy::prelude::*;
-
 use crate::game::units::wizard::components::PrimedSpell;
 use crate::game::units::wizard::components::Spell;
 
@@ -26,12 +24,6 @@ pub const CIRCLE_RADIUS: f32 = 150.0;
 
 /// Radius of the destination crosshair (small marker).
 pub const CROSSHAIR_RADIUS: f32 = 30.0;
-
-/// Color for destination circle (light blue, low opacity).
-pub const DESTINATION_COLOR: Color = Color::srgba(0.0, 0.6, 1.0, 0.25);
-
-/// Color for source circle during second cast (brighter blue).
-pub const SOURCE_COLOR: Color = Color::srgba(0.0, 0.8, 1.0, 0.35);
 
 /// Scale threshold at which pulse animation begins (prevents pulsing during growth).
 pub const PULSE_THRESHOLD: f32 = 0.9;

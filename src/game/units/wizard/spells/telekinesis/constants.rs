@@ -24,6 +24,3 @@ pub const INDICATOR_Y: f32 = 2.0;
 
 /// Radius of the indicator ring around the targeted drop.
 pub const INDICATOR_RADIUS: f32 = 15.0;
-
-/// Color of the telekinesis targeting indicator.
-pub const INDICATOR_COLOR: bevy::prelude::Color = bevy::prelude::Color::srgba(0.6, 0.9, 1.0, 0.7);

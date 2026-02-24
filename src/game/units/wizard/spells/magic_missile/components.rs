@@ -4,6 +4,14 @@ use super::constants;
 use crate::game::units::DamageType;
 use crate::game::units::components::Team;
 
+/// Cooldown timer for magic missile casting.
+///
+/// Attached to the wizard entity. When `remaining > 0`, the wizard cannot cast another volley.
+#[derive(Component)]
+pub struct MagicMissileCooldown {
+    pub remaining: f32,
+}
+
 /// Defines which teams a magic missile can target.
 #[derive(Clone, Copy)]
 #[allow(dead_code)]

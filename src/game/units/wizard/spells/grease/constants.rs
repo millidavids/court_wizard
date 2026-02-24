@@ -1,5 +1,4 @@
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
-use bevy::prelude::*;
 
 pub const PRIMED_GREASE: PrimedSpell = PrimedSpell {
     spell: Spell::Grease,
@@ -21,15 +20,11 @@ pub const IGNITE_DAMAGE: f32 = 0.0;
 pub const IGNITE_BURN_DAMAGE: f32 = 1.0;
 pub const IGNITE_BURN_TICK: f32 = 0.5;
 pub const CIRCLE_Y_POSITION: f32 = 1.0;
-pub const CIRCLE_COLOR: Color = Color::srgba(0.5, 0.45, 0.1, 0.3);
-pub const ZONE_COLOR: Color = Color::srgba(0.45, 0.4, 0.05, 0.4);
 pub const FADE_DURATION: f32 = 2.0;
 /// Max Y height a fire source can be at to ignite grease (filters out aerial spells)
 pub const IGNITION_HEIGHT_THRESHOLD: f32 = 15.0;
 /// Time in seconds for fire to spread across the full grease radius
 pub const FIRE_SPREAD_DURATION: f32 = 1.0;
-/// Color of the fire overlay mesh
-pub const FIRE_OVERLAY_COLOR: Color = Color::srgba(0.9, 0.3, 0.05, 0.55);
 /// Y position of fire overlay (slightly above grease mesh)
 pub const FIRE_OVERLAY_Y_POSITION: f32 = 1.5;
 /// Fraction of zone radius for initial burst damage at ignition point

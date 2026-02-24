@@ -2,11 +2,10 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput};
+use super::super::super::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
-use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -16,15 +15,17 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::crdt::PeerId;
 
-/// Local wizard magic missile casting — reads mouse input.
+/// Local wizard magic missile casting — instant cast with cooldown.
+///
+/// On click, spawns a volley of missiles immediately.
+/// Only fires on initial click, not while held. A cooldown prevents spam.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_magic_missile_casting(
-    time: Res<Time>,
-    mut mouse_left_released: MessageReader<MouseLeftReleased>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        (Entity, &Transform, &mut Mana, &PrimedSpell, &Wizard, Option<&MagicMissileCooldown>),
         With<LocalWizard>,
     >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -34,19 +35,22 @@ pub fn handle_magic_missile_casting(
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     peer_id: Option<Res<PeerId>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    // Only fire on initial click, not while mouse is held
+    if !mouse.just_pressed(MouseButton::Left) {
+        return;
+    }
 
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+
+    let Ok((wizard_entity, wizard_transform, mut mana, primed_spell, wizard, cooldown)) = wizard_query.single_mut() else {
         return;
     };
     if primed_spell.spell != Spell::MagicMissile { return; }
+
+    // Check cooldown
+    if cooldown.is_some_and(|cd| cd.remaining > 0.0) {
+        return;
+    }
 
     // Host/SP wizard targets attackers; guest wizard targets defenders
     let target_teams = if peer_id.is_some_and(|p| p.0 == PeerId::GUEST) {
@@ -55,109 +59,45 @@ pub fn handle_magic_missile_casting(
         TargetTeams::AttackersAndUndead
     };
 
-    magic_missile_casting_logic(
-        &input,
-        &time,
-        wizard_transform,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        wizard,
-        target_teams,
-        &mut commands,
-        &visual_assets,
-        &camera_query,
-        &targets,
-        &crystals,
-    );
-}
-
-/// Core magic missile casting logic.
-///
-/// Handles the full Resting -> Casting -> Channeling state machine.
-/// During channeling, spawns missiles at increasing frequency.
-#[allow(clippy::too_many_arguments)]
-fn magic_missile_casting_logic(
-    input: &WizardInput,
-    time: &Time,
-    wizard_transform: &Transform,
-    casting_state: &mut CastingState,
-    mana: &mut Mana,
-    primed_spell: &PrimedSpell,
-    wizard: &Wizard,
-    target_teams: TargetTeams,
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    camera_query: &Query<&GlobalTransform, With<Camera>>,
-    targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
-    crystals: &Query<(Entity, &Transform, &ArcaneCrystal)>,
-) {
-    let spawn_origin = wizard_transform.translation;
-
-    // Check for release event
-    if input.just_released {
-        casting_state.cancel();
+    let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
+    if !mana.consume(mana_cost) {
         return;
     }
 
-    match *casting_state {
-        CastingState::Channeling { .. } => {
-            casting_state.advance_channel(time.delta_secs());
+    let spawn_origin = wizard_transform.translation;
 
-            if casting_state.should_channel(
-                constants::INITIAL_CHANNEL_INTERVAL,
-                constants::MIN_CHANNEL_INTERVAL,
-                constants::CHANNEL_RAMP_TIME,
-            ) {
-                let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
-                if mana.consume(mana_cost) {
-                    spawn_magic_missile(
-                        commands,
-                        assets,
-                        camera_query,
-                        targets,
-                        crystals,
-                        wizard.spell_range,
-                        primed_spell.empowerment,
-                        input.cursor_pos,
-                        spawn_origin,
-                        target_teams,
-                    );
-                    casting_state.reset_channel_interval();
-                } else {
-                    casting_state.cancel();
-                }
-            }
-        }
-        CastingState::Casting { .. } => {
-            casting_state.advance(time.delta_secs());
+    // Spawn a volley of missiles
+    for _ in 0..constants::MISSILES_PER_CAST {
+        spawn_magic_missile(
+            &mut commands,
+            &visual_assets,
+            &camera_query,
+            &targets,
+            &crystals,
+            wizard.spell_range,
+            primed_spell.empowerment,
+            cursor_pos,
+            spawn_origin,
+            target_teams,
+        );
+    }
 
-            if casting_state.is_complete(primed_spell.cast_time) {
-                let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
-                if mana.consume(mana_cost) {
-                    spawn_magic_missile(
-                        commands,
-                        assets,
-                        camera_query,
-                        targets,
-                        crystals,
-                        wizard.spell_range,
-                        primed_spell.empowerment,
-                        input.cursor_pos,
-                        spawn_origin,
-                        target_teams,
-                    );
-                    casting_state.start_channeling();
-                } else {
-                    casting_state.cancel();
-                }
-            }
-        }
-        CastingState::Resting => {
-            let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
-            if (input.just_pressed || input.pressed) && mana.can_afford(mana_cost) {
-                casting_state.start_cast();
-            }
+    // Set cooldown
+    commands.entity(wizard_entity).insert(MagicMissileCooldown {
+        remaining: constants::COOLDOWN,
+    });
+}
+
+/// Ticks down the magic missile cooldown timer each frame.
+pub fn tick_magic_missile_cooldown(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut cooldowns: Query<(Entity, &mut MagicMissileCooldown)>,
+) {
+    for (entity, mut cooldown) in &mut cooldowns {
+        cooldown.remaining -= time.delta_secs();
+        if cooldown.remaining <= 0.0 {
+            commands.entity(entity).remove::<MagicMissileCooldown>();
         }
     }
 }

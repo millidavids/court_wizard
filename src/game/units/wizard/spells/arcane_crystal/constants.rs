@@ -67,15 +67,6 @@ pub const MINI_METEOR_SPAWN_HEIGHT: f32 = 200.0;
 
 // ===== Visual =====
 
-/// Color of the crystal mesh (purple).
-pub const CRYSTAL_COLOR: Color = Color::srgb(0.6, 0.1, 0.9);
-
-/// Emissive color for the crystal glow.
-pub const CRYSTAL_EMISSIVE: Color = Color::srgb(0.4, 0.05, 0.6);
-
-/// Color of the range indicator circle.
-pub const RANGE_INDICATOR_COLOR: Color = Color::srgba(0.5, 0.2, 0.8, 0.15);
-
 /// Y position of the range indicator circle.
 pub const RANGE_INDICATOR_Y: f32 = 1.0;
 
@@ -93,9 +84,6 @@ pub const PULSE_DURATION: f32 = 0.15;
 
 /// Y position for the casting circle indicator.
 pub const CIRCLE_Y_POSITION: f32 = 1.5;
-
-/// Color of the casting circle indicator.
-pub const CIRCLE_COLOR: Color = Color::srgba(0.5, 0.2, 0.8, 0.3);
 
 // ===== Mini Missiles =====
 

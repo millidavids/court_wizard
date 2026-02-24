@@ -71,18 +71,5 @@ pub const CIRCLE_Y_POSITION: f32 = 0.1;
 
 // ===== Colors =====
 
-/// Color of the lightning rod tower (metallic grey/silver).
-pub const TOWER_COLOR: Color = Color::srgb(0.6, 0.6, 0.65);
-
-/// Color of the descending lightning bolt (bright electric blue/white).
-pub const BOLT_COLOR: Color = Color::srgb(0.8, 0.9, 1.0);
-
 /// Color of the arcs that jump to targets (electric blue).
 pub const ARC_COLOR: Color = Color::srgb(0.7, 0.85, 1.0);
-
-/// Color of the flash at impact point.
-#[allow(dead_code)]
-pub const STRIKE_FLASH_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
-
-/// Color of the circle indicator during casting.
-pub const CIRCLE_COLOR: Color = Color::srgba(0.7, 0.85, 1.0, 0.4);

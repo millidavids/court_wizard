@@ -1,5 +1,4 @@
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
-use bevy::prelude::*;
 
 pub const PRIMED_PHANTASMAL_FORCE: PrimedSpell = PrimedSpell {
     spell: Spell::PhantasmalForce,
@@ -18,4 +17,3 @@ pub const DECOY_HP: f32 = 1.0;
 pub const DECOY_DURATION: f32 = 12.0;
 pub const DECOY_SPREAD: f32 = 30.0;
 pub const CIRCLE_Y_POSITION: f32 = 1.0;
-pub const CIRCLE_COLOR: Color = Color::srgba(0.5, 0.5, 0.8, 0.3);

@@ -61,7 +61,7 @@ pub const MIN_PROXIMITY_SPEED: f32 = 300.0;
 pub const SLOWDOWN_DISTANCE: f32 = 300.0;
 
 /// Damage dealt by each magic missile.
-pub const DAMAGE: f32 = 5.0;
+pub const DAMAGE: f32 = 30.0;
 
 /// Type of damage dealt by magic missiles.
 pub const DAMAGE_TYPE: DamageType = DamageType::Force;
@@ -84,20 +84,17 @@ pub const WOBBLE_Z_FREQ_MULTIPLIER: f32 = 0.7;
 /// Wobble Y-axis amplitude multiplier.
 pub const WOBBLE_Y_AMPLITUDE_MULTIPLIER: f32 = 0.5;
 
-/// Mana cost for casting a magic missile.
-pub const MANA_COST: f32 = 1.0;
+/// Mana cost per volley of magic missiles.
+pub const MANA_COST: f32 = 8.0;
 
-/// Cast time for magic missile in seconds.
-pub const CAST_TIME: f32 = 1.0;
+/// Cast time for magic missile in seconds (0 = instant cast).
+pub const CAST_TIME: f32 = 0.0;
 
-/// Initial interval between channeled magic missiles (in seconds).
-pub const INITIAL_CHANNEL_INTERVAL: f32 = 0.5;
+/// Number of missiles spawned per cast.
+pub const MISSILES_PER_CAST: u32 = 3;
 
-/// Minimum interval between channeled magic missiles (in seconds).
-pub const MIN_CHANNEL_INTERVAL: f32 = 0.05;
-
-/// Time to ramp from initial to minimum channel interval (in seconds).
-pub const CHANNEL_RAMP_TIME: f32 = 5.0;
+/// Cooldown between casts in seconds.
+pub const COOLDOWN: f32 = 0.3;
 
 /// Power for inverse distance weighting in cursor targeting.
 /// Higher values = stronger preference for targets near cursor.

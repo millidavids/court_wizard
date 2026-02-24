@@ -18,6 +18,4 @@ pub const DAMAGE_PER_TICK: f32 = 5.0;
 pub const TICK_INTERVAL: f32 = 0.5;
 pub const FADE_DURATION: f32 = 2.0;
 
-pub const CIRCLE_COLOR: bevy::color::Color = bevy::color::Color::srgba(0.3, 0.8, 0.1, 0.3);
 pub const CIRCLE_Y_POSITION: f32 = 0.5;
-pub const CLOUD_COLOR: bevy::color::Color = bevy::color::Color::srgba(0.2, 0.6, 0.1, 0.4);

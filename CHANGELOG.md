@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.186] - 2026-02-24
+
+### Changed
+- **Magic Missile reworked** — now fires a burst of 3 powerful homing missiles instantly on click instead of charging up and channeling. Each missile hits much harder than before. Short cooldown between casts
+
 ## [v0.2.182] - 2026-02-23
 
 ### Added
