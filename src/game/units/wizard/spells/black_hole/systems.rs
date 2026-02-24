@@ -9,13 +9,12 @@ use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::units::components::{
     Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::king::components::SpellShield;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
@@ -62,29 +61,17 @@ fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec
 /// Spawns a black hole entity with visual mesh.
 pub(crate) fn spawn_black_hole(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) {
     let max_radius = MAX_RADIUS * empowerment;
     let spawn_pos = Vec3::new(position.x, BLACK_HOLE_HEIGHT, position.z);
 
-    // Create sphere mesh
-    let sphere = Sphere::new(max_radius);
-
-    // Create dark material with purple emissive glow
-    let material = StandardMaterial {
-        base_color: BLACK_HOLE_COLOR,
-        emissive: BLACK_HOLE_EMISSIVE.into(),
-        unlit: false, // Let it interact with lighting for depth
-        ..default()
-    };
-
     commands.spawn((
         BlackHole::new(spawn_pos, max_radius, empowerment),
-        Mesh3d(meshes.add(sphere)),
-        MeshMaterial3d(materials.add(material)),
+        Mesh3d(assets.unit_sphere.clone()),
+        MeshMaterial3d(assets.black_hole.clone()),
         Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
         NetworkedSpellEffect { kind: SpellEffectKind::BlackHole },
         OnGameplayScreen,
@@ -104,10 +91,7 @@ pub(super) fn handle_black_hole_casting(
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
+    visual_assets: Res<SpellVisualAssets>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -123,8 +107,6 @@ pub(super) fn handle_black_hole_casting(
     };
     if primed_spell.spell != Spell::BlackHole { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
     let cast_result = black_hole_casting_logic(
         &input,
         &time,
@@ -133,34 +115,18 @@ pub(super) fn handle_black_hole_casting(
         primed_spell,
         wizard_transform,
         wizard,
-        skip_spawn,
     );
 
     if cast_result.completed {
-        if !skip_spawn {
-            if let Some(pos) = cast_result.cursor_pos {
-                spawn_black_hole(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    pos,
-                    primed_spell.empowerment,
-                );
-            }
+        if let Some(pos) = cast_result.cursor_pos {
+            spawn_black_hole(
+                &mut commands,
+                &visual_assets,
+                pos,
+                primed_spell.empowerment,
+            );
         }
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::BlackHole,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
@@ -176,7 +142,6 @@ fn black_hole_casting_logic(
     primed_spell: &PrimedSpell,
     wizard_transform: &Transform,
     wizard: &Wizard,
-    _skip_spawn: bool,
 ) -> CastResult {
     let mut result = CastResult {
         completed: false,
@@ -323,6 +288,7 @@ pub(super) fn apply_black_hole_damage(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Option<&mut UnitInBlackHole>,
+            Has<SpellShield>,
         ),
         Without<Wizard>,
     >,
@@ -332,10 +298,14 @@ pub(super) fn apply_black_hole_damage(
             continue;
         }
 
-        for (entity, transform, mut health, mut temp_hp, tracking) in units.iter_mut() {
+        for (entity, transform, mut health, mut temp_hp, tracking, has_spell_shield) in units.iter_mut() {
             let unit_pos = transform.translation;
 
             if black_hole.contains_point(unit_pos) {
+                if has_spell_shield {
+                    continue;
+                }
+
                 // Track or update time inside
                 let damage_multiplier = if let Some(mut tracker) = tracking {
                     tracker.time_inside += time.delta_secs();
@@ -392,7 +362,8 @@ pub(super) fn update_black_hole_visuals(mut black_holes: Query<(&BlackHole, &mut
             (t * 2.3).sin() * VIBRATION_AMPLITUDE,
         );
 
-        transform.scale = Vec3::splat(growth_factor);
+        // Unit sphere scaled by max_radius * growth_factor
+        transform.scale = Vec3::splat(black_hole.max_radius * growth_factor);
         transform.translation = black_hole.position + vibration;
     }
 }

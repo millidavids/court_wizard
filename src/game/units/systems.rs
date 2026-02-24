@@ -5,9 +5,11 @@ use super::components::{
     BattleHymnModifier, BerserkerRageModifier, Corpse, Effectiveness, ElectricCharge, FireDoT,
     FlockingVelocity, FogEvasionModifier, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
     Health, InMelee, MarkedForDeathModifier, MesmerizedModifier, OriginalMaterial,
-    PendingDamageEffect, RootedModifier, SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity,
-    Team, TemporaryHitPoints, apply_damage_to_unit,
+    PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
+    RootedModifier, SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
+use super::king::components::SpellShield;
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
     ELECTRIC_ARC_RANGE, ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
@@ -400,12 +402,16 @@ pub fn update_grease_slip_modifiers(
 /// and either creates a new persistent effect component or stacks onto an existing one.
 pub fn process_pending_damage_effects(
     mut commands: Commands,
-    pending_query: Query<(Entity, &PendingDamageEffect)>,
+    pending_query: Query<(Entity, &PendingDamageEffect, Has<SpellShield>)>,
     mut fire_query: Query<&mut FireDoT>,
     mut frost_query: Query<&mut FrostSlowModifier>,
     mut electric_query: Query<&mut ElectricCharge>,
 ) {
-    for (entity, pending) in pending_query.iter() {
+    for (entity, pending, has_shield) in pending_query.iter() {
+        if has_shield {
+            commands.entity(entity).remove::<PendingDamageEffect>();
+            continue;
+        }
         match pending.damage_type {
             DamageType::Fire => {
                 if let Ok(mut fire_dot) = fire_query.get_mut(entity) {
@@ -452,15 +458,18 @@ pub fn update_fire_dot(
         &mut FireDoT,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
     )>,
 ) {
     let delta = time.delta_secs();
 
-    for (entity, mut fire_dot, mut health, temp_hp) in query.iter_mut() {
+    for (entity, mut fire_dot, mut health, temp_hp, has_shield) in query.iter_mut() {
         let (tick_damage, expired) = fire_dot.update(delta);
 
         if let Some(damage) = tick_damage {
-            apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
+            if !has_shield {
+                apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
+            }
         }
 
         if expired {
@@ -600,6 +609,9 @@ pub fn update_electric_arc_visuals(
 
 /// Updates visual tinting on units affected by persistent damage effects.
 ///
+/// Considers both local effects (FireDoT, FrostSlowModifier, ElectricCharge) and
+/// remote effect markers (RemoteFireEffect, etc.) from the other multiplayer peer.
+///
 /// Three-phase logic per entity:
 /// 1. Unit has effects but no OriginalMaterial: clone the material, store original
 /// 2. Unit has effects and OriginalMaterial: blend effect colors onto cloned material
@@ -616,20 +628,29 @@ pub fn update_persistent_effect_visuals(
             Option<&FireDoT>,
             Option<&FrostSlowModifier>,
             Option<&ElectricCharge>,
+            Has<RemoteFireEffect>,
+            Has<RemoteFrostEffect>,
+            Has<RemoteElectricEffect>,
             Option<&OriginalMaterial>,
         ),
         Or<(
             With<FireDoT>,
             With<FrostSlowModifier>,
             With<ElectricCharge>,
+            With<RemoteFireEffect>,
+            With<RemoteFrostEffect>,
+            With<RemoteElectricEffect>,
             With<OriginalMaterial>,
         )>,
     >,
 ) {
     let elapsed = time.elapsed_secs();
 
-    for (entity, material_handle, fire, frost, electric, original_mat) in &query {
-        let has_any_effect = fire.is_some() || frost.is_some() || electric.is_some();
+    for (entity, material_handle, fire, frost, electric, remote_fire, remote_frost, remote_electric, original_mat) in &query {
+        let has_fire = fire.is_some() || remote_fire;
+        let has_frost = frost.is_some() || remote_frost;
+        let has_electric = electric.is_some() || remote_electric;
+        let has_any_effect = has_fire || has_frost || has_electric;
 
         if has_any_effect && original_mat.is_none() {
             // Phase 1: First effect applied — clone the material and store original
@@ -657,7 +678,7 @@ pub fn update_persistent_effect_visuals(
 
             let mut result_linear = base_linear;
 
-            if fire.is_some() {
+            if has_fire {
                 let pulse = (elapsed * FIRE_EFFECT_PULSE_SPEED).sin() * 0.5 + 0.5;
                 let intensity = FIRE_EFFECT_MIN_INTENSITY
                     + pulse * (FIRE_EFFECT_MAX_INTENSITY - FIRE_EFFECT_MIN_INTENSITY);
@@ -665,12 +686,12 @@ pub fn update_persistent_effect_visuals(
                 result_linear = result_linear.mix(&fire_linear, intensity);
             }
 
-            if frost.is_some() {
+            if has_frost {
                 let frost_linear = FROST_EFFECT_COLOR.to_linear();
                 result_linear = result_linear.mix(&frost_linear, FROST_EFFECT_INTENSITY);
             }
 
-            if electric.is_some() {
+            if has_electric {
                 let flicker = (elapsed * ELECTRIC_EFFECT_FLICKER_SPEED).sin() * 0.5 + 0.5;
                 let intensity = ELECTRIC_EFFECT_MIN_INTENSITY
                     + flicker * (ELECTRIC_EFFECT_MAX_INTENSITY - ELECTRIC_EFFECT_MIN_INTENSITY);

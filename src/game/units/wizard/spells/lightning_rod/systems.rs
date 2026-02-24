@@ -10,38 +10,24 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard Lightning Rod casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but entity spawning is skipped.
-/// Instead, a `SpellCast` message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_lightning_rod_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -57,8 +43,6 @@ pub(super) fn handle_lightning_rod_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut LightningRodCircleIndicator>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -74,8 +58,6 @@ pub(super) fn handle_lightning_rod_casting(
     };
     if primed_spell.spell != Spell::LightningRod { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
     let wizard_pos = wizard_transform.translation;
     let clamped_pos = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range));
 
@@ -87,8 +69,7 @@ pub(super) fn handle_lightning_rod_casting(
     {
         let circle_entity = spawn_circle_indicator(
             &mut commands,
-            &mut meshes,
-            &mut materials,
+            &visual_assets,
             pos,
             primed_spell.empowerment,
         );
@@ -122,7 +103,7 @@ pub(super) fn handle_lightning_rod_casting(
         ..input
     };
 
-    let cast_result = lightning_rod_casting_logic(
+    let completed = lightning_rod_casting_logic(
         &effective_input,
         &time,
         wizard_entity,
@@ -133,33 +114,15 @@ pub(super) fn handle_lightning_rod_casting(
         primed_spell,
         &caster_query,
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        skip_spawn,
+        &visual_assets,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::LightningRod,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
 /// Core Lightning Rod casting logic.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but
-/// entity spawning is skipped. The cursor position is returned in `CastResult`
-/// so the caller can send a network message.
 #[allow(clippy::too_many_arguments)]
 fn lightning_rod_casting_logic(
     input: &WizardInput,
@@ -172,12 +135,8 @@ fn lightning_rod_casting_logic(
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+    assets: &SpellVisualAssets,
+) -> bool {
     let wizard_pos = wizard_transform.translation;
 
     // Check for release event - cancel cast
@@ -189,8 +148,10 @@ fn lightning_rod_casting_logic(
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Resting => {
@@ -209,18 +170,14 @@ fn lightning_rod_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST) {
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
-                    result.cursor_pos = Some(spawn_pos);
 
-                    if !skip_spawn {
-                        spawn_lightning_rod(
-                            commands,
-                            meshes,
-                            materials,
-                            spawn_pos,
-                            primed_spell.empowerment,
-                        );
-                    }
-                    result.completed = true;
+                    spawn_lightning_rod(
+                        commands,
+                        assets,
+                        spawn_pos,
+                        primed_spell.empowerment,
+                    );
+                    completed = true;
                 }
 
                 // Clean up indicator and caster
@@ -244,7 +201,7 @@ fn lightning_rod_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Gets cursor position projected onto Y=0 plane.
@@ -296,27 +253,20 @@ fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec
 /// Spawns the visual circle indicator during casting.
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = ARC_RADIUS * empowerment;
 
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
-
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.lightning_rod_indicator.clone()),
             Transform::from_translation(Vec3::new(position.x, CIRCLE_Y_POSITION, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-            LightningRodCircleIndicator::new(position),
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(radius)),
+            LightningRodCircleIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))
         .id()
@@ -325,8 +275,7 @@ fn spawn_circle_indicator(
 /// Spawns the lightning rod tower entity.
 pub(crate) fn spawn_lightning_rod(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) {
@@ -336,13 +285,9 @@ pub(crate) fn spawn_lightning_rod(
     // Cylinder sits centered, so position at half height
     let spawn_pos = Vec3::new(position.x, tower_height / 2.0, position.z);
 
-    let cylinder = Cylinder::new(tower_radius, tower_height);
-    let material = StandardMaterial {
-        base_color: TOWER_COLOR,
-        metallic: 0.8,
-        perceptual_roughness: 0.3,
-        ..default()
-    };
+    // unit_cylinder is Cylinder::new(0.5, 1.0), scale to tower dimensions
+    // radius scale = tower_radius / 0.5, height scale = tower_height / 1.0
+    let radius_scale = tower_radius / 0.5;
 
     commands.spawn((
         LightningRod::new(
@@ -350,9 +295,10 @@ pub(crate) fn spawn_lightning_rod(
             TOWER_DURATION * empowerment,
             empowerment,
         ),
-        Mesh3d(meshes.add(cylinder)),
-        MeshMaterial3d(materials.add(material)),
-        Transform::from_translation(spawn_pos),
+        Mesh3d(assets.unit_cylinder.clone()),
+        MeshMaterial3d(assets.lightning_rod.clone()),
+        Transform::from_translation(spawn_pos)
+            .with_scale(Vec3::new(radius_scale, tower_height, radius_scale)),
         NetworkedSpellEffect { kind: SpellEffectKind::LightningRod },
         OnGameplayScreen,
     ));
@@ -366,8 +312,9 @@ pub(super) fn update_circle_indicator(
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
 
+        let radius = ARC_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
 
         transform.translation.x = indicator.position.x;
         transform.translation.y = CIRCLE_Y_POSITION;
@@ -379,8 +326,7 @@ pub(super) fn update_circle_indicator(
 pub(super) fn update_lightning_rod(
     time: Res<Time>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut rods: Query<(Entity, &mut LightningRod)>,
 ) {
     let delta = time.delta_secs();
@@ -403,9 +349,8 @@ pub(super) fn update_lightning_rod(
 
             let target_pos = Vec3::new(rod.position.x, TOWER_HEIGHT, rod.position.z);
 
-            // Create a thin rectangle mesh for the bolt visual
             let bolt_length = STRIKE_SPAWN_HEIGHT - TOWER_HEIGHT;
-            let rectangle = Rectangle::new(STRIKE_BOLT_WIDTH * rod.empowerment, bolt_length);
+            let bolt_width = STRIKE_BOLT_WIDTH * rod.empowerment;
 
             let midpoint = (strike_start + target_pos) / 2.0;
 
@@ -417,13 +362,10 @@ pub(super) fn update_lightning_rod(
                     arc_radius: ARC_RADIUS * rod.empowerment,
                     empowerment: rod.empowerment,
                 },
-                Mesh3d(meshes.add(rectangle)),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: BOLT_COLOR,
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_translation(midpoint),
+                Mesh3d(visual_assets.unit_rect.clone()),
+                MeshMaterial3d(visual_assets.lightning_strike.clone()),
+                Transform::from_translation(midpoint)
+                    .with_scale(Vec3::new(bolt_width, bolt_length, bolt_width)),
                 OnGameplayScreen,
             ));
         }
@@ -435,8 +377,7 @@ pub(super) fn update_lightning_rod(
 pub(super) fn update_lightning_strikes(
     time: Res<Time>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut strikes: Query<(Entity, &mut Transform, &LightningStrike)>,
     mut units: Query<
         (
@@ -444,6 +385,7 @@ pub(super) fn update_lightning_strikes(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         (Without<Corpse>, Without<LightningStrike>),
     >,
@@ -459,8 +401,7 @@ pub(super) fn update_lightning_strikes(
             // Spawn arcs to nearby units
             spawn_arcs_to_nearby_units(
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &visual_assets,
                 strike.target_pos,
                 strike.arc_damage,
                 strike.arc_radius,
@@ -478,8 +419,7 @@ pub(super) fn update_lightning_strikes(
 #[allow(clippy::too_many_arguments)]
 fn spawn_arcs_to_nearby_units(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     rod_top: Vec3,
     damage: f32,
     radius: f32,
@@ -490,6 +430,7 @@ fn spawn_arcs_to_nearby_units(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         (Without<Corpse>, Without<LightningStrike>),
     >,
@@ -497,7 +438,7 @@ fn spawn_arcs_to_nearby_units(
     // Collect targets sorted by distance (closest first)
     let mut targets: Vec<(Entity, Vec3, f32)> = units
         .iter()
-        .map(|(entity, transform, _, _)| {
+        .map(|(entity, transform, _, _, _)| {
             let pos = transform.translation;
             let dist = Vec3::new(rod_top.x, 0.0, rod_top.z).distance(Vec3::new(pos.x, 0.0, pos.z));
             (entity, pos, dist)
@@ -510,7 +451,7 @@ fn spawn_arcs_to_nearby_units(
 
     // Apply damage and spawn arc visuals
     for (target_entity, target_pos, _) in &targets {
-        if let Ok((_, _, mut health, mut temp_hp)) = units.get_mut(*target_entity) {
+        if let Ok((_, _, mut health, mut temp_hp, has_spell_shield)) = units.get_mut(*target_entity) {
             apply_spell_damage(
                 commands,
                 *target_entity,
@@ -518,14 +459,14 @@ fn spawn_arcs_to_nearby_units(
                 temp_hp.as_deref_mut(),
                 damage,
                 DamageType::Electric,
+                has_spell_shield,
             );
         }
 
         // Spawn arc visual
         spawn_arc(
             commands,
-            meshes,
-            materials,
+            assets,
             rod_top,
             *target_pos,
             empowerment,
@@ -536,8 +477,7 @@ fn spawn_arcs_to_nearby_units(
 /// Spawns a lightning arc visual between two points.
 fn spawn_arc(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     start: Vec3,
     end: Vec3,
     empowerment: f32,
@@ -547,21 +487,16 @@ fn spawn_arc(
     let length = start.distance(end);
 
     let arc_width = ARC_WIDTH * empowerment;
-    let rectangle = Rectangle::new(arc_width, arc_width);
 
     let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
 
     commands.spawn((
         LightningRodArc::new(ARC_LIFETIME),
-        Mesh3d(meshes.add(rectangle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: ARC_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(assets.unit_rect.clone()),
+        MeshMaterial3d(assets.lightning_rod_arc.clone()),
         Transform::from_translation(midpoint)
             .with_rotation(rotation)
-            .with_scale(Vec3::new(1.0, length / arc_width, 1.0)),
+            .with_scale(Vec3::new(arc_width, length, arc_width)),
         OnGameplayScreen,
     ));
 }

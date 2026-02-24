@@ -9,15 +9,13 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
@@ -28,6 +26,7 @@ use crate::game::units::wizard::spells::finger_of_death::components::FingerOfDea
 use crate::game::units::wizard::spells::fireball::components::{Fireball, FireballExplosion};
 use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
     meteor_fall_constants,
@@ -142,27 +141,14 @@ fn find_random_enemies_in_range(
 
 // ===== Casting System =====
 
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
-
 /// Local wizard Arcane Crystal casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but entity spawning is skipped.
-/// Instead, a `SpellCast` message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_arcane_crystal_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -178,8 +164,6 @@ pub(super) fn handle_arcane_crystal_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut ArcaneCrystalCircleIndicator>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -194,8 +178,6 @@ pub(super) fn handle_arcane_crystal_casting(
         return;
     };
     if primed_spell.spell != Spell::ArcaneCrystal { return; }
-
-    let skip_spawn = skip_spawning.is_some();
 
     // Clamp cursor to spell range
     let clamped_cursor = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
@@ -221,8 +203,7 @@ pub(super) fn handle_arcane_crystal_casting(
                 if let Some(pos) = clamped_cursor {
                     let circle_entity = spawn_circle_indicator(
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         pos,
                         primed_spell.empowerment,
                     );
@@ -252,7 +233,7 @@ pub(super) fn handle_arcane_crystal_casting(
         }
     }
 
-    let cast_result = arcane_crystal_casting_logic(
+    let completed = arcane_crystal_casting_logic(
         &input,
         &time,
         &mut casting_state,
@@ -260,47 +241,20 @@ pub(super) fn handle_arcane_crystal_casting(
         primed_spell,
     );
 
-    if cast_result.completed {
-        // Get spawn position from indicator or clamped cursor
-        let spawn_pos = caster_query.get(wizard_entity).ok()
-            .and_then(|caster| caster.indicator_entity)
-            .and_then(|ie| indicator_query.get(ie).ok())
-            .map(|indicator| indicator.position)
-            .or(clamped_cursor);
-
-        if !skip_spawn {
-            // Spawn crystal using indicator position
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-            {
-                if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                    spawn_crystal(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        indicator.position,
-                        primed_spell.empowerment,
-                    );
-                }
-                commands.entity(indicator_entity).despawn();
+    if completed {
+        // Spawn crystal using indicator position
+        if let Ok(caster) = caster_query.get(wizard_entity)
+            && let Some(indicator_entity) = caster.indicator_entity
+        {
+            if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                spawn_crystal(
+                    &mut commands,
+                    &visual_assets,
+                    indicator.position,
+                    primed_spell.empowerment,
+                );
             }
-        } else {
-            // Still clean up indicator on guest
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-            {
-                commands.entity(indicator_entity).despawn();
-            }
-
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), spawn_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::ArcaneCrystal,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
+            commands.entity(indicator_entity).despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;
@@ -316,13 +270,13 @@ fn arcane_crystal_casting_logic(
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+) -> bool {
     // Release is handled by the wrappers before calling this function
     if input.just_released {
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Channeling { .. } => {
@@ -333,8 +287,7 @@ fn arcane_crystal_casting_logic(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST) {
-                    result.completed = true;
-                    result.cursor_pos = input.cursor_pos;
+                    completed = true;
                 }
                 casting_state.cancel();
             }
@@ -346,14 +299,13 @@ fn arcane_crystal_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Spawns the visual circle indicator during casting.
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
@@ -361,16 +313,12 @@ fn spawn_circle_indicator(
 
     commands
         .spawn((
-            Mesh3d(meshes.add(Circle::new(radius))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: CIRCLE_COLOR,
-                unlit: true,
-                alpha_mode: AlphaMode::Blend,
-                ..default()
-            })),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.arcane_crystal_indicator.clone()),
             Transform::from_translation(Vec3::new(position.x, CIRCLE_Y_POSITION, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-            ArcaneCrystalCircleIndicator::new(position),
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(radius)),
+            ArcaneCrystalCircleIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))
         .id()
@@ -384,8 +332,9 @@ pub(super) fn update_circle_indicator(
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
 
+        let radius = CRYSTAL_RANGE * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
 
         transform.translation.x = indicator.position.x;
         transform.translation.y = CIRCLE_Y_POSITION;
@@ -396,8 +345,7 @@ pub(super) fn update_circle_indicator(
 /// Spawns the crystal entity with visual mesh and range indicator.
 pub(crate) fn spawn_crystal(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) {
@@ -408,20 +356,16 @@ pub(crate) fn spawn_crystal(
 
     let crystal_pos = Vec3::new(position.x, height / 2.0, position.z);
 
-    // Spawn crystal mesh (vertically-stretched sphere to approximate crystal shape)
-    let sphere = Sphere::new(height / 3.0);
+    // unit_sphere has radius 1.0, scale to height/3.0 with vertical stretch
+    let sphere_radius = height / 3.0;
 
     let crystal_entity = commands
         .spawn((
             ArcaneCrystal::new(crystal_pos, range, duration, collision_radius, empowerment),
-            Mesh3d(meshes.add(sphere)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: CRYSTAL_COLOR,
-                emissive: CRYSTAL_EMISSIVE.into(),
-                unlit: false,
-                ..default()
-            })),
-            Transform::from_translation(crystal_pos).with_scale(Vec3::new(0.7, 1.5, 0.7)), // Vertically stretched
+            Mesh3d(assets.unit_sphere.clone()),
+            MeshMaterial3d(assets.arcane_crystal.clone()),
+            Transform::from_translation(crystal_pos)
+                .with_scale(Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius)),
             NetworkedSpellEffect { kind: SpellEffectKind::ArcaneCrystal },
             OnGameplayScreen,
         ))
@@ -429,16 +373,11 @@ pub(crate) fn spawn_crystal(
 
     // Spawn range indicator circle
     commands.spawn((
-        Mesh3d(meshes.add(Circle::new(range))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: RANGE_INDICATOR_COLOR,
-            unlit: true,
-            alpha_mode: AlphaMode::Blend,
-            cull_mode: None,
-            ..default()
-        })),
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(assets.crystal_range_indicator.clone()),
         Transform::from_translation(Vec3::new(position.x, RANGE_INDICATOR_Y, position.z))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(range)),
         CrystalRangeIndicator { crystal_entity },
         OnGameplayScreen,
     ));
@@ -456,6 +395,8 @@ pub(super) fn update_crystal_visuals(
     for (mut crystal, mut transform) in &mut crystals {
         crystal.time_alive += delta;
 
+        let sphere_radius = CRYSTAL_HEIGHT * crystal.empowerment / 3.0;
+
         // Rotation
         transform.rotate_y(ROTATION_SPEED * delta);
 
@@ -464,9 +405,13 @@ pub(super) fn update_crystal_visuals(
             crystal.pulse_timer -= delta;
             let pulse_progress = crystal.pulse_timer / PULSE_DURATION;
             let scale_factor = 1.0 + (PULSE_SCALE - 1.0) * pulse_progress;
-            transform.scale = Vec3::new(0.7 * scale_factor, 1.5 * scale_factor, 0.7 * scale_factor);
+            transform.scale = Vec3::new(
+                0.7 * sphere_radius * scale_factor,
+                1.5 * sphere_radius * scale_factor,
+                0.7 * sphere_radius * scale_factor,
+            );
         } else {
-            transform.scale = Vec3::new(0.7, 1.5, 0.7);
+            transform.scale = Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius);
         }
     }
 }
@@ -574,8 +519,7 @@ pub(super) fn despawn_out_of_range_crystal_spawns(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_fireball_hits(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     explosions: Query<(Entity, &FireballExplosion), Without<CrystalSpawn>>,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
@@ -607,6 +551,8 @@ pub(super) fn detect_fireball_hits(
                     &targets,
                 );
 
+                let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
+
                 for (_, target_pos) in &enemies {
                     // Aim at ground level (Y=0) at the target's XZ position
                     let ground_target = Vec3::new(target_pos.x, 0.0, target_pos.z);
@@ -618,10 +564,6 @@ pub(super) fn detect_fireball_hits(
                     let explosion_radius = fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE;
                     let collision_radius =
                         fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE;
-
-                    let sphere = Sphere::new(
-                        fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5,
-                    );
 
                     commands.spawn((
                         Fireball::new(
@@ -636,13 +578,10 @@ pub(super) fn detect_fireball_hits(
                             origin: crystal.position,
                             max_range: crystal.range,
                         },
-                        Mesh3d(meshes.add(sphere)),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: Color::srgb(1.0, 0.5, 0.0),
-                            unlit: true,
-                            ..default()
-                        })),
-                        Transform::from_translation(crystal.position),
+                        Mesh3d(visual_assets.unit_sphere.clone()),
+                        MeshMaterial3d(visual_assets.fireball_projectile.clone()),
+                        Transform::from_translation(crystal.position)
+                            .with_scale(Vec3::splat(mini_radius)),
                         OnGameplayScreen,
                     ));
                 }
@@ -660,8 +599,7 @@ pub(super) fn detect_fireball_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_beam_hits(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     disintegrate_beams: Query<&DisintegrateBeam>,
     fod_beams: Query<(Entity, &FingerOfDeathBeam)>,
@@ -795,8 +733,7 @@ pub(super) fn detect_beam_hits(
                 for (target_entity, target_pos) in &candidates {
                     let beam_entity = spawn_crystal_beam(
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         crystal.position,
                         *target_pos,
                         crystal.range,
@@ -804,7 +741,6 @@ pub(super) fn detect_beam_hits(
                         disintegrate_constants::DAMAGE_INTERVAL,
                         disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
                         crystal.empowerment,
-                        disintegrate_constants::BEAM_COLOR,
                         true,
                     );
                     crystal.active_beams.push((beam_entity, *target_entity));
@@ -839,8 +775,7 @@ pub(super) fn detect_beam_hits(
                 for (_, target_pos) in &enemies {
                     spawn_crystal_beam(
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         crystal.position,
                         *target_pos,
                         crystal.range,
@@ -849,7 +784,6 @@ pub(super) fn detect_beam_hits(
                         disintegrate_constants::DAMAGE_INTERVAL,
                         finger_of_death_constants::BEAM_WIDTH * SIZE_SCALE,
                         crystal.empowerment,
-                        finger_of_death_constants::BEAM_COLOR_FIRED,
                         false,
                     );
                 }
@@ -862,8 +796,7 @@ pub(super) fn detect_beam_hits(
 #[allow(clippy::too_many_arguments)]
 fn spawn_crystal_beam(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     origin: Vec3,
     target: Vec3,
     max_range: f32,
@@ -871,7 +804,6 @@ fn spawn_crystal_beam(
     damage_interval: f32,
     beam_width: f32,
     empowerment: f32,
-    color: Color,
     persistent: bool,
 ) -> Entity {
     let direction = (target - origin).normalize();
@@ -879,7 +811,6 @@ fn spawn_crystal_beam(
     let length = distance_to_target.min(max_range);
 
     let midpoint = origin + direction * (length / 2.0);
-    let rectangle = Rectangle::new(beam_width, beam_width);
 
     commands
         .spawn((
@@ -896,13 +827,10 @@ fn spawn_crystal_beam(
                 empowerment,
                 persistent,
             },
-            Mesh3d(meshes.add(rectangle)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: color,
-                unlit: true,
-                ..default()
-            })),
-            Transform::from_translation(midpoint),
+            Mesh3d(assets.unit_rect.clone()),
+            MeshMaterial3d(assets.crystal_beam.clone()),
+            Transform::from_translation(midpoint)
+                .with_scale(Vec3::new(beam_width, beam_width, beam_width)),
             OnGameplayScreen,
         ))
         .id()
@@ -921,6 +849,7 @@ pub(super) fn update_crystal_beams(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         Without<CrystalBeam>,
     >,
@@ -946,13 +875,13 @@ pub(super) fn update_crystal_beams(
         transform.rotation = rotation;
 
         let scale_y = current_len / beam.beam_width;
-        transform.scale = Vec3::new(1.0, scale_y, 1.0);
+        transform.scale = Vec3::new(beam.beam_width, scale_y * beam.beam_width, beam.beam_width);
 
         // Apply damage
         if beam.time_since_damage >= beam.damage_interval {
             beam.time_since_damage = 0.0;
 
-            for (entity, target_transform, mut health, mut temp_hp) in &mut targets {
+            for (entity, target_transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
                 if beam.contains_point(target_transform.translation) {
                     apply_spell_damage(
                         &mut commands,
@@ -961,6 +890,7 @@ pub(super) fn update_crystal_beams(
                         temp_hp.as_deref_mut(),
                         beam.damage_per_tick * beam.empowerment,
                         DamageType::Force,
+                        has_spell_shield,
                     );
                 }
             }
@@ -974,12 +904,13 @@ pub(super) fn update_crystal_beams(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_meteor_hits(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     meteors: Query<(Entity, &Transform, &MeteorProjectile)>,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
 ) {
+    let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
+
     for (meteor_entity, meteor_transform, meteor) in &meteors {
         for mut crystal in &mut crystals {
             let distance = Vec3::new(
@@ -1011,9 +942,6 @@ pub(super) fn detect_meteor_hits(
                     let damage = meteor.damage * DAMAGE_SCALE;
                     let explosion_radius = meteor.explosion_radius * SIZE_SCALE;
 
-                    let sphere =
-                        Sphere::new(meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE);
-
                     commands.spawn((
                         MeteorProjectile::new(
                             Vec3::new(0.0, meteor_fall_constants::METEOR_INITIAL_VELOCITY, 0.0),
@@ -1025,13 +953,10 @@ pub(super) fn detect_meteor_hits(
                             origin: crystal.position,
                             max_range: crystal.range,
                         },
-                        Mesh3d(meshes.add(sphere)),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: meteor_fall_constants::METEOR_COLOR,
-                            unlit: true,
-                            ..default()
-                        })),
-                        Transform::from_translation(spawn_pos),
+                        Mesh3d(visual_assets.unit_sphere.clone()),
+                        MeshMaterial3d(visual_assets.meteor_projectile.clone()),
+                        Transform::from_translation(spawn_pos)
+                            .with_scale(Vec3::splat(mini_radius)),
                         OnGameplayScreen,
                     ));
                 }
@@ -1048,8 +973,7 @@ pub(super) fn detect_meteor_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_magic_missile_hits(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     missiles: Query<(Entity, &Transform, &MagicMissile), Without<CrystalSpawn>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
@@ -1073,6 +997,8 @@ pub(super) fn detect_magic_missile_hits(
                     &enemies,
                 );
 
+                let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
+
                 for (target_entity, target_pos) in &targets {
                     let direction = (*target_pos - crystal.position).normalize();
                     let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
@@ -1080,9 +1006,6 @@ pub(super) fn detect_magic_missile_hits(
 
                     let mut rng = rand::thread_rng();
                     let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
-
-                    let circle =
-                        Circle::new(magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE);
 
                     let mut mini_missile = MagicMissile::new(
                         initial_velocity,
@@ -1101,13 +1024,10 @@ pub(super) fn detect_magic_missile_hits(
                             origin: crystal.position,
                             max_range: crystal.range,
                         },
-                        Mesh3d(meshes.add(circle)),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: Color::srgb(0.8, 0.3, 0.9),
-                            unlit: true,
-                            ..default()
-                        })),
-                        Transform::from_translation(crystal.position),
+                        Mesh3d(visual_assets.unit_circle.clone()),
+                        MeshMaterial3d(visual_assets.crystal_mini_missile.clone()),
+                        Transform::from_translation(crystal.position)
+                            .with_scale(Vec3::splat(mini_radius)),
                         OnGameplayScreen,
                     ));
                 }
@@ -1126,8 +1046,7 @@ pub(super) fn detect_magic_missile_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_chain_lightning_hits(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(Entity, &mut ArcaneCrystal)>,
     bolts: Query<
         &crate::game::units::wizard::spells::chain_lightning::components::ChainLightningBolt,
@@ -1136,7 +1055,7 @@ pub(super) fn detect_chain_lightning_hits(
         &crate::game::units::wizard::spells::chain_lightning::components::ChainLightningGroup,
     >,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
 ) {
     // Check if any bolt's last_hit_position matches a crystal position
     // (chain lightning system sets crystal as a bounce target, so the bolt
@@ -1173,7 +1092,7 @@ pub(super) fn detect_chain_lightning_hits(
 
             for (target_entity, target_pos) in &enemies {
                 // Apply damage
-                if let Ok((mut health, mut temp_hp)) = health_query.get_mut(*target_entity) {
+                if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(*target_entity) {
                     apply_spell_damage(
                         &mut commands,
                         *target_entity,
@@ -1181,14 +1100,14 @@ pub(super) fn detect_chain_lightning_hits(
                         temp_hp.as_deref_mut(),
                         damage,
                         DamageType::Electric,
+                        has_spell_shield,
                     );
                 }
 
                 // Spawn arc visual
                 spawn_crystal_arc(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     crystal.position,
                     *target_pos,
                 );
@@ -1202,8 +1121,7 @@ pub(super) fn detect_chain_lightning_hits(
 /// Spawns a visual lightning arc from crystal to target.
 fn spawn_crystal_arc(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     start: Vec3,
     end: Vec3,
 ) {
@@ -1212,8 +1130,6 @@ fn spawn_crystal_arc(
     let length = start.distance(end);
     let arc_width = cl_constants::MIN_ARC_WIDTH;
 
-    let rectangle = Rectangle::new(arc_width, arc_width);
-
     let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
 
     commands.spawn((
@@ -1221,15 +1137,11 @@ fn spawn_crystal_arc(
             lifetime: cl_constants::ARC_LIFETIME,
             time_alive: 0.0,
         },
-        Mesh3d(meshes.add(rectangle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: MINI_LIGHTNING_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(assets.unit_rect.clone()),
+        MeshMaterial3d(assets.crystal_arc.clone()),
         Transform::from_translation(midpoint)
             .with_rotation(rotation)
-            .with_scale(Vec3::new(1.0, length / arc_width, 1.0)),
+            .with_scale(Vec3::new(arc_width, length, arc_width)),
         OnGameplayScreen,
     ));
 }
@@ -1245,13 +1157,12 @@ fn spawn_crystal_arc(
 pub(super) fn auto_cast_remembered_spell(
     time: Res<Time>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     crystal_beams: Query<(Entity, &mut CrystalBeam)>,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
 ) {
     let delta = time.delta_secs();
 
@@ -1293,8 +1204,7 @@ pub(super) fn auto_cast_remembered_spell(
                 empowerment,
                 auto_beam,
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &visual_assets,
                 &crystal_beams,
                 &targets,
                 &mut crystals,
@@ -1329,8 +1239,7 @@ pub(super) fn auto_cast_remembered_spell(
                         range,
                         empowerment,
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         &enemies,
                     );
                 }
@@ -1340,8 +1249,7 @@ pub(super) fn auto_cast_remembered_spell(
                         range,
                         empowerment,
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         &targets,
                     );
                 }
@@ -1351,8 +1259,7 @@ pub(super) fn auto_cast_remembered_spell(
                         range,
                         empowerment,
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         &targets,
                         &mut health_query,
                     );
@@ -1363,8 +1270,7 @@ pub(super) fn auto_cast_remembered_spell(
                         range,
                         empowerment,
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         &targets,
                     );
                 }
@@ -1374,8 +1280,7 @@ pub(super) fn auto_cast_remembered_spell(
                         range,
                         empowerment,
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         &targets,
                     );
                 }
@@ -1399,8 +1304,7 @@ fn handle_auto_disintegrate(
     empowerment: f32,
     auto_beam: Option<(Entity, Entity)>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     crystal_beams: &Query<(Entity, &mut CrystalBeam)>,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
     crystals: &mut Query<&mut ArcaneCrystal>,
@@ -1425,8 +1329,7 @@ fn handle_auto_disintegrate(
                 commands.entity(beam_entity).try_despawn();
                 let new_beam = spawn_crystal_beam(
                     commands,
-                    meshes,
-                    materials,
+                    assets,
                     position,
                     target_transform.translation,
                     range,
@@ -1434,7 +1337,6 @@ fn handle_auto_disintegrate(
                     disintegrate_constants::DAMAGE_INTERVAL,
                     disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
                     empowerment,
-                    disintegrate_constants::BEAM_COLOR,
                     true,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
@@ -1448,8 +1350,7 @@ fn handle_auto_disintegrate(
             if let Some((new_target, new_pos)) = new_targets.first() {
                 let new_beam = spawn_crystal_beam(
                     commands,
-                    meshes,
-                    materials,
+                    assets,
                     position,
                     *new_pos,
                     range,
@@ -1457,7 +1358,6 @@ fn handle_auto_disintegrate(
                     disintegrate_constants::DAMAGE_INTERVAL,
                     disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
                     empowerment,
-                    disintegrate_constants::BEAM_COLOR,
                     true,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
@@ -1474,8 +1374,7 @@ fn handle_auto_disintegrate(
                 commands.entity(beam_entity).try_despawn();
                 let new_beam = spawn_crystal_beam(
                     commands,
-                    meshes,
-                    materials,
+                    assets,
                     position,
                     *new_pos,
                     range,
@@ -1483,7 +1382,6 @@ fn handle_auto_disintegrate(
                     disintegrate_constants::DAMAGE_INTERVAL,
                     disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
                     empowerment,
-                    disintegrate_constants::BEAM_COLOR,
                     true,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
@@ -1504,8 +1402,7 @@ fn handle_auto_disintegrate(
     if let Some((target_entity, target_pos)) = new_targets.first() {
         let beam_entity = spawn_crystal_beam(
             commands,
-            meshes,
-            materials,
+            assets,
             position,
             *target_pos,
             range,
@@ -1513,7 +1410,6 @@ fn handle_auto_disintegrate(
             disintegrate_constants::DAMAGE_INTERVAL,
             disintegrate_constants::BEAM_WIDTH * SIZE_SCALE,
             empowerment,
-            disintegrate_constants::BEAM_COLOR,
             true,
         );
         if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
@@ -1528,11 +1424,12 @@ fn auto_cast_magic_missiles(
     range: f32,
     _empowerment: f32,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
 ) {
     let targets = find_random_enemies_in_range(position, range, MINI_MISSILE_COUNT, enemies);
+    let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
+
     for (target_entity, target_pos) in &targets {
         let direction = (*target_pos - position).normalize();
         let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
@@ -1540,8 +1437,6 @@ fn auto_cast_magic_missiles(
 
         let mut rng = rand::thread_rng();
         let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
-
-        let circle = Circle::new(magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE);
 
         let mut mini_missile = MagicMissile::new(
             initial_velocity,
@@ -1560,13 +1455,10 @@ fn auto_cast_magic_missiles(
                 origin: position,
                 max_range: range,
             },
-            Mesh3d(meshes.add(circle)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(0.8, 0.3, 0.9),
-                unlit: true,
-                ..default()
-            })),
-            Transform::from_translation(position),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.crystal_mini_missile.clone()),
+            Transform::from_translation(position)
+                .with_scale(Vec3::splat(mini_radius)),
             OnGameplayScreen,
         ));
     }
@@ -1578,11 +1470,12 @@ fn auto_cast_fireballs(
     range: f32,
     empowerment: f32,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
 ) {
     let enemies = find_random_targets_in_range(position, range, MINI_FB_COUNT, targets);
+    let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
+
     for (_, target_pos) in &enemies {
         let ground_target = Vec3::new(target_pos.x, 0.0, target_pos.z);
         let direction = (ground_target - position).normalize();
@@ -1592,9 +1485,6 @@ fn auto_cast_fireballs(
         let damage = fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE;
         let explosion_radius = fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE;
         let collision_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE;
-
-        let sphere =
-            Sphere::new(fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5);
 
         commands.spawn((
             Fireball::new(
@@ -1609,13 +1499,10 @@ fn auto_cast_fireballs(
                 origin: position,
                 max_range: range,
             },
-            Mesh3d(meshes.add(sphere)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(1.0, 0.5, 0.0),
-                unlit: true,
-                ..default()
-            })),
-            Transform::from_translation(position),
+            Mesh3d(assets.unit_sphere.clone()),
+            MeshMaterial3d(assets.fireball_projectile.clone()),
+            Transform::from_translation(position)
+                .with_scale(Vec3::splat(mini_radius)),
             OnGameplayScreen,
         ));
     }
@@ -1628,16 +1515,15 @@ fn auto_cast_chain_lightning(
     range: f32,
     empowerment: f32,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
-    health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
 ) {
     let enemies = find_random_targets_in_range(position, range, LIGHTNING_ARC_COUNT, targets);
     let damage = cl_constants::INITIAL_DAMAGE * DAMAGE_SCALE * empowerment;
 
     for (target_entity, target_pos) in &enemies {
-        if let Ok((mut health, mut temp_hp)) = health_query.get_mut(*target_entity) {
+        if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(*target_entity) {
             apply_spell_damage(
                 commands,
                 *target_entity,
@@ -1645,10 +1531,11 @@ fn auto_cast_chain_lightning(
                 temp_hp.as_deref_mut(),
                 damage,
                 DamageType::Electric,
+                has_spell_shield,
             );
         }
 
-        spawn_crystal_arc(commands, meshes, materials, position, *target_pos);
+        spawn_crystal_arc(commands, assets, position, *target_pos);
     }
 }
 
@@ -1658,17 +1545,16 @@ fn auto_cast_meteors(
     range: f32,
     empowerment: f32,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
 ) {
     let enemies = find_random_targets_in_range(position, range, 2, targets);
+    let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
+
     for (_, target_pos) in &enemies {
         let spawn_pos = Vec3::new(target_pos.x, MINI_METEOR_SPAWN_HEIGHT, target_pos.z);
         let damage = meteor_fall_constants::METEOR_DAMAGE * DAMAGE_SCALE;
         let explosion_radius = meteor_fall_constants::EXPLOSION_RADIUS * SIZE_SCALE;
-
-        let sphere = Sphere::new(meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE);
 
         commands.spawn((
             MeteorProjectile::new(
@@ -1681,13 +1567,10 @@ fn auto_cast_meteors(
                 origin: position,
                 max_range: range,
             },
-            Mesh3d(meshes.add(sphere)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: meteor_fall_constants::METEOR_COLOR,
-                unlit: true,
-                ..default()
-            })),
-            Transform::from_translation(spawn_pos),
+            Mesh3d(assets.unit_sphere.clone()),
+            MeshMaterial3d(assets.meteor_projectile.clone()),
+            Transform::from_translation(spawn_pos)
+                .with_scale(Vec3::splat(mini_radius)),
             OnGameplayScreen,
         ));
     }
@@ -1699,16 +1582,14 @@ fn auto_cast_fod_beams(
     range: f32,
     empowerment: f32,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
 ) {
     let enemies = find_random_targets_in_range(position, range, BEAM_COUNT, targets);
     for (_, target_pos) in &enemies {
         spawn_crystal_beam(
             commands,
-            meshes,
-            materials,
+            assets,
             position,
             *target_pos,
             range,
@@ -1717,7 +1598,6 @@ fn auto_cast_fod_beams(
             disintegrate_constants::DAMAGE_INTERVAL,
             finger_of_death_constants::BEAM_WIDTH * SIZE_SCALE,
             empowerment,
-            finger_of_death_constants::BEAM_COLOR_FIRED,
             false,
         );
     }

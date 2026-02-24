@@ -39,50 +39,22 @@ pub enum NetworkMessage {
     /// Player has finished loading.
     GameLoaded,
 
-    /// Guest sends a spell result to the host for spawning.
-    SpellResult(SpellAction),
-
     /// Host notifies guest that the game is over.
     GameOver(GameOverResult),
 
     /// Player is ready for a rematch (sent from score screen).
     RematchReady,
-}
 
-/// Spell result actions sent from the guest to the host.
-///
-/// Each client runs its own casting pipeline (cast time, mana, cast bar).
-/// When a spell completes, the client sends the result with only the data
-/// the host needs to spawn the spell effect.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SpellAction {
-    /// Fire-and-forget spell completed casting.
-    SpellCast {
-        spell: Spell,
-        cursor_pos: [f32; 3],
-        empowerment: f32,
+    /// A wall was placed or removed — update pathfinding grid.
+    ///
+    /// Sent bidirectionally when either player places a Wall of Stone so
+    /// the other client can update its pathfinding grid.
+    WallPlaced {
+        /// AABB of the wall obstacle: [min_x, min_z, width, height].
+        bounds: [f32; 4],
+        /// true = wall placed (Blocked), false = wall removed (Removed).
+        placed: bool,
     },
-
-    /// Drag-to-place spell completed (wall of stone, wall of fire).
-    DragSpellCast {
-        spell: Spell,
-        anchor: [f32; 3],
-        end_pos: [f32; 3],
-        empowerment: f32,
-    },
-
-    /// Channeled spell started (cast time completed, entering channeling).
-    ChannelStarted {
-        spell: Spell,
-        cursor_pos: [f32; 3],
-        empowerment: f32,
-    },
-
-    /// Channeled spell cursor update (each frame during channeling).
-    ChannelUpdate { cursor_pos: [f32; 3] },
-
-    /// Channeled spell ended (mouse released or mana ran out).
-    ChannelEnded,
 }
 
 /// Result of a multiplayer match.

@@ -9,34 +9,20 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::king::components::SpellShield;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
-
 /// Local wizard fireball casting — reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but entity spawning is skipped.
-/// Instead, a `SpellCast` message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_fireball_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -44,8 +30,6 @@ pub fn handle_fireball_casting(
     caster_query: Query<&SpellCaster>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -61,9 +45,7 @@ pub fn handle_fireball_casting(
     };
     if primed_spell.spell != Spell::Fireball { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = fireball_casting_logic(
+    let completed = fireball_casting_logic(
         &input,
         &time,
         wizard_entity,
@@ -73,33 +55,15 @@ pub fn handle_fireball_casting(
         primed_spell,
         &caster_query,
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        skip_spawn,
+        &visual_assets,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Fireball,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
-/// Core fireball casting logic.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but
-/// entity spawning is skipped. The cursor position is returned in `CastResult`
-/// so the caller can send a network message.
+/// Core fireball casting logic. Returns true if the spell completed.
 #[allow(clippy::too_many_arguments)]
 fn fireball_casting_logic(
     input: &WizardInput,
@@ -111,11 +75,9 @@ fn fireball_casting_logic(
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
+    assets: &SpellVisualAssets,
+) -> bool {
+    let mut completed = false;
 
     // Check for release event
     if input.just_released {
@@ -123,7 +85,7 @@ fn fireball_casting_logic(
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
 
     match *casting_state {
@@ -137,19 +99,15 @@ fn fireball_casting_logic(
                 if mana.consume(constants::MANA_COST)
                     && let Some(target_pos) = input.cursor_pos
                 {
-                    if !skip_spawn {
-                        let spawn_origin = wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
-                        spawn_fireball(
-                            commands,
-                            meshes,
-                            materials,
-                            spawn_origin,
-                            target_pos,
-                            primed_spell,
-                        );
-                    }
-                    result.completed = true;
-                    result.cursor_pos = Some(target_pos);
+                    let spawn_origin = wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    spawn_fireball(
+                        commands,
+                        assets,
+                        spawn_origin,
+                        target_pos,
+                        primed_spell,
+                    );
+                    completed = true;
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
                 casting_state.cancel();
@@ -166,7 +124,7 @@ fn fireball_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
@@ -194,8 +152,7 @@ fn get_cursor_world_position(
 /// Spawns a fireball projectile.
 pub(crate) fn spawn_fireball(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     origin: Vec3,
     target: Vec3,
     primed_spell: &PrimedSpell,
@@ -205,16 +162,11 @@ pub(crate) fn spawn_fireball(
     let velocity = direction * speed;
 
     let radius = primed_spell.scale(FIREBALL_RADIUS);
-    let sphere = Sphere::new(radius);
 
     commands.spawn((
-        Mesh3d(meshes.add(sphere)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: FIREBALL_COLOR,
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_translation(origin),
+        Mesh3d(assets.unit_sphere.clone()),
+        MeshMaterial3d(assets.fireball_projectile.clone()),
+        Transform::from_translation(origin).with_scale(Vec3::splat(radius)),
         Fireball::new(
             velocity,
             primed_spell.scale(constants::DAMAGE_PER_TICK),
@@ -240,8 +192,7 @@ pub fn move_fireballs(time: Res<Time>, mut fireballs: Query<(&mut Transform, &Fi
 #[allow(clippy::too_many_arguments)]
 pub fn check_fireball_collisions(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     fireballs: Query<(Entity, &Transform, &Fireball)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
@@ -256,8 +207,7 @@ pub fn check_fireball_collisions(
                 let explosion_pos = fireball_pos;
                 spawn_explosion(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     explosion_pos,
                     fireball.explosion_radius,
                     fireball.damage,
@@ -277,8 +227,7 @@ pub fn check_fireball_collisions(
             let explosion_pos = Vec3::new(fireball_pos.x, 0.0, fireball_pos.z);
             spawn_explosion(
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &visual_assets,
                 explosion_pos,
                 fireball.explosion_radius,
                 fireball.damage,
@@ -295,8 +244,7 @@ pub fn check_fireball_collisions(
             if distance < fireball.radius {
                 spawn_explosion(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     fireball_pos,
                     fireball.explosion_radius,
                     fireball.damage,
@@ -312,22 +260,15 @@ pub fn check_fireball_collisions(
 /// Spawns a fireball explosion at the given position.
 fn spawn_explosion(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     max_radius: f32,
     damage: f32,
     empowerment: f32,
 ) {
-    let sphere = Sphere::new(1.0);
-
     commands.spawn((
-        Mesh3d(meshes.add(sphere)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: EXPLOSION_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(assets.unit_sphere.clone()),
+        MeshMaterial3d(assets.fireball_explosion.clone()),
         Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
         FireballExplosion::new(
             position,
@@ -364,6 +305,7 @@ pub fn apply_explosion_damage(
         &Transform,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
     )>,
 ) {
     for mut explosion in &mut explosions {
@@ -372,7 +314,7 @@ pub fn apply_explosion_damage(
 
             let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
 
-            for (entity, transform, mut health, mut temp_hp) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
                 let distance = explosion.origin.distance(transform.translation);
 
                 if distance <= current_radius {
@@ -383,6 +325,7 @@ pub fn apply_explosion_damage(
                         temp_hp.as_deref_mut(),
                         explosion.damage_per_tick,
                         constants::DAMAGE_TYPE,
+                        has_spell_shield,
                     );
                 }
             }

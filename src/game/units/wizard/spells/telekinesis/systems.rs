@@ -8,31 +8,16 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard Telekinesis casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but entity spawning is skipped.
-/// Instead, a `SpellCast` message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_telekinesis_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -49,8 +34,6 @@ pub(super) fn handle_telekinesis_casting(
     caster_query: Query<&SpellCaster>,
     drops_query: Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: Query<&TelekinesisIndicator>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -65,8 +48,6 @@ pub(super) fn handle_telekinesis_casting(
         return;
     };
     if primed_spell.spell != Spell::Telekinesis { return; }
-
-    let skip_spawn = skip_spawning.is_some();
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -92,8 +73,7 @@ pub(super) fn handle_telekinesis_casting(
             if ground_distance <= max_ground_radius {
                 let indicator_entity = spawn_indicator(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     drop_transform.translation,
                     drop_entity,
                 );
@@ -104,7 +84,7 @@ pub(super) fn handle_telekinesis_casting(
         }
     }
 
-    let cast_result = telekinesis_casting_logic(
+    let completed = telekinesis_casting_logic(
         &input,
         &time,
         wizard_entity,
@@ -117,31 +97,14 @@ pub(super) fn handle_telekinesis_casting(
         &drops_query,
         &indicator_query,
         &mut commands,
-        skip_spawn,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Telekinesis,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
 /// Core Telekinesis casting logic -- called by the local casting system.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but
-/// entity spawning is skipped. The cursor position is returned in `CastResult`
-/// so the caller can send a network message.
 #[allow(clippy::too_many_arguments)]
 fn telekinesis_casting_logic(
     input: &WizardInput,
@@ -156,10 +119,7 @@ fn telekinesis_casting_logic(
     drops_query: &Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: &Query<&TelekinesisIndicator>,
     commands: &mut Commands,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+) -> bool {
     // Check for release event
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
@@ -169,8 +129,10 @@ fn telekinesis_casting_logic(
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Resting => {
@@ -218,23 +180,19 @@ fn telekinesis_casting_logic(
                     if let Ok((_entity, drop_transform, drop_component)) =
                         drops_query.get(drop_entity)
                     {
-                        result.cursor_pos = Some(drop_transform.translation);
+                        let start_pos = drop_transform.translation;
+                        let total_distance =
+                            start_pos.distance(crate::game::constants::WIZARD_POSITION);
 
-                        if !skip_spawn {
-                            let start_pos = drop_transform.translation;
-                            let total_distance =
-                                start_pos.distance(crate::game::constants::WIZARD_POSITION);
-
-                            // Convert drop to flying state
-                            commands
-                                .entity(drop_entity)
-                                .remove::<IngredientDrop>()
-                                .insert(FlyingToWizard {
-                                    ingredient: drop_component.ingredient,
-                                    start_pos,
-                                    total_distance,
-                                });
-                        }
+                        // Convert drop to flying state
+                        commands
+                            .entity(drop_entity)
+                            .remove::<IngredientDrop>()
+                            .insert(FlyingToWizard {
+                                ingredient: drop_component.ingredient,
+                                start_pos,
+                                total_distance,
+                            });
                     }
 
                     // Cleanup indicator and caster
@@ -245,7 +203,7 @@ fn telekinesis_casting_logic(
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
-                    result.completed = true;
+                    completed = true;
                 } else {
                     // Out of mana or no valid target
                     if let Ok(caster) = caster_query.get(wizard_entity)
@@ -270,7 +228,7 @@ fn telekinesis_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Updates telekinesis indicator visuals during casting.
@@ -289,9 +247,9 @@ pub(super) fn update_telekinesis_indicator(
             transform.translation.z = drop_transform.translation.z;
         }
 
-        // Pulse animation
+        // Pulse animation (unit-sized mesh scaled by radius)
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(constants::INDICATOR_RADIUS * pulse);
     }
 }
 
@@ -320,24 +278,17 @@ fn find_nearest_drop<'a>(
 /// Spawns a visual indicator ring around a targeted drop.
 fn spawn_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     target_drop: Entity,
 ) -> Entity {
-    let ring_mesh = meshes.add(Circle::new(constants::INDICATOR_RADIUS));
-    let ring_material = materials.add(StandardMaterial {
-        base_color: constants::INDICATOR_COLOR,
-        unlit: true,
-        ..default()
-    });
-
     commands
         .spawn((
-            Mesh3d(ring_mesh),
-            MeshMaterial3d(ring_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.telekinesis_indicator.clone()),
             Transform::from_translation(Vec3::new(position.x, constants::INDICATOR_Y, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(constants::INDICATOR_RADIUS)),
             TelekinesisIndicator::new(target_drop),
             OnGameplayScreen,
         ))

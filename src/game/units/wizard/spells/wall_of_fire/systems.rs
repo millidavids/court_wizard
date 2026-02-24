@@ -7,9 +7,7 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
@@ -17,6 +15,7 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, ResidualFireDamaged, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::king::components::SpellShield;
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
@@ -73,8 +72,8 @@ pub fn handle_wall_of_fire_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -91,8 +90,6 @@ pub fn handle_wall_of_fire_casting(
     mut caster_query: Query<&mut WallOfFireCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfFirePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -125,8 +122,6 @@ pub fn handle_wall_of_fire_casting(
         clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
     });
 
-    let skip_spawn = skip_spawning.is_some();
-
     let cast_result = wall_of_fire_casting_logic(
         &input,
         clamped_pos,
@@ -135,7 +130,6 @@ pub fn handle_wall_of_fire_casting(
         primed_spell,
         &mut caster,
         &mut obstacle_events,
-        skip_spawn,
     );
 
     // Handle preview spawning on cast start (anchor set, no preview yet)
@@ -144,7 +138,7 @@ pub fn handle_wall_of_fire_casting(
             let preview_height = 10.0;
             let preview_entity = commands
                 .spawn((
-                    Mesh3d(meshes.add(Cuboid::new(1.0, preview_height, WALL_WIDTH))),
+                    Mesh3d(visual_assets.unit_cuboid.clone()),
                     MeshMaterial3d(materials.add(StandardMaterial {
                         base_color: PREVIEW_COLOR,
                         alpha_mode: AlphaMode::Blend,
@@ -153,7 +147,7 @@ pub fn handle_wall_of_fire_casting(
                         ..default()
                     })),
                     Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
-                        .with_scale(Vec3::new(0.0, 1.0, 1.0)),
+                        .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
                     WallOfFirePreview,
                     OnGameplayScreen,
                 ))
@@ -182,40 +176,32 @@ pub fn handle_wall_of_fire_casting(
                 preview_transform.translation =
                     Vec3::new(center.x, preview_height / 2.0, center.z);
                 preview_transform.rotation = rotation;
-                preview_transform.scale = Vec3::new(length, 1.0, 1.0);
+                preview_transform.scale = Vec3::new(length, preview_height, WALL_WIDTH);
             }
         }
     }
 
-    // On successful placement, convert preview entity to active fire wall (host only)
+    // On successful placement, convert preview entity to active fire wall
     if let Some(ref info) = cast_result.wall_placed {
-        if !skip_spawn {
-            if let Some(preview_entity) = caster.preview_entity {
-                commands
-                    .entity(preview_entity)
-                    .remove::<WallOfFirePreview>()
-                    .insert((
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
-                            unlit: true,
-                            alpha_mode: AlphaMode::Blend,
-                            cull_mode: None,
-                            ..default()
-                        })),
-                        WallOfFireEffect::new(
-                            info.wall_start,
-                            info.wall_end,
-                            info.half_width,
-                            info.damage,
-                            DamageType::Fire,
-                            TICK_INTERVAL,
-                            info.fire_duration,
-                        ),
-                        NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
-                    ));
-            }
-        } else if let Some(preview_entity) = caster.preview_entity {
-            commands.entity(preview_entity).despawn();
+        if let Some(preview_entity) = caster.preview_entity {
+            // Clone wall_of_fire material for per-instance fading animation
+            let base = materials.get(&visual_assets.wall_of_fire).cloned().unwrap_or_default();
+            commands
+                .entity(preview_entity)
+                .remove::<WallOfFirePreview>()
+                .insert((
+                    MeshMaterial3d(materials.add(base)),
+                    WallOfFireEffect::new(
+                        info.wall_start,
+                        info.wall_end,
+                        info.half_width,
+                        info.damage,
+                        DamageType::Fire,
+                        TICK_INTERVAL,
+                        info.fire_duration,
+                    ),
+                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
+                ));
         }
         caster.preview_entity = None;
     }
@@ -230,21 +216,6 @@ pub fn handle_wall_of_fire_casting(
 
     if cast_result.completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(info)) =
-                (connection.as_mut(), &cast_result.wall_placed)
-            {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::DragSpellCast {
-                        spell: Spell::WallOfFire,
-                        anchor: [info.wall_start.x, info.wall_start.y, info.wall_start.z],
-                        end_pos: [info.wall_end.x, info.wall_end.y, info.wall_end.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
@@ -261,7 +232,6 @@ fn wall_of_fire_casting_logic(
     primed_spell: &PrimedSpell,
     caster: &mut WallOfFireCaster,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
-    skip_spawn: bool,
 ) -> WallOfFireCastResult {
     let mut result = WallOfFireCastResult {
         completed: false,
@@ -293,13 +263,11 @@ fn wall_of_fire_casting_logic(
                 let wall_start = anchor;
                 let wall_end = anchor + forward * clamped_length;
 
-                if !skip_spawn {
-                    // Notify pathfinding about hazard
-                    obstacle_events.write(ObstacleChanged {
-                        bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
-                        obstacle_type: ObstacleType::Hazard(3.0),
-                    });
-                }
+                // Notify pathfinding about hazard
+                obstacle_events.write(ObstacleChanged {
+                    bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
+                    obstacle_type: ObstacleType::Hazard(3.0),
+                });
 
                 result.wall_placed = Some(WallPlacedInfo {
                     wall_start,
@@ -376,6 +344,7 @@ pub fn apply_wall_of_fire_damage(
         &Transform,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
     )>,
 ) {
     let delta = time.delta_secs();
@@ -387,7 +356,7 @@ pub fn apply_wall_of_fire_damage(
         if effect.time_since_last_tick >= effect.tick_interval {
             effect.time_since_last_tick = 0.0;
 
-            for (entity, transform, mut health, mut temp_hp) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
                 let distance = effect.distance_to_point(transform.translation);
 
                 if distance <= effect.half_width {
@@ -398,6 +367,7 @@ pub fn apply_wall_of_fire_damage(
                         temp_hp.as_deref_mut(),
                         effect.damage_per_tick,
                         DamageType::Fire,
+                        has_spell_shield,
                     );
                     commands.entity(entity).insert(ResidualFireDamaged);
                 }

@@ -7,33 +7,17 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::BattleHymnModifier;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard battle hymn casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar, indicator) but the spell
-/// effect (apply_battle_hymn_buff) is skipped. Instead, a `SpellCast`
-/// message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_battle_hymn_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -53,8 +37,6 @@ pub fn handle_battle_hymn_casting(
         (Entity, &Transform, Option<&mut BattleHymnModifier>),
         Without<Wizard>,
     >,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -69,8 +51,6 @@ pub fn handle_battle_hymn_casting(
         return;
     };
     if primed_spell.spell != Spell::BattleHymn { return; }
-
-    let skip_spawn = skip_spawning.is_some();
 
     // Clamp cursor to spell range
     let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
@@ -96,8 +76,7 @@ pub fn handle_battle_hymn_casting(
                 if let Some(pos) = clamped_cursor {
                     let circle_entity = spawn_circle_indicator(
                         &mut commands,
-                        &mut meshes,
-                        &mut materials,
+                        &visual_assets,
                         pos,
                         primed_spell.empowerment,
                     );
@@ -127,7 +106,7 @@ pub fn handle_battle_hymn_casting(
         }
     }
 
-    let cast_result = battle_hymn_casting_logic(
+    let completed = battle_hymn_casting_logic(
         &input,
         &time,
         &mut casting_state,
@@ -136,41 +115,22 @@ pub fn handle_battle_hymn_casting(
         clamped_cursor,
     );
 
-    if cast_result.completed {
-        if !skip_spawn {
-            // Apply buff using indicator position
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-            {
-                if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                    let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                    apply_battle_hymn_buff(
-                        &mut commands,
-                        indicator.position,
-                        radius,
-                        indicator.empowerment,
-                        &mut targets_query,
-                    );
-                }
-                commands.entity(indicator_entity).despawn();
+    if completed {
+        // Apply buff using indicator position
+        if let Ok(caster) = caster_query.get(wizard_entity)
+            && let Some(indicator_entity) = caster.indicator_entity
+        {
+            if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                apply_battle_hymn_buff(
+                    &mut commands,
+                    indicator.position,
+                    radius,
+                    indicator.empowerment,
+                    &mut targets_query,
+                );
             }
-        } else {
-            // Skip spawn: clean up indicator
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-            {
-                commands.entity(indicator_entity).despawn();
-            }
-
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::BattleHymn,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
+            commands.entity(indicator_entity).despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;
@@ -187,14 +147,14 @@ fn battle_hymn_casting_logic(
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
-    clamped_cursor: Option<Vec3>,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+    _clamped_cursor: Option<Vec3>,
+) -> bool {
     // Release is handled by the wrappers before calling this function
     if input.just_released {
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Channeling { .. } => {
@@ -205,8 +165,7 @@ fn battle_hymn_casting_logic(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
-                    result.completed = true;
-                    result.cursor_pos = clamped_cursor;
+                    completed = true;
                 }
                 casting_state.cancel();
             }
@@ -218,7 +177,7 @@ fn battle_hymn_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Clamps cursor position to spell range accounting for circle radius.
@@ -256,8 +215,9 @@ pub fn update_battle_hymn_indicator(
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
+        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
         transform.translation.x = indicator.position.x;
         transform.translation.y = constants::CIRCLE_Y_POSITION;
         transform.translation.z = indicator.position.z;
@@ -293,28 +253,22 @@ pub(crate) fn apply_battle_hymn_buff(
 
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = constants::CIRCLE_RADIUS * empowerment;
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.battle_hymn_indicator.clone()),
             Transform::from_translation(Vec3::new(
                 position.x,
                 constants::CIRCLE_Y_POSITION,
                 position.z,
             ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(radius)),
             BattleHymnIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))

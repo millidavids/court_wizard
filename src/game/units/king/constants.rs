@@ -12,6 +12,12 @@ pub const KING_RADIUS: f32 = 14.0; // Larger than UNIT_RADIUS (8.0)
 pub const KING_HITBOX_HEIGHT: f32 = 35.0; // Taller than DEFENDER_HITBOX_HEIGHT (25.0)
 pub const KING_MOVEMENT_SPEED: f32 = 100.0; // Same as standard infantry
 
+// Spell shield (multiplayer only)
+/// Fraction of non-King defenders that must be alive for the shield to remain active.
+pub const SPELL_SHIELD_THRESHOLD: f32 = 0.10;
+pub const SPELL_SHIELD_RADIUS: f32 = 22.0; // Slightly larger than KING_RADIUS (14.0)
+pub const SPELL_SHIELD_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.15);
+
 // King-specific cohesion force constants
 pub const KING_COHESION_BASE: f32 = 0.0; // No cohesion when no enemies inside aura
 pub const KING_COHESION_THREATENED: f32 = 1.2; // Cohesion strength when enemies are inside aura

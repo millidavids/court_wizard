@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::is_local_wizard_active;
 
 use super::systems;
 
@@ -18,7 +18,7 @@ impl Plugin for SpellRangeIndicatorPlugin {
                 systems::update_spell_range_indicator,
                 systems::pulse_spell_range_indicator,
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_local_wizard_active),
         );
     }
 }

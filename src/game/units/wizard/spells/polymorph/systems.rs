@@ -5,25 +5,9 @@ use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, Lo
 use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::{AttackTiming, Corpse, Health, PolymorphedModifier};
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
 
 /// Local wizard polymorph casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but the spell effect
-/// (polymorphing the target) is skipped. Instead, a `SpellCast` message is
-/// sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_polymorph_casting(
     time: Res<Time>,
@@ -46,8 +30,6 @@ pub fn handle_polymorph_casting(
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -63,9 +45,7 @@ pub fn handle_polymorph_casting(
     };
     if primed_spell.spell != Spell::Polymorph { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = polymorph_casting_logic(
+    let completed = polymorph_casting_logic(
         &input,
         &time,
         &mut casting_state,
@@ -74,32 +54,14 @@ pub fn handle_polymorph_casting(
         &mut commands,
         &mut materials,
         &targets_query,
-        skip_spawn,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Polymorph,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
 /// Core polymorph casting logic.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but the
-/// spell effect (polymorphing the target) is skipped. The cursor position is
-/// returned in `CastResult` so the caller can send a network message.
-#[allow(clippy::too_many_arguments)]
 fn polymorph_casting_logic(
     input: &WizardInput,
     time: &Time,
@@ -117,15 +79,14 @@ fn polymorph_casting_logic(
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+) -> bool {
     // Check for release event
     if input.just_released {
         casting_state.cancel();
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Resting => {
@@ -137,45 +98,42 @@ fn polymorph_casting_logic(
             casting_state.advance(time.delta_secs());
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
-                    if !skip_spawn {
-                        if let Some(cursor_pos) = input.cursor_pos
-                            && let Some((target_entity, _, target_health, target_material)) =
-                                targets_query
-                                    .iter()
-                                    .filter_map(|(entity, transform, health, material)| {
-                                        let dist = transform.translation.distance(cursor_pos);
-                                        if dist <= constants::TARGET_SEARCH_RADIUS {
-                                            Some((entity, dist, health, material))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-                        {
-                            let duration = constants::POLYMORPH_DURATION * primed_spell.empowerment;
-                            let original_material = target_material.0.clone();
+                    if let Some(cursor_pos) = input.cursor_pos
+                        && let Some((target_entity, _, target_health, target_material)) =
+                            targets_query
+                                .iter()
+                                .filter_map(|(entity, transform, health, material)| {
+                                    let dist = transform.translation.distance(cursor_pos);
+                                    if dist <= constants::TARGET_SEARCH_RADIUS {
+                                        Some((entity, dist, health, material))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    {
+                        let duration = constants::POLYMORPH_DURATION * primed_spell.empowerment;
+                        let original_material = target_material.0.clone();
 
-                            // Create sheep material
-                            let sheep_material = materials.add(StandardMaterial {
-                                base_color: constants::SHEEP_COLOR,
-                                ..default()
-                            });
+                        // Create sheep material
+                        let sheep_material = materials.add(StandardMaterial {
+                            base_color: constants::SHEEP_COLOR,
+                            ..default()
+                        });
 
-                            commands.entity(target_entity).insert((
-                                PolymorphedModifier::new(
-                                    duration,
-                                    target_health.current,
-                                    target_health.max,
-                                    original_material,
-                                ),
-                                MeshMaterial3d(sheep_material),
-                                Health::new(constants::SHEEP_HP),
-                            ));
-                            commands.entity(target_entity).remove::<AttackTiming>();
-                        }
+                        commands.entity(target_entity).insert((
+                            PolymorphedModifier::new(
+                                duration,
+                                target_health.current,
+                                target_health.max,
+                                original_material,
+                            ),
+                            MeshMaterial3d(sheep_material),
+                            Health::new(constants::SHEEP_HP),
+                        ));
+                        commands.entity(target_entity).remove::<AttackTiming>();
                     }
-                    result.completed = true;
-                    result.cursor_pos = input.cursor_pos;
+                    completed = true;
                 }
                 casting_state.cancel();
             }
@@ -185,7 +143,7 @@ fn polymorph_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Ticks polymorphed unit timers and restores them when expired.

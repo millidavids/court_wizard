@@ -2,30 +2,19 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, GuestWizard, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput};
+use super::super::super::components::{CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput};
 use super::components::*;
 use super::constants;
-use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestCursorPosition, GuestInputState, SkipSpellSpawning};
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed its initial cast (entered channeling).
-    completed: bool,
-    /// Whether the spell is actively channeling this frame.
-    channeling: bool,
-    /// Whether the channel was just cancelled this frame.
-    channel_ended: bool,
-}
+use crate::networking::crdt::PeerId;
 
 /// Local wizard magic missile casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -33,8 +22,7 @@ pub fn handle_magic_missile_casting(
     time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
         With<LocalWizard>,
@@ -44,8 +32,7 @@ pub fn handle_magic_missile_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
+    peer_id: Option<Res<PeerId>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
@@ -61,92 +48,12 @@ pub fn handle_magic_missile_casting(
     };
     if primed_spell.spell != Spell::MagicMissile { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = magic_missile_casting_logic(
-        &input,
-        &time,
-        wizard_transform,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        wizard,
-        TargetTeams::AttackersAndUndead,
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &camera_query,
-        &targets,
-        &crystals,
-        skip_spawn,
-    );
-
-    if cast_result.completed {
-        // Guest: notify host that channeling started
-        if skip_spawn {
-            if let Some(conn) = connection.as_mut() {
-                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::ChannelStarted {
-                        spell: Spell::MagicMissile,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
-    }
-
-    // Guest: send channel updates each frame during channeling
-    if skip_spawn && cast_result.channeling {
-        if let Some(conn) = connection.as_mut() {
-            let pos = cursor_pos.unwrap_or(Vec3::ZERO);
-            conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                SpellAction::ChannelUpdate {
-                    cursor_pos: [pos.x, pos.y, pos.z],
-                },
-            ));
-        }
-    }
-
-    // Guest: notify host that channeling ended
-    if skip_spawn && cast_result.channel_ended {
-        if let Some(conn) = connection.as_mut() {
-            conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                SpellAction::ChannelEnded,
-            ));
-        }
-    }
-}
-
-/// Guest wizard magic missile casting — reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_magic_missile_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut wizard_query: Query<
-        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
-        With<GuestWizard>,
-    >,
-    camera_query: Query<&GlobalTransform, With<Camera>>,
-    targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
-    crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
+    // Host/SP wizard targets attackers; guest wizard targets defenders
+    let target_teams = if peer_id.is_some_and(|p| p.0 == PeerId::GUEST) {
+        TargetTeams::DefendersAndUndead
+    } else {
+        TargetTeams::AttackersAndUndead
     };
-
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::MagicMissile { return; }
 
     magic_missile_casting_logic(
         &input,
@@ -156,18 +63,16 @@ pub fn handle_magic_missile_casting_guest(
         &mut mana,
         primed_spell,
         wizard,
-        TargetTeams::DefendersAndUndead,
+        target_teams,
         &mut commands,
-        &mut meshes,
-        &mut materials,
+        &visual_assets,
         &camera_query,
         &targets,
         &crystals,
-        false, // Host always spawns
     );
 }
 
-/// Core magic missile casting logic — called by both local and guest systems.
+/// Core magic missile casting logic.
 ///
 /// Handles the full Resting -> Casting -> Channeling state machine.
 /// During channeling, spawns missiles at increasing frequency.
@@ -182,35 +87,22 @@ fn magic_missile_casting_logic(
     wizard: &Wizard,
     target_teams: TargetTeams,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     camera_query: &Query<&GlobalTransform, With<Camera>>,
     targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: &Query<(Entity, &Transform, &ArcaneCrystal)>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult {
-        completed: false,
-        channeling: false,
-        channel_ended: false,
-    };
-
+) {
     let spawn_origin = wizard_transform.translation;
 
     // Check for release event
     if input.just_released {
-        let was_channeling = matches!(*casting_state, CastingState::Channeling { .. });
         casting_state.cancel();
-        if was_channeling {
-            result.channel_ended = true;
-        }
-        return result;
+        return;
     }
 
     match *casting_state {
         CastingState::Channeling { .. } => {
             casting_state.advance_channel(time.delta_secs());
-            result.channeling = true;
 
             if casting_state.should_channel(
                 constants::INITIAL_CHANNEL_INTERVAL,
@@ -219,26 +111,21 @@ fn magic_missile_casting_logic(
             ) {
                 let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
                 if mana.consume(mana_cost) {
-                    if !skip_spawn {
-                        spawn_magic_missile(
-                            commands,
-                            meshes,
-                            materials,
-                            camera_query,
-                            targets,
-                            crystals,
-                            wizard.spell_range,
-                            primed_spell.empowerment,
-                            input.cursor_pos,
-                            spawn_origin,
-                            target_teams,
-                        );
-                    }
+                    spawn_magic_missile(
+                        commands,
+                        assets,
+                        camera_query,
+                        targets,
+                        crystals,
+                        wizard.spell_range,
+                        primed_spell.empowerment,
+                        input.cursor_pos,
+                        spawn_origin,
+                        target_teams,
+                    );
                     casting_state.reset_channel_interval();
                 } else {
                     casting_state.cancel();
-                    result.channeling = false;
-                    result.channel_ended = true;
                 }
             }
         }
@@ -248,23 +135,19 @@ fn magic_missile_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 let mana_cost = constants::MANA_COST * wizard.mana_cost_multiplier;
                 if mana.consume(mana_cost) {
-                    if !skip_spawn {
-                        spawn_magic_missile(
-                            commands,
-                            meshes,
-                            materials,
-                            camera_query,
-                            targets,
-                            crystals,
-                            wizard.spell_range,
-                            primed_spell.empowerment,
-                            input.cursor_pos,
-                            spawn_origin,
-                            target_teams,
-                        );
-                    }
+                    spawn_magic_missile(
+                        commands,
+                        assets,
+                        camera_query,
+                        targets,
+                        crystals,
+                        wizard.spell_range,
+                        primed_spell.empowerment,
+                        input.cursor_pos,
+                        spawn_origin,
+                        target_teams,
+                    );
                     casting_state.start_channeling();
-                    result.completed = true;
                 } else {
                     casting_state.cancel();
                 }
@@ -277,8 +160,6 @@ fn magic_missile_casting_logic(
             }
         }
     }
-
-    result
 }
 
 /// Spawns a single magic missile projectile.
@@ -289,8 +170,7 @@ fn magic_missile_casting_logic(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_magic_missile(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     camera_query: &Query<&GlobalTransform, With<Camera>>,
     targets: &Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: &Query<(Entity, &Transform, &ArcaneCrystal)>,
@@ -417,15 +297,9 @@ pub(crate) fn spawn_magic_missile(
     let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
     // Spawn magic missile as a small pink circle
-    let circle = Circle::new(MAGIC_MISSILE_RADIUS);
-
     commands.spawn((
-        Mesh3d(meshes.add(circle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: MAGIC_MISSILE_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(assets.magic_missile_mesh.clone()),
+        MeshMaterial3d(assets.magic_missile.clone()),
         Transform::from_translation(spawn_pos),
         MagicMissile::new(
             initial_velocity,
@@ -584,6 +458,7 @@ pub fn check_magic_missile_collisions(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             &Team,
+            Has<SpellShield>,
         ),
         (Without<MagicMissile>, Without<Corpse>),
     >,
@@ -605,7 +480,7 @@ pub fn check_magic_missile_collisions(
             continue;
         }
 
-        for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
+        for (enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
             if !missile.target_teams.matches(team) {
                 continue;
             }
@@ -616,6 +491,9 @@ pub fn check_magic_missile_collisions(
 
             // Check collision
             if distance < missile.radius {
+                if has_spell_shield {
+                    continue;
+                }
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), missile.damage);
                 commands.entity(missile_entity).despawn();
                 break; // Missile destroyed, stop checking

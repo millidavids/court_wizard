@@ -7,15 +7,14 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::components::{
     Health, SpellDamaged, SpikeGrowthSlowModifier, TemporaryHitPoints, apply_damage_to_unit,
 };
+use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard spike growth casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -24,7 +23,7 @@ pub fn handle_spike_growth_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (
@@ -42,8 +41,6 @@ pub fn handle_spike_growth_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpikeGrowthIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -78,8 +75,6 @@ pub fn handle_spike_growth_casting(
         return;
     };
 
-    let skip_spawn = skip_spawning.is_some();
-
     match *casting_state {
         CastingState::Resting => {
             if (input.just_pressed || input.pressed)
@@ -88,8 +83,7 @@ pub fn handle_spike_growth_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     clamped_cursor,
                     primed_spell.empowerment,
                 );
@@ -115,37 +109,23 @@ pub fn handle_spike_growth_casting(
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
-                        if !skip_spawn {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                                spawn_spike_growth_zone(
-                                    &mut commands,
-                                    &mut meshes,
-                                    &mut materials,
-                                    indicator.position,
-                                    radius,
-                                    indicator.empowerment,
-                                    &mut obstacle_events,
-                                );
-                            }
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            spawn_spike_growth_zone(
+                                &mut commands,
+                                &visual_assets,
+                                &mut materials,
+                                indicator.position,
+                                radius,
+                                indicator.empowerment,
+                                &mut obstacle_events,
+                            );
                         }
                         commands.entity(indicator_entity).despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
                     mouse_state.left_consumed = true;
-
-                    if skip_spawn {
-                        if let (Some(conn), Some(pos)) = (connection.as_mut(), Some(clamped_cursor)) {
-                            conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                                SpellAction::SpellCast {
-                                    spell: Spell::SpikeGrowth,
-                                    cursor_pos: [pos.x, pos.y, pos.z],
-                                    empowerment: primed_spell.empowerment,
-                                },
-                            ));
-                        }
-                    }
                 } else {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
@@ -204,8 +184,9 @@ pub fn update_spike_growth_indicator(
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
+        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
         transform.translation.x = indicator.position.x;
         transform.translation.y = constants::CIRCLE_Y_POSITION;
         transform.translation.z = indicator.position.z;
@@ -223,6 +204,7 @@ pub fn apply_spike_growth_damage(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Option<&mut SpikeGrowthSlowModifier>,
+        Has<SpellShield>,
     )>,
 ) {
     let delta = time.delta_secs();
@@ -234,7 +216,7 @@ pub fn apply_spike_growth_damage(
         if zone.time_since_last_tick >= zone.tick_interval {
             zone.time_since_last_tick = 0.0;
 
-            for (entity, transform, mut health, mut temp_hp, existing_slow) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, existing_slow, has_spell_shield) in &mut targets {
                 let distance = Vec3::new(
                     zone.origin.x - transform.translation.x,
                     0.0,
@@ -243,6 +225,9 @@ pub fn apply_spike_growth_damage(
                 .length();
 
                 if distance <= zone.radius {
+                    if has_spell_shield {
+                        continue;
+                    }
                     // Apply damage
                     apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), zone.damage_per_tick);
                     commands.entity(entity).insert(SpellDamaged);
@@ -304,7 +289,7 @@ pub fn cleanup_spike_growth_zone(
 
 pub(crate) fn spawn_spike_growth_zone(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
+    assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     radius: f32,
@@ -324,24 +309,20 @@ pub(crate) fn spawn_spike_growth_zone(
         obstacle_type: ObstacleType::Hazard(15.0),
     });
 
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::ZONE_COLOR,
-        unlit: true,
-        alpha_mode: bevy::prelude::AlphaMode::Blend,
-        cull_mode: None,
-        ..default()
-    });
+    // Clone material for per-instance fading
+    let base_mat = materials.get(&assets.spike_growth_zone).cloned().unwrap_or_default();
+    let instance_material = materials.add(base_mat);
 
     commands.spawn((
-        Mesh3d(circle_mesh),
-        MeshMaterial3d(circle_material),
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(instance_material),
         Transform::from_translation(Vec3::new(
             position.x,
             constants::CIRCLE_Y_POSITION,
             position.z,
         ))
-        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::splat(radius)),
         SpikeGrowthZone::new(
             Vec3::new(position.x, 0.0, position.z),
             radius,
@@ -358,29 +339,23 @@ pub(crate) fn spawn_spike_growth_zone(
 
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = constants::CIRCLE_RADIUS * empowerment;
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
 
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.spike_growth_indicator.clone()),
             Transform::from_translation(Vec3::new(
                 position.x,
                 constants::CIRCLE_Y_POSITION,
                 position.z,
             ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(radius)),
             SpikeGrowthIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))

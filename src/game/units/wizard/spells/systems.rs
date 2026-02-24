@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::wall_of_stone::components::WallOfStone;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::infantry::components::Infantry;
 
 /// Updates all projectile positions based on their direction and speed.
@@ -29,6 +30,7 @@ pub fn check_projectile_collisions(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             &Team,
+            Has<SpellShield>,
         ),
         With<Infantry>,
     >,
@@ -50,7 +52,7 @@ pub fn check_projectile_collisions(
             continue;
         }
 
-        for (enemy_transform, mut health, mut temp_hp, team) in &mut enemies {
+        for (enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
             // Only damage attackers (projectiles are from defenders/wizard)
             if *team != Team::Attackers {
                 continue;
@@ -62,6 +64,9 @@ pub fn check_projectile_collisions(
 
             // Check if projectile hit the enemy
             if distance < projectile.radius {
+                if has_spell_shield {
+                    continue;
+                }
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), projectile.damage);
                 commands.entity(projectile_entity).despawn();
                 break; // Projectile is destroyed, stop checking

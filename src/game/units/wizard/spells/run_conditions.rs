@@ -1,16 +1,13 @@
 use bevy::prelude::*;
 
-use super::super::components::{CastingState, GuestWizard, LocalWizard, PrimedSpell, Spell};
+use super::super::components::{CastingState, LocalWizard, PrimedSpell, Spell};
 use crate::game::input::components::MouseLeftHeldThisFrame;
-use crate::game::multiplayer::spell_commands::GuestInputState;
 
 // Re-export commonly used run conditions for convenience
 pub use crate::game::input::run_conditions::{
     mouse_left_not_consumed, mouse_right_not_held, spell_input_not_blocked,
 };
 pub use crate::game::run_conditions::any_exist;
-
-// ── Local Wizard Run Conditions ──────────────────────────────────────
 
 /// Check if specific spell is primed on the local wizard.
 pub fn spell_is_primed(
@@ -41,34 +38,4 @@ pub fn mouse_held_or_wizard_casting(
     local_query: Query<&CastingState, With<LocalWizard>>,
 ) -> bool {
     mouse_held.held || wizard_is_casting_or_channeling(local_query)
-}
-
-// ── Guest Wizard Run Conditions ──────────────────────────────────────
-
-/// Check if specific spell is primed on the guest wizard.
-pub fn guest_spell_is_primed(
-    spell: Spell,
-) -> impl Fn(Query<&PrimedSpell, With<GuestWizard>>) -> bool + Clone {
-    move |guest_query: Query<&PrimedSpell, With<GuestWizard>>| {
-        guest_query
-            .single()
-            .map(|primed| primed.spell == spell)
-            .unwrap_or(false)
-    }
-}
-
-/// Check if the guest wizard has input this frame OR is currently casting/channeling.
-/// This is the guest equivalent of `mouse_held_or_wizard_casting`.
-pub fn guest_input_or_wizard_casting(
-    guest_input: Option<Res<GuestInputState>>,
-    guest_query: Query<&CastingState, (With<GuestWizard>, Without<LocalWizard>)>,
-) -> bool {
-    let guest_active = guest_input
-        .as_ref()
-        .is_some_and(|i| i.pressed || i.just_pressed || i.just_released);
-    let guest_casting = guest_query
-        .single()
-        .map(|state| !matches!(state, CastingState::Resting))
-        .unwrap_or(false);
-    guest_active || guest_casting
 }

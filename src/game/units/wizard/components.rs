@@ -1003,8 +1003,7 @@ pub struct GuestWizard;
 
 /// Abstract wizard input for spell casting — same shape regardless of source.
 ///
-/// Local wizard builds this from mouse state + camera raycast.
-/// Guest wizard builds this from `GuestInputState` + `GuestCursorPosition`.
+/// Built from mouse state + camera raycast.
 /// Spell casting logic consumes this without knowing the input source.
 pub struct WizardInput {
     /// True on the frame the cast button was first pressed.

@@ -344,6 +344,20 @@ pub struct ResidualFireDamaged;
 #[derive(Component)]
 pub struct OriginalMaterial(pub Handle<StandardMaterial>);
 
+/// Visual-only markers for status effects active on the remote peer.
+///
+/// These are inserted/removed based on network snapshot flags so that
+/// `update_persistent_effect_visuals` can tint units without creating
+/// damage-ticking DoT components (which would double-count damage via CRDT).
+#[derive(Component)]
+pub struct RemoteFireEffect;
+
+#[derive(Component)]
+pub struct RemoteFrostEffect;
+
+#[derive(Component)]
+pub struct RemoteElectricEffect;
+
 /// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
 ///
 /// A central system (`process_pending_damage_effects`) reads these each frame and
@@ -474,7 +488,11 @@ pub fn apply_spell_damage(
     temp_hp: Option<&mut TemporaryHitPoints>,
     damage: f32,
     damage_type: DamageType,
+    has_spell_shield: bool,
 ) {
+    if has_spell_shield {
+        return;
+    }
     apply_damage_to_unit(health, temp_hp, damage);
     commands.entity(entity).insert(SpellDamaged);
     commands.entity(entity).insert(PendingDamageEffect {

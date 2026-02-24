@@ -8,6 +8,7 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
+use crate::game::resources::InitialDefenderCount;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
@@ -15,6 +16,7 @@ use crate::game::units::components::{
     MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
+use crate::networking::session::MultiplayerSession;
 
 /// Spawns the King unit at the center of the defender grid.
 ///
@@ -314,6 +316,75 @@ pub fn snap_kings_guard_to_king(
             let angle = guard.0 as f32 * (std::f32::consts::TAU / KINGS_GUARD_COUNT as f32);
             transform.translation.x = king_pos.x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
             transform.translation.z = king_pos.z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
+        }
+    }
+}
+
+/// Attaches SpellShield to the King in multiplayer games.
+///
+/// Runs once when a King is first spawned (via `Added<King>` filter).
+/// Only activates when a `MultiplayerSession` resource exists.
+/// Also spawns the translucent shield visual as a child entity.
+pub fn attach_king_spell_shield(
+    mut commands: Commands,
+    session: Option<Res<MultiplayerSession>>,
+    new_kings: Query<(Entity, &Transform), Added<King>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if session.is_none() {
+        return;
+    }
+
+    for (entity, _transform) in &new_kings {
+        commands.entity(entity).insert(SpellShield);
+
+        // Spawn translucent sphere visual as child
+        let shield_visual = commands
+            .spawn((
+                Mesh3d(meshes.add(Sphere::new(SPELL_SHIELD_RADIUS))),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: SPELL_SHIELD_COLOR,
+                    unlit: true,
+                    alpha_mode: bevy::prelude::AlphaMode::Blend,
+                    ..default()
+                })),
+                Transform::default(),
+                SpellShieldVisual,
+                OnGameplayScreen,
+            ))
+            .id();
+        commands.entity(entity).add_child(shield_visual);
+    }
+}
+
+/// Removes the King's spell shield when fewer than 10% of non-King defenders remain.
+pub fn update_king_spell_shield(
+    mut commands: Commands,
+    king_query: Query<Entity, (With<King>, With<SpellShield>, Without<Corpse>)>,
+    defenders: Query<&Team, (Without<Corpse>, Without<King>)>,
+    initial_count: Option<Res<InitialDefenderCount>>,
+    shield_visuals: Query<Entity, With<SpellShieldVisual>>,
+) {
+    let Some(initial_count) = initial_count else {
+        return;
+    };
+
+    let Ok(king_entity) = king_query.single() else {
+        return;
+    };
+
+    let living_defenders = defenders
+        .iter()
+        .filter(|t| matches!(t, Team::Defenders))
+        .count() as f32;
+
+    if living_defenders / initial_count.0 as f32 <= SPELL_SHIELD_THRESHOLD {
+        commands.entity(king_entity).remove::<SpellShield>();
+
+        // Despawn shield visual
+        for visual_entity in &shield_visuals {
+            commands.entity(visual_entity).despawn();
         }
     }
 }

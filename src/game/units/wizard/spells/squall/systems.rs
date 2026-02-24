@@ -6,20 +6,18 @@ use rand::Rng;
 
 use super::components::{IceExplosion, IceProjectile, SquallCircleIndicator, SquallStorm};
 use super::constants::*;
-use super::styles::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
 /// Gets cursor position projected onto Y=0 plane.
@@ -83,39 +81,23 @@ fn clamp_to_spell_range(
 /// Spawns the visual circle indicator during casting.
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
-    let scale = empowerment;
-    let radius = STORM_RADIUS * scale;
-
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
+    let radius = STORM_RADIUS * empowerment;
 
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.squall_indicator.clone()),
             Transform::from_translation(Vec3::new(position.x, CIRCLE_Y_POSITION, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(radius)),
             SquallCircleIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))
         .id()
-}
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
 }
 
 /// Local wizard squall casting -- reads mouse input.
@@ -125,8 +107,7 @@ pub(super) fn handle_squall_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -143,8 +124,6 @@ pub(super) fn handle_squall_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SquallCircleIndicator>,
     existing_storms: Query<Entity, With<SquallStorm>>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -160,9 +139,7 @@ pub(super) fn handle_squall_casting(
     };
     if primed_spell.spell != Spell::Squall { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = squall_casting_logic(
+    let completed = squall_casting_logic(
         &input,
         &time,
         wizard_entity,
@@ -175,25 +152,11 @@ pub(super) fn handle_squall_casting(
         &mut indicator_query,
         &existing_storms,
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        skip_spawn,
+        &visual_assets,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Squall,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
@@ -212,29 +175,25 @@ fn squall_casting_logic(
     indicator_query: &mut Query<&mut SquallCircleIndicator>,
     existing_storms: &Query<Entity, With<SquallStorm>>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
+    assets: &SpellVisualAssets,
+) -> bool {
+    let mut completed = false;
 
     // Check for release event - cancel cast
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
-            // Despawn circle indicator if it exists
             if let Some(indicator_entity) = caster.indicator_entity {
                 commands.entity(indicator_entity).despawn();
             }
-            // Remove caster marker
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
 
     // Get cursor world position and clamp to wizard's spell range
     let Some(mut cursor_world_pos) = input.cursor_pos else {
-        return result;
+        return false;
     };
 
     let wizard_pos = wizard_transform.translation;
@@ -255,27 +214,21 @@ fn squall_casting_logic(
                 && caster_query.get(wizard_entity).is_err()
                 && mana.can_afford(MANA_COST)
             {
-                // Start casting - spawn circle indicator
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    meshes,
-                    materials,
+                    assets,
                     cursor_world_pos,
                     primed_spell.empowerment,
                 );
                 commands
                     .entity(wizard_entity)
                     .insert(SpellCaster::with_indicator(circle_entity));
-
-                // Start the cast
                 casting_state.start_cast();
             }
         }
         CastingState::Casting { .. } => {
-            // Currently casting - advance cast time
             casting_state.advance(time.delta_secs());
 
-            // Update circle position to follow cursor
             if let Ok(caster) = caster_query.get(wizard_entity)
                 && let Some(indicator_entity) = caster.indicator_entity
                 && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
@@ -283,56 +236,36 @@ fn squall_casting_logic(
                 indicator.position = cursor_world_pos;
             }
 
-            // Check if cast is complete
             if casting_state.is_complete(primed_spell.cast_time) {
-                // Cast complete - spawn storm entity
                 if mana.consume(MANA_COST) {
-                    if !skip_spawn {
-                        // Despawn any existing storms (only one storm at a time)
-                        for existing_storm in existing_storms.iter() {
-                            commands.entity(existing_storm).despawn();
-                        }
-
-                        // Get final circle position and spawn storm
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                // Spawn the storm entity (invisible marker)
-                                commands.spawn((
-                                    SquallStorm::new(
-                                        indicator.position,
-                                        storm_radius,
-                                        primed_spell.empowerment,
-                                    ),
-                                    ConcentrationSpell {
-                                        spell_name: "Squall",
-                                    },
-                                    OnGameplayScreen,
-                                ));
-                            }
-
-                            // Despawn circle indicator
-                            commands.entity(indicator_entity).despawn();
-                        }
-                    } else {
-                        // Skip spawn: still clean up indicator
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            commands.entity(indicator_entity).despawn();
-                        }
+                    // Despawn any existing storms (only one storm at a time)
+                    for existing_storm in existing_storms.iter() {
+                        commands.entity(existing_storm).despawn();
                     }
 
-                    // Remove caster marker immediately
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            commands.spawn((
+                                SquallStorm::new(
+                                    indicator.position,
+                                    storm_radius,
+                                    primed_spell.empowerment,
+                                ),
+                                ConcentrationSpell {
+                                    spell_name: "Squall",
+                                },
+                                OnGameplayScreen,
+                            ));
+                        }
+                        commands.entity(indicator_entity).despawn();
+                    }
 
-                    // Return to resting state
+                    commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
-                    result.completed = true;
-                    result.cursor_pos = Some(cursor_world_pos);
+                    completed = true;
                 } else {
-                    // Out of mana - cancel cast
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
@@ -344,7 +277,6 @@ fn squall_casting_logic(
             }
         }
         CastingState::Channeling { .. } => {
-            // Squall doesn't use channeling, cancel if we somehow get here
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
                     commands.entity(indicator_entity).despawn();
@@ -355,7 +287,7 @@ fn squall_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Updates circle indicator visuals during casting.
@@ -370,8 +302,9 @@ pub(super) fn update_circle_indicator(
         indicator.time_alive += time.delta_secs();
 
         // Apply pulse scale
+        let radius = STORM_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
 
         // Update position
         transform.translation.x = indicator.position.x;
@@ -386,8 +319,7 @@ pub(super) fn update_circle_indicator(
 pub(super) fn spawn_ice_projectiles(
     time: Res<Time>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut storms: Query<&mut SquallStorm>,
 ) {
     let mut rng = rand::thread_rng();
@@ -410,14 +342,6 @@ pub(super) fn spawn_ice_projectiles(
                 storm.position.z + offset.z,
             );
 
-            // Create ice projectile mesh (small sphere)
-            let sphere = Sphere::new(ICE_PROJECTILE_MESH_RADIUS);
-            let material = materials.add(StandardMaterial {
-                base_color: ICE_PROJECTILE_COLOR,
-                unlit: true,
-                ..default()
-            });
-
             // Spawn projectile
             let damage = FROST_DAMAGE * storm.empowerment;
             let explosion_radius = EXPLOSION_RADIUS * storm.empowerment;
@@ -430,9 +354,10 @@ pub(super) fn spawn_ice_projectiles(
                     ICE_PROJECTILE_RADIUS,
                     storm.empowerment,
                 ),
-                Mesh3d(meshes.add(sphere)),
-                MeshMaterial3d(material),
-                Transform::from_translation(spawn_pos),
+                Mesh3d(visual_assets.unit_sphere.clone()),
+                MeshMaterial3d(visual_assets.ice_projectile.clone()),
+                Transform::from_translation(spawn_pos)
+                    .with_scale(Vec3::splat(ICE_PROJECTILE_MESH_RADIUS)),
                 OnGameplayScreen,
             ));
         }
@@ -459,8 +384,7 @@ pub(super) fn update_ice_projectiles(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check_ice_projectile_collisions(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     projectiles: Query<(Entity, &Transform, &IceProjectile)>,
     walls: Query<&WallOfStone>,
 ) {
@@ -475,8 +399,7 @@ pub(super) fn check_ice_projectile_collisions(
                 let explosion_pos = Vec3::new(projectile_pos.x, wall.height, projectile_pos.z);
                 spawn_ice_explosion(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     explosion_pos,
                     projectile.explosion_radius,
                     projectile.damage,
@@ -497,8 +420,7 @@ pub(super) fn check_ice_projectile_collisions(
             let explosion_pos = Vec3::new(projectile_pos.x, 0.0, projectile_pos.z);
             spawn_ice_explosion(
                 &mut commands,
-                &mut meshes,
-                &mut materials,
+                &visual_assets,
                 explosion_pos,
                 projectile.explosion_radius,
                 projectile.damage,
@@ -512,29 +434,20 @@ pub(super) fn check_ice_projectile_collisions(
 /// Spawns an ice explosion at the given position.
 fn spawn_ice_explosion(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     max_radius: f32,
     damage: f32,
     empowerment: f32,
 ) {
-    // Create a 2D circle mesh that lies flat on the ground
-    let circle = Circle::new(1.0); // Unit circle, scaled by transform
-
     // Position slightly above battlefield (y=1) to avoid z-fighting
     let explosion_pos = Vec3::new(position.x, 1.0, position.z);
 
     commands.spawn((
-        Mesh3d(meshes.add(circle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: EXPLOSION_COLOR,
-            unlit: true,
-            alpha_mode: AlphaMode::Blend,
-            ..default()
-        })),
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(assets.ice_explosion.clone()),
         Transform::from_translation(explosion_pos)
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)) // Rotate to lie flat
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(0.1)),
         IceExplosion::new(position, max_radius, damage, empowerment),
         NetworkedSpellEffect { kind: SpellEffectKind::IceExplosion },
@@ -553,6 +466,7 @@ pub(super) fn update_ice_explosions(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         Without<IceExplosion>,
     >,
@@ -568,7 +482,7 @@ pub(super) fn update_ice_explosions(
         if !explosion.damage_applied {
             explosion.damage_applied = true;
 
-            for (unit_entity, unit_transform, mut health, mut temp_hp) in units.iter_mut() {
+            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut() {
                 let distance = unit_transform.translation.distance(explosion.origin);
 
                 if distance <= explosion.max_radius {
@@ -579,6 +493,7 @@ pub(super) fn update_ice_explosions(
                         temp_hp.as_deref_mut(),
                         explosion.damage,
                         DamageType::Frost,
+                        has_spell_shield,
                     );
                 }
             }

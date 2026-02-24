@@ -79,14 +79,17 @@ pub(super) struct LightningRodCircleIndicator {
     pub position: Vec3,
     /// Time this indicator has been active (for animations).
     pub time_alive: f32,
+    /// Empowerment multiplier (for scaling unit-sized mesh).
+    pub empowerment: f32,
 }
 
 impl LightningRodCircleIndicator {
     /// Creates a new circle indicator.
-    pub fn new(position: Vec3) -> Self {
+    pub fn new(position: Vec3, empowerment: f32) -> Self {
         Self {
             position,
             time_alive: 0.0,
+            empowerment,
         }
     }
 

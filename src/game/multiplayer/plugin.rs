@@ -14,7 +14,7 @@ use crate::game::resources::{GameOutcome, KillStats};
 use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
-use crate::networking::resources::{ConnectionState, NetworkConnection, PeerRole};
+use crate::networking::resources::{ConnectionState, NetworkConnection};
 use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host, MultiplayerSession};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
@@ -29,10 +29,11 @@ use super::components::{
     OnMpDisconnectedScreen, OnMpPauseScreen, OnMpScoreScreen, OnMultiplayerGameScreen,
     PendingRematch, RematchStatusText,
 };
+use super::crdt_sync;
 use super::guest_systems;
 use super::host_systems;
 use super::loading;
-use super::spell_commands;
+use super::spell_sync;
 
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::wizard::systems::cancel_active_casts;
@@ -116,6 +117,28 @@ impl Plugin for MultiplayerGamePlugin {
             cancel_active_casts,
         );
 
+        // ── CRDT Health Sync (both host and guest) ──────────────────
+        // attach_crdt_health: adds CrdtHealth to new entities with Health
+        // sync_health_to_crdt: detects local damage/healing, writes to CRDT,
+        //   re-derives Health from converged CRDT state
+        let mp_running = in_mp_running;
+        app.add_systems(
+            Update,
+            crdt_sync::attach_crdt_health
+                .run_if(mp_running.clone()),
+        );
+        app.add_systems(
+            Update,
+            crdt_sync::sync_health_to_crdt
+                .after(PostCombatSet)
+                .run_if(mp_running.clone()),
+        );
+        app.add_systems(
+            Update,
+            crdt_sync::receive_wall_placement
+                .run_if(mp_running.clone()),
+        );
+
         // ── Host: MP King Death Check ────────────────────────────────
         // Replaces SP's check_win_lose_conditions during multiplayer.
         // Runs after PostCombatSet so corpses have been created.
@@ -128,13 +151,11 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(mp_host.clone()),
         );
 
-        // ── Host Networking: ID Assignment + Snapshots ───────────────
+        // ── Host Networking: ID Assignment + Unit Snapshots ──────────
         app.add_systems(
             Update,
             (
                 host_systems::assign_network_ids,
-                host_systems::collect_spell_effect_snapshots,
-                host_systems::collect_spell_projectile_snapshots,
                 host_systems::send_state_snapshots,
             )
                 .chain()
@@ -142,36 +163,59 @@ impl Plugin for MultiplayerGamePlugin {
                 .run_if(mp_host),
         );
 
-        // ── Guest: Snapshot Rendering ────────────────────────────────
+        // ── Bidirectional Spell Visual Sync ──────────────────────────
+        // Both host and guest collect local spell visuals and send them,
+        // then receive and render the other player's spells as ghosts.
+        app.add_systems(
+            Update,
+            (
+                spell_sync::collect_spell_effect_snapshots,
+                spell_sync::collect_spell_projectile_snapshots,
+                spell_sync::send_spell_visual_snapshot,
+            )
+                .chain()
+                .after(PostCombatSet)
+                .run_if(mp_running.clone()),
+        );
+
+        app.add_systems(
+            Update,
+            (
+                spell_sync::receive_spell_visual_snapshot,
+                spell_sync::apply_remote_spell_snapshot,
+            )
+                .chain()
+                .run_if(mp_running.clone()),
+        );
+
+        // ── Guest: Unit Snapshot Rendering + CRDT Send ─────────────────
         app.add_systems(
             Update,
             (
                 guest_systems::apply_state_snapshot,
-                guest_systems::apply_spell_snapshot,
+                guest_systems::send_crdt_snapshot,
             )
                 .chain()
-                .run_if(in_mp_running.and(is_multiplayer_guest)),
+                .run_if(mp_running.clone().and(is_multiplayer_guest)),
+        );
+
+        // ── Host: Receive Guest CRDT Updates ──────────────────────────
+        // Must run after PostCombatSet (so host damage is applied first) but
+        // before sync_health_to_crdt (so the merged CRDT is visible when
+        // sync re-derives Health.current).
+        app.add_systems(
+            Update,
+            host_systems::receive_crdt_snapshot
+                .after(PostCombatSet)
+                .before(crdt_sync::sync_health_to_crdt)
+                .run_if(mp_running.clone().and(is_multiplayer_host)),
         );
 
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,
             guest_systems::handle_game_over_message
-                .run_if(in_mp_running.and(is_multiplayer_guest)),
-        );
-
-        // ── Host: Guest Spell Result Processing ──────────────────────
-        // Two-phase system: first extracts spell actions from network messages,
-        // then spawns entities in a separate system with all needed queries.
-        let mp_host_spells = in_mp_running.and(is_multiplayer_host);
-        app.add_systems(
-            Update,
-            (
-                spell_commands::process_guest_spell_results,
-                spell_commands::spawn_guest_spell_entities,
-            )
-                .chain()
-                .run_if(mp_host_spells),
+                .run_if(mp_running.and(is_multiplayer_guest)),
         );
 
         // ── Escape Key (Running → Paused toggle) ──────────────────────
@@ -252,9 +296,7 @@ fn init_mp_game(
     mut kill_stats: ResMut<KillStats>,
     mut defenders_activated: ResMut<DefendersActivated>,
     mut game_outcome: ResMut<GameOutcome>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    session: Res<MultiplayerSession>,
+    connection: Res<NetworkConnection>,
 ) {
     // Reset globally-owned resources to clean state for this match
     *attack_cycle = GlobalAttackCycle::default();
@@ -262,31 +304,24 @@ fn init_mp_game(
     defenders_activated.active = true;
     *game_outcome = GameOutcome::Victory;
 
-    // Guest: insert SkipSpellSpawning so casting systems skip entity spawning
-    // and send network messages instead.
-    if session.role == PeerRole::Guest {
-        commands.insert_resource(spell_commands::SkipSpellSpawning);
-    }
+    // Insert PeerId based on role (host=0, guest=1)
+    use crate::networking::crdt::PeerId;
+    use crate::networking::resources::PeerRole;
+    let peer_id = match connection.role {
+        Some(PeerRole::Host) => PeerId(PeerId::HOST),
+        _ => PeerId(PeerId::GUEST),
+    };
+    commands.insert_resource(peer_id);
 
     // Insert MP-only resources
     commands.init_resource::<EntityIdCounter>();
     commands.init_resource::<NetworkEntityMap>();
     commands.init_resource::<SnapshotTick>();
-    commands.init_resource::<spell_commands::GuestCursorPosition>();
-    commands.init_resource::<spell_commands::GuestInputState>();
-    commands.init_resource::<spell_commands::PendingGuestSpellActions>();
     commands.init_resource::<crate::networking::snapshot::SpellSnapshotData>();
     commands.init_resource::<super::components::SpellEffectEntityMap>();
-    commands.init_resource::<guest_systems::LatestSnapshot>();
+    commands.init_resource::<spell_sync::LatestSpellSnapshot>();
 
-    // Preload ghost spell assets for guest rendering
-    let ghost_assets = super::components::GhostSpellAssets::new(&mut meshes, &mut materials);
-    commands.insert_resource(ghost_assets);
-
-    // Preload spell effect assets for guest-side spell rendering
-    let spell_effect_assets =
-        super::components::SpellEffectAssets::new(&mut meshes, &mut materials);
-    commands.insert_resource(spell_effect_assets);
+    // SpellVisualAssets is initialized globally at startup, no MP-specific asset init needed.
 }
 
 /// Cleans up multiplayer game entities and resources.
@@ -320,18 +355,13 @@ fn cleanup_mp_game(
     *game_outcome = GameOutcome::Victory;
 
     // Remove MP-only resources that are created in init_mp_game.
+    commands.remove_resource::<crate::networking::crdt::PeerId>();
     commands.remove_resource::<EntityIdCounter>();
     commands.remove_resource::<NetworkEntityMap>();
     commands.remove_resource::<SnapshotTick>();
-    commands.remove_resource::<spell_commands::GuestCursorPosition>();
-    commands.remove_resource::<spell_commands::GuestInputState>();
-    commands.remove_resource::<spell_commands::PendingGuestSpellActions>();
-    commands.remove_resource::<super::components::GhostSpellAssets>();
-    commands.remove_resource::<super::components::SpellEffectAssets>();
     commands.remove_resource::<super::components::SpellEffectEntityMap>();
     commands.remove_resource::<crate::networking::snapshot::SpellSnapshotData>();
-    commands.remove_resource::<guest_systems::LatestSnapshot>();
-    commands.remove_resource::<spell_commands::SkipSpellSpawning>();
+    commands.remove_resource::<spell_sync::LatestSpellSnapshot>();
 
     // Only remove the session if this is NOT a rematch — keep connection alive for rematch
     if pending_rematch.is_none() {

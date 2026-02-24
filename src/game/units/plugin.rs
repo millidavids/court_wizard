@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::is_gameplay_running;
+use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
 use super::archer::ArcherPlugin;
 use super::behemoth::BehemothPlugin;
@@ -50,19 +50,27 @@ impl Plugin for UnitsPlugin {
         .add_systems(
             Update,
             (
-                systems::process_pending_damage_effects,
                 systems::update_temporary_hit_points,
                 systems::update_frost_slow_modifiers,
                 systems::update_rooted_modifiers,
                 systems::update_haste_modifiers,
                 systems::update_spike_growth_slow_modifiers,
+                movement::apply_unit_movement.in_set(ApplyTransformsSet),
+            )
+                .run_if(is_gameplay_running),
+        )
+        // Spell damage effects must run on both host AND guest so that
+        // guest spell DoTs tick and feed damage into the CRDT.
+        .add_systems(
+            Update,
+            (
+                systems::process_pending_damage_effects,
                 systems::update_fire_dot,
                 systems::update_electric_charge,
                 systems::update_electric_arc_visuals,
                 systems::update_persistent_effect_visuals,
-                movement::apply_unit_movement.in_set(ApplyTransformsSet),
             )
-                .run_if(is_gameplay_running),
+                .run_if(is_spell_effects_active),
         )
         .add_systems(
             Update,

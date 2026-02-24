@@ -51,15 +51,18 @@ impl MeteorFallStorm {
 pub(super) struct MeteorFallCircleIndicator {
     /// Position of the circle center.
     pub position: Vec3,
+    /// Empowerment scale factor.
+    pub empowerment: f32,
     /// Time this indicator has been active (for animations).
     pub time_alive: f32,
 }
 
 impl MeteorFallCircleIndicator {
     /// Creates a new circle indicator.
-    pub const fn new(position: Vec3) -> Self {
+    pub const fn new(position: Vec3, empowerment: f32) -> Self {
         Self {
             position,
+            empowerment,
             time_alive: 0.0,
         }
     }

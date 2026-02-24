@@ -12,7 +12,10 @@ use crate::game::units::components::{Health, Team};
 
 use super::entity_map::NetworkEntityId;
 
-/// Complete game state snapshot sent from host to guest each frame.
+/// Unit state snapshot sent from host to guest each frame.
+///
+/// Contains only unit and unit-projectile data. Spell visuals are sent
+/// separately via `SpellVisualSnapshot` (bidirectional).
 #[derive(Serialize, Deserialize)]
 pub struct GameSnapshot {
     /// Monotonically increasing tick counter for ordering.
@@ -21,19 +24,9 @@ pub struct GameSnapshot {
     pub units: Vec<UnitSnapshot>,
     /// State of every in-flight arrow projectile.
     pub arrows: Vec<ArrowSnapshot>,
-    /// State of every in-flight magic missile.
-    pub magic_missiles: Vec<MagicMissileSnapshot>,
-    /// State of every active beam (disintegrate, etc.).
-    pub beams: Vec<BeamSnapshot>,
-    /// Persistent spell effects (zones, walls, black holes, explosions, etc.).
-    pub spell_effects: Vec<SpellEffectSnapshot>,
-    /// Ephemeral spell projectiles (fireballs, ice, meteors in flight).
-    pub spell_projectiles: Vec<SpellProjectileSnapshot>,
-    /// Ephemeral spell arcs/beams (chain lightning, finger of death, etc.).
-    pub spell_arcs: Vec<SpellArcSnapshot>,
 }
 
-/// Compact per-unit state (~21 bytes).
+/// Per-unit state with CRDT health data (~37 bytes).
 #[derive(Serialize, Deserialize)]
 pub struct UnitSnapshot {
     /// Network entity ID assigned by the host.
@@ -46,10 +39,16 @@ pub struct UnitSnapshot {
     pub z: f32,
     /// Team encoded as u8: 0=Defenders, 1=Attackers, 2=Undead.
     pub team: u8,
-    /// Health as a 0-100 percentage.
+    /// Health as a 0-100 percentage (for visual rendering).
     pub health_pct: u8,
     /// Bitfield flags (see `UnitFlags`).
     pub flags: u8,
+    /// Maximum HP for CRDT health calculation.
+    pub max_hp: f32,
+    /// CRDT damage counters per peer (monotonically increasing).
+    pub damage: [f32; 2],
+    /// CRDT healing counters per peer (monotonically increasing).
+    pub healing: [f32; 2],
 }
 
 /// Bitfield constants for `UnitSnapshot::flags`.
@@ -60,6 +59,10 @@ impl UnitFlags {
     pub const KING: u8 = 1 << 1;
     pub const ARCHER: u8 = 1 << 2;
     pub const KINGS_GUARD: u8 = 1 << 3;
+    pub const FIRE_EFFECT: u8 = 1 << 4;
+    pub const FROST_EFFECT: u8 = 1 << 5;
+    pub const ELECTRIC_EFFECT: u8 = 1 << 6;
+    pub const SPELL_SHIELD: u8 = 1 << 7;
 }
 
 /// Encodes a `Team` component into a u8.
@@ -81,16 +84,24 @@ pub fn u8_to_team(val: u8) -> Team {
 }
 
 /// Builds a `UnitSnapshot` from an entity's components.
+///
+/// If the entity has a `CrdtHealth` component, its CRDT state is used directly.
+/// Otherwise, we derive initial CRDT values from the `Health` component.
 #[allow(clippy::too_many_arguments)]
 pub fn build_unit_snapshot(
     net_id: &NetworkEntityId,
     transform: &Transform,
     team: &Team,
     health: &Health,
+    crdt_health: Option<&crate::networking::crdt::CrdtHealth>,
     is_corpse: bool,
     is_king: bool,
     is_archer: bool,
     is_kings_guard: bool,
+    has_fire: bool,
+    has_frost: bool,
+    has_electric: bool,
+    has_spell_shield: bool,
 ) -> UnitSnapshot {
     let health_pct = if health.max > 0.0 {
         ((health.current / health.max) * 100.0).clamp(0.0, 100.0) as u8
@@ -111,6 +122,26 @@ pub fn build_unit_snapshot(
     if is_kings_guard {
         flags |= UnitFlags::KINGS_GUARD;
     }
+    if has_fire {
+        flags |= UnitFlags::FIRE_EFFECT;
+    }
+    if has_frost {
+        flags |= UnitFlags::FROST_EFFECT;
+    }
+    if has_electric {
+        flags |= UnitFlags::ELECTRIC_EFFECT;
+    }
+    if has_spell_shield {
+        flags |= UnitFlags::SPELL_SHIELD;
+    }
+
+    let (max_hp, damage, healing) = if let Some(crdt) = crdt_health {
+        (crdt.max_hp, crdt.damage, crdt.healing)
+    } else {
+        // Derive from Health: all damage is attributed to peer 0 (host)
+        let total_damage = (health.max - health.current).max(0.0);
+        (health.max, [total_damage, 0.0], [0.0, 0.0])
+    };
 
     UnitSnapshot {
         id: net_id.0,
@@ -120,6 +151,9 @@ pub fn build_unit_snapshot(
         team: team_to_u8(team),
         health_pct,
         flags,
+        max_hp,
+        damage,
+        healing,
     }
 }
 
@@ -169,6 +203,56 @@ pub struct BeamSnapshot {
 /// Monotonically increasing tick counter for snapshot ordering.
 #[derive(Resource, Default)]
 pub struct SnapshotTick(pub u32);
+
+/// Type prefix bytes for unreliable channel messages.
+///
+/// Each unreliable message starts with a 1-byte prefix so receivers can
+/// distinguish between different payload types.
+pub const UNRELIABLE_GAME_SNAPSHOT: u8 = 0;
+pub const UNRELIABLE_SPELL_SNAPSHOT: u8 = 1;
+pub const UNRELIABLE_CRDT_SNAPSHOT: u8 = 2;
+
+/// Spell visual data sent bidirectionally between host and guest.
+///
+/// Each client collects their local spell visuals (effects, projectiles, arcs,
+/// missiles, beams) and sends them so the other client can render ghosts.
+#[derive(Serialize, Deserialize, Default)]
+pub struct SpellVisualSnapshot {
+    /// Persistent spell effects (zones, walls, black holes, explosions, etc.).
+    pub spell_effects: Vec<SpellEffectSnapshot>,
+    /// Ephemeral spell projectiles (fireballs, ice, meteors in flight).
+    pub spell_projectiles: Vec<SpellProjectileSnapshot>,
+    /// Ephemeral spell arcs/beams (chain lightning, finger of death, etc.).
+    pub spell_arcs: Vec<SpellArcSnapshot>,
+    /// Magic missile positions.
+    pub magic_missiles: Vec<MagicMissileSnapshot>,
+    /// Beam positions (disintegrate, etc.).
+    pub beams: Vec<BeamSnapshot>,
+}
+
+/// Compact CRDT health state sent from guest to host.
+///
+/// The guest sends only its local CRDT counters (damage/healing from peer 1)
+/// so the host can merge them. Much smaller than a full GameSnapshot since
+/// we only need the network ID + CRDT arrays per unit.
+#[derive(Serialize, Deserialize)]
+pub struct CrdtSnapshot {
+    /// Per-unit CRDT health data.
+    pub units: Vec<CrdtUnitUpdate>,
+}
+
+/// Per-unit CRDT health update (~21 bytes).
+#[derive(Serialize, Deserialize)]
+pub struct CrdtUnitUpdate {
+    /// Network entity ID.
+    pub id: u32,
+    /// CRDT damage counters per peer.
+    pub damage: [f32; 2],
+    /// CRDT healing counters per peer.
+    pub healing: [f32; 2],
+    /// Status effect flags (FIRE_EFFECT, FROST_EFFECT, ELECTRIC_EFFECT bits from UnitFlags).
+    pub effects: u8,
+}
 
 /// Identifies the type of persistent spell effect for guest spawning.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

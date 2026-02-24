@@ -7,9 +7,7 @@ use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
@@ -20,24 +18,18 @@ struct CastResult {
     completed: bool,
     /// Whether preview should be despawned (release with too-short drag or no mana).
     despawn_preview: bool,
-    /// Anchor position for drag spell network message.
-    anchor: Option<Vec3>,
-    /// End position for drag spell network message.
-    end_pos: Option<Vec3>,
+    /// Obstacle bounds for network sync (set when completed=true).
+    obstacle_bounds: Option<[f32; 4]>,
 }
 
 /// Local wizard Wall of Stone casting — reads mouse input, manages preview.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally but wall spawning is skipped. A `DragSpellCast` message
-/// is sent to the host with anchor + end position.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_wall_of_stone_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -54,8 +46,7 @@ pub fn handle_wall_of_stone_casting(
     mut caster_query: Query<&mut WallOfStoneCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
+    mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -88,8 +79,6 @@ pub fn handle_wall_of_stone_casting(
         clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
     });
 
-    let skip_spawn = skip_spawning.is_some();
-
     let cast_result = wall_of_stone_casting_logic(
         &input,
         clamped_pos,
@@ -98,11 +87,22 @@ pub fn handle_wall_of_stone_casting(
         primed_spell,
         &mut caster,
         &mut commands,
-        &mut meshes,
-        &mut materials,
+        &visual_assets,
         &mut obstacle_events,
-        skip_spawn,
     );
+
+    // Send wall placement over network so the other client updates pathfinding
+    if cast_result.completed {
+        if let Some(bounds) = cast_result.obstacle_bounds {
+            if let Some(ref mut conn) = connection {
+                conn.outgoing_messages
+                    .push(crate::networking::protocol::NetworkMessage::WallPlaced {
+                        bounds,
+                        placed: true,
+                    });
+            }
+        }
+    }
 
     // Local-only: manage preview
     match *casting_state {
@@ -115,7 +115,7 @@ pub fn handle_wall_of_stone_casting(
         if let Some(pos) = clamped_pos {
             let preview_entity = commands
                 .spawn((
-                    Mesh3d(meshes.add(Cuboid::new(1.0, WALL_HEIGHT, WALL_WIDTH))),
+                    Mesh3d(visual_assets.unit_cuboid.clone()),
                     MeshMaterial3d(materials.add(StandardMaterial {
                         base_color: WALL_PREVIEW_COLOR,
                         alpha_mode: AlphaMode::Blend,
@@ -124,7 +124,7 @@ pub fn handle_wall_of_stone_casting(
                         ..default()
                     })),
                     Transform::from_xyz(pos.x, WALL_HEIGHT / 2.0, pos.z)
-                        .with_scale(Vec3::new(0.0, 1.0, 1.0)),
+                        .with_scale(Vec3::new(0.0, WALL_HEIGHT, WALL_WIDTH)),
                     WallOfStonePreview,
                     OnGameplayScreen,
                 ))
@@ -152,7 +152,7 @@ pub fn handle_wall_of_stone_casting(
                 preview_transform.translation =
                     Vec3::new(center.x, WALL_HEIGHT / 2.0, center.z);
                 preview_transform.rotation = rotation;
-                preview_transform.scale = Vec3::new(length, 1.0, 1.0);
+                preview_transform.scale = Vec3::new(length, WALL_HEIGHT, WALL_WIDTH);
             }
         }
     }
@@ -167,28 +167,10 @@ pub fn handle_wall_of_stone_casting(
 
     if cast_result.completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(anchor), Some(end)) =
-                (connection.as_mut(), cast_result.anchor, cast_result.end_pos)
-            {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::DragSpellCast {
-                        spell: Spell::WallOfStone,
-                        anchor: [anchor.x, anchor.y, anchor.z],
-                        end_pos: [end.x, end.y, end.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
 /// Core Wall of Stone casting logic.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but
-/// wall spawning and obstacle events are skipped.
 #[allow(clippy::too_many_arguments)]
 fn wall_of_stone_casting_logic(
     input: &WizardInput,
@@ -198,16 +180,13 @@ fn wall_of_stone_casting_logic(
     primed_spell: &PrimedSpell,
     caster: &mut WallOfStoneCaster,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
-    skip_spawn: bool,
 ) -> CastResult {
     let mut result = CastResult {
         completed: false,
         despawn_preview: false,
-        anchor: None,
-        end_pos: None,
+        obstacle_bounds: None,
     };
 
     let Some(clamped_pos) = clamped_pos else {
@@ -228,70 +207,66 @@ fn wall_of_stone_casting_logic(
 
                 mana.consume(MANA_COST);
 
-                if !skip_spawn {
-                    // Spawn the actual wall
-                    let wall_mesh = Cuboid::new(clamped_length, WALL_HEIGHT, WALL_WIDTH);
-                    let rotation = Quat::from_rotation_arc(Vec3::X, forward);
+                // Spawn the actual wall
+                let rotation = Quat::from_rotation_arc(Vec3::X, forward);
 
-                    // Apply empowerment scaling
-                    let scale = primed_spell.empowerment;
-                    let wall_width = WALL_WIDTH * scale;
-                    let wall_height = WALL_HEIGHT * scale;
-                    let wall_duration = WALL_DURATION * scale;
+                // Apply empowerment scaling
+                let scale = primed_spell.empowerment;
+                let wall_width = WALL_WIDTH * scale;
+                let wall_height = WALL_HEIGHT * scale;
+                let wall_duration = WALL_DURATION * scale;
 
-                    commands.spawn((
-                        Mesh3d(meshes.add(wall_mesh)),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: WALL_COLOR,
-                            ..default()
-                        })),
-                        Transform::from_xyz(center.x, wall_height / 2.0, center.z)
-                            .with_rotation(rotation),
-                        WallOfStone {
-                            center,
-                            half_length: clamped_length / 2.0,
-                            half_width: wall_width / 2.0,
-                            forward,
-                            right,
-                            height: wall_height,
-                            time_alive: 0.0,
-                            duration: wall_duration,
-                            sinking: false,
-                            empowerment: primed_spell.empowerment,
-                        },
-                        NetworkedSpellEffect { kind: SpellEffectKind::WallOfStone },
-                        OnGameplayScreen,
-                    ));
+                commands.spawn((
+                    Mesh3d(assets.unit_cuboid.clone()),
+                    MeshMaterial3d(assets.wall_of_stone.clone()),
+                    Transform::from_xyz(center.x, wall_height / 2.0, center.z)
+                        .with_rotation(rotation)
+                        .with_scale(Vec3::new(clamped_length, wall_height, wall_width)),
+                    WallOfStone {
+                        center,
+                        half_length: clamped_length / 2.0,
+                        half_width: wall_width / 2.0,
+                        forward,
+                        right,
+                        height: wall_height,
+                        time_alive: 0.0,
+                        duration: wall_duration,
+                        sinking: false,
+                        empowerment: primed_spell.empowerment,
+                    },
+                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfStone },
+                    OnGameplayScreen,
+                ));
 
-                    // Notify pathfinding system about the new obstacle
-                    let unbuffered_min_x =
-                        center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
-                    let unbuffered_max_x =
-                        center.x + forward.x * (clamped_length / 2.0) + right.x * (wall_width / 2.0);
-                    let unbuffered_min_z =
-                        center.z - forward.z * (clamped_length / 2.0) - right.z * (wall_width / 2.0);
-                    let unbuffered_max_z =
-                        center.z + forward.z * (clamped_length / 2.0) + right.z * (wall_width / 2.0);
+                // Notify pathfinding system about the new obstacle
+                let unbuffered_min_x =
+                    center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
+                let unbuffered_max_x =
+                    center.x + forward.x * (clamped_length / 2.0) + right.x * (wall_width / 2.0);
+                let unbuffered_min_z =
+                    center.z - forward.z * (clamped_length / 2.0) - right.z * (wall_width / 2.0);
+                let unbuffered_max_z =
+                    center.z + forward.z * (clamped_length / 2.0) + right.z * (wall_width / 2.0);
 
-                    let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
-                    let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
-                    let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
-                    let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
+                let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
+                let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
+                let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
+                let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
 
-                    obstacle_events.write(ObstacleChanged {
-                        bounds: Rect::new(
-                            min_x.min(max_x),
-                            min_z.min(max_z),
-                            (max_x - min_x).abs(),
-                            (max_z - min_z).abs(),
-                        ),
-                        obstacle_type: ObstacleType::Blocked,
-                    });
-                }
+                let obs_bounds = [
+                    min_x.min(max_x),
+                    min_z.min(max_z),
+                    (max_x - min_x).abs(),
+                    (max_z - min_z).abs(),
+                ];
+
+                obstacle_events.write(ObstacleChanged {
+                    bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
+                    obstacle_type: ObstacleType::Blocked,
+                });
 
                 result.completed = true;
-                result.anchor = Some(anchor);
-                result.end_pos = Some(clamped_pos);
+                result.obstacle_bounds = Some(obs_bounds);
             } else {
                 // Too short or can't afford — signal preview despawn
                 result.despawn_preview = true;
@@ -377,6 +352,7 @@ pub fn cleanup_expired_walls(
     mut commands: Commands,
     walls: Query<(Entity, &WallOfStone)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
+    mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
 ) {
     for (entity, wall) in &walls {
         if wall.time_alive >= wall.duration {
@@ -397,15 +373,26 @@ pub fn cleanup_expired_walls(
             let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
             let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
 
+            let obs_bounds = [
+                min_x.min(max_x),
+                min_z.min(max_z),
+                (max_x - min_x).abs(),
+                (max_z - min_z).abs(),
+            ];
+
             obstacle_events.write(ObstacleChanged {
-                bounds: Rect::new(
-                    min_x.min(max_x),
-                    min_z.min(max_z),
-                    (max_x - min_x).abs(),
-                    (max_z - min_z).abs(),
-                ),
+                bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
                 obstacle_type: ObstacleType::Removed,
             });
+
+            // Notify remote peer to update their pathfinding grid
+            if let Some(ref mut conn) = connection {
+                conn.outgoing_messages
+                    .push(crate::networking::protocol::NetworkMessage::WallPlaced {
+                        bounds: obs_bounds,
+                        placed: false,
+                    });
+            }
         }
     }
 }

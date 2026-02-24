@@ -8,6 +8,7 @@ pub(crate) mod clipboard;
 #[cfg(any(target_arch = "wasm32", test))]
 mod connection_code;
 mod constants;
+pub(crate) mod crdt;
 pub(crate) mod entity_map;
 mod messages;
 mod plugin;

@@ -85,6 +85,11 @@ pub struct RetryTracker {
     pub attempts: u32,
 }
 
+/// Tracks the initial number of non-King defender units for spell shield threshold.
+/// Used in multiplayer to determine when the King's spell shield should drop.
+#[derive(Resource)]
+pub struct InitialDefenderCount(pub u32);
+
 /// Tracks battle data used to calculate Arcane Insight earned.
 #[derive(Resource, Default)]
 pub struct BattleInsightData {

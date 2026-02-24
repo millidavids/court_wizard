@@ -40,7 +40,8 @@ pub struct SpellsPlugin;
 
 impl Plugin for SpellsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
+        app.add_systems(Startup, super::visual_assets::init_spell_visual_assets)
+        .add_plugins((
             MagicMissilePlugin,
             DisintegratePlugin,
             FireballPlugin,

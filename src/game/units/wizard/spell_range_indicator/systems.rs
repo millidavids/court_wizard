@@ -3,14 +3,14 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
-use crate::game::units::wizard::components::Wizard;
+use crate::game::units::wizard::components::{LocalWizard, Wizard};
 
 /// Spawns the spell range indicator circle when the wizard is created.
 pub fn setup_spell_range_indicator(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    wizard_query: Query<(&Transform, &Wizard), Added<Wizard>>,
+    wizard_query: Query<(&Transform, &Wizard), (Added<Wizard>, With<LocalWizard>)>,
 ) {
     for (wizard_transform, wizard) in wizard_query.iter() {
         let wizard_pos = wizard_transform.translation;
@@ -43,7 +43,7 @@ pub fn setup_spell_range_indicator(
 
 /// Updates the spell range circle scale when the wizard's spell_range changes.
 pub fn update_spell_range_indicator(
-    wizard_query: Query<(&Transform, &Wizard), (Changed<Wizard>, Without<SpellRangeCircle>)>,
+    wizard_query: Query<(&Transform, &Wizard), (Changed<Wizard>, With<LocalWizard>, Without<SpellRangeCircle>)>,
     mut circle_query: Query<&mut Transform, With<SpellRangeCircle>>,
 ) {
     // Only update if wizard's spell range changed

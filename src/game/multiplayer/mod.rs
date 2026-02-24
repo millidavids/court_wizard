@@ -5,10 +5,11 @@
 //! its own systems under `AppState::MultiplayerGame`.
 
 pub(crate) mod components;
+pub(in crate::game) mod crdt_sync;
 pub(in crate::game) mod guest_systems;
 pub(in crate::game) mod host_systems;
 pub(crate) mod loading;
 mod plugin;
-pub(crate) mod spell_commands;
+pub(in crate::game) mod spell_sync;
 
 pub use plugin::MultiplayerGamePlugin;

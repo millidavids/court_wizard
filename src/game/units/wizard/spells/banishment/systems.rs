@@ -5,25 +5,9 @@ use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, Lo
 use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::{BanishedModifier, Corpse, Team, WasBanished};
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
 
 /// Local wizard banishment casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but the spell effect
-/// (banishing the target) is skipped. Instead, a `SpellCast` message is
-/// sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_banishment_casting(
     time: Res<Time>,
@@ -44,8 +28,6 @@ pub fn handle_banishment_casting(
             Without<BanishedModifier>,
         ),
     >,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -61,9 +43,7 @@ pub fn handle_banishment_casting(
     };
     if primed_spell.spell != Spell::Banishment { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = banishment_casting_logic(
+    let completed = banishment_casting_logic(
         &input,
         &time,
         &mut casting_state,
@@ -71,31 +51,14 @@ pub fn handle_banishment_casting(
         primed_spell,
         &mut commands,
         &enemies_query,
-        skip_spawn,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Banishment,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
 /// Core banishment casting logic.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but the
-/// spell effect (banishing the target) is skipped. The cursor position is
-/// returned in `CastResult` so the caller can send a network message.
 #[allow(clippy::too_many_arguments)]
 fn banishment_casting_logic(
     input: &WizardInput,
@@ -112,15 +75,14 @@ fn banishment_casting_logic(
             Without<BanishedModifier>,
         ),
     >,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+) -> bool {
     // Check for release event
     if input.just_released {
         casting_state.cancel();
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Resting => {
@@ -132,31 +94,28 @@ fn banishment_casting_logic(
             casting_state.advance(time.delta_secs());
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
-                    if !skip_spawn {
-                        if let Some(cursor_pos) = input.cursor_pos
-                            && let Some((target_entity, _)) = enemies_query
-                                .iter()
-                                .filter(|(_, _, team)| {
-                                    **team == Team::Attackers || **team == Team::Undead
-                                })
-                                .filter_map(|(entity, transform, _)| {
-                                    let dist = transform.translation.distance(cursor_pos);
-                                    if dist <= constants::TARGET_SEARCH_RADIUS {
-                                        Some((entity, dist))
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-                        {
-                            let duration = constants::BANISH_DURATION * primed_spell.empowerment;
-                            commands
-                                .entity(target_entity)
-                                .insert((BanishedModifier::new(duration), Visibility::Hidden));
-                        }
+                    if let Some(cursor_pos) = input.cursor_pos
+                        && let Some((target_entity, _)) = enemies_query
+                            .iter()
+                            .filter(|(_, _, team)| {
+                                **team == Team::Attackers || **team == Team::Undead
+                            })
+                            .filter_map(|(entity, transform, _)| {
+                                let dist = transform.translation.distance(cursor_pos);
+                                if dist <= constants::TARGET_SEARCH_RADIUS {
+                                    Some((entity, dist))
+                                } else {
+                                    None
+                                }
+                            })
+                            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    {
+                        let duration = constants::BANISH_DURATION * primed_spell.empowerment;
+                        commands
+                            .entity(target_entity)
+                            .insert((BanishedModifier::new(duration), Visibility::Hidden));
                     }
-                    result.completed = true;
-                    result.cursor_pos = input.cursor_pos;
+                    completed = true;
                 }
                 casting_state.cancel();
             }
@@ -166,7 +125,7 @@ fn banishment_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 /// Ticks banished unit timers and restores them when expired.

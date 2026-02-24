@@ -7,32 +7,17 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::{Corpse, MesmerizedModifier};
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard hypnotic pattern casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally but the spell effect is skipped. Instead, a `SpellCast`
-/// message is sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_hypnotic_pattern_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -49,8 +34,6 @@ pub fn handle_hypnotic_pattern_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut HypnoticPatternIndicator>,
     targets_query: Query<(Entity, &Transform), Without<Corpse>>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -66,9 +49,7 @@ pub fn handle_hypnotic_pattern_casting(
     };
     if primed_spell.spell != Spell::HypnoticPattern { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = hypnotic_pattern_casting_logic(
+    let completed = hypnotic_pattern_casting_logic(
         &input,
         &time,
         wizard_entity,
@@ -81,33 +62,15 @@ pub fn handle_hypnotic_pattern_casting(
         &mut indicator_query,
         &targets_query,
         &mut commands,
-        &mut meshes,
-        &mut materials,
-        skip_spawn,
+        &visual_assets,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::HypnoticPattern,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
 /// Core hypnotic pattern casting logic.
-///
-/// When `skip_spawn` is true, the casting pipeline runs normally but the
-/// spell effect is skipped. The cursor position is returned in `CastResult`
-/// so the caller can send a network message.
 #[allow(clippy::too_many_arguments)]
 fn hypnotic_pattern_casting_logic(
     input: &WizardInput,
@@ -122,12 +85,8 @@ fn hypnotic_pattern_casting_logic(
     indicator_query: &mut Query<&mut HypnoticPatternIndicator>,
     targets_query: &Query<(Entity, &Transform), Without<Corpse>>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+    assets: &SpellVisualAssets,
+) -> bool {
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
@@ -136,11 +95,11 @@ fn hypnotic_pattern_casting_logic(
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
 
     let Some(mut cursor_world_pos) = input.cursor_pos else {
-        return result;
+        return false;
     };
 
     let wizard_pos = wizard_transform.translation;
@@ -160,6 +119,8 @@ fn hypnotic_pattern_casting_logic(
         cursor_world_pos = wizard_pos + normalized_direction * max_center_distance;
     }
 
+    let mut completed = false;
+
     match *casting_state {
         CastingState::Resting => {
             if (input.just_pressed || input.pressed)
@@ -168,8 +129,7 @@ fn hypnotic_pattern_casting_logic(
             {
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    meshes,
-                    materials,
+                    assets,
                     cursor_world_pos,
                     primed_spell.empowerment,
                 );
@@ -189,24 +149,21 @@ fn hypnotic_pattern_casting_logic(
             }
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
-                    if !skip_spawn {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                                apply_mesmerize(
-                                    commands,
-                                    indicator.position,
-                                    radius,
-                                    indicator.empowerment,
-                                    targets_query,
-                                );
-                            }
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            apply_mesmerize(
+                                commands,
+                                indicator.position,
+                                radius,
+                                indicator.empowerment,
+                                targets_query,
+                            );
                         }
                     }
-                    result.completed = true;
-                    result.cursor_pos = Some(cursor_world_pos);
+                    completed = true;
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
@@ -236,7 +193,7 @@ fn hypnotic_pattern_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 pub fn update_hypnotic_pattern_indicator(
@@ -245,8 +202,9 @@ pub fn update_hypnotic_pattern_indicator(
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
+        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
         transform.translation.x = indicator.position.x;
         transform.translation.y = constants::CIRCLE_Y_POSITION;
         transform.translation.z = indicator.position.z;
@@ -273,28 +231,22 @@ pub(crate) fn apply_mesmerize(
 
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = constants::CIRCLE_RADIUS * empowerment;
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.hypnotic_pattern_indicator.clone()),
             Transform::from_translation(Vec3::new(
                 position.x,
                 constants::CIRCLE_Y_POSITION,
                 position.z,
             ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(radius)),
             HypnoticPatternIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))

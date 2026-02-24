@@ -11,10 +11,8 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::constants::BATTLEFIELD_SIZE;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::Teleportable;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Result from teleport casting logic, used to communicate state back to the wrapper.
 struct TeleportCastResult {
@@ -22,10 +20,6 @@ struct TeleportCastResult {
     completed: bool,
     /// Whether the first phase was finalized (destination locked in on release).
     first_phase_released: bool,
-    /// Source position when teleport completed (for network message).
-    source_pos: Option<Vec3>,
-    /// Destination position when teleport completed (for network message).
-    destination_pos: Option<Vec3>,
 }
 
 /// Handles right-click to cancel/reset the teleport spell.
@@ -73,18 +67,13 @@ pub fn handle_teleport_cancel(
 }
 
 /// Local wizard Teleport casting — reads mouse input, manages indicator circles.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar) but unit teleportation is skipped.
-/// Instead, a `DragSpellCast` message is sent to the host with destination and source.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_teleport_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -125,8 +114,6 @@ pub fn handle_teleport_casting(
             Without<TeleportSourceCircle>,
         ),
     >,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -151,8 +138,6 @@ pub fn handle_teleport_casting(
         return;
     }
 
-    let skip_spawn = skip_spawning.is_some();
-
     let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
         c
     } else {
@@ -175,7 +160,6 @@ pub fn handle_teleport_casting(
         &mut commands,
         &units_query,
         &source_query,
-        skip_spawn,
     );
 
     // === Local-only: manage indicator circles ===
@@ -193,21 +177,16 @@ pub fn handle_teleport_casting(
                 if caster.destination_circle.is_none() {
                     if let Some(pos) = clamped_pos {
                         let radius = primed_spell.scale(CROSSHAIR_RADIUS);
-                        let crosshair_mesh = meshes.add(Circle::new(radius));
-                        let crosshair_material = materials.add(StandardMaterial {
-                            base_color: DESTINATION_COLOR,
-                            unlit: true,
-                            ..default()
-                        });
 
                         let crosshair_entity = commands
                             .spawn((
-                                Mesh3d(crosshair_mesh),
-                                MeshMaterial3d(crosshair_material),
+                                Mesh3d(visual_assets.unit_circle.clone()),
+                                MeshMaterial3d(visual_assets.teleport_destination.clone()),
                                 Transform::from_xyz(pos.x, 1.0, pos.z)
                                     .with_rotation(Quat::from_rotation_x(
                                         -std::f32::consts::FRAC_PI_2,
-                                    )),
+                                    ))
+                                    .with_scale(Vec3::splat(radius)),
                                 TeleportDestinationCircle::new(primed_spell.empowerment),
                                 OnGameplayScreen,
                             ))
@@ -231,18 +210,10 @@ pub fn handle_teleport_casting(
             CastingState::Casting { elapsed } => {
                 if caster.source_circle.is_none() {
                     if let Some(pos) = clamped_pos {
-                        let radius = primed_spell.scale(CIRCLE_RADIUS);
-                        let circle_mesh = meshes.add(Circle::new(radius));
-                        let circle_material = materials.add(StandardMaterial {
-                            base_color: SOURCE_COLOR,
-                            unlit: true,
-                            ..default()
-                        });
-
                         let circle_entity = commands
                             .spawn((
-                                Mesh3d(circle_mesh),
-                                MeshMaterial3d(circle_material),
+                                Mesh3d(visual_assets.unit_circle.clone()),
+                                MeshMaterial3d(visual_assets.teleport_source.clone()),
                                 Transform::from_xyz(pos.x, 1.0, pos.z)
                                     .with_rotation(Quat::from_rotation_x(
                                         -std::f32::consts::FRAC_PI_2,
@@ -264,7 +235,8 @@ pub fn handle_teleport_casting(
                     transform.translation.z = pos.z;
 
                     let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
-                    transform.scale = Vec3::splat(growth);
+                    let radius = CIRCLE_RADIUS * indicator.empowerment;
+                    transform.scale = Vec3::splat(radius * growth);
 
                     indicator.position = pos;
                     indicator.time_alive += time.delta_secs();
@@ -285,22 +257,6 @@ pub fn handle_teleport_casting(
         caster.destination_circle = None;
         caster.source_circle = None;
         mouse_state.left_consumed = true;
-
-        // Send network message when skip_spawn is active
-        if skip_spawn {
-            if let (Some(conn), Some(dest), Some(src)) =
-                (connection.as_mut(), cast_result.destination_pos, cast_result.source_pos)
-            {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::DragSpellCast {
-                        spell: Spell::Teleport,
-                        anchor: [dest.x, dest.y, dest.z],
-                        end_pos: [src.x, src.y, src.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 
     if cast_result.first_phase_released {
@@ -313,10 +269,6 @@ pub fn handle_teleport_casting(
 /// Handles the two-phase state machine:
 /// Phase 1: Click to start casting, release to lock destination position.
 /// Phase 2: Click again to start source circle growth, cast completes on timer or early release.
-///
-/// When `skip_spawn` is true, the teleportation of units is skipped.
-/// The source and destination positions are returned in `TeleportCastResult`
-/// so the caller can send a network message.
 #[allow(clippy::too_many_arguments)]
 fn teleport_casting_logic(
     input: &WizardInput,
@@ -342,13 +294,10 @@ fn teleport_casting_logic(
             Without<TeleportDestinationCircle>,
         ),
     >,
-    skip_spawn: bool,
 ) -> TeleportCastResult {
     let mut result = TeleportCastResult {
         completed: false,
         first_phase_released: false,
-        source_pos: None,
-        destination_pos: None,
     };
 
     // Handle release during first cast — finalize destination position
@@ -379,18 +328,13 @@ fn teleport_casting_logic(
                     mana.consume(MANA_COST);
 
                     if let Some(dest_pos) = caster.destination_position {
-                        result.destination_pos = Some(dest_pos);
-                        result.source_pos = Some(source_pos);
-
-                        if !skip_spawn {
-                            teleport_units_with_radius(
-                                source_pos,
-                                dest_pos,
-                                current_radius,
-                                units_query,
-                                commands,
-                            );
-                        }
+                        teleport_units_with_radius(
+                            source_pos,
+                            dest_pos,
+                            current_radius,
+                            units_query,
+                            commands,
+                        );
                     }
 
                     caster.destination_position = None;
@@ -441,12 +385,7 @@ fn teleport_casting_logic(
 
                     let radius = primed_spell.scale(CIRCLE_RADIUS);
                     if let Some(dest_pos) = caster.destination_position {
-                        result.destination_pos = Some(dest_pos);
-                        result.source_pos = Some(clamped_pos);
-
-                        if !skip_spawn {
-                            teleport_units(clamped_pos, dest_pos, radius, units_query, commands);
-                        }
+                        teleport_units(clamped_pos, dest_pos, radius, units_query, commands);
                     }
 
                     caster.destination_position = None;
@@ -543,10 +482,11 @@ pub fn update_circle_animations(
     for (mut transform, mut indicator) in &mut destination_query {
         indicator.time_alive += time.delta_secs();
 
+        let radius = CROSSHAIR_RADIUS * indicator.empowerment;
         // Only apply pulse animation after growth is mostly complete
-        if transform.scale.x >= PULSE_THRESHOLD {
+        if transform.scale.x >= radius * PULSE_THRESHOLD {
             let pulse = indicator.pulse_scale();
-            transform.scale = Vec3::splat(pulse);
+            transform.scale = Vec3::splat(radius * pulse);
         }
     }
 
@@ -554,10 +494,11 @@ pub fn update_circle_animations(
     for (mut transform, mut indicator) in &mut source_query {
         indicator.time_alive += time.delta_secs();
 
+        let radius = CIRCLE_RADIUS * indicator.empowerment;
         // Only apply pulse animation after growth is mostly complete
-        if transform.scale.x >= PULSE_THRESHOLD {
+        if transform.scale.x >= radius * PULSE_THRESHOLD {
             let pulse = indicator.pulse_scale();
-            transform.scale = Vec3::splat(pulse);
+            transform.scale = Vec3::splat(radius * pulse);
         }
     }
 }

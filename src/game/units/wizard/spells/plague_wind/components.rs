@@ -4,13 +4,15 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct PlagueWindIndicator {
     pub position: Vec3,
+    pub radius: f32,
     pub time_alive: f32,
 }
 
 impl PlagueWindIndicator {
-    pub const fn new(position: Vec3) -> Self {
+    pub const fn new(position: Vec3, radius: f32) -> Self {
         Self {
             position,
+            radius,
             time_alive: 0.0,
         }
     }

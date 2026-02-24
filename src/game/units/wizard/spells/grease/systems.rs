@@ -7,28 +7,19 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, GreaseSlipModifier, Health, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::king::components::SpellShield;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard grease casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -37,7 +28,7 @@ pub fn handle_grease_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (
@@ -55,8 +46,6 @@ pub fn handle_grease_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut GreaseIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -72,9 +61,7 @@ pub fn handle_grease_casting(
     };
     if primed_spell.spell != Spell::Grease { return; }
 
-    let skip_spawn = skip_spawning.is_some();
-
-    let cast_result = grease_casting_logic(
+    let completed = grease_casting_logic(
         &input,
         &time,
         wizard_entity,
@@ -86,30 +73,17 @@ pub fn handle_grease_casting(
         &caster_query,
         &mut indicator_query,
         &mut commands,
-        &mut meshes,
+        &visual_assets,
         &mut materials,
         &mut obstacle_events,
-        skip_spawn,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Grease,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
-/// Core grease casting logic.
+/// Core grease casting logic. Returns true if the spell completed.
 #[allow(clippy::too_many_arguments)]
 fn grease_casting_logic(
     input: &WizardInput,
@@ -123,12 +97,11 @@ fn grease_casting_logic(
     caster_query: &Query<&SpellCaster>,
     indicator_query: &mut Query<&mut GreaseIndicator>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
+    assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
+) -> bool {
+    let mut completed = false;
 
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
@@ -138,11 +111,11 @@ fn grease_casting_logic(
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
 
     let Some(mut cursor_world_pos) = input.cursor_pos else {
-        return result;
+        return false;
     };
 
     let wizard_pos = wizard_transform.translation;
@@ -170,8 +143,7 @@ fn grease_casting_logic(
             {
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    meshes,
-                    materials,
+                    assets,
                     cursor_world_pos,
                     primed_spell.empowerment,
                 );
@@ -191,36 +163,26 @@ fn grease_casting_logic(
             }
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
-                    if !skip_spawn {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                                spawn_grease_zone(
-                                    commands,
-                                    meshes,
-                                    materials,
-                                    indicator.position,
-                                    radius,
-                                    indicator.empowerment,
-                                    obstacle_events,
-                                );
-                            }
-                            commands.entity(indicator_entity).despawn();
+                    if let Ok(caster) = caster_query.get(wizard_entity)
+                        && let Some(indicator_entity) = caster.indicator_entity
+                    {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            spawn_grease_zone(
+                                commands,
+                                assets,
+                                materials,
+                                indicator.position,
+                                radius,
+                                indicator.empowerment,
+                                obstacle_events,
+                            );
                         }
-                    } else {
-                        // Skip spawn: still clean up indicator
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            commands.entity(indicator_entity).despawn();
-                        }
+                        commands.entity(indicator_entity).despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
-                    result.completed = true;
-                    result.cursor_pos = Some(cursor_world_pos);
+                    completed = true;
                 } else {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
@@ -243,7 +205,7 @@ fn grease_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 pub fn update_grease_indicator(
@@ -252,8 +214,9 @@ pub fn update_grease_indicator(
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
+        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
         transform.translation.x = indicator.position.x;
         transform.translation.y = constants::CIRCLE_Y_POSITION;
         transform.translation.z = indicator.position.z;
@@ -289,10 +252,13 @@ pub fn apply_grease_slow(
                     if let Some(mut slow) = existing_slow {
                         slow.refresh(zone.slow_duration);
                     } else {
-                        commands.entity(entity).insert(GreaseSlipModifier::new(
+                        let modifier = GreaseSlipModifier::new(
                             zone.slow_modifier,
                             zone.slow_duration,
-                        ));
+                        );
+                        commands.entity(entity).queue_silenced(move |mut e: EntityWorldMut| {
+                            e.insert(modifier);
+                        });
                     }
                 }
             }
@@ -306,7 +272,7 @@ pub fn apply_grease_slow(
 #[allow(clippy::too_many_arguments)]
 pub fn check_grease_ignition(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut zones: Query<(Entity, &mut GreaseZone)>,
     fire_units: Query<
@@ -326,6 +292,7 @@ pub fn check_grease_ignition(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         Without<Corpse>,
     >,
@@ -461,16 +428,10 @@ pub fn check_grease_ignition(
             zone.fire_spread_time = 0.0;
 
             // Spawn fire overlay mesh at the ignition point
-            let overlay_mesh = meshes.add(Circle::new(zone.radius));
-            let overlay_material = materials.add(StandardMaterial {
-                base_color: constants::FIRE_OVERLAY_COLOR,
-                unlit: true,
-                alpha_mode: bevy::prelude::AlphaMode::Blend,
-                cull_mode: None,
-                ..default()
-            });
+            let base_mat = materials.get(&visual_assets.grease_fire).cloned().unwrap_or_default();
+            let overlay_material = materials.add(base_mat);
             commands.spawn((
-                Mesh3d(overlay_mesh),
+                Mesh3d(visual_assets.unit_circle.clone()),
                 MeshMaterial3d(overlay_material),
                 Transform::from_translation(Vec3::new(
                     ign_point.x,
@@ -478,7 +439,7 @@ pub fn check_grease_ignition(
                     ign_point.z,
                 ))
                 .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                .with_scale(Vec3::splat(0.01)),
+                .with_scale(Vec3::splat(0.01 * zone.radius)),
                 GreaseFireOverlay { zone_entity },
                 NetworkedSpellEffect { kind: SpellEffectKind::GreaseFire },
                 OnGameplayScreen,
@@ -487,7 +448,7 @@ pub fn check_grease_ignition(
             // Apply one-time burst fire damage only near the ignition point
             if zone.ignite_damage > 0.0 {
                 let burst_radius = zone.radius * constants::IGNITION_BURST_RADIUS_FRACTION;
-                for (entity, transform, mut health, mut temp_hp) in &mut targets {
+                for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
                     let dist = Vec2::new(
                         ign_point.x - transform.translation.x,
                         ign_point.z - transform.translation.z,
@@ -501,6 +462,7 @@ pub fn check_grease_ignition(
                             temp_hp.as_deref_mut(),
                             zone.ignite_damage * zone.empowerment,
                             DamageType::Fire,
+                            has_spell_shield,
                         );
                     }
                 }
@@ -541,8 +503,8 @@ pub fn update_grease_fire_spread(
             if overlay.zone_entity != zone_entity {
                 continue;
             }
-            // Scale from 0 to 1 (mesh is already full radius)
-            transform.scale = Vec3::splat(progress);
+            // Scale from 0 to zone.radius (unit circle scaled by radius)
+            transform.scale = Vec3::splat(progress * zone.radius);
 
             // Shift center from ignition point toward zone center as it grows
             // so the expanding circle stays within the zone bounds
@@ -566,6 +528,7 @@ pub fn apply_grease_burn(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         Without<Corpse>,
     >,
@@ -584,7 +547,7 @@ pub fn apply_grease_burn(
             let fire_radius = zone.current_fire_radius(constants::FIRE_SPREAD_DURATION);
             let spreading = zone.fire_spread_time < constants::FIRE_SPREAD_DURATION;
 
-            for (entity, transform, mut health, mut temp_hp) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
                 let in_burn_area = if spreading {
                     if let Some(ign_point) = zone.ignition_point {
                         // Check distance from ignition point during spread
@@ -615,6 +578,7 @@ pub fn apply_grease_burn(
                         temp_hp.as_deref_mut(),
                         zone.ignite_burn_damage * zone.empowerment,
                         DamageType::Fire,
+                        has_spell_shield,
                     );
                 }
             }
@@ -685,7 +649,7 @@ pub fn cleanup_grease_zone(
 
 pub(crate) fn spawn_grease_zone(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
+    assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     radius: f32,
@@ -704,24 +668,19 @@ pub(crate) fn spawn_grease_zone(
         obstacle_type: ObstacleType::SlowTerrain(3.0),
     });
 
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::ZONE_COLOR,
-        unlit: true,
-        alpha_mode: bevy::prelude::AlphaMode::Blend,
-        cull_mode: None,
-        ..default()
-    });
+    let base_mat = materials.get(&assets.grease_zone).cloned().unwrap_or_default();
+    let instance_material = materials.add(base_mat);
 
     commands.spawn((
-        Mesh3d(circle_mesh),
-        MeshMaterial3d(circle_material),
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(instance_material),
         Transform::from_translation(Vec3::new(
             position.x,
             constants::CIRCLE_Y_POSITION,
             position.z,
         ))
-        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::splat(radius)),
         GreaseZone::new(
             Vec3::new(position.x, 0.0, position.z),
             radius,
@@ -741,28 +700,22 @@ pub(crate) fn spawn_grease_zone(
 
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = constants::CIRCLE_RADIUS * empowerment;
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.grease_indicator.clone()),
             Transform::from_translation(Vec3::new(
                 position.x,
                 constants::CIRCLE_Y_POSITION,
                 position.z,
             ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(radius)),
             GreaseIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))

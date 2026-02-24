@@ -1,21 +1,14 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, GuestWizard, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
 use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::{GuestBeam, GuestCursorPosition, GuestInputState, SkipSpellSpawning};
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
-
-/// Marker component for disintegrate spell when it's actively being cast/channeled.
-///
-/// This differentiates disintegrate from magic missile casting states.
-#[derive(Component)]
-pub struct DisintegrateCaster;
+use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
@@ -32,16 +25,6 @@ enum BeamAction {
 /// Result from the shared casting logic.
 struct CastingResult {
     beam_action: BeamAction,
-    /// Whether to insert the DisintegrateCaster component.
-    insert_caster: bool,
-    /// Whether to remove the DisintegrateCaster component.
-    remove_caster: bool,
-    /// Whether channel just started (cast completed, entered channeling).
-    channel_started: bool,
-    /// Whether actively channeling this frame.
-    channeling: bool,
-    /// Whether channel just ended this frame.
-    channel_ended: bool,
 }
 
 /// Local wizard disintegrate casting -- reads mouse input.
@@ -51,19 +34,13 @@ pub fn handle_disintegrate_casting(
     mut left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut beams: Query<
-        (Entity, &mut DisintegrateBeam),
-        Without<GuestBeam>,
-    >,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
+    mut beams: Query<(Entity, &mut DisintegrateBeam)>,
+    visual_assets: Res<SpellVisualAssets>,
 ) {
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -74,12 +51,11 @@ pub fn handle_disintegrate_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
         return;
     };
     if primed_spell.spell != Spell::Disintegrate { return; }
 
-    let skip_spawn = skip_spawning.is_some();
     let has_existing_beam = beams.iter().next().is_some();
 
     let result = disintegrate_casting_logic(
@@ -93,16 +69,6 @@ pub fn handle_disintegrate_casting(
         has_existing_beam,
     );
 
-    // Apply caster component changes
-    if result.insert_caster {
-        commands.entity(wizard_entity).insert(DisintegrateCaster);
-    }
-    if result.remove_caster {
-        commands.entity(wizard_entity).remove::<DisintegrateCaster>();
-    }
-
-    // Always apply beam action locally (guest needs visual feedback too).
-    // Guest has no Health entities, so damage system is a no-op there.
     match result.beam_action {
         BeamAction::UpdateBeam { origin, direction, length } => {
             if let Some((_, mut beam)) = beams.iter_mut().next() {
@@ -112,133 +78,7 @@ pub fn handle_disintegrate_casting(
             }
         }
         BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
-            spawn_beam_with_marker(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                origin,
-                direction,
-                length,
-                empowerment,
-                false,
-            );
-        }
-        BeamAction::DespawnAll => {
-            for (entity, _) in beams.iter() {
-                commands.entity(entity).despawn();
-            }
-        }
-        BeamAction::None => {}
-    }
-
-    // Guest: send channel messages
-    if skip_spawn {
-        if result.channel_started {
-            if let Some(conn) = connection.as_mut() {
-                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::ChannelStarted {
-                        spell: Spell::Disintegrate,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
-
-        if result.channeling {
-            if let Some(conn) = connection.as_mut() {
-                let pos = cursor_pos.unwrap_or(Vec3::ZERO);
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::ChannelUpdate {
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                    },
-                ));
-            }
-        }
-
-        if result.channel_ended {
-            if let Some(conn) = connection.as_mut() {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::ChannelEnded,
-                ));
-            }
-        }
-    }
-}
-
-/// Guest wizard disintegrate casting -- reads network signals.
-#[allow(clippy::too_many_arguments)]
-pub fn handle_disintegrate_casting_guest(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
-        With<GuestWizard>,
-    >,
-    mut beams: Query<
-        (Entity, &mut DisintegrateBeam),
-        With<GuestBeam>,
-    >,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    guest_cursor: Res<GuestCursorPosition>,
-    guest_input: Res<GuestInputState>,
-) {
-    let input = WizardInput {
-        just_pressed: guest_input.just_pressed,
-        pressed: guest_input.pressed,
-        just_released: guest_input.just_released,
-        cursor_pos: guest_cursor.position,
-    };
-
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
-        return;
-    };
-    if primed_spell.spell != Spell::Disintegrate { return; }
-
-    // Extract existing beam data
-    let has_beam = beams.iter().next().is_some();
-
-    let result = disintegrate_casting_logic(
-        &input,
-        &time,
-        wizard_transform,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-        wizard,
-        has_beam,
-    );
-
-    // Apply caster component changes
-    if result.insert_caster {
-        commands.entity(wizard_entity).insert(DisintegrateCaster);
-    }
-    if result.remove_caster {
-        commands.entity(wizard_entity).remove::<DisintegrateCaster>();
-    }
-
-    // Apply beam action
-    match result.beam_action {
-        BeamAction::UpdateBeam { origin, direction, length } => {
-            if let Some((_, mut beam)) = beams.iter_mut().next() {
-                beam.origin = origin;
-                beam.direction = direction;
-                beam.length = length;
-            }
-        }
-        BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
-            spawn_beam_with_marker(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                origin,
-                direction,
-                length,
-                empowerment,
-                true,
-            );
+            spawn_beam(&mut commands, &visual_assets, origin, direction, length, empowerment);
         }
         BeamAction::DespawnAll => {
             for (entity, _) in beams.iter() {
@@ -249,7 +89,7 @@ pub fn handle_disintegrate_casting_guest(
     }
 }
 
-/// Core disintegrate casting logic -- called by both local and guest systems.
+/// Core disintegrate casting logic.
 ///
 /// Takes extracted data from queries and returns actions for the wrapper to apply.
 #[allow(clippy::too_many_arguments)]
@@ -265,31 +105,20 @@ fn disintegrate_casting_logic(
 ) -> CastingResult {
     let mut result = CastingResult {
         beam_action: BeamAction::None,
-        insert_caster: false,
-        remove_caster: false,
-        channel_started: false,
-        channeling: false,
-        channel_ended: false,
     };
 
     let wizard_pos = wizard_transform.translation;
 
     // Check for release
     if input.just_released {
-        let was_channeling = matches!(*casting_state, CastingState::Channeling { .. });
         casting_state.cancel();
-        result.remove_caster = true;
         result.beam_action = BeamAction::DespawnAll;
-        if was_channeling {
-            result.channel_ended = true;
-        }
         return result;
     }
 
     match *casting_state {
         CastingState::Channeling { .. } => {
             casting_state.advance_channel(time.delta_secs());
-            result.channeling = true;
 
             let mana_cost = constants::MANA_COST_PER_SECOND * time.delta_secs();
 
@@ -328,10 +157,7 @@ fn disintegrate_casting_logic(
                 }
             } else {
                 casting_state.cancel();
-                result.remove_caster = true;
                 result.beam_action = BeamAction::DespawnAll;
-                result.channeling = false;
-                result.channel_ended = true;
             }
         }
         CastingState::Casting { .. } => {
@@ -339,7 +165,6 @@ fn disintegrate_casting_logic(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 casting_state.start_channeling();
-                result.channel_started = true;
 
                 if let Some(target_pos) = input.cursor_pos {
                     let beam_origin =
@@ -372,7 +197,6 @@ fn disintegrate_casting_logic(
                 && mana.can_afford(constants::MANA_COST_PER_SECOND * 0.1)
             {
                 casting_state.start_cast();
-                result.insert_caster = true;
             }
         }
     }
@@ -420,6 +244,7 @@ pub fn apply_disintegrate_damage(
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
         ),
         Without<Wizard>,
     >,
@@ -441,7 +266,7 @@ pub fn apply_disintegrate_damage(
         let effective_length = beam.current_length() * max_t;
 
         if beam.should_damage() {
-            for (entity, transform, mut health, mut temp_hp) in target_query.iter_mut() {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in target_query.iter_mut() {
                 let position = transform.translation;
                 // Check if point is in beam AND before the wall
                 if beam.contains_point(position) {
@@ -454,6 +279,7 @@ pub fn apply_disintegrate_damage(
                             temp_hp.as_deref_mut(),
                             beam.damage_per_tick(),
                             constants::DAMAGE_TYPE,
+                            has_spell_shield,
                         );
                     }
                 }
@@ -464,77 +290,44 @@ pub fn apply_disintegrate_damage(
     }
 }
 
-/// System that despawns beams when wizard is not actively channeling disintegrate.
+/// System that despawns beams when wizard is not actively casting/channeling disintegrate.
 ///
-/// Cleans up both local wizard beams and guest wizard beams independently.
+/// Checks CastingState directly to avoid deferred command timing issues.
 pub fn cleanup_beams_on_cancel(
     mut commands: Commands,
-    local_wizard_query: Query<&CastingState, (With<LocalWizard>, Without<DisintegrateCaster>)>,
-    guest_wizard_query: Query<&CastingState, (With<GuestWizard>, Without<LocalWizard>, Without<DisintegrateCaster>)>,
-    local_beam_query: Query<
-        Entity,
-        (
-            With<DisintegrateBeam>,
-            Without<GuestBeam>,
-        ),
-    >,
-    guest_beam_query: Query<
-        Entity,
-        (
-            With<DisintegrateBeam>,
-            With<GuestBeam>,
-        ),
-    >,
+    wizard_query: Query<&CastingState, With<LocalWizard>>,
+    beam_query: Query<Entity, With<DisintegrateBeam>>,
 ) {
-    // Cleanup local wizard's beams
-    if local_wizard_query.single().is_ok() {
-        for entity in local_beam_query.iter() {
-            commands.entity(entity).despawn();
-        }
-    }
-    // Cleanup guest wizard's beams
-    if guest_wizard_query.single().is_ok() {
-        for entity in guest_beam_query.iter() {
-            commands.entity(entity).despawn();
+    if let Ok(casting_state) = wizard_query.single() {
+        if matches!(casting_state, CastingState::Resting) {
+            for entity in beam_query.iter() {
+                commands.entity(entity).despawn();
+            }
         }
     }
 }
 
-/// Spawns a beam entity with visual billboard mesh.
-/// If `is_guest` is true, adds `GuestBeam` marker to distinguish from local beams.
-fn spawn_beam_with_marker(
+/// Spawns a beam entity with a cylinder mesh visible from all angles.
+fn spawn_beam(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     origin: Vec3,
     direction: Vec3,
     length: f32,
     empowerment: f32,
-    is_guest: bool,
 ) {
     let midpoint = origin + direction * (length / 2.0);
-    let scale = empowerment;
-    let beam_width = constants::BEAM_WIDTH * scale;
-    let rectangle = Rectangle::new(beam_width, beam_width);
 
-    let mut entity_commands = commands.spawn((
+    commands.spawn((
         DisintegrateBeam::new(origin, direction, length, empowerment),
-        Mesh3d(meshes.add(rectangle)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: constants::BEAM_COLOR,
-            unlit: true,
-            ..default()
-        })),
+        Mesh3d(assets.unit_cylinder.clone()),
+        MeshMaterial3d(assets.disintegrate_beam.clone()),
         Transform::from_translation(midpoint),
         OnGameplayScreen,
     ));
-
-    if is_guest {
-        entity_commands.insert(GuestBeam);
-    }
 }
 
-/// System that updates beam mesh transform to match beam data.
+/// System that updates beam cylinder transform to match beam data.
 pub fn update_beam_visuals(mut beam_query: Query<(&DisintegrateBeam, &mut Transform)>) {
     for (beam, mut transform) in beam_query.iter_mut() {
         // Get current animated length
@@ -544,15 +337,12 @@ pub fn update_beam_visuals(mut beam_query: Query<(&DisintegrateBeam, &mut Transf
         let midpoint = beam.origin + beam.direction * (current_len / 2.0);
         transform.translation = midpoint;
 
-        // Calculate rotation to align the rectangle's Y axis with the beam direction
-        // The rectangle mesh has its height along the Y axis by default
-        let up = Vec3::Y;
-        let rotation = Quat::from_rotation_arc(up, beam.direction);
+        // Align cylinder Y axis with beam direction
+        let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
         transform.rotation = rotation;
 
-        // Scale the mesh to match current animated beam length
-        // Mesh is BEAM_WIDTH x BEAM_WIDTH, so scale Y to length
-        let scale_y = current_len / constants::BEAM_WIDTH;
-        transform.scale = Vec3::new(1.0, scale_y, 1.0);
+        // Scale: X/Z = beam width (cylinder radius), Y = beam length
+        let beam_width = constants::BEAM_WIDTH * beam.empowerment;
+        transform.scale = Vec3::new(beam_width, current_len, beam_width);
     }
 }

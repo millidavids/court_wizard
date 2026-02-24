@@ -6,7 +6,7 @@ use super::upgrade_selection;
 use super::upgrade_systems;
 use crate::config::GameConfig;
 use crate::game::constants::*;
-use crate::game::resources::{CurrentLevel, KillStats};
+use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
@@ -93,6 +93,11 @@ pub fn init_loading_progress(
     // Record total attackers spawned for achievement tracking
     kill_stats.total_attackers_spawned =
         total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
+
+    // Track initial defender count for spell shield threshold (multiplayer)
+    commands.insert_resource(InitialDefenderCount(
+        INITIAL_DEFENDER_COUNT + KINGS_GUARD_COUNT + INITIAL_ARCHER_DEFENDER_COUNT,
+    ));
 
     // 11. Load wizard assets (sprite sheet texture)
     queue.tasks.push(SpawnTask::LoadWizardAssets);

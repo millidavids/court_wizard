@@ -4,13 +4,15 @@ use bevy::prelude::*;
 pub struct PhantasmalForceIndicator {
     pub position: Vec3,
     pub time_alive: f32,
+    pub empowerment: f32,
 }
 
 impl PhantasmalForceIndicator {
-    pub const fn new(position: Vec3) -> Self {
+    pub fn new(position: Vec3, empowerment: f32) -> Self {
         Self {
             position,
             time_alive: 0.0,
+            empowerment,
         }
     }
 

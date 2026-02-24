@@ -6,26 +6,17 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::ATTACKER_GRID_CENTER_ANGLE;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
 };
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard plague wind casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -34,7 +25,7 @@ pub fn handle_plague_wind_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (
@@ -52,8 +43,6 @@ pub fn handle_plague_wind_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -74,8 +63,6 @@ pub fn handle_plague_wind_casting(
     let radius = constants::CLOUD_RADIUS * scale;
     let clamped_pos = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range, radius));
 
-    let skip_spawn = skip_spawning.is_some();
-
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
         && caster_query.get(wizard_entity).is_err()
@@ -84,8 +71,7 @@ pub fn handle_plague_wind_casting(
     {
         let circle_entity = spawn_circle_indicator(
             &mut commands,
-            &mut meshes,
-            &mut materials,
+            &visual_assets,
             pos,
             scale,
         );
@@ -118,7 +104,7 @@ pub fn handle_plague_wind_casting(
         ..input
     };
 
-    let cast_result = plague_wind_casting_logic(
+    let completed = plague_wind_casting_logic(
         &effective_input,
         &time,
         wizard_entity,
@@ -128,26 +114,13 @@ pub fn handle_plague_wind_casting(
         primed_spell,
         &caster_query,
         &mut commands,
-        &mut meshes,
+        &visual_assets,
         &mut materials,
         &mut obstacle_events,
-        skip_spawn,
     );
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::PlagueWind,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
@@ -163,13 +136,10 @@ fn plague_wind_casting_logic(
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
+    assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
-    skip_spawn: bool,
-) -> CastResult {
-    let mut result = CastResult { completed: false, cursor_pos: None };
-
+) -> bool {
     let wizard_pos = wizard_transform.translation;
     let scale = primed_spell.empowerment;
     let radius = constants::CLOUD_RADIUS * scale;
@@ -183,8 +153,10 @@ fn plague_wind_casting_logic(
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
-        return result;
+        return false;
     }
+
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Resting => {
@@ -204,60 +176,52 @@ fn plague_wind_casting_logic(
                 if mana.consume(constants::MANA_COST) {
                     let pos = input.cursor_pos.unwrap_or(wizard_pos);
 
-                    if !skip_spawn {
-                        // Cloud drifts toward attacker spawn direction
-                        let direction = Vec3::new(
-                            ATTACKER_GRID_CENTER_ANGLE.cos(),
-                            0.0,
-                            ATTACKER_GRID_CENTER_ANGLE.sin(),
-                        )
-                        .normalize();
+                    // Cloud drifts toward attacker spawn direction
+                    let direction = Vec3::new(
+                        ATTACKER_GRID_CENTER_ANGLE.cos(),
+                        0.0,
+                        ATTACKER_GRID_CENTER_ANGLE.sin(),
+                    )
+                    .normalize();
 
-                        let damage = constants::DAMAGE_PER_TICK * scale;
+                    let damage = constants::DAMAGE_PER_TICK * scale;
 
-                        // Notify pathfinding
-                        let origin_2d = Vec2::new(pos.x, pos.z);
-                        let buffered = radius + OBSTACLE_BUFFER;
-                        obstacle_events.write(ObstacleChanged {
-                            bounds: Rect::from_center_size(
-                                origin_2d,
-                                Vec2::splat(buffered * 2.0),
-                            ),
-                            obstacle_type: ObstacleType::Hazard(10.0),
-                        });
+                    // Notify pathfinding
+                    let origin_2d = Vec2::new(pos.x, pos.z);
+                    let buffered = radius + OBSTACLE_BUFFER;
+                    obstacle_events.write(ObstacleChanged {
+                        bounds: Rect::from_center_size(
+                            origin_2d,
+                            Vec2::splat(buffered * 2.0),
+                        ),
+                        obstacle_type: ObstacleType::Hazard(10.0),
+                    });
 
-                        let cloud_mesh = meshes.add(Circle::new(radius));
-                        let cloud_material = materials.add(StandardMaterial {
-                            base_color: constants::CLOUD_COLOR,
-                            unlit: true,
-                            alpha_mode: AlphaMode::Blend,
-                            cull_mode: None,
-                            ..default()
-                        });
+                    let base_mat = materials.get(&assets.plague_wind_zone).cloned().unwrap_or_default();
+                    let cloud_material = materials.add(base_mat);
 
-                        commands.spawn((
-                            Mesh3d(cloud_mesh),
-                            MeshMaterial3d(cloud_material),
-                            Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                                .with_rotation(Quat::from_rotation_x(
-                                    -std::f32::consts::FRAC_PI_2,
-                                )),
-                            PlagueWindCloud::new(
-                                pos,
-                                radius,
-                                damage,
-                                constants::TICK_INTERVAL,
-                                constants::CLOUD_DURATION * scale,
-                                constants::CLOUD_SPEED,
-                                direction,
-                            ),
-                            NetworkedSpellEffect { kind: SpellEffectKind::PlagueWindCloud },
-                            OnGameplayScreen,
-                        ));
-                    }
+                    commands.spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(cloud_material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(Quat::from_rotation_x(
+                                -std::f32::consts::FRAC_PI_2,
+                            ))
+                            .with_scale(Vec3::splat(radius)),
+                        PlagueWindCloud::new(
+                            pos,
+                            radius,
+                            damage,
+                            constants::TICK_INTERVAL,
+                            constants::CLOUD_DURATION * scale,
+                            constants::CLOUD_SPEED,
+                            direction,
+                        ),
+                        NetworkedSpellEffect { kind: SpellEffectKind::PlagueWindCloud },
+                        OnGameplayScreen,
+                    ));
 
-                    result.completed = true;
-                    result.cursor_pos = Some(pos);
+                    completed = true;
 
                     // Clean up indicator
                     if let Ok(caster) = caster_query.get(wizard_entity)
@@ -289,7 +253,7 @@ fn plague_wind_casting_logic(
         }
     }
 
-    result
+    completed
 }
 
 pub fn update_plague_wind_indicator(
@@ -299,7 +263,7 @@ pub fn update_plague_wind_indicator(
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(indicator.radius * pulse);
         transform.translation.x = indicator.position.x;
         transform.translation.y = constants::CIRCLE_Y_POSITION;
         transform.translation.z = indicator.position.z;
@@ -348,6 +312,7 @@ pub fn apply_plague_wind_damage(
         &Transform,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
     )>,
 ) {
     let delta = time.delta_secs();
@@ -359,7 +324,7 @@ pub fn apply_plague_wind_damage(
         if cloud.time_since_last_tick >= cloud.tick_interval {
             cloud.time_since_last_tick = 0.0;
 
-            for (entity, transform, mut health, mut temp_hp) in &mut units {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut units {
                 let dist = Vec3::new(
                     cloud.origin.x - transform.translation.x,
                     0.0,
@@ -375,6 +340,7 @@ pub fn apply_plague_wind_damage(
                         temp_hp.as_deref_mut(),
                         cloud.damage_per_tick,
                         DamageType::Necrotic,
+                        has_spell_shield,
                     );
                 }
             }
@@ -469,30 +435,24 @@ fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32, radius
 
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = constants::CLOUD_RADIUS * empowerment;
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
 
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.plague_wind_indicator.clone()),
             Transform::from_translation(Vec3::new(
                 position.x,
                 constants::CIRCLE_Y_POSITION,
                 position.z,
             ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-            PlagueWindIndicator::new(position),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(radius)),
+            PlagueWindIndicator::new(position, radius),
             OnGameplayScreen,
         ))
         .id()

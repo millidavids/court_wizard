@@ -7,33 +7,17 @@ use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::multiplayer::spell_commands::SkipSpellSpawning;
 use crate::game::units::components::HasteModifier;
-use crate::networking::protocol::{NetworkMessage, SpellAction};
-use crate::networking::resources::NetworkConnection;
-
-/// Result from spell casting logic, used to communicate state back to the wrapper.
-struct CastResult {
-    /// Whether the spell completed (cast finished and effect spawned/skipped).
-    completed: bool,
-    /// Cursor position at time of completion (for network message).
-    cursor_pos: Option<Vec3>,
-}
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard haste casting -- reads mouse input.
-///
-/// On the guest (when `SkipSpellSpawning` is present), the casting pipeline
-/// runs normally (CastingState, mana, cast bar, indicator) but the spell
-/// effect (apply_haste_buff) is skipped. Instead, a `SpellCast` message is
-/// sent to the host.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_haste_casting(
     time: Res<Time>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
             Entity,
@@ -50,8 +34,6 @@ pub fn handle_haste_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut HasteIndicator>,
     mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
-    skip_spawning: Option<Res<SkipSpellSpawning>>,
-    mut connection: Option<ResMut<NetworkConnection>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -66,8 +48,6 @@ pub fn handle_haste_casting(
         return;
     };
     if primed_spell.spell != Spell::Haste { return; }
-
-    let skip_spawn = skip_spawning.is_some();
 
     // Clamp cursor to spell range
     let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
@@ -88,7 +68,7 @@ pub fn handle_haste_casting(
         return;
     };
 
-    let mut cast_result = CastResult { completed: false, cursor_pos: None };
+    let mut completed = false;
 
     match *casting_state {
         CastingState::Resting => {
@@ -98,8 +78,7 @@ pub fn handle_haste_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &mut meshes,
-                    &mut materials,
+                    &visual_assets,
                     clamped_cursor,
                     primed_spell.empowerment,
                 );
@@ -122,31 +101,24 @@ pub fn handle_haste_casting(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
-                    if !skip_spawn {
-                        if let Ok(caster) = caster_query.get(wizard_entity)
-                            && let Some(indicator_entity) = caster.indicator_entity
-                        {
-                            if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                                apply_haste_buff(
-                                    &mut commands,
-                                    indicator.position,
-                                    radius,
-                                    indicator.empowerment,
-                                    &mut targets_query,
-                                );
-                            }
-                        }
-                    }
-                    cast_result.completed = true;
-                    cast_result.cursor_pos = Some(clamped_cursor);
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
+                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
+                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            apply_haste_buff(
+                                &mut commands,
+                                indicator.position,
+                                radius,
+                                indicator.empowerment,
+                                &mut targets_query,
+                            );
+                        }
                         commands.entity(indicator_entity).despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
+                    completed = true;
                 } else {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
@@ -169,20 +141,8 @@ pub fn handle_haste_casting(
         }
     }
 
-    if cast_result.completed {
+    if completed {
         mouse_state.left_consumed = true;
-
-        if skip_spawn {
-            if let (Some(conn), Some(pos)) = (connection.as_mut(), cast_result.cursor_pos) {
-                conn.outgoing_messages.push(NetworkMessage::SpellResult(
-                    SpellAction::SpellCast {
-                        spell: Spell::Haste,
-                        cursor_pos: [pos.x, pos.y, pos.z],
-                        empowerment: primed_spell.empowerment,
-                    },
-                ));
-            }
-        }
     }
 }
 
@@ -221,8 +181,9 @@ pub fn update_haste_indicator(
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
+        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
         let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(pulse);
+        transform.scale = Vec3::splat(radius * pulse);
         transform.translation.x = indicator.position.x;
         transform.translation.y = constants::CIRCLE_Y_POSITION;
         transform.translation.z = indicator.position.z;
@@ -257,29 +218,23 @@ pub(crate) fn apply_haste_buff(
 
 fn spawn_circle_indicator(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
 ) -> Entity {
     let radius = constants::CIRCLE_RADIUS * empowerment;
-    let circle_mesh = meshes.add(Circle::new(radius));
-    let circle_material = materials.add(StandardMaterial {
-        base_color: constants::CIRCLE_COLOR,
-        unlit: true,
-        ..default()
-    });
 
     commands
         .spawn((
-            Mesh3d(circle_mesh),
-            MeshMaterial3d(circle_material),
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.haste_indicator.clone()),
             Transform::from_translation(Vec3::new(
                 position.x,
                 constants::CIRCLE_Y_POSITION,
                 position.z,
             ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(radius)),
             HasteIndicator::new(position, empowerment),
             OnGameplayScreen,
         ))

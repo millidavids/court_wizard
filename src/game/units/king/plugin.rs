@@ -4,7 +4,7 @@ use crate::game::plugin::{MovementSystemSet, VelocitySystemSet};
 use crate::game::run_conditions::any_exist;
 use crate::game::run_conditions::is_gameplay_running;
 
-use super::components::{King, KingSpawned};
+use super::components::{King, KingSpawned, SpellShield};
 use super::resources;
 use super::systems;
 
@@ -27,6 +27,15 @@ impl Plugin for KingPlugin {
                 )
                     .run_if(any_exist::<King>())
                     .run_if(is_gameplay_running),
+            )
+            .add_systems(
+                Update,
+                (
+                    systems::attach_king_spell_shield,
+                    systems::update_king_spell_shield
+                        .run_if(any_with_component::<SpellShield>)
+                        .run_if(is_gameplay_running),
+                ),
             );
     }
 }
