@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.219] - 2026-02-25
+
+### Added
+- **Dispel spell** — a new utility spell for the wizard that fires a fast bolt of nullifying energy at the cursor. On impact with the ground, an expanding white wave removes any spell effects it touches
+- Dispeller units now fire the same dispel projectile instead of silently channeling — you can see the bolt fly toward spell effects and watch the expanding wave clear them
+
+### Changed
+- Dispeller units no longer stand still to channel — they fire a projectile and keep moving
+
 ## [v0.2.206] - 2026-02-25
 
 ### Added

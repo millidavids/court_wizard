@@ -10,6 +10,7 @@ use super::constants::*;
 use super::spawn_queue::{SpawnTask, UnitType};
 use crate::game::units::archer::Archer;
 use crate::game::units::components::Team;
+use crate::game::units::dispeller::constants::calculate_attacker_dispellers;
 use crate::game::units::infantry::Infantry;
 
 /// Selects infantry units to upgrade to elites or commanders.
@@ -127,6 +128,65 @@ pub(super) fn select_archer_upgrades(
     info!(
         "Archer upgrades selected: {} commanders, {} elites (from {} total)",
         commander_count, elite_count, total_count
+    );
+
+    tasks
+}
+
+/// Selects archer units to upgrade to dispellers.
+///
+/// Queries all spawned attacker archers, excludes any already selected for elite/commander
+/// upgrades, then randomly selects entities to become dispellers based on level scaling.
+///
+/// Returns a list of upgrade tasks to enqueue (spread across frames).
+pub(super) fn select_dispeller_upgrades(
+    archer_query: &Query<(Entity, &Team), With<Archer>>,
+    level: u32,
+    existing_tasks: &[SpawnTask],
+) -> Vec<SpawnTask> {
+    let dispeller_count = calculate_attacker_dispellers(level) as usize;
+    if dispeller_count == 0 {
+        return Vec::new();
+    }
+
+    // Collect entities already targeted for upgrades so we don't pick them
+    let excluded: Vec<Entity> = existing_tasks
+        .iter()
+        .filter_map(|task| match task {
+            SpawnTask::UpgradeToElite { entity, .. }
+            | SpawnTask::UpgradeToCommander { entity, .. } => Some(*entity),
+            _ => None,
+        })
+        .collect();
+
+    // Collect all attacker archer entities not already selected for other upgrades
+    let available_archers: Vec<Entity> = archer_query
+        .iter()
+        .filter(|(entity, team)| **team == Team::Attackers && !excluded.contains(entity))
+        .map(|(entity, _)| entity)
+        .collect();
+
+    if available_archers.is_empty() {
+        return Vec::new();
+    }
+
+    let count = dispeller_count.min(available_archers.len());
+
+    // Create seeded RNG with unique seed for dispeller selection
+    let mut rng = StdRng::seed_from_u64((level as u64).wrapping_mul(1009));
+
+    let mut shuffled = available_archers;
+    shuffled.shuffle(&mut rng);
+
+    let tasks: Vec<SpawnTask> = shuffled
+        .into_iter()
+        .take(count)
+        .map(|entity| SpawnTask::UpgradeToDispeller { entity })
+        .collect();
+
+    info!(
+        "Dispeller upgrades selected: {} (from attacker archers)",
+        tasks.len()
     );
 
     tasks

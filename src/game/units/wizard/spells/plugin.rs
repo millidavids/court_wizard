@@ -9,6 +9,7 @@ use super::berserker_rage::BerserkerRagePlugin;
 use super::black_hole::BlackHolePlugin;
 use super::chain_lightning::ChainLightningPlugin;
 use super::disintegrate::DisintegratePlugin;
+use super::dispel::DispelPlugin;
 use super::entangle::EntanglePlugin;
 use super::finger_of_death::FingerOfDeathPlugin;
 use super::fireball::FireballPlugin;
@@ -79,6 +80,7 @@ impl Plugin for SpellsPlugin {
                 BanishmentPlugin,
                 PolymorphPlugin,
                 ArcaneCrystalPlugin,
+                DispelPlugin,
             ))
             .add_systems(
                 Update,

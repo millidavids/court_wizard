@@ -6,15 +6,6 @@ use crate::game::units::components::Team;
 #[derive(Component)]
 pub struct Dispeller;
 
-/// Tracks channeling progress when a dispeller is removing a spell effect.
-#[derive(Component)]
-pub struct DispelChanneling {
-    /// The spell effect entity being dispelled.
-    pub target_entity: Entity,
-    /// Time spent channeling so far (seconds).
-    pub elapsed: f32,
-}
-
 /// Straight-line magic bolt projectile fired by dispellers.
 #[derive(Component)]
 pub struct DispellerBolt {
@@ -41,4 +32,10 @@ impl DispellerAttackTimer {
             time_since_last_attack: 999.0, // Start high so can attack immediately
         }
     }
+}
+
+/// Cooldown timer for the dispeller's dispel ability.
+#[derive(Component)]
+pub struct DispellerDispelCooldown {
+    pub remaining: f32,
 }

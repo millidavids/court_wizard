@@ -10,10 +10,18 @@ use super::spawn_queue::UnitType;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::Hitbox;
+use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
+use crate::game::units::archer::Archer;
+use crate::game::units::dispeller::DispellerAssets;
+use crate::game::units::dispeller::components::{Dispeller, DispellerAttackTimer};
+use crate::game::units::dispeller::constants::{
+    DISPELLER_HEALTH, DISPELLER_MOVEMENT_SPEED, DISPELLER_RADIUS,
+};
 use crate::game::units::elite::{
     ELITE_DAMAGE_BONUS, ELITE_HEALTH_BONUS, ELITE_SPEED_BONUS, EliteDamageBonus, EliteHealthBonus,
     EliteSpeedBonus,
 };
+use crate::game::units::components::{Health, MovementSpeed};
 
 /// Applies elite upgrade to a unit entity.
 ///
@@ -160,4 +168,39 @@ fn spawn_aura_ring(
 
     // Parent the ring to the commander so it follows them
     commands.entity(parent_entity).add_child(ring_entity);
+}
+
+/// Applies dispeller upgrade to an archer entity.
+///
+/// Converts an attacker archer into a dispeller by swapping components:
+/// removes archer-specific components, adds dispeller components, and
+/// updates mesh/material/stats to match dispeller configuration.
+pub(super) fn apply_dispeller_upgrade(
+    commands: &mut Commands,
+    entity: Entity,
+    dispeller_assets: &DispellerAssets,
+) {
+    // Remove archer-specific components
+    commands
+        .entity(entity)
+        .remove::<(Archer, AttackRange, ArcherMovementTimer)>();
+
+    // Add dispeller components
+    commands.entity(entity).insert((
+        Dispeller,
+        DispellerAttackTimer::new(),
+    ));
+
+    // Swap mesh and material to dispeller visuals
+    commands.entity(entity).insert((
+        Mesh3d(dispeller_assets.mesh.clone()),
+        MeshMaterial3d(dispeller_assets.attacker_material.clone()),
+    ));
+
+    // Update stats to dispeller values
+    commands.entity(entity).insert((
+        Health::new(DISPELLER_HEALTH),
+        MovementSpeed(DISPELLER_MOVEMENT_SPEED),
+        Hitbox::new(DISPELLER_RADIUS, crate::game::constants::ATTACKER_HITBOX_HEIGHT),
+    ));
 }

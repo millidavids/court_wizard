@@ -37,6 +37,7 @@ pub enum Spell {
     Banishment,
     Polymorph,
     ArcaneCrystal,
+    Dispel,
 }
 
 /// Spell categories for organizing the spell book.
@@ -110,6 +111,7 @@ impl SpellCategory {
                 Spell::PhantasmalForce,
                 Spell::Banishment,
                 Spell::ArcaneCrystal,
+                Spell::Dispel,
             ],
         }
     }
@@ -150,6 +152,7 @@ impl Spell {
             Spell::Banishment,
             Spell::Polymorph,
             Spell::ArcaneCrystal,
+            Spell::Dispel,
         ]
     }
 
@@ -190,7 +193,8 @@ impl Spell {
             Spell::Telekinesis
             | Spell::PhantasmalForce
             | Spell::Banishment
-            | Spell::ArcaneCrystal => SpellCategory::Utility,
+            | Spell::ArcaneCrystal
+            | Spell::Dispel => SpellCategory::Utility,
         }
     }
 
@@ -228,6 +232,7 @@ impl Spell {
             Spell::Banishment => "Banishment",
             Spell::Polymorph => "Polymorph",
             Spell::ArcaneCrystal => "Arcane Crystal",
+            Spell::Dispel => "Dispel",
         }
     }
 
@@ -265,6 +270,7 @@ impl Spell {
             Spell::Banishment => "Banishment",
             Spell::Polymorph => "Polymorph",
             Spell::ArcaneCrystal => "Arcane\nCrystal",
+            Spell::Dispel => "Dispel",
         }
     }
 
@@ -356,6 +362,9 @@ impl Spell {
             Spell::ArcaneCrystal => {
                 "Places a magical crystal that amplifies your spells. Hit it with projectiles, beams, or meteors to scatter smaller copies at nearby enemies."
             }
+            Spell::Dispel => {
+                "Fires a bolt of nullifying energy at the cursor. On impact, an expanding wave removes any spell effects it touches."
+            }
         }
     }
 
@@ -399,6 +408,7 @@ impl Spell {
             Spell::ArcaneCrystal => {
                 "A prism for the ambitious. What goes in comes out... everywhere."
             }
+            Spell::Dispel => "Sometimes the best magic is no magic at all.",
         }
     }
 
@@ -436,6 +446,7 @@ impl Spell {
             Spell::Banishment => "Click and hold to cast",
             Spell::Polymorph => "Click and hold to cast",
             Spell::ArcaneCrystal => "Click and hold to place",
+            Spell::Dispel => "Click to fire",
         }
     }
 
@@ -444,14 +455,14 @@ impl Spell {
         use crate::game::units::wizard::spells::{
             arcane_crystal_constants, banishment_constants, battle_hymn_constants,
             berserker_rage_constants, black_hole_constants, chain_lightning_constants,
-            disintegrate_constants, entangle_constants, finger_of_death_constants,
-            fireball_constants, fog_cloud_constants, grease_constants, guardian_circle_constants,
-            haste_constants, healing_plume_constants, hypnotic_pattern_constants,
-            lightning_rod_constants, magic_missile_constants, mark_of_death_constants,
-            meteor_fall_constants, phantasmal_force_constants, plague_wind_constants,
-            polymorph_constants, raise_the_dead_constants, sleep_constants, spike_growth_constants,
-            squall_constants, telekinesis_constants, teleport_constants, wall_of_fire_constants,
-            wall_of_stone_constants,
+            disintegrate_constants, dispel_constants, entangle_constants,
+            finger_of_death_constants, fireball_constants, fog_cloud_constants, grease_constants,
+            guardian_circle_constants, haste_constants, healing_plume_constants,
+            hypnotic_pattern_constants, lightning_rod_constants, magic_missile_constants,
+            mark_of_death_constants, meteor_fall_constants, phantasmal_force_constants,
+            plague_wind_constants, polymorph_constants, raise_the_dead_constants, sleep_constants,
+            spike_growth_constants, squall_constants, telekinesis_constants, teleport_constants,
+            wall_of_fire_constants, wall_of_stone_constants,
         };
 
         match self {
@@ -486,6 +497,7 @@ impl Spell {
             Spell::Banishment => banishment_constants::PRIMED_BANISHMENT,
             Spell::Polymorph => polymorph_constants::PRIMED_POLYMORPH,
             Spell::ArcaneCrystal => arcane_crystal_constants::PRIMED_ARCANE_CRYSTAL,
+            Spell::Dispel => dispel_constants::PRIMED_DISPEL,
         }
     }
 
@@ -523,6 +535,7 @@ impl Spell {
             Spell::Banishment => DamageType::Force,
             Spell::Polymorph => DamageType::Nature,
             Spell::ArcaneCrystal => DamageType::Force,
+            Spell::Dispel => DamageType::Force,
         }
     }
 
@@ -565,6 +578,7 @@ impl Spell {
             Spell::BlackHole => 120,
             Spell::Polymorph => 100,
             Spell::ArcaneCrystal => 80,
+            Spell::Dispel => 40,
         }
     }
 
@@ -609,6 +623,7 @@ impl Spell {
             Spell::BlackHole => 8,
             Spell::Polymorph => 8,
             Spell::ArcaneCrystal => 6,
+            Spell::Dispel => 3,
             _ => 0,
         }
     }

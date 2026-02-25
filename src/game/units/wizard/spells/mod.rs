@@ -10,6 +10,7 @@ pub(crate) mod black_hole;
 pub(crate) mod chain_lightning;
 mod components;
 pub(crate) mod disintegrate;
+pub(crate) mod dispel;
 pub(crate) mod entangle;
 pub(crate) mod finger_of_death;
 pub(crate) mod fireball;
@@ -47,6 +48,7 @@ pub(in crate::game::units::wizard) use berserker_rage::constants as berserker_ra
 pub(in crate::game::units::wizard) use black_hole::constants as black_hole_constants;
 pub(in crate::game::units::wizard) use chain_lightning::constants as chain_lightning_constants;
 pub(in crate::game::units::wizard) use disintegrate::constants as disintegrate_constants;
+pub(in crate::game::units::wizard) use dispel::constants as dispel_constants;
 pub(in crate::game::units::wizard) use entangle::constants as entangle_constants;
 pub(in crate::game::units::wizard) use finger_of_death::constants as finger_of_death_constants;
 pub(in crate::game::units::wizard) use fireball::constants as fireball_constants;

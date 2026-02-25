@@ -10,7 +10,6 @@ use super::constants::*;
 pub struct DispellerAssets {
     pub mesh: Handle<Mesh>,
     pub bolt_mesh: Handle<Mesh>,
-    pub defender_material: Handle<StandardMaterial>,
     pub attacker_material: Handle<StandardMaterial>,
     pub bolt_material: Handle<StandardMaterial>,
     pub defender_corpse_material: Handle<StandardMaterial>,
@@ -28,11 +27,6 @@ pub(super) fn preload_dispeller_assets(
     let assets = DispellerAssets {
         mesh: meshes.add(Circle::new(DISPELLER_RADIUS)),
         bolt_mesh: meshes.add(Circle::new(BOLT_RADIUS)),
-        defender_material: materials.add(StandardMaterial {
-            base_color: DEFENDER_DISPELLER_COLOR,
-            unlit: true,
-            ..default()
-        }),
         attacker_material: materials.add(StandardMaterial {
             base_color: ATTACKER_DISPELLER_COLOR,
             unlit: true,

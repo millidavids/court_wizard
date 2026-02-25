@@ -1,10 +1,9 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, DEFENDER_BASE, TINT_BLUE, tint};
+use crate::game::constants::{ATTACKER_BASE, TINT_BLUE, tint};
 
 // ===== Visual =====
-pub const DEFENDER_DISPELLER_COLOR: Color = tint(DEFENDER_BASE, TINT_BLUE, 0.5);
-pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.5);
+pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.3);
 pub const DISPELLER_RADIUS: f32 = 8.0;
 
 // ===== Movement =====
@@ -14,9 +13,8 @@ pub const DISPELLER_MOVEMENT_SPEED: f32 = 120.0;
 pub const DISPELLER_HEALTH: f32 = 40.0;
 
 // ===== Dispel =====
-pub const DISPEL_CHANNEL_TIME: f32 = 3.0;
-pub const DISPEL_RANGE: f32 = 80.0;
-pub const DISPEL_INTERRUPT_RANGE: f32 = 120.0;
+pub const DISPEL_RANGE: f32 = 150.0;
+pub const DISPEL_COOLDOWN: f32 = 1.5;
 
 // ===== Ranged Attack =====
 pub const BOLT_DAMAGE: f32 = 5.0;
@@ -28,7 +26,6 @@ pub const ATTACK_RANGE: f32 = 500.0;
 pub const ATTACK_COOLDOWN: f32 = 2.0;
 
 // ===== Spawn =====
-pub const INITIAL_DISPELLER_DEFENDER_COUNT: u32 = 5;
 
 /// Level at which attacker dispellers start appearing.
 pub const ATTACKER_DISPELLER_START_LEVEL: u32 = 6;

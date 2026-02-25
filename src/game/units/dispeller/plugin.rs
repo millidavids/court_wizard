@@ -16,7 +16,7 @@ impl Plugin for DispellerPlugin {
                 (
                     update_dispeller_targeting.in_set(crate::game::plugin::VelocitySystemSet),
                     dispeller_movement.in_set(crate::game::units::MovementCalculationSet),
-                    (update_dispel_channeling, dispeller_ranged_combat).chain(),
+                    (dispeller_cast_dispel, dispeller_ranged_combat).chain(),
                 )
                     .run_if(any_exist::<Dispeller>())
                     .run_if(is_gameplay_running),
