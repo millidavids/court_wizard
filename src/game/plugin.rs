@@ -7,6 +7,7 @@ use super::run_conditions::is_gameplay_running;
 use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
+use super::crt_effect::CrtEffectPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::drops::DropsPlugin;
 use super::input::InputPlugin;
@@ -101,6 +102,7 @@ impl Plugin for GamePlugin {
                 PathfindingPlugin,
                 AchievementsPlugin,
                 DropsPlugin,
+                CrtEffectPlugin,
             ))
             .add_systems(
                 OnEnter(AppState::MetaGame),

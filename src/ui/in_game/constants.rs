@@ -34,7 +34,7 @@ pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
 pub const BUTTON_BACKGROUND: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const BUTTON_BORDER: Color = Color::srgb(0.4, 0.4, 0.4);
 pub const BUTTON_TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
-pub const BUTTON_FONT_SIZE: f32 = 18.0;
+pub const BUTTON_FONT_SIZE: f32 = 9.0;
 
 /// Boss health bar dimensions.
 pub const BOSS_HEALTH_BAR_WIDTH: Val = Val::Vw(40.0); // 40% of screen width
@@ -47,10 +47,10 @@ pub const BOSS_HEALTH_BAR_FILL_COLOR: Color = Color::srgba(0.8, 0.1, 0.1, 0.8);
 pub const BOSS_HEALTH_BAR_BORDER_COLOR: Color = Color::srgba(0.5, 0.1, 0.1, 1.0);
 
 /// Boss name font size.
-pub const BOSS_NAME_FONT_SIZE: f32 = 20.0;
+pub const BOSS_NAME_FONT_SIZE: f32 = 10.0;
 
 /// Boss health bar text font size.
-pub const BOSS_HEALTH_TEXT_FONT_SIZE: f32 = 14.0;
+pub const BOSS_HEALTH_TEXT_FONT_SIZE: f32 = 7.0;
 
 /// Button style configuration for the in-game HUD.
 pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {

@@ -33,10 +33,10 @@ pub(super) struct SelectedWizardPreview(pub WizardType);
 // ===== Shared Styling Constants =====
 
 /// Font size for the wizard select title text.
-pub(super) const TITLE_FONT_SIZE: f32 = 38.0;
+pub(super) const TITLE_FONT_SIZE: f32 = 29.0;
 
 /// Font size for the subtitle text.
-pub(super) const SUBTITLE_FONT_SIZE: f32 = 13.0;
+pub(super) const SUBTITLE_FONT_SIZE: f32 = 10.0;
 
 /// Primary text color.
 pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.92, 1.0);
@@ -72,10 +72,10 @@ pub(super) const CARD_BORDER_WIDTH: f32 = 1.0;
 pub(super) const CARD_BORDER_RADIUS: f32 = 4.0;
 
 /// Font size for wizard name on cards.
-pub(super) const CARD_NAME_FONT_SIZE: f32 = 18.0;
+pub(super) const CARD_NAME_FONT_SIZE: f32 = 14.0;
 
 /// Font size for wizard description on cards.
-pub(super) const CARD_DESC_FONT_SIZE: f32 = 12.0;
+pub(super) const CARD_DESC_FONT_SIZE: f32 = 10.0;
 
 /// Background color for unlocked wizard cards.
 pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 1.0);
@@ -105,16 +105,16 @@ pub(super) const DETAIL_BG: Color = Color::hsla(220.0, 0.08, 0.10, 1.0);
 pub(super) const DETAIL_BORDER: Color = Color::hsla(40.0, 0.35, 0.30, 1.0);
 
 /// Font size for the wizard name in the detail panel.
-pub(super) const DETAIL_NAME_FONT_SIZE: f32 = 24.0;
+pub(super) const DETAIL_NAME_FONT_SIZE: f32 = 18.0;
 
 /// Font size for the long description in the detail panel.
-pub(super) const DETAIL_DESC_FONT_SIZE: f32 = 12.0;
+pub(super) const DETAIL_DESC_FONT_SIZE: f32 = 10.0;
 
 /// Color for the long description text.
 pub(super) const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.58, 1.0);
 
 /// Font size for status text in the detail panel.
-pub(super) const DETAIL_STATUS_FONT_SIZE: f32 = 13.0;
+pub(super) const DETAIL_STATUS_FONT_SIZE: f32 = 10.0;
 
 /// Background color for locked (unavailable) wizard cards.
 pub(super) const LOCKED_CARD_BG: Color = Color::hsla(220.0, 0.05, 0.065, 1.0);

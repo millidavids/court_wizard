@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.238] - 2026-02-25
+
+### Added
+- **CRT screen effect** — the game now has a retro TV look with barrel distortion, scanlines, RGB subpixel grid, vignette, chromatic aberration, screen flicker, rounded screen corners, and a subtle phosphor glow on bright areas
+- **New pixel font** — switched to Press Start 2P for a retro arcade feel across all menus and in-game text
+
+### Changed
+- Adjusted text sizes throughout the game to fit the new pixel font — wizard select, spell book, cauldron, action bar, and in-game buttons all properly sized now
+
 ## [v0.2.219] - 2026-02-25
 
 ### Added

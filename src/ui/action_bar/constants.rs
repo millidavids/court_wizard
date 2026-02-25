@@ -13,10 +13,10 @@ pub(super) const SLOT_GAP: f32 = 4.0;
 
 /// Font size for spell name text in action bar slots.
 /// Increased to 16.0 for better readability with multiline names.
-pub(super) const SPELL_NAME_FONT_SIZE: f32 = 12.0;
+pub(super) const SPELL_NAME_FONT_SIZE: f32 = 7.0;
 
 /// Font size for hotkey indicator text.
-pub(super) const HOTKEY_FONT_SIZE: f32 = 9.0;
+pub(super) const HOTKEY_FONT_SIZE: f32 = 5.0;
 
 /// Button style for action bar slots.
 pub(super) const SLOT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
