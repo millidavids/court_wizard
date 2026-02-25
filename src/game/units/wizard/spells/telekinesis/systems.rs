@@ -60,33 +60,31 @@ pub(super) fn handle_telekinesis_casting(
         && caster_query.get(wizard_entity).is_err()
         && mana.can_afford(constants::MANA_COST)
         && let Some(cursor_world_pos) = input.cursor_pos
-    {
-        if let Some((drop_entity, drop_transform, _drop)) =
+        && let Some((drop_entity, drop_transform, _drop)) =
             find_nearest_drop(&cursor_world_pos, &drops_query)
-        {
-            // Check if drop is within wizard's spell range
-            let wizard_pos = wizard_transform.translation;
-            let drop_pos = drop_transform.translation;
-            let wizard_height = wizard_pos.y;
-            let max_ground_radius = if wizard_height < wizard.spell_range {
-                (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-            } else {
-                0.0
-            };
-            let dx = drop_pos.x - wizard_pos.x;
-            let dz = drop_pos.z - wizard_pos.z;
-            let ground_distance = (dx * dx + dz * dz).sqrt();
-            if ground_distance <= max_ground_radius {
-                let indicator_entity = spawn_indicator(
-                    &mut commands,
-                    &visual_assets,
-                    drop_transform.translation,
-                    drop_entity,
-                );
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(indicator_entity));
-            }
+    {
+        // Check if drop is within wizard's spell range
+        let wizard_pos = wizard_transform.translation;
+        let drop_pos = drop_transform.translation;
+        let wizard_height = wizard_pos.y;
+        let max_ground_radius = if wizard_height < wizard.spell_range {
+            (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
+        } else {
+            0.0
+        };
+        let dx = drop_pos.x - wizard_pos.x;
+        let dz = drop_pos.z - wizard_pos.z;
+        let ground_distance = (dx * dx + dz * dz).sqrt();
+        if ground_distance <= max_ground_radius {
+            let indicator_entity = spawn_indicator(
+                &mut commands,
+                &visual_assets,
+                drop_transform.translation,
+                drop_entity,
+            );
+            commands
+                .entity(wizard_entity)
+                .insert(SpellCaster::with_indicator(indicator_entity));
         }
     }
 
@@ -146,26 +144,24 @@ fn telekinesis_casting_logic(
                 && caster_query.get(wizard_entity).is_err()
                 && mana.can_afford(constants::MANA_COST)
                 && let Some(cursor_world_pos) = input.cursor_pos
-            {
-                if let Some((_drop_entity, drop_transform, _drop)) =
+                && let Some((_drop_entity, drop_transform, _drop)) =
                     find_nearest_drop(&cursor_world_pos, drops_query)
-                {
-                    let wizard_pos = wizard_transform.translation;
-                    let drop_pos = drop_transform.translation;
-                    let wizard_height = wizard_pos.y;
-                    let max_ground_radius = if wizard_height < wizard.spell_range {
-                        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height)
-                            .sqrt()
-                    } else {
-                        0.0
-                    };
-                    let dx = drop_pos.x - wizard_pos.x;
-                    let dz = drop_pos.z - wizard_pos.z;
-                    let ground_distance = (dx * dx + dz * dz).sqrt();
-                    if ground_distance <= max_ground_radius {
-                        // SpellCaster insertion handled by the wrapper
-                        casting_state.start_cast();
-                    }
+            {
+                let wizard_pos = wizard_transform.translation;
+                let drop_pos = drop_transform.translation;
+                let wizard_height = wizard_pos.y;
+                let max_ground_radius = if wizard_height < wizard.spell_range {
+                    (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height)
+                        .sqrt()
+                } else {
+                    0.0
+                };
+                let dx = drop_pos.x - wizard_pos.x;
+                let dz = drop_pos.z - wizard_pos.z;
+                let ground_distance = (dx * dx + dz * dz).sqrt();
+                if ground_distance <= max_ground_radius {
+                    // SpellCaster insertion handled by the wrapper
+                    casting_state.start_cast();
                 }
             }
         }

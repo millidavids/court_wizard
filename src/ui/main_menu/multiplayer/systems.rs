@@ -733,56 +733,54 @@ pub fn button_action(
                         };
                         if let Some(new_ip) =
                             crate::networking::clipboard::prompt_for_text(&prompt_msg)
+                            && let LobbyPhase::LanIpEntry { current_ip, .. } = lobby_phase.as_mut()
                         {
-                            if let LobbyPhase::LanIpEntry { current_ip, .. } = lobby_phase.as_mut()
-                            {
-                                *current_ip = Some(new_ip);
-                            }
+                            *current_ip = Some(new_ip);
                         }
                     }
                 }
                 MultiplayerButtonAction::LanConfirmIp => {
-                    if let LobbyPhase::LanIpEntry { role, current_ip } = lobby_phase.clone() {
-                        if let Some(ip) = &current_ip {
-                            // Save IP for future sessions
-                            save_data::save_lan_ip(ip);
+                    if let LobbyPhase::LanIpEntry { role, current_ip } = lobby_phase.clone()
+                        && let Some(ip) = &current_ip
+                    {
+                        // Save IP for future sessions
+                        save_data::save_lan_ip(ip);
 
-                            match role {
-                                PeerRole::Host => {
-                                    connection.role = Some(PeerRole::Host);
-                                    connection.mode = ConnectionMode::Lan;
-                                    connection.state = ConnectionState::WaitingForSignaling;
-                                    #[cfg(target_arch = "wasm32")]
-                                    crate::networking::webrtc::create_host_offer(Some(ip));
-                                    *lobby_phase = LobbyPhase::Connection;
-                                }
-                                PeerRole::Guest => {
-                                    #[cfg(target_arch = "wasm32")]
+                        match role {
+                            PeerRole::Host => {
+                                connection.role = Some(PeerRole::Host);
+                                connection.mode = ConnectionMode::Lan;
+                                connection.state = ConnectionState::WaitingForSignaling;
+                                #[cfg(target_arch = "wasm32")]
+                                crate::networking::webrtc::create_host_offer(Some(ip));
+                                *lobby_phase = LobbyPhase::Connection;
+                            }
+                            PeerRole::Guest => {
+                                #[cfg(target_arch = "wasm32")]
+                                {
+                                    if let Some(code) =
+                                        crate::networking::clipboard::prompt_for_text(
+                                            "Paste the host's LAN code:",
+                                        )
                                     {
-                                        if let Some(code) =
-                                            crate::networking::clipboard::prompt_for_text(
-                                                "Paste the host's LAN code:",
-                                            )
-                                        {
-                                            connection.role = Some(PeerRole::Guest);
-                                            connection.mode = ConnectionMode::Lan;
-                                            connection.state = ConnectionState::WaitingForSignaling;
-                                            crate::networking::webrtc::create_guest_answer(
-                                                &code,
-                                                Some(ip),
-                                            );
-                                            *lobby_phase = LobbyPhase::Connection;
-                                        }
+                                        connection.role = Some(PeerRole::Guest);
+                                        connection.mode = ConnectionMode::Lan;
+                                        connection.state = ConnectionState::WaitingForSignaling;
+                                        crate::networking::webrtc::create_guest_answer(
+                                            &code,
+                                            Some(ip),
+                                        );
+                                        *lobby_phase = LobbyPhase::Connection;
                                     }
                                 }
                             }
-                            #[cfg(not(target_arch = "wasm32"))]
-                            {
-                                connection.state = ConnectionState::Failed;
-                                connection.error =
-                                    Some("Multiplayer only available in browser".to_string());
-                                *lobby_phase = LobbyPhase::Connection;
-                            }
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            connection.state = ConnectionState::Failed;
+                            connection.error =
+                                Some("Multiplayer only available in browser".to_string());
+                            *lobby_phase = LobbyPhase::Connection;
                         }
                     }
                 }

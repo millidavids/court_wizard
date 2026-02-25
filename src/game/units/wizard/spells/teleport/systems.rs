@@ -212,42 +212,39 @@ pub fn handle_teleport_casting(
         }
     } else {
         // Phase 2: Spawn/update source circle
-        match *casting_state {
-            CastingState::Casting { elapsed } => {
-                if caster.source_circle.is_none() {
-                    if let Some(pos) = clamped_pos {
-                        let circle_entity = commands
-                            .spawn((
-                                Mesh3d(visual_assets.unit_circle.clone()),
-                                MeshMaterial3d(visual_assets.teleport_source.clone()),
-                                Transform::from_xyz(pos.x, 1.0, pos.z)
-                                    .with_rotation(Quat::from_rotation_x(
-                                        -std::f32::consts::FRAC_PI_2,
-                                    ))
-                                    .with_scale(Vec3::ZERO),
-                                TeleportSourceCircle::new(pos, primed_spell.empowerment),
-                                OnGameplayScreen,
-                            ))
-                            .id();
+        if let CastingState::Casting { elapsed } = *casting_state {
+            if caster.source_circle.is_none() {
+                if let Some(pos) = clamped_pos {
+                    let circle_entity = commands
+                        .spawn((
+                            Mesh3d(visual_assets.unit_circle.clone()),
+                            MeshMaterial3d(visual_assets.teleport_source.clone()),
+                            Transform::from_xyz(pos.x, 1.0, pos.z)
+                                .with_rotation(Quat::from_rotation_x(
+                                    -std::f32::consts::FRAC_PI_2,
+                                ))
+                                .with_scale(Vec3::ZERO),
+                            TeleportSourceCircle::new(pos, primed_spell.empowerment),
+                            OnGameplayScreen,
+                        ))
+                        .id();
 
-                        caster.source_circle = Some(circle_entity);
-                    }
-                } else if let Some(circle_entity) = caster.source_circle
-                    && let Ok((mut transform, mut indicator)) = source_query.get_mut(circle_entity)
-                    && let Some(pos) = clamped_pos
-                {
-                    transform.translation.x = pos.x;
-                    transform.translation.z = pos.z;
-
-                    let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
-                    let radius = CIRCLE_RADIUS * indicator.empowerment;
-                    transform.scale = Vec3::splat(radius * growth);
-
-                    indicator.position = pos;
-                    indicator.time_alive += time.delta_secs();
+                    caster.source_circle = Some(circle_entity);
                 }
+            } else if let Some(circle_entity) = caster.source_circle
+                && let Ok((mut transform, mut indicator)) = source_query.get_mut(circle_entity)
+                && let Some(pos) = clamped_pos
+            {
+                transform.translation.x = pos.x;
+                transform.translation.z = pos.z;
+
+                let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
+                let radius = CIRCLE_RADIUS * indicator.empowerment;
+                transform.scale = Vec3::splat(radius * growth);
+
+                indicator.position = pos;
+                indicator.time_alive += time.delta_secs();
             }
-            _ => {}
         }
     }
 
@@ -264,18 +261,18 @@ pub fn handle_teleport_casting(
         mouse_state.left_consumed = true;
 
         // Send teleport params over the network so the host can move units
-        if let Some((source_x, source_z, dest_x, dest_z, radius)) = cast_result.teleport_params {
-            if let Some(ref mut conn) = connection {
-                conn.outgoing_messages.push(
-                    crate::networking::protocol::NetworkMessage::TeleportUnits {
-                        source_x,
-                        source_z,
-                        dest_x,
-                        dest_z,
-                        radius,
-                    },
-                );
-            }
+        if let Some((source_x, source_z, dest_x, dest_z, radius)) = cast_result.teleport_params
+            && let Some(ref mut conn) = connection
+        {
+            conn.outgoing_messages.push(
+                crate::networking::protocol::NetworkMessage::TeleportUnits {
+                    source_x,
+                    source_z,
+                    dest_x,
+                    dest_z,
+                    radius,
+                },
+            );
         }
     }
 
@@ -335,40 +332,40 @@ fn teleport_casting_logic(
     }
 
     // Handle release during second cast — completes teleport early
-    if input.just_released && caster.has_destination() && caster.source_circle.is_some() {
-        if let CastingState::Casting { elapsed } = *casting_state {
-            if let Some(source_entity) = caster.source_circle
-                && let Ok((transform, source_circle)) = source_query.get(source_entity)
-            {
-                let source_pos = transform.translation;
-                let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
-                let scale = source_circle.empowerment;
-                let current_radius = CIRCLE_RADIUS * scale * growth;
+    if input.just_released && caster.has_destination() && caster.source_circle.is_some()
+        && let CastingState::Casting { elapsed } = *casting_state
+    {
+        if let Some(source_entity) = caster.source_circle
+            && let Ok((transform, source_circle)) = source_query.get(source_entity)
+        {
+            let source_pos = transform.translation;
+            let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
+            let scale = source_circle.empowerment;
+            let current_radius = CIRCLE_RADIUS * scale * growth;
 
-                if mana.can_afford(MANA_COST) {
-                    mana.consume(MANA_COST);
+            if mana.can_afford(MANA_COST) {
+                mana.consume(MANA_COST);
 
-                    if let Some(dest_pos) = caster.destination_position {
-                        teleport_units_with_radius(
-                            source_pos,
-                            dest_pos,
-                            current_radius,
-                            units_query,
-                            commands,
-                        );
-                        result.teleport_params = Some((
-                            source_pos.x,
-                            source_pos.z,
-                            dest_pos.x,
-                            dest_pos.z,
-                            current_radius,
-                        ));
-                    }
-
-                    caster.destination_position = None;
-                    casting_state.cancel();
-                    result.completed = true;
+                if let Some(dest_pos) = caster.destination_position {
+                    teleport_units_with_radius(
+                        source_pos,
+                        dest_pos,
+                        current_radius,
+                        units_query,
+                        commands,
+                    );
+                    result.teleport_params = Some((
+                        source_pos.x,
+                        source_pos.z,
+                        dest_pos.x,
+                        dest_pos.z,
+                        current_radius,
+                    ));
                 }
+
+                caster.destination_position = None;
+                casting_state.cancel();
+                result.completed = true;
             }
         }
         return result;
@@ -407,31 +404,30 @@ fn teleport_casting_logic(
                 *elapsed += time.delta_secs();
 
                 // Check if cast complete
-                if *elapsed >= SECOND_CAST_TIME {
-                    if let Some(source_entity) = caster.source_circle
-                        && let Ok((transform, source_circle)) = source_query.get(source_entity)
-                    {
-                        let source_pos = transform.translation;
-                        let radius = CIRCLE_RADIUS * source_circle.empowerment;
+                if *elapsed >= SECOND_CAST_TIME
+                    && let Some(source_entity) = caster.source_circle
+                    && let Ok((transform, source_circle)) = source_query.get(source_entity)
+                {
+                    let source_pos = transform.translation;
+                    let radius = CIRCLE_RADIUS * source_circle.empowerment;
 
-                        mana.consume(MANA_COST);
+                    mana.consume(MANA_COST);
 
-                        if let Some(dest_pos) = caster.destination_position {
-                            teleport_units_with_radius(
-                                source_pos,
-                                dest_pos,
-                                radius,
-                                units_query,
-                                commands,
-                            );
-                            result.teleport_params =
-                                Some((source_pos.x, source_pos.z, dest_pos.x, dest_pos.z, radius));
-                        }
-
-                        caster.destination_position = None;
-                        casting_state.cancel();
-                        result.completed = true;
+                    if let Some(dest_pos) = caster.destination_position {
+                        teleport_units_with_radius(
+                            source_pos,
+                            dest_pos,
+                            radius,
+                            units_query,
+                            commands,
+                        );
+                        result.teleport_params =
+                            Some((source_pos.x, source_pos.z, dest_pos.x, dest_pos.z, radius));
                     }
+
+                    caster.destination_position = None;
+                    casting_state.cancel();
+                    result.completed = true;
                 }
             }
             _ => {}

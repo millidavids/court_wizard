@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Adjusted text sizes throughout the game to fit the new pixel font — wizard select, spell book, cauldron, action bar, and in-game buttons all properly sized now
+- Cleaned up leftover build files to reduce download size
 
 ## [v0.2.219] - 2026-02-25
 

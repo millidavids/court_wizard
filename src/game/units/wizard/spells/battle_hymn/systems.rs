@@ -77,28 +77,27 @@ pub fn handle_battle_hymn_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
-                if let Some(pos) = clamped_cursor {
-                    let circle_entity = spawn_circle_indicator(
-                        &mut commands,
-                        &visual_assets,
-                        pos,
-                        primed_spell.empowerment,
-                    );
-                    commands
-                        .entity(wizard_entity)
-                        .insert(SpellCaster::with_indicator(circle_entity));
-                }
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST)
+                && let Some(pos) = clamped_cursor
+            {
+                let circle_entity = spawn_circle_indicator(
+                    &mut commands,
+                    &visual_assets,
+                    pos,
+                    primed_spell.empowerment,
+                );
+                commands
+                    .entity(wizard_entity)
+                    .insert(SpellCaster::with_indicator(circle_entity));
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = clamped_cursor {
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-                {
-                    indicator.position = pos;
-                }
+            if let Some(pos) = clamped_cursor
+                && let Ok(caster) = caster_query.get(wizard_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+            {
+                indicator.position = pos;
             }
         }
         CastingState::Channeling { .. } => {

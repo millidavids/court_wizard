@@ -466,10 +466,10 @@ pub fn update_fire_dot(
     for (entity, mut fire_dot, mut health, temp_hp, has_shield) in query.iter_mut() {
         let (tick_damage, expired) = fire_dot.update(delta);
 
-        if let Some(damage) = tick_damage {
-            if !has_shield {
-                apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
-            }
+        if let Some(damage) = tick_damage
+            && !has_shield
+        {
+            apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
         }
 
         if expired {

@@ -340,11 +340,11 @@ pub fn cleanup_beams_on_cancel(
     wizard_query: Query<&CastingState, With<LocalWizard>>,
     beam_query: Query<Entity, (With<DisintegrateBeam>, Without<CrystalSpawn>)>,
 ) {
-    if let Ok(casting_state) = wizard_query.single() {
-        if matches!(casting_state, CastingState::Resting) {
-            for entity in beam_query.iter() {
-                commands.entity(entity).despawn();
-            }
+    if let Ok(casting_state) = wizard_query.single()
+        && matches!(casting_state, CastingState::Resting)
+    {
+        for entity in beam_query.iter() {
+            commands.entity(entity).despawn();
         }
     }
 }

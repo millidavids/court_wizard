@@ -74,6 +74,7 @@ pub fn handle_polymorph_casting(
 }
 
 /// Core polymorph casting logic.
+#[allow(clippy::too_many_arguments)]
 fn polymorph_casting_logic(
     input: &WizardInput,
     time: &Time,

@@ -82,14 +82,13 @@ pub fn handle_plague_wind_casting(
     }
 
     // Update indicator position during casting
-    if matches!(*casting_state, CastingState::Casting { .. }) {
-        if let Some(pos) = clamped_pos
-            && let Ok(caster) = caster_query.get(wizard_entity)
-            && let Some(indicator_entity) = caster.indicator_entity
-            && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-        {
-            indicator.position = pos;
-        }
+    if matches!(*casting_state, CastingState::Casting { .. })
+        && let Some(pos) = clamped_pos
+        && let Ok(caster) = caster_query.get(wizard_entity)
+        && let Some(indicator_entity) = caster.indicator_entity
+        && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+    {
+        indicator.position = pos;
     }
 
     // Get the final spawn position from indicator if available

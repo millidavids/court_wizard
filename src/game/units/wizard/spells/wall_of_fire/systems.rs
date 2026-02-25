@@ -135,51 +135,50 @@ pub fn handle_wall_of_fire_casting(
     );
 
     // Handle preview spawning on cast start (anchor set, no preview yet)
-    if caster.anchor.is_some() && caster.preview_entity.is_none() {
-        if let Some(pos) = clamped_pos {
-            let preview_height = 10.0;
-            let preview_entity =
-                commands
-                    .spawn((
-                        Mesh3d(visual_assets.unit_cuboid.clone()),
-                        MeshMaterial3d(materials.add(StandardMaterial {
-                            base_color: PREVIEW_COLOR,
-                            alpha_mode: AlphaMode::Blend,
-                            unlit: true,
-                            cull_mode: None,
-                            ..default()
-                        })),
-                        Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
-                            .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
-                        WallOfFirePreview,
-                        OnGameplayScreen,
-                    ))
-                    .id();
+    if caster.anchor.is_some() && caster.preview_entity.is_none()
+        && let Some(pos) = clamped_pos
+    {
+        let preview_height = 10.0;
+        let preview_entity =
+            commands
+                .spawn((
+                    Mesh3d(visual_assets.unit_cuboid.clone()),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: PREVIEW_COLOR,
+                        alpha_mode: AlphaMode::Blend,
+                        unlit: true,
+                        cull_mode: None,
+                        ..default()
+                    })),
+                    Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
+                        .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
+                    WallOfFirePreview,
+                    OnGameplayScreen,
+                ))
+                .id();
 
-            caster.preview_entity = Some(preview_entity);
-        }
+        caster.preview_entity = Some(preview_entity);
     }
 
     // Update preview during casting
-    if matches!(*casting_state, CastingState::Casting { .. }) {
-        if let Some(anchor) = caster.anchor
-            && let Some(preview_entity) = caster.preview_entity
-            && let Ok(mut preview_transform) = preview_query.get_mut(preview_entity)
-            && let Some(pos) = clamped_pos
-        {
-            let diff = Vec3::new(pos.x - anchor.x, 0.0, pos.z - anchor.z);
-            let length = diff.length().min(MAX_WALL_LENGTH);
+    if matches!(*casting_state, CastingState::Casting { .. })
+        && let Some(anchor) = caster.anchor
+        && let Some(preview_entity) = caster.preview_entity
+        && let Ok(mut preview_transform) = preview_query.get_mut(preview_entity)
+        && let Some(pos) = clamped_pos
+    {
+        let diff = Vec3::new(pos.x - anchor.x, 0.0, pos.z - anchor.z);
+        let length = diff.length().min(MAX_WALL_LENGTH);
 
-            if length > 0.1 {
-                let forward = diff.normalize();
-                let center = anchor + forward * (length / 2.0);
-                let rotation = Quat::from_rotation_arc(Vec3::X, forward);
-                let preview_height = 10.0;
+        if length > 0.1 {
+            let forward = diff.normalize();
+            let center = anchor + forward * (length / 2.0);
+            let rotation = Quat::from_rotation_arc(Vec3::X, forward);
+            let preview_height = 10.0;
 
-                preview_transform.translation = Vec3::new(center.x, preview_height / 2.0, center.z);
-                preview_transform.rotation = rotation;
-                preview_transform.scale = Vec3::new(length, preview_height, WALL_WIDTH);
-            }
+            preview_transform.translation = Vec3::new(center.x, preview_height / 2.0, center.z);
+            preview_transform.rotation = rotation;
+            preview_transform.scale = Vec3::new(length, preview_height, WALL_WIDTH);
         }
     }
 

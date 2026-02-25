@@ -157,35 +157,26 @@ fn hypnotic_pattern_casting_logic(
                 if mana.consume(constants::MANA_COST) {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
+                        && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
-                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            apply_mesmerize(
-                                commands,
-                                indicator.position,
-                                radius,
-                                indicator.empowerment,
-                                targets_query,
-                            );
-                        }
+                        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                        apply_mesmerize(
+                            commands,
+                            indicator.position,
+                            radius,
+                            indicator.empowerment,
+                            targets_query,
+                        );
                     }
                     completed = true;
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
-                } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
-                    casting_state.cancel();
                 }
+                if let Ok(caster) = caster_query.get(wizard_entity)
+                    && let Some(indicator_entity) = caster.indicator_entity
+                {
+                    commands.entity(indicator_entity).despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+                casting_state.cancel();
             }
         }
         CastingState::Channeling { .. } => {

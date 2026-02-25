@@ -273,6 +273,7 @@ pub(crate) fn is_dispellable(kind: SpellEffectKind) -> bool {
 /// For volumetric effects (wall of fire, wall of stone, circular zones), returns the
 /// distance to the closest edge of the area rather than the center. Returns 0 if
 /// the point is inside the volume. Falls back to center-point distance for unknown types.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spell_edge_distance(
     point: Vec3,
     spell_entity: Entity,
