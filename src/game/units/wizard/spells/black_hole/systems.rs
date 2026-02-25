@@ -6,14 +6,16 @@ use bevy::window::PrimaryWindow;
 use super::components::{BlackHole, UnitInBlackHole};
 use super::constants::*;
 use crate::game::components::{Acceleration, OnGameplayScreen};
+use crate::game::input::MouseButtonState;
+use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{
     Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::king::components::SpellShield;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::input::MouseButtonState;
-use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::wizard::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use crate::game::units::wizard::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -73,7 +75,9 @@ pub(crate) fn spawn_black_hole(
         Mesh3d(assets.unit_sphere.clone()),
         MeshMaterial3d(assets.black_hole.clone()),
         Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
-        NetworkedSpellEffect { kind: SpellEffectKind::BlackHole },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::BlackHole,
+        },
         OnGameplayScreen,
     ));
 }
@@ -86,7 +90,13 @@ pub(super) fn handle_black_hole_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        (
+            &Transform,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+            &Wizard,
+        ),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -102,10 +112,14 @@ pub(super) fn handle_black_hole_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::BlackHole { return; }
+    if primed_spell.spell != Spell::BlackHole {
+        return;
+    }
 
     let cast_result = black_hole_casting_logic(
         &input,
@@ -119,12 +133,7 @@ pub(super) fn handle_black_hole_casting(
 
     if cast_result.completed {
         if let Some(pos) = cast_result.cursor_pos {
-            spawn_black_hole(
-                &mut commands,
-                &visual_assets,
-                pos,
-                primed_spell.empowerment,
-            );
+            spawn_black_hole(&mut commands, &visual_assets, pos, primed_spell.empowerment);
         }
         mouse_state.left_consumed = true;
     }
@@ -298,7 +307,9 @@ pub(super) fn apply_black_hole_damage(
             continue;
         }
 
-        for (entity, transform, mut health, mut temp_hp, tracking, has_spell_shield) in units.iter_mut() {
+        for (entity, transform, mut health, mut temp_hp, tracking, has_spell_shield) in
+            units.iter_mut()
+        {
             let unit_pos = transform.translation;
 
             if black_hole.contains_point(unit_pos) {

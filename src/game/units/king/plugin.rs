@@ -22,8 +22,7 @@ impl Plugin for KingPlugin {
                     systems::king_cohesion_force
                         .after(VelocitySystemSet)
                         .before(MovementSystemSet),
-                    systems::snap_kings_guard_to_king
-                        .in_set(MovementSystemSet),
+                    systems::snap_kings_guard_to_king.in_set(MovementSystemSet),
                 )
                     .run_if(any_exist::<King>())
                     .run_if(is_gameplay_running),

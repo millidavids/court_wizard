@@ -271,9 +271,7 @@ impl Spell {
     /// Returns the description for this spell.
     pub const fn description(&self) -> &'static str {
         match self {
-            Spell::MagicMissile => {
-                "Fires a volley of 3 homing missiles that seek nearby units."
-            }
+            Spell::MagicMissile => "Fires a volley of 3 homing missiles that seek nearby units.",
             Spell::Disintegrate => {
                 "Projects a beam toward the cursor, dealing continuous damage to units in its path."
             }
@@ -968,8 +966,7 @@ impl WizardAnimation {
         self.elapsed += delta;
         if self.elapsed >= super::constants::WIZARD_FRAME_DURATION {
             self.elapsed -= super::constants::WIZARD_FRAME_DURATION;
-            self.current_frame =
-                (self.current_frame + 1) % super::constants::WIZARD_SPRITE_FRAMES;
+            self.current_frame = (self.current_frame + 1) % super::constants::WIZARD_SPRITE_FRAMES;
             true
         } else {
             false

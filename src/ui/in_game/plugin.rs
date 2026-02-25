@@ -25,10 +25,7 @@ impl Plugin for InGamePlugin {
             // MP HUD spawn (no cauldron, no level display).
             // Use AppState::MultiplayerGame so it spawns once, not on every
             // Running re-entry from SpellBook/Paused.
-            .add_systems(
-                OnEnter(AppState::MultiplayerGame),
-                systems::spawn_mp_hud,
-            )
+            .add_systems(OnEnter(AppState::MultiplayerGame), systems::spawn_mp_hud)
             .add_systems(
                 Update,
                 systems::hud_button_action
@@ -37,8 +34,7 @@ impl Plugin for InGamePlugin {
             )
             .add_systems(
                 Update,
-                systems::block_spell_input_on_button_interaction
-                    .run_if(is_local_wizard_active),
+                systems::block_spell_input_on_button_interaction.run_if(is_local_wizard_active),
             )
             .add_systems(
                 Update,
@@ -52,8 +48,7 @@ impl Plugin for InGamePlugin {
             // Mana/cast bar: use is_local_wizard_active so guest can see their bars too
             .add_systems(
                 Update,
-                (systems::update_mana_bar, systems::update_cast_bar)
-                    .run_if(is_local_wizard_active),
+                (systems::update_mana_bar, systems::update_cast_bar).run_if(is_local_wizard_active),
             )
             // Boss health bar: spawn when boss appears, update each frame
             .add_systems(

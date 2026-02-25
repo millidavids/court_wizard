@@ -62,9 +62,17 @@ pub const DEFENDER_CORPSE_COLOR: Color = dim(tint(DEFENDER_BASE, TINT_RED, 0.4),
 /// Corpse color for attacker units.
 pub const ATTACKER_CORPSE_COLOR: Color = dim(tint(ATTACKER_BASE, TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
 /// Corpse color for undead units.
-pub const UNDEAD_CORPSE_COLOR: Color = dim(tint(Color::srgb(0.3, 0.8, 0.4), TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
+pub const UNDEAD_CORPSE_COLOR: Color = dim(
+    tint(Color::srgb(0.3, 0.8, 0.4), TINT_RED, 0.4),
+    0.3,
+    CORPSE_ALPHA,
+);
 /// Corpse color for the king.
-pub const KING_CORPSE_COLOR: Color = dim(tint(Color::srgb(0.65, 0.65, 0.9), TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
+pub const KING_CORPSE_COLOR: Color = dim(
+    tint(Color::srgb(0.65, 0.65, 0.9), TINT_RED, 0.4),
+    0.3,
+    CORPSE_ALPHA,
+);
 
 // ===== Battlefield Dimensions =====
 

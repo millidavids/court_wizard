@@ -4,9 +4,9 @@ use bevy::prelude::*;
 
 use super::components::SquallCircleIndicator;
 use super::systems::*;
+use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
-use crate::game::run_conditions::is_spell_effects_active;
 
 /// Plugin for the Squall spell.
 ///

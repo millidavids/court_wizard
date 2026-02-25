@@ -10,17 +10,17 @@ use super::components::{
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
@@ -136,10 +136,14 @@ pub(super) fn handle_meteor_fall_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::MeteorFall { return; }
+    if primed_spell.spell != Spell::MeteorFall {
+        return;
+    }
 
     let completed = meteor_fall_casting_logic(
         &input,
@@ -391,13 +395,15 @@ pub(crate) fn spawn_meteor_projectile_entity(
     empowerment: f32,
     mesh_radius: f32,
 ) -> Entity {
-    commands.spawn((
-        MeteorProjectile::new(velocity, damage, explosion_radius, empowerment),
-        Mesh3d(assets.unit_sphere.clone()),
-        MeshMaterial3d(assets.meteor_projectile.clone()),
-        Transform::from_translation(spawn_pos).with_scale(Vec3::splat(mesh_radius)),
-        OnGameplayScreen,
-    )).id()
+    commands
+        .spawn((
+            MeteorProjectile::new(velocity, damage, explosion_radius, empowerment),
+            Mesh3d(assets.unit_sphere.clone()),
+            MeshMaterial3d(assets.meteor_projectile.clone()),
+            Transform::from_translation(spawn_pos).with_scale(Vec3::splat(mesh_radius)),
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// Updates meteor projectile physics - applies gravity and moves projectiles.
@@ -440,7 +446,9 @@ pub(super) fn check_meteor_collisions(
                     .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                     .with_scale(Vec3::splat(0.1)),
                 MeteorExplosion::new(pos, projectile.explosion_radius, projectile.damage),
-                NetworkedSpellEffect { kind: SpellEffectKind::MeteorExplosion },
+                NetworkedSpellEffect {
+                    kind: SpellEffectKind::MeteorExplosion,
+                },
                 OnGameplayScreen,
             ));
 
@@ -459,7 +467,10 @@ pub(super) fn check_meteor_collisions(
             });
 
             // Clone ground fire material for per-instance fading
-            let base_mat = materials.get(&visual_assets.meteor_ground_fire).cloned().unwrap_or_default();
+            let base_mat = materials
+                .get(&visual_assets.meteor_ground_fire)
+                .cloned()
+                .unwrap_or_default();
             let fire_material = materials.add(base_mat);
 
             commands.spawn((
@@ -475,7 +486,9 @@ pub(super) fn check_meteor_collisions(
                     GROUND_FIRE_TICK,
                     fire_duration,
                 ),
-                NetworkedSpellEffect { kind: SpellEffectKind::MeteorGroundFire },
+                NetworkedSpellEffect {
+                    kind: SpellEffectKind::MeteorGroundFire,
+                },
                 OnGameplayScreen,
             ));
 
@@ -512,7 +525,9 @@ pub(super) fn update_meteor_explosions(
         if !explosion.damage_applied {
             explosion.damage_applied = true;
 
-            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut() {
+            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
+                units.iter_mut()
+            {
                 let distance = unit_transform.translation.distance(explosion.origin);
 
                 if distance <= explosion.max_radius {

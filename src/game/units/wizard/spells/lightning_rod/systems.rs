@@ -9,16 +9,16 @@ use super::components::{
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Corpse, Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Local wizard Lightning Rod casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -53,13 +53,19 @@ pub(super) fn handle_lightning_rod_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::LightningRod { return; }
+    if primed_spell.spell != Spell::LightningRod {
+        return;
+    }
 
     let wizard_pos = wizard_transform.translation;
-    let clamped_pos = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range));
+    let clamped_pos = input
+        .cursor_pos
+        .map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range));
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -67,12 +73,8 @@ pub(super) fn handle_lightning_rod_casting(
         && mana.can_afford(MANA_COST)
         && let Some(pos) = clamped_pos
     {
-        let circle_entity = spawn_circle_indicator(
-            &mut commands,
-            &visual_assets,
-            pos,
-            primed_spell.empowerment,
-        );
+        let circle_entity =
+            spawn_circle_indicator(&mut commands, &visual_assets, pos, primed_spell.empowerment);
         commands
             .entity(wizard_entity)
             .insert(SpellCaster::with_indicator(circle_entity));
@@ -171,12 +173,7 @@ fn lightning_rod_casting_logic(
                 if mana.consume(MANA_COST) {
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
 
-                    spawn_lightning_rod(
-                        commands,
-                        assets,
-                        spawn_pos,
-                        primed_spell.empowerment,
-                    );
+                    spawn_lightning_rod(commands, assets, spawn_pos, primed_spell.empowerment);
                     completed = true;
                 }
 
@@ -297,9 +294,14 @@ pub(crate) fn spawn_lightning_rod(
         ),
         Mesh3d(assets.unit_cylinder.clone()),
         MeshMaterial3d(assets.lightning_rod.clone()),
-        Transform::from_translation(spawn_pos)
-            .with_scale(Vec3::new(radius_scale, tower_height, radius_scale)),
-        NetworkedSpellEffect { kind: SpellEffectKind::LightningRod },
+        Transform::from_translation(spawn_pos).with_scale(Vec3::new(
+            radius_scale,
+            tower_height,
+            radius_scale,
+        )),
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::LightningRod,
+        },
         OnGameplayScreen,
     ));
 }
@@ -364,8 +366,11 @@ pub(super) fn update_lightning_rod(
                 },
                 Mesh3d(visual_assets.unit_rect.clone()),
                 MeshMaterial3d(visual_assets.lightning_strike.clone()),
-                Transform::from_translation(midpoint)
-                    .with_scale(Vec3::new(bolt_width, bolt_length, bolt_width)),
+                Transform::from_translation(midpoint).with_scale(Vec3::new(
+                    bolt_width,
+                    bolt_length,
+                    bolt_width,
+                )),
                 OnGameplayScreen,
             ));
         }
@@ -451,7 +456,8 @@ fn spawn_arcs_to_nearby_units(
 
     // Apply damage and spawn arc visuals
     for (target_entity, target_pos, _) in &targets {
-        if let Ok((_, _, mut health, mut temp_hp, has_spell_shield)) = units.get_mut(*target_entity) {
+        if let Ok((_, _, mut health, mut temp_hp, has_spell_shield)) = units.get_mut(*target_entity)
+        {
             apply_spell_damage(
                 commands,
                 *target_entity,
@@ -464,13 +470,7 @@ fn spawn_arcs_to_nearby_units(
         }
 
         // Spawn arc visual
-        spawn_arc(
-            commands,
-            assets,
-            rod_top,
-            *target_pos,
-            empowerment,
-        );
+        spawn_arc(commands, assets, rod_top, *target_pos, empowerment);
     }
 }
 

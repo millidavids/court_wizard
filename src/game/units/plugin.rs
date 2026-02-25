@@ -10,6 +10,7 @@ use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, GreaseSlipModifier,
     MarkedForDeathModifier, MesmerizedModifier, SleepModifier,
 };
+use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
 use super::infantry::InfantryPlugin;
 use super::king::KingPlugin;
@@ -39,6 +40,7 @@ impl Plugin for UnitsPlugin {
             WizardPlugin,
             InfantryPlugin,
             ArcherPlugin,
+            DispellerPlugin,
             BehemothPlugin,
             BossPlugin,
             KingPlugin,

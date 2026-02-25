@@ -11,6 +11,11 @@ use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{Hitbox, Team};
+use crate::game::units::dispeller::DispellerAssets;
+use crate::game::units::dispeller::constants::{
+    INITIAL_DISPELLER_DEFENDER_COUNT, calculate_attacker_dispellers,
+};
+use crate::game::units::dispeller::systems as dispeller_systems;
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::systems as infantry_systems;
@@ -87,7 +92,16 @@ pub fn init_loading_progress(
             });
         }
 
-        // 9. Behemoth (if level qualifies)
+        // 9. Attacker Dispellers (level 6+)
+        let total_attacker_dispellers = calculate_attacker_dispellers(level);
+        for i in 0..total_attacker_dispellers {
+            queue.tasks.push(SpawnTask::AttackerDispeller {
+                unit_index: i,
+                level,
+            });
+        }
+
+        // 10. Behemoth (if level qualifies)
         const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3;
         let has_behemoth = level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL
             && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL);
@@ -96,8 +110,10 @@ pub fn init_loading_progress(
         }
 
         // Record total attackers spawned for achievement tracking
-        kill_stats.total_attackers_spawned =
-            total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
+        kill_stats.total_attackers_spawned = total_attackers
+            + total_attacker_archers
+            + total_attacker_dispellers
+            + if has_behemoth { 1 } else { 0 };
     }
 
     // 8. Defender Archers (always spawn regardless of boss level)
@@ -107,9 +123,19 @@ pub fn init_loading_progress(
             .push(SpawnTask::DefenderArcher { unit_index: i });
     }
 
+    // 9. Defender Dispellers (always spawn regardless of boss level)
+    for i in 0..INITIAL_DISPELLER_DEFENDER_COUNT {
+        queue
+            .tasks
+            .push(SpawnTask::DefenderDispeller { unit_index: i });
+    }
+
     // Track initial defender count for spell shield threshold (multiplayer)
     commands.insert_resource(InitialDefenderCount(
-        INITIAL_DEFENDER_COUNT + KINGS_GUARD_COUNT + INITIAL_ARCHER_DEFENDER_COUNT,
+        INITIAL_DEFENDER_COUNT
+            + KINGS_GUARD_COUNT
+            + INITIAL_ARCHER_DEFENDER_COUNT
+            + INITIAL_DISPELLER_DEFENDER_COUNT,
     ));
 
     // 11. Load wizard assets (sprite sheet texture)
@@ -141,8 +167,7 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    infantry_assets: Res<InfantryAssets>,
-    archer_assets: Res<ArcherAssets>,
+    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<DispellerAssets>),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     attacker_assets: (
         Res<crate::game::units::behemoth::resources::BehemothAssets>,
@@ -172,16 +197,12 @@ pub fn process_spawn_queue(
     if let Some(task) = batch.into_iter().next() {
         match task {
             SpawnTask::DefenderInfantry { unit_index } => {
-                infantry_systems::spawn_single_defender(
-                    &mut commands,
-                    &infantry_assets,
-                    unit_index,
-                );
+                infantry_systems::spawn_single_defender(&mut commands, &unit_assets.0, unit_index);
             }
             SpawnTask::AttackerInfantry { unit_index, level } => {
                 infantry_systems::spawn_single_attacker(
                     &mut commands,
-                    &infantry_assets,
+                    &unit_assets.0,
                     unit_index,
                     level,
                 );
@@ -189,14 +210,29 @@ pub fn process_spawn_queue(
             SpawnTask::DefenderArcher { unit_index } => {
                 archer_systems::spawn_single_defender_archer(
                     &mut commands,
-                    &archer_assets,
+                    &unit_assets.1,
                     unit_index,
                 );
             }
             SpawnTask::AttackerArcher { unit_index, level } => {
                 archer_systems::spawn_single_attacker_archer(
                     &mut commands,
-                    &archer_assets,
+                    &unit_assets.1,
+                    unit_index,
+                    level,
+                );
+            }
+            SpawnTask::DefenderDispeller { unit_index } => {
+                dispeller_systems::spawn_single_defender_dispeller(
+                    &mut commands,
+                    &unit_assets.2,
+                    unit_index,
+                );
+            }
+            SpawnTask::AttackerDispeller { unit_index, level } => {
+                dispeller_systems::spawn_single_attacker_dispeller(
+                    &mut commands,
+                    &unit_assets.2,
                     unit_index,
                     level,
                 );
@@ -213,7 +249,7 @@ pub fn process_spawn_queue(
             SpawnTask::KingsGuard { guard_index } => {
                 infantry_systems::spawn_single_kings_guard(
                     &mut commands,
-                    &infantry_assets,
+                    &unit_assets.0,
                     guard_index,
                 );
             }

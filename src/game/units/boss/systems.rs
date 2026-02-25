@@ -8,20 +8,17 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier, Effectiveness,
-    EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier,
-    HasteModifier, Health, Hitbox, InMelee, MesmerizedModifier, MovementSpeed, OriginalMaterial,
-    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
-    SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints, Teleportable,
+    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MesmerizedModifier, MovementSpeed,
+    OriginalMaterial, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
+    SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
     apply_damage_to_unit,
 };
 use crate::game::units::random_position_in_cell;
 
 /// Spawns the boss at the center of the attacker grid.
-pub fn spawn_boss(
-    mut commands: Commands,
-    boss_assets: Res<BossAssets>,
-) {
+pub fn spawn_boss(mut commands: Commands, boss_assets: Res<BossAssets>) {
     // Spawn at center of attacker grid (row 0, col ~3)
     let (spawn_x, spawn_z) = calculate_grid_cell_position(0, 3);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
@@ -110,7 +107,14 @@ pub fn boss_combat(
         (With<Boss>, Without<Corpse>),
     >,
     mut targets: Query<
-        (Entity, &Transform, &Hitbox, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         (Without<Boss>, Without<Corpse>),
     >,
 ) {
@@ -161,8 +165,7 @@ pub fn boss_combat(
         attack_cooldown.reset(BOSS_ATTACK_COOLDOWN);
 
         // Second pass: apply damage and knockback to all enemies within boss melee reach
-        for (entity, target_transform, target_hitbox, team, mut health, mut temp_hp) in
-            &mut targets
+        for (entity, target_transform, target_hitbox, team, mut health, mut temp_hp) in &mut targets
         {
             if entity == boss_entity {
                 continue;
@@ -316,9 +319,7 @@ pub fn update_enrage_state(
     >,
     boss_assets: Res<BossAssets>,
 ) {
-    for (health, mut enrage, mut damage_mult, mut mesh_material, original_material) in
-        &mut bosses
-    {
+    for (health, mut enrage, mut damage_mult, mut mesh_material, original_material) in &mut bosses {
         let hp_ratio = health.current / health.max;
 
         let new_phase = if hp_ratio <= ENRAGE_PHASE_3_THRESHOLD {

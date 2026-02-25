@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
+};
 use super::components::*;
 use super::constants;
 use super::styles::{arc_color_at_depth, arc_width_at_depth};
@@ -27,7 +29,13 @@ pub fn handle_chain_lightning_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        (
+            Entity,
+            &Transform,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -35,7 +43,11 @@ pub fn handle_chain_lightning_casting(
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
+    mut health_query: Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    )>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -46,10 +58,14 @@ pub fn handle_chain_lightning_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::ChainLightning { return; }
+    if primed_spell.spell != Spell::ChainLightning {
+        return;
+    }
 
     let completed = chain_lightning_casting_logic(
         &input,
@@ -87,7 +103,11 @@ fn chain_lightning_casting_logic(
     enemies_query: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
     rods_query: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
-    health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
+    health_query: &mut Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    )>,
 ) -> bool {
     let mut completed = false;
 
@@ -109,17 +129,22 @@ fn chain_lightning_casting_logic(
                     && let Some(cursor_pos) = input.cursor_pos
                 {
                     // Find enemy, rod, or crystal near cursor
-                    if let Some((target_entity, target_pos)) =
-                        find_target_near_position(cursor_pos, enemies_query, rods_query, crystals_query)
-                    {
-                        let wizard_pos =
-                            wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    if let Some((target_entity, target_pos)) = find_target_near_position(
+                        cursor_pos,
+                        enemies_query,
+                        rods_query,
+                        crystals_query,
+                    ) {
+                        let wizard_pos = wizard_transform.translation
+                            + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
                         // Scale damage by empowerment
                         let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
 
                         // Apply initial damage
-                        if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(target_entity) {
+                        if let Ok((mut health, mut temp_hp, has_spell_shield)) =
+                            health_query.get_mut(target_entity)
+                        {
                             apply_spell_damage(
                                 commands,
                                 target_entity,
@@ -400,7 +425,9 @@ pub fn process_chain_lightning_bounces(
                 rod.time_since_strike = f32::MAX;
             } else {
                 // Apply damage to unit
-                if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) = enemies.get_mut(*target_entity) {
+                if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) =
+                    enemies.get_mut(*target_entity)
+                {
                     apply_spell_damage(
                         &mut commands,
                         *target_entity,

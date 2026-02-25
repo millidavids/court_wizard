@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::SleepIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -44,10 +46,14 @@ pub fn handle_sleep_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Sleep { return; }
+    if primed_spell.spell != Spell::Sleep {
+        return;
+    }
 
     let completed = sleep_casting_logic(
         &input,

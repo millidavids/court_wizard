@@ -28,9 +28,7 @@ pub fn attach_crdt_health(
     new_units: Query<(Entity, &Health), Without<CrdtHealth>>,
 ) {
     for (entity, health) in &new_units {
-        commands
-            .entity(entity)
-            .insert(CrdtHealth::new(health.max));
+        commands.entity(entity).insert(CrdtHealth::new(health.max));
     }
 }
 
@@ -46,10 +44,7 @@ pub fn attach_crdt_health(
 /// 3. If health decreased → local damage occurred → `crdt.apply_damage(peer, delta)`
 /// 4. If health increased → local healing occurred → `crdt.apply_healing(peer, delta)`
 /// 5. Re-derive `health.current = crdt.current_hp()` (includes remote peer's data)
-pub fn sync_health_to_crdt(
-    peer_id: Res<PeerId>,
-    mut units: Query<(&mut Health, &mut CrdtHealth)>,
-) {
+pub fn sync_health_to_crdt(peer_id: Res<PeerId>, mut units: Query<(&mut Health, &mut CrdtHealth)>) {
     let peer = peer_id.0;
 
     for (mut health, mut crdt) in &mut units {

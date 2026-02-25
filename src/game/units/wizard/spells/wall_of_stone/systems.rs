@@ -1,16 +1,18 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+};
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::input::messages::MouseLeftReleased;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
@@ -75,9 +77,9 @@ pub fn handle_wall_of_stone_casting(
         return;
     };
 
-    let clamped_pos = input.cursor_pos.map(|pos| {
-        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
-    });
+    let clamped_pos = input
+        .cursor_pos
+        .map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
 
     let cast_result = wall_of_stone_casting_logic(
         &input,
@@ -95,11 +97,12 @@ pub fn handle_wall_of_stone_casting(
     if cast_result.completed {
         if let Some(bounds) = cast_result.obstacle_bounds {
             if let Some(ref mut conn) = connection {
-                conn.outgoing_messages
-                    .push(crate::networking::protocol::NetworkMessage::WallPlaced {
+                conn.outgoing_messages.push(
+                    crate::networking::protocol::NetworkMessage::WallPlaced {
                         bounds,
                         placed: true,
-                    });
+                    },
+                );
             }
         }
     }
@@ -123,8 +126,11 @@ pub fn handle_wall_of_stone_casting(
                         cull_mode: None,
                         ..default()
                     })),
-                    Transform::from_xyz(pos.x, WALL_HEIGHT / 2.0, pos.z)
-                        .with_scale(Vec3::new(0.0, WALL_HEIGHT, WALL_WIDTH)),
+                    Transform::from_xyz(pos.x, WALL_HEIGHT / 2.0, pos.z).with_scale(Vec3::new(
+                        0.0,
+                        WALL_HEIGHT,
+                        WALL_WIDTH,
+                    )),
                     WallOfStonePreview,
                     OnGameplayScreen,
                 ))
@@ -149,8 +155,7 @@ pub fn handle_wall_of_stone_casting(
                 let center = anchor + forward * (length / 2.0);
                 let rotation = Quat::from_rotation_arc(Vec3::X, forward);
 
-                preview_transform.translation =
-                    Vec3::new(center.x, WALL_HEIGHT / 2.0, center.z);
+                preview_transform.translation = Vec3::new(center.x, WALL_HEIGHT / 2.0, center.z);
                 preview_transform.rotation = rotation;
                 preview_transform.scale = Vec3::new(length, WALL_HEIGHT, WALL_WIDTH);
             }
@@ -234,7 +239,9 @@ fn wall_of_stone_casting_logic(
                         sinking: false,
                         empowerment: primed_spell.empowerment,
                     },
-                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfStone },
+                    NetworkedSpellEffect {
+                        kind: SpellEffectKind::WallOfStone,
+                    },
                     OnGameplayScreen,
                 ));
 
@@ -387,11 +394,12 @@ pub fn cleanup_expired_walls(
 
             // Notify remote peer to update their pathfinding grid
             if let Some(ref mut conn) = connection {
-                conn.outgoing_messages
-                    .push(crate::networking::protocol::NetworkMessage::WallPlaced {
+                conn.outgoing_messages.push(
+                    crate::networking::protocol::NetworkMessage::WallPlaced {
                         bounds: obs_bounds,
                         placed: false,
-                    });
+                    },
+                );
             }
         }
     }

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.206] - 2026-02-25
+
+### Added
+- **Dispeller units** — a new spell-disrupting utility unit that seeks out persistent spell effects and channels to remove them
+  - When a spell effect is on the battlefield (walls, fire zones, spike growth, etc.), dispellers will pathfind toward it and channel for 3 seconds to dispel it
+  - When no spell effects exist, they fall back to shooting weak magic bolts at enemies
+  - **Attacker dispellers** — starting at level 6, the enemy army brings their own dispellers to counter your wizard's spells, scaling up over time
+
 ## [v0.2.205] - 2026-02-24
 
 ### Added

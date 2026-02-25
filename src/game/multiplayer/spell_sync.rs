@@ -11,10 +11,9 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::game::multiplayer::components::{
-    GhostBeam, GhostMagicMissile, GhostSpellArc, GhostSpellProjectile,
-    NetworkedSpellEffect, OnMultiplayerGameScreen, SpellEffectEntityMap,
+    GhostBeam, GhostMagicMissile, GhostSpellArc, GhostSpellProjectile, NetworkedSpellEffect,
+    OnMultiplayerGameScreen, SpellEffectEntityMap,
 };
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::components::ChainLightningArc;
@@ -35,6 +34,7 @@ use crate::game::units::wizard::spells::meteor_fall::components::{
 use crate::game::units::wizard::spells::plague_wind::components::PlagueWindCloud;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::squall::components::{IceExplosion, IceProjectile};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::entity_map::NetworkEntityId;
@@ -55,7 +55,12 @@ pub struct LatestSpellSnapshot(pub Option<SpellVisualSnapshot>);
 #[allow(clippy::type_complexity)]
 pub fn collect_spell_effect_snapshots(
     mut spell_data: ResMut<SpellSnapshotData>,
-    effects: Query<(Entity, Option<&NetworkEntityId>, &NetworkedSpellEffect, &Transform)>,
+    effects: Query<(
+        Entity,
+        Option<&NetworkEntityId>,
+        &NetworkedSpellEffect,
+        &Transform,
+    )>,
     zone_data: (
         Query<&SpikeGrowthZone>,
         Query<&HealingPlumeZone>,
@@ -125,7 +130,12 @@ pub fn collect_spell_effect_snapshots(
             SpellEffectKind::GreaseFire => [transform.scale.x, 0.0, 0.0, 0.0],
             SpellEffectKind::PlagueWindCloud => {
                 if let Ok(c) = zone_data.5.get(entity) {
-                    [c.radius, c.duration, c.speed, c.direction.x.atan2(c.direction.z)]
+                    [
+                        c.radius,
+                        c.duration,
+                        c.speed,
+                        c.direction.x.atan2(c.direction.z),
+                    ]
                 } else {
                     continue;
                 }
@@ -450,12 +460,9 @@ pub fn apply_remote_spell_snapshot(
             continue;
         }
 
-        if let Some(entity) = super::guest_systems::spawn_spell_effect(
-            &mut commands,
-            effect,
-            &assets,
-            &mut materials,
-        ) {
+        if let Some(entity) =
+            super::guest_systems::spawn_spell_effect(&mut commands, effect, &assets, &mut materials)
+        {
             effect_map.insert(effect.net_id, entity);
         }
     }
@@ -489,14 +496,8 @@ pub fn apply_remote_spell_snapshot(
                 assets.unit_sphere.clone(),
                 assets.fireball_projectile.clone(),
             ),
-            1 => (
-                assets.unit_sphere.clone(),
-                assets.ice_projectile.clone(),
-            ),
-            2 => (
-                assets.unit_sphere.clone(),
-                assets.meteor_projectile.clone(),
-            ),
+            1 => (assets.unit_sphere.clone(), assets.ice_projectile.clone()),
+            2 => (assets.unit_sphere.clone(), assets.meteor_projectile.clone()),
             _ => continue,
         };
 

@@ -27,10 +27,7 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
 }
 
 /// Spawns the action bar UI at the bottom-left of the screen.
-pub(super) fn spawn_action_bar(
-    mut commands: Commands,
-    config: Res<GameConfig>,
-) {
+pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) {
     commands
         .spawn((
             Node {
@@ -51,60 +48,60 @@ pub(super) fn spawn_action_bar(
                     ..default()
                 })
                 .with_children(|parent| {
-            for slot in 0..5 {
-                let hotkey_label = &(slot + 1).to_string();
-                let spell = config.action_bar_slots[slot as usize];
+                    for slot in 0..5 {
+                        let hotkey_label = &(slot + 1).to_string();
+                        let spell = config.action_bar_slots[slot as usize];
 
-                parent
-                    .spawn((
-                        Button,
-                        Node {
-                            width: Val::Px(SLOT_BUTTON_STYLE.width),
-                            height: Val::Px(SLOT_BUTTON_STYLE.height),
-                            border: UiRect::all(Val::Px(SLOT_BUTTON_STYLE.border_width)),
-                            flex_direction: FlexDirection::Column,
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
-                            padding: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BorderColor::all(SLOT_BUTTON_STYLE.border),
-                        BorderRadius::all(Val::Px(4.0)),
-                        BackgroundColor(SLOT_BUTTON_STYLE.background),
-                        ButtonColors {
-                            background: SLOT_BUTTON_STYLE.background,
-                            border: SLOT_BUTTON_STYLE.border,
-                        },
-                        ActionBarSlot { slot },
-                    ))
-                    .with_children(|button| {
-                        // Hotkey indicator at top
-                        button.spawn((
-                            Text::new(hotkey_label),
-                            TextFont::from_font_size(HOTKEY_FONT_SIZE),
-                            TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
-                            ActionBarHotkeyText,
-                        ));
-
-                        // Spell name text in center (with dynamic font sizing and tight line spacing)
-                        let spell_name = spell.map(|s| s.name()).unwrap_or("");
-                        let font_size = calculate_action_bar_font_size(spell_name);
-                        button
+                        parent
                             .spawn((
-                                Text::new(spell_name),
-                                TextFont::from_font_size(font_size),
-                                TextColor(SLOT_BUTTON_STYLE.text_color),
-                                TextLayout::new_with_justify(Justify::Center),
-                                ActionBarSlotText { slot },
+                                Button,
+                                Node {
+                                    width: Val::Px(SLOT_BUTTON_STYLE.width),
+                                    height: Val::Px(SLOT_BUTTON_STYLE.height),
+                                    border: UiRect::all(Val::Px(SLOT_BUTTON_STYLE.border_width)),
+                                    flex_direction: FlexDirection::Column,
+                                    justify_content: JustifyContent::SpaceBetween,
+                                    align_items: AlignItems::Center,
+                                    padding: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                BorderColor::all(SLOT_BUTTON_STYLE.border),
+                                BorderRadius::all(Val::Px(4.0)),
+                                BackgroundColor(SLOT_BUTTON_STYLE.background),
+                                ButtonColors {
+                                    background: SLOT_BUTTON_STYLE.background,
+                                    border: SLOT_BUTTON_STYLE.border,
+                                },
+                                ActionBarSlot { slot },
                             ))
-                            .insert(Node {
-                                flex_grow: 1.0,
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
+                            .with_children(|button| {
+                                // Hotkey indicator at top
+                                button.spawn((
+                                    Text::new(hotkey_label),
+                                    TextFont::from_font_size(HOTKEY_FONT_SIZE),
+                                    TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
+                                    ActionBarHotkeyText,
+                                ));
+
+                                // Spell name text in center (with dynamic font sizing and tight line spacing)
+                                let spell_name = spell.map(|s| s.name()).unwrap_or("");
+                                let font_size = calculate_action_bar_font_size(spell_name);
+                                button
+                                    .spawn((
+                                        Text::new(spell_name),
+                                        TextFont::from_font_size(font_size),
+                                        TextColor(SLOT_BUTTON_STYLE.text_color),
+                                        TextLayout::new_with_justify(Justify::Center),
+                                        ActionBarSlotText { slot },
+                                    ))
+                                    .insert(Node {
+                                        flex_grow: 1.0,
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    });
                             });
-                    });
-            }
+                    }
                 });
         });
 }

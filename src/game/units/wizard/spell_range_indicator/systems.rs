@@ -43,7 +43,14 @@ pub fn setup_spell_range_indicator(
 
 /// Updates the spell range circle scale when the wizard's spell_range changes.
 pub fn update_spell_range_indicator(
-    wizard_query: Query<(&Transform, &Wizard), (Changed<Wizard>, With<LocalWizard>, Without<SpellRangeCircle>)>,
+    wizard_query: Query<
+        (&Transform, &Wizard),
+        (
+            Changed<Wizard>,
+            With<LocalWizard>,
+            Without<SpellRangeCircle>,
+        ),
+    >,
     mut circle_query: Query<&mut Transform, With<SpellRangeCircle>>,
 ) {
     // Only update if wizard's spell range changed

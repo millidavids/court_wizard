@@ -12,9 +12,7 @@ use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, Health};
-use crate::game::units::wizard::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell,
-};
+use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, PrimedSpell};
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::systems::spawn_button;
 
@@ -512,24 +510,22 @@ pub(super) fn spawn_boss_health_bar(
                         ));
 
                         // Health percentage text — absolute overlay centered on full bar
-                        bar.spawn((
-                            Node {
-                                position_type: PositionType::Absolute,
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                        ))
-                        .with_children(|overlay| {
-                            overlay.spawn((
-                                Text::new("100%"),
-                                TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
-                                TextColor(Color::WHITE),
-                                BossHealthBarText,
-                            ));
-                        });
+                        bar.spawn((Node {
+                            position_type: PositionType::Absolute,
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },))
+                            .with_children(|overlay| {
+                                overlay.spawn((
+                                    Text::new("100%"),
+                                    TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                                    TextColor(Color::WHITE),
+                                    BossHealthBarText,
+                                ));
+                            });
                     });
             });
     }

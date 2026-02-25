@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+};
 use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -53,7 +55,14 @@ pub fn handle_finger_of_death_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &Mana, &PrimedSpell, &Wizard),
+        (
+            Entity,
+            &Transform,
+            &mut CastingState,
+            &Mana,
+            &PrimedSpell,
+            &Wizard,
+        ),
         With<LocalWizard>,
     >,
     awaiting_release_query: Query<(), With<AwaitingFingerOfDeathRelease>>,
@@ -70,10 +79,14 @@ pub fn handle_finger_of_death_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mana, primed_spell, wizard)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::FingerOfDeath { return; }
+    if primed_spell.spell != Spell::FingerOfDeath {
+        return;
+    }
 
     let awaiting_release = awaiting_release_query.get(wizard_entity).is_ok();
     let has_existing_beam = beams.iter().next().is_some();
@@ -92,12 +105,20 @@ pub fn handle_finger_of_death_casting(
 
     // Apply component changes
     if result.remove_awaiting_release {
-        commands.entity(wizard_entity).remove::<AwaitingFingerOfDeathRelease>();
+        commands
+            .entity(wizard_entity)
+            .remove::<AwaitingFingerOfDeathRelease>();
     }
 
     // Apply beam action
     match result.beam_action {
-        BeamAction::UpdateBeam { origin, direction, length, cast_progress, delta_secs } => {
+        BeamAction::UpdateBeam {
+            origin,
+            direction,
+            length,
+            cast_progress,
+            delta_secs,
+        } => {
             if let Some((_, mut beam)) = beams.iter_mut().next() {
                 beam.origin = origin;
                 beam.direction = direction;
@@ -106,7 +127,13 @@ pub fn handle_finger_of_death_casting(
                 beam.time_alive += delta_secs;
             }
         }
-        BeamAction::SpawnBeam { origin, direction, length, empowerment, cast_progress } => {
+        BeamAction::SpawnBeam {
+            origin,
+            direction,
+            length,
+            empowerment,
+            cast_progress,
+        } => {
             let mut new_beam = FingerOfDeathBeam::new(origin, direction, length, empowerment);
             new_beam.cast_progress = cast_progress;
             spawn_beam(&mut commands, &visual_assets, &mut materials, new_beam);
@@ -315,10 +342,7 @@ pub fn apply_finger_of_death_damage(
         ),
         Without<Wizard>,
     >,
-    mut wizard_query: Query<
-        (Entity, &mut Mana, &mut CastingState),
-        With<Wizard>,
-    >,
+    mut wizard_query: Query<(Entity, &mut Mana, &mut CastingState), With<Wizard>>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
 ) {
     let mut any_fired = false;
@@ -369,7 +393,9 @@ pub fn apply_finger_of_death_damage(
                 casting_state.cancel();
 
                 // Add awaiting release marker to prevent immediate recast
-                commands.entity(wizard_entity).insert(AwaitingFingerOfDeathRelease);
+                commands
+                    .entity(wizard_entity)
+                    .insert(AwaitingFingerOfDeathRelease);
             }
         }
 

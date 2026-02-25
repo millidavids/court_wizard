@@ -278,8 +278,7 @@ pub fn handle_obstacle_events(
                 .iter()
                 .find(|(_, team)| **team == Team::Defenders)
         {
-            let king_pos =
-                Vec2::new(king_transform.translation.x, king_transform.translation.z);
+            let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
             spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
         }
 

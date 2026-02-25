@@ -188,10 +188,8 @@ impl Plugin for GamePlugin {
             // Runs during any active game state, not just gameplay simulation.
             .add_systems(
                 Update,
-                systems::update_billboards.run_if(
-                    in_state(AppState::InGame)
-                        .or(in_state(AppState::MultiplayerGame)),
-                ),
+                systems::update_billboards
+                    .run_if(in_state(AppState::InGame).or(in_state(AppState::MultiplayerGame))),
             )
             // SP-only win/lose check — runs after combat chain, gated to InGameState
             // (MP has its own check_mp_king_death registered in MultiplayerGamePlugin)

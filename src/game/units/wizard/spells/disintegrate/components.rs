@@ -124,7 +124,8 @@ impl DisintegrateBeam {
         }
 
         // Check distance from beam centerline
-        let closest_point_on_beam = self.origin + self.direction * projection_length.clamp(0.0, current_len);
+        let closest_point_on_beam =
+            self.origin + self.direction * projection_length.clamp(0.0, current_len);
         let distance_from_beam = point.distance(closest_point_on_beam);
 
         distance_from_beam <= self.beam_width() + unit_radius

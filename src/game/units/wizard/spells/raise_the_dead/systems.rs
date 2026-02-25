@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
+};
 use super::components::*;
 use super::constants::{
     CHANNEL_RAMP_TIME, INITIAL_CHANNEL_INTERVAL, MANA_COST_PER_CORPSE, MIN_CHANNEL_INTERVAL,
@@ -28,10 +30,7 @@ pub fn handle_raise_the_dead_casting(
     time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<
-        (&mut CastingState, &mut Mana, &PrimedSpell),
-        With<LocalWizard>,
-    >,
+    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     corpse_query: Query<
@@ -59,7 +58,9 @@ pub fn handle_raise_the_dead_casting(
     let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
         return;
     };
-    if primed_spell.spell != Spell::RaiseTheDead { return; }
+    if primed_spell.spell != Spell::RaiseTheDead {
+        return;
+    }
 
     raise_the_dead_casting_logic(
         &input,

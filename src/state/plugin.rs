@@ -155,9 +155,7 @@ fn log_meta_game_state_transitions(meta_game_state: Option<Res<State<MetaGameSta
 ///
 /// Only enabled in debug builds.
 #[cfg(debug_assertions)]
-fn log_multiplayer_game_state_transitions(
-    mp_state: Option<Res<State<MultiplayerGameState>>>,
-) {
+fn log_multiplayer_game_state_transitions(mp_state: Option<Res<State<MultiplayerGameState>>>) {
     if let Some(state) = mp_state
         && state.is_changed()
     {

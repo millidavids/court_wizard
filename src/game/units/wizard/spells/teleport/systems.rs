@@ -4,7 +4,9 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+};
 use super::components::{TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
@@ -149,9 +151,9 @@ pub fn handle_teleport_casting(
         return;
     };
 
-    let clamped_pos = input.cursor_pos.map(|pos| {
-        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
-    });
+    let clamped_pos = input
+        .cursor_pos
+        .map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
 
     let cast_result = teleport_casting_logic(
         &input,
@@ -231,8 +233,7 @@ pub fn handle_teleport_casting(
                         caster.source_circle = Some(circle_entity);
                     }
                 } else if let Some(circle_entity) = caster.source_circle
-                    && let Ok((mut transform, mut indicator)) =
-                        source_query.get_mut(circle_entity)
+                    && let Ok((mut transform, mut indicator)) = source_query.get_mut(circle_entity)
                     && let Some(pos) = clamped_pos
                 {
                     transform.translation.x = pos.x;
@@ -423,13 +424,8 @@ fn teleport_casting_logic(
                                 units_query,
                                 commands,
                             );
-                            result.teleport_params = Some((
-                                source_pos.x,
-                                source_pos.z,
-                                dest_pos.x,
-                                dest_pos.z,
-                                radius,
-                            ));
+                            result.teleport_params =
+                                Some((source_pos.x, source_pos.z, dest_pos.x, dest_pos.z, radius));
                         }
 
                         caster.destination_position = None;

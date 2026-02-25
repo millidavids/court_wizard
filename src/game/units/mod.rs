@@ -12,6 +12,7 @@ pub(in crate::game) mod commander;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod damage;
+pub(crate) mod dispeller;
 pub(in crate::game) mod elite;
 pub(in crate::game) mod infantry;
 pub(in crate::game) mod king;

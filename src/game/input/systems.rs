@@ -140,25 +140,47 @@ pub fn detect_keyboard_input(
 /// This system is gated to only run when the active wizard type is RuneCaster.
 pub fn detect_rune_input(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut rune_pressed: MessageWriter<crate::game::units::wizard::archetypes::runes::messages::RunePressed>,
-    mut rune_activate: MessageWriter<crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence>,
+    mut rune_pressed: MessageWriter<
+        crate::game::units::wizard::archetypes::runes::messages::RunePressed,
+    >,
+    mut rune_activate: MessageWriter<
+        crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
+    >,
 ) {
     // Spacebar activates rune sequence
     if keyboard.just_pressed(KeyCode::Space) {
-        rune_activate.write(crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence);
+        rune_activate
+            .write(crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence);
     }
 
     // Check rune keys Q, W, E, R
-    const RUNE_KEYS: [(KeyCode, crate::game::units::wizard::archetypes::runes::resources::Rune); 4] = [
-        (KeyCode::KeyQ, crate::game::units::wizard::archetypes::runes::resources::Rune::Q),
-        (KeyCode::KeyW, crate::game::units::wizard::archetypes::runes::resources::Rune::W),
-        (KeyCode::KeyE, crate::game::units::wizard::archetypes::runes::resources::Rune::E),
-        (KeyCode::KeyR, crate::game::units::wizard::archetypes::runes::resources::Rune::R),
+    const RUNE_KEYS: [(
+        KeyCode,
+        crate::game::units::wizard::archetypes::runes::resources::Rune,
+    ); 4] = [
+        (
+            KeyCode::KeyQ,
+            crate::game::units::wizard::archetypes::runes::resources::Rune::Q,
+        ),
+        (
+            KeyCode::KeyW,
+            crate::game::units::wizard::archetypes::runes::resources::Rune::W,
+        ),
+        (
+            KeyCode::KeyE,
+            crate::game::units::wizard::archetypes::runes::resources::Rune::E,
+        ),
+        (
+            KeyCode::KeyR,
+            crate::game::units::wizard::archetypes::runes::resources::Rune::R,
+        ),
     ];
 
     for (key_code, rune) in RUNE_KEYS {
         if keyboard.just_pressed(key_code) {
-            rune_pressed.write(crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune });
+            rune_pressed.write(
+                crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune },
+            );
         }
     }
 }
@@ -168,10 +190,13 @@ pub fn detect_rune_input(
 /// This system is gated to only run when the active wizard type is Randomancer.
 pub fn detect_roulette_input(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut spin_message: MessageWriter<crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage>,
+    mut spin_message: MessageWriter<
+        crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
+    >,
 ) {
     if keyboard.just_pressed(KeyCode::Space) {
-        spin_message.write(crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage);
+        spin_message
+            .write(crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage);
     }
 }
 

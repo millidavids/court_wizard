@@ -344,7 +344,9 @@ fn spawn_spell_list(
                                             |btn| {
                                                 btn.spawn((
                                                     Text::new(spell.display_name()),
-                                                    TextFont::from_font_size(SPELL_BUTTON_FONT_SIZE),
+                                                    TextFont::from_font_size(
+                                                        SPELL_BUTTON_FONT_SIZE,
+                                                    ),
                                                     TextColor(SPELL_BUTTON_TEXT_COLOR),
                                                 ));
                                             },

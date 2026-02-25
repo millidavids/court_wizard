@@ -98,27 +98,26 @@ fn spawn_wizard_type_screen(commands: &mut Commands, initial_wizard: WizardType)
             });
 
             // ── Right side: grid ────────────────────────────────
-            root.spawn(grid_container_node())
-                .with_children(|grid| {
-                    for slot in 0..GRID_SLOTS {
-                        if let Some(wizard_type) = wizard_types.get(slot) {
-                            let type_name = format!("{:?}", wizard_type);
-                            if unlocked_wizard_types.contains(&type_name) {
-                                let is_selected = *wizard_type == initial_wizard;
-                                shared::spawn_wizard_card(
-                                    grid,
-                                    *wizard_type,
-                                    is_selected,
-                                    WizardSelectButtonAction::PreviewWizard(*wizard_type),
-                                );
-                            } else {
-                                shared::spawn_locked_wizard_card(grid, *wizard_type);
-                            }
+            root.spawn(grid_container_node()).with_children(|grid| {
+                for slot in 0..GRID_SLOTS {
+                    if let Some(wizard_type) = wizard_types.get(slot) {
+                        let type_name = format!("{:?}", wizard_type);
+                        if unlocked_wizard_types.contains(&type_name) {
+                            let is_selected = *wizard_type == initial_wizard;
+                            shared::spawn_wizard_card(
+                                grid,
+                                *wizard_type,
+                                is_selected,
+                                WizardSelectButtonAction::PreviewWizard(*wizard_type),
+                            );
                         } else {
-                            shared::spawn_locked_card(grid);
+                            shared::spawn_locked_wizard_card(grid, *wizard_type);
                         }
+                    } else {
+                        shared::spawn_locked_card(grid);
                     }
-                });
+                }
+            });
         });
 }
 
@@ -216,11 +215,7 @@ pub(super) fn button_action(
             WizardSelectButtonAction::PreviewWizard(wizard_type) => {
                 preview.0 = wizard_type;
 
-                shared::update_detail_panel_text(
-                    wizard_type,
-                    &mut detail_name,
-                    &mut detail_desc,
-                );
+                shared::update_detail_panel_text(wizard_type, &mut detail_name, &mut detail_desc);
 
                 if let Ok((mut status_text, mut status_color)) = detail_status.single_mut() {
                     let existing_save = save_data::get_wizard_by_type(wizard_type);

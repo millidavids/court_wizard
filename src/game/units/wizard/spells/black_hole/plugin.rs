@@ -6,8 +6,8 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::BlackHole;
 use super::systems;
-use crate::game::units::MovementCalculationSet;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::units::MovementCalculationSet;
 
 /// Plugin that manages the Black Hole spell.
 #[derive(Default)]

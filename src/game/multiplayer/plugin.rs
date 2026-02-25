@@ -15,7 +15,7 @@ use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionState, NetworkConnection};
-use crate::networking::session::{is_multiplayer_guest, is_multiplayer_host, MultiplayerSession};
+use crate::networking::session::{MultiplayerSession, is_multiplayer_guest, is_multiplayer_host};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
 use crate::ui::components::ButtonStyle;
@@ -96,14 +96,8 @@ impl Plugin for MultiplayerGamePlugin {
         );
 
         // ── Camera ───────────────────────────────────────────────────
-        app.add_systems(
-            OnEnter(AppState::MultiplayerGame),
-            loading::setup_mp_camera,
-        );
-        app.add_systems(
-            OnExit(AppState::MultiplayerGame),
-            loading::restore_camera,
-        );
+        app.add_systems(OnEnter(AppState::MultiplayerGame), loading::setup_mp_camera);
+        app.add_systems(OnExit(AppState::MultiplayerGame), loading::restore_camera);
 
         // ── Resource Init / Cleanup ──────────────────────────────────
         app.add_systems(OnEnter(AppState::MultiplayerGame), init_mp_game);
@@ -112,32 +106,21 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Cancel casts on exit Running ─────────────────────────────
         // Reuses the SP cancel_active_casts system so both wizards'
         // CastingState gets reset when transitioning to ScoreScreen/Paused.
-        app.add_systems(
-            OnExit(MultiplayerGameState::Running),
-            cancel_active_casts,
-        );
+        app.add_systems(OnExit(MultiplayerGameState::Running), cancel_active_casts);
 
         // ── CRDT Health Sync (both host and guest) ──────────────────
         // attach_crdt_health: adds CrdtHealth to new entities with Health
         // sync_health_to_crdt: detects local damage/healing, writes to CRDT,
         //   re-derives Health from converged CRDT state
         let mp_running = in_mp_running;
-        app.add_systems(
-            Update,
-            crdt_sync::attach_crdt_health
-                .run_if(mp_running),
-        );
+        app.add_systems(Update, crdt_sync::attach_crdt_health.run_if(mp_running));
         app.add_systems(
             Update,
             crdt_sync::sync_health_to_crdt
                 .after(PostCombatSet)
                 .run_if(mp_running),
         );
-        app.add_systems(
-            Update,
-            crdt_sync::receive_wall_placement
-                .run_if(mp_running),
-        );
+        app.add_systems(Update, crdt_sync::receive_wall_placement.run_if(mp_running));
 
         // ── Host: MP King Death Check ────────────────────────────────
         // Replaces SP's check_win_lose_conditions during multiplayer.
@@ -214,35 +197,25 @@ impl Plugin for MultiplayerGamePlugin {
         // ── Host: Receive Guest Teleport Messages ────────────────────
         app.add_systems(
             Update,
-            host_systems::receive_teleport_message
-                .run_if(mp_running.and(is_multiplayer_host)),
+            host_systems::receive_teleport_message.run_if(mp_running.and(is_multiplayer_host)),
         );
 
         // ── Guest: Game Over Message ──────────────────────────────────
         app.add_systems(
             Update,
-            guest_systems::handle_game_over_message
-                .run_if(mp_running.and(is_multiplayer_guest)),
+            guest_systems::handle_game_over_message.run_if(mp_running.and(is_multiplayer_guest)),
         );
 
         // ── Escape Key (Running → Paused toggle) ──────────────────────
         app.add_systems(
             Update,
-            mp_escape_key_handler.run_if(
-                in_state(AppState::MultiplayerGame)
-                    .and(in_mp_running.or(in_mp_paused)),
-            ),
+            mp_escape_key_handler
+                .run_if(in_state(AppState::MultiplayerGame).and(in_mp_running.or(in_mp_paused))),
         );
 
         // ── Escape Menu (Paused overlay) ──────────────────────────────
-        app.add_systems(
-            OnEnter(MultiplayerGameState::Paused),
-            setup_mp_pause_menu,
-        );
-        app.add_systems(
-            OnExit(MultiplayerGameState::Paused),
-            cleanup_mp_pause_menu,
-        );
+        app.add_systems(OnEnter(MultiplayerGameState::Paused), setup_mp_pause_menu);
+        app.add_systems(OnExit(MultiplayerGameState::Paused), cleanup_mp_pause_menu);
         app.add_systems(
             Update,
             handle_mp_pause_buttons
@@ -675,10 +648,7 @@ fn setup_mp_pause_menu(mut commands: Commands) {
 }
 
 /// Cleans up the MP escape menu overlay.
-fn cleanup_mp_pause_menu(
-    mut commands: Commands,
-    entities: Query<Entity, With<OnMpPauseScreen>>,
-) {
+fn cleanup_mp_pause_menu(mut commands: Commands, entities: Query<Entity, With<OnMpPauseScreen>>) {
     for entity in &entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
             ec.despawn();

@@ -744,9 +744,9 @@ mod tests {
         assert_eq!(
             fp,
             [
-                0xA0, 0xB1, 0xC2, 0xD3, 0xE4, 0xF5, 0x06, 0x17, 0x28, 0x39, 0x4A, 0x5B, 0x6C,
-                0x7D, 0x8E, 0x9F, 0xA0, 0xB1, 0xC2, 0xD3, 0xE4, 0xF5, 0x06, 0x17, 0x28, 0x39,
-                0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F,
+                0xA0, 0xB1, 0xC2, 0xD3, 0xE4, 0xF5, 0x06, 0x17, 0x28, 0x39, 0x4A, 0x5B, 0x6C, 0x7D,
+                0x8E, 0x9F, 0xA0, 0xB1, 0xC2, 0xD3, 0xE4, 0xF5, 0x06, 0x17, 0x28, 0x39, 0x4A, 0x5B,
+                0x6C, 0x7D, 0x8E, 0x9F,
             ]
         );
     }
@@ -783,11 +783,7 @@ mod tests {
         let (_, reconstructed) = decoded.to_sdp();
         // Every line should end with \r\n
         for line in reconstructed.split("\r\n") {
-            assert!(
-                !line.contains('\n'),
-                "line contains bare LF: {:?}",
-                line
-            );
+            assert!(!line.contains('\n'), "line contains bare LF: {:?}", line);
         }
     }
 
@@ -802,7 +798,10 @@ mod tests {
         buf.extend_from_slice(&[0u8; 32]); // fingerprint
         let code = base64url_encode(&buf);
         let result = decode(&code);
-        assert!(matches!(result, Err(ConnectionCodeError::UnsupportedVersion(2))));
+        assert!(matches!(
+            result,
+            Err(ConnectionCodeError::UnsupportedVersion(2))
+        ));
     }
 
     #[test]
@@ -896,9 +895,7 @@ mod tests {
         assert_eq!(decoded.candidates.len(), 1);
         assert_eq!(
             decoded.candidates[0].address,
-            CandidateAddress::Hostname(
-                "868c901c-fce5-428b-82db-2788de923a91.local".to_string()
-            )
+            CandidateAddress::Hostname("868c901c-fce5-428b-82db-2788de923a91.local".to_string())
         );
         assert_eq!(decoded.candidates[0].port, 59705);
         assert_eq!(decoded.candidates[0].candidate_type, CandidateType::Host);
@@ -968,9 +965,7 @@ mod tests {
         // First: mDNS hostname
         assert_eq!(
             decoded.candidates[0].address,
-            CandidateAddress::Hostname(
-                "868c901c-fce5-428b-82db-2788de923a91.local".to_string()
-            )
+            CandidateAddress::Hostname("868c901c-fce5-428b-82db-2788de923a91.local".to_string())
         );
         // Second: regular IP
         assert_eq!(

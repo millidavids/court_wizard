@@ -8,16 +8,15 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::constants as cl_constants;
@@ -35,6 +34,7 @@ use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
     meteor_fall_constants,
 };
+use crate::networking::snapshot::SpellEffectKind;
 
 // ===== Helper Functions =====
 
@@ -178,13 +178,19 @@ pub(super) fn handle_arcane_crystal_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::ArcaneCrystal { return; }
+    if primed_spell.spell != Spell::ArcaneCrystal {
+        return;
+    }
 
     // Clamp cursor to spell range
-    let clamped_cursor = input.cursor_pos.map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
+    let clamped_cursor = input
+        .cursor_pos
+        .map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -201,9 +207,7 @@ pub(super) fn handle_arcane_crystal_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(MANA_COST)
-            {
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(MANA_COST) {
                 if let Some(pos) = clamped_cursor {
                     let circle_entity = spawn_circle_indicator(
                         &mut commands,
@@ -237,13 +241,8 @@ pub(super) fn handle_arcane_crystal_casting(
         }
     }
 
-    let completed = arcane_crystal_casting_logic(
-        &input,
-        &time,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-    );
+    let completed =
+        arcane_crystal_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
         // Spawn crystal using indicator position
@@ -368,9 +367,14 @@ pub(crate) fn spawn_crystal(
             ArcaneCrystal::new(crystal_pos, range, duration, collision_radius, empowerment),
             Mesh3d(assets.unit_sphere.clone()),
             MeshMaterial3d(assets.arcane_crystal.clone()),
-            Transform::from_translation(crystal_pos)
-                .with_scale(Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius)),
-            NetworkedSpellEffect { kind: SpellEffectKind::ArcaneCrystal },
+            Transform::from_translation(crystal_pos).with_scale(Vec3::new(
+                0.7 * sphere_radius,
+                1.5 * sphere_radius,
+                0.7 * sphere_radius,
+            )),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::ArcaneCrystal,
+            },
             OnGameplayScreen,
         ))
         .id();
@@ -415,7 +419,11 @@ pub(super) fn update_crystal_visuals(
                 0.7 * sphere_radius * scale_factor,
             );
         } else {
-            transform.scale = Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius);
+            transform.scale = Vec3::new(
+                0.7 * sphere_radius,
+                1.5 * sphere_radius,
+                0.7 * sphere_radius,
+            );
         }
     }
 }
@@ -555,7 +563,8 @@ pub(super) fn detect_fireball_hits(
                     &targets,
                 );
 
-                let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
+                let mini_radius =
+                    fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
 
                 for (_, target_pos) in &enemies {
                     let ground_target = Vec3::new(target_pos.x, 0.0, target_pos.z);
@@ -637,9 +646,15 @@ pub(super) fn detect_beam_hits(
                     .length();
                     if dist <= crystal.range {
                         // Target still valid — update beam to track it
-                        if let Ok(mut beam) = crystal_beams.get_mut(*beam_entity).map(|(_, beam)| beam) {
-                            let direction = (target_transform.translation - crystal.position).normalize();
-                            let length = crystal.position.distance(target_transform.translation).min(crystal.range);
+                        if let Ok(mut beam) =
+                            crystal_beams.get_mut(*beam_entity).map(|(_, beam)| beam)
+                        {
+                            let direction =
+                                (target_transform.translation - crystal.position).normalize();
+                            let length = crystal
+                                .position
+                                .distance(target_transform.translation)
+                                .min(crystal.range);
                             beam.origin = crystal.position;
                             beam.direction = direction;
                             beam.length = length;
@@ -680,7 +695,9 @@ pub(super) fn detect_beam_hits(
                     if let Some((new_target, new_pos)) = candidates.get(idx) {
                         let (beam_entity, _) = crystal.active_beams[*beam_idx];
                         crystal.active_beams[*beam_idx] = (beam_entity, *new_target);
-                        if let Ok(mut beam) = crystal_beams.get_mut(beam_entity).map(|(_, beam)| beam) {
+                        if let Ok(mut beam) =
+                            crystal_beams.get_mut(beam_entity).map(|(_, beam)| beam)
+                        {
                             let direction = (*new_pos - crystal.position).normalize();
                             let length = crystal.position.distance(*new_pos).min(crystal.range);
                             beam.origin = crystal.position;
@@ -938,7 +955,11 @@ pub(super) fn detect_chain_lightning_hits(
         &crate::game::units::wizard::spells::chain_lightning::components::ChainLightningGroup,
     >,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
+    mut health_query: Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    )>,
 ) {
     // Check if any bolt's last_hit_position matches a crystal position
     // (chain lightning system sets crystal as a bounce target, so the bolt
@@ -975,7 +996,9 @@ pub(super) fn detect_chain_lightning_hits(
 
             for (target_entity, target_pos) in &enemies {
                 // Apply damage
-                if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(*target_entity) {
+                if let Ok((mut health, mut temp_hp, has_spell_shield)) =
+                    health_query.get_mut(*target_entity)
+                {
                     apply_spell_damage(
                         &mut commands,
                         *target_entity,
@@ -1019,7 +1042,11 @@ pub(super) fn auto_cast_remembered_spell(
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
     targets: Query<(Entity, &Transform), Without<Corpse>>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
+    mut health_query: Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    )>,
 ) {
     let delta = time.delta_secs();
 
@@ -1201,7 +1228,12 @@ fn handle_auto_disintegrate(
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
                 let new_beam = spawn_crystal_disintegrate_beam(
-                    commands, assets, position, *new_pos, range, empowerment,
+                    commands,
+                    assets,
+                    position,
+                    *new_pos,
+                    range,
+                    empowerment,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
@@ -1216,7 +1248,12 @@ fn handle_auto_disintegrate(
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
                 let new_beam = spawn_crystal_disintegrate_beam(
-                    commands, assets, position, *new_pos, range, empowerment,
+                    commands,
+                    assets,
+                    position,
+                    *new_pos,
+                    range,
+                    empowerment,
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
@@ -1232,7 +1269,12 @@ fn handle_auto_disintegrate(
     let new_targets = find_random_targets_in_range(position, range, 1, targets);
     if let Some((target_entity, target_pos)) = new_targets.first() {
         let beam_entity = spawn_crystal_disintegrate_beam(
-            commands, assets, position, *target_pos, range, empowerment,
+            commands,
+            assets,
+            position,
+            *target_pos,
+            range,
+            empowerment,
         );
         if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
             crystal.auto_disintegrate_beam = Some((beam_entity, *target_entity));
@@ -1260,10 +1302,9 @@ fn spawn_crystal_disintegrate_beam(
         empowerment,
         disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
     );
-    commands.entity(beam_entity).insert(CrystalSpawn {
-        origin,
-        max_range,
-    });
+    commands
+        .entity(beam_entity)
+        .insert(CrystalSpawn { origin, max_range });
     beam_entity
 }
 
@@ -1346,13 +1387,19 @@ fn auto_cast_chain_lightning(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), Without<Corpse>>,
-    health_query: &mut Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>)>,
+    health_query: &mut Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    )>,
 ) {
     let enemies = find_random_targets_in_range(position, range, LIGHTNING_ARC_COUNT, targets);
     let damage = cl_constants::INITIAL_DAMAGE * DAMAGE_SCALE * empowerment;
 
     for (target_entity, target_pos) in &enemies {
-        if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(*target_entity) {
+        if let Ok((mut health, mut temp_hp, has_spell_shield)) =
+            health_query.get_mut(*target_entity)
+        {
             apply_spell_damage(
                 commands,
                 *target_entity,
@@ -1447,15 +1494,16 @@ fn spawn_crystal_mini_missile(
     target: Option<Entity>,
     visual_radius: f32,
 ) {
-    let mut mini_missile = crate::game::units::wizard::spells::magic_missile::components::MagicMissile::new(
-        initial_velocity,
-        wobble_offset,
-        target,
-        DAMAGE_SCALE,
-        TargetTeams::AttackersAndUndead,
-        crystal_range,
-        crystal_position,
-    );
+    let mut mini_missile =
+        crate::game::units::wizard::spells::magic_missile::components::MagicMissile::new(
+            initial_velocity,
+            wobble_offset,
+            target,
+            DAMAGE_SCALE,
+            TargetTeams::AttackersAndUndead,
+            crystal_range,
+            crystal_position,
+        );
     mini_missile.time_alive = MINI_MISSILE_HOMING_ADVANCE;
 
     commands.spawn((
@@ -1466,8 +1514,7 @@ fn spawn_crystal_mini_missile(
         },
         Mesh3d(assets.unit_circle.clone()),
         MeshMaterial3d(assets.crystal_mini_missile.clone()),
-        Transform::from_translation(crystal_position)
-            .with_scale(Vec3::splat(visual_radius)),
+        Transform::from_translation(crystal_position).with_scale(Vec3::splat(visual_radius)),
         OnGameplayScreen,
     ));
 }

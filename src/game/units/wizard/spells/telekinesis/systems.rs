@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::TelekinesisIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -44,10 +46,14 @@ pub(super) fn handle_telekinesis_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Telekinesis { return; }
+    if primed_spell.spell != Spell::Telekinesis {
+        return;
+    }
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -148,7 +154,8 @@ fn telekinesis_casting_logic(
                     let drop_pos = drop_transform.translation;
                     let wizard_height = wizard_pos.y;
                     let max_ground_radius = if wizard_height < wizard.spell_range {
-                        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
+                        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height)
+                            .sqrt()
                     } else {
                         0.0
                     };

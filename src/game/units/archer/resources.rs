@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{
-    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
-};
+use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
 
 use super::constants::ARROW_WIDTH;
 use super::styles::*;

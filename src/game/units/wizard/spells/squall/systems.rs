@@ -8,17 +8,17 @@ use super::components::{IceExplosion, IceProjectile, SquallCircleIndicator, Squa
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
-    CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Gets cursor position projected onto Y=0 plane.
 fn get_cursor_world_position(
@@ -134,10 +134,14 @@ pub(super) fn handle_squall_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Squall { return; }
+    if primed_spell.spell != Spell::Squall {
+        return;
+    }
 
     let completed = squall_casting_logic(
         &input,
@@ -450,7 +454,9 @@ fn spawn_ice_explosion(
             .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(0.1)),
         IceExplosion::new(position, max_radius, damage, empowerment),
-        NetworkedSpellEffect { kind: SpellEffectKind::IceExplosion },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::IceExplosion,
+        },
         OnGameplayScreen,
     ));
 }
@@ -482,7 +488,9 @@ pub(super) fn update_ice_explosions(
         if !explosion.damage_applied {
             explosion.damage_applied = true;
 
-            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut() {
+            for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
+                units.iter_mut()
+            {
                 let distance = unit_transform.translation.distance(explosion.origin);
 
                 if distance <= explosion.max_radius {

@@ -163,4 +163,3 @@ pub(super) enum LobbyPhase {
         opponent_ready: bool,
     },
 }
-

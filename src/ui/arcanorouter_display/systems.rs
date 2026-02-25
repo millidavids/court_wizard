@@ -28,10 +28,7 @@ fn slider_label(slider_type: SliderType) -> &'static str {
 }
 
 /// Spawns the Arcanorouter display with 4 vertical sliders
-pub(super) fn spawn_arcanorouter_display(
-    mut commands: Commands,
-    state: Res<ArcanoRouterState>,
-) {
+pub(super) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<ArcanoRouterState>) {
     // Root container - absolute positioned at bottom center
     commands
         .spawn((

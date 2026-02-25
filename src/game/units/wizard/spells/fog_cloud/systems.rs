@@ -1,16 +1,18 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::{FogCloudIndicator, FogCloudZone};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, FogEvasionModifier};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Local wizard fog cloud casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -46,10 +48,14 @@ pub fn handle_fog_cloud_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::FogCloud { return; }
+    if primed_spell.spell != Spell::FogCloud {
+        return;
+    }
 
     let completed = fog_cloud_casting_logic(
         &input,
@@ -282,7 +288,10 @@ pub(crate) fn spawn_fog_cloud_zone(
     let evasion = constants::EVASION_CHANCE;
     let refresh_dur = constants::EVASION_REFRESH_DURATION * empowerment;
 
-    let base_mat = materials.get(&assets.fog_cloud_zone).cloned().unwrap_or_default();
+    let base_mat = materials
+        .get(&assets.fog_cloud_zone)
+        .cloned()
+        .unwrap_or_default();
     let instance_material = materials.add(base_mat);
 
     commands.spawn((
@@ -303,7 +312,9 @@ pub(crate) fn spawn_fog_cloud_zone(
             constants::TICK_INTERVAL,
             duration,
         ),
-        NetworkedSpellEffect { kind: SpellEffectKind::FogCloudZone },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::FogCloudZone,
+        },
         OnGameplayScreen,
     ));
 }

@@ -7,11 +7,11 @@ use bevy::prelude::*;
 
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::resources::GameOutcome;
-use crate::game::units::archer::components::Arrow;
 use crate::game::units::archer::Archer;
+use crate::game::units::archer::components::Arrow;
 use crate::game::units::components::{
-    Corpse, ElectricCharge, FireDoT, FrostSlowModifier, Health, KingsGuard,
-    RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, Team,
+    Corpse, ElectricCharge, FireDoT, FrostSlowModifier, Health, KingsGuard, RemoteElectricEffect,
+    RemoteFireEffect, RemoteFrostEffect, Team,
 };
 use crate::game::units::king::components::{King, SpellShield};
 use crate::networking::crdt::CrdtHealth;
@@ -19,8 +19,8 @@ use crate::networking::entity_map::{EntityIdCounter, NetworkEntityId};
 use crate::networking::protocol::{GameOverResult, NetworkMessage};
 use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{
-    ArrowSnapshot, CrdtSnapshot, GameSnapshot, SnapshotTick, UnitFlags,
-    UNRELIABLE_CRDT_SNAPSHOT, build_unit_snapshot,
+    ArrowSnapshot, CrdtSnapshot, GameSnapshot, SnapshotTick, UNRELIABLE_CRDT_SNAPSHOT, UnitFlags,
+    build_unit_snapshot,
 };
 use crate::state::MultiplayerGameState;
 
@@ -72,9 +72,36 @@ pub fn send_state_snapshots(
         arrows: Vec::with_capacity(arrows.iter().len()),
     };
 
-    for (net_id, transform, team, health, crdt_health, is_corpse, is_king, is_archer, is_guard, has_fire, has_frost, has_electric, has_spell_shield) in &units {
+    for (
+        net_id,
+        transform,
+        team,
+        health,
+        crdt_health,
+        is_corpse,
+        is_king,
+        is_archer,
+        is_guard,
+        has_fire,
+        has_frost,
+        has_electric,
+        has_spell_shield,
+    ) in &units
+    {
         snapshot.units.push(build_unit_snapshot(
-            net_id, transform, team, health, crdt_health, is_corpse, is_king, is_archer, is_guard, has_fire, has_frost, has_electric, has_spell_shield,
+            net_id,
+            transform,
+            team,
+            health,
+            crdt_health,
+            is_corpse,
+            is_king,
+            is_archer,
+            is_guard,
+            has_fire,
+            has_frost,
+            has_electric,
+            has_spell_shield,
         ));
     }
 
@@ -134,7 +161,9 @@ pub fn receive_teleport_message(
         (Entity, &Transform),
         (
             With<crate::game::units::components::Teleportable>,
-            Without<crate::game::units::wizard::spells::teleport::components::TeleportDestinationCircle>,
+            Without<
+                crate::game::units::wizard::spells::teleport::components::TeleportDestinationCircle,
+            >,
             Without<crate::game::units::wizard::spells::teleport::components::TeleportSourceCircle>,
         ),
     >,
@@ -234,7 +263,16 @@ pub fn receive_crdt_snapshot(
     // Merge guest CRDT state into host entities and update Health to match.
     // We must update Health.current here so that sync_health_to_crdt doesn't
     // interpret the guest's damage as "local healing" (health.current > crdt_hp).
-    for (entity, net_id, mut crdt_health, mut health, has_remote_fire, has_remote_frost, has_remote_electric) in &mut units {
+    for (
+        entity,
+        net_id,
+        mut crdt_health,
+        mut health,
+        has_remote_fire,
+        has_remote_frost,
+        has_remote_electric,
+    ) in &mut units
+    {
         if let Some(&idx) = update_map.get(&net_id.0) {
             let update = &snapshot.units[idx];
             let remote = CrdtHealth {

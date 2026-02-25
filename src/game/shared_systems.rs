@@ -11,12 +11,12 @@ use super::constants::*;
 use super::plugin::GlobalAttackCycle;
 use super::resources::CurrentLevel;
 use super::units::archer::Archer;
+use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteDamageBonus, Health, Hitbox,
     MovementSpeed, ResidualFireDamaged, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
     TemporaryHitPoints, apply_damage_to_unit,
 };
-use super::units::boss::components::Boss;
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 

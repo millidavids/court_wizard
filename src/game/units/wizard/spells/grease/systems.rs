@@ -1,25 +1,27 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::{GreaseFireOverlay, GreaseIndicator, GreaseZone};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, GreaseSlipModifier, Health, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard grease casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -56,10 +58,14 @@ pub fn handle_grease_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Grease { return; }
+    if primed_spell.spell != Spell::Grease {
+        return;
+    }
 
     let completed = grease_casting_logic(
         &input,
@@ -252,13 +258,13 @@ pub fn apply_grease_slow(
                     if let Some(mut slow) = existing_slow {
                         slow.refresh(zone.slow_duration);
                     } else {
-                        let modifier = GreaseSlipModifier::new(
-                            zone.slow_modifier,
-                            zone.slow_duration,
-                        );
-                        commands.entity(entity).queue_silenced(move |mut e: EntityWorldMut| {
-                            e.insert(modifier);
-                        });
+                        let modifier =
+                            GreaseSlipModifier::new(zone.slow_modifier, zone.slow_duration);
+                        commands
+                            .entity(entity)
+                            .queue_silenced(move |mut e: EntityWorldMut| {
+                                e.insert(modifier);
+                            });
                     }
                 }
             }
@@ -428,7 +434,10 @@ pub fn check_grease_ignition(
             zone.fire_spread_time = 0.0;
 
             // Spawn fire overlay mesh at the ignition point
-            let base_mat = materials.get(&visual_assets.grease_fire).cloned().unwrap_or_default();
+            let base_mat = materials
+                .get(&visual_assets.grease_fire)
+                .cloned()
+                .unwrap_or_default();
             let overlay_material = materials.add(base_mat);
             commands.spawn((
                 Mesh3d(visual_assets.unit_circle.clone()),
@@ -441,7 +450,9 @@ pub fn check_grease_ignition(
                 .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                 .with_scale(Vec3::splat(0.01 * zone.radius)),
                 GreaseFireOverlay { zone_entity },
-                NetworkedSpellEffect { kind: SpellEffectKind::GreaseFire },
+                NetworkedSpellEffect {
+                    kind: SpellEffectKind::GreaseFire,
+                },
                 OnGameplayScreen,
             ));
 
@@ -668,7 +679,10 @@ pub(crate) fn spawn_grease_zone(
         obstacle_type: ObstacleType::SlowTerrain(3.0),
     });
 
-    let base_mat = materials.get(&assets.grease_zone).cloned().unwrap_or_default();
+    let base_mat = materials
+        .get(&assets.grease_zone)
+        .cloned()
+        .unwrap_or_default();
     let instance_material = materials.add(base_mat);
 
     commands.spawn((
@@ -693,7 +707,9 @@ pub(crate) fn spawn_grease_zone(
             constants::IGNITE_BURN_TICK,
             empowerment,
         ),
-        NetworkedSpellEffect { kind: SpellEffectKind::GreaseZone },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::GreaseZone,
+        },
         OnGameplayScreen,
     ));
 }

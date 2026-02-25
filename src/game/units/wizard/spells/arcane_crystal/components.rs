@@ -160,4 +160,3 @@ pub(crate) struct CrystalSpawn {
     /// Maximum distance from origin before despawning.
     pub max_range: f32,
 }
-

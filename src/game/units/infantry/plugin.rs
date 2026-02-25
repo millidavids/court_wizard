@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions::any_exist;
-use crate::game::units::MovementCalculationSet;
 use crate::game::run_conditions::is_gameplay_running;
+use crate::game::units::MovementCalculationSet;
 
 use super::components::{DefendersActivated, Infantry};
 use super::resources;

@@ -1,16 +1,18 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::{HealingPlumeIndicator, HealingPlumeZone};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, Health};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Local wizard healing plume casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -46,12 +48,17 @@ pub fn handle_healing_plume_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::HealingPlume { return; }
+    if primed_spell.spell != Spell::HealingPlume {
+        return;
+    }
 
-    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
+    let clamped_cursor =
+        clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -68,9 +75,7 @@ pub fn handle_healing_plume_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
-            {
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
                 if let Some(pos) = clamped_cursor {
                     let circle_entity = spawn_circle_indicator(
                         &mut commands,
@@ -104,13 +109,8 @@ pub fn handle_healing_plume_casting(
         }
     }
 
-    let completed = healing_plume_casting_logic(
-        &input,
-        &time,
-        &mut casting_state,
-        &mut mana,
-        primed_spell,
-    );
+    let completed =
+        healing_plume_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
         // Spawn healing zone using indicator position
@@ -295,7 +295,10 @@ pub(crate) fn spawn_healing_plume_zone(
     let duration = constants::ZONE_DURATION * empowerment;
     let heal = constants::HEAL_PER_TICK * empowerment;
 
-    let base_mat = materials.get(&assets.healing_plume_zone).cloned().unwrap_or_default();
+    let base_mat = materials
+        .get(&assets.healing_plume_zone)
+        .cloned()
+        .unwrap_or_default();
     let instance_material = materials.add(base_mat);
 
     commands.spawn((
@@ -315,7 +318,9 @@ pub(crate) fn spawn_healing_plume_zone(
             constants::TICK_INTERVAL,
             duration,
         ),
-        NetworkedSpellEffect { kind: SpellEffectKind::HealingPlumeZone },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::HealingPlumeZone,
+        },
         OnGameplayScreen,
     ));
 }

@@ -1,0 +1,44 @@
+use bevy::prelude::*;
+
+use crate::game::constants::{ATTACKER_BASE, DEFENDER_BASE, TINT_BLUE, tint};
+
+// ===== Visual =====
+pub const DEFENDER_DISPELLER_COLOR: Color = tint(DEFENDER_BASE, TINT_BLUE, 0.5);
+pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.5);
+pub const DISPELLER_RADIUS: f32 = 8.0;
+
+// ===== Movement =====
+pub const DISPELLER_MOVEMENT_SPEED: f32 = 120.0;
+
+// ===== Health =====
+pub const DISPELLER_HEALTH: f32 = 40.0;
+
+// ===== Dispel =====
+pub const DISPEL_CHANNEL_TIME: f32 = 3.0;
+pub const DISPEL_RANGE: f32 = 80.0;
+pub const DISPEL_INTERRUPT_RANGE: f32 = 120.0;
+
+// ===== Ranged Attack =====
+pub const BOLT_DAMAGE: f32 = 5.0;
+pub const BOLT_SPEED: f32 = 400.0;
+pub const BOLT_RADIUS: f32 = 4.0;
+pub const BOLT_LIFETIME: f32 = 3.0;
+pub const BOLT_COLOR: Color = Color::srgb(0.3, 0.5, 1.0);
+pub const ATTACK_RANGE: f32 = 500.0;
+pub const ATTACK_COOLDOWN: f32 = 2.0;
+
+// ===== Spawn =====
+pub const INITIAL_DISPELLER_DEFENDER_COUNT: u32 = 5;
+
+/// Level at which attacker dispellers start appearing.
+pub const ATTACKER_DISPELLER_START_LEVEL: u32 = 6;
+
+/// Calculates the number of attacker dispellers for a given level.
+/// Returns 0 below level 6, then scales slowly (1 at level 6, +1 per 2 levels).
+pub const fn calculate_attacker_dispellers(level: u32) -> u32 {
+    if level < ATTACKER_DISPELLER_START_LEVEL {
+        0
+    } else {
+        1 + (level - ATTACKER_DISPELLER_START_LEVEL) / 2
+    }
+}

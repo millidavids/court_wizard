@@ -287,18 +287,15 @@ pub fn setup(
                 });
 
                 // Back button (visible on initial screen, hidden during connection)
-                left.spawn((
-                    BackButton,
-                    Node::default(),
-                ))
-                .with_children(|wrapper| {
-                    spawn_button(
-                        wrapper,
-                        "Back",
-                        MultiplayerButtonAction::Back,
-                        &CONN_BUTTON_STYLE,
-                    );
-                });
+                left.spawn((BackButton, Node::default()))
+                    .with_children(|wrapper| {
+                        spawn_button(
+                            wrapper,
+                            "Back",
+                            MultiplayerButtonAction::Back,
+                            &CONN_BUTTON_STYLE,
+                        );
+                    });
             });
 
             // ── Right column: info ──
@@ -344,9 +341,7 @@ pub fn setup(
 
                 // Time limit hint
                 right.spawn((
-                    Text::new(
-                        "Codes expire ~60 seconds after both are pasted — exchange quickly!",
-                    ),
+                    Text::new("Codes expire ~60 seconds after both are pasted — exchange quickly!"),
                     TextFont::from_font_size(13.0),
                     TextColor(Color::hsla(0.0, 0.0, 0.45, 1.0)),
                 ));
@@ -657,8 +652,7 @@ pub fn button_action(
                         crate::networking::clipboard::copy_to_clipboard(code);
                     }
                 }
-                MultiplayerButtonAction::PasteResponse =>
-                {
+                MultiplayerButtonAction::PasteResponse => {
                     #[cfg(target_arch = "wasm32")]
                     if let Some(code) =
                         crate::networking::clipboard::prompt_for_text("Paste the response code:")
@@ -726,13 +720,12 @@ pub fn button_action(
                 MultiplayerButtonAction::LanEditIp => {
                     #[cfg(target_arch = "wasm32")]
                     {
-                        let current = if let LobbyPhase::LanIpEntry { current_ip, .. } =
-                            &*lobby_phase
-                        {
-                            current_ip.clone()
-                        } else {
-                            None
-                        };
+                        let current =
+                            if let LobbyPhase::LanIpEntry { current_ip, .. } = &*lobby_phase {
+                                current_ip.clone()
+                            } else {
+                                None
+                            };
                         let prompt_msg = if let Some(ip) = &current {
                             format!("Enter your local IP address (current: {}):", ip)
                         } else {
@@ -741,8 +734,7 @@ pub fn button_action(
                         if let Some(new_ip) =
                             crate::networking::clipboard::prompt_for_text(&prompt_msg)
                         {
-                            if let LobbyPhase::LanIpEntry { current_ip, .. } =
-                                lobby_phase.as_mut()
+                            if let LobbyPhase::LanIpEntry { current_ip, .. } = lobby_phase.as_mut()
                             {
                                 *current_ip = Some(new_ip);
                             }
@@ -774,8 +766,7 @@ pub fn button_action(
                                         {
                                             connection.role = Some(PeerRole::Guest);
                                             connection.mode = ConnectionMode::Lan;
-                                            connection.state =
-                                                ConnectionState::WaitingForSignaling;
+                                            connection.state = ConnectionState::WaitingForSignaling;
                                             crate::networking::webrtc::create_guest_answer(
                                                 &code,
                                                 Some(ip),
@@ -837,9 +828,7 @@ pub fn button_action(
                                         )
                                     {
                                         connection.state = ConnectionState::WaitingForSignaling;
-                                        crate::networking::webrtc::create_guest_answer(
-                                            &code, None,
-                                        );
+                                        crate::networking::webrtc::create_guest_answer(&code, None);
                                     } else {
                                         connection.state = ConnectionState::Disconnected;
                                         connection.role = None;
@@ -1471,8 +1460,7 @@ pub fn update_ui_state(
     }
 
     // Toggle connection-phase button groups
-    let show_initial =
-        connection.state == ConnectionState::Disconnected && !in_lan_ip_entry;
+    let show_initial = connection.state == ConnectionState::Disconnected && !in_lan_ip_entry;
     let show_signaling =
         connection.state == ConnectionState::WaitingForSignaling && !in_lan_ip_entry;
     let show_active = matches!(

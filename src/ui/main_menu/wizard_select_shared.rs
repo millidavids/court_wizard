@@ -189,10 +189,7 @@ pub(super) fn spawn_wizard_card(
 }
 
 /// Spawns a locked wizard card showing flavor text, not interactive.
-pub(super) fn spawn_locked_wizard_card(
-    parent: &mut ChildSpawnerCommands,
-    wizard_type: WizardType,
-) {
+pub(super) fn spawn_locked_wizard_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType) {
     parent
         .spawn((
             Node {
@@ -251,11 +248,7 @@ pub(super) fn spawn_locked_card(parent: &mut ChildSpawnerCommands) {
 }
 
 /// Spawns the title group (heading + subtitle + separator line).
-pub(super) fn spawn_title_group(
-    parent: &mut ChildSpawnerCommands,
-    title: &str,
-    subtitle: &str,
-) {
+pub(super) fn spawn_title_group(parent: &mut ChildSpawnerCommands, title: &str, subtitle: &str) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Column,
@@ -310,10 +303,7 @@ pub(super) fn spawn_detail_panel_container(
 }
 
 /// Spawns the top section of the detail panel (wizard name + long description).
-pub(super) fn spawn_detail_panel_top(
-    parent: &mut ChildSpawnerCommands,
-    wizard_type: WizardType,
-) {
+pub(super) fn spawn_detail_panel_top(parent: &mut ChildSpawnerCommands, wizard_type: WizardType) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Column,

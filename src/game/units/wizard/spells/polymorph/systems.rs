@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
+};
 use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -16,7 +18,13 @@ pub fn handle_polymorph_casting(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        (
+            Entity,
+            &Transform,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -40,10 +48,14 @@ pub fn handle_polymorph_casting(
         cursor_pos,
     };
 
-    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Polymorph { return; }
+    if primed_spell.spell != Spell::Polymorph {
+        return;
+    }
 
     let completed = polymorph_casting_logic(
         &input,

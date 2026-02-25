@@ -5,11 +5,10 @@ use super::components::{
     BattleHymnModifier, BerserkerRageModifier, Corpse, Effectiveness, ElectricCharge, FireDoT,
     FlockingVelocity, FogEvasionModifier, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
     Health, InMelee, MarkedForDeathModifier, MesmerizedModifier, OriginalMaterial,
-    PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    RootedModifier, SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team,
-    TemporaryHitPoints, apply_damage_to_unit,
+    PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
+    SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
-use super::king::components::SpellShield;
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
     ELECTRIC_ARC_RANGE, ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
@@ -18,6 +17,7 @@ use super::constants::{
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
 };
 use super::damage::DamageType;
+use super::king::components::SpellShield;
 use crate::game::components::{Acceleration, OnGameplayScreen, Velocity};
 use crate::game::constants::{
     GLOBAL_SPEED_MULTIPLIER, MELEE_SLOWDOWN_DISTANCE, MELEE_SLOWDOWN_FACTOR, STEERING_FORCE,
@@ -646,7 +646,18 @@ pub fn update_persistent_effect_visuals(
 ) {
     let elapsed = time.elapsed_secs();
 
-    for (entity, material_handle, fire, frost, electric, remote_fire, remote_frost, remote_electric, original_mat) in &query {
+    for (
+        entity,
+        material_handle,
+        fire,
+        frost,
+        electric,
+        remote_fire,
+        remote_frost,
+        remote_electric,
+        original_mat,
+    ) in &query
+    {
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;

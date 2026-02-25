@@ -28,6 +28,13 @@ pub enum SpawnTask {
     KingsGuard {
         guard_index: u32,
     },
+    DefenderDispeller {
+        unit_index: u32,
+    },
+    AttackerDispeller {
+        unit_index: u32,
+        level: u32,
+    },
     Behemoth,
     Boss,
     Battlefield,

@@ -10,8 +10,8 @@ mod state;
 mod ui;
 
 use config::{ConfigPlugin, GameConfig};
-use game::multiplayer::MultiplayerGamePlugin;
 use game::GamePlugin;
+use game::multiplayer::MultiplayerGamePlugin;
 use music::MusicPlugin;
 use networking::NetworkingPlugin;
 use state::StatePlugin;
@@ -44,7 +44,15 @@ fn main() {
                 ..default()
             }),
     )
-    .add_plugins((ConfigPlugin, StatePlugin, NetworkingPlugin, MusicPlugin, UiPlugin, GamePlugin, MultiplayerGamePlugin))
+    .add_plugins((
+        ConfigPlugin,
+        StatePlugin,
+        NetworkingPlugin,
+        MusicPlugin,
+        UiPlugin,
+        GamePlugin,
+        MultiplayerGamePlugin,
+    ))
     .insert_resource(ClearColor(Color::srgb(0.2, 0.2, 0.2)));
 
     app.add_systems(Startup, setup)

@@ -1,21 +1,23 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+};
 use super::components::{WallOfFireCaster, WallOfFireEffect, WallOfFirePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, ResidualFireDamaged, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
@@ -118,9 +120,9 @@ pub fn handle_wall_of_fire_casting(
         return;
     };
 
-    let clamped_pos = input.cursor_pos.map(|pos| {
-        clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range)
-    });
+    let clamped_pos = input
+        .cursor_pos
+        .map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
 
     let cast_result = wall_of_fire_casting_logic(
         &input,
@@ -136,22 +138,23 @@ pub fn handle_wall_of_fire_casting(
     if caster.anchor.is_some() && caster.preview_entity.is_none() {
         if let Some(pos) = clamped_pos {
             let preview_height = 10.0;
-            let preview_entity = commands
-                .spawn((
-                    Mesh3d(visual_assets.unit_cuboid.clone()),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: PREVIEW_COLOR,
-                        alpha_mode: AlphaMode::Blend,
-                        unlit: true,
-                        cull_mode: None,
-                        ..default()
-                    })),
-                    Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
-                        .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
-                    WallOfFirePreview,
-                    OnGameplayScreen,
-                ))
-                .id();
+            let preview_entity =
+                commands
+                    .spawn((
+                        Mesh3d(visual_assets.unit_cuboid.clone()),
+                        MeshMaterial3d(materials.add(StandardMaterial {
+                            base_color: PREVIEW_COLOR,
+                            alpha_mode: AlphaMode::Blend,
+                            unlit: true,
+                            cull_mode: None,
+                            ..default()
+                        })),
+                        Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
+                            .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
+                        WallOfFirePreview,
+                        OnGameplayScreen,
+                    ))
+                    .id();
 
             caster.preview_entity = Some(preview_entity);
         }
@@ -173,8 +176,7 @@ pub fn handle_wall_of_fire_casting(
                 let rotation = Quat::from_rotation_arc(Vec3::X, forward);
                 let preview_height = 10.0;
 
-                preview_transform.translation =
-                    Vec3::new(center.x, preview_height / 2.0, center.z);
+                preview_transform.translation = Vec3::new(center.x, preview_height / 2.0, center.z);
                 preview_transform.rotation = rotation;
                 preview_transform.scale = Vec3::new(length, preview_height, WALL_WIDTH);
             }
@@ -185,7 +187,10 @@ pub fn handle_wall_of_fire_casting(
     if let Some(ref info) = cast_result.wall_placed {
         if let Some(preview_entity) = caster.preview_entity {
             // Clone wall_of_fire material for per-instance fading animation
-            let base = materials.get(&visual_assets.wall_of_fire).cloned().unwrap_or_default();
+            let base = materials
+                .get(&visual_assets.wall_of_fire)
+                .cloned()
+                .unwrap_or_default();
             commands
                 .entity(preview_entity)
                 .remove::<WallOfFirePreview>()
@@ -200,7 +205,9 @@ pub fn handle_wall_of_fire_casting(
                         TICK_INTERVAL,
                         info.fire_duration,
                     ),
-                    NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire },
+                    NetworkedSpellEffect {
+                        kind: SpellEffectKind::WallOfFire,
+                    },
                 ));
         }
         caster.preview_entity = None;

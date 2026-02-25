@@ -14,16 +14,18 @@ use crate::game::constants::*;
 use crate::game::loading::resources::LoadingProgress;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
-use crate::game::units::archer::constants::{ARCHER_MAX_RANGE, ARCHER_MIN_RANGE, ARCHER_MOVEMENT_SPEED};
+use crate::game::units::archer::constants::{
+    ARCHER_MAX_RANGE, ARCHER_MIN_RANGE, ARCHER_MOVEMENT_SPEED,
+};
 use crate::game::units::archer::styles::ARCHER_RADIUS;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{
     AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, MovementSpeed,
     TargetingVelocity, Team, Teleportable,
 };
+use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::UNIT_RADIUS;
-use crate::game::units::infantry::Infantry;
 use crate::game::units::king::components::KingSpawned;
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::components::*;
@@ -134,7 +136,9 @@ pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>)
 
         // Host-side army (near Castle 1)
         for i in 0..MP_INFANTRY_COUNT {
-            queue.tasks.push(MpSpawnTask::HostInfantry { unit_index: i });
+            queue
+                .tasks
+                .push(MpSpawnTask::HostInfantry { unit_index: i });
         }
         for i in 0..MP_ARCHER_COUNT {
             queue.tasks.push(MpSpawnTask::HostArcher { unit_index: i });
@@ -142,7 +146,9 @@ pub fn init_mp_loading(mut commands: Commands, session: Res<MultiplayerSession>)
 
         // Guest-side army (near Castle 2)
         for i in 0..MP_INFANTRY_COUNT {
-            queue.tasks.push(MpSpawnTask::GuestInfantry { unit_index: i });
+            queue
+                .tasks
+                .push(MpSpawnTask::GuestInfantry { unit_index: i });
         }
         for i in 0..MP_ARCHER_COUNT {
             queue.tasks.push(MpSpawnTask::GuestArcher { unit_index: i });
@@ -327,7 +333,9 @@ pub fn process_mp_spawn_queue(
     // When queue is done and minimum frames reached, signal loaded
     if spawn_queue.is_complete() && loading_progress.is_complete() && !loading_sync.my_loaded {
         loading_sync.my_loaded = true;
-        connection.outgoing_messages.push(NetworkMessage::GameLoaded);
+        connection
+            .outgoing_messages
+            .push(NetworkMessage::GameLoaded);
     }
 
     // Check for peer's GameLoaded message
@@ -465,7 +473,10 @@ fn spawn_mp_wizard(
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
 
     // Create a quad mesh matching the sprite aspect ratio
-    let quad_mesh = Rectangle::new(constants::WIZARD_SPRITE_WIDTH, constants::WIZARD_SPRITE_HEIGHT);
+    let quad_mesh = Rectangle::new(
+        constants::WIZARD_SPRITE_WIDTH,
+        constants::WIZARD_SPRITE_HEIGHT,
+    );
 
     // UV transform for first frame: scale to 1/3 to show only one cell
     let grid_size = constants::WIZARD_SPRITE_GRID_SIZE as f32;
@@ -510,9 +521,7 @@ fn spawn_mp_wizard(
     // Add wizard role markers
     // LocalWizard: the wizard this player controls (host's own or guest's own)
     // GuestWizard: the guest's wizard as seen by the host (for spell command processing)
-    if (is_host_wizard && role == PeerRole::Host)
-        || (!is_host_wizard && role == PeerRole::Guest)
-    {
+    if (is_host_wizard && role == PeerRole::Host) || (!is_host_wizard && role == PeerRole::Guest) {
         entity_commands.insert(LocalWizard);
     }
     if !is_host_wizard && role == PeerRole::Host {

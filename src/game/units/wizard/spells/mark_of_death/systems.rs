@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
+};
 use super::components::ActiveMarkOfDeath;
 use super::constants;
 use crate::game::input::MouseButtonState;
@@ -16,7 +18,13 @@ pub fn handle_mark_of_death_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        (
+            Entity,
+            &Transform,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -33,10 +41,14 @@ pub fn handle_mark_of_death_casting(
         cursor_pos,
     };
 
-    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::MarkOfDeath { return; }
+    if primed_spell.spell != Spell::MarkOfDeath {
+        return;
+    }
 
     let completed = mark_of_death_casting_logic(
         &input,

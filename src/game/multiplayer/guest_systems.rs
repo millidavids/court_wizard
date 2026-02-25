@@ -14,7 +14,12 @@ use crate::game::components::Billboard;
 use crate::game::resources::GameOutcome;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::OriginalMaterial;
+use crate::game::units::components::{
+    Corpse, ElectricCharge, FireDoT, FrostSlowModifier, Health, RemoteElectricEffect,
+    RemoteFireEffect, RemoteFrostEffect,
+};
 use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::king::components::{SpellShield, SpellShieldVisual};
 use crate::game::units::king::resources::KingAssets;
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::entangle::components::EntangleGroundEffect;
@@ -30,24 +35,17 @@ use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZon
 use crate::game::units::wizard::spells::squall::components::IceExplosion;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-use crate::game::units::components::{
-    Corpse, ElectricCharge, FireDoT, FrostSlowModifier, Health, RemoteElectricEffect,
-    RemoteFireEffect, RemoteFrostEffect,
-};
-use crate::game::units::king::components::{SpellShield, SpellShieldVisual};
 use crate::networking::crdt::CrdtHealth;
 use crate::networking::entity_map::{NetworkEntityId, NetworkEntityMap};
 use crate::networking::protocol::{GameOverResult, NetworkMessage};
 use crate::networking::resources::NetworkConnection;
 use crate::networking::snapshot::{
-    CrdtSnapshot, CrdtUnitUpdate, GameSnapshot, SpellEffectKind, SpellEffectSnapshot, UnitFlags,
-    UNRELIABLE_CRDT_SNAPSHOT, UNRELIABLE_GAME_SNAPSHOT, u8_to_team,
+    CrdtSnapshot, CrdtUnitUpdate, GameSnapshot, SpellEffectKind, SpellEffectSnapshot,
+    UNRELIABLE_CRDT_SNAPSHOT, UNRELIABLE_GAME_SNAPSHOT, UnitFlags, u8_to_team,
 };
 use crate::state::MultiplayerGameState;
 
-use super::components::{
-    GhostArrow, GhostEntity, OnMultiplayerGameScreen,
-};
+use super::components::{GhostArrow, GhostEntity, OnMultiplayerGameScreen};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Receives the latest unit state snapshot from the host and creates/updates/despawns
@@ -165,8 +163,19 @@ pub fn apply_state_snapshot(
         let remote_spell_shield = unit.flags & UnitFlags::SPELL_SHIELD != 0;
 
         if let Some(&local_entity) = entity_map.remote_to_local.get(&unit.id) {
-            if let Ok((entity, mut transform, material_ref, mut crdt_health, mut health, original_mat, has_remote_fire, has_remote_frost, has_remote_electric, has_spell_shield, has_corpse)) =
-                ghost_query.get_mut(local_entity)
+            if let Ok((
+                entity,
+                mut transform,
+                material_ref,
+                mut crdt_health,
+                mut health,
+                original_mat,
+                has_remote_fire,
+                has_remote_frost,
+                has_remote_electric,
+                has_spell_shield,
+                has_corpse,
+            )) = ghost_query.get_mut(local_entity)
             {
                 transform.translation = pos;
 
@@ -213,7 +222,9 @@ pub fn apply_state_snapshot(
                 if remote_spell_shield && !has_spell_shield {
                     commands.entity(entity).insert(SpellShield);
                     // Spawn translucent sphere visual as child
-                    use crate::game::units::king::constants::{SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS};
+                    use crate::game::units::king::constants::{
+                        SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS,
+                    };
                     let shield_visual = commands
                         .spawn((
                             Mesh3d(meshes.add(Sphere::new(SPELL_SHIELD_RADIUS))),
@@ -266,7 +277,9 @@ pub fn apply_state_snapshot(
 
             // Attach spell shield to newly spawned ghost King if host reports it
             if remote_spell_shield {
-                use crate::game::units::king::constants::{SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS};
+                use crate::game::units::king::constants::{
+                    SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS,
+                };
                 commands.entity(entity).insert(SpellShield);
                 let shield_visual = commands
                     .spawn((
@@ -451,91 +464,130 @@ pub(super) fn spawn_spell_effect(
 
     match kind {
         // ── Zones (flat circles, real components, unique materials for fading) ──
-
         SpellEffectKind::SpikeGrowthZone => {
             let radius = extra[0];
             let duration = extra[1];
             let material = materials.add(materials.get(&assets.spike_growth_zone)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(radius)),
-                SpikeGrowthZone::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    radius, 0.0, 1.0, 0.0, 0.0, duration,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(radius)),
+                        SpikeGrowthZone::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            radius,
+                            0.0,
+                            1.0,
+                            0.0,
+                            0.0,
+                            duration,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::HealingPlumeZone => {
             let radius = extra[0];
             let duration = extra[1];
             let material = materials.add(materials.get(&assets.healing_plume_zone)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(radius)),
-                HealingPlumeZone::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    radius, 0.0, 1.0, duration,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(radius)),
+                        HealingPlumeZone::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            radius,
+                            0.0,
+                            1.0,
+                            duration,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::EntangleGround => {
             let duration = extra[1];
             let material = materials.add(materials.get(&assets.entangle_zone)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(120.0)), // CIRCLE_RADIUS from entangle constants
-                EntangleGroundEffect::new(duration),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(120.0)), // CIRCLE_RADIUS from entangle constants
+                        EntangleGroundEffect::new(duration),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::FogCloudZone => {
             let radius = extra[0];
             let duration = extra[1];
             let material = materials.add(materials.get(&assets.fog_cloud_zone)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(radius)),
-                FogCloudZone::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    radius, 0.0, 0.0, 1.0, duration,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(radius)),
+                        FogCloudZone::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            radius,
+                            0.0,
+                            0.0,
+                            1.0,
+                            duration,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::GreaseZone => {
             let radius = extra[0];
             let duration = extra[1];
             let material = materials.add(materials.get(&assets.grease_zone)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(radius)),
-                GreaseZone::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    radius, 0.0, 0.0, 1.0, duration, 0.0, 0.0, 0.0, 1.0,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(radius)),
+                        GreaseZone::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            radius,
+                            0.0,
+                            0.0,
+                            1.0,
+                            duration,
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::GreaseFire => {
@@ -543,14 +595,18 @@ pub(super) fn spawn_spell_effect(
             // Scale is updated every frame from the snapshot (fire spread animation).
             let scale = extra[0].max(0.01);
             let material = materials.add(materials.get(&assets.grease_fire)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.1, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(scale)),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.1, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(scale)),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::PlagueWindCloud => {
@@ -560,52 +616,70 @@ pub(super) fn spawn_spell_effect(
             let direction_angle = extra[3];
             let direction = Vec3::new(direction_angle.sin(), 0.0, direction_angle.cos());
             let material = materials.add(materials.get(&assets.plague_wind_zone)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(radius)),
-                PlagueWindCloud::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    radius, 0.0, 1.0, duration, speed, direction,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(radius)),
+                        PlagueWindCloud::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            radius,
+                            0.0,
+                            1.0,
+                            duration,
+                            speed,
+                            direction,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::MeteorGroundFire => {
             let radius = extra[0];
             let duration = extra[1];
             let material = materials.add(materials.get(&assets.meteor_ground_fire)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(radius)),
-                MeteorGroundFire::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    radius, 0.0, 1.0, duration,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(radius)),
+                        MeteorGroundFire::new(
+                            Vec3::new(pos.x, 0.0, pos.z),
+                            radius,
+                            0.0,
+                            1.0,
+                            duration,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         // ── Objects (3D meshes, shared materials) ──
-
         SpellEffectKind::BlackHole => {
             let max_radius = extra[0];
             let empowerment = extra[1];
             // Unit sphere scaled by max_radius * growth_factor in update_black_hole_visuals
-            Some(commands.spawn((
-                Mesh3d(assets.unit_sphere.clone()),
-                MeshMaterial3d(assets.black_hole.clone()),
-                Transform::from_translation(pos)
-                    .with_scale(Vec3::ZERO), // Grows from 0 via update_black_hole_visuals
-                BlackHole::new(pos, max_radius, empowerment),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_sphere.clone()),
+                        MeshMaterial3d(assets.black_hole.clone()),
+                        Transform::from_translation(pos).with_scale(Vec3::ZERO), // Grows from 0 via update_black_hole_visuals
+                        BlackHole::new(pos, max_radius, empowerment),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::ArcaneCrystal => {
@@ -634,7 +708,7 @@ pub(super) fn spawn_spell_effect(
             // Lightning rod uses a cylinder mesh; create one at spawn.
             // This is a small allocation but rods are rare (1-2 at most).
             let tower_height = 60.0; // TOWER_HEIGHT
-            let tower_radius = 8.0;  // TOWER_RADIUS
+            let tower_radius = 8.0; // TOWER_RADIUS
             Some(commands.spawn((
                 Mesh3d(assets.unit_cuboid.clone()),
                 MeshMaterial3d(assets.lightning_rod.clone()),
@@ -649,7 +723,6 @@ pub(super) fn spawn_spell_effect(
         }
 
         // ── Walls ──
-
         SpellEffectKind::WallOfStone => {
             let half_length = extra[0];
             let half_width = extra[1];
@@ -659,26 +732,30 @@ pub(super) fn spawn_spell_effect(
             // Reconstruct forward/right from rotation
             let forward = rotation * Vec3::X;
             let right = Vec3::new(-forward.z, 0.0, forward.x);
-            Some(commands.spawn((
-                Mesh3d(assets.unit_cuboid.clone()),
-                MeshMaterial3d(assets.wall_of_stone.clone()),
-                Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z))
-                    .with_rotation(rotation)
-                    .with_scale(Vec3::new(half_length * 2.0, height, half_width * 2.0)),
-                WallOfStone {
-                    center: Vec3::new(pos.x, 0.0, pos.z),
-                    half_length,
-                    half_width,
-                    forward,
-                    right,
-                    height,
-                    time_alive: 0.0,
-                    duration,
-                    sinking: false,
-                    empowerment: 1.0,
-                },
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_cuboid.clone()),
+                        MeshMaterial3d(assets.wall_of_stone.clone()),
+                        Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z))
+                            .with_rotation(rotation)
+                            .with_scale(Vec3::new(half_length * 2.0, height, half_width * 2.0)),
+                        WallOfStone {
+                            center: Vec3::new(pos.x, 0.0, pos.z),
+                            half_length,
+                            half_width,
+                            forward,
+                            right,
+                            height,
+                            time_alive: 0.0,
+                            duration,
+                            sinking: false,
+                            empowerment: 1.0,
+                        },
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::WallOfFire => {
@@ -690,66 +767,86 @@ pub(super) fn spawn_spell_effect(
             // Host mesh is Cuboid(1.0, 10.0, 60.0) with scale.x = length.
             // Guest uses unit cuboid with scale matching host visual dimensions.
             let wall_height = 10.0;
-            Some(commands.spawn((
-                Mesh3d(assets.unit_cuboid.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, wall_height / 2.0, pos.z))
-                    .with_rotation(rotation)
-                    .with_scale(Vec3::new(wall_length, wall_height, 60.0)),
-                WallOfFireEffect::new(
-                    Vec3::ZERO, Vec3::ZERO,
-                    half_width,
-                    0.0, crate::game::units::DamageType::Fire, 1.0, duration,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_cuboid.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, wall_height / 2.0, pos.z))
+                            .with_rotation(rotation)
+                            .with_scale(Vec3::new(wall_length, wall_height, 60.0)),
+                        WallOfFireEffect::new(
+                            Vec3::ZERO,
+                            Vec3::ZERO,
+                            half_width,
+                            0.0,
+                            crate::game::units::DamageType::Fire,
+                            1.0,
+                            duration,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         // ── Explosions (unit meshes, scale-driven animation) ──
-
         SpellEffectKind::FireballExplosion => {
             let max_radius = extra[0];
             let empowerment = extra[1];
-            Some(commands.spawn((
-                Mesh3d(assets.unit_sphere.clone()),
-                MeshMaterial3d(assets.fireball_explosion.clone()),
-                Transform::from_translation(pos)
-                    .with_scale(Vec3::splat(0.1)),
-                FireballExplosion::new(
-                    pos, max_radius, 0.0,
-                    crate::game::units::DamageType::Fire,
-                    empowerment,
-                ),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_sphere.clone()),
+                        MeshMaterial3d(assets.fireball_explosion.clone()),
+                        Transform::from_translation(pos).with_scale(Vec3::splat(0.1)),
+                        FireballExplosion::new(
+                            pos,
+                            max_radius,
+                            0.0,
+                            crate::game::units::DamageType::Fire,
+                            empowerment,
+                        ),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::MeteorExplosion => {
             let max_radius = extra[0];
             let material = materials.add(materials.get(&assets.meteor_explosion)?.clone());
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(0.1)),
-                MeteorExplosion::new(pos, max_radius, 0.0),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(material),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(0.1)),
+                        MeteorExplosion::new(pos, max_radius, 0.0),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
 
         SpellEffectKind::IceExplosion => {
             let max_radius = extra[0];
             let empowerment = extra[1];
-            Some(commands.spawn((
-                Mesh3d(assets.unit_circle.clone()),
-                MeshMaterial3d(assets.ice_explosion.clone()),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(flat_rotation)
-                    .with_scale(Vec3::splat(0.1)),
-                IceExplosion::new(pos, max_radius, 0.0, empowerment),
-                OnMultiplayerGameScreen,
-            )).id())
+            Some(
+                commands
+                    .spawn((
+                        Mesh3d(assets.unit_circle.clone()),
+                        MeshMaterial3d(assets.ice_explosion.clone()),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                            .with_rotation(flat_rotation)
+                            .with_scale(Vec3::splat(0.1)),
+                        IceExplosion::new(pos, max_radius, 0.0, empowerment),
+                        OnMultiplayerGameScreen,
+                    ))
+                    .id(),
+            )
         }
     }
 }

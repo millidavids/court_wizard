@@ -25,7 +25,14 @@ pub fn handle_magic_missile_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut Mana, &PrimedSpell, &Wizard, Option<&MagicMissileCooldown>),
+        (
+            Entity,
+            &Transform,
+            &mut Mana,
+            &PrimedSpell,
+            &Wizard,
+            Option<&MagicMissileCooldown>,
+        ),
         With<LocalWizard>,
     >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -42,10 +49,14 @@ pub fn handle_magic_missile_casting(
 
     let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
 
-    let Ok((wizard_entity, wizard_transform, mut mana, primed_spell, wizard, cooldown)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, mut mana, primed_spell, wizard, cooldown)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::MagicMissile { return; }
+    if primed_spell.spell != Spell::MagicMissile {
+        return;
+    }
 
     // Check cooldown
     if cooldown.is_some_and(|cd| cd.remaining > 0.0) {
@@ -270,21 +281,23 @@ pub(crate) fn spawn_magic_missile_entity(
     spell_range: f32,
     origin_pos: Vec3,
 ) -> Entity {
-    commands.spawn((
-        Mesh3d(mesh),
-        MeshMaterial3d(material),
-        Transform::from_translation(spawn_pos),
-        MagicMissile::new(
-            initial_velocity,
-            wobble_offset,
-            target,
-            empowerment,
-            target_teams,
-            spell_range,
-            origin_pos,
-        ),
-        OnGameplayScreen,
-    )).id()
+    commands
+        .spawn((
+            Mesh3d(mesh),
+            MeshMaterial3d(material),
+            Transform::from_translation(spawn_pos),
+            MagicMissile::new(
+                initial_velocity,
+                wobble_offset,
+                target,
+                empowerment,
+                target_teams,
+                spell_range,
+                origin_pos,
+            ),
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// Updates magic missile movement with homing and wobble.

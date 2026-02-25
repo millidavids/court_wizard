@@ -7,8 +7,8 @@ use super::resources;
 use super::systems::*;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 
-use crate::game::units::MovementCalculationSet;
 use crate::game::run_conditions::is_gameplay_running;
+use crate::game::units::MovementCalculationSet;
 
 pub struct BehemothPlugin;
 

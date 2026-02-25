@@ -32,7 +32,10 @@ pub fn setup_wizard(
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
 
     // Create a quad mesh matching the sprite aspect ratio
-    let quad_mesh = Rectangle::new(constants::WIZARD_SPRITE_WIDTH, constants::WIZARD_SPRITE_HEIGHT);
+    let quad_mesh = Rectangle::new(
+        constants::WIZARD_SPRITE_WIDTH,
+        constants::WIZARD_SPRITE_HEIGHT,
+    );
 
     // UV transform for first frame: scale to 1/3 to show only one cell
     let grid_size = constants::WIZARD_SPRITE_GRID_SIZE as f32;

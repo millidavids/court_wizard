@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use super::components::*;
 use super::wall_of_stone::components::WallOfStone;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
-use crate::game::units::king::components::SpellShield;
 use crate::game::units::infantry::components::Infantry;
+use crate::game::units::king::components::SpellShield;
 
 /// Updates all projectile positions based on their direction and speed.
 ///

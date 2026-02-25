@@ -39,9 +39,7 @@ pub(super) fn spawn_next_popup(
         && let Some(entry) = queue.pop()
     {
         match entry {
-            PopupEntry::Achievement(id) => {
-                spawn_achievement_popup(&mut commands, id)
-            }
+            PopupEntry::Achievement(id) => spawn_achievement_popup(&mut commands, id),
             PopupEntry::IngredientCollected(ingredient) => {
                 spawn_ingredient_popup(&mut commands, ingredient)
             }

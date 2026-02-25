@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+};
 use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -14,9 +16,18 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
     /// Update existing beam with new origin, direction, length.
-    UpdateBeam { origin: Vec3, direction: Vec3, length: f32 },
+    UpdateBeam {
+        origin: Vec3,
+        direction: Vec3,
+        length: f32,
+    },
     /// Spawn a new beam.
-    SpawnBeam { origin: Vec3, direction: Vec3, length: f32, empowerment: f32 },
+    SpawnBeam {
+        origin: Vec3,
+        direction: Vec3,
+        length: f32,
+        empowerment: f32,
+    },
     /// Despawn all beams for this wizard.
     DespawnAll,
     /// No beam action needed.
@@ -35,7 +46,13 @@ pub fn handle_disintegrate_casting(
     mut left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (&Transform, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        (
+            &Transform,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+            &Wizard,
+        ),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -52,10 +69,14 @@ pub fn handle_disintegrate_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Disintegrate { return; }
+    if primed_spell.spell != Spell::Disintegrate {
+        return;
+    }
 
     let has_existing_beam = beams.iter().next().is_some();
 
@@ -71,15 +92,31 @@ pub fn handle_disintegrate_casting(
     );
 
     match result.beam_action {
-        BeamAction::UpdateBeam { origin, direction, length } => {
+        BeamAction::UpdateBeam {
+            origin,
+            direction,
+            length,
+        } => {
             if let Some((_, mut beam)) = beams.iter_mut().next() {
                 beam.origin = origin;
                 beam.direction = direction;
                 beam.length = length;
             }
         }
-        BeamAction::SpawnBeam { origin, direction, length, empowerment } => {
-            spawn_beam(&mut commands, &visual_assets, origin, direction, length, empowerment);
+        BeamAction::SpawnBeam {
+            origin,
+            direction,
+            length,
+            empowerment,
+        } => {
+            spawn_beam(
+                &mut commands,
+                &visual_assets,
+                origin,
+                direction,
+                length,
+                empowerment,
+            );
         }
         BeamAction::DespawnAll => {
             for (entity, _) in beams.iter() {
@@ -268,7 +305,9 @@ pub fn apply_disintegrate_damage(
         let effective_length = beam.current_length() * max_t;
 
         if beam.should_damage() {
-            for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in target_query.iter_mut() {
+            for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
+                target_query.iter_mut()
+            {
                 let position = transform.translation;
                 // Check if unit's hitbox intersects beam AND is before the wall
                 if beam.contains_point_with_radius(position, hitbox.radius) {
@@ -321,13 +360,15 @@ pub(crate) fn spawn_beam(
 ) -> Entity {
     let midpoint = origin + direction * (length / 2.0);
 
-    commands.spawn((
-        DisintegrateBeam::new(origin, direction, length, empowerment),
-        Mesh3d(assets.unit_cylinder.clone()),
-        MeshMaterial3d(assets.disintegrate_beam.clone()),
-        Transform::from_translation(midpoint),
-        OnGameplayScreen,
-    )).id()
+    commands
+        .spawn((
+            DisintegrateBeam::new(origin, direction, length, empowerment),
+            Mesh3d(assets.unit_cylinder.clone()),
+            MeshMaterial3d(assets.disintegrate_beam.clone()),
+            Transform::from_translation(midpoint),
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// Spawns a beam entity with custom damage per tick (for crystal use).
@@ -346,13 +387,15 @@ pub(crate) fn spawn_beam_with_damage(
     let mut beam = DisintegrateBeam::new(origin, direction, length, empowerment);
     beam.damage_per_tick_override = Some(damage_per_tick);
 
-    commands.spawn((
-        beam,
-        Mesh3d(assets.unit_cylinder.clone()),
-        MeshMaterial3d(assets.disintegrate_beam.clone()),
-        Transform::from_translation(midpoint),
-        OnGameplayScreen,
-    )).id()
+    commands
+        .spawn((
+            beam,
+            Mesh3d(assets.unit_cylinder.clone()),
+            MeshMaterial3d(assets.disintegrate_beam.clone()),
+            Transform::from_translation(midpoint),
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// System that updates beam cylinder transform to match beam data.

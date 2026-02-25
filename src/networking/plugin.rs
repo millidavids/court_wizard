@@ -110,11 +110,9 @@ fn handle_incoming_messages(connection: ResMut<NetworkConnection>) {
     for msg in messages {
         match &msg {
             NetworkMessage::Ping { timestamp_ms } => {
-                connection
-                    .outgoing_messages
-                    .push(NetworkMessage::Pong {
-                        timestamp_ms: *timestamp_ms,
-                    });
+                connection.outgoing_messages.push(NetworkMessage::Pong {
+                    timestamp_ms: *timestamp_ms,
+                });
             }
             NetworkMessage::Pong { timestamp_ms } => {
                 let now = js_sys::Date::now();

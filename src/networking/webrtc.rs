@@ -91,11 +91,7 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
     ice_servers.push(&ice_server);
 
     let config = Object::new();
-    Reflect::set(
-        &config,
-        &JsValue::from_str("iceServers"),
-        &ice_servers,
-    )?;
+    Reflect::set(&config, &JsValue::from_str("iceServers"), &ice_servers)?;
 
     let rtc_config: web_sys::RtcConfiguration = config.unchecked_into();
     let pc = RtcPeerConnection::new_with_configuration(&rtc_config)?;
@@ -145,9 +141,7 @@ fn create_peer_connection() -> Result<RtcPeerConnection, JsValue> {
                 // so we must not hide the signaling UI prematurely.
                 WEBRTC_STATE.with(|s| {
                     let mut ws = s.borrow_mut();
-                    if ws.state == ConnectionState::WaitingForSignaling
-                        && ws.local_code.is_some()
-                    {
+                    if ws.state == ConnectionState::WaitingForSignaling && ws.local_code.is_some() {
                         ws.state = ConnectionState::Connecting;
                     }
                 });
@@ -179,8 +173,8 @@ fn setup_ice_candidate_handler(pc: &RtcPeerConnection) -> Closure<dyn FnMut(JsVa
         }
         // When candidate is null, ICE gathering is complete
         if event.candidate().is_none() {
-            let desc = Reflect::get(&pc_clone, &JsValue::from_str("localDescription"))
-                .unwrap_or_default();
+            let desc =
+                Reflect::get(&pc_clone, &JsValue::from_str("localDescription")).unwrap_or_default();
             if !desc.is_null() && !desc.is_undefined() {
                 let mut sdp = Reflect::get(&desc, &JsValue::from_str("sdp"))
                     .unwrap_or_default()
@@ -722,4 +716,3 @@ pub fn sync_webrtc_state(connection: ResMut<NetworkConnection>) {
         }
     });
 }
-

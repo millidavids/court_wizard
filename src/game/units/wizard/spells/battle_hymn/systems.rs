@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::BattleHymnIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
@@ -47,13 +49,18 @@ pub fn handle_battle_hymn_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::BattleHymn { return; }
+    if primed_spell.spell != Spell::BattleHymn {
+        return;
+    }
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
+    let clamped_cursor =
+        clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -70,9 +77,7 @@ pub fn handle_battle_hymn_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
-            {
+            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST) {
                 if let Some(pos) = clamped_cursor {
                     let circle_entity = spawn_circle_indicator(
                         &mut commands,

@@ -32,8 +32,7 @@ pub const WIZARD_FRAME_HEIGHT: f32 = 132.0;
 /// Full idle animation loop duration in seconds.
 pub const WIZARD_ANIMATION_LOOP_DURATION: f32 = 2.0;
 /// Duration of each animation frame.
-pub const WIZARD_FRAME_DURATION: f32 =
-    WIZARD_ANIMATION_LOOP_DURATION / WIZARD_SPRITE_FRAMES as f32;
+pub const WIZARD_FRAME_DURATION: f32 = WIZARD_ANIMATION_LOOP_DURATION / WIZARD_SPRITE_FRAMES as f32;
 /// World-space sprite size (2x pixel dimensions for visibility at camera distance).
 pub const WIZARD_SPRITE_WIDTH: f32 = WIZARD_FRAME_WIDTH * 2.0;
 pub const WIZARD_SPRITE_HEIGHT: f32 = WIZARD_FRAME_HEIGHT * 2.0;

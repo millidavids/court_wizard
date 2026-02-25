@@ -1,17 +1,19 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::super::super::components::{CastingState, Mana, PrimedSpell, Spell, SpellCaster, LocalWizard, Wizard, WizardInput};
+use super::super::super::components::{
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+};
 use super::components::*;
 use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
-use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
@@ -25,7 +27,13 @@ pub fn handle_fireball_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (Entity, &Transform, &mut CastingState, &mut Mana, &PrimedSpell),
+        (
+            Entity,
+            &Transform,
+            &mut CastingState,
+            &mut Mana,
+            &PrimedSpell,
+        ),
         With<LocalWizard>,
     >,
     caster_query: Query<&SpellCaster>,
@@ -41,10 +49,14 @@ pub fn handle_fireball_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
-    if primed_spell.spell != Spell::Fireball { return; }
+    if primed_spell.spell != Spell::Fireball {
+        return;
+    }
 
     let completed = fireball_casting_logic(
         &input,
@@ -100,14 +112,9 @@ fn fireball_casting_logic(
                 if mana.consume(constants::MANA_COST)
                     && let Some(target_pos) = input.cursor_pos
                 {
-                    let spawn_origin = wizard_transform.translation + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
-                    spawn_fireball(
-                        commands,
-                        assets,
-                        spawn_origin,
-                        target_pos,
-                        primed_spell,
-                    );
+                    let spawn_origin = wizard_transform.translation
+                        + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    spawn_fireball(commands, assets, spawn_origin, target_pos, primed_spell);
                     completed = true;
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
@@ -192,20 +199,22 @@ pub(crate) fn spawn_fireball_entity(
     empowerment: f32,
     visual_radius: f32,
 ) -> Entity {
-    commands.spawn((
-        Mesh3d(assets.unit_sphere.clone()),
-        MeshMaterial3d(assets.fireball_projectile.clone()),
-        Transform::from_translation(origin).with_scale(Vec3::splat(visual_radius)),
-        Fireball::new(
-            velocity,
-            damage,
-            damage_type,
-            explosion_radius,
-            collision_radius,
-            empowerment,
-        ),
-        OnGameplayScreen,
-    )).id()
+    commands
+        .spawn((
+            Mesh3d(assets.unit_sphere.clone()),
+            MeshMaterial3d(assets.fireball_projectile.clone()),
+            Transform::from_translation(origin).with_scale(Vec3::splat(visual_radius)),
+            Fireball::new(
+                velocity,
+                damage,
+                damage_type,
+                explosion_radius,
+                collision_radius,
+                empowerment,
+            ),
+            OnGameplayScreen,
+        ))
+        .id()
 }
 
 /// Updates fireball projectile positions based on velocity.
@@ -306,7 +315,9 @@ fn spawn_explosion(
             constants::DAMAGE_TYPE,
             empowerment,
         ),
-        NetworkedSpellEffect { kind: SpellEffectKind::FireballExplosion },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::FireballExplosion,
+        },
         OnGameplayScreen,
     ));
 }

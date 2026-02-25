@@ -151,13 +151,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                         }
                     });
                     for (spell, is_unlocked, progress, cost) in spells {
-                        spawn_spell_research_row(
-                            section,
-                            spell,
-                            is_unlocked,
-                            progress,
-                            cost,
-                        );
+                        spawn_spell_research_row(section, spell, is_unlocked, progress, cost);
                     }
                 });
 
@@ -324,11 +318,7 @@ fn spawn_stat_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
 }
 
 /// Spawns a stat row with Insight-colored value.
-fn spawn_insight_row(
-    parent: &mut ChildSpawnerCommands,
-    label: &str,
-    value: u32,
-) {
+fn spawn_insight_row(parent: &mut ChildSpawnerCommands, label: &str, value: u32) {
     parent
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -685,12 +675,7 @@ pub(super) fn spawn_confirmation_popup(commands: &mut Commands) {
                             ..default()
                         })
                         .with_children(|buttons| {
-                            spawn_button(
-                                buttons,
-                                "Cancel",
-                                CancelClearButton,
-                                &BUTTON_STYLE,
-                            );
+                            spawn_button(buttons, "Cancel", CancelClearButton, &BUTTON_STYLE);
                             spawn_button(
                                 buttons,
                                 "Clear Everything",

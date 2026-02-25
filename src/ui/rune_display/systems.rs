@@ -100,7 +100,9 @@ pub(super) fn handle_rune_button_click(
     for event in button_clicked.read() {
         if let Ok(rune_button) = button_query.get(event.button) {
             // Add rune to sequence (respects max length and prevents duplicates)
-            if sequence.len() < crate::game::units::wizard::archetypes::runes::constants::MAX_RUNE_SEQUENCE_LENGTH {
+            if sequence.len()
+                < crate::game::units::wizard::archetypes::runes::constants::MAX_RUNE_SEQUENCE_LENGTH
+            {
                 sequence.push(rune_button.rune);
             }
         }
