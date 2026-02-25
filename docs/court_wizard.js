@@ -1,4 +1,4 @@
-import { copy_to_clipboard } from './snippets/court_wizard-cc4baea2ceb3e74c/inline0.js';
+import { copy_to_clipboard } from './snippets/court_wizard-1481d8aeaf9e7c7c/inline0.js';
 
 const lAudioContext = (typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : undefined));
 let wasm;
@@ -258,6 +258,10 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
+function __wasm_bindgen_func_elem_130491(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_130491(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+}
+
 function __wasm_bindgen_func_elem_130489(arg0, arg1) {
     wasm.__wasm_bindgen_func_elem_130489(arg0, arg1);
 }
@@ -266,16 +270,12 @@ function __wasm_bindgen_func_elem_130490(arg0, arg1, arg2) {
     wasm.__wasm_bindgen_func_elem_130490(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_125804(arg0, arg1) {
-    wasm.__wasm_bindgen_func_elem_125804(arg0, arg1);
-}
-
-function __wasm_bindgen_func_elem_130491(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_130491(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
-}
-
 function __wasm_bindgen_func_elem_128831(arg0, arg1, arg2) {
     wasm.__wasm_bindgen_func_elem_128831(arg0, arg1, addHeapObject(arg2));
+}
+
+function __wasm_bindgen_func_elem_125804(arg0, arg1) {
+    wasm.__wasm_bindgen_func_elem_125804(arg0, arg1);
 }
 
 const __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
@@ -604,7 +604,7 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_copyToChannel_30d90303302ec449 = function() { return handleError(function (arg0, arg1, arg2, arg3) {
         getObject(arg0).copyToChannel(getArrayF32FromWasm0(arg1, arg2), arg3);
     }, arguments) };
-    imports.wbg.__wbg_copy_to_clipboard_afb7888c3047fa5d = function(arg0, arg1) {
+    imports.wbg.__wbg_copy_to_clipboard_e3ef86306cc03c4a = function(arg0, arg1) {
         copy_to_clipboard(getStringFromWasm0(arg0, arg1));
     };
     imports.wbg.__wbg_createAnswer_57fa5e0880a7b92a = function(arg0) {

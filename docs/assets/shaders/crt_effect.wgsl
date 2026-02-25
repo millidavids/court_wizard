@@ -90,14 +90,15 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     let glow_brightness = max(glow_avg.r, max(glow_avg.g, glow_avg.b));
     color = vec4<f32>(color.rgb + glow_avg * glow_brightness * settings.glow_intensity * inside, 1.0);
 
-    // 8. Scanlines.
-    let scanline_phase = sin(in.position.y * 3.14159 * 2.0 / (1080.0 / settings.scanline_count));
+    // 8. Scanlines (use distorted UV so lines follow barrel curvature).
+    let screen_dims = vec2<f32>(textureDimensions(screen_texture));
+    let scanline_phase = sin(distorted_uv.y * screen_dims.y * 3.14159 * 2.0 / (1080.0 / settings.scanline_count));
     let scanline = 1.0 - settings.scanline_intensity * (0.5 + 0.5 * scanline_phase);
     color = vec4<f32>(color.rgb * scanline, 1.0);
 
-    // 9. RGB subpixel grid.
+    // 9. RGB subpixel grid (use distorted UV so pixels follow barrel curvature).
     let dim = 1.0 - settings.rgb_grid_intensity;
-    let col_f = fract(in.position.x / 3.0) * 3.0;
+    let col_f = fract(distorted_uv.x * screen_dims.x / 3.0) * 3.0;
     let is_r = step(col_f, 1.0);
     let is_g = step(1.0, col_f) * step(col_f, 2.0);
     let is_b = step(2.0, col_f);

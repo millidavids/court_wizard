@@ -61,7 +61,8 @@ jobs:
                   payload=$(jq -n \
                     --arg title "$FULL_TITLE" \
                     --arg desc "$BODY" \
-                    '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
+                    --arg url "https://millidavids.github.io/court_wizard/" \
+                    '{embeds: [{title: $title, description: $desc, url: $url, color: 16744448}]}')
                   curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
 
             - name: Create and push tag

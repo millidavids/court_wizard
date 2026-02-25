@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.240] - 2026-02-25
+
+### Fixed
+- The scanlines and pixel grid now curve with the screen — previously they appeared as a flat overlay on top of the rounded CRT effect
+
 ## [v0.2.238] - 2026-02-25
 
 ### Added
