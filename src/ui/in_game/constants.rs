@@ -52,6 +52,18 @@ pub const BOSS_NAME_FONT_SIZE: f32 = 10.0;
 /// Boss health bar text font size.
 pub const BOSS_HEALTH_TEXT_FONT_SIZE: f32 = 7.0;
 
+/// King health bar dimensions.
+pub(super) const KING_HEALTH_BAR_WIDTH: Val = Val::Px(20.0);
+pub(super) const KING_HEALTH_BAR_HEIGHT: Val = Val::Vh(30.0);
+
+/// King health bar colors.
+pub(super) const KING_HEALTH_BAR_BG_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.5);
+pub(super) const KING_HEALTH_BAR_FILL_COLOR: Color = Color::srgba(0.2, 0.8, 0.2, 0.7);
+pub(super) const KING_HEALTH_BAR_BORDER_COLOR: Color = Color::srgba(0.3, 0.6, 0.3, 0.8);
+
+/// King health bar label font size.
+pub(super) const KING_HEALTH_BAR_LABEL_FONT_SIZE: f32 = 7.0;
+
 /// Button style configuration for the in-game HUD.
 pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: BUTTON_WIDTH,

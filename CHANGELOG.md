@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.249] - 2026-02-25
+
+### Added
+- **King's health bar** — a vertical green health bar now appears on the right side of the screen so you can always see how your King is doing
+
 ## [v0.2.240] - 2026-02-25
 
 ### Fixed

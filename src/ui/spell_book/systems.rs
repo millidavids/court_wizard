@@ -249,6 +249,7 @@ fn spawn_spell_list(
         .spawn((
             Node {
                 flex_grow: 1.0,
+                min_width: Val::Px(0.0),
                 flex_direction: FlexDirection::Column,
                 overflow: Overflow::scroll_y(),
                 border: UiRect::all(Val::Px(LIST_BORDER_WIDTH)),

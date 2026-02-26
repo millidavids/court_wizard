@@ -487,7 +487,8 @@ pub struct ElectricArcVisual {
 
 /// Ticks ElectricCharge on affected units, rolls for arcs, and spawns arc visuals.
 ///
-/// Arc damage inserts `PendingDamageEffect` on targets so it builds charge on neighbors.
+/// Arc damage is applied directly to health without inserting `PendingDamageEffect`,
+/// so it does **not** propagate the electric debuff to arc targets.
 #[allow(clippy::too_many_arguments)]
 pub fn update_electric_charge(
     mut commands: Commands,
@@ -496,6 +497,7 @@ pub fn update_electric_charge(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut charge_query: Query<(Entity, &mut ElectricCharge, &Transform, &Team), Without<Corpse>>,
     target_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>), Without<Corpse>>,
 ) {
     let delta = time.delta_secs();
     let mut rng = rand::thread_rng();
@@ -564,11 +566,11 @@ pub fn update_electric_charge(
     let arc_mesh = meshes.add(Rectangle::new(ELECTRIC_ARC_WIDTH, ELECTRIC_ARC_WIDTH));
 
     for (source_pos, target_entity, target_pos) in arc_events {
-        // Insert pending damage effect on arc target (builds charge on them too)
-        commands.entity(target_entity).insert(PendingDamageEffect {
-            damage_type: DamageType::Electric,
-            damage: ELECTRIC_ARC_DAMAGE,
-        });
+        // Apply arc damage directly (bypasses PendingDamageEffect so it does NOT
+        // propagate the ElectricCharge debuff to arc targets).
+        if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
+            apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), ELECTRIC_ARC_DAMAGE);
+        }
 
         // Spawn arc visual (simple straight line between source and target)
         let midpoint = (source_pos + target_pos) / 2.0;

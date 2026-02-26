@@ -42,3 +42,7 @@ pub(super) struct BossHealthBarFill;
 /// Marker component for the boss health bar text (percentage).
 #[derive(Component)]
 pub(super) struct BossHealthBarText;
+
+/// Marker component for the king health bar fill element.
+#[derive(Component)]
+pub(super) struct KingHealthBarFill;

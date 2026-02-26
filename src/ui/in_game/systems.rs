@@ -11,7 +11,8 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::resources::CurrentLevel;
 use crate::game::units::boss::components::Boss;
-use crate::game::units::components::{Corpse, Health};
+use crate::game::units::components::{Corpse, Health, Team};
+use crate::game::units::king::components::King;
 use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, PrimedSpell};
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::systems::spawn_button;
@@ -49,6 +50,56 @@ pub(super) fn keyboard_input(
     if keyboard.just_pressed(KeyCode::Escape) {
         next_in_game_state.set(InGameState::Paused);
     }
+}
+
+/// Spawns the king health bar as a vertical bar.
+///
+/// Used by both SP and MP HUDs.
+fn spawn_king_health_bar(parent: &mut ChildSpawnerCommands) {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            row_gap: Val::Px(4.0),
+            ..default()
+        })
+        .with_children(|container| {
+            // "King" label
+            container.spawn((
+                Text::new("King"),
+                TextFont::from_font_size(KING_HEALTH_BAR_LABEL_FONT_SIZE),
+                TextColor(Color::WHITE),
+            ));
+
+            // Health bar background
+            container
+                .spawn((
+                    Node {
+                        width: KING_HEALTH_BAR_WIDTH,
+                        height: KING_HEALTH_BAR_HEIGHT,
+                        border: UiRect::all(Val::Px(2.0)),
+                        flex_direction: FlexDirection::Column,
+                        justify_content: JustifyContent::FlexEnd, // Fill grows upward from bottom
+                        ..default()
+                    },
+                    BackgroundColor(KING_HEALTH_BAR_BG_COLOR),
+                    BorderColor::all(KING_HEALTH_BAR_BORDER_COLOR),
+                    BorderRadius::all(Val::Px(3.0)),
+                ))
+                .with_children(|bar| {
+                    // Health bar fill (anchored to bottom, height = percentage)
+                    bar.spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(KING_HEALTH_BAR_FILL_COLOR),
+                        BorderRadius::all(Val::Px(2.0)),
+                        KingHealthBarFill,
+                    ));
+                });
+        });
 }
 
 /// Spawns the gameplay HUD.
@@ -146,6 +197,9 @@ pub(super) fn spawn_hud(
                         }
                     });
                 });
+
+            // King health bar (middle, between top row and bottom bars)
+            spawn_king_health_bar(parent);
 
             // Bottom-right bars container
             parent
@@ -273,6 +327,9 @@ pub(super) fn spawn_mp_hud(mut commands: Commands) {
                         );
                     });
                 });
+
+            // King health bar (middle, between top row and bottom bars)
+            spawn_king_health_bar(parent);
 
             // Bottom-right bars container (mana bar + cast bar)
             parent
@@ -554,4 +611,30 @@ pub(super) fn update_boss_health_bar(
             commands.entity(entity).despawn();
         }
     }
+}
+
+/// Updates the king health bar fill based on the local wizard's team's king health.
+pub(super) fn update_king_health_bar(
+    wizard_query: Query<&Team, With<LocalWizard>>,
+    king_query: Query<(&Health, &Team), (With<King>, Without<Corpse>)>,
+    mut fill_query: Query<&mut Node, With<KingHealthBarFill>>,
+) {
+    let Ok(wizard_team) = wizard_query.single() else {
+        return;
+    };
+    let Ok(mut fill_node) = fill_query.single_mut() else {
+        return;
+    };
+
+    // Find the king matching the local wizard's team
+    for (health, team) in &king_query {
+        if team == wizard_team {
+            let hp_percent = (health.current / health.max * 100.0).clamp(0.0, 100.0);
+            fill_node.height = Val::Percent(hp_percent);
+            return;
+        }
+    }
+
+    // No matching king found (dead) — show empty bar
+    fill_node.height = Val::Percent(0.0);
 }

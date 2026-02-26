@@ -24,6 +24,17 @@ use super::constants::*;
 // Shared helpers
 // ===========================================================================
 
+/// Returns a scaled font size for spell names that may overflow their container.
+/// Shrinks the font when the longest word exceeds `max_chars` characters.
+fn scaled_spell_name_font_size(name: &str, base_size: f32, max_chars: usize) -> f32 {
+    let longest_word = name.split_whitespace().map(|w| w.len()).max().unwrap_or(0);
+    if longest_word > max_chars {
+        base_size * max_chars as f32 / longest_word as f32
+    } else {
+        base_size
+    }
+}
+
 /// Element chain definition for organizing the research UI.
 struct SpellChain {
     label: &'static str,
@@ -711,7 +722,7 @@ fn spawn_misc_section(
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
+            align_items: AlignItems::FlexStart,
             column_gap: Val::Px(8.0),
             ..default()
         })
@@ -730,9 +741,20 @@ fn spawn_misc_section(
                 ));
             });
 
-            for spell in MISC_SPELLS {
-                spawn_spell_card(row, *spell, affinities);
-            }
+            row.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: Val::Px(8.0),
+                row_gap: Val::Px(8.0),
+                flex_grow: 1.0,
+                min_width: Val::Px(0.0),
+                ..default()
+            })
+            .with_children(|grid| {
+                for spell in MISC_SPELLS {
+                    spawn_spell_card(grid, *spell, affinities);
+                }
+            });
         });
 }
 
@@ -775,11 +797,14 @@ fn spawn_spell_card(
             BorderRadius::all(Val::Px(6.0)),
         ))
         .with_children(|card| {
+            let name_font_size =
+                scaled_spell_name_font_size(spell.display_name(), SPELL_NAME_FONT_SIZE, 10);
+
             if unlocked {
                 // Researched: show name + element + "Researched"
                 card.spawn((
                     Text::new(spell.display_name()),
-                    TextFont::from_font_size(SPELL_NAME_FONT_SIZE),
+                    TextFont::from_font_size(name_font_size),
                     TextColor(COMPLETED_COLOR),
                 ));
 
@@ -803,7 +828,7 @@ fn spawn_spell_card(
                 // Available: show name, element+affinity, progress bar, slider
                 card.spawn((
                     Text::new(spell.display_name()),
-                    TextFont::from_font_size(SPELL_NAME_FONT_SIZE),
+                    TextFont::from_font_size(name_font_size),
                     TextColor(TEXT_COLOR),
                 ));
 

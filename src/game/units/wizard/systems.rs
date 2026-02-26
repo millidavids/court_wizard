@@ -11,7 +11,7 @@ use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
-use crate::game::units::components::{Health, Hitbox, MovementSpeed};
+use crate::game::units::components::{Health, Hitbox, MovementSpeed, Team};
 
 /// Loads the wizard sprite sheet texture.
 pub fn load_wizard_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -78,6 +78,8 @@ pub fn setup_wizard(
         Billboard,
         OnGameplayScreen,
     ));
+
+    entity_commands.insert(Team::Defenders);
 
     // Add archetype-specific components
     if config.wizard_type == WizardType::Arcanorouter {
