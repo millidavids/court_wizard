@@ -6,7 +6,7 @@ use super::upgrade_selection;
 use super::upgrade_systems;
 use crate::config::GameConfig;
 use crate::game::constants::*;
-use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats};
+use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats, WaveState};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
@@ -73,13 +73,21 @@ pub fn init_loading_progress(
     use crate::game::units::brute::constants::BRUTE_START_TIER;
 
     if is_boss_level(level) {
-        // Boss level: only spawn the ogre, no other attackers
+        // Boss level: only spawn the ogre, no other attackers, no wave system
         queue.tasks.push(SpawnTask::Ogre);
         kill_stats.total_attackers_spawned = 1;
+        commands.insert_resource(WaveState {
+            current_wave: 0,
+            total_waves: 1,
+            wave_timer: 0.0,
+            wave_interval: 0.0,
+            waves_complete: true,
+        });
     } else {
-        // Normal level: spawn infantry, archers, and possibly brute
+        // Normal level: spawn wave 1 infantry, archers, and possibly brute
+        let wave_count = calculate_wave_count(level);
 
-        // 7. Attacker Infantry
+        // 7. Attacker Infantry (wave 1)
         let total_attackers = calculate_total_infantry(level);
         for i in 0..total_attackers {
             queue.tasks.push(SpawnTask::AttackerInfantry {
@@ -88,7 +96,7 @@ pub fn init_loading_progress(
             });
         }
 
-        // 8. Attacker Archers
+        // 8. Attacker Archers (wave 1)
         let total_attacker_archers = calculate_total_archers(level);
         for i in 0..total_attacker_archers {
             queue.tasks.push(SpawnTask::AttackerArcher {
@@ -97,15 +105,24 @@ pub fn init_loading_progress(
             });
         }
 
-        // 9. Brute (if tier qualifies)
+        // 9. Brute (if tier qualifies, wave 1)
         let has_brute = get_tier(level) >= BRUTE_START_TIER;
         if has_brute {
             queue.tasks.push(SpawnTask::Brute);
         }
 
-        // Record total attackers spawned for achievement tracking
-        kill_stats.total_attackers_spawned =
-            total_attackers + total_attacker_archers + if has_brute { 1 } else { 0 };
+        // Record total attackers spawned across ALL waves for score screen
+        let per_wave = total_attackers + total_attacker_archers + if has_brute { 1 } else { 0 };
+        kill_stats.total_attackers_spawned = per_wave * wave_count;
+
+        // Initialize wave state
+        commands.insert_resource(WaveState {
+            current_wave: 0,
+            total_waves: wave_count,
+            wave_timer: WAVE_INTERVAL_SECONDS,
+            wave_interval: WAVE_INTERVAL_SECONDS,
+            waves_complete: wave_count <= 1,
+        });
     }
 
     // 8. Defender Archers (always spawn regardless of boss level)

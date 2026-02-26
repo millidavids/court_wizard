@@ -98,3 +98,30 @@ pub struct BattleInsightData {
     /// Total Insight earned this battle (calculated at battle end).
     pub insight_earned: u32,
 }
+
+/// Tracks the current wave state during a level.
+#[derive(Resource)]
+pub struct WaveState {
+    /// Which wave we're on (0-indexed).
+    pub current_wave: u32,
+    /// Total waves for this level.
+    pub total_waves: u32,
+    /// Countdown to next wave (seconds).
+    pub wave_timer: f32,
+    /// Seconds between waves.
+    pub wave_interval: f32,
+    /// True when all waves have spawned.
+    pub waves_complete: bool,
+}
+
+impl Default for WaveState {
+    fn default() -> Self {
+        Self {
+            current_wave: 0,
+            total_waves: 1,
+            wave_timer: 0.0,
+            wave_interval: 0.0,
+            waves_complete: true,
+        }
+    }
+}

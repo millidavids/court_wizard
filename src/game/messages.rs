@@ -21,3 +21,10 @@ pub(crate) struct IngredientCollectedMessage {
 pub(crate) struct SpellResearchedMessage {
     pub(crate) spell: Spell,
 }
+
+/// Message sent when a new wave of attackers spawns during gameplay.
+#[derive(Message)]
+pub(crate) struct WaveSpawnedMessage {
+    /// The wave number (1-indexed for display).
+    pub(crate) wave_number: u32,
+}

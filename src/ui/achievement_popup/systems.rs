@@ -56,11 +56,7 @@ fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(30.0),
-                left: Val::Percent(50.0),
-                margin: UiRect {
-                    left: Val::Px(-150.0),
-                    ..default()
-                },
+                right: Val::Px(20.0),
                 width: Val::Px(300.0),
                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                 flex_direction: FlexDirection::Column,
@@ -115,11 +111,7 @@ fn spawn_ingredient_popup(commands: &mut Commands, ingredient: Ingredient) {
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(30.0),
-                left: Val::Percent(50.0),
-                margin: UiRect {
-                    left: Val::Px(-150.0),
-                    ..default()
-                },
+                right: Val::Px(20.0),
                 width: Val::Px(300.0),
                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                 flex_direction: FlexDirection::Column,
@@ -165,11 +157,7 @@ fn spawn_spell_researched_popup(commands: &mut Commands, spell: Spell) {
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(30.0),
-                left: Val::Percent(50.0),
-                margin: UiRect {
-                    left: Val::Px(-150.0),
-                    ..default()
-                },
+                right: Val::Px(20.0),
                 width: Val::Px(300.0),
                 padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                 flex_direction: FlexDirection::Column,

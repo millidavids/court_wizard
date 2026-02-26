@@ -25,6 +25,7 @@ pub(crate) mod run_conditions;
 pub(crate) mod shared_systems;
 pub(in crate::game) mod systems;
 pub(crate) mod units;
+mod wave_systems;
 mod win_lose_systems;
 
 pub use plugin::GamePlugin;

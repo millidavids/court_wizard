@@ -23,4 +23,8 @@ pub struct FlowFieldVelocity {
     /// Terrain cost of the unit's current cell (1.0 = normal, high = hazard).
     /// Used by movement weighting to keep flow field influence high near hazards.
     pub terrain_cost: f32,
+    /// True when the unit has reached its flow field objective (within satisfaction
+    /// radius of rally point). Units at their destination with no targeting should
+    /// stop moving entirely so flocking doesn't push them around.
+    pub at_destination: bool,
 }

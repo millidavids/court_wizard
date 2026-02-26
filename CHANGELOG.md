@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.316] - 2026-02-26
+
+### Added
+- **Wave system** — enemies now arrive in multiple waves instead of all at once. Each level has 2 or more waves (increasing with tier), with 60 seconds between each wave. A wave counter in the top-right corner shows your progress
+- **"Wave incoming!" alert** — a brief red flash appears on screen when a new wave of enemies is about to arrive, so you have time to prepare
+- Defenders and the King now return to their starting positions between waves instead of standing around on the battlefield
+- Notifications (achievements, ingredients, spell research) now appear in the top-right corner instead of the top-center to avoid overlapping the wave alert
+
 ## [v0.2.311] - 2026-02-26
 
 ### Added

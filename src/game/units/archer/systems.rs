@@ -587,7 +587,12 @@ pub fn archer_movement(
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)
         // But keep moving if standing on hazardous terrain (fire, spikes)
-        if in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
+        // Only stop if there's actually a target in range (distance_to_target < MAX)
+        // — otherwise the archer needs to follow the flow field back to spawn
+        if in_melee.is_none()
+            && flow_field_velocity.terrain_cost <= 1.0
+            && targeting_velocity.distance_to_target < f32::MAX
+        {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
                 // Override velocity and acceleration to completely stop archer when in shooting stance

@@ -14,12 +14,16 @@ use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::{
     AchievementUnlockedMessage, IngredientCollectedMessage, SpellResearchedMessage,
+    WaveSpawnedMessage,
 };
 use super::pathfinding::PathfindingPlugin;
-use super::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker};
+use super::resources::{
+    BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
+};
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
+use super::wave_systems;
 use super::win_lose_systems;
 
 /// Global attack cycle timer resource.
@@ -89,10 +93,12 @@ impl Plugin for GamePlugin {
             .init_resource::<CurrentLevel>()
             .init_resource::<RetryTracker>()
             .init_resource::<BattleInsightData>()
+            .init_resource::<WaveState>()
             .insert_resource(GameOutcome::Victory)
             .add_message::<AchievementUnlockedMessage>()
             .add_message::<IngredientCollectedMessage>()
             .add_message::<SpellResearchedMessage>()
+            .add_message::<WaveSpawnedMessage>()
             .add_plugins((
                 InputPlugin,
                 LoadingPlugin,
@@ -146,6 +152,7 @@ impl Plugin for GamePlugin {
                 (
                     shared_systems::tick_attack_cycle,
                     shared_systems::tick_elapsed_time,
+                    wave_systems::tick_wave_timer,
                 )
                     .run_if(is_gameplay_running),
             )

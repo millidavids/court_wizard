@@ -9,7 +9,8 @@ use crate::config::GameConfig;
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
-use crate::game::resources::CurrentLevel;
+use crate::game::messages::WaveSpawnedMessage;
+use crate::game::resources::{CurrentLevel, WaveState};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, Health, Team};
 use crate::game::units::king::components::King;
@@ -113,6 +114,7 @@ pub(super) fn spawn_hud(
     mut commands: Commands,
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
+    wave_state: Res<WaveState>,
 ) {
     // Root HUD container (fullscreen with margins)
     commands
@@ -193,6 +195,20 @@ pub(super) fn spawn_hud(
                                 TextFont::from_font_size(20.0),
                                 TextColor(Color::srgba(0.8, 0.8, 0.8, 0.9)),
                                 PastVictoryDisplay,
+                            ));
+                        }
+
+                        // Wave display (only show if more than 1 wave)
+                        if wave_state.total_waves > 1 {
+                            level_container.spawn((
+                                Text::new(format!(
+                                    "Wave: {} / {}",
+                                    wave_state.current_wave + 1,
+                                    wave_state.total_waves
+                                )),
+                                TextFont::from_font_size(WAVE_DISPLAY_FONT_SIZE),
+                                TextColor(WAVE_DISPLAY_COLOR),
+                                WaveDisplay,
                             ));
                         }
                     });
@@ -637,4 +653,76 @@ pub(super) fn update_king_health_bar(
 
     // No matching king found (dead) — show empty bar
     fill_node.height = Val::Percent(0.0);
+}
+
+/// Updates the wave counter display text from the current WaveState.
+pub(super) fn update_wave_display(
+    wave_state: Res<WaveState>,
+    mut wave_display_query: Query<&mut Text, With<WaveDisplay>>,
+) {
+    if wave_state.is_changed()
+        && let Ok(mut text) = wave_display_query.single_mut()
+    {
+        **text = format!(
+            "Wave: {} / {}",
+            wave_state.current_wave + 1,
+            wave_state.total_waves
+        );
+    }
+}
+
+/// Spawns a "Wave X incoming!" flash when a new wave spawns.
+pub(super) fn spawn_wave_incoming_flash(
+    mut commands: Commands,
+    mut wave_events: MessageReader<WaveSpawnedMessage>,
+    existing_flash: Query<Entity, With<WaveIncomingFlash>>,
+) {
+    for event in wave_events.read() {
+        // Remove any existing flash
+        for entity in &existing_flash {
+            commands.entity(entity).despawn();
+        }
+
+        commands.spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Percent(15.0),
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            Text::new(format!(
+                "Wave {} incoming!",
+                event.wave_number
+            )),
+            TextFont::from_font_size(WAVE_FLASH_FONT_SIZE),
+            TextColor(WAVE_FLASH_COLOR),
+            WaveIncomingFlash {
+                timer: WAVE_FLASH_DURATION,
+            },
+            Pickable::IGNORE,
+            GlobalZIndex(998),
+            crate::game::components::OnGameplayScreen,
+        ));
+    }
+}
+
+/// Fades and despawns the wave incoming flash.
+pub(super) fn update_wave_incoming_flash(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut flash_query: Query<(Entity, &mut WaveIncomingFlash, &mut TextColor)>,
+) {
+    for (entity, mut flash, mut text_color) in &mut flash_query {
+        flash.timer -= time.delta_secs();
+        if flash.timer <= 0.0 {
+            commands.entity(entity).despawn();
+        } else {
+            // Fade out over the last second
+            let opacity = (flash.timer / 1.0).min(1.0);
+            let mut c = text_color.0.to_srgba();
+            c.alpha = opacity;
+            text_color.0 = c.into();
+        }
+    }
 }

@@ -64,6 +64,23 @@ pub(super) const KING_HEALTH_BAR_BORDER_COLOR: Color = Color::srgba(0.3, 0.6, 0.
 /// King health bar label font size.
 pub(super) const KING_HEALTH_BAR_LABEL_FONT_SIZE: f32 = 7.0;
 
+// ===== Wave Display Constants =====
+
+/// Font size for the wave counter text.
+pub(super) const WAVE_DISPLAY_FONT_SIZE: f32 = 22.0;
+
+/// Color for the wave counter text.
+pub(super) const WAVE_DISPLAY_COLOR: Color = Color::srgba(0.9, 0.9, 0.9, 0.9);
+
+/// Font size for the "Wave incoming!" flash text.
+pub(super) const WAVE_FLASH_FONT_SIZE: f32 = 28.0;
+
+/// Color for the "Wave incoming!" flash text.
+pub(super) const WAVE_FLASH_COLOR: Color = Color::srgb(1.0, 0.3, 0.3);
+
+/// Duration the "Wave incoming!" flash is displayed (seconds).
+pub(super) const WAVE_FLASH_DURATION: f32 = 3.0;
+
 /// Button style configuration for the in-game HUD.
 pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: BUTTON_WIDTH,

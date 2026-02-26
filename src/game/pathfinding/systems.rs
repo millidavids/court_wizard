@@ -3,8 +3,7 @@
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 
-use crate::game::constants::BATTLEFIELD_SIZE;
-use crate::game::units::archer::Archer;
+use crate::game::constants::{BATTLEFIELD_SIZE, defender_spawn_center};
 use crate::game::units::components::Team;
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::King;
@@ -147,27 +146,37 @@ pub fn update_king_target(
             true
         }
         (Some(_), None) => {
-            // Old target died, no new targets (victory condition elsewhere)
+            // Old target died, no new targets — rebuild field toward defender spawn
+            // so the King and defenders rally back to formation between waves
             pathfinding.king_current_target = None;
-            pathfinding.defender_field = None;
-            false
+            true
         }
         _ => false,
     };
 
     // Spawn defender field rebuild if target changed and no rebuild pending
-    if target_changed
-        && pathfinding.pending_defender_rebuild.is_none()
-        && let Some((target_entity, _)) = closest_enemy
-    {
-        // Get target position
-        if let Ok((_, target_transform, _)) = enemy_query.get(target_entity) {
-            let target_pos = Vec2::new(
-                target_transform.translation.x,
-                target_transform.translation.z,
+    if target_changed && pathfinding.pending_defender_rebuild.is_none() {
+        if let Some((target_entity, _)) = closest_enemy {
+            // Rebuild toward the new enemy target (0 satisfaction — charge in)
+            if let Ok((_, target_transform, _)) = enemy_query.get(target_entity) {
+                let target_pos = Vec2::new(
+                    target_transform.translation.x,
+                    target_transform.translation.z,
+                );
+                spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
+                debug!("King target changed, rebuilding defender field");
+            }
+        } else {
+            // No enemies — rebuild field toward defender spawn center so
+            // the King and defenders rally back to formation between waves.
+            // Large satisfaction radius so units spread out and don't crowd.
+            let (cx, cz) = defender_spawn_center();
+            spawn_defender_field_rebuild(
+                &mut pathfinding,
+                Vec2::new(cx, cz),
+                DEFENDER_SPAWN_RALLY_RADIUS,
             );
-            spawn_defender_field_rebuild(&mut pathfinding, target_pos);
-            debug!("King target changed, rebuilding defender field");
+            debug!("No enemies, rebuilding defender field toward spawn center");
         }
     }
 }
@@ -194,7 +203,15 @@ fn spawn_attacker_field_rebuild(pathfinding: &mut PathfindingGrid, king_pos: Vec
 }
 
 /// Spawns async task to rebuild the defender flow field.
-fn spawn_defender_field_rebuild(pathfinding: &mut PathfindingGrid, target_pos: Vec2) {
+///
+/// `satisfaction_radius` is in grid cells — units within this radius of the goal
+/// stop receiving flow directions. Use 0 for combat (charge in) or a larger
+/// value for rally points so units spread out naturally.
+fn spawn_defender_field_rebuild(
+    pathfinding: &mut PathfindingGrid,
+    target_pos: Vec2,
+    satisfaction_radius: usize,
+) {
     let task_pool = AsyncComputeTaskPool::get();
 
     let mut field = pathfinding.create_field_with_base_costs();
@@ -206,9 +223,7 @@ fn spawn_defender_field_rebuild(pathfinding: &mut PathfindingGrid, target_pos: V
         let goal_x = ((target_pos.x - world_min.x) / cell_size).floor().max(0.0) as usize;
         let goal_z = ((target_pos.y - world_min.y) / cell_size).floor().max(0.0) as usize;
 
-        // Generate field with 0 satisfaction radius (infantry charges in)
-        // Archers will handle their own satisfaction via targeting system
-        field.generate(goal_x, goal_z, 0);
+        field.generate(goal_x, goal_z, satisfaction_radius);
         field
     });
 
@@ -269,7 +284,7 @@ pub fn apply_completed_rebuilds(
         {
             let target_pos =
                 Vec2::new(target_transform.translation.x, target_transform.translation.z);
-            spawn_defender_field_rebuild(&mut pathfinding, target_pos);
+            spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
         }
     }
 }
@@ -331,7 +346,7 @@ pub fn handle_obstacle_events(
             if pathfinding.pending_defender_rebuild.is_none() {
                 let target_pos =
                     Vec2::new(target_transform.translation.x, target_transform.translation.z);
-                spawn_defender_field_rebuild(&mut pathfinding, target_pos);
+                spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
             } else {
                 pathfinding.costs_dirty = true;
             }
@@ -345,14 +360,9 @@ pub fn handle_obstacle_events(
 pub fn sample_flow_fields(
     pathfinding: Res<PathfindingGrid>,
     defenders_activated: Res<DefendersActivated>,
-    mut units_query: Query<(
-        &Transform,
-        &FlowFieldInfluence,
-        &mut FlowFieldVelocity,
-        Option<&Archer>,
-    )>,
+    mut units_query: Query<(&Transform, &FlowFieldInfluence, &mut FlowFieldVelocity)>,
 ) {
-    for (transform, influence, mut flow_velocity, is_archer) in units_query.iter_mut() {
+    for (transform, influence, mut flow_velocity) in units_query.iter_mut() {
         let world_pos = transform.translation;
 
         // Sample terrain cost from base costs (always up-to-date)
@@ -361,6 +371,7 @@ pub fn sample_flow_fields(
         match influence {
             FlowFieldInfluence::Attacker => {
                 // Sample attacker field
+                flow_velocity.at_destination = false;
                 if let Some(ref field) = pathfinding.attacker_field {
                     flow_velocity.velocity =
                         field.sample(world_pos, pathfinding.world_min, pathfinding.cell_size);
@@ -381,48 +392,43 @@ pub fn sample_flow_fields(
                         let direction =
                             field.sample(world_pos, pathfinding.world_min, pathfinding.cell_size);
 
-                        // Archers should respect their attack range as satisfaction radius
-                        // If the flow field says "go forward" but they're already in range,
-                        // zero out the flow field velocity so targeting takes over
-                        if is_archer.is_some() && direction.length() > 0.0 {
-                            // Check if archer is within attack range of target
-                            if let Some(_target) = pathfinding.king_current_target {
-                                // We can't easily get target position here without another query
-                                // So we'll let the targeting system handle this via weighting
-                                // The archer targeting system already handles optimal range positioning
-                            }
-                        }
-
                         flow_velocity.velocity = direction;
                         flow_velocity.pathfinding_distance = field.sample_distance(
                             world_pos,
                             pathfinding.world_min,
                             pathfinding.cell_size,
                         );
+                        // Mark at_destination when the flow field itself reports zero
+                        // direction (unit is within the field's satisfaction radius)
+                        flow_velocity.at_destination = direction == Vec3::ZERO;
                     } else {
-                        flow_velocity.velocity = Vec3::ZERO;
-                        flow_velocity.pathfinding_distance = f32::INFINITY;
+                        // No defender field (no enemies between waves) — rally to spawn
+                        rally_to_spawn(world_pos, spawn_pos, &mut flow_velocity);
                     }
                 } else {
                     // Defenders not activated, rally to spawn point with satisfaction radius
-                    let current_pos = Vec2::new(world_pos.x, world_pos.z);
-                    let distance_to_spawn = current_pos.distance(*spawn_pos);
-                    let satisfaction_radius_world = DEFENDER_SPAWN_RALLY_RADIUS as f32 * CELL_SIZE;
-
-                    if distance_to_spawn > satisfaction_radius_world {
-                        // Move toward spawn point
-                        let direction = (*spawn_pos - current_pos).normalize();
-                        flow_velocity.velocity = Vec3::new(direction.x, 0.0, direction.y);
-                    } else {
-                        // Within satisfaction radius of spawn point
-                        flow_velocity.velocity = Vec3::ZERO;
-                    }
-                    // Use straight-line distance when rallying to spawn
-                    flow_velocity.pathfinding_distance = distance_to_spawn;
+                    rally_to_spawn(world_pos, spawn_pos, &mut flow_velocity);
                 }
             }
         }
     }
+}
+
+/// Moves a defender toward its spawn position with a satisfaction radius.
+fn rally_to_spawn(world_pos: Vec3, spawn_pos: &Vec2, flow_velocity: &mut FlowFieldVelocity) {
+    let current_pos = Vec2::new(world_pos.x, world_pos.z);
+    let distance_to_spawn = current_pos.distance(*spawn_pos);
+    let satisfaction_radius_world = DEFENDER_SPAWN_RALLY_RADIUS as f32 * CELL_SIZE;
+
+    if distance_to_spawn > satisfaction_radius_world {
+        let direction = (*spawn_pos - current_pos).normalize();
+        flow_velocity.velocity = Vec3::new(direction.x, 0.0, direction.y);
+        flow_velocity.at_destination = false;
+    } else {
+        flow_velocity.velocity = Vec3::ZERO;
+        flow_velocity.at_destination = true;
+    }
+    flow_velocity.pathfinding_distance = distance_to_spawn;
 }
 
 /// Generates initial attacker flow field on first frame after Defender King spawns.

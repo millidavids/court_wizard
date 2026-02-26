@@ -308,11 +308,35 @@ pub const DEFENDER_GRID_CENTER_ANGLE: f32 = ATTACKER_GRID_CENTER_ANGLE;
 /// Ground-plane distance from wizard to defender spawn grid.
 pub const DEFENDER_GRID_GROUND_RANGE: f32 = 400.0;
 
+/// Returns the world-space center of the defender spawn grid.
+/// Used as the rally point when defenders return between waves.
+pub fn defender_spawn_center() -> (f32, f32) {
+    calculate_defender_grid_position(DEFENDER_GRID_ROWS / 2, DEFENDER_GRID_COLS / 2)
+}
+
 // ===== Defender Activation =====
 
 /// Distance at which defenders activate (XZ plane distance).
 /// Once any enemy is within this range of any defender, all defenders activate.
 pub const DEFENDER_ACTIVATION_RANGE: f32 = 800.0;
+
+// ===== Wave System =====
+
+/// Seconds between each wave of attackers.
+pub const WAVE_INTERVAL_SECONDS: f32 = 60.0;
+
+/// Base number of waves at tier 0.
+pub const BASE_WAVE_COUNT: u32 = 2;
+
+/// Returns the number of waves for a given level.
+/// Boss levels have no waves (single Ogre). Normal levels get `BASE_WAVE_COUNT + tier`.
+pub const fn calculate_wave_count(level: u32) -> u32 {
+    if is_boss_level(level) {
+        1
+    } else {
+        BASE_WAVE_COUNT + get_tier(level)
+    }
+}
 
 // ===== Tier Progression =====
 

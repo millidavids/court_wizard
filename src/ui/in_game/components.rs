@@ -46,3 +46,14 @@ pub(super) struct BossHealthBarText;
 /// Marker component for the king health bar fill element.
 #[derive(Component)]
 pub(super) struct KingHealthBarFill;
+
+/// Marker component for the wave counter display text.
+#[derive(Component)]
+pub(super) struct WaveDisplay;
+
+/// Marker component for the "Wave incoming!" flash notification.
+#[derive(Component)]
+pub(super) struct WaveIncomingFlash {
+    /// Time remaining for the flash (seconds).
+    pub timer: f32,
+}

@@ -122,6 +122,15 @@ pub fn calculate_weighted_movement(
     elite_speed_modifier: Option<f32>,
     grease_modifier: Option<f32>,
 ) {
+    // If the unit has reached its flow field destination and has no target,
+    // stop entirely so flocking doesn't push it around between waves.
+    let no_target = targeting_velocity.velocity.length_squared() < 0.001;
+    if flow_field_velocity.at_destination && no_target {
+        velocity.x *= VELOCITY_DAMPING.powf(time.delta_secs() * 60.0);
+        velocity.z *= VELOCITY_DAMPING.powf(time.delta_secs() * 60.0);
+        return;
+    }
+
     // Use pathfinding distance (accounts for obstacles)
     let distance = flow_field_velocity.pathfinding_distance;
 

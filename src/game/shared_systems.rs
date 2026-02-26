@@ -916,6 +916,8 @@ pub fn reset_resources_for_replay(
     king_spawned.0 = false;
     cauldron_buffs.reset();
     *battle_insight = Default::default();
+    // WaveState is NOT reset here — it's freshly set by init_loading_progress
+    // during each level load, so resetting here would overwrite the correct values.
 }
 
 /// Activates all defenders when any defender is close enough to an enemy.
