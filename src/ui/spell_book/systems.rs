@@ -32,6 +32,7 @@ pub(super) fn spawn_spell_book_ui(
     mut commands: Commands,
     config: Res<GameConfig>,
     mp_session: Option<Res<MultiplayerSession>>,
+    asset_server: Res<AssetServer>,
 ) {
     // In multiplayer, all spells are available regardless of single-player progression.
     let is_multiplayer = mp_session.is_some();
@@ -81,7 +82,7 @@ pub(super) fn spawn_spell_book_ui(
             spawn_detail_panel(root, initial_spell, &config);
 
             // === Right panel: categorized spell list ===
-            spawn_spell_list(root, initial_spell, &is_unlocked);
+            spawn_spell_list(root, initial_spell, &is_unlocked, &asset_server);
         });
 }
 
@@ -244,6 +245,7 @@ fn spawn_spell_list(
     parent: &mut ChildSpawnerCommands,
     selected: Spell,
     is_unlocked: &dyn Fn(&Spell) -> bool,
+    asset_server: &AssetServer,
 ) {
     parent
         .spawn((
@@ -329,6 +331,8 @@ fn spawn_spell_list(
                                                 )),
                                                 justify_content: JustifyContent::Center,
                                                 align_items: AlignItems::Center,
+                                                flex_direction: FlexDirection::Row,
+                                                column_gap: Val::Px(6.0),
                                                 ..default()
                                             },
                                             BackgroundColor(SPELL_BUTTON_BG),
@@ -343,6 +347,22 @@ fn spawn_spell_list(
                                         ))
                                         .with_children(
                                             |btn| {
+                                                if let Some(icon_path) = spell.icon_path() {
+                                                    btn.spawn((
+                                                        ImageNode::new(
+                                                            asset_server.load(icon_path),
+                                                        ),
+                                                        Node {
+                                                            width: Val::Px(
+                                                                SPELL_ICON_SIZE,
+                                                            ),
+                                                            height: Val::Px(
+                                                                SPELL_ICON_SIZE,
+                                                            ),
+                                                            ..default()
+                                                        },
+                                                    ));
+                                                }
                                                 btn.spawn((
                                                     Text::new(spell.display_name()),
                                                     TextFont::from_font_size(

@@ -21,3 +21,10 @@ pub(super) struct ActionBarSlotText {
 /// Marker component for the hotkey indicator text within an action bar slot.
 #[derive(Component)]
 pub(super) struct ActionBarHotkeyText;
+
+/// Marker component for the spell icon image within an action bar slot.
+#[derive(Component)]
+pub(super) struct ActionBarSlotIcon {
+    /// The slot index this icon belongs to.
+    pub(super) slot: u8,
+}

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.317] - 2026-02-26
+
+### Added
+- **Spell icons** — Fireball and Magic Missile now show their icons in the action bar, spell book, and study screen instead of just text
+- Updated the roulette wheel with a new, sharper image
+- Hotkey numbers on the action bar are now larger and easier to read
+
 ## [v0.2.316] - 2026-02-26
 
 ### Added

@@ -16,7 +16,7 @@ pub(super) const SLOT_GAP: f32 = 4.0;
 pub(super) const SPELL_NAME_FONT_SIZE: f32 = 7.0;
 
 /// Font size for hotkey indicator text.
-pub(super) const HOTKEY_FONT_SIZE: f32 = 5.0;
+pub(super) const HOTKEY_FONT_SIZE: f32 = 8.0;
 
 /// Button style for action bar slots.
 pub(super) const SLOT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
@@ -34,3 +34,6 @@ pub(super) const ACTION_BAR_BOTTOM_MARGIN: f32 = 15.0;
 
 /// Left margin for the action bar from screen edge.
 pub(super) const ACTION_BAR_LEFT_MARGIN: f32 = 15.0;
+
+/// Size of spell icon images in action bar slots.
+pub(super) const SPELL_ICON_SIZE: f32 = 28.0;

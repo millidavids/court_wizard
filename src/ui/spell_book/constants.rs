@@ -149,6 +149,9 @@ pub const SPELL_BUTTON_FONT_SIZE: f32 = 8.0;
 /// Border width for spell buttons.
 pub const SPELL_BUTTON_BORDER_WIDTH: f32 = 1.0;
 
+/// Size of spell icon images in spell book buttons.
+pub const SPELL_ICON_SIZE: f32 = 24.0;
+
 // ---------------------------------------------------------------------------
 // Label
 // ---------------------------------------------------------------------------

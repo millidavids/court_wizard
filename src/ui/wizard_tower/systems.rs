@@ -353,7 +353,11 @@ pub(super) fn handle_main_button_actions(
 // ===========================================================================
 
 /// Sets up the study screen with scrollable spell grid and allocation sliders.
-pub(super) fn setup_study_screen(mut commands: Commands, battle_insight: Res<BattleInsightData>) {
+pub(super) fn setup_study_screen(
+    mut commands: Commands,
+    battle_insight: Res<BattleInsightData>,
+    asset_server: Res<AssetServer>,
+) {
     commands.insert_resource(InsightAllocation::default());
 
     let insight_balance = get_insight();
@@ -428,9 +432,9 @@ pub(super) fn setup_study_screen(mut commands: Commands, battle_insight: Res<Bat
                 ))
                 .with_children(|scroll| {
                     for chain in CHAINS {
-                        spawn_chain_row(scroll, chain, affinities);
+                        spawn_chain_row(scroll, chain, affinities, &asset_server);
                     }
-                    spawn_misc_section(scroll, affinities);
+                    spawn_misc_section(scroll, affinities, &asset_server);
                 });
 
             // Footer buttons
@@ -484,6 +488,7 @@ pub(super) fn handle_study_button_actions(
     battle_insight: Res<BattleInsightData>,
     mut spell_researched: MessageWriter<SpellResearchedMessage>,
     screen_query: Query<Entity, With<OnStudyScreen>>,
+    asset_server: Res<AssetServer>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -540,7 +545,7 @@ pub(super) fn handle_study_button_actions(
 
                 // Re-setup will happen via OnEnter since we stay in Study state.
                 // Instead, rebuild inline.
-                rebuild_study_screen(&mut commands, &battle_insight);
+                rebuild_study_screen(&mut commands, &battle_insight, &asset_server);
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
@@ -551,14 +556,18 @@ pub(super) fn handle_study_button_actions(
                     commands.entity(entity).despawn();
                 }
                 commands.remove_resource::<InsightAllocation>();
-                rebuild_study_screen(&mut commands, &battle_insight);
+                rebuild_study_screen(&mut commands, &battle_insight, &asset_server);
             }
         }
     }
 }
 
 /// Rebuilds the study screen after a commit (stays in Study state).
-fn rebuild_study_screen(commands: &mut Commands, battle_insight: &BattleInsightData) {
+fn rebuild_study_screen(
+    commands: &mut Commands,
+    battle_insight: &BattleInsightData,
+    asset_server: &AssetServer,
+) {
     commands.insert_resource(InsightAllocation::default());
 
     let insight_balance = get_insight();
@@ -633,9 +642,9 @@ fn rebuild_study_screen(commands: &mut Commands, battle_insight: &BattleInsightD
                 ))
                 .with_children(|scroll| {
                     for chain in CHAINS {
-                        spawn_chain_row(scroll, chain, affinities);
+                        spawn_chain_row(scroll, chain, affinities, asset_server);
                     }
-                    spawn_misc_section(scroll, affinities);
+                    spawn_misc_section(scroll, affinities, asset_server);
                 });
 
             // Footer buttons
@@ -676,6 +685,7 @@ fn spawn_chain_row(
     parent: &mut ChildSpawnerCommands,
     chain: &SpellChain,
     affinities: &std::collections::HashSet<DamageType>,
+    asset_server: &AssetServer,
 ) {
     parent
         .spawn(Node {
@@ -709,7 +719,7 @@ fn spawn_chain_row(
                     ));
                 }
 
-                spawn_spell_card(row, *spell, affinities);
+                spawn_spell_card(row, *spell, affinities, asset_server);
             }
         });
 }
@@ -718,6 +728,7 @@ fn spawn_chain_row(
 fn spawn_misc_section(
     parent: &mut ChildSpawnerCommands,
     affinities: &std::collections::HashSet<DamageType>,
+    asset_server: &AssetServer,
 ) {
     parent
         .spawn(Node {
@@ -752,7 +763,7 @@ fn spawn_misc_section(
             })
             .with_children(|grid| {
                 for spell in MISC_SPELLS {
-                    spawn_spell_card(grid, *spell, affinities);
+                    spawn_spell_card(grid, *spell, affinities, asset_server);
                 }
             });
         });
@@ -763,6 +774,7 @@ fn spawn_spell_card(
     parent: &mut ChildSpawnerCommands,
     spell: Spell,
     affinities: &std::collections::HashSet<DamageType>,
+    asset_server: &AssetServer,
 ) {
     let unlocked = is_spell_unlocked(spell);
     let prereq_met = is_prereq_met(spell);
@@ -801,7 +813,18 @@ fn spawn_spell_card(
                 scaled_spell_name_font_size(spell.display_name(), SPELL_NAME_FONT_SIZE, 10);
 
             if unlocked {
-                // Researched: show name + element + "Researched"
+                // Researched: show icon (if available) + name + element + "Researched"
+                if let Some(icon_path) = spell.icon_path() {
+                    card.spawn((
+                        ImageNode::new(asset_server.load(icon_path)),
+                        Node {
+                            width: Val::Px(SPELL_ICON_SIZE),
+                            height: Val::Px(SPELL_ICON_SIZE),
+                            ..default()
+                        },
+                    ));
+                }
+
                 card.spawn((
                     Text::new(spell.display_name()),
                     TextFont::from_font_size(name_font_size),
@@ -825,7 +848,18 @@ fn spawn_spell_card(
                     ..default()
                 });
             } else if prereq_met {
-                // Available: show name, element+affinity, progress bar, slider
+                // Available: show icon (if available) + name, element+affinity, progress bar, slider
+                if let Some(icon_path) = spell.icon_path() {
+                    card.spawn((
+                        ImageNode::new(asset_server.load(icon_path)),
+                        Node {
+                            width: Val::Px(SPELL_ICON_SIZE),
+                            height: Val::Px(SPELL_ICON_SIZE),
+                            ..default()
+                        },
+                    ));
+                }
+
                 card.spawn((
                     Text::new(spell.display_name()),
                     TextFont::from_font_size(name_font_size),

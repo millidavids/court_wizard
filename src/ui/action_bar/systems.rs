@@ -27,7 +27,11 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
 }
 
 /// Spawns the action bar UI at the bottom-left of the screen.
-pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) {
+pub(super) fn spawn_action_bar(
+    mut commands: Commands,
+    config: Res<GameConfig>,
+    asset_server: Res<AssetServer>,
+) {
     commands
         .spawn((
             Node {
@@ -83,7 +87,25 @@ pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) 
                                     ActionBarHotkeyText,
                                 ));
 
-                                // Spell name text in center (with dynamic font sizing and tight line spacing)
+                                // Spell icon or name in center
+                                let has_icon =
+                                    spell.is_some_and(|s| s.icon_path().is_some());
+                                if has_icon {
+                                    let icon_path = spell.unwrap().icon_path().unwrap();
+                                    button.spawn((
+                                        ImageNode::new(asset_server.load(icon_path)),
+                                        Node {
+                                            width: Val::Px(SPELL_ICON_SIZE),
+                                            height: Val::Px(SPELL_ICON_SIZE),
+                                            flex_grow: 1.0,
+                                            justify_content: JustifyContent::Center,
+                                            align_items: AlignItems::Center,
+                                            ..default()
+                                        },
+                                        ActionBarSlotIcon { slot },
+                                    ));
+                                }
+
                                 let spell_name = spell.map(|s| s.name()).unwrap_or("");
                                 let font_size = calculate_action_bar_font_size(spell_name);
                                 button
@@ -93,9 +115,14 @@ pub(super) fn spawn_action_bar(mut commands: Commands, config: Res<GameConfig>) 
                                         TextColor(SLOT_BUTTON_STYLE.text_color),
                                         TextLayout::new_with_justify(Justify::Center),
                                         ActionBarSlotText { slot },
+                                        if has_icon {
+                                            Visibility::Hidden
+                                        } else {
+                                            Visibility::Inherited
+                                        },
                                     ))
                                     .insert(Node {
-                                        flex_grow: 1.0,
+                                        flex_grow: if has_icon { 0.0 } else { 1.0 },
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
                                         ..default()
@@ -139,17 +166,49 @@ pub(super) fn handle_keyboard_input(
     }
 }
 
-/// Updates action bar slot text when config changes.
+/// Updates action bar slot text and icons when config changes.
 pub(super) fn update_action_bar_slots(
     config: Res<GameConfig>,
-    mut slot_text_query: Query<(&mut Text, &mut TextFont, &ActionBarSlotText)>,
+    asset_server: Res<AssetServer>,
+    mut slot_text_query: Query<(
+        &mut Text,
+        &mut TextFont,
+        &mut Visibility,
+        &mut Node,
+        &ActionBarSlotText,
+    )>,
+    mut slot_icon_query: Query<(&mut ImageNode, &mut Visibility, &mut Node, &ActionBarSlotIcon), Without<ActionBarSlotText>>,
 ) {
     if config.is_changed() {
-        for (mut text, mut text_font, slot_text) in &mut slot_text_query {
+        for (mut text, mut text_font, mut visibility, mut node, slot_text) in &mut slot_text_query {
             let spell = config.action_bar_slots[slot_text.slot as usize];
             let spell_name = spell.map(|s| s.name()).unwrap_or("");
             **text = spell_name.to_string();
             text_font.font_size = calculate_action_bar_font_size(spell_name);
+
+            let has_icon = spell.is_some_and(|s| s.icon_path().is_some());
+            *visibility = if has_icon {
+                Visibility::Hidden
+            } else {
+                Visibility::Inherited
+            };
+            node.flex_grow = if has_icon { 0.0 } else { 1.0 };
+        }
+
+        for (mut image_node, mut visibility, mut node, slot_icon) in &mut slot_icon_query {
+            let spell = config.action_bar_slots[slot_icon.slot as usize];
+            if let Some(icon_path) = spell.and_then(|s| s.icon_path()) {
+                *image_node = ImageNode::new(asset_server.load(icon_path));
+                *visibility = Visibility::Inherited;
+                node.width = Val::Px(SPELL_ICON_SIZE);
+                node.height = Val::Px(SPELL_ICON_SIZE);
+                node.flex_grow = 1.0;
+            } else {
+                *visibility = Visibility::Hidden;
+                node.flex_grow = 0.0;
+                node.width = Val::Px(0.0);
+                node.height = Val::Px(0.0);
+            }
         }
     }
 }

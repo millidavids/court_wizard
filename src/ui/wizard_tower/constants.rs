@@ -67,6 +67,9 @@ pub(super) const SLIDER_TRACK_BORDER: Color = Color::srgb(0.35, 0.35, 0.4);
 pub(super) const SLIDER_FILL_COLOR: Color = Color::srgb(0.5, 0.7, 0.3);
 pub(super) const SLIDER_HANDLE_COLOR: Color = Color::WHITE;
 
+// Spell icon
+pub(super) const SPELL_ICON_SIZE: f32 = 32.0;
+
 // Arrow between spells
 pub(super) const ARROW_COLOR: Color = Color::srgb(0.5, 0.5, 0.5);
 

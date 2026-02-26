@@ -412,6 +412,15 @@ impl Spell {
         }
     }
 
+    /// Returns the asset path for this spell's icon image, if one exists.
+    pub const fn icon_path(&self) -> Option<&'static str> {
+        match self {
+            Spell::Fireball => Some("images/fireball_icon.png"),
+            Spell::MagicMissile => Some("images/magic_missile_icon.png"),
+            _ => None,
+        }
+    }
+
     /// Returns the control instructions for this spell.
     pub const fn instructions(&self) -> &'static str {
         match self {
