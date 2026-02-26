@@ -304,31 +304,59 @@ pub const DEFENDER_GRID_GROUND_RANGE: f32 = 400.0;
 /// Once any enemy is within this range of any defender, all defenders activate.
 pub const DEFENDER_ACTIVATION_RANGE: f32 = 800.0;
 
+// ===== Tier Progression =====
+
+/// Number of levels per tier. Every 5 levels = one tier.
+/// Level 5, 10, 15, 20... are boss-only levels.
+pub const LEVELS_PER_TIER: u32 = 5;
+
+/// Returns the tier for a given level (0-indexed).
+/// Tier 0 = levels 1-5, Tier 1 = levels 6-10, etc.
+pub const fn get_tier(level: u32) -> u32 {
+    (level - 1) / LEVELS_PER_TIER
+}
+
+/// Returns the tier-local level (1-based, cycles 1-4 within each tier).
+/// The 5th level of each tier is a boss level.
+pub const fn get_tier_level(level: u32) -> u32 {
+    (level - 1) % LEVELS_PER_TIER + 1
+}
+
+/// Returns true if the given level is a boss-only level.
+/// Boss levels are every 5th level starting at level 5.
+pub const fn is_boss_level(level: u32) -> bool {
+    level >= LEVELS_PER_TIER && level.is_multiple_of(LEVELS_PER_TIER)
+}
+
 // ===== Level-Based Spawn Calculations =====
 
 /// Maximum units per grid cell before spilling to the next cell.
 pub const MAX_UNITS_PER_CELL: u32 = 10;
 
-/// Base infantry count at level 1.
+/// Base infantry count at tier_level 1.
 pub const BASE_INFANTRY_COUNT: u32 = 60;
 
-/// Infantry added per level after level 1.
+/// Infantry added per tier_level after tier_level 1.
 pub const INFANTRY_PER_LEVEL: u32 = 5;
 
-/// Base archer count at level 1.
+/// Base archer count at tier_level 1.
 pub const BASE_ARCHER_COUNT: u32 = 10;
 
-/// Archers added per level after level 1.
+/// Archers added per tier_level after tier_level 1.
 pub const ARCHERS_PER_LEVEL: u32 = 2;
 
-/// Calculates total infantry for a given level.
+/// Calculates total infantry for a given level using tier-based progression.
+/// Unit counts reset each tier, scaling with tier_level (1-4).
 pub const fn calculate_total_infantry(level: u32) -> u32 {
-    BASE_INFANTRY_COUNT + (level - 1) * INFANTRY_PER_LEVEL
+    let tier_level = get_tier_level(level);
+    BASE_INFANTRY_COUNT + (tier_level - 1) * INFANTRY_PER_LEVEL
 }
 
-/// Calculates total archers for a given level.
+/// Calculates total archers for a given level using tier-based progression.
+/// Unit counts reset each tier, scaling with tier_level (1-4).
 pub const fn calculate_total_archers(level: u32) -> u32 {
-    BASE_ARCHER_COUNT + (level - 1) * ARCHERS_PER_LEVEL
+    let tier_level = get_tier_level(level);
+    BASE_ARCHER_COUNT + (tier_level - 1) * ARCHERS_PER_LEVEL
 }
 
 /// Calculates the number of cells needed for a unit count (ceil division by MAX_UNITS_PER_CELL).

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
 use super::archer::ArcherPlugin;
-use super::behemoth::BehemothPlugin;
+use super::brute::BrutePlugin;
 use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
@@ -41,7 +41,7 @@ impl Plugin for UnitsPlugin {
             InfantryPlugin,
             ArcherPlugin,
             DispellerPlugin,
-            BehemothPlugin,
+            BrutePlugin,
             BossPlugin,
             KingPlugin,
         ))

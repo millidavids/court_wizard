@@ -31,8 +31,8 @@ pub enum SpawnTask {
     UpgradeToDispeller {
         entity: Entity,
     },
-    Behemoth,
-    Boss,
+    Brute,
+    Ogre,
     Battlefield,
     #[allow(dead_code)]
     Castle,

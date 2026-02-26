@@ -93,7 +93,7 @@ pub fn update_melee_unit_targeting(
     }
 }
 
-/// Generic weighted movement system used by infantry, behemoth, and other melee units.
+/// Generic weighted movement system used by infantry, brute, and other melee units.
 ///
 /// Combines three velocity sources with distance-based weighting:
 /// - Flow field: Pathfinding around obstacles

@@ -69,7 +69,7 @@ pub struct VelocitySystemSet;
 pub struct MovementSystemSet;
 
 /// System set that runs after combat resolution (wall collision → combat → corpse conversion).
-/// Used by systems that need to react to combat results (e.g., behemoth AOE splash).
+/// Used by systems that need to react to combat results (e.g., brute AOE splash).
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PostCombatSet;
 

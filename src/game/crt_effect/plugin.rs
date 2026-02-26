@@ -25,6 +25,7 @@ use bevy::{
 };
 
 use super::components::CrtEffectSettings;
+use super::systems::{correct_cursor_for_barrel_distortion, RawCursorPosition};
 
 const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
 
@@ -37,7 +38,14 @@ impl Plugin for CrtEffectPlugin {
             UniformComponentPlugin::<CrtEffectSettings>::default(),
         ));
 
+        app.init_resource::<RawCursorPosition>();
+
         app.add_systems(Update, update_crt_time);
+
+        // Correct cursor position for barrel distortion before any game systems read it.
+        // Runs in PreUpdate so all downstream systems (spells, UI picking, input)
+        // automatically get the corrected position.
+        app.add_systems(PreUpdate, correct_cursor_for_barrel_distortion);
 
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;

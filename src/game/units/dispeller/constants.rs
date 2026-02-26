@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_BLUE, tint};
+use crate::game::constants::{ATTACKER_BASE, TINT_BLUE, get_tier, get_tier_level, tint};
 
 // ===== Visual =====
-pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.3);
+pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.6);
 pub const DISPELLER_RADIUS: f32 = 8.0;
 
 // ===== Movement =====
@@ -27,15 +27,16 @@ pub const ATTACK_COOLDOWN: f32 = 2.0;
 
 // ===== Spawn =====
 
-/// Level at which attacker dispellers start appearing.
-pub const ATTACKER_DISPELLER_START_LEVEL: u32 = 6;
+/// Tier at which attacker dispellers start appearing.
+pub const ATTACKER_DISPELLER_START_TIER: u32 = 3;
 
 /// Calculates the number of attacker dispellers for a given level.
-/// Returns 0 below level 6, then scales slowly (1 at level 6, +1 per 2 levels).
+/// Returns 0 below tier 3, then scales with tier_level (1 at tier_level 1, +1 per tier_level).
 pub const fn calculate_attacker_dispellers(level: u32) -> u32 {
-    if level < ATTACKER_DISPELLER_START_LEVEL {
+    let tier = get_tier(level);
+    if tier < ATTACKER_DISPELLER_START_TIER {
         0
     } else {
-        1 + (level - ATTACKER_DISPELLER_START_LEVEL) / 2
+        get_tier_level(level)
     }
 }

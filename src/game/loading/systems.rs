@@ -32,7 +32,7 @@ pub fn init_loading_progress(
     let mut queue = SpawnQueue::new();
     let level = current_level.0;
 
-    // Spawn in intelligent order: Battlefield -> Castle -> Grid -> King -> Infantry -> Archers -> Behemoth -> Wizard
+    // Spawn in intelligent order: Battlefield -> Castle -> Grid -> King -> Infantry -> Archers -> Brute/Ogre -> Wizard
 
     // 1. Battlefield (foundation)
     queue.tasks.push(SpawnTask::Battlefield);
@@ -58,17 +58,17 @@ pub fn init_loading_progress(
             .push(SpawnTask::DefenderInfantry { unit_index: i });
     }
 
-    // Check if this is a boss level
-    use crate::game::units::boss::constants::BOSS_SPAWN_LEVEL_INTERVAL;
-    let is_boss_level =
-        level >= BOSS_SPAWN_LEVEL_INTERVAL && level.is_multiple_of(BOSS_SPAWN_LEVEL_INTERVAL);
+    // Check if this is a boss level (every 5th level starting at 5)
+    use crate::game::constants::is_boss_level;
+    use crate::game::constants::get_tier;
+    use crate::game::units::brute::constants::BRUTE_START_TIER;
 
-    if is_boss_level {
-        // Boss level: only spawn the boss, no other attackers
-        queue.tasks.push(SpawnTask::Boss);
+    if is_boss_level(level) {
+        // Boss level: only spawn the ogre, no other attackers
+        queue.tasks.push(SpawnTask::Ogre);
         kill_stats.total_attackers_spawned = 1;
     } else {
-        // Normal level: spawn infantry, archers, and possibly behemoth
+        // Normal level: spawn infantry, archers, and possibly brute
 
         // 7. Attacker Infantry
         let total_attackers = calculate_total_infantry(level);
@@ -88,17 +88,15 @@ pub fn init_loading_progress(
             });
         }
 
-        // 9. Behemoth (if level qualifies)
-        const BEHEMOTH_SPAWN_LEVEL_INTERVAL: u32 = 3;
-        let has_behemoth = level >= BEHEMOTH_SPAWN_LEVEL_INTERVAL
-            && level.is_multiple_of(BEHEMOTH_SPAWN_LEVEL_INTERVAL);
-        if has_behemoth {
-            queue.tasks.push(SpawnTask::Behemoth);
+        // 9. Brute (if tier qualifies)
+        let has_brute = get_tier(level) >= BRUTE_START_TIER;
+        if has_brute {
+            queue.tasks.push(SpawnTask::Brute);
         }
 
         // Record total attackers spawned for achievement tracking
         kill_stats.total_attackers_spawned =
-            total_attackers + total_attacker_archers + if has_behemoth { 1 } else { 0 };
+            total_attackers + total_attacker_archers + if has_brute { 1 } else { 0 };
     }
 
     // 8. Defender Archers (always spawn regardless of boss level)
@@ -146,8 +144,8 @@ pub fn process_spawn_queue(
     unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<DispellerAssets>),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     attacker_assets: (
-        Res<crate::game::units::behemoth::resources::BehemothAssets>,
-        Res<crate::game::units::boss::resources::BossAssets>,
+        Res<crate::game::units::brute::resources::BruteAssets>,
+        Res<crate::game::units::boss::ogre::resources::OgreAssets>,
     ),
     current_level: Res<CurrentLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -221,15 +219,15 @@ pub fn process_spawn_queue(
                     guard_index,
                 );
             }
-            SpawnTask::Behemoth => {
-                crate::game::units::behemoth::systems::spawn_initial_behemoths(
+            SpawnTask::Brute => {
+                crate::game::units::brute::systems::spawn_brute(
                     commands.reborrow(),
                     Res::clone(&attacker_assets.0),
                     Res::clone(&current_level),
                 );
             }
-            SpawnTask::Boss => {
-                crate::game::units::boss::systems::spawn_boss(
+            SpawnTask::Ogre => {
+                crate::game::units::boss::ogre::systems::spawn_ogre(
                     commands.reborrow(),
                     Res::clone(&attacker_assets.1),
                 );

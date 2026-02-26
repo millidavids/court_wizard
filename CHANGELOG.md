@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.253] - 2026-02-26
+
+### Added
+- **Brute** — a new heavy attacker unit that replaces the Behemoth, appearing in later tiers
+- **Ogre** — the boss has been reworked into the Ogre with enrage phases, knockback attacks, and a dedicated health bar labeled "Ogre"
+
+### Changed
+- **Tier-based level progression** — levels are now grouped into tiers of 5. Unit counts, elite/commander chances, and dispeller spawns all scale within each tier instead of endlessly ramping up. Every 5th level is a boss-only fight
+- Dispellers are now more visually distinct with a stronger blue tint
+- Elite and commander enemies now appear based on tier progression instead of flat level thresholds
+
+### Fixed
+- Spell targeting and UI buttons near the edges of the screen now correctly line up with your cursor — previously the CRT screen curvature caused them to drift away from where you were actually clicking
+
 ## [v0.2.249] - 2026-02-25
 
 ### Added

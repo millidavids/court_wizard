@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use rand::Rng;
 
 pub(crate) mod archer;
-pub(crate) mod behemoth;
+pub(crate) mod brute;
 pub(crate) mod boss;
 pub(in crate::game) mod commander;
 pub(crate) mod components;

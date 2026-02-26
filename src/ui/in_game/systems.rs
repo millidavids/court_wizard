@@ -535,7 +535,7 @@ pub(super) fn spawn_boss_health_bar(
             .with_children(|parent| {
                 // Boss name
                 parent.spawn((
-                    Text::new("Boss"),
+                    Text::new("Ogre"),
                     TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
                     TextColor(Color::WHITE),
                 ));
