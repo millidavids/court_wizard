@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::HypnoticPatternIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, MesmerizedModifier};
@@ -23,7 +24,6 @@ pub fn handle_hypnotic_pattern_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -46,7 +46,7 @@ pub fn handle_hypnotic_pattern_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -59,7 +59,6 @@ pub fn handle_hypnotic_pattern_casting(
         &input,
         &time,
         wizard_entity,
-        wizard_transform,
         wizard,
         &mut casting_state,
         &mut mana,
@@ -82,7 +81,6 @@ fn hypnotic_pattern_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard_transform: &Transform,
     wizard: &Wizard,
     casting_state: &mut CastingState,
     mana: &mut Mana,
@@ -108,7 +106,7 @@ fn hypnotic_pattern_casting_logic(
         return false;
     };
 
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
     let wizard_height = wizard_pos.y;
     let max_ground_radius = if wizard_height < wizard.spell_range {
         (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()

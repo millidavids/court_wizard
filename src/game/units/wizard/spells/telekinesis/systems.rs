@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::TelekinesisIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -23,7 +24,6 @@ pub(super) fn handle_telekinesis_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -46,7 +46,7 @@ pub(super) fn handle_telekinesis_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -64,7 +64,7 @@ pub(super) fn handle_telekinesis_casting(
             find_nearest_drop(&cursor_world_pos, &drops_query)
     {
         // Check if drop is within wizard's spell range
-        let wizard_pos = wizard_transform.translation;
+        let wizard_pos = SPELL_ORIGIN;
         let drop_pos = drop_transform.translation;
         let wizard_height = wizard_pos.y;
         let max_ground_radius = if wizard_height < wizard.spell_range {
@@ -92,7 +92,6 @@ pub(super) fn handle_telekinesis_casting(
         &input,
         &time,
         wizard_entity,
-        wizard_transform,
         wizard,
         &mut casting_state,
         &mut mana,
@@ -114,7 +113,6 @@ fn telekinesis_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard_transform: &Transform,
     wizard: &Wizard,
     casting_state: &mut CastingState,
     mana: &mut Mana,
@@ -147,7 +145,7 @@ fn telekinesis_casting_logic(
                 && let Some((_drop_entity, drop_transform, _drop)) =
                     find_nearest_drop(&cursor_world_pos, drops_query)
             {
-                let wizard_pos = wizard_transform.translation;
+                let wizard_pos = SPELL_ORIGIN;
                 let drop_pos = drop_transform.translation;
                 let wizard_height = wizard_pos.y;
                 let max_ground_radius = if wizard_height < wizard.spell_range {

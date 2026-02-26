@@ -17,6 +17,11 @@ use crate::game::units::dispeller::components::{Dispeller, DispellerAttackTimer}
 use crate::game::units::dispeller::constants::{
     DISPELLER_HEALTH, DISPELLER_MOVEMENT_SPEED, DISPELLER_RADIUS,
 };
+use crate::game::units::healer::HealerAssets;
+use crate::game::units::healer::components::{Healer, HealerAttackTimer};
+use crate::game::units::healer::constants::{
+    HEALER_HEALTH, HEALER_MOVEMENT_SPEED, HEALER_RADIUS,
+};
 use crate::game::units::elite::{
     ELITE_DAMAGE_BONUS, ELITE_HEALTH_BONUS, ELITE_SPEED_BONUS, EliteDamageBonus, EliteHealthBonus,
     EliteSpeedBonus,
@@ -202,5 +207,40 @@ pub(super) fn apply_dispeller_upgrade(
         Health::new(DISPELLER_HEALTH),
         MovementSpeed(DISPELLER_MOVEMENT_SPEED),
         Hitbox::new(DISPELLER_RADIUS, crate::game::constants::ATTACKER_HITBOX_HEIGHT),
+    ));
+}
+
+/// Applies healer upgrade to an archer entity.
+///
+/// Converts an attacker archer into a healer by swapping components:
+/// removes archer-specific components, adds healer components, and
+/// updates mesh/material/stats to match healer configuration.
+pub(super) fn apply_healer_upgrade(
+    commands: &mut Commands,
+    entity: Entity,
+    healer_assets: &HealerAssets,
+) {
+    // Remove archer-specific components
+    commands
+        .entity(entity)
+        .remove::<(Archer, AttackRange, ArcherMovementTimer)>();
+
+    // Add healer components
+    commands.entity(entity).insert((
+        Healer,
+        HealerAttackTimer::new(),
+    ));
+
+    // Swap mesh and material to healer visuals
+    commands.entity(entity).insert((
+        Mesh3d(healer_assets.mesh.clone()),
+        MeshMaterial3d(healer_assets.attacker_material.clone()),
+    ));
+
+    // Update stats to healer values
+    commands.entity(entity).insert((
+        Health::new(HEALER_HEALTH),
+        MovementSpeed(HEALER_MOVEMENT_SPEED),
+        Hitbox::new(HEALER_RADIUS, crate::game::constants::ATTACKER_HITBOX_HEIGHT),
     ));
 }

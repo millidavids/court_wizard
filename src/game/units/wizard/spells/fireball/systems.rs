@@ -8,6 +8,7 @@ use super::components::*;
 use super::constants;
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -29,7 +30,6 @@ pub fn handle_fireball_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
@@ -49,7 +49,7 @@ pub fn handle_fireball_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -62,7 +62,6 @@ pub fn handle_fireball_casting(
         &input,
         &time,
         wizard_entity,
-        wizard_transform,
         &mut casting_state,
         &mut mana,
         primed_spell,
@@ -82,7 +81,6 @@ fn fireball_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard_transform: &Transform,
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
@@ -112,7 +110,7 @@ fn fireball_casting_logic(
                 if mana.consume(constants::MANA_COST)
                     && let Some(target_pos) = input.cursor_pos
                 {
-                    let spawn_origin = wizard_transform.translation
+                    let spawn_origin = SPELL_ORIGIN
                         + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
                     spawn_fireball(commands, assets, spawn_origin, target_pos, primed_spell);
                     completed = true;
@@ -389,17 +387,16 @@ pub fn cleanup_finished_explosions(
 pub fn despawn_distant_fireballs(
     mut commands: Commands,
     fireballs: Query<(Entity, &Transform), With<Fireball>>,
-    wizard_query: Query<(&Transform, &Wizard), (With<LocalWizard>, Without<Fireball>)>,
+    wizard_query: Query<&Wizard, (With<LocalWizard>, Without<Fireball>)>,
 ) {
-    let Ok((wizard_transform, wizard)) = wizard_query.single() else {
+    let Ok(wizard) = wizard_query.single() else {
         return;
     };
 
-    let wizard_pos = wizard_transform.translation;
     let spell_range = wizard.spell_range;
 
     for (entity, transform) in &fireballs {
-        let distance_from_wizard = transform.translation.distance(wizard_pos);
+        let distance_from_wizard = transform.translation.distance(SPELL_ORIGIN);
 
         if distance_from_wizard > spell_range {
             commands.entity(entity).despawn();

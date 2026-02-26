@@ -15,8 +15,8 @@ pub const PRIMED_FIREBALL: PrimedSpell = PrimedSpell {
     range_multiplier: 1.0,
 };
 
-/// Height offset above wizard for fireball spawn.
-pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
+/// Height offset above spell origin for fireball spawn.
+pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 
 /// Cast time for fireball in seconds.
 pub const CAST_TIME: f32 = 3.0;

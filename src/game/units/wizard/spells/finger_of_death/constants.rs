@@ -13,7 +13,7 @@ pub const PRIMED_FINGER_OF_DEATH: PrimedSpell = PrimedSpell {
 
 // Casting
 pub const CAST_TIME: f32 = 2.0;
-pub const BEAM_ORIGIN_HEIGHT_OFFSET: f32 = 100.0;
+pub const BEAM_ORIGIN_HEIGHT_OFFSET: f32 = 0.0;
 
 // Mana requirement - must have at least 50% mana
 pub const MANA_REQUIREMENT_PERCENT: f32 = 0.5;

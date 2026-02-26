@@ -31,6 +31,9 @@ pub enum SpawnTask {
     UpgradeToDispeller {
         entity: Entity,
     },
+    UpgradeToHealer {
+        entity: Entity,
+    },
     Brute,
     Ogre,
     Battlefield,
@@ -45,6 +48,7 @@ pub enum SpawnTask {
     SelectInfantryUpgrades,
     SelectArcherUpgrades,
     SelectDispellerUpgrades,
+    SelectHealerUpgrades,
     UpgradeToElite {
         entity: Entity,
         unit_type: UnitType,

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.298] - 2026-02-26
+
+### Added
+- **Healer** — a new enemy support unit that heals nearby wounded attackers
+- **Castle wall artwork** — the castle platform now displays a stone wall texture instead of a flat gray box
+
+### Changed
+- Repositioned the castle, wizard, and spell origin for a better view of the battlefield
+- Cauldron is now larger and positioned next to the wizard
+- Undead units now have a consistent purple color across all unit types
+- Suppressed harmless cursor positioning warnings in the browser console
+
 ## [v0.2.253] - 2026-02-26
 
 ### Added

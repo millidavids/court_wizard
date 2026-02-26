@@ -11,7 +11,9 @@ use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{Hitbox, Team};
+use crate::game::battlefield::components::CastleWallAssets;
 use crate::game::units::dispeller::DispellerAssets;
+use crate::game::units::healer::HealerAssets;
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::systems as infantry_systems;
@@ -127,6 +129,7 @@ pub fn init_loading_progress(
     queue.tasks.push(SpawnTask::SelectInfantryUpgrades);
     queue.tasks.push(SpawnTask::SelectArcherUpgrades);
     queue.tasks.push(SpawnTask::SelectDispellerUpgrades);
+    queue.tasks.push(SpawnTask::SelectHealerUpgrades);
 
     commands.insert_resource(queue);
 }
@@ -141,7 +144,7 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<DispellerAssets>),
+    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<DispellerAssets>, Res<HealerAssets>),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     attacker_assets: (
         Res<crate::game::units::brute::resources::BruteAssets>,
@@ -155,10 +158,10 @@ pub fn process_spawn_queue(
         Option<Res<crate::game::units::wizard::components::WizardAssets>>,
         Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     ),
+    castle_wall_assets: Res<CastleWallAssets>,
     asset_server: Res<AssetServer>,
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
-        Query<&Transform, With<Camera3d>>,
         Query<(Entity, &Team), With<Infantry>>,
         Query<(Entity, &Team), With<Archer>>,
         Query<&Transform>,
@@ -203,6 +206,13 @@ pub fn process_spawn_queue(
                     &unit_assets.2,
                 );
             }
+            SpawnTask::UpgradeToHealer { entity } => {
+                upgrade_systems::apply_healer_upgrade(
+                    &mut commands,
+                    entity,
+                    &unit_assets.3,
+                );
+            }
             SpawnTask::King => {
                 crate::game::units::king::systems::spawn_king(
                     commands.reborrow(),
@@ -237,6 +247,7 @@ pub fn process_spawn_queue(
                     commands.reborrow(),
                     meshes,
                     materials,
+                    Res::clone(&castle_wall_assets),
                 );
             }
             SpawnTask::Castle => {
@@ -272,7 +283,6 @@ pub fn process_spawn_queue(
                         meshes,
                         materials,
                         Res::clone(assets),
-                        queries.p0(),
                     );
                 }
             }
@@ -282,18 +292,27 @@ pub fn process_spawn_queue(
             SpawnTask::SelectInfantryUpgrades => {
                 let level = current_level.0;
                 let upgrade_tasks =
-                    upgrade_selection::select_infantry_upgrades(&queries.p1(), level);
+                    upgrade_selection::select_infantry_upgrades(&queries.p0(), level);
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
             SpawnTask::SelectArcherUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks = upgrade_selection::select_archer_upgrades(&queries.p2(), level);
+                let upgrade_tasks = upgrade_selection::select_archer_upgrades(&queries.p1(), level);
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
             SpawnTask::SelectDispellerUpgrades => {
                 let level = current_level.0;
                 let upgrade_tasks = upgrade_selection::select_dispeller_upgrades(
-                    &queries.p2(),
+                    &queries.p1(),
+                    level,
+                    &spawn_queue.tasks,
+                );
+                spawn_queue.tasks.extend(upgrade_tasks);
+            }
+            SpawnTask::SelectHealerUpgrades => {
+                let level = current_level.0;
+                let upgrade_tasks = upgrade_selection::select_healer_upgrades(
+                    &queries.p1(),
                     level,
                     &spawn_queue.tasks,
                 );
@@ -301,9 +320,9 @@ pub fn process_spawn_queue(
             }
             SpawnTask::UpgradeToElite { entity, unit_type } => {
                 // Query the entity's current transform and hitbox (query separately to avoid double borrow)
-                if let Ok(transform) = queries.p3().get(entity) {
+                if let Ok(transform) = queries.p2().get(entity) {
                     let transform = *transform; // Copy the transform
-                    if let Ok(hitbox) = queries.p4().get(entity) {
+                    if let Ok(hitbox) = queries.p3().get(entity) {
                         let hitbox = *hitbox; // Copy the hitbox
                         upgrade_systems::apply_elite_upgrade(
                             &mut commands,
@@ -318,9 +337,9 @@ pub fn process_spawn_queue(
             }
             SpawnTask::UpgradeToCommander { entity, unit_type } => {
                 // Query the entity's current transform and hitbox (query separately to avoid double borrow)
-                if let Ok(transform) = queries.p3().get(entity) {
+                if let Ok(transform) = queries.p2().get(entity) {
                     let transform = *transform; // Copy the transform
-                    if let Ok(hitbox) = queries.p4().get(entity) {
+                    if let Ok(hitbox) = queries.p3().get(entity) {
                         let hitbox = *hitbox; // Copy the hitbox
                         upgrade_systems::apply_commander_upgrade(
                             &mut commands,

@@ -39,8 +39,8 @@ pub const IMPACT_EXPAND_SPEED: f32 = 200.0;
 /// Starting alpha of the impact sphere.
 pub const IMPACT_INITIAL_ALPHA: f32 = 0.3;
 
-/// Height offset above origin for spawning the projectile.
-pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
+/// Height offset above spell origin for spawning the projectile.
+pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 
 /// Maximum projectile lifetime before auto-despawn (seconds).
 pub const PROJECTILE_LIFETIME: f32 = 3.0;

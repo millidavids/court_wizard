@@ -50,7 +50,13 @@ pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
 pub const TINT_BLUE: Color = Color::srgb(0.2, 0.2, 1.0);
 pub const TINT_ORANGE: Color = Color::srgb(1.0, 0.6, 0.0);
 pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
+pub const TINT_GREEN: Color = Color::srgb(0.2, 0.9, 0.3);
 pub const TINT_WHITE: Color = Color::WHITE;
+
+// ===== Undead Color =====
+
+/// Base color for undead units (purple).
+pub const UNDEAD_BASE: Color = Color::srgb(0.5, 0.2, 0.7);
 
 // ===== Corpse Colors (tinted red then dimmed) =====
 
@@ -62,11 +68,7 @@ pub const DEFENDER_CORPSE_COLOR: Color = dim(tint(DEFENDER_BASE, TINT_RED, 0.4),
 /// Corpse color for attacker units.
 pub const ATTACKER_CORPSE_COLOR: Color = dim(tint(ATTACKER_BASE, TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
 /// Corpse color for undead units.
-pub const UNDEAD_CORPSE_COLOR: Color = dim(
-    tint(Color::srgb(0.3, 0.8, 0.4), TINT_RED, 0.4),
-    0.3,
-    CORPSE_ALPHA,
-);
+pub const UNDEAD_CORPSE_COLOR: Color = dim(tint(UNDEAD_BASE, TINT_RED, 0.4), 0.3, CORPSE_ALPHA);
 /// Corpse color for the king.
 pub const KING_CORPSE_COLOR: Color = dim(
     tint(Color::srgb(0.65, 0.65, 0.9), TINT_RED, 0.4),
@@ -81,21 +83,18 @@ pub const BATTLEFIELD_SIZE: f32 = 6000.0;
 
 // ===== Castle Positioning =====
 
-/// Castle position in 3D space.
-pub const CASTLE_POSITION: Vec3 = Vec3::new(-1550.0, 1200.0, 1550.0);
+/// Castle position in 3D space (shifted back toward camera along the 45° diagonal).
+pub const CASTLE_POSITION: Vec3 = Vec3::new(-1700.0, 1200.0, 1700.0);
 
 /// Castle rotation in degrees.
-pub const CASTLE_ROTATION_DEGREES: f32 = 45.0;
+pub const CASTLE_ROTATION_DEGREES: f32 = 35.0;
 
-/// Castle dimensions.
+/// Castle width — used for the castle wall plane.
 pub const CASTLE_WIDTH: f32 = 300.0;
-pub const CASTLE_DEPTH: f32 = 2000.0;
-/// Castle height — extends from the top surface down to battlefield level (Y=0).
-pub const CASTLE_HEIGHT: f32 = 1200.0;
 
 /// Wizard offset from castle position.
 /// Y offset = half sprite height so the wizard's feet rest on the castle platform.
-pub(crate) const WIZARD_OFFSET: Vec3 = Vec3::new(125.0, 132.0, 0.0);
+pub(crate) const WIZARD_OFFSET: Vec3 = Vec3::new(300.0, 450.0, 0.0);
 
 // ===== Unit Positioning =====
 
@@ -105,6 +104,17 @@ pub const WIZARD_POSITION: Vec3 = Vec3::new(
     CASTLE_POSITION.x + WIZARD_OFFSET.x,
     CASTLE_POSITION.y + WIZARD_OFFSET.y,
     CASTLE_POSITION.z + WIZARD_OFFSET.z,
+);
+
+/// Offset from wizard position to place the cauldron beside the wizard on the castle wall.
+const SPELL_OFFSET: Vec3 = Vec3::new(100.0, 90.0, 30.0);
+
+/// Spell origin point — where projectiles and beams originate from.
+/// Same as wizard position since the wizard doesn't move.
+pub const SPELL_ORIGIN: Vec3 = Vec3::new(
+    WIZARD_POSITION.x + SPELL_OFFSET.x,
+    WIZARD_POSITION.y + SPELL_OFFSET.y,
+    WIZARD_POSITION.z + SPELL_OFFSET.z,
 );
 
 // ===== Castle 2 Positioning (Multiplayer — opposite corner) =====

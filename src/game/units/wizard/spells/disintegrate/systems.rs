@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::DisintegrateBeam;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
@@ -47,7 +48,6 @@ pub fn handle_disintegrate_casting(
     mut commands: Commands,
     mut wizard_query: Query<
         (
-            &Transform,
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
@@ -69,7 +69,7 @@ pub fn handle_disintegrate_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
+    let Ok((mut casting_state, mut mana, primed_spell, wizard)) =
         wizard_query.single_mut()
     else {
         return;
@@ -83,7 +83,6 @@ pub fn handle_disintegrate_casting(
     let result = disintegrate_casting_logic(
         &input,
         &time,
-        wizard_transform,
         &mut casting_state,
         &mut mana,
         primed_spell,
@@ -134,7 +133,6 @@ pub fn handle_disintegrate_casting(
 fn disintegrate_casting_logic(
     input: &WizardInput,
     time: &Time,
-    wizard_transform: &Transform,
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
@@ -145,7 +143,7 @@ fn disintegrate_casting_logic(
         beam_action: BeamAction::None,
     };
 
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
 
     // Check for release
     if input.just_released {

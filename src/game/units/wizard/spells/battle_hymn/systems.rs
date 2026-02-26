@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::BattleHymnIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::BattleHymnModifier;
@@ -23,7 +24,6 @@ pub fn handle_battle_hymn_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -49,7 +49,7 @@ pub fn handle_battle_hymn_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -59,8 +59,7 @@ pub fn handle_battle_hymn_casting(
     }
 
     // Clamp cursor to spell range
-    let clamped_cursor =
-        clamp_cursor_to_range(input.cursor_pos, wizard_transform, wizard, primed_spell);
+    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard, primed_spell);
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -187,13 +186,12 @@ fn battle_hymn_casting_logic(
 /// Clamps cursor position to spell range accounting for circle radius.
 fn clamp_cursor_to_range(
     cursor_pos: Option<Vec3>,
-    wizard_transform: &Transform,
     wizard: &Wizard,
     primed_spell: &PrimedSpell,
 ) -> Option<Vec3> {
     let mut pos = cursor_pos?;
 
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
     let wizard_height = wizard_pos.y;
     let max_ground_radius = if wizard_height < wizard.spell_range {
         (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()

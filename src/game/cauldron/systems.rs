@@ -5,7 +5,7 @@ use super::components::*;
 use super::constants;
 use super::messages::*;
 use super::resources::{CauldronAssets, CauldronBuffs};
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::input::messages::BlockSpellInput;
 use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints};
 
@@ -21,7 +21,6 @@ pub fn spawn_cauldron(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     cauldron_assets: Res<CauldronAssets>,
-    camera_query: Query<&Transform, With<Camera3d>>,
 ) {
     // Create a quad mesh for the billboard
     let quad_mesh = Rectangle::new(
@@ -45,19 +44,14 @@ pub fn spawn_cauldron(
         ..default()
     });
 
-    // Calculate the rotation to face the camera (only once since camera is fixed)
-    let mut transform = Transform::from_translation(constants::CAULDRON_POSITION);
-    if let Ok(camera_transform) = camera_query.single() {
-        transform.look_at(camera_transform.translation, Vec3::Y);
-    }
-
     commands.spawn((
         Mesh3d(meshes.add(quad_mesh)),
         MeshMaterial3d(material),
-        transform,
+        Transform::from_translation(constants::CAULDRON_POSITION),
         Cauldron,
         CauldronState::default(),
         CauldronAnimation::new(),
+        Billboard,
         OnGameplayScreen,
     ));
 }

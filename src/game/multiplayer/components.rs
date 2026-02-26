@@ -7,7 +7,7 @@ use crate::networking::snapshot::SpellEffectKind;
 /// Marker component for entities that belong to the multiplayer game screen.
 ///
 /// Used for bulk cleanup when exiting the multiplayer game state.
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct OnMultiplayerGameScreen;
 
 /// Marker for ghost entities rendered on the guest from host state snapshots.

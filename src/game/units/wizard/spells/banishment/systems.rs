@@ -19,7 +19,6 @@ pub fn handle_banishment_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
@@ -46,7 +45,7 @@ pub fn handle_banishment_casting(
         cursor_pos,
     };
 
-    let Ok((_wizard_entity, _wizard_transform, mut casting_state, mut mana, primed_spell)) =
+    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;

@@ -1,4 +1,4 @@
-mod components;
+pub(in crate::game) mod components;
 pub(in crate::game) mod constants;
 pub(super) mod messages;
 mod plugin;

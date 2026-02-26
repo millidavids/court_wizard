@@ -8,6 +8,7 @@ use super::components::{
 };
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -31,7 +32,6 @@ pub(super) fn handle_lightning_rod_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -53,7 +53,7 @@ pub(super) fn handle_lightning_rod_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -62,10 +62,9 @@ pub(super) fn handle_lightning_rod_casting(
         return;
     }
 
-    let wizard_pos = wizard_transform.translation;
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -108,7 +107,6 @@ pub(super) fn handle_lightning_rod_casting(
         &effective_input,
         &time,
         wizard_entity,
-        wizard_transform,
         wizard,
         &mut casting_state,
         &mut mana,
@@ -129,7 +127,6 @@ fn lightning_rod_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard_transform: &Transform,
     _wizard: &Wizard,
     casting_state: &mut CastingState,
     mana: &mut Mana,
@@ -138,7 +135,7 @@ fn lightning_rod_casting_logic(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
 ) -> bool {
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
 
     // Check for release event - cancel cast
     if input.just_released {

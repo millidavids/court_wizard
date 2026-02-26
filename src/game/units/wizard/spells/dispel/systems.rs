@@ -6,6 +6,7 @@ use super::constants;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleType, OBSTACLE_BUFFER};
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::grease::components::GreaseZone;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
@@ -26,7 +27,6 @@ pub fn handle_dispel_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &mut Mana,
             &PrimedSpell,
             &Wizard,
@@ -46,7 +46,7 @@ pub fn handle_dispel_casting(
         return;
     };
 
-    let Ok((wizard_entity, wizard_transform, mut mana, primed_spell, wizard, cooldown)) =
+    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) =
         wizard_query.single_mut()
     else {
         return;
@@ -65,7 +65,7 @@ pub fn handle_dispel_casting(
         return;
     }
 
-    let origin = wizard_transform.translation;
+    let origin = SPELL_ORIGIN;
     spawn_dispel_projectile(
         &mut commands,
         &mut meshes,

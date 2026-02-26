@@ -12,6 +12,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::crdt::PeerId;
 
@@ -27,7 +28,6 @@ pub fn handle_magic_missile_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &mut Mana,
             &PrimedSpell,
             &Wizard,
@@ -49,7 +49,7 @@ pub fn handle_magic_missile_casting(
 
     let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
 
-    let Ok((wizard_entity, wizard_transform, mut mana, primed_spell, wizard, cooldown)) =
+    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) =
         wizard_query.single_mut()
     else {
         return;
@@ -75,7 +75,7 @@ pub fn handle_magic_missile_casting(
         return;
     }
 
-    let spawn_origin = wizard_transform.translation;
+    let spawn_origin = SPELL_ORIGIN;
 
     // Spawn a volley of missiles
     for _ in 0..constants::MISSILES_PER_CAST {

@@ -4,7 +4,7 @@ use bevy::window::PrimaryWindow;
 use super::components::{PlagueWindCloud, PlagueWindIndicator};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::ATTACKER_GRID_CENTER_ANGLE;
+use crate::game::constants::{ATTACKER_GRID_CENTER_ANGLE, SPELL_ORIGIN};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -30,7 +30,6 @@ pub fn handle_plague_wind_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -53,7 +52,7 @@ pub fn handle_plague_wind_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -62,7 +61,7 @@ pub fn handle_plague_wind_casting(
         return;
     }
 
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
     let scale = primed_spell.empowerment;
     let radius = constants::CLOUD_RADIUS * scale;
     let clamped_pos = input
@@ -108,7 +107,6 @@ pub fn handle_plague_wind_casting(
         &effective_input,
         &time,
         wizard_entity,
-        wizard_transform,
         &mut casting_state,
         &mut mana,
         primed_spell,
@@ -130,7 +128,6 @@ fn plague_wind_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard_transform: &Transform,
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
@@ -140,7 +137,7 @@ fn plague_wind_casting_logic(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
 ) -> bool {
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
     let scale = primed_spell.empowerment;
     let radius = constants::CLOUD_RADIUS * scale;
 

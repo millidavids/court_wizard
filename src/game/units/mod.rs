@@ -14,6 +14,7 @@ pub(crate) mod constants;
 pub(crate) mod damage;
 pub(crate) mod dispeller;
 pub(in crate::game) mod elite;
+pub(crate) mod healer;
 pub(in crate::game) mod infantry;
 pub(crate) mod king;
 pub(in crate::game) mod movement;

@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::*;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
@@ -57,7 +58,6 @@ pub fn handle_finger_of_death_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &mut CastingState,
             &Mana,
             &PrimedSpell,
@@ -79,7 +79,7 @@ pub fn handle_finger_of_death_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mana, primed_spell, wizard)) =
+    let Ok((wizard_entity, mut casting_state, mana, primed_spell, wizard)) =
         wizard_query.single_mut()
     else {
         return;
@@ -94,7 +94,6 @@ pub fn handle_finger_of_death_casting(
     let result = finger_of_death_casting_logic(
         &input,
         &time,
-        wizard_transform,
         &mut casting_state,
         mana,
         primed_spell,
@@ -152,7 +151,6 @@ pub fn handle_finger_of_death_casting(
 fn finger_of_death_casting_logic(
     input: &WizardInput,
     time: &Time,
-    wizard_transform: &Transform,
     casting_state: &mut CastingState,
     mana: &Mana,
     primed_spell: &PrimedSpell,
@@ -165,7 +163,7 @@ fn finger_of_death_casting_logic(
         remove_awaiting_release: false,
     };
 
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
 
     // Check for release event
     if input.just_released {

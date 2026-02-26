@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 /// Marker component for all game entities (cleanup on exit from InGame state).
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct OnGameplayScreen;
 
 /// Marker component for spells that require concentration to maintain.

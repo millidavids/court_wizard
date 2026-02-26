@@ -15,7 +15,7 @@ pub const PRIMED_CHAIN_LIGHTNING: PrimedSpell = PrimedSpell {
 // Casting
 pub const CAST_TIME: f32 = 0.4;
 pub const MANA_COST: f32 = 15.0;
-pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
+pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 
 // Damage
 pub const INITIAL_DAMAGE: f32 = 20.0;

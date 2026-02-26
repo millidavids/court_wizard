@@ -1,4 +1,5 @@
 use bevy::asset::{AssetMetaCheck, AssetPlugin};
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 
@@ -28,6 +29,13 @@ fn main() {
 
     app.add_plugins(
         DefaultPlugins
+            .set(LogPlugin {
+                // Suppress bevy_winit::system "could not set cursor position" errors
+                // on WASM — browsers don't support programmatic cursor repositioning,
+                // but we still call it (works on native) for CRT barrel correction.
+                filter: "bevy_winit::system=off,wgpu=error,naga=warn".to_string(),
+                ..default()
+            })
             .set(AssetPlugin {
                 meta_check: AssetMetaCheck::Never,
                 ..default()

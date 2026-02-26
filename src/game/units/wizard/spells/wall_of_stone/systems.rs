@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -35,7 +36,6 @@ pub fn handle_wall_of_stone_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -59,7 +59,7 @@ pub fn handle_wall_of_stone_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -79,7 +79,7 @@ pub fn handle_wall_of_stone_casting(
 
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, wizard_transform.translation, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
 
     let cast_result = wall_of_stone_casting_logic(
         &input,

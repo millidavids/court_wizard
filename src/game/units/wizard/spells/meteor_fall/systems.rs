@@ -9,6 +9,7 @@ use super::components::{
 };
 use super::constants::*;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -113,7 +114,6 @@ pub(super) fn handle_meteor_fall_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &Wizard,
             &mut CastingState,
             &mut Mana,
@@ -136,7 +136,7 @@ pub(super) fn handle_meteor_fall_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -149,7 +149,6 @@ pub(super) fn handle_meteor_fall_casting(
         &input,
         &time,
         wizard_entity,
-        wizard_transform,
         wizard,
         &mut casting_state,
         &mut mana,
@@ -172,7 +171,6 @@ fn meteor_fall_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard_transform: &Transform,
     wizard: &Wizard,
     casting_state: &mut CastingState,
     mana: &mut Mana,
@@ -202,7 +200,7 @@ fn meteor_fall_casting_logic(
         return false;
     };
 
-    let wizard_pos = wizard_transform.translation;
+    let wizard_pos = SPELL_ORIGIN;
     let scale = primed_spell.empowerment;
     let storm_radius = STORM_RADIUS * scale;
 

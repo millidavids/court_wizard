@@ -8,6 +8,7 @@ use super::components::*;
 use super::constants;
 use super::styles::{arc_color_at_depth, arc_width_at_depth};
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
@@ -31,7 +32,6 @@ pub fn handle_chain_lightning_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Transform,
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
@@ -58,7 +58,7 @@ pub fn handle_chain_lightning_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard_transform, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -71,7 +71,6 @@ pub fn handle_chain_lightning_casting(
         &input,
         &time,
         wizard_entity,
-        wizard_transform,
         &mut casting_state,
         &mut mana,
         primed_spell,
@@ -94,7 +93,6 @@ fn chain_lightning_casting_logic(
     input: &WizardInput,
     time: &Time,
     _wizard_entity: Entity,
-    wizard_transform: &Transform,
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
@@ -135,7 +133,7 @@ fn chain_lightning_casting_logic(
                         rods_query,
                         crystals_query,
                     ) {
-                        let wizard_pos = wizard_transform.translation
+                        let wizard_pos = SPELL_ORIGIN
                             + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
                         // Scale damage by empowerment

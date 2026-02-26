@@ -7,8 +7,8 @@
 
 use bevy::prelude::*;
 
-use crate::game::battlefield::components::{Battlefield, Castle};
-use crate::game::battlefield::styles::{BATTLEFIELD_COLOR, CASTLE_COLOR};
+use crate::game::battlefield::components::{Battlefield, CastleWallAssets};
+use crate::game::battlefield::styles::BATTLEFIELD_COLOR;
 use crate::game::components::Billboard;
 use crate::game::constants::*;
 use crate::game::loading::resources::LoadingProgress;
@@ -179,6 +179,7 @@ pub fn process_mp_spawn_queue(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut next_state: ResMut<NextState<AppState>>,
+    castle_wall_assets: Res<CastleWallAssets>,
     asset_server: Res<AssetServer>,
     wizard_assets: Option<Res<WizardAssets>>,
 ) {
@@ -193,6 +194,7 @@ pub fn process_mp_spawn_queue(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &castle_wall_assets,
                     CASTLE_POSITION,
                     CASTLE_ROTATION_DEGREES,
                 );
@@ -202,6 +204,7 @@ pub fn process_mp_spawn_queue(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &castle_wall_assets,
                     CASTLE_2_POSITION,
                     CASTLE_2_ROTATION_DEGREES,
                 );
@@ -426,29 +429,24 @@ fn spawn_mp_battlefield(
     ));
 }
 
-/// Spawns a castle box at the given position and rotation.
-/// `position` is the top surface; the box extends down to battlefield level.
+/// Spawns a castle wall plane at the given position and rotation.
 fn spawn_castle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    castle_wall_assets: &CastleWallAssets,
     position: Vec3,
     rotation_degrees: f32,
 ) {
-    let castle_box = Cuboid::new(CASTLE_WIDTH, CASTLE_HEIGHT, CASTLE_DEPTH);
-    let castle_center = position - Vec3::new(0.0, CASTLE_HEIGHT / 2.0, 0.0);
-    commands.spawn((
-        Mesh3d(meshes.add(castle_box)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: CASTLE_COLOR,
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_translation(castle_center)
-            .with_rotation(Quat::from_rotation_y(rotation_degrees.to_radians())),
-        Castle,
+    crate::game::battlefield::systems::spawn_castle_wall(
+        commands,
+        meshes,
+        materials,
+        castle_wall_assets,
+        position,
+        rotation_degrees,
         OnMultiplayerGameScreen,
-    ));
+    );
 }
 
 /// Spawns a wizard at the given position for multiplayer.

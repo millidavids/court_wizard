@@ -6,6 +6,7 @@ use bevy::window::PrimaryWindow;
 use super::components::{BlackHole, UnitInBlackHole};
 use super::constants::*;
 use crate::game::components::{Acceleration, OnGameplayScreen};
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -91,7 +92,6 @@ pub(super) fn handle_black_hole_casting(
     mut commands: Commands,
     mut wizard_query: Query<
         (
-            &Transform,
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
@@ -112,7 +112,7 @@ pub(super) fn handle_black_hole_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_transform, mut casting_state, mut mana, primed_spell, wizard)) =
+    let Ok((mut casting_state, mut mana, primed_spell, wizard)) =
         wizard_query.single_mut()
     else {
         return;
@@ -127,7 +127,6 @@ pub(super) fn handle_black_hole_casting(
         &mut casting_state,
         &mut mana,
         primed_spell,
-        wizard_transform,
         wizard,
     );
 
@@ -149,7 +148,6 @@ fn black_hole_casting_logic(
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
-    wizard_transform: &Transform,
     wizard: &Wizard,
 ) -> CastResult {
     let mut result = CastResult {
@@ -174,9 +172,8 @@ fn black_hole_casting_logic(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 if let Some(cursor_pos) = input.cursor_pos {
-                    let wizard_pos = wizard_transform.translation;
                     let clamped_pos =
-                        clamp_to_spell_range(cursor_pos, wizard_pos, wizard.spell_range);
+                        clamp_to_spell_range(cursor_pos, SPELL_ORIGIN, wizard.spell_range);
 
                     if mana.consume(MANA_COST) {
                         result.completed = true;

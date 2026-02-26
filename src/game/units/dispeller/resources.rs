@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
+use crate::game::constants::{
+    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_BASE, UNDEAD_CORPSE_COLOR,
+};
 
 use super::constants::*;
 
@@ -56,7 +58,7 @@ pub(super) fn preload_dispeller_assets(
             ..default()
         }),
         undead_material: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.3, 0.8, 0.4),
+            base_color: UNDEAD_BASE,
             unlit: true,
             ..default()
         }),

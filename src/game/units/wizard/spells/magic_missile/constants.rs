@@ -15,8 +15,8 @@ pub const PRIMED_MAGIC_MISSILE: PrimedSpell = PrimedSpell {
     range_multiplier: 1.0,
 };
 
-/// Height offset above wizard for magic missile spawn.
-pub const SPAWN_HEIGHT_OFFSET: f32 = 100.0;
+/// Height offset above spell origin for magic missile spawn.
+pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 
 /// Minimum horizontal velocity for magic missile spawn.
 pub const HORIZONTAL_VEL_MIN: f32 = -2000.0;

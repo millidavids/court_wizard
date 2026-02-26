@@ -2,16 +2,8 @@ use bevy::prelude::*;
 
 use crate::game::constants::WIZARD_POSITION;
 
-/// Cauldron color (charcoal) - DEPRECATED: Now using sprite sheet.
-#[allow(dead_code)]
-pub const CAULDRON_COLOR: Color = Color::srgb(0.2, 0.2, 0.2);
-
-/// Visual radius of the cauldron circle - DEPRECATED: Now using sprite sheet.
-#[allow(dead_code)]
-pub const CAULDRON_RADIUS: f32 = 20.0;
-
 /// Offset from wizard position to place the cauldron beside the wizard on the castle wall.
-const CAULDRON_OFFSET: Vec3 = Vec3::new(-60.0, 0.0, -60.0);
+const CAULDRON_OFFSET: Vec3 = Vec3::new(60.0, -64.0, 90.0);
 
 /// Cauldron position in 3D space (on castle platform, next to wizard).
 pub const CAULDRON_POSITION: Vec3 = Vec3::new(
@@ -40,7 +32,7 @@ pub const CAULDRON_FRAME_DURATION: f32 =
     CAULDRON_ANIMATION_LOOP_DURATION / CAULDRON_SPRITE_FRAMES as f32;
 
 /// Size of the cauldron billboard (pixels in world space)
-pub const CAULDRON_SPRITE_SIZE: f32 = 64.0;
+pub const CAULDRON_SPRITE_SIZE: f32 = 96.0;
 
 /// Brewing visual effect parameters
 pub const BREWING_PULSE_SCALE_MIN: f32 = 0.95; // Shrink to 95% of normal size

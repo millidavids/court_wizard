@@ -31,8 +31,8 @@ pub const MANA_COST_PER_SECOND: f32 = 20.0;
 /// Beam length (extends through the battlefield).
 pub const BEAM_LENGTH: f32 = 5000.0;
 
-/// Height offset from wizard position where beam originates.
-pub const BEAM_ORIGIN_HEIGHT_OFFSET: f32 = 100.0;
+/// Height offset from spell origin where beam originates.
+pub const BEAM_ORIGIN_HEIGHT_OFFSET: f32 = 0.0;
 
 /// Cast time before beam activates (in seconds).
 pub const CAST_TIME: f32 = 1.5;
