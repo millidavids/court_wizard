@@ -216,14 +216,23 @@ fn spawn_defender_field_rebuild(pathfinding: &mut PathfindingGrid, target_pos: V
 }
 
 /// Polls pending async rebuild tasks and applies completed fields.
-pub fn apply_completed_rebuilds(mut pathfinding: ResMut<PathfindingGrid>) {
+///
+/// When `costs_dirty` is set (base_costs changed while a rebuild was in flight),
+/// immediately triggers a fresh rebuild so the flow fields reflect all obstacles.
+pub fn apply_completed_rebuilds(
+    mut pathfinding: ResMut<PathfindingGrid>,
+    king_query: Query<(&Transform, &Team), With<King>>,
+    all_transforms: Query<&Transform>,
+) {
+    let mut attacker_done = false;
+    let mut defender_done = false;
+
     // Check attacker field rebuild
     if let Some(mut task) = pathfinding.pending_attacker_rebuild.take() {
         if let Some(new_field) = bevy::tasks::block_on(bevy::tasks::poll_once(&mut task)) {
             pathfinding.attacker_field = Some(new_field);
-            debug!("Applied rebuilt attacker flow field");
+            attacker_done = true;
         } else {
-            // Task not complete yet, put it back
             pathfinding.pending_attacker_rebuild = Some(task);
         }
     }
@@ -232,10 +241,35 @@ pub fn apply_completed_rebuilds(mut pathfinding: ResMut<PathfindingGrid>) {
     if let Some(mut task) = pathfinding.pending_defender_rebuild.take() {
         if let Some(new_field) = bevy::tasks::block_on(bevy::tasks::poll_once(&mut task)) {
             pathfinding.defender_field = Some(new_field);
-            debug!("Applied rebuilt defender flow field");
+            defender_done = true;
         } else {
-            // Task not complete yet, put it back
             pathfinding.pending_defender_rebuild = Some(task);
+        }
+    }
+
+    // If base_costs changed while rebuilds were in flight, the fields we just
+    // applied are stale.  Kick off fresh rebuilds with the current base_costs.
+    if pathfinding.costs_dirty && (attacker_done || defender_done) {
+        pathfinding.costs_dirty = false;
+
+        if attacker_done
+            && let Some((king_transform, _)) = king_query
+                .iter()
+                .find(|(_, team)| **team == Team::Defenders)
+        {
+            let king_pos =
+                Vec2::new(king_transform.translation.x, king_transform.translation.z);
+            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+        }
+
+        if defender_done
+            && pathfinding.defender_field.is_some()
+            && let Some(target_entity) = pathfinding.king_current_target
+            && let Ok(target_transform) = all_transforms.get(target_entity)
+        {
+            let target_pos =
+                Vec2::new(target_transform.translation.x, target_transform.translation.z);
+            spawn_defender_field_rebuild(&mut pathfinding, target_pos);
         }
     }
 }
@@ -245,6 +279,7 @@ pub fn handle_obstacle_events(
     mut obstacle_events: MessageReader<ObstacleChanged>,
     mut pathfinding: ResMut<PathfindingGrid>,
     king_query: Query<(&Transform, &Team), With<King>>,
+    all_transforms: Query<&Transform>,
 ) {
     let mut rebuild_needed = false;
 
@@ -273,27 +308,33 @@ pub fn handle_obstacle_events(
     // If any obstacles changed, rebuild both fields
     if rebuild_needed {
         // Rebuild attacker field toward Defender King
-        if pathfinding.pending_attacker_rebuild.is_none()
-            && let Some((king_transform, _)) = king_query
-                .iter()
-                .find(|(_, team)| **team == Team::Defenders)
+        if let Some((king_transform, _)) = king_query
+            .iter()
+            .find(|(_, team)| **team == Team::Defenders)
         {
-            let king_pos = Vec2::new(king_transform.translation.x, king_transform.translation.z);
-            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+            if pathfinding.pending_attacker_rebuild.is_none() {
+                let king_pos =
+                    Vec2::new(king_transform.translation.x, king_transform.translation.z);
+                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+            } else {
+                // A rebuild is already running from an older snapshot of base_costs.
+                // Mark dirty so we re-rebuild once it completes.
+                pathfinding.costs_dirty = true;
+            }
         }
 
-        // Rebuild defender field if it exists
+        // Rebuild defender field toward King's current target
         if pathfinding.defender_field.is_some()
-            && pathfinding.pending_defender_rebuild.is_none()
             && let Some(target_entity) = pathfinding.king_current_target
+            && let Ok(target_transform) = all_transforms.get(target_entity)
         {
-            // We need to get the target's position, but we don't have access to the query here
-            // The next update_king_target call will handle this
-            debug!(
-                "Obstacle changed, defender field rebuild will occur on next king target update"
-            );
-            // Force a rebuild by clearing current target so it re-evaluates
-            pathfinding.king_current_target = Some(target_entity);
+            if pathfinding.pending_defender_rebuild.is_none() {
+                let target_pos =
+                    Vec2::new(target_transform.translation.x, target_transform.translation.z);
+                spawn_defender_field_rebuild(&mut pathfinding, target_pos);
+            } else {
+                pathfinding.costs_dirty = true;
+            }
         }
     }
 }

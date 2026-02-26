@@ -165,6 +165,10 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 (
+                    // Zero out targeting when a wall blocks line to target
+                    // Runs after all targeting systems (VelocitySystemSet) so every
+                    // unit — including the King — has its targeting suppressed.
+                    shared_systems::suppress_targeting_through_walls,
                     // Calculate effectiveness based on nearby allies/enemies
                     shared_systems::calculate_effectiveness,
                     // Apply rough terrain slowdown before movement

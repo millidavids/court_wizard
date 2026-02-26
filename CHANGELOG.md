@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.311] - 2026-02-26
+
+### Added
+- **Permanent walls** — Wall of Stone spells now persist between levels. Win a level and your walls carry over to the next fight, letting you build up fortifications over time. Lose and you keep the walls from your last victory
+- Dispelling a permanent wall removes it for good
+
+### Fixed
+- Units no longer try to walk through walls when targeting enemies on the other side — they'll find a way around instead
+- The King now properly avoids walls instead of trying to walk through them
+- Placing walls close together no longer traps units in gaps between them
+- Units no longer slide along wall edges and get stuck on corners
+- Pathfinding now correctly updates for all units when walls are placed or removed
+- Rapidly placing multiple walls no longer causes some walls to be invisible to pathfinding
+
 ## [v0.2.298] - 2026-02-26
 
 ### Added

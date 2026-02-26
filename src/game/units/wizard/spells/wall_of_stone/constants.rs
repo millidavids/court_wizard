@@ -21,10 +21,7 @@ pub const WALL_WIDTH: f32 = 40.0;
 /// Height of the wall.
 pub const WALL_HEIGHT: f32 = 80.0;
 
-/// Total lifetime of the wall in seconds.
-pub const WALL_DURATION: f32 = 20.0;
-
-/// Duration of the sinking animation at end of life.
+/// Duration of the sinking animation at end of life (used for non-permanent multiplayer walls).
 pub const WALL_SINK_DURATION: f32 = 2.0;
 
 /// Minimum drag distance required to place a wall.

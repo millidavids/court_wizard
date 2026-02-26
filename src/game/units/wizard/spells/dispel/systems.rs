@@ -341,27 +341,9 @@ pub(crate) fn despawn_spell_effect(
 ) {
     // Wall of Stone -- blocked obstacle
     if let Ok(wall) = wall_of_stone_query.get(spell_entity) {
-        let unbuffered_min_x =
-            wall.center.x - wall.forward.x * wall.half_length - wall.right.x * wall.half_width;
-        let unbuffered_max_x =
-            wall.center.x + wall.forward.x * wall.half_length + wall.right.x * wall.half_width;
-        let unbuffered_min_z =
-            wall.center.z - wall.forward.z * wall.half_length - wall.right.z * wall.half_width;
-        let unbuffered_max_z =
-            wall.center.z + wall.forward.z * wall.half_length + wall.right.z * wall.half_width;
-
-        let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
-        let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
-        let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
-        let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
-
+        let obs_bounds = wall.obstacle_bounds();
         obstacle_events.write(ObstacleChanged {
-            bounds: Rect::new(
-                min_x.min(max_x),
-                min_z.min(max_z),
-                (max_x - min_x).abs(),
-                (max_z - min_z).abs(),
-            ),
+            bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
             obstacle_type: ObstacleType::Removed,
         });
     }
@@ -382,7 +364,7 @@ pub(crate) fn despawn_spell_effect(
         let max_y = c0.y.max(c1.y).max(c2.y).max(c3.y) + OBSTACLE_BUFFER;
 
         obstacle_events.write(ObstacleChanged {
-            bounds: Rect::new(min_x, min_y, max_x - min_x, max_y - min_y),
+            bounds: Rect::new(min_x, min_y, max_x, max_y),
             obstacle_type: ObstacleType::Removed,
         });
     }

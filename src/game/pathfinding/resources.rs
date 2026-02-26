@@ -41,6 +41,11 @@ pub struct PathfindingGrid {
     /// Base terrain costs template (copied for each field generation).
     /// This stores obstacles like walls that affect all fields.
     pub base_costs: Vec<f32>,
+
+    /// True when `base_costs` changed while a rebuild was already in progress.
+    /// When the pending rebuild completes it will be stale, so a fresh rebuild
+    /// is triggered immediately.
+    pub costs_dirty: bool,
 }
 
 impl PathfindingGrid {
@@ -73,6 +78,7 @@ impl PathfindingGrid {
             last_king_pos: Vec2::ZERO,
             king_current_target: None,
             base_costs,
+            costs_dirty: false,
         }
     }
 
@@ -171,9 +177,45 @@ impl PathfindingGrid {
     }
 
     /// Creates a new flow field with the base costs applied.
+    ///
+    /// Cells adjacent to blocked (wall) cells are inflated to a higher cost so the
+    /// flow field steers units slightly away from walls instead of hugging them.
+    /// This prevents units from sliding along wall edges and catching on corners.
     pub fn create_field_with_base_costs(&self) -> FlowField {
         let mut field = FlowField::new(self.grid_width, self.grid_height);
         field.costs = self.base_costs.clone();
+
+        // Inflate costs near blocked cells so the flow field avoids wall edges
+        const WALL_PROXIMITY_COST: f32 = 4.0;
+        let w = self.grid_width;
+        let h = self.grid_height;
+
+        for z in 0..h {
+            for x in 0..w {
+                let idx = z * w + x;
+                if !self.base_costs[idx].is_infinite() {
+                    continue;
+                }
+                // This cell is blocked — inflate passable neighbors
+                for dz in -1i32..=1 {
+                    for dx in -1i32..=1 {
+                        if dx == 0 && dz == 0 {
+                            continue;
+                        }
+                        let nx = x as i32 + dx;
+                        let nz = z as i32 + dz;
+                        if nx >= 0 && nz >= 0 && (nx as usize) < w && (nz as usize) < h {
+                            let ni = nz as usize * w + nx as usize;
+                            // Only inflate normal-cost cells (don't reduce hazards or re-block)
+                            if field.costs[ni] < WALL_PROXIMITY_COST {
+                                field.costs[ni] = WALL_PROXIMITY_COST;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         field
     }
 }

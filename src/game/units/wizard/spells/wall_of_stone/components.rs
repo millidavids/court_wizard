@@ -22,8 +22,9 @@ pub struct WallOfStone {
     /// Whether the wall is currently sinking into the ground.
     pub sinking: bool,
     /// Empowerment multiplier (stored for potential future use).
-    #[allow(dead_code)]
     pub empowerment: f32,
+    /// Whether this wall is permanent (saved between levels).
+    pub permanent: bool,
 }
 
 impl WallOfStone {
@@ -141,6 +142,33 @@ impl WallOfStone {
             point.y,
             point.z + push_dir.z,
         ))
+    }
+
+    /// Returns obstacle bounds as `[min_x, min_z, max_x, max_z]` for pathfinding.
+    ///
+    /// Computes the axis-aligned bounding box of all four OBB corners to handle rotated walls.
+    /// No buffer is added — walls rely on physical `push_out()` collision to prevent overlap,
+    /// keeping the pathfinding grid tight so gaps between nearby walls remain passable.
+    pub fn obstacle_bounds(&self) -> [f32; 4] {
+        // Compute all four corners of the oriented bounding box
+        let fl = self.forward * self.half_length;
+        let rw = self.right * self.half_width;
+
+        let c0_x = self.center.x + fl.x + rw.x;
+        let c0_z = self.center.z + fl.z + rw.z;
+        let c1_x = self.center.x + fl.x - rw.x;
+        let c1_z = self.center.z + fl.z - rw.z;
+        let c2_x = self.center.x - fl.x + rw.x;
+        let c2_z = self.center.z - fl.z + rw.z;
+        let c3_x = self.center.x - fl.x - rw.x;
+        let c3_z = self.center.z - fl.z - rw.z;
+
+        let min_x = c0_x.min(c1_x).min(c2_x).min(c3_x);
+        let max_x = c0_x.max(c1_x).max(c2_x).max(c3_x);
+        let min_z = c0_z.min(c1_z).min(c2_z).min(c3_z);
+        let max_z = c0_z.max(c1_z).max(c2_z).max(c3_z);
+
+        [min_x, min_z, max_x, max_z]
     }
 
     fn slab_intersect(origin: f32, dir: f32, half_extent: f32) -> Option<(f32, f32)> {

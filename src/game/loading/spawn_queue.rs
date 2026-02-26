@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::config::save_data::SavedWall;
+
 /// Unit type enum for upgrade tasks.
 #[derive(Clone, Copy, Debug)]
 pub enum UnitType {
@@ -56,6 +58,9 @@ pub enum SpawnTask {
     UpgradeToCommander {
         entity: Entity,
         unit_type: UnitType,
+    },
+    PermanentWall {
+        wall: SavedWall,
     },
 }
 

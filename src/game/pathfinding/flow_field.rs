@@ -359,11 +359,23 @@ impl FlowField {
         let d01 = self.sample_cell(x0, z1);
         let d11 = self.sample_cell(x1, z1);
 
-        // If any neighbor is zero (obstacle/boundary), fall back to nearest cell
+        // If any neighbor is zero (obstacle/boundary), fall back to averaging the
+        // non-zero neighbors. This prevents units near walls from getting a zero
+        // direction when some of the 4 bilinear cells are blocked.
         if d00 == Vec3::ZERO || d10 == Vec3::ZERO || d01 == Vec3::ZERO || d11 == Vec3::ZERO {
-            let nearest_x = gx.round() as isize;
-            let nearest_z = gz.round() as isize;
-            return self.sample_cell(nearest_x, nearest_z);
+            let mut sum = Vec3::ZERO;
+            let mut count = 0;
+            for d in [d00, d10, d01, d11] {
+                if d != Vec3::ZERO {
+                    sum += d;
+                    count += 1;
+                }
+            }
+            return if count > 0 {
+                (sum / count as f32).normalize_or_zero()
+            } else {
+                Vec3::ZERO
+            };
         }
 
         // Bilinear interpolation weights

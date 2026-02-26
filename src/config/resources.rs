@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
+use crate::config::save_data::SavedWall;
 use crate::game::units::wizard::components::Spell;
 
 /// Temporary structure for TOML serialization only.
@@ -290,6 +291,9 @@ pub struct GameConfig {
     /// Active wizard type for the current save
     #[serde(default)]
     pub wizard_type: WizardType,
+    /// Permanent walls saved from previous victories
+    #[serde(skip)]
+    pub saved_walls: Vec<SavedWall>,
 }
 
 impl Default for GameConfig {
@@ -306,6 +310,7 @@ impl Default for GameConfig {
             efficiency_ratios: HashMap::new(),
             action_bar_slots: [None; 5],
             wizard_type: WizardType::default(),
+            saved_walls: Vec::new(),
         }
     }
 }

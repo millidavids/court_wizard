@@ -71,6 +71,7 @@ pub(super) fn load_and_apply_config(
         efficiency_ratios: config_file.game.efficiency_ratios,
         action_bar_slots: config_file.game.action_bar_slots,
         wizard_type: config_file.game.wizard_type,
+        saved_walls: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed
     save_data::migrate_legacy_saves(&game_config);

@@ -751,6 +751,7 @@ pub(super) fn spawn_spell_effect(
                             duration,
                             sinking: false,
                             empowerment: 1.0,
+                            permanent: false,
                         },
                         OnMultiplayerGameScreen,
                     ))

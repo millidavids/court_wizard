@@ -5,6 +5,7 @@ use super::super::run_conditions::*;
 use super::components::WallOfStone;
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::state::AppState;
 
 /// Plugin that handles the Wall of Stone spell.
 pub struct WallOfStonePlugin;
@@ -12,6 +13,10 @@ pub struct WallOfStonePlugin;
 impl Plugin for WallOfStonePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
+            OnEnter(AppState::InGame),
+            systems::register_permanent_wall_obstacles,
+        )
+        .add_systems(
             Update,
             (
                 systems::handle_wall_of_stone_cancel.run_if(spell_is_primed(Spell::WallOfStone)),

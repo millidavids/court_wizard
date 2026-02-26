@@ -50,7 +50,7 @@ pub enum NetworkMessage {
     /// Sent bidirectionally when either player places a Wall of Stone so
     /// the other client can update its pathfinding grid.
     WallPlaced {
-        /// AABB of the wall obstacle: [min_x, min_z, width, height].
+        /// AABB of the wall obstacle: [min_x, min_z, max_x, max_z].
         bounds: [f32; 4],
         /// true = wall placed (Blocked), false = wall removed (Removed).
         placed: bool,

@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
-use crate::config::save_data::load_unified_save;
+use crate::config::save_data::{SavedWall, load_unified_save};
 use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats};
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::state::AppState;
 use crate::ui::systems::spawn_button;
@@ -66,6 +67,33 @@ pub(super) fn update_level_after_display(
 
     // Trigger config save immediately
     config_events.write(ConfigChanged);
+}
+
+/// Saves all living walls as permanent walls on victory.
+pub(super) fn save_walls_on_victory(
+    game_outcome: Res<GameOutcome>,
+    mut config: ResMut<GameConfig>,
+    walls: Query<&WallOfStone>,
+) {
+    if *game_outcome != GameOutcome::Victory {
+        return;
+    }
+
+    let saved: Vec<SavedWall> = walls
+        .iter()
+        .map(|wall| SavedWall {
+            center_x: wall.center.x,
+            center_z: wall.center.z,
+            half_length: wall.half_length,
+            half_width: wall.half_width,
+            forward_x: wall.forward.x,
+            forward_z: wall.forward.z,
+            height: wall.height,
+            empowerment: wall.empowerment,
+        })
+        .collect();
+
+    config.saved_walls = saved;
 }
 
 pub(super) fn setup_game_over_screen(

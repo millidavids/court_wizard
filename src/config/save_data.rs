@@ -420,9 +420,23 @@ pub(crate) fn clear_progress() {
         wizard.highest_level_achieved = 1;
         wizard.efficiency_ratios.clear();
         wizard.action_bar_slots = [None; 5];
+        wizard.saved_walls.clear();
     }
 
     save_unified(&save_file);
+}
+
+/// Serializable wall placement data for permanent walls.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedWall {
+    pub(crate) center_x: f32,
+    pub(crate) center_z: f32,
+    pub(crate) half_length: f32,
+    pub(crate) half_width: f32,
+    pub(crate) forward_x: f32,
+    pub(crate) forward_z: f32,
+    pub(crate) height: f32,
+    pub(crate) empowerment: f32,
 }
 
 /// Per-wizard save data. Exactly one per wizard type.
@@ -442,6 +456,8 @@ pub(crate) struct WizardSave {
         deserialize_with = "deserialize_action_bar"
     )]
     pub(crate) action_bar_slots: [Option<Spell>; 5],
+    #[serde(default)]
+    pub(crate) saved_walls: Vec<SavedWall>,
 }
 
 // ---------------------------------------------------------------------------
@@ -659,6 +675,7 @@ pub(crate) fn load_wizard_type_into_config(
     config.highest_level_achieved = wizard.highest_level_achieved;
     config.efficiency_ratios = wizard.efficiency_ratios.clone();
     config.action_bar_slots = wizard.action_bar_slots;
+    config.saved_walls = wizard.saved_walls.clone();
 
     // Validate that all action bar slots contain unlocked spells
     validate_action_bar_slots(&mut config.action_bar_slots);
@@ -681,6 +698,7 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         last_played_at: current_timestamp(),
         efficiency_ratios: HashMap::new(),
         action_bar_slots: [None; 5],
+        saved_walls: Vec::new(),
     };
 
     let id = wizard.id.clone();
@@ -703,6 +721,7 @@ pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &Ac
         wizard.highest_level_achieved = config.highest_level_achieved;
         wizard.efficiency_ratios = config.efficiency_ratios.clone();
         wizard.action_bar_slots = config.action_bar_slots;
+        wizard.saved_walls = config.saved_walls.clone();
         wizard.last_played_at = current_timestamp();
     }
 
@@ -954,6 +973,7 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             last_played_at: now,
             efficiency_ratios: old_data.efficiency_ratios.clone(),
             action_bar_slots: old_data.action_bar_slots,
+            saved_walls: Vec::new(),
         };
 
         let dominated = best_by_type

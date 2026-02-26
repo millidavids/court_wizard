@@ -45,6 +45,13 @@ pub fn init_loading_progress(
     // 3. Pathfinding Grid (needed for unit movement)
     queue.tasks.push(SpawnTask::PathfindingGrid);
 
+    // 3b. Permanent walls from previous victories (after pathfinding grid)
+    for saved_wall in &config.saved_walls {
+        queue.tasks.push(SpawnTask::PermanentWall {
+            wall: saved_wall.clone(),
+        });
+    }
+
     // 4. King (central defender)
     queue.tasks.push(SpawnTask::King);
 
@@ -158,8 +165,11 @@ pub fn process_spawn_queue(
         Option<Res<crate::game::units::wizard::components::WizardAssets>>,
         Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     ),
-    castle_wall_assets: Res<CastleWallAssets>,
-    asset_server: Res<AssetServer>,
+    shared_assets: (
+        Res<CastleWallAssets>,
+        Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
+        Res<AssetServer>,
+    ),
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
         Query<(Entity, &Team), With<Infantry>>,
@@ -247,7 +257,7 @@ pub fn process_spawn_queue(
                     commands.reborrow(),
                     meshes,
                     materials,
-                    Res::clone(&castle_wall_assets),
+                    Res::clone(&shared_assets.0),
                 );
             }
             SpawnTask::Castle => {
@@ -256,7 +266,7 @@ pub fn process_spawn_queue(
             SpawnTask::LoadWizardAssets => {
                 crate::game::units::wizard::systems::load_wizard_assets(
                     commands.reborrow(),
-                    Res::clone(&asset_server),
+                    Res::clone(&shared_assets.2),
                 );
             }
             SpawnTask::Wizard => {
@@ -273,7 +283,7 @@ pub fn process_spawn_queue(
             SpawnTask::LoadCauldronAssets => {
                 crate::game::cauldron::systems::load_cauldron_assets(
                     commands.reborrow(),
-                    Res::clone(&asset_server),
+                    Res::clone(&shared_assets.2),
                 );
             }
             SpawnTask::Cauldron => {
@@ -334,6 +344,13 @@ pub fn process_spawn_queue(
                         );
                     }
                 }
+            }
+            SpawnTask::PermanentWall { wall } => {
+                crate::game::units::wizard::spells::wall_of_stone::systems::spawn_permanent_wall(
+                    &mut commands,
+                    &shared_assets.1,
+                    &wall,
+                );
             }
             SpawnTask::UpgradeToCommander { entity, unit_type } => {
                 // Query the entity's current transform and hitbox (query separately to avoid double borrow)

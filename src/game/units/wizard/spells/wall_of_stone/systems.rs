@@ -11,7 +11,8 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::config::save_data::SavedWall;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -213,7 +214,22 @@ fn wall_of_stone_casting_logic(
                 let scale = primed_spell.empowerment;
                 let wall_width = WALL_WIDTH * scale;
                 let wall_height = WALL_HEIGHT * scale;
-                let wall_duration = WALL_DURATION * scale;
+
+                let wall = WallOfStone {
+                    center,
+                    half_length: clamped_length / 2.0,
+                    half_width: wall_width / 2.0,
+                    forward,
+                    right,
+                    height: wall_height,
+                    time_alive: 0.0,
+                    duration: f32::MAX,
+                    sinking: false,
+                    empowerment: primed_spell.empowerment,
+                    permanent: true,
+                };
+
+                let obs_bounds = wall.obstacle_bounds();
 
                 commands.spawn((
                     Mesh3d(assets.unit_cuboid.clone()),
@@ -221,45 +237,12 @@ fn wall_of_stone_casting_logic(
                     Transform::from_xyz(center.x, wall_height / 2.0, center.z)
                         .with_rotation(rotation)
                         .with_scale(Vec3::new(clamped_length, wall_height, wall_width)),
-                    WallOfStone {
-                        center,
-                        half_length: clamped_length / 2.0,
-                        half_width: wall_width / 2.0,
-                        forward,
-                        right,
-                        height: wall_height,
-                        time_alive: 0.0,
-                        duration: wall_duration,
-                        sinking: false,
-                        empowerment: primed_spell.empowerment,
-                    },
+                    wall,
                     NetworkedSpellEffect {
                         kind: SpellEffectKind::WallOfStone,
                     },
                     OnGameplayScreen,
                 ));
-
-                // Notify pathfinding system about the new obstacle
-                let unbuffered_min_x =
-                    center.x - forward.x * (clamped_length / 2.0) - right.x * (wall_width / 2.0);
-                let unbuffered_max_x =
-                    center.x + forward.x * (clamped_length / 2.0) + right.x * (wall_width / 2.0);
-                let unbuffered_min_z =
-                    center.z - forward.z * (clamped_length / 2.0) - right.z * (wall_width / 2.0);
-                let unbuffered_max_z =
-                    center.z + forward.z * (clamped_length / 2.0) + right.z * (wall_width / 2.0);
-
-                let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
-                let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
-                let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
-                let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
-
-                let obs_bounds = [
-                    min_x.min(max_x),
-                    min_z.min(max_z),
-                    (max_x - min_x).abs(),
-                    (max_z - min_z).abs(),
-                ];
 
                 obstacle_events.write(ObstacleChanged {
                     bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
@@ -325,10 +308,13 @@ pub fn handle_wall_of_stone_cancel(
     mouse_state.left_consumed = true;
 }
 
-/// Advances wall lifetime and triggers sinking phase.
+/// Advances wall lifetime and triggers sinking phase (skips permanent walls).
 pub fn tick_wall_lifetime(time: Res<Time>, mut walls: Query<&mut WallOfStone>) {
     let delta = time.delta_secs();
     for mut wall in &mut walls {
+        if wall.permanent {
+            continue;
+        }
         wall.time_alive += delta;
         if !wall.sinking && wall.time_alive >= wall.duration - WALL_SINK_DURATION {
             wall.sinking = true;
@@ -348,7 +334,7 @@ pub fn animate_sinking_walls(mut walls: Query<(&WallOfStone, &mut Transform)>) {
     }
 }
 
-/// Despawns walls that have exceeded their duration.
+/// Despawns walls that have exceeded their duration (skips permanent walls).
 pub fn cleanup_expired_walls(
     mut commands: Commands,
     walls: Query<(Entity, &WallOfStone)>,
@@ -356,31 +342,14 @@ pub fn cleanup_expired_walls(
     mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
 ) {
     for (entity, wall) in &walls {
+        if wall.permanent {
+            continue;
+        }
         if wall.time_alive >= wall.duration {
             commands.entity(entity).despawn();
 
             // Notify pathfinding system that the obstacle is removed
-            let unbuffered_min_x =
-                wall.center.x - wall.forward.x * wall.half_length - wall.right.x * wall.half_width;
-            let unbuffered_max_x =
-                wall.center.x + wall.forward.x * wall.half_length + wall.right.x * wall.half_width;
-            let unbuffered_min_z =
-                wall.center.z - wall.forward.z * wall.half_length - wall.right.z * wall.half_width;
-            let unbuffered_max_z =
-                wall.center.z + wall.forward.z * wall.half_length + wall.right.z * wall.half_width;
-
-            let min_x = unbuffered_min_x.min(unbuffered_max_x) - OBSTACLE_BUFFER;
-            let max_x = unbuffered_min_x.max(unbuffered_max_x) + OBSTACLE_BUFFER;
-            let min_z = unbuffered_min_z.min(unbuffered_max_z) - OBSTACLE_BUFFER;
-            let max_z = unbuffered_min_z.max(unbuffered_max_z) + OBSTACLE_BUFFER;
-
-            let obs_bounds = [
-                min_x.min(max_x),
-                min_z.min(max_z),
-                (max_x - min_x).abs(),
-                (max_z - min_z).abs(),
-            ];
-
+            let obs_bounds = wall.obstacle_bounds();
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
                 obstacle_type: ObstacleType::Removed,
@@ -417,6 +386,64 @@ fn get_cursor_world_position(
         Some(ray.origin + ray.direction * t)
     } else {
         None
+    }
+}
+
+/// Spawns a permanent wall entity from saved wall data.
+pub(crate) fn spawn_permanent_wall(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    saved: &SavedWall,
+) {
+    let forward = Vec3::new(saved.forward_x, 0.0, saved.forward_z);
+    let right = Vec3::new(-forward.z, 0.0, forward.x);
+    let center = Vec3::new(saved.center_x, 0.0, saved.center_z);
+    let rotation = Quat::from_rotation_arc(Vec3::X, forward);
+
+    commands.spawn((
+        Mesh3d(assets.unit_cuboid.clone()),
+        MeshMaterial3d(assets.wall_of_stone.clone()),
+        Transform::from_xyz(center.x, saved.height / 2.0, center.z)
+            .with_rotation(rotation)
+            .with_scale(Vec3::new(
+                saved.half_length * 2.0,
+                saved.height,
+                saved.half_width * 2.0,
+            )),
+        WallOfStone {
+            center,
+            half_length: saved.half_length,
+            half_width: saved.half_width,
+            forward,
+            right,
+            height: saved.height,
+            time_alive: 0.0,
+            duration: f32::MAX,
+            sinking: false,
+            empowerment: saved.empowerment,
+            permanent: true,
+        },
+        NetworkedSpellEffect {
+            kind: SpellEffectKind::WallOfStone,
+        },
+        OnGameplayScreen,
+    ));
+}
+
+/// Registers pathfinding obstacles for all permanent walls after loading completes.
+pub(crate) fn register_permanent_wall_obstacles(
+    walls: Query<&WallOfStone>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
+    for wall in &walls {
+        if !wall.permanent {
+            continue;
+        }
+        let obs_bounds = wall.obstacle_bounds();
+        obstacle_events.write(ObstacleChanged {
+            bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
+            obstacle_type: ObstacleType::Blocked,
+        });
     }
 }
 
