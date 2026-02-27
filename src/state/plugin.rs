@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::states::{
     AppState, InGameState, MenuState, MetaGameState, MultiplayerGameState, PauseMenuState,
+    SplashState,
 };
 
 /// Manages all game states.
@@ -76,6 +77,7 @@ impl Plugin for StatePlugin {
         app.add_sub_state::<PauseMenuState>();
         app.add_sub_state::<MetaGameState>();
         app.add_sub_state::<MultiplayerGameState>();
+        app.add_sub_state::<SplashState>();
 
         // Optional: Add state transition logging for debugging
         #[cfg(debug_assertions)]
@@ -88,6 +90,7 @@ impl Plugin for StatePlugin {
                 log_pause_menu_state_transitions,
                 log_meta_game_state_transitions,
                 log_multiplayer_game_state_transitions,
+                log_splash_state_transitions,
             ),
         );
     }
@@ -160,5 +163,17 @@ fn log_multiplayer_game_state_transitions(mp_state: Option<Res<State<Multiplayer
         && state.is_changed()
     {
         info!("MultiplayerGameState changed to: {:?}", state.get());
+    }
+}
+
+/// Logs SplashState transitions for debugging.
+///
+/// Only enabled in debug builds.
+#[cfg(debug_assertions)]
+fn log_splash_state_transitions(splash_state: Option<Res<State<SplashState>>>) {
+    if let Some(state) = splash_state
+        && state.is_changed()
+    {
+        info!("SplashState changed to: {:?}", state.get());
     }
 }

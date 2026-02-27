@@ -1,14 +1,43 @@
 use bevy::prelude::*;
 
-/// Marker component for all splash screen entities (for cleanup on exit).
-#[derive(Component)]
-pub(super) struct OnSplashScreen;
+use crate::state::SplashState;
 
-/// Marker for the splash background image node.
+/// Marker component for splash screen entities scoped to the current substate.
 #[derive(Component)]
-pub(super) struct SplashImage;
+pub(super) struct SplashEntity;
 
-/// Tracks the four phases of the splash screen animation: delay, fade-in, hold, fade-out.
+/// Marker for elements that fade at full opacity (logos, text).
+#[derive(Component)]
+pub(super) struct SplashFadeImage;
+
+/// Marker for the background color node that fades (e.g. gray circle).
+#[derive(Component)]
+pub(super) struct SplashFadeBackground {
+    pub color: Color,
+}
+
+/// Marker for text elements that fade with a specific color.
+#[derive(Component)]
+pub(super) struct SplashFadeText {
+    pub color: Color,
+}
+
+/// Marker for images that fade to a capped max opacity (e.g. studio watermark).
+#[derive(Component)]
+pub(super) struct SplashFadeImageCapped {
+    pub max_opacity: f32,
+}
+
+/// What the splash timer transitions to when finished.
+#[derive(Component)]
+pub(super) enum SplashTransition {
+    /// Move to the next splash substate.
+    NextSplash(SplashState),
+    /// Exit the splash entirely and go to main menu.
+    MainMenu,
+}
+
+/// Tracks the four phases of a splash screen animation: delay, fade-in, hold, fade-out.
 #[derive(Component)]
 pub(super) struct SplashTimer {
     pub elapsed: f32,
@@ -37,17 +66,13 @@ impl SplashTimer {
     /// Returns the current opacity based on elapsed time.
     pub fn opacity(&self) -> f32 {
         if self.elapsed <= self.delay {
-            // Delay: nothing visible yet
             0.0
         } else if self.elapsed <= self.delay + self.fade_in {
-            // Fade in: 0 → 1
             let fade_elapsed = self.elapsed - self.delay;
             (fade_elapsed / self.fade_in).clamp(0.0, 1.0)
         } else if self.elapsed <= self.delay + self.fade_in + self.hold {
-            // Hold: fully visible
             1.0
         } else {
-            // Fade out: 1 → 0
             let fade_out_elapsed = self.elapsed - self.delay - self.fade_in - self.hold;
             (1.0 - fade_out_elapsed / self.fade_out).clamp(0.0, 1.0)
         }

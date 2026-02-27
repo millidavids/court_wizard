@@ -4,4 +4,5 @@ mod states;
 pub use plugin::StatePlugin;
 pub use states::{
     AppState, InGameState, MenuState, MetaGameState, MultiplayerGameState, PauseMenuState,
+    SplashState,
 };

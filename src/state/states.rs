@@ -157,6 +157,30 @@ pub enum PauseMenuState {
     Progress,
 }
 
+/// Splash screen sub-state.
+///
+/// This is a SubState that only exists when AppState::Splash is active.
+/// Controls the sequence of splash screens shown before the main menu.
+///
+/// # State Transitions
+///
+/// - `Language` → `Engine`: Rust logo fade-out completes
+/// - `Engine` → `Studio`: Bevy logo fade-out completes
+/// - `Studio` → (AppState::MainMenu): Studio splash fade-out completes
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
+#[source(AppState = AppState::Splash)]
+pub enum SplashState {
+    /// Rust language logo splash.
+    #[default]
+    Language,
+
+    /// Bevy engine logo splash.
+    Engine,
+
+    /// Studio branding splash.
+    Studio,
+}
+
 /// Multiplayer game sub-state.
 ///
 /// This is a SubState that only exists when AppState::MultiplayerGame is active.
