@@ -313,7 +313,7 @@ pub(crate) fn spawn_beam(
 
     commands.spawn((
         beam,
-        Mesh3d(assets.unit_cylinder.clone()),
+        Mesh3d(assets.cross_plane_cylinder.clone()),
         MeshMaterial3d(instance_material),
         Transform::from_translation(midpoint),
         OnGameplayScreen,

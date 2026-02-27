@@ -15,6 +15,7 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
@@ -197,9 +198,9 @@ pub(crate) fn spawn_fireball_entity(
     empowerment: f32,
     visual_radius: f32,
 ) -> Entity {
-    commands
+    let entity = commands
         .spawn((
-            Mesh3d(assets.unit_sphere.clone()),
+            Mesh3d(assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.fireball_projectile.clone()),
             Transform::from_translation(origin).with_scale(Vec3::splat(visual_radius)),
             Fireball::new(
@@ -212,7 +213,12 @@ pub(crate) fn spawn_fireball_entity(
             ),
             OnGameplayScreen,
         ))
-        .id()
+        .id();
+
+    // Spawn glow halo sibling
+    vfx::systems::spawn_fire_glow(commands, assets, entity, origin, visual_radius);
+
+    entity
 }
 
 /// Updates fireball projectile positions based on velocity.
@@ -222,17 +228,50 @@ pub fn move_fireballs(time: Res<Time>, mut fireballs: Query<(&mut Transform, &Fi
     }
 }
 
+/// Spawns smoke trail wisps behind flying fireballs.
+pub fn spawn_fireball_smoke_trail(
+    mut commands: Commands,
+    fireballs: Query<&Transform, With<Fireball>>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < vfx::constants::SMOKE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= vfx::constants::SMOKE_SPAWN_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for transform in fireballs.iter() {
+        vfx::systems::spawn_fire_smoke_wisps(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            vfx::constants::SMOKE_COUNT_PER_SPAWN,
+            t,
+            vfx::constants::SMOKE_LIFETIME,
+            vfx::constants::SMOKE_SIZE,
+            vfx::constants::SMOKE_RISE_SPEED,
+            vfx::constants::SMOKE_SPREAD_SPEED,
+        );
+    }
+}
+
 /// Checks for fireball collisions with units or the ground.
 ///
 /// When a fireball hits a unit or the ground, it explodes.
-#[allow(clippy::too_many_arguments)]
 pub fn check_fireball_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
     fireballs: Query<(Entity, &Transform, &Fireball)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
 ) {
+    let t = time.elapsed_secs();
+
     for (fireball_entity, fireball_transform, fireball) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
@@ -248,6 +287,7 @@ pub fn check_fireball_collisions(
                     fireball.explosion_radius,
                     fireball.damage,
                     fireball.empowerment,
+                    t,
                 );
                 commands.entity(fireball_entity).despawn();
                 hit_wall = true;
@@ -260,7 +300,8 @@ pub fn check_fireball_collisions(
 
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {
-            let explosion_pos = Vec3::new(fireball_pos.x, 0.0, fireball_pos.z);
+            // Raise slightly above ground so cross-plane sphere isn't hidden
+            let explosion_pos = Vec3::new(fireball_pos.x, 5.0, fireball_pos.z);
             spawn_explosion(
                 &mut commands,
                 &visual_assets,
@@ -268,6 +309,7 @@ pub fn check_fireball_collisions(
                 fireball.explosion_radius,
                 fireball.damage,
                 fireball.empowerment,
+                t,
             );
             commands.entity(fireball_entity).despawn();
             continue;
@@ -285,6 +327,7 @@ pub fn check_fireball_collisions(
                     fireball.explosion_radius,
                     fireball.damage,
                     fireball.empowerment,
+                    t,
                 );
                 commands.entity(fireball_entity).despawn();
                 break;
@@ -293,7 +336,7 @@ pub fn check_fireball_collisions(
     }
 }
 
-/// Spawns a fireball explosion at the given position.
+/// Spawns a fireball explosion at the given position with sparks and smoke.
 fn spawn_explosion(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -301,9 +344,10 @@ fn spawn_explosion(
     max_radius: f32,
     damage: f32,
     empowerment: f32,
+    time_secs: f32,
 ) {
     commands.spawn((
-        Mesh3d(assets.unit_sphere.clone()),
+        Mesh3d(assets.cross_plane_sphere.clone()),
         MeshMaterial3d(assets.fireball_explosion.clone()),
         Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
         FireballExplosion::new(
@@ -318,6 +362,18 @@ fn spawn_explosion(
         },
         OnGameplayScreen,
     ));
+
+    // Impact sparks
+    vfx::systems::spawn_fire_sparks(
+        commands,
+        assets,
+        position,
+        vfx::constants::SPARK_COUNT,
+        time_secs,
+    );
+
+    // Explosion smoke burst
+    vfx::systems::spawn_explosion_smoke(commands, assets, position, time_secs);
 }
 
 /// Updates explosion visuals and timing.

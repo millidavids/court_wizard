@@ -4,7 +4,9 @@ use bevy::window::PrimaryWindow;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
-use super::components::DisintegrateBeam;
+use super::components::{
+    BeamGlow, BeamOriginFlare, BeamSmoke, DisintegrateBeam, DisintegrateParticle,
+};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
@@ -59,6 +61,9 @@ pub fn handle_disintegrate_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut beams: Query<(Entity, &mut DisintegrateBeam)>,
     visual_assets: Res<SpellVisualAssets>,
+    glow_query: Query<Entity, With<BeamGlow>>,
+    flare_query: Query<Entity, With<BeamOriginFlare>>,
+    particle_query: Query<Entity, With<DisintegrateParticle>>,
 ) {
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -118,9 +123,13 @@ pub fn handle_disintegrate_casting(
             );
         }
         BeamAction::DespawnAll => {
-            for (entity, _) in beams.iter() {
-                commands.entity(entity).despawn();
-            }
+            despawn_all_beam_visuals(
+                &mut commands,
+                &beams,
+                &glow_query,
+                &flare_query,
+                &particle_query,
+            );
         }
         BeamAction::None => {}
     }
@@ -337,6 +346,9 @@ pub fn cleanup_beams_on_cancel(
     mut commands: Commands,
     wizard_query: Query<&CastingState, With<LocalWizard>>,
     beam_query: Query<Entity, (With<DisintegrateBeam>, Without<CrystalSpawn>)>,
+    glow_query: Query<Entity, With<BeamGlow>>,
+    flare_query: Query<Entity, With<BeamOriginFlare>>,
+    particle_query: Query<Entity, With<DisintegrateParticle>>,
 ) {
     if let Ok(casting_state) = wizard_query.single()
         && matches!(casting_state, CastingState::Resting)
@@ -344,10 +356,20 @@ pub fn cleanup_beams_on_cancel(
         for entity in beam_query.iter() {
             commands.entity(entity).despawn();
         }
+        for entity in glow_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in flare_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in particle_query.iter() {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
-/// Spawns a beam entity with a cylinder mesh visible from all angles.
+/// Spawns a beam entity with a cylinder mesh visible from all angles,
+/// plus glow and flare sibling entities.
 pub(crate) fn spawn_beam(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -356,20 +378,12 @@ pub(crate) fn spawn_beam(
     length: f32,
     empowerment: f32,
 ) -> Entity {
-    let midpoint = origin + direction * (length / 2.0);
-
-    commands
-        .spawn((
-            DisintegrateBeam::new(origin, direction, length, empowerment),
-            Mesh3d(assets.unit_cylinder.clone()),
-            MeshMaterial3d(assets.disintegrate_beam.clone()),
-            Transform::from_translation(midpoint),
-            OnGameplayScreen,
-        ))
-        .id()
+    let beam = DisintegrateBeam::new(origin, direction, length, empowerment);
+    spawn_beam_visuals(commands, assets, beam)
 }
 
-/// Spawns a beam entity with custom damage per tick (for crystal use).
+/// Spawns a beam entity with custom damage per tick (for crystal use),
+/// plus glow and flare sibling entities.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_beam_with_damage(
     commands: &mut Commands,
@@ -380,38 +394,345 @@ pub(crate) fn spawn_beam_with_damage(
     empowerment: f32,
     damage_per_tick: f32,
 ) -> Entity {
-    let midpoint = origin + direction * (length / 2.0);
-
     let mut beam = DisintegrateBeam::new(origin, direction, length, empowerment);
     beam.damage_per_tick_override = Some(damage_per_tick);
+    spawn_beam_visuals(commands, assets, beam)
+}
 
-    commands
+/// Shared helper that spawns the core beam entity plus glow and flare siblings.
+fn spawn_beam_visuals(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    beam: DisintegrateBeam,
+) -> Entity {
+    let midpoint = beam.origin + beam.direction * (beam.length / 2.0);
+
+    let beam_entity = commands
         .spawn((
             beam,
-            Mesh3d(assets.unit_cylinder.clone()),
+            Mesh3d(assets.cross_plane_cylinder.clone()),
             MeshMaterial3d(assets.disintegrate_beam.clone()),
             Transform::from_translation(midpoint),
             OnGameplayScreen,
         ))
-        .id()
+        .id();
+
+    // Glow cylinder sibling (wider, semi-transparent)
+    commands.spawn((
+        BeamGlow {
+            beam_entity,
+        },
+        Mesh3d(assets.cross_plane_cylinder.clone()),
+        MeshMaterial3d(assets.disintegrate_glow.clone()),
+        Transform::from_translation(midpoint),
+        OnGameplayScreen,
+    ));
+
+    // Origin flare circle sibling (uses cross-plane sphere for visibility from all angles)
+    commands.spawn((
+        BeamOriginFlare {
+            beam_entity,
+        },
+        Mesh3d(assets.cross_plane_sphere.clone()),
+        MeshMaterial3d(assets.disintegrate_flare.clone()),
+        Transform::from_translation(midpoint),
+        OnGameplayScreen,
+    ));
+
+    beam_entity
 }
 
-/// System that updates beam cylinder transform to match beam data.
-pub fn update_beam_visuals(mut beam_query: Query<(&DisintegrateBeam, &mut Transform)>) {
-    for (beam, mut transform) in beam_query.iter_mut() {
-        // Get current animated length
-        let current_len = beam.current_length();
+/// Helper to despawn all beam-related visual entities.
+fn despawn_all_beam_visuals(
+    commands: &mut Commands,
+    beams: &Query<(Entity, &mut DisintegrateBeam)>,
+    glow_query: &Query<Entity, With<BeamGlow>>,
+    flare_query: &Query<Entity, With<BeamOriginFlare>>,
+    particle_query: &Query<Entity, With<DisintegrateParticle>>,
+) {
+    for (entity, _) in beams.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in glow_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in flare_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in particle_query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
 
-        // Update position to beam midpoint
+/// System that updates beam cylinder transform to match beam data,
+/// with pulsing width and color cycling.
+pub fn update_beam_visuals(
+    mut beam_query: Query<(&DisintegrateBeam, &mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    time: Res<Time>,
+) {
+    let t = time.elapsed_secs();
+
+    for (beam, mut transform, material_handle) in beam_query.iter_mut() {
+        let current_len = beam.current_length();
         let midpoint = beam.origin + beam.direction * (current_len / 2.0);
         transform.translation = midpoint;
 
-        // Align cylinder Y axis with beam direction
         let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
         transform.rotation = rotation;
 
-        // Scale: X/Z = beam width (cylinder radius), Y = beam length
-        let beam_width = constants::BEAM_WIDTH * beam.empowerment;
+        // Pulsing width
+        let pulse = 1.0
+            + constants::BEAM_PULSE_AMPLITUDE
+                * (t * constants::BEAM_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
+        let beam_width = constants::BEAM_WIDTH * beam.empowerment * pulse;
         transform.scale = Vec3::new(beam_width, current_len, beam_width);
+
+        // Color cycling: orange -> yellow -> white -> yellow -> orange
+        if let Some(mat) = materials.get_mut(material_handle) {
+            let cycle = (t * constants::COLOR_CYCLE_SPEED).sin() * 0.5 + 0.5; // 0..1
+            // Interpolate emissive: orange(3,1.5,0.2) -> white(5,4.5,4)
+            let r = 3.0 + cycle * 2.0;
+            let g = 1.5 + cycle * 3.0;
+            let b = 0.2 + cycle * 3.8;
+            mat.emissive = bevy::color::LinearRgba::new(r, g, b, 1.0);
+
+            // Also shift base color slightly
+            let base_r = 1.0;
+            let base_g = 0.6 + cycle * 0.35;
+            let base_b = 0.1 + cycle * 0.6;
+            mat.base_color = Color::srgb(base_r, base_g, base_b);
+        }
+    }
+}
+
+/// System that positions and animates the outer glow cylinder to follow its beam.
+pub fn update_beam_glow(
+    mut glow_query: Query<(&BeamGlow, &mut Transform)>,
+    beam_query: Query<&DisintegrateBeam>,
+    time: Res<Time>,
+) {
+    let t = time.elapsed_secs();
+
+    for (glow, mut transform) in glow_query.iter_mut() {
+        let Ok(beam) = beam_query.get(glow.beam_entity) else {
+            continue;
+        };
+
+        let current_len = beam.current_length();
+        let midpoint = beam.origin + beam.direction * (current_len / 2.0);
+        transform.translation = midpoint;
+
+        let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
+        transform.rotation = rotation;
+
+        // Glow pulse + shimmer jitter from incommensurate frequencies
+        let pulse = 1.0
+            + constants::GLOW_PULSE_AMPLITUDE
+                * (t * constants::GLOW_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
+        let shimmer = constants::SHIMMER_AMPLITUDE
+            * ((t * constants::SHIMMER_FREQ_A).sin() + (t * constants::SHIMMER_FREQ_B).cos());
+        let glow_width =
+            constants::BEAM_WIDTH * beam.empowerment * constants::GLOW_WIDTH_MULTIPLIER
+                * (pulse + shimmer);
+        transform.scale = Vec3::new(glow_width, current_len, glow_width);
+    }
+}
+
+/// System that positions and animates the origin flare sphere.
+pub fn update_beam_origin_flare(
+    mut flare_query: Query<(&BeamOriginFlare, &mut Transform)>,
+    beam_query: Query<&DisintegrateBeam>,
+    time: Res<Time>,
+) {
+    let t = time.elapsed_secs();
+
+    for (flare, mut transform) in flare_query.iter_mut() {
+        let Ok(beam) = beam_query.get(flare.beam_entity) else {
+            continue;
+        };
+
+        transform.translation = beam.origin;
+
+        // Pulsing scale
+        let pulse = 1.0
+            + constants::FLARE_PULSE_AMPLITUDE
+                * (t * constants::FLARE_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
+        let radius = constants::FLARE_RADIUS * pulse;
+        transform.scale = Vec3::splat(radius);
+    }
+}
+
+/// System that spawns impact particles at the beam tip.
+pub fn spawn_impact_particles(
+    mut commands: Commands,
+    beam_query: Query<&DisintegrateBeam>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < constants::PARTICLE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= constants::PARTICLE_SPAWN_INTERVAL;
+
+    for beam in beam_query.iter() {
+        let current_len = beam.current_length();
+        if current_len < 1.0 {
+            continue;
+        }
+
+        let tip = beam.origin + beam.direction * current_len;
+
+        // Build a perpendicular basis for random spread
+        let up = if beam.direction.y.abs() > 0.9 {
+            Vec3::X
+        } else {
+            Vec3::Y
+        };
+        let right = beam.direction.cross(up).normalize();
+        let forward = right.cross(beam.direction).normalize();
+
+        for i in 0..constants::PARTICLE_COUNT_PER_SPAWN {
+            // Spread particles in a circle perpendicular to the beam
+            let angle = (i as f32 / constants::PARTICLE_COUNT_PER_SPAWN as f32)
+                * std::f32::consts::TAU
+                + time.elapsed_secs() * 17.3; // rotating offset
+            let spread = right * angle.cos() + forward * angle.sin();
+            let velocity = spread * constants::PARTICLE_SPEED;
+
+            commands.spawn((
+                DisintegrateParticle {
+                    velocity,
+                    time_alive: 0.0,
+                },
+                Mesh3d(visual_assets.particle_quad.clone()),
+                MeshMaterial3d(visual_assets.disintegrate_particle.clone()),
+                Transform::from_translation(tip)
+                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                    .with_scale(Vec3::splat(constants::PARTICLE_SIZE)),
+                OnGameplayScreen,
+            ));
+        }
+    }
+}
+
+/// System that moves, shrinks, and despawns impact particles.
+pub fn update_impact_particles(
+    mut commands: Commands,
+    mut particle_query: Query<(Entity, &mut DisintegrateParticle, &mut Transform)>,
+    time: Res<Time>,
+) {
+    let dt = time.delta_secs();
+
+    for (entity, mut particle, mut transform) in particle_query.iter_mut() {
+        particle.time_alive += dt;
+
+        if particle.time_alive >= constants::PARTICLE_LIFETIME {
+            commands.entity(entity).despawn();
+            continue;
+        }
+
+        // Move by velocity
+        transform.translation += particle.velocity * dt;
+
+        // Scale down linearly over lifetime
+        let remaining = 1.0 - (particle.time_alive / constants::PARTICLE_LIFETIME);
+        let size = constants::PARTICLE_SIZE * remaining;
+        transform.scale = Vec3::splat(size);
+    }
+}
+
+/// System that spawns dark smoke wisps along the beam.
+/// Smoke is independent of the beam and self-dissipates after its lifetime.
+pub fn spawn_beam_smoke(
+    mut commands: Commands,
+    beam_query: Query<&DisintegrateBeam>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < constants::SMOKE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= constants::SMOKE_SPAWN_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for beam in beam_query.iter() {
+        let current_len = beam.current_length();
+        if current_len < 1.0 {
+            continue;
+        }
+
+        // Build perpendicular basis
+        let up = if beam.direction.y.abs() > 0.9 {
+            Vec3::X
+        } else {
+            Vec3::Y
+        };
+        let right = beam.direction.cross(up).normalize();
+        let forward = right.cross(beam.direction).normalize();
+
+        for i in 0..constants::SMOKE_COUNT_PER_SPAWN {
+            // Spawn at a random-ish point along the beam length
+            let frac = ((i as f32 + 0.5) / constants::SMOKE_COUNT_PER_SPAWN as f32
+                + (t * 13.7).fract())
+                % 1.0;
+            let pos = beam.origin + beam.direction * (current_len * frac);
+
+            // Mostly upward drift with slight lateral spread
+            let angle = (i as f32 * 2.39 + t * 7.1).sin(); // pseudo-random lateral
+            let lateral = (right * angle.cos() + forward * angle.sin())
+                * constants::SMOKE_SPREAD_SPEED;
+            let velocity = Vec3::Y * constants::SMOKE_RISE_SPEED + lateral;
+
+            commands.spawn((
+                BeamSmoke {
+                    velocity,
+                    time_alive: 0.0,
+                },
+                Mesh3d(visual_assets.particle_quad.clone()),
+                MeshMaterial3d(visual_assets.disintegrate_smoke.clone()),
+                Transform::from_translation(pos)
+                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                    .with_scale(Vec3::splat(constants::SMOKE_SIZE)),
+                OnGameplayScreen,
+            ));
+        }
+    }
+}
+
+/// System that drifts, scale-fades, and despawns smoke wisps.
+/// Runs independently of beam existence so smoke lingers after casting stops.
+pub fn update_beam_smoke(
+    mut commands: Commands,
+    mut smoke_query: Query<(Entity, &mut BeamSmoke, &mut Transform)>,
+    time: Res<Time>,
+) {
+    let dt = time.delta_secs();
+
+    for (entity, mut smoke, mut transform) in smoke_query.iter_mut() {
+        smoke.time_alive += dt;
+
+        if smoke.time_alive >= constants::SMOKE_LIFETIME {
+            commands.entity(entity).despawn();
+            continue;
+        }
+
+        // Drift by velocity
+        transform.translation += smoke.velocity * dt;
+
+        // Grow then shrink: peak at 60% of lifetime, shrink to zero by end
+        let progress = smoke.time_alive / constants::SMOKE_LIFETIME;
+        let size = if progress < 0.6 {
+            constants::SMOKE_SIZE * (1.0 + progress * 0.83)
+        } else {
+            let shrink = 1.0 - (progress - 0.6) / 0.4;
+            constants::SMOKE_SIZE * 1.5 * shrink
+        };
+        transform.scale = Vec3::splat(size);
     }
 }

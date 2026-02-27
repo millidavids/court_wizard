@@ -13,13 +13,15 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::OBSTACLE_BUFFER;
+use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -395,8 +397,8 @@ pub(crate) fn spawn_meteor_projectile_entity(
 ) -> Entity {
     commands
         .spawn((
-            MeteorProjectile::new(velocity, damage, explosion_radius, empowerment),
-            Mesh3d(assets.unit_sphere.clone()),
+            MeteorProjectile::new(velocity, damage, explosion_radius, empowerment, mesh_radius),
+            Mesh3d(assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.meteor_projectile.clone()),
             Transform::from_translation(spawn_pos).with_scale(Vec3::splat(mesh_radius)),
             OnGameplayScreen,
@@ -420,14 +422,65 @@ pub(super) fn update_meteor_projectiles(
     }
 }
 
+/// Maximum height at which to spawn VFX (above this is off-screen).
+const VFX_VISIBLE_HEIGHT: f32 = 1000.0;
+
+/// Spawns smoke trail wisps and deferred glow for falling meteors (only when on-screen).
+pub(super) fn spawn_meteor_smoke_trail(
+    mut commands: Commands,
+    mut projectiles: Query<(Entity, &Transform, &mut MeteorProjectile)>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    // Spawn deferred glow for meteors entering visible range (runs every frame)
+    for (entity, transform, mut projectile) in projectiles.iter_mut() {
+        if !projectile.has_glow && transform.translation.y <= VFX_VISIBLE_HEIGHT {
+            projectile.has_glow = true;
+            vfx::systems::spawn_fire_glow(
+                &mut commands,
+                &visual_assets,
+                entity,
+                transform.translation,
+                projectile.mesh_radius,
+            );
+        }
+    }
+
+    // Smoke trail on timer
+    *timer += time.delta_secs();
+    if *timer < vfx::constants::SMOKE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= vfx::constants::SMOKE_SPAWN_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for (_entity, transform, _projectile) in projectiles.iter() {
+        if transform.translation.y > VFX_VISIBLE_HEIGHT {
+            continue;
+        }
+
+        vfx::systems::spawn_fire_smoke_wisps(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            vfx::constants::SMOKE_COUNT_PER_SPAWN,
+            t,
+            vfx::constants::SMOKE_LIFETIME,
+            vfx::constants::SMOKE_SIZE,
+            vfx::constants::SMOKE_RISE_SPEED,
+            vfx::constants::SMOKE_SPREAD_SPEED,
+        );
+    }
+}
+
 /// Checks for meteor collisions with the ground, spawns explosions and ground fires.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn check_meteor_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     projectiles: Query<(Entity, &Transform, &MeteorProjectile)>,
-    mut obstacle_events: MessageWriter<ObstacleChanged>,
+    mut pathfinding: ResMut<PathfindingGrid>,
 ) {
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
@@ -435,6 +488,7 @@ pub(super) fn check_meteor_collisions(
         // Check ground collision (Y <= 0)
         if projectile_pos.y <= 0.0 {
             let pos = Vec3::new(projectile_pos.x, 0.0, projectile_pos.z);
+            let t = pos.x * 0.01 + pos.z * 0.01; // deterministic pseudo-time per position
 
             // Spawn explosion visual and damage
             commands.spawn((
@@ -450,30 +504,31 @@ pub(super) fn check_meteor_collisions(
                 OnGameplayScreen,
             ));
 
+            // Impact sparks
+            vfx::systems::spawn_fire_sparks(
+                &mut commands,
+                &visual_assets,
+                pos,
+                vfx::constants::SPARK_COUNT,
+                t,
+            );
+
+            // Explosion smoke burst
+            vfx::systems::spawn_explosion_smoke(
+                &mut commands,
+                &visual_assets,
+                pos,
+                t,
+            );
+
             // Spawn ground fire hazard
             let fire_radius = GROUND_FIRE_RADIUS * projectile.empowerment;
             let fire_damage = GROUND_FIRE_DAMAGE * projectile.empowerment;
             let fire_duration = GROUND_FIRE_DURATION;
 
-            let origin_2d = Vec2::new(pos.x, pos.z);
-            let buffered = fire_radius + OBSTACLE_BUFFER;
-
-            // Notify pathfinding system about the hazard
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
-                obstacle_type: ObstacleType::Hazard(8.0),
-            });
-
-            // Clone ground fire material for per-instance fading
-            let base_mat = materials
-                .get(&visual_assets.meteor_ground_fire)
-                .cloned()
-                .unwrap_or_default();
-            let fire_material = materials.add(base_mat);
-
             commands.spawn((
                 Mesh3d(visual_assets.unit_circle.clone()),
-                MeshMaterial3d(fire_material),
+                MeshMaterial3d(visual_assets.meteor_ground_fire.clone()),
                 Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
                     .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                     .with_scale(Vec3::splat(fire_radius)),
@@ -489,6 +544,13 @@ pub(super) fn check_meteor_collisions(
                 },
                 OnGameplayScreen,
             ));
+
+            // Mark fire zone in pathfinding base_costs so future rebuilds avoid it
+            let origin_2d = Vec2::new(pos.x, pos.z);
+            let buffered = fire_radius + OBSTACLE_BUFFER;
+            let bounds = Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0));
+            let cells = pathfinding.world_bounds_to_cells(bounds);
+            pathfinding.set_terrain_cost(&cells, 8.0);
 
             // Despawn the projectile
             commands.entity(entity).despawn();
@@ -595,43 +657,34 @@ pub(super) fn apply_ground_fire_damage(
     }
 }
 
-/// Fades ground fire visual opacity as it approaches expiration.
+/// Fades ground fire by scaling down as it approaches expiration.
 pub(super) fn fade_ground_fire(
-    fires: Query<(&MeteorGroundFire, &MeshMaterial3d<StandardMaterial>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut fires: Query<(&MeteorGroundFire, &mut Transform)>,
 ) {
-    for (fire, material_handle) in &fires {
-        let Some(material) = materials.get_mut(material_handle) else {
-            continue;
-        };
-
+    for (fire, mut transform) in &mut fires {
         let remaining = fire.duration - fire.time_alive;
-        let fade = if remaining < GROUND_FIRE_FADE_DURATION {
-            (remaining / GROUND_FIRE_FADE_DURATION).max(0.0)
-        } else {
-            1.0
-        };
-
-        material.base_color = Color::srgba(0.9, 0.25, 0.05, 0.5 * fade);
+        if remaining < GROUND_FIRE_FADE_DURATION {
+            let fade = (remaining / GROUND_FIRE_FADE_DURATION).max(0.0);
+            let base_radius = fire.radius;
+            transform.scale = Vec3::splat(base_radius * fade);
+        }
     }
 }
 
-/// Cleans up expired ground fire zones and notifies pathfinding.
+/// Cleans up expired ground fire zones and resets pathfinding costs.
 pub(super) fn cleanup_ground_fire(
     mut commands: Commands,
     fires: Query<(Entity, &MeteorGroundFire)>,
-    mut obstacle_events: MessageWriter<ObstacleChanged>,
+    mut pathfinding: ResMut<PathfindingGrid>,
 ) {
     for (entity, fire) in &fires {
         if fire.time_alive >= fire.duration {
+            // Reset terrain cost for the fire zone
             let origin_2d = Vec2::new(fire.origin.x, fire.origin.z);
             let buffered = fire.radius + OBSTACLE_BUFFER;
-
-            // Notify pathfinding that the hazard is removed
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
-                obstacle_type: ObstacleType::Removed,
-            });
+            let bounds = Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0));
+            let cells = pathfinding.world_bounds_to_cells(bounds);
+            pathfinding.set_terrain_cost(&cells, 1.0);
 
             commands.entity(entity).despawn();
         }

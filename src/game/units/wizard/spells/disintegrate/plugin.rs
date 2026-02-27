@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::DisintegrateBeam;
+use super::components::{
+    BeamGlow, BeamOriginFlare, BeamSmoke, DisintegrateBeam, DisintegrateParticle,
+};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -22,11 +24,25 @@ impl Plugin for DisintegratePlugin {
                     .run_if(is_spell_effects_active),
                 (
                     systems::update_beam_visuals,
+                    systems::update_beam_glow,
+                    systems::update_beam_origin_flare,
+                    systems::spawn_impact_particles,
+                    systems::spawn_beam_smoke,
                     systems::apply_disintegrate_damage,
                     systems::cleanup_beams_on_cancel,
                 )
                     .chain()
-                    .run_if(any_exist::<DisintegrateBeam>())
+                    .run_if(
+                        any_exist::<DisintegrateBeam>()
+                            .or(any_exist::<BeamGlow>())
+                            .or(any_exist::<BeamOriginFlare>()),
+                    )
+                    .run_if(is_spell_effects_active),
+                systems::update_impact_particles
+                    .run_if(any_exist::<DisintegrateParticle>())
+                    .run_if(is_spell_effects_active),
+                systems::update_beam_smoke
+                    .run_if(any_exist::<BeamSmoke>())
                     .run_if(is_spell_effects_active),
             ),
         );

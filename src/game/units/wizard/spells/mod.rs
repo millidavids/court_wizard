@@ -13,6 +13,7 @@ pub(crate) mod disintegrate;
 pub(crate) mod dispel;
 pub(crate) mod entangle;
 pub(crate) mod finger_of_death;
+pub(crate) mod vfx;
 pub(crate) mod fireball;
 pub(crate) mod fog_cloud;
 pub(crate) mod grease;

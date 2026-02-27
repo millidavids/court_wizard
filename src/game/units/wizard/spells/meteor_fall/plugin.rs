@@ -32,6 +32,7 @@ impl Plugin for MeteorFallPlugin {
                 // Storm systems (spawn projectiles, update physics, check collisions)
                 spawn_meteor_projectiles.run_if(any_exist::<MeteorFallStorm>()),
                 update_meteor_projectiles.run_if(any_exist::<MeteorProjectile>()),
+                spawn_meteor_smoke_trail.run_if(any_exist::<MeteorProjectile>()),
                 check_meteor_collisions.run_if(any_exist::<MeteorProjectile>()),
                 // Explosion updates
                 update_meteor_explosions.run_if(any_exist::<MeteorExplosion>()),

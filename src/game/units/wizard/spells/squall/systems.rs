@@ -356,7 +356,7 @@ pub(super) fn spawn_ice_projectiles(
                     ICE_PROJECTILE_RADIUS,
                     storm.empowerment,
                 ),
-                Mesh3d(visual_assets.unit_sphere.clone()),
+                Mesh3d(visual_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(visual_assets.ice_projectile.clone()),
                 Transform::from_translation(spawn_pos)
                     .with_scale(Vec3::splat(ICE_PROJECTILE_MESH_RADIUS)),

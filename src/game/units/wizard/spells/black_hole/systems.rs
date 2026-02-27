@@ -73,7 +73,7 @@ pub(crate) fn spawn_black_hole(
 
     commands.spawn((
         BlackHole::new(spawn_pos, max_radius, empowerment),
-        Mesh3d(assets.unit_sphere.clone()),
+        Mesh3d(assets.cross_plane_sphere.clone()),
         MeshMaterial3d(assets.black_hole.clone()),
         Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
         NetworkedSpellEffect {

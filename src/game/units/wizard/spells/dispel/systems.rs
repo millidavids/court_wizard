@@ -12,6 +12,7 @@ use crate::game::units::wizard::spells::grease::components::GreaseZone;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -139,7 +140,7 @@ pub(crate) fn spawn_dispel_projectile(
 pub fn move_dispel_projectiles(
     mut commands: Commands,
     time: Res<Time>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut projectiles: Query<(Entity, &mut Transform, &mut DispelProjectile)>,
 ) {
@@ -152,15 +153,15 @@ pub fn move_dispel_projectiles(
         // Detonate when hitting the battlefield (y<=0) or lifetime expired
         let hit_ground = transform.translation.y <= 0.0;
         if hit_ground || projectile.lifetime <= 0.0 {
-            // Impact position on the ground
+            // Impact position slightly above ground so cross-plane sphere is visible
             let impact_pos = Vec3::new(
                 transform.translation.x,
-                0.0,
+                5.0,
                 transform.translation.z,
             );
 
             commands.spawn((
-                Mesh3d(meshes.add(Sphere::new(1.0))),
+                Mesh3d(visual_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(materials.add(StandardMaterial {
                     base_color: constants::PROJECTILE_COLOR
                         .with_alpha(constants::IMPACT_INITIAL_ALPHA),

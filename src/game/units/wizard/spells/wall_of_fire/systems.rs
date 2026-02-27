@@ -17,6 +17,7 @@ use crate::game::units::components::{
     Health, ResidualFireDamaged, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -208,6 +209,24 @@ pub fn handle_wall_of_fire_casting(
                         kind: SpellEffectKind::WallOfFire,
                     },
                 ));
+
+            // Spawn sparks along the wall on placement
+            let wall_dir = (info.wall_end - info.wall_start).normalize_or_zero();
+            let wall_len = info.wall_start.distance(info.wall_end);
+            let spark_points = 4;
+            let t_secs = info.wall_start.x * 0.01;
+            for i in 0..spark_points {
+                let frac = (i as f32 + 0.5) / spark_points as f32;
+                let pos = info.wall_start + wall_dir * (wall_len * frac);
+                vfx::systems::spawn_fire_sparks(
+                    &mut commands,
+                    &visual_assets,
+                    pos,
+                    vfx::constants::SPARK_COUNT / 2,
+                    t_secs + i as f32,
+                );
+            }
+
         }
         caster.preview_entity = None;
     }
@@ -457,3 +476,50 @@ fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec
         target
     }
 }
+
+/// Spawns smoke wisps rising off active fire walls.
+pub fn spawn_wall_of_fire_smoke(
+    mut commands: Commands,
+    effects: Query<&WallOfFireEffect>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < WALL_SMOKE_INTERVAL {
+        return;
+    }
+    *timer -= WALL_SMOKE_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for effect in effects.iter() {
+        // Don't emit smoke during the fade-out period
+        let remaining = effect.duration - effect.time_alive;
+        if remaining < FADE_DURATION {
+            continue;
+        }
+
+        let wall_dir = (effect.end - effect.start).normalize_or_zero();
+        let wall_len = effect.start.distance(effect.end);
+
+        // Spawn a wisp at a pseudo-random point along the wall
+        let frac = (t * 3.7 + effect.start.x * 0.1).fract();
+        let pos = effect.start + wall_dir * (wall_len * frac);
+
+        vfx::systems::spawn_fire_smoke_wisps(
+            &mut commands,
+            &visual_assets,
+            pos,
+            1,
+            t,
+            vfx::constants::SMOKE_LIFETIME,
+            vfx::constants::SMOKE_SIZE,
+            vfx::constants::SMOKE_RISE_SPEED,
+            vfx::constants::SMOKE_SPREAD_SPEED,
+        );
+    }
+}
+
+/// Interval between smoke wisp spawns for wall of fire.
+const WALL_SMOKE_INTERVAL: f32 = 0.25;

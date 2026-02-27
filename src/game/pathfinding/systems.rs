@@ -10,7 +10,7 @@ use crate::game::units::king::components::King;
 
 use super::components::{FlowFieldInfluence, FlowFieldVelocity};
 use super::messages::{ObstacleChanged, ObstacleType};
-use super::resources::PathfindingGrid;
+use super::resources::{PathfindingGrid, RebuildTarget};
 
 /// Cell size for the pathfinding grid (in world units).
 pub(crate) const CELL_SIZE: f32 = 10.0;
@@ -63,15 +63,12 @@ pub fn update_king_position(
     let distance_moved = king_pos.distance(pathfinding.last_king_pos);
 
     if distance_moved > KING_MOVEMENT_THRESHOLD {
-        // King moved significantly, spawn attacker field rebuild
-        if pathfinding.pending_attacker_rebuild.is_none() {
-            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
-            pathfinding.last_king_pos = king_pos;
-            debug!(
-                "King moved {} units, rebuilding attacker field",
-                distance_moved
-            );
-        }
+        pathfinding.last_king_pos = king_pos;
+        pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
+        debug!(
+            "King moved {} units, queuing attacker field rebuild",
+            distance_moved
+        );
     }
 }
 
@@ -133,51 +130,51 @@ pub fn update_king_target(
         }
     }
 
-    // Check if target changed
-    let target_changed = match (pathfinding.king_current_target, closest_enemy) {
+    // Check if target changed — but only rebuild if the target POSITION moved
+    // significantly, not just because a different entity became closest.
+    match (pathfinding.king_current_target, closest_enemy) {
         (None, Some((new_entity, _))) => {
-            // First time activating
+            // First time getting a target — rebuild toward enemy
             pathfinding.king_current_target = Some(new_entity);
-            true
+            pathfinding.defender_rally_delay = 0.0;
+            if let Ok((_, new_transform, _)) = enemy_query.get(new_entity) {
+                pathfinding.last_defender_target_pos =
+                    Vec2::new(new_transform.translation.x, new_transform.translation.z);
+            }
+            pathfinding.enqueue_rebuild(RebuildTarget::Defender);
+            debug!("New defender target acquired, queuing defender field rebuild");
         }
-        (Some(old_entity), Some((new_entity, _))) if old_entity != new_entity => {
-            // Target changed
+        (Some(_old_entity), Some((new_entity, _))) => {
+            // Update tracked entity (might be a different entity at a similar position)
             pathfinding.king_current_target = Some(new_entity);
-            true
+            pathfinding.defender_rally_delay = 0.0;
+
+            // Only rebuild if the new target position is significantly different
+            if let Ok((_, new_transform, _)) = enemy_query.get(new_entity) {
+                let new_pos =
+                    Vec2::new(new_transform.translation.x, new_transform.translation.z);
+                let distance = new_pos.distance(pathfinding.last_defender_target_pos);
+                if distance > DEFENDER_TARGET_MOVEMENT_THRESHOLD {
+                    pathfinding.last_defender_target_pos = new_pos;
+                    if pathfinding.pending_defender_rebuild.is_none() {
+                        pathfinding.enqueue_rebuild(RebuildTarget::Defender);
+                        debug!(
+                            "Defender target moved {} units, queuing rebuild",
+                            distance
+                        );
+                    }
+                }
+            }
         }
         (Some(_), None) => {
-            // Old target died, no new targets — rebuild field toward defender spawn
-            // so the King and defenders rally back to formation between waves
+            // All enemies dead — start rally delay timer instead of rebuilding immediately.
+            // This prevents oscillation when enemies die and new ones spawn quickly.
             pathfinding.king_current_target = None;
-            true
-        }
-        _ => false,
-    };
-
-    // Spawn defender field rebuild if target changed and no rebuild pending
-    if target_changed && pathfinding.pending_defender_rebuild.is_none() {
-        if let Some((target_entity, _)) = closest_enemy {
-            // Rebuild toward the new enemy target (0 satisfaction — charge in)
-            if let Ok((_, target_transform, _)) = enemy_query.get(target_entity) {
-                let target_pos = Vec2::new(
-                    target_transform.translation.x,
-                    target_transform.translation.z,
-                );
-                spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
-                debug!("King target changed, rebuilding defender field");
+            if pathfinding.defender_rally_delay <= 0.0 {
+                pathfinding.defender_rally_delay = DEFENDER_RALLY_DELAY_SECS;
             }
-        } else {
-            // No enemies — rebuild field toward defender spawn center so
-            // the King and defenders rally back to formation between waves.
-            // Large satisfaction radius so units spread out and don't crowd.
-            let (cx, cz) = defender_spawn_center();
-            spawn_defender_field_rebuild(
-                &mut pathfinding,
-                Vec2::new(cx, cz),
-                DEFENDER_SPAWN_RALLY_RADIUS,
-            );
-            debug!("No enemies, rebuilding defender field toward spawn center");
         }
+        _ => {}
     }
 }
 
@@ -234,11 +231,7 @@ fn spawn_defender_field_rebuild(
 ///
 /// When `costs_dirty` is set (base_costs changed while a rebuild was in flight),
 /// immediately triggers a fresh rebuild so the flow fields reflect all obstacles.
-pub fn apply_completed_rebuilds(
-    mut pathfinding: ResMut<PathfindingGrid>,
-    king_query: Query<(&Transform, &Team), With<King>>,
-    all_transforms: Query<&Transform>,
-) {
+pub fn apply_completed_rebuilds(mut pathfinding: ResMut<PathfindingGrid>) {
     let mut attacker_done = false;
     let mut defender_done = false;
 
@@ -263,48 +256,51 @@ pub fn apply_completed_rebuilds(
     }
 
     // If base_costs changed while rebuilds were in flight, the fields we just
-    // applied are stale.  Kick off fresh rebuilds with the current base_costs.
+    // applied are stale. Queue fresh rebuilds with the current base_costs.
     if pathfinding.costs_dirty && (attacker_done || defender_done) {
         pathfinding.costs_dirty = false;
 
-        if attacker_done
-            && let Some((king_transform, _)) = king_query
-                .iter()
-                .find(|(_, team)| **team == Team::Defenders)
-        {
-            let king_pos =
-                Vec2::new(king_transform.translation.x, king_transform.translation.z);
-            spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
+        if attacker_done {
+            pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
         }
-
-        if defender_done
-            && pathfinding.defender_field.is_some()
-            && let Some(target_entity) = pathfinding.king_current_target
-            && let Ok(target_transform) = all_transforms.get(target_entity)
-        {
-            let target_pos =
-                Vec2::new(target_transform.translation.x, target_transform.translation.z);
-            spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
+        if defender_done && pathfinding.defender_field.is_some() {
+            pathfinding.enqueue_rebuild(RebuildTarget::Defender);
         }
     }
 }
 
-/// Handles obstacle change events and updates base costs, then triggers rebuilds.
+/// Debounce window for full rebuilds triggered by blocked obstacles (seconds).
+const OBSTACLE_DEBOUNCE_SECS: f32 = 0.5;
+
+/// Delay before rebuilding defender field toward spawn when all enemies die (seconds).
+/// Prevents oscillation when enemies die rapidly between waves.
+const DEFENDER_RALLY_DELAY_SECS: f32 = 2.0;
+
+/// How far the defender's target must move before triggering a field rebuild (world units).
+/// Prevents constant rebuilds when the closest enemy entity changes but the position
+/// is effectively the same (e.g. enemies dying in the same cluster).
+const DEFENDER_TARGET_MOVEMENT_THRESHOLD: f32 = 100.0;
+
+/// Handles obstacle change events.
+///
+/// For **hazards/terrain/removed**: updates costs in base_costs AND applies a cheap
+/// localized flow field update directly to both active fields. No full rebuild needed.
+///
+/// For **blocked** obstacles (walls): updates base_costs and starts a debounce timer
+/// that triggers a full async rebuild, since walls fundamentally change pathing.
 pub fn handle_obstacle_events(
     mut obstacle_events: MessageReader<ObstacleChanged>,
     mut pathfinding: ResMut<PathfindingGrid>,
-    king_query: Query<(&Transform, &Team), With<King>>,
-    all_transforms: Query<&Transform>,
 ) {
-    let mut rebuild_needed = false;
+    let mut needs_full_rebuild = false;
 
     for event in obstacle_events.read() {
-        // Convert world bounds to grid cells
         let affected_cells = pathfinding.world_bounds_to_cells(event.bounds);
 
         match event.obstacle_type {
             ObstacleType::Blocked => {
                 pathfinding.mark_blocked(&affected_cells);
+                needs_full_rebuild = true;
             }
             ObstacleType::SlowTerrain(multiplier) => {
                 pathfinding.set_terrain_cost(&affected_cells, multiplier);
@@ -316,39 +312,119 @@ pub fn handle_obstacle_events(
                 pathfinding.set_terrain_cost(&affected_cells, 1.0);
             }
         }
-
-        rebuild_needed = true;
     }
 
-    // If any obstacles changed, rebuild both fields
-    if rebuild_needed {
-        // Rebuild attacker field toward Defender King
-        if let Some((king_transform, _)) = king_query
-            .iter()
-            .find(|(_, team)| **team == Team::Defenders)
-        {
-            if pathfinding.pending_attacker_rebuild.is_none() {
-                let king_pos =
-                    Vec2::new(king_transform.translation.x, king_transform.translation.z);
-                spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
-            } else {
-                // A rebuild is already running from an older snapshot of base_costs.
-                // Mark dirty so we re-rebuild once it completes.
-                pathfinding.costs_dirty = true;
-            }
-        }
+    if needs_full_rebuild {
+        pathfinding.rebuild_debounce = OBSTACLE_DEBOUNCE_SECS;
+    }
+}
 
-        // Rebuild defender field toward King's current target
-        if pathfinding.defender_field.is_some()
-            && let Some(target_entity) = pathfinding.king_current_target
-            && let Ok(target_transform) = all_transforms.get(target_entity)
-        {
-            if pathfinding.pending_defender_rebuild.is_none() {
-                let target_pos =
-                    Vec2::new(target_transform.translation.x, target_transform.translation.z);
-                spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
-            } else {
-                pathfinding.costs_dirty = true;
+/// Ticks the defender rally delay timer. When it expires (no new enemies appeared),
+/// enqueues a defender field rebuild toward the spawn center.
+pub fn tick_defender_rally_delay(
+    mut pathfinding: ResMut<PathfindingGrid>,
+    time: Res<Time>,
+) {
+    if pathfinding.defender_rally_delay <= 0.0 {
+        return;
+    }
+
+    pathfinding.defender_rally_delay -= time.delta_secs();
+    if pathfinding.defender_rally_delay > 0.0 {
+        return;
+    }
+    pathfinding.defender_rally_delay = 0.0;
+
+    // Timer expired — no new enemies appeared, rebuild toward spawn center
+    pathfinding.enqueue_rebuild(RebuildTarget::Defender);
+    debug!("Defender rally delay expired, queuing rebuild toward spawn center");
+}
+
+/// Ticks down the debounce timer and enqueues full rebuilds when it expires.
+/// Only used for blocked obstacles (walls) that require a complete Dijkstra recalculation.
+pub fn flush_debounced_rebuilds(mut pathfinding: ResMut<PathfindingGrid>, time: Res<Time>) {
+    if pathfinding.rebuild_debounce <= 0.0 {
+        return;
+    }
+
+    pathfinding.rebuild_debounce -= time.delta_secs();
+    if pathfinding.rebuild_debounce > 0.0 {
+        return;
+    }
+    pathfinding.rebuild_debounce = 0.0;
+
+    pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
+    if pathfinding.defender_field.is_some() {
+        pathfinding.enqueue_rebuild(RebuildTarget::Defender);
+    }
+}
+
+/// Processes the rebuild queue, spawning at most one async rebuild per frame.
+/// This spreads the cost of multiple rebuilds across frames to avoid spikes.
+pub fn process_rebuild_queue(
+    mut pathfinding: ResMut<PathfindingGrid>,
+    king_query: Query<(&Transform, &Team), With<King>>,
+    all_transforms: Query<&Transform>,
+) {
+    // Don't start a new rebuild if both slots are already occupied
+    if pathfinding.pending_attacker_rebuild.is_some()
+        && pathfinding.pending_defender_rebuild.is_some()
+    {
+        return;
+    }
+
+    // Find Defender King position (needed for attacker field target)
+    let king_pos = king_query
+        .iter()
+        .find(|(_, team)| **team == Team::Defenders)
+        .map(|(t, _)| Vec2::new(t.translation.x, t.translation.z));
+
+    // Try to dequeue one rebuild that doesn't already have a pending task
+    let queue_len = pathfinding.rebuild_queue.len();
+    for _ in 0..queue_len {
+        let Some(target) = pathfinding.rebuild_queue.pop_front() else {
+            break;
+        };
+
+        match target {
+            RebuildTarget::Attacker => {
+                if pathfinding.pending_attacker_rebuild.is_some() {
+                    // Already in flight — mark dirty so it re-queues on completion
+                    pathfinding.costs_dirty = true;
+                    continue;
+                }
+                if let Some(pos) = king_pos {
+                    spawn_attacker_field_rebuild(&mut pathfinding, pos);
+                    return; // One per frame
+                }
+            }
+            RebuildTarget::Defender => {
+                if pathfinding.pending_defender_rebuild.is_some() {
+                    pathfinding.costs_dirty = true;
+                    continue;
+                }
+                if let Some(target_entity) = pathfinding.king_current_target
+                    && let Ok(target_transform) = all_transforms.get(target_entity)
+                {
+                    let target_pos = Vec2::new(
+                        target_transform.translation.x,
+                        target_transform.translation.z,
+                    );
+                    spawn_defender_field_rebuild(&mut pathfinding, target_pos, 0);
+                } else if pathfinding.defender_field.is_some() {
+                    // Only rally to spawn if a defender field was previously created
+                    // (don't create a spawn-center field before defenders activate)
+                    let (cx, cz) = defender_spawn_center();
+                    spawn_defender_field_rebuild(
+                        &mut pathfinding,
+                        Vec2::new(cx, cz),
+                        DEFENDER_SPAWN_RALLY_RADIUS,
+                    );
+                } else {
+                    // No target and no existing field — skip (defenders not yet activated)
+                    continue;
+                }
+                return; // One per frame
             }
         }
     }

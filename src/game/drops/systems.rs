@@ -8,6 +8,7 @@ use crate::game::cauldron::brews::Ingredient;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::messages::IngredientCollectedMessage;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 use super::components::{FlyingToWizard, IngredientDrop, LockedIngredients};
 use super::constants::*;
@@ -33,7 +34,7 @@ pub(super) fn init_locked_ingredients(mut locked: ResMut<LockedIngredients>) {
 /// Listens for enemy death messages and randomly spawns ingredient drops.
 pub(super) fn spawn_ingredient_drops(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
+    spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut drop_events: MessageReader<SpawnIngredientDropMessage>,
     locked: Res<LockedIngredients>,
@@ -57,7 +58,6 @@ pub(super) fn spawn_ingredient_drops(
             continue;
         };
 
-        let drop_mesh = meshes.add(Cuboid::new(DROP_CUBE_SIZE, DROP_CUBE_SIZE, DROP_CUBE_SIZE));
         let drop_material = materials.add(StandardMaterial {
             base_color: DROP_COLOR,
             emissive: DROP_EMISSIVE.into(),
@@ -66,9 +66,10 @@ pub(super) fn spawn_ingredient_drops(
         });
 
         commands.spawn((
-            Mesh3d(drop_mesh),
+            Mesh3d(spell_assets.cross_plane_sphere.clone()),
             MeshMaterial3d(drop_material),
-            Transform::from_xyz(event.position.x, DROP_BASE_Y, event.position.z),
+            Transform::from_xyz(event.position.x, DROP_BASE_Y, event.position.z)
+                .with_scale(Vec3::splat(DROP_CUBE_SIZE / 2.0)),
             IngredientDrop {
                 ingredient,
                 time_alive: 0.0,

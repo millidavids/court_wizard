@@ -11,6 +11,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -250,6 +251,7 @@ pub(crate) fn spawn_magic_missile(
     // Spawn magic missile as a small pink circle
     spawn_magic_missile_entity(
         commands,
+        assets,
         assets.magic_missile_mesh.clone(),
         assets.magic_missile.clone(),
         spawn_pos,
@@ -270,6 +272,7 @@ pub(crate) fn spawn_magic_missile(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_magic_missile_entity(
     commands: &mut Commands,
+    visual_assets: &SpellVisualAssets,
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
     spawn_pos: Vec3,
@@ -281,7 +284,7 @@ pub(crate) fn spawn_magic_missile_entity(
     spell_range: f32,
     origin_pos: Vec3,
 ) -> Entity {
-    commands
+    let entity = commands
         .spawn((
             Mesh3d(mesh),
             MeshMaterial3d(material),
@@ -297,7 +300,18 @@ pub(crate) fn spawn_magic_missile_entity(
             ),
             OnGameplayScreen,
         ))
-        .id()
+        .id();
+
+    // Spawn glow halo sibling
+    vfx::systems::spawn_missile_glow(
+        commands,
+        visual_assets,
+        entity,
+        spawn_pos,
+        constants::COLLISION_RADIUS,
+    );
+
+    entity
 }
 
 /// Updates magic missile movement with homing and wobble.
@@ -305,10 +319,19 @@ pub(crate) fn spawn_magic_missile_entity(
 /// Missiles lock onto their initial target and only retarget if it despawns.
 pub fn move_magic_missiles(
     time: Res<Time>,
+    mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystal_transforms: Query<&Transform, (With<ArcaneCrystal>, Without<MagicMissile>)>,
+    mut sparkle_timer: Local<f32>,
 ) {
+    // Track sparkle spawn timing
+    *sparkle_timer += time.delta_secs();
+    let should_spawn_sparkles = *sparkle_timer >= vfx::constants::SPARKLE_SPAWN_INTERVAL;
+    if should_spawn_sparkles {
+        *sparkle_timer -= vfx::constants::SPARKLE_SPAWN_INTERVAL;
+    }
     for (mut missile_transform, mut missile) in &mut missiles {
         missile.time_alive += time.delta_secs();
 
@@ -428,6 +451,17 @@ pub fn move_magic_missiles(
         } else {
             // No enemies left, just continue with current velocity
             missile_transform.translation += missile.velocity * time.delta_secs();
+        }
+
+        // Spawn sparkle trail particles
+        if should_spawn_sparkles {
+            vfx::systems::spawn_missile_sparkles(
+                &mut commands,
+                &visual_assets,
+                missile_transform.translation,
+                missile.velocity,
+                time.elapsed_secs(),
+            );
         }
     }
 }

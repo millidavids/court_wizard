@@ -62,7 +62,7 @@ pub fn apply_state_snapshot(
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
     king_assets: Res<KingAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut ghost_query: Query<
         (
@@ -221,20 +221,20 @@ pub fn apply_state_snapshot(
                 // Sync spell shield from host
                 if remote_spell_shield && !has_spell_shield {
                     commands.entity(entity).insert(SpellShield);
-                    // Spawn translucent sphere visual as child
+                    // Spawn translucent cross-plane sphere visual as child
                     use crate::game::units::king::constants::{
                         SPELL_SHIELD_COLOR, SPELL_SHIELD_RADIUS,
                     };
                     let shield_visual = commands
                         .spawn((
-                            Mesh3d(meshes.add(Sphere::new(SPELL_SHIELD_RADIUS))),
+                            Mesh3d(spell_assets.cross_plane_sphere.clone()),
                             MeshMaterial3d(materials.add(StandardMaterial {
                                 base_color: SPELL_SHIELD_COLOR,
                                 unlit: true,
                                 alpha_mode: AlphaMode::Blend,
                                 ..default()
                             })),
-                            Transform::default(),
+                            Transform::from_scale(Vec3::splat(SPELL_SHIELD_RADIUS)),
                             SpellShieldVisual,
                             OnMultiplayerGameScreen,
                         ))
@@ -283,14 +283,14 @@ pub fn apply_state_snapshot(
                 commands.entity(entity).insert(SpellShield);
                 let shield_visual = commands
                     .spawn((
-                        Mesh3d(meshes.add(Sphere::new(SPELL_SHIELD_RADIUS))),
+                        Mesh3d(spell_assets.cross_plane_sphere.clone()),
                         MeshMaterial3d(materials.add(StandardMaterial {
                             base_color: SPELL_SHIELD_COLOR,
                             unlit: true,
                             alpha_mode: AlphaMode::Blend,
                             ..default()
                         })),
-                        Transform::default(),
+                        Transform::from_scale(Vec3::splat(SPELL_SHIELD_RADIUS)),
                         SpellShieldVisual,
                         OnMultiplayerGameScreen,
                     ))
@@ -668,11 +668,11 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::BlackHole => {
             let max_radius = extra[0];
             let empowerment = extra[1];
-            // Unit sphere scaled by max_radius * growth_factor in update_black_hole_visuals
+            // Cross-plane sphere scaled by max_radius * growth_factor in update_black_hole_visuals
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_sphere.clone()),
+                        Mesh3d(assets.cross_plane_sphere.clone()),
                         MeshMaterial3d(assets.black_hole.clone()),
                         Transform::from_translation(pos).with_scale(Vec3::ZERO), // Grows from 0 via update_black_hole_visuals
                         BlackHole::new(pos, max_radius, empowerment),
@@ -688,9 +688,9 @@ pub(super) fn spawn_spell_effect(
             let empowerment = extra[2];
             let height = 35.0 * empowerment; // CRYSTAL_HEIGHT * empowerment
             let sphere_radius = height / 3.0;
-            // Unit sphere scaled to crystal shape
+            // Cross-plane sphere scaled to crystal shape
             Some(commands.spawn((
-                Mesh3d(assets.unit_sphere.clone()),
+                Mesh3d(assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(assets.arcane_crystal.clone()),
                 Transform::from_translation(Vec3::new(pos.x, height / 2.0, pos.z))
                     .with_scale(Vec3::new(0.7 * sphere_radius, 1.5 * sphere_radius, 0.7 * sphere_radius)),
@@ -795,12 +795,14 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::FireballExplosion => {
             let max_radius = extra[0];
             let empowerment = extra[1];
+            // Raise slightly above ground so cross-plane sphere is visible
+            let explosion_pos = Vec3::new(pos.x, pos.y.max(5.0), pos.z);
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_sphere.clone()),
+                        Mesh3d(assets.cross_plane_sphere.clone()),
                         MeshMaterial3d(assets.fireball_explosion.clone()),
-                        Transform::from_translation(pos).with_scale(Vec3::splat(0.1)),
+                        Transform::from_translation(explosion_pos).with_scale(Vec3::splat(0.1)),
                         FireballExplosion::new(
                             pos,
                             max_radius,

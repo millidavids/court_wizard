@@ -28,8 +28,14 @@ impl Plugin for PathfindingPlugin {
                     update_king_position,
                     // Update King's target for defender field
                     update_king_target,
-                    // Handle obstacle changes
+                    // Tick defender rally delay (no-enemies → spawn center)
+                    tick_defender_rally_delay,
+                    // Handle obstacle changes (updates costs, starts debounce timer)
                     handle_obstacle_events,
+                    // Flush debounced rebuilds after the batching window expires
+                    flush_debounced_rebuilds,
+                    // Process rebuild queue (one rebuild per frame max)
+                    process_rebuild_queue,
                     // Apply completed async rebuilds
                     apply_completed_rebuilds,
                 )

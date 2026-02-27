@@ -16,6 +16,7 @@ use crate::game::units::components::{
     MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::session::MultiplayerSession;
 
 /// Spawns the King unit at the center of the defender grid.
@@ -329,7 +330,7 @@ pub fn attach_king_spell_shield(
     mut commands: Commands,
     session: Option<Res<MultiplayerSession>>,
     new_kings: Query<(Entity, &Transform), Added<King>>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     if session.is_none() {
@@ -339,17 +340,17 @@ pub fn attach_king_spell_shield(
     for (entity, _transform) in &new_kings {
         commands.entity(entity).insert(SpellShield);
 
-        // Spawn translucent sphere visual as child
+        // Spawn translucent cross-plane sphere visual as child
         let shield_visual = commands
             .spawn((
-                Mesh3d(meshes.add(Sphere::new(SPELL_SHIELD_RADIUS))),
+                Mesh3d(spell_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(materials.add(StandardMaterial {
                     base_color: SPELL_SHIELD_COLOR,
                     unlit: true,
                     alpha_mode: bevy::prelude::AlphaMode::Blend,
                     ..default()
                 })),
-                Transform::default(),
+                Transform::from_scale(Vec3::splat(SPELL_SHIELD_RADIUS)),
                 SpellShieldVisual,
                 OnGameplayScreen,
             ))

@@ -358,13 +358,13 @@ pub(crate) fn spawn_crystal(
 
     let crystal_pos = Vec3::new(position.x, height / 2.0, position.z);
 
-    // unit_sphere has radius 1.0, scale to height/3.0 with vertical stretch
+    // cross_plane_sphere has radius 1.0, scale to height/3.0 with vertical stretch
     let sphere_radius = height / 3.0;
 
     let crystal_entity = commands
         .spawn((
             ArcaneCrystal::new(crystal_pos, range, duration, collision_radius, empowerment),
-            Mesh3d(assets.unit_sphere.clone()),
+            Mesh3d(assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.arcane_crystal.clone()),
             Transform::from_translation(crystal_pos).with_scale(Vec3::new(
                 0.7 * sphere_radius,

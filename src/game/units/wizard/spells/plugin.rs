@@ -12,6 +12,7 @@ use super::disintegrate::DisintegratePlugin;
 use super::dispel::DispelPlugin;
 use super::entangle::EntanglePlugin;
 use super::finger_of_death::FingerOfDeathPlugin;
+use super::vfx::VfxPlugin;
 use super::fireball::FireballPlugin;
 use super::fog_cloud::FogCloudPlugin;
 use super::grease::GreasePlugin;
@@ -82,6 +83,7 @@ impl Plugin for SpellsPlugin {
                 ArcaneCrystalPlugin,
                 DispelPlugin,
             ))
+            .add_plugins(VfxPlugin)
             .add_systems(
                 Update,
                 (

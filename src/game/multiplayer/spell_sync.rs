@@ -493,11 +493,11 @@ pub fn apply_remote_spell_snapshot(
     for proj in &snapshot.spell_projectiles {
         let (mesh, material) = match proj.kind {
             0 => (
-                assets.unit_sphere.clone(),
+                assets.cross_plane_sphere.clone(),
                 assets.fireball_projectile.clone(),
             ),
-            1 => (assets.unit_sphere.clone(), assets.ice_projectile.clone()),
-            2 => (assets.unit_sphere.clone(), assets.meteor_projectile.clone()),
+            1 => (assets.cross_plane_sphere.clone(), assets.ice_projectile.clone()),
+            2 => (assets.cross_plane_sphere.clone(), assets.meteor_projectile.clone()),
             _ => continue,
         };
 
@@ -558,11 +558,11 @@ pub fn apply_remote_spell_snapshot(
             _ => 6.0,
         };
 
-        // Beam-type arcs (finger of death=4, disintegrate=6) use cylinder mesh
-        // so they're visible from all camera angles. Other arcs use flat rectangles.
+        // Beam-type arcs (finger of death=4, disintegrate=6) use cross-plane cylinder mesh.
+        // Other arcs use flat rectangles.
         let is_beam = arc.kind == 4 || arc.kind == 6;
         let mesh = if is_beam {
-            assets.unit_cylinder.clone()
+            assets.cross_plane_cylinder.clone()
         } else {
             assets.unit_rect.clone()
         };
@@ -618,7 +618,7 @@ pub fn apply_remote_spell_snapshot(
         let rotation = Quat::from_rotation_arc(Vec3::Y, direction);
 
         commands.spawn((
-            Mesh3d(assets.unit_cylinder.clone()),
+            Mesh3d(assets.cross_plane_cylinder.clone()),
             MeshMaterial3d(assets.disintegrate_beam.clone()),
             Transform::from_translation(midpoint)
                 .with_rotation(rotation)

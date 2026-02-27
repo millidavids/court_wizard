@@ -8,6 +8,7 @@ use super::resources::{CauldronAssets, CauldronBuffs};
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::input::messages::BlockSpellInput;
 use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Loads the cauldron sprite sheet texture.
 pub fn load_cauldron_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -91,7 +92,7 @@ pub fn handle_brew_complete(
     mut commands: Commands,
     mut messages: MessageReader<BrewCompleteMessage>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for message in messages.read() {
@@ -106,7 +107,7 @@ pub fn handle_brew_complete(
         );
 
         commands.spawn((
-            Mesh3d(meshes.add(Sphere::new(1.0))),
+            Mesh3d(spell_assets.cross_plane_sphere.clone()),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: bubble_color.with_alpha(constants::BREW_BUBBLE_INITIAL_ALPHA),
                 alpha_mode: AlphaMode::Blend,

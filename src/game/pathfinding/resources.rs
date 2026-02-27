@@ -1,9 +1,18 @@
 //! Pathfinding resources.
 
+use std::collections::VecDeque;
+
 use bevy::prelude::*;
 use bevy::tasks::Task;
 
 use super::flow_field::FlowField;
+
+/// Which flow field to rebuild.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RebuildTarget {
+    Attacker,
+    Defender,
+}
 
 /// Grid-based pathfinding resource that manages flow fields for different teams.
 ///
@@ -46,6 +55,22 @@ pub struct PathfindingGrid {
     /// When the pending rebuild completes it will be stale, so a fresh rebuild
     /// is triggered immediately.
     pub costs_dirty: bool,
+
+    /// Debounce timer for obstacle changes. When > 0, a rebuild is pending but
+    /// deferred to batch rapid changes (e.g. wall placements) into one rebuild.
+    pub rebuild_debounce: f32,
+
+    /// Delay before rebuilding the defender field toward spawn when enemies disappear.
+    /// Prevents oscillation when enemies die rapidly and new ones appear quickly.
+    pub defender_rally_delay: f32,
+
+    /// Last position the defender field was built toward.
+    /// Used to avoid rebuilds when the target entity changes but the position is similar.
+    pub last_defender_target_pos: Vec2,
+
+    /// Queue of pending flow field rebuilds. Only one is processed per frame
+    /// to spread the cost and avoid frame spikes.
+    pub rebuild_queue: VecDeque<RebuildTarget>,
 }
 
 impl PathfindingGrid {
@@ -79,6 +104,10 @@ impl PathfindingGrid {
             king_current_target: None,
             base_costs,
             costs_dirty: false,
+            rebuild_debounce: 0.0,
+            defender_rally_delay: 0.0,
+            last_defender_target_pos: Vec2::ZERO,
+            rebuild_queue: VecDeque::new(),
         }
     }
 
@@ -217,5 +246,12 @@ impl PathfindingGrid {
         }
 
         field
+    }
+
+    /// Enqueues a rebuild target, skipping if it's already queued.
+    pub fn enqueue_rebuild(&mut self, target: RebuildTarget) {
+        if !self.rebuild_queue.contains(&target) {
+            self.rebuild_queue.push_back(target);
+        }
     }
 }

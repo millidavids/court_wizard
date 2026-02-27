@@ -278,7 +278,7 @@ pub(crate) fn spawn_lightning_rod(
     // Cylinder sits centered, so position at half height
     let spawn_pos = Vec3::new(position.x, tower_height / 2.0, position.z);
 
-    // unit_cylinder is Cylinder::new(0.5, 1.0), scale to tower dimensions
+    // cross_plane_cylinder has radius 0.5 and height 1.0, scale to tower dimensions
     // radius scale = tower_radius / 0.5, height scale = tower_height / 1.0
     let radius_scale = tower_radius / 0.5;
 
@@ -288,7 +288,7 @@ pub(crate) fn spawn_lightning_rod(
             TOWER_DURATION * empowerment,
             empowerment,
         ),
-        Mesh3d(assets.unit_cylinder.clone()),
+        Mesh3d(assets.cross_plane_cylinder.clone()),
         MeshMaterial3d(assets.lightning_rod.clone()),
         Transform::from_translation(spawn_pos).with_scale(Vec3::new(
             radius_scale,

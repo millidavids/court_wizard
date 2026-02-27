@@ -3,6 +3,39 @@ use bevy::prelude::*;
 use super::constants;
 use crate::game::units::DamageType;
 
+/// Marker for the outer glow cylinder that follows a beam.
+#[derive(Component)]
+pub struct BeamGlow {
+    /// The beam entity this glow tracks.
+    pub beam_entity: Entity,
+}
+
+/// Marker for the bright flare sphere at a beam's origin.
+#[derive(Component)]
+pub struct BeamOriginFlare {
+    /// The beam entity this flare tracks.
+    pub beam_entity: Entity,
+}
+
+/// A small particle emitted from the beam's impact point.
+#[derive(Component)]
+pub struct DisintegrateParticle {
+    /// World-space velocity of the particle.
+    pub velocity: Vec3,
+    /// Seconds since this particle was spawned.
+    pub time_alive: f32,
+}
+
+/// A smoke wisp that drifts upward off the beam and self-dissipates.
+/// These are independent entities that persist after the beam despawns.
+#[derive(Component)]
+pub struct BeamSmoke {
+    /// World-space velocity (primarily upward with slight lateral spread).
+    pub velocity: Vec3,
+    /// Seconds since this wisp was spawned.
+    pub time_alive: f32,
+}
+
 /// Component for disintegrate beam.
 ///
 /// The beam is a continuous ray that deals damage to entities along its path.

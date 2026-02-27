@@ -417,6 +417,7 @@ impl Spell {
         match self {
             Spell::Fireball => Some("images/fireball_icon.png"),
             Spell::MagicMissile => Some("images/magic_missile_icon.png"),
+            Spell::Disintegrate => Some("images/disintegrate_icon.png"),
             _ => None,
         }
     }

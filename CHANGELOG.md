@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.381] - 2026-02-27
+
+### Added
+- **Magic missile sparkle trail** — magic missiles now leave a glowing comet-like trail of white sparkle particles that slow down and fade behind them
+- **Magic missile glow** — magic missiles now have a pulsing purple glow halo that follows them through the air
+- **Disintegrate beam impact particles** — visible orange sparks now spray outward from where the disintegrate beam hits the battlefield
+
+### Changed
+- Spell effects now use a flat, low-poly art style that better matches the game's 2D pixel art aesthetic — fireballs, explosions, black holes, ice shards, lightning rods, arcane crystals, spell shields, brew bubbles, ingredient drops, and beam spells all use intersecting flat planes instead of smooth 3D shapes
+- Fireball explosions now appear slightly above the ground so they're easier to see
+- The disintegrate beam's origin flare is now a circular glow instead of a square
+- Improved flow field performance — recalculations are now queued and limited to one per frame, preventing lag spikes during intense battles
+- Meteors no longer cause pathfinding recalculations on their own — units just walk through the small fire pools quickly
+- Defenders no longer jitter in place when all enemies are defeated
+
 ## [v0.2.350] - 2026-02-27
 
 ### Added

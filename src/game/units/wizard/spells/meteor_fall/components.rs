@@ -88,16 +88,28 @@ pub(crate) struct MeteorProjectile {
     pub explosion_radius: f32,
     /// Empowerment multiplier.
     pub empowerment: f32,
+    /// Visual mesh radius (for deferred glow spawning).
+    pub mesh_radius: f32,
+    /// Whether the glow sibling has been spawned yet.
+    pub has_glow: bool,
 }
 
 impl MeteorProjectile {
     /// Creates a new meteor projectile.
-    pub const fn new(velocity: Vec3, damage: f32, explosion_radius: f32, empowerment: f32) -> Self {
+    pub const fn new(
+        velocity: Vec3,
+        damage: f32,
+        explosion_radius: f32,
+        empowerment: f32,
+        mesh_radius: f32,
+    ) -> Self {
         Self {
             velocity,
             damage,
             explosion_radius,
             empowerment,
+            mesh_radius,
+            has_glow: false,
         }
     }
 }
