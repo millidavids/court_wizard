@@ -8,13 +8,15 @@ pub struct SplashScreenPlugin;
 
 impl Plugin for SplashScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(SplashState::Language), systems::setup_language)
+        app.add_systems(OnEnter(SplashState::Black), systems::setup_black)
+            .add_systems(OnEnter(SplashState::Language), systems::setup_language)
             .add_systems(OnEnter(SplashState::Engine), systems::setup_engine)
             .add_systems(OnEnter(SplashState::Studio), systems::setup_studio)
             .add_systems(
                 Update,
                 systems::tick.run_if(in_state(AppState::Splash)),
             )
+            .add_systems(OnExit(SplashState::Black), systems::cleanup_substate)
             .add_systems(OnExit(SplashState::Language), systems::cleanup_substate)
             .add_systems(OnExit(SplashState::Engine), systems::cleanup_substate)
             .add_systems(OnExit(AppState::Splash), systems::cleanup_substate);

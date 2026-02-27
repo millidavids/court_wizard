@@ -95,9 +95,10 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
         // Columns container (horizontal row of individually scrollable columns)
         parent
             .spawn(Node {
-                width: Val::Percent(95.0),
+                width: Val::Percent(100.0),
                 height: Val::Percent(75.0),
                 flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::Center,
                 column_gap: Val::Px(COLUMN_GAP),
                 ..default()
             })
@@ -134,7 +135,8 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                         .iter()
                         .map(|spell| {
                             let debug_name = format!("{:?}", spell);
-                            let is_unlocked = unlocked_content.spells.contains(&debug_name);
+                            let is_unlocked = spell.research_cost() == 0
+                                || unlocked_content.spells.contains(&debug_name);
                             let progress = get_spell_research_progress(*spell);
                             let cost = spell.research_cost();
                             (spell, is_unlocked, progress, cost)
@@ -234,8 +236,10 @@ fn spawn_column(
             Node {
                 flex_grow: 1.0,
                 flex_basis: Val::Px(0.0),
+                min_width: Val::Px(0.0),
                 height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
+                overflow: Overflow::clip(),
                 ..default()
             },
             BackgroundColor(SECTION_BG),
@@ -349,8 +353,6 @@ fn spawn_spell_research_row(
     progress: u32,
     cost: u32,
 ) {
-    let is_default = cost == 0;
-
     let (indicator, indicator_color) = if is_unlocked {
         ("*", COMPLETED_COLOR)
     } else if progress > 0 {
@@ -390,11 +392,7 @@ fn spawn_spell_research_row(
                     col.spawn((
                         Text::new(spell.display_name()),
                         TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
-                        TextColor(if is_default {
-                            UNLOCKED_COLOR
-                        } else {
-                            COMPLETED_COLOR
-                        }),
+                        TextColor(UNLOCKED_COLOR),
                     ));
                 });
             } else if progress > 0 {

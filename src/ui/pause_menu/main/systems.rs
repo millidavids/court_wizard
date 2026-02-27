@@ -4,6 +4,7 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::config::ActiveSave;
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, PauseMenuState};
 use crate::ui::systems::spawn_button;
@@ -106,6 +107,7 @@ pub fn button_action(
     mut next_in_game_state: ResMut<NextState<InGameState>>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
     mut active_save: ResMut<ActiveSave>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -123,6 +125,7 @@ pub fn button_action(
                     next_pause_menu_state.set(PauseMenuState::Progress);
                 }
                 PauseMenuButtonAction::Exit => {
+                    channel_change.write(ChannelChangeMessage);
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }

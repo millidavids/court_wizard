@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::config::save_data::{SavedWall, load_unified_save};
 use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -326,9 +327,11 @@ pub(super) fn handle_button_actions(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
+            channel_change.write(ChannelChangeMessage);
             match action {
                 GameOverButtonAction::PlayAgain => {
                     match *game_outcome {

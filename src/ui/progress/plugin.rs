@@ -4,6 +4,7 @@ use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
 use crate::game::achievements::messages::ClearProgressMessage;
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::plugin::ButtonActionSet;
@@ -85,9 +86,11 @@ fn handle_main_menu_back_button(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&BackButton>,
     mut next_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
+            channel_change.write(ChannelChangeMessage);
             next_state.set(MenuState::Landing);
         }
     }

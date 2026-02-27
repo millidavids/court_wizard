@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::config::WizardType;
 use crate::config::save_data;
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::multiplayer::components::PendingRematch;
 use crate::game::units::wizard::components::Spell;
@@ -609,6 +610,7 @@ pub fn button_action(
         ),
     >,
     mut card_borders: Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -860,9 +862,11 @@ pub fn button_action(
                     connection.local_code = None;
                     connection.ping_ms = None;
                     connection.error = None;
+                    channel_change.write(ChannelChangeMessage);
                     next_menu_state.set(MenuState::Landing);
                 }
                 MultiplayerButtonAction::Back => {
+                    channel_change.write(ChannelChangeMessage);
                     next_menu_state.set(MenuState::Landing);
                 }
             }

@@ -34,6 +34,14 @@ pub struct CrtEffectSettings {
     pub glow_intensity: f32,
     /// Elapsed seconds, updated each frame for time-based effects.
     pub time: f32,
+    /// Channel-change effect intensity (0.0 = off, 1.0 = full).
+    pub channel_change: f32,
+    /// Elapsed time for the channel-change animation.
+    pub channel_change_time: f32,
+    /// Padding for 16-byte GPU alignment.
+    pub _padding1: f32,
+    /// Padding for 16-byte GPU alignment.
+    pub _padding2: f32,
 }
 
 impl Default for CrtEffectSettings {
@@ -51,6 +59,37 @@ impl Default for CrtEffectSettings {
             corner_radius: DEFAULT_CORNER_RADIUS,
             glow_intensity: DEFAULT_GLOW_INTENSITY,
             time: 0.0,
+            channel_change: 0.0,
+            channel_change_time: 0.0,
+            _padding1: 0.0,
+            _padding2: 0.0,
         }
+    }
+}
+
+/// Timer resource that drives the channel-change animation.
+/// Inserted when a `ChannelChangeMessage` is received, removed when finished.
+#[derive(Resource)]
+pub(crate) struct ChannelChangeTimer {
+    pub elapsed: f32,
+    pub duration: f32,
+}
+
+impl ChannelChangeTimer {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            elapsed: 0.0,
+            duration,
+        }
+    }
+
+    /// Returns the current intensity (0→1→0) using a sine curve.
+    pub fn intensity(&self) -> f32 {
+        let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
+        (t * std::f32::consts::PI).sin()
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.elapsed >= self.duration
     }
 }

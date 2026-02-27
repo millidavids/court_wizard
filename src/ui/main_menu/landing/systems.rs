@@ -3,6 +3,7 @@
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::systems::spawn_button;
@@ -102,9 +103,11 @@ pub fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MenuButtonAction>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
+            channel_change.write(ChannelChangeMessage);
             match action {
                 MenuButtonAction::Play => {
                     next_menu_state.set(MenuState::WizardSelect);

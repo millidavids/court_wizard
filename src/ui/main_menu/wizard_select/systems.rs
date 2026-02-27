@@ -5,6 +5,7 @@ use bevy::prelude::*;
 
 use crate::config::save_data::{self, load_unified_save};
 use crate::config::{ActiveSave, ConfigChanged, GameConfig, WizardType};
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
@@ -205,6 +206,7 @@ pub(super) fn button_action(
         ),
     >,
     mut card_borders: Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -231,6 +233,7 @@ pub(super) fn button_action(
                 shared::update_card_borders(wizard_type, &mut card_borders);
             }
             WizardSelectButtonAction::Play => {
+                channel_change.write(ChannelChangeMessage);
                 let wizard_type = preview.0;
                 // Go directly to MetaGame (wizard tower) — no Loading needed
                 if save_data::load_wizard_type_into_config(
@@ -253,6 +256,7 @@ pub(super) fn button_action(
                 }
             }
             WizardSelectButtonAction::Back => {
+                channel_change.write(ChannelChangeMessage);
                 next_menu_state.set(MenuState::Landing);
             }
         }

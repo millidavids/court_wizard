@@ -164,14 +164,18 @@ pub enum PauseMenuState {
 ///
 /// # State Transitions
 ///
-/// - `Language` → `Engine`: Rust logo fade-out completes
-/// - `Engine` → `Studio`: Bevy logo fade-out completes
-/// - `Studio` → (AppState::MainMenu): Studio splash fade-out completes
+/// - `Black` → `Language`: Brief black screen lets render pipeline initialize
+/// - `Language` → `Engine`: Rust logo hold completes
+/// - `Engine` → `Studio`: Bevy logo hold completes
+/// - `Studio` → (AppState::MainMenu): Studio splash hold completes
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::Splash)]
 pub enum SplashState {
-    /// Rust language logo splash.
+    /// Brief black screen to let the render pipeline initialize.
     #[default]
+    Black,
+
+    /// Rust language logo splash.
     Language,
 
     /// Bevy engine logo splash.

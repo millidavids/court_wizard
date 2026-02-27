@@ -2,7 +2,9 @@ use bevy::math::DVec2;
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved};
 
-use super::components::CrtEffectSettings;
+use super::components::{ChannelChangeTimer, CrtEffectSettings};
+use super::constants::CHANNEL_CHANGE_DURATION;
+use super::messages::ChannelChangeMessage;
 
 /// Stores the raw (uncorrected) cursor position from OS events.
 ///
@@ -81,4 +83,45 @@ pub(super) fn correct_cursor_for_barrel_distortion(
     );
 
     window.set_physical_cursor_position(Some(corrected_physical));
+}
+
+/// Reads `ChannelChangeMessage` and starts the channel-change animation.
+pub(super) fn handle_channel_change_message(
+    mut commands: Commands,
+    mut messages: MessageReader<ChannelChangeMessage>,
+    existing_timer: Option<Res<ChannelChangeTimer>>,
+) {
+    if messages.read().next().is_some() {
+        // Don't restart if already animating
+        if existing_timer.is_none() {
+            commands.insert_resource(ChannelChangeTimer::new(CHANNEL_CHANGE_DURATION));
+        }
+    }
+}
+
+/// Ticks the channel-change timer, writes intensity to CrtEffectSettings,
+/// and removes the timer when the animation is complete.
+pub(super) fn animate_channel_change(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<ChannelChangeTimer>,
+    mut query: Query<&mut CrtEffectSettings>,
+) {
+    timer.elapsed += time.delta_secs();
+
+    let intensity = timer.intensity();
+
+    for mut settings in &mut query {
+        settings.channel_change = intensity;
+        settings.channel_change_time = timer.elapsed;
+    }
+
+    if timer.is_finished() {
+        // Reset to zero before removing
+        for mut settings in &mut query {
+            settings.channel_change = 0.0;
+            settings.channel_change_time = 0.0;
+        }
+        commands.remove_resource::<ChannelChangeTimer>();
+    }
 }

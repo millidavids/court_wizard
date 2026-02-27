@@ -1,7 +1,9 @@
 mod components;
 mod constants;
+mod messages;
 mod plugin;
 mod systems;
 
 pub(crate) use components::CrtEffectSettings;
+pub(crate) use messages::ChannelChangeMessage;
 pub(crate) use plugin::CrtEffectPlugin;

@@ -24,8 +24,12 @@ use bevy::{
     },
 };
 
-use super::components::CrtEffectSettings;
-use super::systems::{correct_cursor_for_barrel_distortion, RawCursorPosition};
+use super::components::{ChannelChangeTimer, CrtEffectSettings};
+use super::messages::ChannelChangeMessage;
+use super::systems::{
+    animate_channel_change, correct_cursor_for_barrel_distortion, handle_channel_change_message,
+    RawCursorPosition,
+};
 
 const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
 
@@ -39,8 +43,14 @@ impl Plugin for CrtEffectPlugin {
         ));
 
         app.init_resource::<RawCursorPosition>();
+        app.add_message::<ChannelChangeMessage>();
 
         app.add_systems(Update, update_crt_time);
+        app.add_systems(Update, handle_channel_change_message);
+        app.add_systems(
+            Update,
+            animate_channel_change.run_if(resource_exists::<ChannelChangeTimer>),
+        );
 
         // Correct cursor position for barrel distortion before any game systems read it.
         // Runs in PreUpdate so all downstream systems (spells, UI picking, input)

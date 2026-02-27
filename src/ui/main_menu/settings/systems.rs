@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
 use crate::config::{Difficulty, GameConfig, VsyncMode};
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
@@ -633,11 +634,13 @@ pub fn settings_button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&SettingsButtonAction>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 SettingsButtonAction::Back => {
+                    channel_change.write(ChannelChangeMessage);
                     next_menu_state.set(MenuState::Landing);
                 }
             }

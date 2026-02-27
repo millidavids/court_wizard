@@ -6,6 +6,7 @@ use super::upgrade_selection;
 use super::upgrade_systems;
 use crate::config::GameConfig;
 use crate::game::constants::*;
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats, WaveState};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
@@ -194,6 +195,7 @@ pub fn process_spawn_queue(
         Query<&Transform>,
         Query<&Hitbox>,
     )>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     // Process exactly one task per frame for smooth, predictable loading
     let batch = spawn_queue.pop_batch(1);
@@ -395,6 +397,7 @@ pub fn process_spawn_queue(
 
     // Transition to InGame when all tasks are complete
     if spawn_queue.is_complete() && loading_progress.is_complete() {
+        channel_change.write(ChannelChangeMessage);
         next_state.set(AppState::InGame);
     }
 }

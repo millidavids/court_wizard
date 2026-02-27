@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::ui::ComputedNode;
 
 use super::components::{BackButton, OnChangelogScreen, ScrollableChangelogContainer};
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::main_menu::landing::constants::TEXT_COLOR;
@@ -108,9 +109,11 @@ pub(super) fn handle_back_button(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&BackButton>,
     mut next_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
+            channel_change.write(ChannelChangeMessage);
             next_state.set(MenuState::Landing);
         }
     }

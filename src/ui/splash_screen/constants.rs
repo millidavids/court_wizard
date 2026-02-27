@@ -1,16 +1,10 @@
 use bevy::prelude::*;
 
-/// Delay before the fade-in begins (seconds).
-pub(super) const DELAY_DURATION: f32 = 0.5;
+/// How long the initial black screen is shown to let the render pipeline warm up.
+pub(super) const INIT_DURATION: f32 = 0.5;
 
-/// How long elements take to fade in (seconds).
-pub(super) const FADE_IN_DURATION: f32 = 1.0;
-
-/// How long elements stay at full opacity (seconds).
-pub(super) const HOLD_DURATION: f32 = 1.5;
-
-/// How long elements take to fade out (seconds).
-pub(super) const FADE_OUT_DURATION: f32 = 1.0;
+/// How long each splash screen is displayed (seconds).
+pub(super) const HOLD_DURATION: f32 = 4.0;
 
 /// Studio name text color (at full opacity).
 pub(super) const STUDIO_TEXT_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);

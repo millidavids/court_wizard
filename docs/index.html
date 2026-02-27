@@ -78,24 +78,7 @@
                 font-family: "PressStart2P", sans-serif;
             }
 
-            /* Animated Spinner */
-            .spinner {
-                width: 300px;
-                height: 300px;
-                margin: 0 auto;
-                animation: spin 2s linear infinite;
-            }
-
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
-                100% {
-                    transform: rotate(360deg);
-                }
-            }
-
-            /* Title Styling */
+            /* Title Styling (used by error screen) */
             .loading-title {
                 font-size: 72px;
                 margin: 0 0 20px 0;
@@ -143,11 +126,6 @@
                 .loading-text {
                     font-size: 16px;
                 }
-                .spinner {
-                    width: 60px;
-                    height: 60px;
-                    margin-bottom: 20px;
-                }
             }
         </style>
     </head>
@@ -155,42 +133,35 @@
         <div id="canvas-container">
             <div id="start-screen">
                 <div class="loading-content">
-                    <h1 class="loading-title">Court Wizard</h1>
-                    <img
-                        src="logo.png"
-                        alt="Court Wizard"
-                        class="spinner"
-                        style="animation: none; margin-top: 30px"
-                    />
                     <button
                         id="start-button"
                         style="
-                            margin-top: 40px;
                             padding: 20px 60px;
-                            font-size: 32px;
-                            font-weight: 700;
-                            color: white;
-                            background: linear-gradient(
-                                135deg,
-                                #667eea 0%,
-                                #764ba2 100%
-                            );
-                            border: none;
-                            border-radius: 50px;
+                            font-size: 24px;
+                            color: rgb(230, 230, 230);
+                            background: rgb(38, 38, 38);
+                            border: 3px solid rgb(77, 77, 77);
+                            border-radius: 4px;
                             cursor: pointer;
-                            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-                            transition: all 0.3s ease;
-                            font-family: &quot;PressStart2P&quot;, serif;
+                            transition: all 0.15s ease;
+                            font-family: 'PressStart2P', serif;
+                            white-space: nowrap;
                         "
                         onmouseover="
-                            this.style.transform = 'translateY(-2px)';
-                            this.style.boxShadow =
-                                '0 12px 25px rgba(102, 126, 234, 0.6)';
+                            this.style.background = 'rgb(55, 55, 55)';
+                            this.style.borderColor = 'rgb(100, 100, 100)';
                         "
                         onmouseout="
-                            this.style.transform = '';
-                            this.style.boxShadow =
-                                '0 8px 20px rgba(102, 126, 234, 0.4)';
+                            this.style.background = 'rgb(38, 38, 38)';
+                            this.style.borderColor = 'rgb(77, 77, 77)';
+                        "
+                        onmousedown="
+                            this.style.background = 'rgb(28, 28, 28)';
+                            this.style.borderColor = 'rgb(60, 60, 60)';
+                        "
+                        onmouseup="
+                            this.style.background = 'rgb(55, 55, 55)';
+                            this.style.borderColor = 'rgb(100, 100, 100)';
                         "
                     >
                         Click to Start
@@ -199,14 +170,7 @@
             </div>
             <div id="loading-screen" style="display: none">
                 <div class="loading-content">
-                    <h1 class="loading-title">Court Wizard</h1>
-                    <img
-                        src="logo.png"
-                        alt="Loading"
-                        class="spinner"
-                        style="margin-top: 30px; animation: none"
-                    />
-                    <p class="loading-text" style="margin-top: 20px">
+                    <p class="loading-text">
                         Loading<span class="dots"></span>
                     </p>
                 </div>

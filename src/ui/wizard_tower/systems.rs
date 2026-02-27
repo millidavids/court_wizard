@@ -8,6 +8,7 @@ use crate::config::save_data::{
     add_spell_research_progress, get_insight, get_spell_research_progress, grant_insight,
     load_unified_save, spend_insight,
 };
+use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
 use crate::game::resources::{BattleInsightData, CurrentLevel, KillStats};
@@ -309,6 +310,7 @@ pub(super) fn handle_main_button_actions(
     #[cfg(debug_assertions)] mut current_level: ResMut<CurrentLevel>,
     #[cfg(debug_assertions)] mut config: ResMut<crate::config::GameConfig>,
     #[cfg(debug_assertions)] mut level_texts: Query<&mut Text, With<LevelDisplay>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -317,10 +319,12 @@ pub(super) fn handle_main_button_actions(
                     next_wt_state.set(MetaGameState::Study);
                 }
                 WizardTowerButtonAction::StartNextBattle => {
+                    channel_change.write(ChannelChangeMessage);
                     kill_stats.reset();
                     next_app_state.set(AppState::Loading);
                 }
                 WizardTowerButtonAction::ReturnToMenu => {
+                    channel_change.write(ChannelChangeMessage);
                     kill_stats.reset();
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);

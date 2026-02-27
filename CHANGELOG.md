@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.350] - 2026-02-27
+
+### Added
+- **CRT channel-change effect** — a TV-style flicker plays when transitioning between screens (splash screens, menus, starting/ending battles). Includes horizontal tearing, chromatic aberration burst, a rolling bright bar, and a brief flash
+- **Splash screen sequence** — the game now shows three splash screens (Rust, Bevy, The Cult of David) with the channel-change effect between each one
+
+### Changed
+- Simplified the start screen — just a "Click to Start" button on a black background, styled to match in-game buttons
+- Simplified the loading screen — just shows "Loading..." text
+- Default spells (Magic Missile, Telekinesis) now correctly show as unlocked on the Progress screen
+
 ## [v0.2.330] - 2026-02-26
 
 ### Added
