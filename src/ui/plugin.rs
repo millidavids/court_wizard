@@ -19,6 +19,7 @@ use super::main_menu::MainMenuPlugin;
 use super::pause_menu::plugin::PauseMenuPlugin;
 use super::roulette_display::RouletteDisplayPlugin;
 use super::rune_display::RuneDisplayPlugin;
+use super::splash_screen::SplashScreenPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
 use super::version::VersionPlugin;
@@ -41,6 +42,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             AchievementPopupPlugin,
+            SplashScreenPlugin,
             MainMenuPlugin,
             LoadingUiPlugin,
             InGamePlugin,
@@ -53,6 +55,8 @@ impl Plugin for UiPlugin {
             RouletteDisplayPlugin,
             ArcanoRouterDisplayPlugin,
             GameOverPlugin,
+        ))
+        .add_plugins((
             WizardTowerPlugin,
             VersionPlugin,
         ))

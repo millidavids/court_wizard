@@ -19,6 +19,7 @@ pub(crate) mod plugin;
 pub(crate) mod progress;
 mod roulette_display;
 mod rune_display;
+mod splash_screen;
 mod spell_book;
 mod styles;
 pub(crate) mod systems;

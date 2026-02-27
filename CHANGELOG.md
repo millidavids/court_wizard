@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.330] - 2026-02-26
+
+### Added
+- **Splash screen** — the game now opens with a "The Cult of David" splash screen that fades in and out before the main menu
+
 ## [v0.2.317] - 2026-02-26
 
 ### Added

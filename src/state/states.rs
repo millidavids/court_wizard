@@ -7,6 +7,7 @@ use bevy::prelude::*;
 ///
 /// # State Transitions
 ///
+/// - `Splash` → `MainMenu`: Splash screen animation completes
 /// - `MainMenu` → `MetaGame`: Player selects a wizard and clicks Play
 /// - `MetaGame` → `Loading`: Player clicks Start Next Battle
 /// - `Loading` → `InGame`: Assets loaded and units spawned
@@ -17,8 +18,11 @@ use bevy::prelude::*;
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 #[allow(dead_code)] // Variants will be used as game features are implemented
 pub enum AppState {
-    /// Main menu state - game is not running.
+    /// Splash screen - shows studio name before main menu.
     #[default]
+    Splash,
+
+    /// Main menu state - game is not running.
     MainMenu,
 
     /// Loading state - progressively spawning units to avoid blocking.
