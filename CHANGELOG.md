@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.40] - 2026-02-28
+
+### Changed
+- **Dispellers now appear earlier** — enemy dispellers start showing up at level 11 instead of level 16
+- **Healers now appear later** — enemy healers start showing up at level 16 instead of level 11
+
 ## [v0.3.38] - 2026-02-28
 
 ### Added

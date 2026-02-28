@@ -1,4 +1,4 @@
-import { copy_to_clipboard } from './snippets/court_wizard-f6e1b0233ef793bd/inline0.js';
+import { copy_to_clipboard } from './snippets/court_wizard-1a193210e0dea108/inline0.js';
 
 const lAudioContext = (typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : undefined));
 let wasm;
@@ -262,20 +262,20 @@ function __wasm_bindgen_func_elem_131587(arg0, arg1, arg2) {
     wasm.__wasm_bindgen_func_elem_131587(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_129928(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_129928(arg0, arg1, addHeapObject(arg2));
-}
-
-function __wasm_bindgen_func_elem_131586(arg0, arg1) {
-    wasm.__wasm_bindgen_func_elem_131586(arg0, arg1);
+function __wasm_bindgen_func_elem_131588(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_131588(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 function __wasm_bindgen_func_elem_126900(arg0, arg1) {
     wasm.__wasm_bindgen_func_elem_126900(arg0, arg1);
 }
 
-function __wasm_bindgen_func_elem_131588(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_131588(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+function __wasm_bindgen_func_elem_131586(arg0, arg1) {
+    wasm.__wasm_bindgen_func_elem_131586(arg0, arg1);
+}
+
+function __wasm_bindgen_func_elem_129928(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_129928(arg0, arg1, addHeapObject(arg2));
 }
 
 const __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
@@ -604,7 +604,7 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_copyToChannel_30d90303302ec449 = function() { return handleError(function (arg0, arg1, arg2, arg3) {
         getObject(arg0).copyToChannel(getArrayF32FromWasm0(arg1, arg2), arg3);
     }, arguments) };
-    imports.wbg.__wbg_copy_to_clipboard_c042f4d0f643403a = function(arg0, arg1) {
+    imports.wbg.__wbg_copy_to_clipboard_fc3b58f8ac57d8af = function(arg0, arg1) {
         copy_to_clipboard(getStringFromWasm0(arg0, arg1));
     };
     imports.wbg.__wbg_createAnswer_57fa5e0880a7b92a = function(arg0) {

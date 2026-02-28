@@ -28,7 +28,7 @@ pub const ATTACK_COOLDOWN: f32 = 2.0;
 // ===== Spawn =====
 
 /// Tier at which attacker dispellers start appearing.
-pub const ATTACKER_DISPELLER_START_TIER: u32 = 3;
+pub const ATTACKER_DISPELLER_START_TIER: u32 = 2;
 
 /// Calculates the number of attacker dispellers for a given level.
 /// Returns 0 below tier 3, then scales with tier_level (1 at tier_level 1, +1 per tier_level).

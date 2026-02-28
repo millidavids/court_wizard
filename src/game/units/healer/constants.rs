@@ -25,10 +25,10 @@ pub const HEAL_COOLDOWN: f32 = 4.0;
 // ===== Spawn =====
 
 /// Tier at which attacker healers start appearing.
-pub const HEALER_START_TIER: u32 = 2;
+pub const HEALER_START_TIER: u32 = 3;
 
 /// Calculates the number of attacker healers for a given level.
-/// Returns 0 below tier 2, then scales with tier_level (1 at tier_level 1, +1 per tier_level).
+/// Returns 0 below tier 3, then scales with tier_level (1 at tier_level 1, +1 per tier_level).
 pub const fn calculate_attacker_healers(level: u32) -> u32 {
     let tier = get_tier(level);
     if tier < HEALER_START_TIER {
