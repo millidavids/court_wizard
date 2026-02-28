@@ -9,99 +9,96 @@ use super::components::{BackButton, OnChangelogScreen, ScrollableChangelogContai
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
+use crate::ui::components::ButtonColors;
 use crate::ui::main_menu::landing::constants::TEXT_COLOR;
+use crate::ui::systems::spawn_page_container;
 
-// Button colors for changelog screen
 const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-const BUTTON_HOVER_COLOR: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
+const BUTTON_BORDER_COLOR: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
 
 const CHANGELOG_TEXT: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Spawns the changelog screen UI.
 pub(super) fn setup(mut commands: Commands) {
-    commands
-        .spawn((
+    let content = spawn_page_container(
+        &mut commands,
+        OnChangelogScreen,
+        false,
+        Overflow::clip(),
+    );
+
+    commands.entity(content).with_children(|parent| {
+        // Title
+        parent.spawn((
+            Text::new("Changelog"),
+            TextFont::from_font_size(48.0),
+            TextColor(TEXT_COLOR),
             Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::FlexStart,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(20.0)),
+                margin: UiRect::bottom(Val::Px(20.0)),
                 ..default()
             },
-            BackgroundColor(Color::BLACK),
-            OnChangelogScreen,
-        ))
-        .with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Changelog"),
-                TextFont::from_font_size(48.0),
-                TextColor(TEXT_COLOR),
+        ));
+
+        // Scrollable changelog content
+        parent
+            .spawn((
                 Node {
-                    margin: UiRect::bottom(Val::Px(20.0)),
+                    width: Val::Percent(90.0),
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Column,
+                    overflow: Overflow::scroll_y(),
                     ..default()
                 },
-            ));
-
-            // Scrollable changelog content
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Percent(90.0),
-                        height: Val::Percent(70.0),
+                ScrollPosition::default(),
+                ScrollableChangelogContainer,
+            ))
+            .with_children(|scroll| {
+                scroll
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
                         flex_direction: FlexDirection::Column,
-                        overflow: Overflow::scroll_y(),
+                        padding: UiRect::all(Val::Px(20.0)),
                         ..default()
-                    },
-                    ScrollPosition::default(),
-                    ScrollableChangelogContainer,
-                    BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.8)),
-                ))
-                .with_children(|parent| {
-                    parent
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            padding: UiRect::all(Val::Px(20.0)),
-                            ..default()
-                        })
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Text::new(CHANGELOG_TEXT),
-                                TextFont::from_font_size(16.0),
-                                TextColor(TEXT_COLOR),
-                            ));
-                        });
-                });
+                    })
+                    .with_children(|content| {
+                        content.spawn((
+                            Text::new(CHANGELOG_TEXT),
+                            TextFont::from_font_size(16.0),
+                            TextColor(TEXT_COLOR),
+                        ));
+                    });
+            });
 
-            // Back button
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(200.0),
-                        height: Val::Px(60.0),
-                        border: UiRect::all(Val::Px(3.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        margin: UiRect::top(Val::Px(20.0)),
-                        ..default()
-                    },
-                    BorderColor::all(Color::hsla(0.0, 0.0, 0.3, 1.0)),
-                    BorderRadius::all(Val::Px(8.0)),
-                    BackgroundColor(BUTTON_COLOR),
-                    BackButton,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Text::new("Back"),
-                        TextFont::from_font_size(32.0),
-                        TextColor(TEXT_COLOR),
-                    ));
-                });
-        });
+        // Back button
+        parent
+            .spawn((
+                Button,
+                Node {
+                    width: Val::Px(200.0),
+                    height: Val::Px(60.0),
+                    border: UiRect::all(Val::Px(3.0)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(20.0)),
+                    ..default()
+                },
+                BorderColor::all(BUTTON_BORDER_COLOR),
+                BorderRadius::all(Val::Px(8.0)),
+                BackgroundColor(BUTTON_COLOR),
+                ButtonColors {
+                    background: BUTTON_COLOR,
+                    border: BUTTON_BORDER_COLOR,
+                },
+                BackButton,
+            ))
+            .with_children(|btn| {
+                btn.spawn((
+                    Text::new("Back"),
+                    TextFont::from_font_size(32.0),
+                    TextColor(TEXT_COLOR),
+                ));
+            });
+    });
 }
 
 /// Handles back button interactions.
@@ -115,35 +112,6 @@ pub(super) fn handle_back_button(
         if button_query.get(event.button).is_ok() {
             channel_change.write(ChannelChangeMessage);
             next_state.set(MenuState::Landing);
-        }
-    }
-}
-
-/// Updates button colors on hover.
-pub(super) fn update_button_colors(
-    mut button_query: Query<
-        (&Interaction, &mut BackgroundColor, &mut BorderColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    const NORMAL_BORDER: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
-    const HOVER_BORDER: Color = Color::hsla(0.0, 0.0, 0.4, 1.0);
-    const PRESSED_BORDER: Color = Color::hsla(0.0, 0.0, 0.5, 1.0);
-
-    for (interaction, mut bg_color, mut border_color) in &mut button_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = Color::hsla(0.0, 0.0, 0.35, 1.0).into();
-                *border_color = BorderColor::all(PRESSED_BORDER);
-            }
-            Interaction::Hovered => {
-                *bg_color = BUTTON_HOVER_COLOR.into();
-                *border_color = BorderColor::all(HOVER_BORDER);
-            }
-            Interaction::None => {
-                *bg_color = BUTTON_COLOR.into();
-                *border_color = BorderColor::all(NORMAL_BORDER);
-            }
         }
     }
 }

@@ -22,6 +22,8 @@ pub enum OptionButtonValue {
     VsyncMode(VsyncMode),
     /// Difficulty option
     Difficulty(Difficulty),
+    /// Skip splash screen toggle
+    SkipSplash(bool),
 }
 
 impl OptionButtonValue {
@@ -30,6 +32,7 @@ impl OptionButtonValue {
         match self {
             OptionButtonValue::VsyncMode(mode) => config.vsync == *mode,
             OptionButtonValue::Difficulty(difficulty) => config.difficulty == *difficulty,
+            OptionButtonValue::SkipSplash(skip) => config.skip_splash == *skip,
         }
     }
 
@@ -38,6 +41,7 @@ impl OptionButtonValue {
         match self {
             OptionButtonValue::VsyncMode(mode) => config.vsync = *mode,
             OptionButtonValue::Difficulty(difficulty) => config.difficulty = *difficulty,
+            OptionButtonValue::SkipSplash(skip) => config.skip_splash = *skip,
         }
     }
 }

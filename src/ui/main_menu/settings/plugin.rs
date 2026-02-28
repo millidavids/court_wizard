@@ -6,9 +6,11 @@ use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
 
 use super::components::SliderAdjusted;
+use crate::ui::systems::escape_to_landing;
+
 use super::systems::{
-    button_hover, button_press, cleanup, handle_scroll, keyboard_input, option_button_action,
-    settings_button_action, setup, slider_button_action, slider_interaction,
+    button_hover, button_press, cleanup, handle_scroll, option_button_action,
+    settings_button_action, setup_main_menu, slider_button_action, slider_interaction,
     update_selected_options, update_slider_text, update_sliders,
 };
 
@@ -26,7 +28,7 @@ pub struct SettingsPlugin;
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SliderAdjusted>()
-            .add_systems(OnEnter(MenuState::Settings), setup)
+            .add_systems(OnEnter(MenuState::Settings), setup_main_menu)
             .add_systems(OnExit(MenuState::Settings), cleanup)
             .add_systems(
                 Update,
@@ -41,7 +43,7 @@ impl Plugin for SettingsPlugin {
             .add_systems(
                 Update,
                 (
-                    keyboard_input,
+                    escape_to_landing,
                     handle_scroll,
                     button_hover,
                     button_press,

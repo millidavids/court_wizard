@@ -19,11 +19,10 @@ use bevy::prelude::*;
 #[allow(dead_code)] // Variants will be used as game features are implemented
 pub enum AppState {
     /// Splash screen - shows studio name before main menu.
-    #[cfg_attr(not(debug_assertions), default)]
+    #[default]
     Splash,
 
     /// Main menu state - game is not running.
-    #[cfg_attr(debug_assertions, default)]
     MainMenu,
 
     /// Loading state - progressively spawning units to avoid blocking.

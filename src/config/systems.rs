@@ -71,6 +71,7 @@ pub(super) fn load_and_apply_config(
         efficiency_ratios: config_file.game.efficiency_ratios,
         action_bar_slots: config_file.game.action_bar_slots,
         wizard_type: config_file.game.wizard_type,
+        skip_splash: config_file.game.skip_splash,
         saved_walls: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed

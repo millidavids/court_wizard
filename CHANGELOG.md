@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.21] - 2026-02-28
+
+### Added
+- **Skip Splash Screen setting** — you can now toggle off the startup splash screen in Settings under the Game section
+- **Escape key navigation** — pressing Escape on the Instructions, Progress, and Changelog screens now returns to the previous menu, just like the Settings page
+
+### Changed
+- Settings, Instructions, Progress, and Changelog pages now all share the same consistent dark background with a subtle border
+- Master volume now properly affects music volume (previously master and music volumes were applied independently)
+
 ## [v0.3.3] - 2026-02-27
 
 ### Added

@@ -7,11 +7,12 @@ use bevy::prelude::*;
 
 use crate::state::PauseMenuState;
 use crate::ui::main_menu::settings::systems::{
-    button_hover, button_press, cleanup, handle_scroll, option_button_action, pause_keyboard_input,
-    pause_settings_button_action, setup, slider_button_action, slider_interaction,
+    button_hover, button_press, cleanup, handle_scroll, option_button_action,
+    pause_settings_button_action, setup_pause_menu, slider_button_action, slider_interaction,
     update_selected_options, update_slider_text, update_sliders,
 };
 use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::escape_to_pause_main;
 
 /// Plugin that manages the pause menu settings UI.
 ///
@@ -22,7 +23,7 @@ pub struct PauseSettingsPlugin;
 
 impl Plugin for PauseSettingsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(PauseMenuState::Settings), setup)
+        app.add_systems(OnEnter(PauseMenuState::Settings), setup_pause_menu)
             .add_systems(OnExit(PauseMenuState::Settings), cleanup)
             .add_systems(
                 Update,
@@ -37,7 +38,7 @@ impl Plugin for PauseSettingsPlugin {
             .add_systems(
                 Update,
                 (
-                    pause_keyboard_input,
+                    escape_to_pause_main,
                     handle_scroll,
                     button_hover,
                     button_press,

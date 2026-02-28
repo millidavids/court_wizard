@@ -3,81 +3,48 @@
 pub(super) const INSTRUCTIONS_TEXT: &str = "HOW TO PLAY
 
 OBJECTIVE
-Defend the castle from incoming enemies by casting spells. Survive as long as possible to achieve a high score.
+You are the Court Wizard. Defend the castle from waves of incoming enemies by casting spells. Keep the king alive and eliminate all attackers to advance to the next wave. Each wave brings more and stronger enemies.
 
 CONTROLS
 - Mouse: Aim spells and interact with UI
 - Left Click: Cast spells (hold to channel)
-- Escape: Pause game / Open menus
+- Escape: Pause game / Open spell book
 - Keys 1-5: Quick-cast spells from action bar
-- Keys Q/W/E/R: Input rune sequences
-- Spacebar: Activate rune spell
 
 SPELL BOOK
-Click the \"Spells\" button in the top-left to open the spell book. Browse all available spells and click one to prime it for casting. The currently primed spell appears at the bottom-left of the screen.
+Press Escape or click the spell button in the top-left to open the spell book. Spells are organized into four categories: Offense, Control, Support, and Utility. Click a spell to see its description, then click Select to prime it for casting. You can also assign spells to action bar slots (1-5) from the spell book.
 
 ACTION BAR
-The action bar at the bottom-left shows your 5 quick-cast slots (keys 1-5).
+The action bar at the bottom-left shows your 5 quick-cast slots. Press keys 1-5 anytime to instantly prime that spell. To assign a spell, open the spell book and press a number key while hovering over a spell.
 
-To assign a spell to a slot:
-1. Open the spell book
-2. Hover over a spell
-3. Press a number key (1-5) to assign to that slot
-
-Press keys 1-5 anytime to instantly prime that spell without opening the spell book.
-
-RUNE SYSTEM
-Cast empowered spells using rune combinations. The rune display in the bottom-middle shows your current sequence.
-
-Single Runes:
-  Q - Magic Missile
-  W - Fireball
-  E - Teleport
-  R - Guardian Circle
-
-Two-Rune Combos:
-  QW - Disintegrate
-  QE - Chain Lightning
-  WE - Wall of Stone
-  WR - Raise the Dead
-  ER - Finger of Death
-
-How to use:
-1. Press rune keys (Q/W/E/R) to build a sequence
-2. Press Spacebar to activate when the sequence is valid
-3. Spells cast via runes are 25% more powerful!
+CASTING SPELLS
+Different spells have different casting styles:
+- Click spells: Click once to fire (Magic Missile, Dispel)
+- Hold spells: Hold the mouse button to channel (Disintegrate, Finger of Death)
+- Placed spells: Hold to charge, release to place (Guardian Circle, Entangle, Sleep)
+- Drag spells: Click and drag to draw a line (Wall of Stone, Wall of Fire)
+- Concentration spells: Hold to maintain the effect (Squall, Meteor Fall)
 
 MANA MANAGEMENT
 - Each spell costs mana to cast
 - Mana regenerates over time
-- Watch your mana bar (top-left) to ensure you can cast
-- Some powerful spells have special requirements (e.g., Finger of Death requires full mana)
-
-SPELL TYPES
-Instant Spells: Cast immediately when you click
-Channeled Spells: Hold the mouse button to continuously cast (Magic Missile, Disintegrate, Raise the Dead)
-Placed Spells: Click to place at cursor location (Guardian Circle, Teleport)
-Drag Spells: Click and drag to define placement (Wall of Stone)
+- Watch your mana bar to ensure you can cast
+- Some powerful spells require full or near-full mana
 
 CAULDRON BREWING
-The cauldron lets you brew potions from magical ingredients to buff your wizard.
+The cauldron lets you brew potions from ingredients dropped by defeated enemies. Click the cauldron icon to open the brewing menu. Toggle ingredients on or off, preview the effects, and click Brew. Your wizard can't cast spells while brewing. Mixing multiple ingredients dilutes each effect.
 
-How to brew:
-1. Click the cauldron (bottom-right) to open the ingredient menu
-2. Toggle ingredients on or off to build your recipe
-3. Preview the effects before committing
-4. Click \"Brew\" to start — the wizard can't cast spells while brewing
+RESEARCH & PROGRESSION
+Defeating enemies earns Arcane Insight, which you spend at the Wizard's Tower to research new spells. Spells are organized in research chains — unlock earlier spells to access more powerful ones. Some spells require a minimum number of total spells researched.
 
-Ingredients:
-- Lavender: Increases mana regeneration
-- Mugwort: Increases spell power
-
-Mixing multiple ingredients gives you all their effects, but each effect is diluted. A single ingredient gives full strength; combining two gives each about 70% strength.
+WIZARD TYPES
+Different wizard types offer unique playstyles. Unlock new wizard types by completing achievements.
 
 TIPS
-- Use the rune system for 25% bonus damage on critical spells
-- Experiment with different spell combinations
-- Position walls strategically to funnel enemies
+- Position walls and fire strategically to funnel enemies into kill zones
 - Teleport can reposition both enemies and allies
-- Guardian Circle's temporary HP can save units from death
-- Brew potions between waves for extra power";
+- Guardian Circle gives temporary HP that can save units from death
+- Use Telekinesis to collect ingredient drops from across the battlefield
+- Combine Grease with fire spells for devastating explosions
+- Black Hole pulls enemies into a growing vortex
+- Brew potions between waves for maximum effect";

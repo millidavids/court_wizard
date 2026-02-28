@@ -291,6 +291,9 @@ pub struct GameConfig {
     /// Active wizard type for the current save
     #[serde(default)]
     pub wizard_type: WizardType,
+    /// Whether to skip the splash screen sequence on startup
+    #[serde(default)]
+    pub skip_splash: bool,
     /// Permanent walls saved from previous victories
     #[serde(skip)]
     pub saved_walls: Vec<SavedWall>,
@@ -310,6 +313,7 @@ impl Default for GameConfig {
             efficiency_ratios: HashMap::new(),
             action_bar_slots: [None; 5],
             wizard_type: WizardType::default(),
+            skip_splash: false,
             saved_walls: Vec::new(),
         }
     }

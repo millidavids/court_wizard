@@ -1,4 +1,4 @@
-use bevy::audio::{GlobalVolume, Volume};
+use bevy::audio::Volume;
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
@@ -41,7 +41,7 @@ pub(super) fn play_background_music(
     commands.spawn((
         BackgroundMusicEntity,
         AudioPlayer::new(music_assets.music_handle.clone()),
-        PlaybackSettings::LOOP.with_volume(Volume::Linear(game_config.music_volume)),
+        PlaybackSettings::LOOP.with_volume(Volume::Linear(game_config.master_volume * game_config.music_volume)),
     ));
 
     info!(
@@ -52,15 +52,15 @@ pub(super) fn play_background_music(
 
 /// Syncs volume from GameConfig to Bevy's audio system.
 ///
-/// Monitors the GameConfig resource and updates audio volumes whenever settings change:
-/// - GlobalVolume.volume = master_volume (affects all audio)
-/// - AudioPlayer volume = music_volume (affects only music)
+/// Monitors the GameConfig resource and updates audio volumes whenever settings change.
+/// Each channel's effective volume is its own slider multiplied by the master volume:
+/// - Music effective volume = master_volume * music_volume
+/// - SFX effective volume = master_volume * sfx_volume (when SFX is implemented)
 ///
 /// Also handles initial volume setup when GameConfig first becomes available.
 /// This allows the settings UI to control volumes in real-time.
 pub(super) fn sync_volume_from_config(
     game_config: Option<Res<GameConfig>>,
-    mut global_volume: ResMut<GlobalVolume>,
     mut music_query: Query<&mut AudioSink, With<BackgroundMusicEntity>>,
     mut last_synced: Local<Option<(f32, f32)>>,
 ) {
@@ -85,19 +85,17 @@ pub(super) fn sync_volume_from_config(
         return;
     }
 
-    // Update global master volume
-    global_volume.volume = Volume::Linear(current_volumes.0);
-
-    // Update music-specific volume
+    // Update music volume (master * music channel)
+    let effective_music = current_volumes.0 * current_volumes.1;
     for mut sink in &mut music_query {
-        sink.set_volume(Volume::Linear(current_volumes.1));
+        sink.set_volume(Volume::Linear(effective_music));
     }
 
     // Cache the values we just applied
     *last_synced = Some(current_volumes);
 
     info!(
-        "Audio volumes synced: master={:.2}, music={:.2}",
-        current_volumes.0, current_volumes.1
+        "Audio volumes synced: master={:.2}, music={:.2} (effective={:.2})",
+        current_volumes.0, current_volumes.1, effective_music
     );
 }

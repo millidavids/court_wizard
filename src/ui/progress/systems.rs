@@ -25,12 +25,8 @@ use super::constants::{
 };
 
 /// Spawns the progress screen UI.
-fn setup(mut commands: Commands, transparent_bg: bool) {
-    let background_color = if transparent_bg {
-        Color::srgba(0.0, 0.0, 0.0, 0.9)
-    } else {
-        Color::BLACK
-    };
+fn setup(mut commands: Commands, pause_menu: bool) {
+    use crate::ui::systems::spawn_page_container;
 
     // Load save data
     let save = load_unified_save();
@@ -63,24 +59,14 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
         .map(|s| s.player.total_undead_killed)
         .unwrap_or(0);
 
-    let mut entity_commands = commands.spawn((
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            padding: UiRect::all(Val::Px(20.0)),
-            ..default()
-        },
-        BackgroundColor(background_color),
+    let content = spawn_page_container(
+        &mut commands,
         OnProgressScreen,
-    ));
+        pause_menu,
+        Overflow::clip(),
+    );
 
-    if transparent_bg {
-        entity_commands.insert(GlobalZIndex(500));
-    }
-
-    entity_commands.with_children(|parent| {
+    commands.entity(content).with_children(|parent| {
         // Title
         parent.spawn((
             Text::new("Progress"),
@@ -114,7 +100,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                     spawn_insight_row(section, "Arcane Insight", insight_balance);
                 });
 
-                // Achievements column (unlocked first)
+                // Achievements column (unlocked first, alphabetical within each group)
                 spawn_column(columns, "Achievements", |section| {
                     let mut achievements: Vec<_> = AchievementId::all()
                         .iter()
@@ -123,13 +109,16 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             (a, is_unlocked)
                         })
                         .collect();
-                    achievements.sort_by_key(|(_, unlocked)| !unlocked);
+                    achievements.sort_by(|(a, a_unlocked), (b, b_unlocked)| {
+                        b_unlocked.cmp(a_unlocked)
+                            .then_with(|| a.display_name().cmp(b.display_name()))
+                    });
                     for (achievement, is_unlocked) in achievements {
                         spawn_achievement_row(section, achievement, is_unlocked);
                     }
                 });
 
-                // Spells column (researched first, then in-progress, then locked)
+                // Spells column (researched first, then in-progress, then locked — alphabetical within each group)
                 spawn_column(columns, "Spells", |section| {
                     let mut spells: Vec<_> = Spell::all()
                         .iter()
@@ -142,22 +131,19 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             (spell, is_unlocked, progress, cost)
                         })
                         .collect();
-                    // Sort: unlocked first, then in-progress (has progress), then locked
-                    spells.sort_by_key(|(_, unlocked, progress, _)| {
-                        if *unlocked {
-                            0
-                        } else if *progress > 0 {
-                            1
-                        } else {
-                            2
-                        }
+                    // Sort: unlocked first, then in-progress, then locked — alphabetical within each group
+                    spells.sort_by(|(a, a_unlocked, a_progress, _), (b, b_unlocked, b_progress, _)| {
+                        let a_group = if *a_unlocked { 0 } else if *a_progress > 0 { 1 } else { 2 };
+                        let b_group = if *b_unlocked { 0 } else if *b_progress > 0 { 1 } else { 2 };
+                        a_group.cmp(&b_group)
+                            .then_with(|| a.display_name().cmp(b.display_name()))
                     });
                     for (spell, is_unlocked, progress, cost) in spells {
                         spawn_spell_research_row(section, spell, is_unlocked, progress, cost);
                     }
                 });
 
-                // Ingredients column (unlocked first)
+                // Ingredients column (unlocked first, alphabetical within each group)
                 spawn_column(columns, "Ingredients", |section| {
                     let mut ingredients: Vec<_> = Ingredient::all()
                         .iter()
@@ -167,7 +153,10 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             (ingredient, is_unlocked)
                         })
                         .collect();
-                    ingredients.sort_by_key(|(_, unlocked)| !unlocked);
+                    ingredients.sort_by(|(a, a_unlocked), (b, b_unlocked)| {
+                        b_unlocked.cmp(a_unlocked)
+                            .then_with(|| a.name().cmp(b.name()))
+                    });
                     for (ingredient, is_unlocked) in ingredients {
                         spawn_unlockable_row(
                             section,
@@ -180,7 +169,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                     }
                 });
 
-                // Wizard Types column (unlocked first)
+                // Wizard Types column (unlocked first, alphabetical within each group)
                 spawn_column(columns, "Wizard Types", |section| {
                     let mut wizard_types: Vec<_> = WizardType::all()
                         .iter()
@@ -191,7 +180,10 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             (wizard_type, is_unlocked)
                         })
                         .collect();
-                    wizard_types.sort_by_key(|(_, unlocked)| !unlocked);
+                    wizard_types.sort_by(|(a, a_unlocked), (b, b_unlocked)| {
+                        b_unlocked.cmp(a_unlocked)
+                            .then_with(|| a.display_name().cmp(b.display_name()))
+                    });
                     for (wizard_type, is_unlocked) in wizard_types {
                         spawn_unlockable_row(
                             section,
@@ -199,7 +191,7 @@ fn setup(mut commands: Commands, transparent_bg: bool) {
                             Some(wizard_type.description()),
                             wizard_type.locked_description(),
                             is_unlocked,
-                            true, // Show name when locked for wizard types
+                            false, // Hide name when locked
                         );
                     }
                 });
@@ -712,12 +704,12 @@ pub(super) fn clear_and_refresh_pause_menu(
     setup(commands, true);
 }
 
-/// Spawns progress with solid black background (for main menu).
+/// Spawns progress for main menu.
 pub(super) fn setup_main_menu(commands: Commands) {
     setup(commands, false);
 }
 
-/// Spawns progress with transparent background (for pause menu).
+/// Spawns progress for pause menu.
 pub(super) fn setup_pause_menu(commands: Commands) {
     setup(commands, true);
 }

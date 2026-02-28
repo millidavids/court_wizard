@@ -1,7 +1,6 @@
 //! Settings menu systems.
 
 use bevy::ecs::relationship::Relationship;
-use bevy::input::keyboard::KeyCode;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
@@ -37,32 +36,18 @@ use super::constants::{
 ///
 /// * `commands` - Bevy command buffer for spawning entities
 /// * `game_config` - Current game configuration
-pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                overflow: Overflow::scroll_y(),
-                ..default()
-            },
-            ScrollPosition::default(),
-            OnSettingsScreen,
-            ScrollableContainer,
-        ))
-        .with_children(|parent| {
-            // Content container
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::all(Val::Px(MARGIN * 2.0)),
-                    row_gap: Val::Px(MARGIN),
-                    ..default()
-                })
-                .with_children(|parent| {
+fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool) {
+    use crate::ui::systems::spawn_page_container;
+
+    let content = spawn_page_container(
+        &mut commands,
+        OnSettingsScreen,
+        pause_menu,
+        Overflow::scroll_y(),
+    );
+    commands.entity(content).insert(ScrollableContainer);
+
+    commands.entity(content).with_children(|parent| {
                     // Title
                     parent.spawn((
                         Text::new("Settings"),
@@ -153,6 +138,21 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                                 game_config.difficulty == Difficulty::Hard,
                             );
                         });
+
+                        spawn_option_row(section, "Skip Splash:", |buttons| {
+                            spawn_option_button(
+                                buttons,
+                                "On",
+                                OptionButtonValue::SkipSplash(true),
+                                game_config.skip_splash,
+                            );
+                            spawn_option_button(
+                                buttons,
+                                "Off",
+                                OptionButtonValue::SkipSplash(false),
+                                !game_config.skip_splash,
+                            );
+                        });
                     });
 
                     // Back button
@@ -183,8 +183,17 @@ pub fn setup(mut commands: Commands, game_config: Res<GameConfig>) {
                                 TextColor(TEXT_COLOR),
                             ));
                         });
-                });
-        });
+    });
+}
+
+/// Spawns settings with opaque background (for main menu).
+pub fn setup_main_menu(commands: Commands, game_config: Res<GameConfig>) {
+    setup(commands, game_config, false);
+}
+
+/// Spawns settings with transparent background and GlobalZIndex (for pause menu).
+pub fn setup_pause_menu(commands: Commands, game_config: Res<GameConfig>) {
+    setup(commands, game_config, true);
 }
 
 /// Helper function to spawn a settings section with a title.
@@ -550,40 +559,6 @@ fn spawn_slider_control(
 pub fn cleanup(mut commands: Commands, settings_items: Query<Entity, With<OnSettingsScreen>>) {
     for entity in &settings_items {
         commands.entity(entity).despawn();
-    }
-}
-
-/// Handles keyboard input in the settings menu from main menu.
-///
-/// - Escape: Returns to Landing screen
-///
-/// # Arguments
-///
-/// * `keyboard` - Keyboard input resource
-/// * `next_menu_state` - Resource for transitioning the `MenuState`
-pub fn keyboard_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_menu_state: ResMut<NextState<MenuState>>,
-) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_menu_state.set(MenuState::Landing);
-    }
-}
-
-/// Handles keyboard input in the settings menu from pause menu.
-///
-/// - Escape: Returns to pause menu main screen
-///
-/// # Arguments
-///
-/// * `keyboard` - Keyboard input resource
-/// * `next_pause_menu_state` - Resource for transitioning the `PauseMenuState`
-pub fn pause_keyboard_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
-) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_pause_menu_state.set(PauseMenuState::Main);
     }
 }
 

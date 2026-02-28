@@ -12,6 +12,8 @@ use crate::ui::plugin::ButtonActionSet;
 use super::components::{
     BackButton, CancelClearButton, ClearProgressButton, ConfirmClearButton, ConfirmationPopup,
 };
+use crate::ui::systems::{escape_to_landing, escape_to_pause_main};
+
 use super::systems::{
     cleanup, clear_and_refresh_main_menu, clear_and_refresh_pause_menu, handle_clear_progress,
     handle_scroll, setup_main_menu, setup_pause_menu, spawn_confirmation_popup,
@@ -38,7 +40,11 @@ impl Plugin for MainMenuProgressPlugin {
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Progress)),
             )
-            .add_systems(Update, handle_scroll.run_if(in_state(MenuState::Progress)))
+            .add_systems(
+                Update,
+                (handle_scroll, escape_to_landing)
+                    .run_if(in_state(MenuState::Progress)),
+            )
             .add_systems(
                 Update,
                 clear_and_refresh_main_menu
@@ -70,7 +76,8 @@ impl Plugin for PauseMenuProgressPlugin {
             )
             .add_systems(
                 Update,
-                handle_scroll.run_if(in_state(PauseMenuState::Progress)),
+                (handle_scroll, escape_to_pause_main)
+                    .run_if(in_state(PauseMenuState::Progress)),
             )
             .add_systems(
                 Update,

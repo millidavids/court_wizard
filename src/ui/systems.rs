@@ -1,10 +1,12 @@
 //! Shared UI systems used across all menus and screens.
 
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use super::components::{ButtonColors, ButtonStyle};
 use super::styles::{item_hovered, item_pressed};
 use crate::game::input::messages::MouseClicked;
+use crate::state::{MenuState, PauseMenuState};
 
 /// Marker component to track that a button was pressed down.
 #[derive(Component)]
@@ -80,6 +82,102 @@ pub fn button_interaction(
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Page container (shared by settings, progress, instructions)
+// ---------------------------------------------------------------------------
+
+/// Dark opaque background for page content containers.
+const PAGE_CONTENT_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+
+/// Subtle border for page content containers.
+const PAGE_CONTENT_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 1.0);
+
+/// Semi-transparent overlay behind the content container.
+const PAGE_OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
+
+/// Spawns a full-screen page with a semi-transparent overlay and a dark opaque
+/// content container inside it. Returns the content container entity so the
+/// caller can add children and extra components.
+///
+/// When `pause_menu` is true, `GlobalZIndex(500)` is added so the page
+/// renders above in-game UI.
+pub fn spawn_page_container<M: Component>(
+    commands: &mut Commands,
+    screen_marker: M,
+    pause_menu: bool,
+    content_overflow: Overflow,
+) -> Entity {
+    let mut root = commands.spawn((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            padding: UiRect::all(Val::Px(20.0)),
+            ..default()
+        },
+        BackgroundColor(PAGE_OVERLAY_BG),
+        screen_marker,
+    ));
+
+    if pause_menu {
+        root.insert(GlobalZIndex(500));
+    }
+
+    let root_id = root.id();
+
+    let content_id = commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(20.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                overflow: content_overflow,
+                ..default()
+            },
+            BackgroundColor(PAGE_CONTENT_BG),
+            BorderColor::all(PAGE_CONTENT_BORDER),
+            BorderRadius::all(Val::Px(6.0)),
+        ))
+        .id();
+
+    commands.entity(root_id).add_child(content_id);
+
+    content_id
+}
+
+// ---------------------------------------------------------------------------
+// Shared Escape key handling
+// ---------------------------------------------------------------------------
+
+/// Handles Escape key to return to the main menu landing screen.
+pub fn escape_to_landing(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<MenuState>>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        next_state.set(MenuState::Landing);
+    }
+}
+
+/// Handles Escape key to return to the pause menu main screen.
+pub fn escape_to_pause_main(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<PauseMenuState>>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        next_state.set(PauseMenuState::Main);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared button spawning
+// ---------------------------------------------------------------------------
 
 /// Spawns a styled button as a child of the given parent.
 ///

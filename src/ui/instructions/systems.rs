@@ -7,148 +7,109 @@ use bevy::ui::ComputedNode;
 
 use super::components::{BackButton, OnInstructionsScreen, ScrollableInstructionsContainer};
 use super::constants::INSTRUCTIONS_TEXT;
+use crate::ui::components::ButtonColors;
+
 // UI colors for instructions screen
 const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-const BUTTON_HOVER_COLOR: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
+const BUTTON_BORDER_COLOR: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
 
 /// Spawns the instructions screen UI.
-/// Uses a transparent background suitable for overlaying on pause menu.
-pub(super) fn setup(mut commands: Commands, transparent_bg: bool) {
-    let background_color = if transparent_bg {
-        Color::srgba(0.0, 0.0, 0.0, 0.9)
-    } else {
-        Color::BLACK
-    };
+pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
+    use crate::ui::systems::spawn_page_container;
 
-    let mut entity_commands = commands.spawn((
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::FlexStart,
-            align_items: AlignItems::Center,
-            padding: UiRect::all(Val::Px(20.0)),
-            ..default()
-        },
-        BackgroundColor(background_color),
+    let content = spawn_page_container(
+        &mut commands,
         OnInstructionsScreen,
-    ));
+        pause_menu,
+        Overflow::clip(),
+    );
 
-    // Add GlobalZIndex for pause menu to ensure it's above the game
-    if transparent_bg {
-        entity_commands.insert(GlobalZIndex(500));
-    }
-
-    entity_commands.with_children(|parent| {
-        // Title
-        parent.spawn((
-            Text::new("Instructions"),
-            TextFont::from_font_size(48.0),
-            TextColor(TEXT_COLOR),
-            Node {
-                margin: UiRect::bottom(Val::Px(20.0)),
-                ..default()
-            },
-        ));
-
-        // Scrollable instructions content
-        parent
-            .spawn((
+    commands.entity(content).with_children(|parent| {
+            // Title
+            parent.spawn((
+                Text::new("Instructions"),
+                TextFont::from_font_size(48.0),
+                TextColor(TEXT_COLOR),
                 Node {
-                    width: Val::Percent(90.0),
-                    height: Val::Percent(70.0),
-                    flex_direction: FlexDirection::Column,
-                    overflow: Overflow::scroll_y(),
+                    margin: UiRect::bottom(Val::Px(20.0)),
                     ..default()
                 },
-                ScrollPosition::default(),
-                ScrollableInstructionsContainer,
-                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.8)),
-            ))
-            .with_children(|parent| {
-                parent
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
+            ));
+
+            // Scrollable instructions content
+            parent
+                .spawn((
+                    Node {
+                        width: Val::Percent(90.0),
+                        flex_grow: 1.0,
                         flex_direction: FlexDirection::Column,
-                        padding: UiRect::all(Val::Px(20.0)),
+                        overflow: Overflow::scroll_y(),
                         ..default()
-                    })
-                    .with_children(|parent| {
-                        parent.spawn((
-                            Text::new(INSTRUCTIONS_TEXT),
-                            TextFont::from_font_size(16.0),
-                            TextColor(TEXT_COLOR),
-                            TextLayout::new_with_linebreak(bevy::text::LineBreak::WordBoundary),
-                        ));
-                    });
-            });
+                    },
+                    ScrollPosition::default(),
+                    ScrollableInstructionsContainer,
+                ))
+                .with_children(|scroll| {
+                    scroll
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(20.0)),
+                            ..default()
+                        })
+                        .with_children(|content| {
+                            content.spawn((
+                                Text::new(INSTRUCTIONS_TEXT),
+                                TextFont::from_font_size(16.0),
+                                TextColor(TEXT_COLOR),
+                                TextLayout::new_with_linebreak(
+                                    bevy::text::LineBreak::WordBoundary,
+                                ),
+                            ));
+                        });
+                });
 
-        // Back button
-        parent
-            .spawn((
-                Button,
-                Node {
-                    width: Val::Px(200.0),
-                    height: Val::Px(60.0),
-                    border: UiRect::all(Val::Px(3.0)),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(20.0)),
-                    ..default()
-                },
-                BorderColor::all(Color::hsla(0.0, 0.0, 0.3, 1.0)),
-                BorderRadius::all(Val::Px(8.0)),
-                BackgroundColor(BUTTON_COLOR),
-                BackButton,
-            ))
-            .with_children(|parent| {
-                parent.spawn((
-                    Text::new("Back"),
-                    TextFont::from_font_size(32.0),
-                    TextColor(TEXT_COLOR),
-                ));
-            });
+            // Back button
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        width: Val::Px(200.0),
+                        height: Val::Px(60.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(20.0)),
+                        ..default()
+                    },
+                    BorderColor::all(BUTTON_BORDER_COLOR),
+                    BorderRadius::all(Val::Px(8.0)),
+                    BackgroundColor(BUTTON_COLOR),
+                    ButtonColors {
+                        background: BUTTON_COLOR,
+                        border: BUTTON_BORDER_COLOR,
+                    },
+                    BackButton,
+                ))
+                .with_children(|btn| {
+                    btn.spawn((
+                        Text::new("Back"),
+                        TextFont::from_font_size(32.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                });
     });
 }
 
-/// Spawns instructions with solid black background (for main menu).
+/// Spawns instructions for main menu.
 pub(super) fn setup_main_menu(commands: Commands) {
     setup(commands, false);
 }
 
-/// Spawns instructions with transparent background (for pause menu).
+/// Spawns instructions for pause menu.
 pub(super) fn setup_pause_menu(commands: Commands) {
     setup(commands, true);
-}
-
-/// Updates button colors on hover.
-pub(super) fn update_button_colors(
-    mut button_query: Query<
-        (&Interaction, &mut BackgroundColor, &mut BorderColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    const NORMAL_BORDER: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
-    const HOVER_BORDER: Color = Color::hsla(0.0, 0.0, 0.4, 1.0);
-    const PRESSED_BORDER: Color = Color::hsla(0.0, 0.0, 0.5, 1.0);
-
-    for (interaction, mut bg_color, mut border_color) in &mut button_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = Color::hsla(0.0, 0.0, 0.35, 1.0).into();
-                *border_color = BorderColor::all(PRESSED_BORDER);
-            }
-            Interaction::Hovered => {
-                *bg_color = BUTTON_HOVER_COLOR.into();
-                *border_color = BorderColor::all(HOVER_BORDER);
-            }
-            Interaction::None => {
-                *bg_color = BUTTON_COLOR.into();
-                *border_color = BorderColor::all(NORMAL_BORDER);
-            }
-        }
-    }
 }
 
 /// Despawns all instructions screen entities.

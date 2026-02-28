@@ -52,13 +52,13 @@ pub const DETAIL_TYPE_FONT_SIZE: f32 = 7.0;
 pub const DETAIL_TYPE_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
 
 /// Font size for description text.
-pub const DETAIL_DESC_FONT_SIZE: f32 = 7.0;
+pub const DETAIL_DESC_FONT_SIZE: f32 = 11.0;
 
 /// Color for description text.
 pub const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.65, 1.0);
 
 /// Font size for instructions text.
-pub const DETAIL_INSTRUCTIONS_FONT_SIZE: f32 = 7.0;
+pub const DETAIL_INSTRUCTIONS_FONT_SIZE: f32 = 11.0;
 
 /// Color for instructions text — slightly warm.
 pub const DETAIL_INSTRUCTIONS_COLOR: Color = Color::hsla(40.0, 0.15, 0.55, 1.0);
@@ -114,19 +114,13 @@ pub const LIST_BORDER_RADIUS: f32 = 6.0;
 pub const LIST_PADDING: f32 = 12.0;
 
 /// Gap between items in the spell list.
-pub const LIST_ITEM_GAP: f32 = 4.0;
-
-/// Gap between category sections.
-pub const CATEGORY_GAP: f32 = 16.0;
+pub const LIST_ITEM_GAP: f32 = 16.0;
 
 /// Font size for category headers.
-pub const CATEGORY_FONT_SIZE: f32 = 7.0;
+pub const CATEGORY_FONT_SIZE: f32 = 9.0;
 
 /// Color for category header text.
 pub const CATEGORY_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
-
-/// Width of spell buttons in the list.
-pub const SPELL_BUTTON_WIDTH: f32 = 220.0;
 
 /// Height of spell buttons in the list.
 pub const SPELL_BUTTON_HEIGHT: f32 = 40.0;
@@ -144,7 +138,7 @@ pub const SPELL_BUTTON_SELECTED_BORDER: Color = Color::hsla(40.0, 0.50, 0.45, 1.
 pub const SPELL_BUTTON_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.85, 1.0);
 
 /// Font size for spell button text.
-pub const SPELL_BUTTON_FONT_SIZE: f32 = 8.0;
+pub const SPELL_BUTTON_FONT_SIZE: f32 = 10.0;
 
 /// Border width for spell buttons.
 pub const SPELL_BUTTON_BORDER_WIDTH: f32 = 1.0;

@@ -240,7 +240,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
         });
 }
 
-/// Spawns the right panel with a vertically scrollable list of spells grouped by category.
+/// Spawns the right panel with 4 category columns, each scrollable.
 fn spawn_spell_list(
     parent: &mut ChildSpawnerCommands,
     selected: Spell,
@@ -252,7 +252,8 @@ fn spawn_spell_list(
             Node {
                 flex_grow: 1.0,
                 min_width: Val::Px(0.0),
-                flex_direction: FlexDirection::Column,
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(LIST_ITEM_GAP),
                 overflow: Overflow::scroll_y(),
                 border: UiRect::all(Val::Px(LIST_BORDER_WIDTH)),
                 padding: UiRect::all(Val::Px(LIST_PADDING)),
@@ -265,121 +266,95 @@ fn spawn_spell_list(
             ScrollableSpellList,
         ))
         .with_children(|list| {
-            // Inner content column (needed for scroll to work with overflow)
-            list.spawn(Node {
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(CATEGORY_GAP),
-                ..default()
-            })
-            .with_children(|content| {
-                for category in SpellCategory::all() {
-                    let unlocked_in_category: Vec<&Spell> = category
-                        .spells()
-                        .iter()
-                        .filter(|s| is_unlocked(s))
-                        .collect();
+            for category in SpellCategory::all() {
+                let mut unlocked_in_category: Vec<Spell> = category
+                    .spells()
+                    .iter()
+                    .copied()
+                    .filter(|s| is_unlocked(s))
+                    .collect();
 
-                    if unlocked_in_category.is_empty() {
-                        continue;
-                    }
+                if unlocked_in_category.is_empty() {
+                    continue;
+                }
 
-                    // Category section
-                    content
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Column,
-                            row_gap: Val::Px(LIST_ITEM_GAP),
+                // Sort alphabetically by display name
+                unlocked_in_category.sort_by_key(|s| s.display_name());
+
+                // Category column
+                list.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(LIST_ITEM_GAP),
+                    flex_grow: 1.0,
+                    ..default()
+                })
+                .with_children(|column| {
+                    // Category header
+                    column.spawn((
+                        Text::new(category.display_name()),
+                        TextFont::from_font_size(CATEGORY_FONT_SIZE),
+                        TextColor(CATEGORY_COLOR),
+                        TextLayout::new_with_justify(Justify::Center),
+                        Node {
+                            width: Val::Percent(100.0),
+                            margin: UiRect::bottom(Val::Px(4.0)),
                             ..default()
-                        })
-                        .with_children(|section| {
-                            // Category header (full width)
-                            section.spawn((
-                                Text::new(format!("-- {} --", category.display_name())),
-                                TextFont::from_font_size(CATEGORY_FONT_SIZE),
-                                TextColor(CATEGORY_COLOR),
-                                TextLayout::new_with_justify(Justify::Center),
+                        },
+                    ));
+
+                    // One spell button per row
+                    for spell in &unlocked_in_category {
+                        let is_selected = *spell == selected;
+                        let border = if is_selected {
+                            SPELL_BUTTON_SELECTED_BORDER
+                        } else {
+                            SPELL_BUTTON_BORDER
+                        };
+
+                        column
+                            .spawn((
+                                Button,
                                 Node {
                                     width: Val::Percent(100.0),
+                                    height: Val::Px(SPELL_BUTTON_HEIGHT),
+                                    border: UiRect::all(Val::Px(SPELL_BUTTON_BORDER_WIDTH)),
+                                    justify_content: JustifyContent::SpaceBetween,
+                                    align_items: AlignItems::Center,
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: Val::Px(6.0),
+                                    padding: UiRect::horizontal(Val::Px(6.0)),
                                     ..default()
                                 },
-                            ));
-
-                            // Spell buttons in a wrapping row grid
-                            section
-                                .spawn(Node {
-                                    flex_direction: FlexDirection::Row,
-                                    flex_wrap: FlexWrap::Wrap,
-                                    column_gap: Val::Px(LIST_ITEM_GAP),
-                                    row_gap: Val::Px(LIST_ITEM_GAP),
-                                    ..default()
-                                })
-                                .with_children(|grid| {
-                                    for spell in &unlocked_in_category {
-                                        let is_selected = **spell == selected;
-                                        let border = if is_selected {
-                                            SPELL_BUTTON_SELECTED_BORDER
-                                        } else {
-                                            SPELL_BUTTON_BORDER
-                                        };
-
-                                        grid.spawn((
-                                            Button,
-                                            Node {
-                                                width: Val::Px(SPELL_BUTTON_WIDTH),
-                                                height: Val::Px(SPELL_BUTTON_HEIGHT),
-                                                border: UiRect::all(Val::Px(
-                                                    SPELL_BUTTON_BORDER_WIDTH,
-                                                )),
-                                                justify_content: JustifyContent::FlexStart,
-                                                align_items: AlignItems::Center,
-                                                flex_direction: FlexDirection::Row,
-                                                column_gap: Val::Px(6.0),
-                                                padding: UiRect::left(Val::Px(6.0)),
-                                                ..default()
-                                            },
-                                            BackgroundColor(SPELL_BUTTON_BG),
-                                            BorderColor::all(border),
-                                            BorderRadius::all(Val::Px(4.0)),
-                                            ButtonColors {
-                                                background: SPELL_BUTTON_BG,
-                                                border: SPELL_BUTTON_BORDER,
-                                            },
-                                            SpellBookButtonAction::SelectSpell(**spell),
-                                            SpellListButton(**spell),
-                                        ))
-                                        .with_children(
-                                            |btn| {
-                                                if let Some(icon_handle) =
-                                                    icon_assets.get(spell)
-                                                {
-                                                    btn.spawn((
-                                                        ImageNode::new(
-                                                            icon_handle.clone(),
-                                                        ),
-                                                        Node {
-                                                            width: Val::Px(
-                                                                SPELL_ICON_SIZE,
-                                                            ),
-                                                            height: Val::Px(
-                                                                SPELL_ICON_SIZE,
-                                                            ),
-                                                            ..default()
-                                                        },
-                                                    ));
-                                                }
-                                                btn.spawn((
-                                                    Text::new(spell.display_name()),
-                                                    TextFont::from_font_size(
-                                                        SPELL_BUTTON_FONT_SIZE,
-                                                    ),
-                                                    TextColor(SPELL_BUTTON_TEXT_COLOR),
-                                                ));
-                                            },
-                                        );
-                                    }
-                                });
-                        });
-                }
-            });
+                                BackgroundColor(SPELL_BUTTON_BG),
+                                BorderColor::all(border),
+                                BorderRadius::all(Val::Px(4.0)),
+                                ButtonColors {
+                                    background: SPELL_BUTTON_BG,
+                                    border: SPELL_BUTTON_BORDER,
+                                },
+                                SpellBookButtonAction::SelectSpell(*spell),
+                                SpellListButton(*spell),
+                            ))
+                            .with_children(|btn| {
+                                if let Some(icon_handle) = icon_assets.get(spell) {
+                                    btn.spawn((
+                                        ImageNode::new(icon_handle.clone()),
+                                        Node {
+                                            width: Val::Px(SPELL_ICON_SIZE),
+                                            height: Val::Px(SPELL_ICON_SIZE),
+                                            ..default()
+                                        },
+                                    ));
+                                }
+                                btn.spawn((
+                                    Text::new(spell.display_name()),
+                                    TextFont::from_font_size(SPELL_BUTTON_FONT_SIZE),
+                                    TextColor(SPELL_BUTTON_TEXT_COLOR),
+                                ));
+                            });
+                    }
+                });
+            }
         });
 }
 

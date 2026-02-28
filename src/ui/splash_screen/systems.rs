@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::config::GameConfig;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::state::{AppState, SplashState};
 
@@ -164,7 +165,17 @@ pub(super) fn tick(
     mut next_splash: ResMut<NextState<SplashState>>,
     mut next_app: ResMut<NextState<AppState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
+    game_config: Option<Res<GameConfig>>,
 ) {
+    // Skip entire splash sequence if configured
+    if game_config
+        .as_ref()
+        .is_some_and(|config| config.skip_splash)
+    {
+        next_app.set(AppState::MainMenu);
+        return;
+    }
+
     for (mut timer, transition) in &mut splash_query {
         timer.elapsed += time.delta_secs();
 
