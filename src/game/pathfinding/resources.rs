@@ -205,47 +205,127 @@ impl PathfindingGrid {
         self.base_costs[idx]
     }
 
-    /// Creates a new flow field with the base costs applied.
+    /// Creates a new flow field with the base costs applied, using a distance
+    /// transform to inflate costs around obstacles.
     ///
-    /// Cells adjacent to blocked (wall) cells are inflated to a higher cost so the
-    /// flow field steers units slightly away from walls instead of hugging them.
-    /// This prevents units from sliding along wall edges and catching on corners.
+    /// Distance 0 = blocked (INFINITY). Distance 1 = hard block (INFINITY) to
+    /// prevent unit centers from being adjacent to walls. Distance 2-3 = elevated
+    /// costs to steer units away from walls. This prevents wall-hugging,
+    /// corner-clipping, and units getting stuck in narrow passages.
     pub fn create_field_with_base_costs(&self) -> FlowField {
+        /// Cost applied to cells at Chebyshev distance 1 from a wall.
+        /// Very high but NOT INFINITY so units still get flow directions if they
+        /// wander into this zone (e.g. pushed by combat or flocking near corners).
+        const INFLATION_COST_DISTANCE_1: f32 = 20.0;
+        /// Cost applied to cells at Chebyshev distance 2 from a wall.
+        const INFLATION_COST_DISTANCE_2: f32 = 6.0;
+        /// Cost applied to cells at Chebyshev distance 3 from a wall.
+        const INFLATION_COST_DISTANCE_3: f32 = 3.0;
+
         let mut field = FlowField::new(self.grid_width, self.grid_height);
         field.costs = self.base_costs.clone();
 
-        // Inflate costs near blocked cells so the flow field avoids wall edges
-        const WALL_PROXIMITY_COST: f32 = 4.0;
         let w = self.grid_width;
         let h = self.grid_height;
 
+        // Build Chebyshev distance field via two-pass distance transform.
+        // 0 = blocked cell, u16::MAX = far from any wall.
+        let mut distance: Vec<u16> = self
+            .base_costs
+            .iter()
+            .map(|c| if c.is_infinite() { 0 } else { u16::MAX })
+            .collect();
+
+        // Forward pass (top-left to bottom-right)
         for z in 0..h {
             for x in 0..w {
                 let idx = z * w + x;
-                if !self.base_costs[idx].is_infinite() {
+                if distance[idx] == 0 {
                     continue;
                 }
-                // This cell is blocked — inflate passable neighbors
-                for dz in -1i32..=1 {
-                    for dx in -1i32..=1 {
-                        if dx == 0 && dz == 0 {
-                            continue;
-                        }
-                        let nx = x as i32 + dx;
-                        let nz = z as i32 + dz;
-                        if nx >= 0 && nz >= 0 && (nx as usize) < w && (nz as usize) < h {
-                            let ni = nz as usize * w + nx as usize;
-                            // Only inflate normal-cost cells (don't reduce hazards or re-block)
-                            if field.costs[ni] < WALL_PROXIMITY_COST {
-                                field.costs[ni] = WALL_PROXIMITY_COST;
-                            }
-                        }
-                    }
+                let mut d = distance[idx];
+                // Cardinal: left, up
+                if x > 0 {
+                    d = d.min(distance[idx - 1].saturating_add(1));
                 }
+                if z > 0 {
+                    d = d.min(distance[idx - w].saturating_add(1));
+                }
+                // Diagonal: top-left, top-right
+                if x > 0 && z > 0 {
+                    d = d.min(distance[idx - w - 1].saturating_add(1));
+                }
+                if x + 1 < w && z > 0 {
+                    d = d.min(distance[idx - w + 1].saturating_add(1));
+                }
+                distance[idx] = d;
+            }
+        }
+
+        // Backward pass (bottom-right to top-left)
+        for z in (0..h).rev() {
+            for x in (0..w).rev() {
+                let idx = z * w + x;
+                if distance[idx] == 0 {
+                    continue;
+                }
+                let mut d = distance[idx];
+                // Cardinal: right, down
+                if x + 1 < w {
+                    d = d.min(distance[idx + 1].saturating_add(1));
+                }
+                if z + 1 < h {
+                    d = d.min(distance[idx + w].saturating_add(1));
+                }
+                // Diagonal: bottom-left, bottom-right
+                if x > 0 && z + 1 < h {
+                    d = d.min(distance[idx + w - 1].saturating_add(1));
+                }
+                if x + 1 < w && z + 1 < h {
+                    d = d.min(distance[idx + w + 1].saturating_add(1));
+                }
+                distance[idx] = d;
+            }
+        }
+
+        // Apply inflation from distance field
+        for (d, cost) in distance.iter().zip(field.costs.iter_mut()) {
+            match *d {
+                0 => {} // Already INFINITY (blocked)
+                1 if *cost < INFLATION_COST_DISTANCE_1 => {
+                    *cost = INFLATION_COST_DISTANCE_1;
+                }
+                2 if *cost < INFLATION_COST_DISTANCE_2 => {
+                    *cost = INFLATION_COST_DISTANCE_2;
+                }
+                3 if *cost < INFLATION_COST_DISTANCE_3 => {
+                    *cost = INFLATION_COST_DISTANCE_3;
+                }
+                _ => {}
             }
         }
 
         field
+    }
+
+    /// Returns cells within `bounds` that intersect the given shape.
+    /// Broadphase AABB followed by per-cell narrowphase shape test.
+    pub fn shape_filtered_cells(
+        &self,
+        bounds: Rect,
+        shape: &super::messages::ObstacleShape,
+    ) -> Vec<(usize, usize)> {
+        let cell_half = self.cell_size * 0.5;
+        let world_min = self.world_min;
+        let cell_size = self.cell_size;
+        self.world_bounds_to_cells(bounds)
+            .into_iter()
+            .filter(|&(x, z)| {
+                let cx = world_min.x + (x as f32 + 0.5) * cell_size;
+                let cz = world_min.y + (z as f32 + 0.5) * cell_size;
+                shape.intersects_cell(Vec2::new(cx, cz), cell_half)
+            })
+            .collect()
     }
 
     /// Enqueues a rebuild target, skipping if it's already queued.

@@ -11,7 +11,7 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, GreaseSlipModifier, Health, TemporaryHitPoints, apply_spell_damage,
@@ -484,6 +484,7 @@ pub fn check_grease_ignition(
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Hazard(5.0),
+                shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
             });
         }
     }
@@ -708,6 +709,7 @@ pub fn cleanup_grease_zone(
                 obstacle_events.write(ObstacleChanged {
                     bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                     obstacle_type: ObstacleType::Removed,
+                    shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
                 });
                 // Despawn fire overlay
                 for (overlay_entity, overlay) in &overlays {
@@ -740,6 +742,7 @@ pub(crate) fn spawn_grease_zone(
     obstacle_events.write(ObstacleChanged {
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
         obstacle_type: ObstacleType::SlowTerrain(3.0),
+        shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
     });
 
     let base_mat = materials

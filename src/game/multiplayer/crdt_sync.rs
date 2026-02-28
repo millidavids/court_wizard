@@ -89,6 +89,7 @@ pub fn receive_wall_placement(
                 obstacle_events.write(ObstacleChanged {
                     bounds: Rect::new(bounds[0], bounds[1], bounds[2], bounds[3]),
                     obstacle_type,
+                    shape: None,
                 });
             }
             other => unhandled.push(other),

@@ -11,7 +11,7 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::config::save_data::SavedWall;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
@@ -247,6 +247,12 @@ fn wall_of_stone_casting_logic(
                 obstacle_events.write(ObstacleChanged {
                     bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
                     obstacle_type: ObstacleType::Blocked,
+                    shape: Some(ObstacleShape::obb_from_center(
+                        center,
+                        forward,
+                        clamped_length / 2.0,
+                        wall_width / 2.0,
+                    )),
                 });
 
                 result.completed = true;
@@ -353,6 +359,12 @@ pub fn cleanup_expired_walls(
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
                 obstacle_type: ObstacleType::Removed,
+                shape: Some(ObstacleShape::obb_from_center(
+                    wall.center,
+                    wall.forward,
+                    wall.half_length,
+                    wall.half_width,
+                )),
             });
 
             // Notify remote peer to update their pathfinding grid
@@ -443,6 +455,12 @@ pub(crate) fn register_permanent_wall_obstacles(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
             obstacle_type: ObstacleType::Blocked,
+            shape: Some(ObstacleShape::obb_from_center(
+                wall.center,
+                wall.forward,
+                wall.half_length,
+                wall.half_width,
+            )),
         });
     }
 }

@@ -566,7 +566,8 @@ pub(super) fn check_meteor_collisions(
             let origin_2d = Vec2::new(pos.x, pos.z);
             let buffered = fire_radius + OBSTACLE_BUFFER;
             let bounds = Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0));
-            let cells = pathfinding.world_bounds_to_cells(bounds);
+            let shape = crate::game::pathfinding::ObstacleShape::circle(origin_2d, buffered);
+            let cells = pathfinding.shape_filtered_cells(bounds, &shape);
             pathfinding.set_terrain_cost(&cells, 8.0);
 
             // Despawn the projectile
@@ -757,7 +758,8 @@ pub(super) fn cleanup_ground_fire(
             let origin_2d = Vec2::new(fire.origin.x, fire.origin.z);
             let buffered = fire.radius + OBSTACLE_BUFFER;
             let bounds = Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0));
-            let cells = pathfinding.world_bounds_to_cells(bounds);
+            let shape = crate::game::pathfinding::ObstacleShape::circle(origin_2d, buffered);
+            let cells = pathfinding.shape_filtered_cells(bounds, &shape);
             pathfinding.set_terrain_cost(&cells, 1.0);
 
             commands.entity(entity).despawn();

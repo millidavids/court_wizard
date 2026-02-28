@@ -153,6 +153,9 @@ cargo fmt --check
 - **Messages go in `messages.rs`** — This project uses Bevy 0.17 **Messages** (`#[derive(Message)]`) for broadcast inter-system communication. All message types in a module should live in a dedicated `messages.rs` file, never `events.rs`. Name message structs with a `Message` suffix (e.g., `StartBrewMessage`), never `Event`. **Bevy Events** (`#[derive(Event)]`) are a separate, newer mechanism for reactive observer/trigger callbacks (entity-targeted via `world.trigger()` / `On<E>`). We don't currently use Events, but if we do, they would go in a separate `events.rs` file and use the `Event` suffix.
 - Use `pub(super)` for module-internal constants
 
+### Code Simplification
+- Always `/simplify` before updating the changelog and before releasing to optimize the codebase from a duplication standpoint.
+
 ### Error Handling
 - Use `Result<T, E>` for fallible operations
 - Use `thiserror` for error types

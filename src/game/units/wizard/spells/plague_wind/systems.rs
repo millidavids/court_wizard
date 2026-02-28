@@ -8,7 +8,7 @@ use crate::game::constants::{ATTACKER_GRID_CENTER_ANGLE, SPELL_ORIGIN};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
@@ -189,6 +189,7 @@ fn plague_wind_casting_logic(
                     obstacle_events.write(ObstacleChanged {
                         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
                         obstacle_type: ObstacleType::Hazard(10.0),
+                        shape: Some(ObstacleShape::circle(origin_2d, buffered)),
                     });
 
                     let base_mat = materials
@@ -282,6 +283,7 @@ pub fn move_plague_wind_cloud(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(old_origin_2d, Vec2::splat(buffered * 2.0)),
             obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::circle(old_origin_2d, buffered)),
         });
 
         // Move cloud
@@ -295,6 +297,7 @@ pub fn move_plague_wind_cloud(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(new_origin_2d, Vec2::splat(buffered * 2.0)),
             obstacle_type: ObstacleType::Hazard(10.0),
+            shape: Some(ObstacleShape::circle(new_origin_2d, buffered)),
         });
     }
 }
@@ -379,6 +382,7 @@ pub fn cleanup_plague_wind_cloud(
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
                 obstacle_type: ObstacleType::Removed,
+                shape: Some(ObstacleShape::circle(origin_2d, buffered)),
             });
             commands.entity(entity).despawn();
         }

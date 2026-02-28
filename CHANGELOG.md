@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.38] - 2026-02-28
+
+### Added
+- **Flow field debug overlay** — press F3 during gameplay to see white triangles showing how units navigate the battlefield. Press again to switch between attacker and defender views, or press a third time to turn it off
+- **Skip splash screen** now actually works — previously the setting was ignored
+
+### Fixed
+- **Spells no longer block huge square areas** — walls placed at an angle used to block a big square of space around them. Now only the actual area the wall covers is blocked, so units can navigate around diagonal walls much more tightly
+- **Circular spell zones** (fire, poison, thorns, grease) no longer block square corners outside their actual radius
+- Improved how the game calculates smooth paths near obstacles
+
 ## [v0.3.26] - 2026-02-28
 
 ### Added

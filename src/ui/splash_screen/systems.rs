@@ -8,15 +8,24 @@ use super::components::{SplashAssets, SplashEntity, SplashTimer, SplashTransitio
 use super::constants::*;
 
 // ---------------------------------------------------------------------------
-// Skip splash check — runs once on entering the Splash state
+// Skip splash check — runs during Update while in Splash state
 // ---------------------------------------------------------------------------
 
 /// Checks the skip_splash config flag and immediately transitions to MainMenu
-/// if enabled, avoiding unnecessary entity spawning and teardown.
+/// if enabled. Uses a Local<bool> to ensure it only runs once per splash entry.
+///
+/// This runs during Update (not OnEnter) because OnEnter for the default initial
+/// state fires before Startup, which means GameConfig hasn't been loaded yet.
 pub(super) fn check_skip_splash(
     game_config: Option<Res<GameConfig>>,
     mut next_app: ResMut<NextState<AppState>>,
+    mut checked: Local<bool>,
 ) {
+    if *checked {
+        return;
+    }
+    *checked = true;
+
     if game_config
         .as_ref()
         .is_some_and(|config| config.skip_splash)

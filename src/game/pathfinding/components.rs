@@ -11,6 +11,31 @@ pub enum FlowFieldInfluence {
     Defender { spawn_pos: Vec2 },
 }
 
+/// Tracks whether a unit is stuck and triggers recovery nudges.
+///
+/// Auto-inserted on entities with `FlowFieldVelocity`. Every 30 frames,
+/// checks if the unit has moved. After 3 consecutive stuck checks (~1.5s),
+/// applies a perpendicular nudge force to break free.
+#[derive(Component)]
+pub struct StuckDetection {
+    /// Position at last check.
+    pub last_check_pos: Vec3,
+    /// Frames since last stuck check.
+    pub frames_since_check: u32,
+    /// How many consecutive checks found the unit stuck.
+    pub consecutive_stuck: u32,
+}
+
+impl Default for StuckDetection {
+    fn default() -> Self {
+        Self {
+            last_check_pos: Vec3::ZERO,
+            frames_since_check: 0,
+            consecutive_stuck: 0,
+        }
+    }
+}
+
 /// Flow field velocity calculated from sampling the flow field.
 ///
 /// This is combined with targeting and flocking velocities in unit movement systems.

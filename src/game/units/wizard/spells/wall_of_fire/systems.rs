@@ -11,7 +11,7 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, ResidualFireDamaged, TemporaryHitPoints, apply_spell_damage,
@@ -292,6 +292,11 @@ fn wall_of_fire_casting_logic(
                 obstacle_events.write(ObstacleChanged {
                     bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
                     obstacle_type: ObstacleType::Hazard(4.5),
+                    shape: Some(ObstacleShape::obb_from_wall(
+                        wall_start,
+                        wall_end,
+                        half_width + OBSTACLE_BUFFER,
+                    )),
                 });
 
                 result.wall_placed = Some(WallPlacedInfo {
@@ -437,6 +442,11 @@ pub fn cleanup_wall_of_fire(
             obstacle_events.write(ObstacleChanged {
                 bounds: wall_obstacle_bounds(effect.start, effect.end, effect.half_width),
                 obstacle_type: ObstacleType::Removed,
+                shape: Some(ObstacleShape::obb_from_wall(
+                    effect.start,
+                    effect.end,
+                    effect.half_width + OBSTACLE_BUFFER,
+                )),
             });
 
             commands.entity(entity).despawn();

@@ -11,7 +11,7 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleType};
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{
     Health, SpellDamaged, SpikeGrowthSlowModifier, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -288,6 +288,7 @@ pub fn cleanup_spike_growth_zone(
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
+                shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
             });
             commands.entity(entity).despawn();
         }
@@ -314,6 +315,7 @@ pub(crate) fn spawn_spike_growth_zone(
     obstacle_events.write(ObstacleChanged {
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
         obstacle_type: ObstacleType::Hazard(15.0),
+        shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
     });
 
     // Clone material for per-instance fading

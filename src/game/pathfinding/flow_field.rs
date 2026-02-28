@@ -123,7 +123,7 @@ impl FlowField {
             z: goal_z,
         });
 
-        // Dijkstra's algorithm
+        // Dijkstra's algorithm with diagonal corner-cutting prevention
         while let Some(Node { cost, x, z }) = queue.pop() {
             let current_idx = self.index(x, z);
 
@@ -132,36 +132,64 @@ impl FlowField {
                 continue;
             }
 
-            // Check all 8 neighbors
-            let neighbors = [
-                (x.wrapping_sub(1), z, 1.0),                   // West
-                (x + 1, z, 1.0),                               // East
-                (x, z.wrapping_sub(1), 1.0),                   // South
-                (x, z + 1, 1.0),                               // North
-                (x.wrapping_sub(1), z.wrapping_sub(1), 1.414), // SW (diagonal)
-                (x + 1, z.wrapping_sub(1), 1.414),             // SE
-                (x.wrapping_sub(1), z + 1, 1.414),             // NW
-                (x + 1, z + 1, 1.414),                         // NE
+            // Cardinal neighbors (always checked)
+            let cardinals = [
+                (x.wrapping_sub(1), z, 1.0), // West
+                (x + 1, z, 1.0),              // East
+                (x, z.wrapping_sub(1), 1.0),  // South
+                (x, z + 1, 1.0),              // North
             ];
 
-            for (nx, nz, distance_mult) in neighbors {
-                // Check bounds
+            // Track which cardinals are passable for diagonal gating
+            let w_pass = x.wrapping_sub(1) < self.width
+                && !self.costs[self.index(x.wrapping_sub(1), z)].is_infinite();
+            let e_pass =
+                x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
+            let s_pass = z.wrapping_sub(1) < self.height
+                && !self.costs[self.index(x, z.wrapping_sub(1))].is_infinite();
+            let n_pass =
+                z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
+
+            // Diagonal neighbors: only expand if both adjacent cardinals are passable
+            let diagonals: [(usize, usize, f32, bool); 4] = [
+                (x.wrapping_sub(1), z.wrapping_sub(1), 1.414, w_pass && s_pass), // SW
+                (x + 1, z.wrapping_sub(1), 1.414, e_pass && s_pass),             // SE
+                (x.wrapping_sub(1), z + 1, 1.414, w_pass && n_pass),             // NW
+                (x + 1, z + 1, 1.414, e_pass && n_pass),                         // NE
+            ];
+
+            // Process cardinal neighbors
+            for (nx, nz, distance_mult) in cardinals {
                 if nx >= self.width || nz >= self.height {
                     continue;
                 }
-
                 let neighbor_idx = self.index(nx, nz);
                 let terrain_cost = self.costs[neighbor_idx];
-
-                // Skip blocked cells
                 if terrain_cost.is_infinite() {
                     continue;
                 }
-
-                // Calculate cost to reach neighbor through current cell
                 let new_cost = cost + terrain_cost * distance_mult;
+                if new_cost < integration[neighbor_idx] {
+                    integration[neighbor_idx] = new_cost;
+                    queue.push(Node {
+                        cost: new_cost,
+                        x: nx,
+                        z: nz,
+                    });
+                }
+            }
 
-                // Update if we found a better path
+            // Process diagonal neighbors (gated by adjacent cardinals)
+            for (nx, nz, distance_mult, passable) in diagonals {
+                if !passable || nx >= self.width || nz >= self.height {
+                    continue;
+                }
+                let neighbor_idx = self.index(nx, nz);
+                let terrain_cost = self.costs[neighbor_idx];
+                if terrain_cost.is_infinite() {
+                    continue;
+                }
+                let new_cost = cost + terrain_cost * distance_mult;
                 if new_cost < integration[neighbor_idx] {
                     integration[neighbor_idx] = new_cost;
                     queue.push(Node {
@@ -224,29 +252,48 @@ impl FlowField {
                 let mut best_direction = Vec3::ZERO;
                 let mut best_cost = integration[idx];
 
-                let neighbors = [
+                // Cardinal neighbors (always checked)
+                let cardinals = [
                     (x.wrapping_sub(1), z, Vec3::new(-1.0, 0.0, 0.0)), // West
                     (x + 1, z, Vec3::new(1.0, 0.0, 0.0)),              // East
                     (x, z.wrapping_sub(1), Vec3::new(0.0, 0.0, -1.0)), // South
                     (x, z + 1, Vec3::new(0.0, 0.0, 1.0)),              // North
-                    (
-                        x.wrapping_sub(1),
-                        z.wrapping_sub(1),
-                        Vec3::new(-1.0, 0.0, -1.0),
-                    ), // SW
-                    (x + 1, z.wrapping_sub(1), Vec3::new(1.0, 0.0, -1.0)), // SE
-                    (x.wrapping_sub(1), z + 1, Vec3::new(-1.0, 0.0, 1.0)), // NW
-                    (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0)),          // NE
                 ];
 
-                for (nx, nz, direction) in neighbors {
+                for (nx, nz, direction) in cardinals {
                     if nx >= self.width || nz >= self.height {
                         continue;
                     }
+                    let neighbor_cost = integration[self.index(nx, nz)];
+                    if neighbor_cost < best_cost {
+                        best_cost = neighbor_cost;
+                        best_direction = direction;
+                    }
+                }
 
-                    let neighbor_idx = self.index(nx, nz);
-                    let neighbor_cost = integration[neighbor_idx];
+                // Track which cardinals are passable for diagonal gating
+                let w_pass = x.wrapping_sub(1) < self.width
+                    && !self.costs[self.index(x.wrapping_sub(1), z)].is_infinite();
+                let e_pass =
+                    x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
+                let s_pass = z.wrapping_sub(1) < self.height
+                    && !self.costs[self.index(x, z.wrapping_sub(1))].is_infinite();
+                let n_pass =
+                    z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
 
+                // Diagonal neighbors: only consider if both adjacent cardinals are passable
+                let diag_neighbors = [
+                    (x.wrapping_sub(1), z.wrapping_sub(1), Vec3::new(-1.0, 0.0, -1.0), w_pass && s_pass), // SW
+                    (x + 1, z.wrapping_sub(1), Vec3::new(1.0, 0.0, -1.0), e_pass && s_pass),              // SE
+                    (x.wrapping_sub(1), z + 1, Vec3::new(-1.0, 0.0, 1.0), w_pass && n_pass),              // NW
+                    (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0), e_pass && n_pass),                           // NE
+                ];
+
+                for (nx, nz, direction, passable) in diag_neighbors {
+                    if !passable || nx >= self.width || nz >= self.height {
+                        continue;
+                    }
+                    let neighbor_cost = integration[self.index(nx, nz)];
                     if neighbor_cost < best_cost {
                         best_cost = neighbor_cost;
                         best_direction = direction;
@@ -259,17 +306,23 @@ impl FlowField {
         }
     }
 
-    /// Smooths the direction field using Line Integral Convolution.
+    /// Smooths directions near obstacles using Line Integral Convolution.
     ///
-    /// For each cell, traces a streamline forward and backward through the
-    /// vector field, averaging the directions along the path. This creates
-    /// coherent, organic flow that eliminates abrupt cell-to-cell changes.
+    /// Only applied to cells with elevated costs (near walls/hazards) where the
+    /// bilinear gradient fallback in `sample()` uses stored cell directions.
+    /// Open-terrain cells already get smooth directions from gradient interpolation.
     ///
-    /// Tracing stops at grid edges, blocked cells, or zero-direction cells,
-    /// preserving obstacle avoidance and satisfaction radius behavior.
+    /// For each eligible cell, traces a streamline forward and backward through
+    /// the vector field, averaging directions along the path. Tracing stops at
+    /// grid edges, blocked cells, or zero-direction cells.
     fn smooth_with_lic(&mut self) {
         const LIC_STEPS: usize = 3;
         const STEP_SIZE: f32 = 0.5;
+
+        // Skip entirely if no cells have elevated costs (no obstacles to smooth around).
+        if !self.costs.iter().any(|&c| c > 1.0 && !c.is_infinite()) {
+            return;
+        }
 
         let original_directions = self.directions.clone();
         let width = self.width;
@@ -281,6 +334,12 @@ impl FlowField {
 
                 // Skip blocked/unreachable/zero-direction cells
                 if self.costs[idx].is_infinite() || original_directions[idx] == Vec3::ZERO {
+                    continue;
+                }
+
+                // Only smooth near obstacles (elevated cost). Open-terrain cells
+                // (cost == 1.0) get smooth directions from gradient interpolation.
+                if self.costs[idx] <= 1.0 {
                     continue;
                 }
 
@@ -340,10 +399,20 @@ impl FlowField {
         self.directions[z as usize * self.width + x as usize]
     }
 
-    /// Samples the flow field at a world position using bilinear interpolation.
+    /// Returns the integration cost at a grid cell, or `f32::INFINITY` if out of bounds.
+    #[inline]
+    fn sample_integration_cost(&self, x: isize, z: isize) -> f32 {
+        if x < 0 || z < 0 || x >= self.width as isize || z >= self.height as isize {
+            return f32::INFINITY;
+        }
+        self.integration[z as usize * self.width + x as usize]
+    }
+
+    /// Samples the flow field at a world position using gradient-based interpolation.
     ///
-    /// Blends between the 4 surrounding cell directions for smooth transitions.
-    /// Falls back to nearest-cell lookup if any neighbor is zero (obstacle/boundary).
+    /// Computes the negative gradient of the bilinear integration cost surface for
+    /// smooth, continuous direction vectors. Falls back to the stored cell direction
+    /// when any surrounding cell has INFINITY cost (near obstacles/boundaries).
     pub fn sample(&self, world_pos: Vec3, world_min: Vec2, cell_size: f32) -> Vec3 {
         // Convert world position to continuous grid coordinates (cell centers at +0.5)
         let gx = (world_pos.x - world_min.x) / cell_size - 0.5;
@@ -354,39 +423,31 @@ impl FlowField {
         let x1 = x0 + 1;
         let z1 = z0 + 1;
 
-        let d00 = self.sample_cell(x0, z0);
-        let d10 = self.sample_cell(x1, z0);
-        let d01 = self.sample_cell(x0, z1);
-        let d11 = self.sample_cell(x1, z1);
+        // Get integration costs of surrounding cells
+        let c00 = self.sample_integration_cost(x0, z0);
+        let c10 = self.sample_integration_cost(x1, z0);
+        let c01 = self.sample_integration_cost(x0, z1);
+        let c11 = self.sample_integration_cost(x1, z1);
 
-        // If any neighbor is zero (obstacle/boundary), fall back to averaging the
-        // non-zero neighbors. This prevents units near walls from getting a zero
-        // direction when some of the 4 bilinear cells are blocked.
-        if d00 == Vec3::ZERO || d10 == Vec3::ZERO || d01 == Vec3::ZERO || d11 == Vec3::ZERO {
-            let mut sum = Vec3::ZERO;
-            let mut count = 0;
-            for d in [d00, d10, d01, d11] {
-                if d != Vec3::ZERO {
-                    sum += d;
-                    count += 1;
-                }
-            }
-            return if count > 0 {
-                (sum / count as f32).normalize_or_zero()
-            } else {
-                Vec3::ZERO
-            };
+        // If any cost is INFINITY (near obstacle/boundary), fall back to stored
+        // cell direction to avoid gradient artifacts pointing into walls
+        if c00.is_infinite() || c10.is_infinite() || c01.is_infinite() || c11.is_infinite() {
+            // Use the direction of the cell the unit is currently in
+            let cell_x = ((world_pos.x - world_min.x) / cell_size).floor() as isize;
+            let cell_z = ((world_pos.z - world_min.y) / cell_size).floor() as isize;
+            return self.sample_cell(cell_x, cell_z);
         }
 
-        // Bilinear interpolation weights
+        // Compute negative gradient of the bilinear integration cost surface.
+        // This gives a smooth, continuous direction that always points downhill
+        // toward the goal, eliminating cell-boundary discontinuities.
         let fx = gx - x0 as f32;
         let fz = gz - z0 as f32;
 
-        let lerp_x0 = d00 * (1.0 - fx) + d10 * fx;
-        let lerp_x1 = d01 * (1.0 - fx) + d11 * fx;
-        let blended = lerp_x0 * (1.0 - fz) + lerp_x1 * fz;
+        let dx = (1.0 - fz) * (c10 - c00) + fz * (c11 - c01);
+        let dz = (1.0 - fx) * (c01 - c00) + fx * (c11 - c10);
 
-        blended.normalize_or_zero()
+        Vec3::new(-dx, 0.0, -dz).normalize_or_zero()
     }
 
     /// Samples the pathfinding distance at a world position.

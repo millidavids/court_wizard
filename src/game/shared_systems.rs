@@ -744,52 +744,76 @@ pub fn suppress_targeting_through_walls(
     }
 }
 
-/// Applies a steering force to units approaching walls so they navigate around them.
+/// Applies a steering force to units approaching walls so they navigate around them,
+/// and a proximity-based repulsion force to push units away from nearby walls.
 pub fn apply_wall_avoidance(
     walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     mut units: Query<(&Transform, &Velocity, &mut Acceleration, &Hitbox), Without<Corpse>>,
 ) {
     const AVOIDANCE_DISTANCE: f32 = 80.0; // How far ahead units look for walls
     const AVOIDANCE_FORCE: f32 = 800.0; // Strength of the avoidance steering
+    const REPULSION_MARGIN: f32 = 15.0; // Extra distance around wall for repulsion zone
+    const REPULSION_FORCE_MAX: f32 = 600.0; // Maximum repulsion force at wall surface
 
     for (transform, velocity, mut acceleration, hitbox) in &mut units {
         let vel = Vec3::new(velocity.x, 0.0, velocity.z);
         let speed = vel.length();
-        if speed < 1.0 {
-            continue;
-        }
-        let vel_dir = vel / speed;
-
-        // Check if the unit's projected position will be inside a wall
-        let look_ahead = transform.translation + vel_dir * AVOIDANCE_DISTANCE;
 
         for wall in &walls {
-            // Check if look-ahead point is inside the wall
+            // --- Look-ahead avoidance (velocity-based) ---
+            if speed >= 1.0 {
+                let vel_dir = vel / speed;
+                let look_ahead = transform.translation + vel_dir * AVOIDANCE_DISTANCE;
+
+                let diff = Vec3::new(
+                    look_ahead.x - wall.center.x,
+                    0.0,
+                    look_ahead.z - wall.center.z,
+                );
+                let forward_proj = diff.dot(wall.forward);
+                let right_proj = diff.dot(wall.right);
+
+                let forward_pen = wall.half_length + hitbox.radius - forward_proj.abs();
+                let right_pen = wall.half_width + hitbox.radius - right_proj.abs();
+
+                if forward_pen > 0.0 && right_pen > 0.0 {
+                    let steer = if forward_pen < right_pen {
+                        wall.right * right_proj.signum()
+                    } else {
+                        wall.forward * forward_proj.signum()
+                    };
+                    let proximity =
+                        1.0 - (forward_pen.min(right_pen) / AVOIDANCE_DISTANCE).min(1.0);
+                    acceleration.add_force(steer * AVOIDANCE_FORCE * proximity);
+                }
+            }
+
+            // --- Proximity-based repulsion (position-based) ---
             let diff = Vec3::new(
-                look_ahead.x - wall.center.x,
+                transform.translation.x - wall.center.x,
                 0.0,
-                look_ahead.z - wall.center.z,
+                transform.translation.z - wall.center.z,
             );
             let forward_proj = diff.dot(wall.forward);
             let right_proj = diff.dot(wall.right);
 
-            let forward_pen = wall.half_length + hitbox.radius - forward_proj.abs();
-            let right_pen = wall.half_width + hitbox.radius - right_proj.abs();
+            let expanded_half_fwd = wall.half_length + hitbox.radius + REPULSION_MARGIN;
+            let expanded_half_right = wall.half_width + hitbox.radius + REPULSION_MARGIN;
 
-            if forward_pen > 0.0 && right_pen > 0.0 {
-                // Unit is heading into the wall — steer along the wall edge
-                // Choose the perpendicular direction that requires least deviation
-                let steer = if forward_pen < right_pen {
-                    // Closer to a forward edge — steer along the right axis
-                    wall.right * right_proj.signum()
+            let fwd_pen = expanded_half_fwd - forward_proj.abs();
+            let right_pen = expanded_half_right - right_proj.abs();
+
+            if fwd_pen > 0.0 && right_pen > 0.0 {
+                // Inside repulsion zone — push along the axis of least penetration
+                let (push_dir, penetration, margin) = if fwd_pen < right_pen {
+                    (wall.forward * forward_proj.signum(), fwd_pen, expanded_half_fwd)
                 } else {
-                    // Closer to a right edge — steer along the forward axis
-                    wall.forward * forward_proj.signum()
+                    (wall.right * right_proj.signum(), right_pen, expanded_half_right)
                 };
 
-                // Scale force by how close we are to the wall
-                let proximity = 1.0 - (forward_pen.min(right_pen) / AVOIDANCE_DISTANCE).min(1.0);
-                acceleration.add_force(steer * AVOIDANCE_FORCE * proximity);
+                // Linear falloff: strongest at wall surface, zero at margin edge
+                let strength = (penetration / margin).min(1.0);
+                acceleration.add_force(push_dir * REPULSION_FORCE_MAX * strength);
             }
         }
     }

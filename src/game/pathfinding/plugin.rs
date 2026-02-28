@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use super::debug::{self, FlowFieldDebugMode};
 use super::messages::ObstacleChanged;
 use super::resources::PathfindingGrid;
 use super::systems::*;
@@ -16,6 +17,8 @@ impl Plugin for PathfindingPlugin {
         app
             // Register message channels
             .add_message::<ObstacleChanged>()
+            // Debug visualization
+            .init_resource::<FlowFieldDebugMode>()
             // Note: initialize_pathfinding is now called via the loading spawn queue
             // Flow field management: only the host needs to generate/rebuild fields.
             // Gated by is_gameplay_running so they run for both SP and MP host.
@@ -45,11 +48,26 @@ impl Plugin for PathfindingPlugin {
             )
             .add_systems(
                 Update,
-                // Sample flow fields MUST run in VelocitySystemSet (before movement calculations)
-                // VelocitySystemSet is already gated by is_gameplay_running
-                sample_flow_fields
-                    .in_set(VelocitySystemSet)
-                    .run_if(resource_exists::<PathfindingGrid>),
+                (
+                    // Sample flow fields MUST run in VelocitySystemSet (before movement calculations)
+                    // VelocitySystemSet is already gated by is_gameplay_running
+                    sample_flow_fields.run_if(resource_exists::<PathfindingGrid>),
+                    // Auto-insert StuckDetection on new flow field entities
+                    init_stuck_detection,
+                    // Detect and recover stuck units
+                    detect_and_recover_stuck_units,
+                )
+                    .in_set(VelocitySystemSet),
+            )
+            // Debug visualization (F3 toggle + arrow rendering)
+            .add_systems(
+                Update,
+                (
+                    debug::toggle_flow_field_debug,
+                    debug::update_debug_visualization
+                        .run_if(resource_exists::<PathfindingGrid>),
+                )
+                    .run_if(is_gameplay_running),
             );
     }
 }

@@ -163,6 +163,20 @@ pub fn calculate_weighted_movement(
         targeting_weight = 0.1;
     }
 
+    // When pathfinding distance is much larger than straight-line distance to the
+    // target, a wall is likely between the unit and its target. Keep flow field
+    // weight high so units navigate around the wall instead of pushing into it.
+    if targeting_velocity.velocity.length_squared() > 0.001 {
+        let straight_line_distance = targeting_velocity.velocity.length();
+        if straight_line_distance > 1.0
+            && flow_field_velocity.pathfinding_distance > straight_line_distance * 2.0
+        {
+            flow_weight = flow_weight.max(0.7);
+            targeting_weight = targeting_weight.min(0.1);
+            flocking_weight = 1.0 - flow_weight - targeting_weight;
+        }
+    }
+
     // Combine three velocity sources with distance-based weighting
     let weighted_direction = (flow_field_velocity.velocity * flow_weight
         + flocking_velocity.velocity * flocking_weight

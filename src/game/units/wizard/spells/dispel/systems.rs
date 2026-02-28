@@ -5,7 +5,7 @@ use super::components::*;
 use super::constants;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleType, OBSTACLE_BUFFER};
+use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType, OBSTACLE_BUFFER};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::grease::components::GreaseZone;
@@ -346,6 +346,12 @@ pub(crate) fn despawn_spell_effect(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::new(obs_bounds[0], obs_bounds[1], obs_bounds[2], obs_bounds[3]),
             obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::obb_from_center(
+                wall.center,
+                wall.forward,
+                wall.half_length,
+                wall.half_width,
+            )),
         });
     }
 
@@ -367,6 +373,11 @@ pub(crate) fn despawn_spell_effect(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::new(min_x, min_y, max_x, max_y),
             obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::obb_from_wall(
+                effect.start,
+                effect.end,
+                effect.half_width + OBSTACLE_BUFFER,
+            )),
         });
     }
 
@@ -377,6 +388,7 @@ pub(crate) fn despawn_spell_effect(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
             obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
         });
     }
 
@@ -389,6 +401,7 @@ pub(crate) fn despawn_spell_effect(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
             obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
         });
     }
 
@@ -399,6 +412,7 @@ pub(crate) fn despawn_spell_effect(
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
             obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::circle(origin_2d, buffered)),
         });
     }
 
