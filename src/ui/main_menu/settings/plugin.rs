@@ -5,13 +5,13 @@ use bevy::prelude::*;
 use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
 
-use super::components::SliderAdjusted;
-use crate::ui::systems::escape_to_landing;
+use super::components::{ScrollableContainer, SliderAdjusted};
+use crate::ui::systems::{escape_to_landing, handle_scroll};
 
 use super::systems::{
-    button_hover, button_press, cleanup, handle_scroll, option_button_action,
-    settings_button_action, setup_main_menu, slider_button_action, slider_interaction,
-    update_selected_options, update_slider_text, update_sliders,
+    button_hover, button_press, cleanup, option_button_action, settings_button_action,
+    setup_main_menu, slider_button_action, slider_interaction, update_selected_options,
+    update_slider_text, update_sliders,
 };
 
 /// Plugin that manages the settings menu UI.
@@ -44,7 +44,7 @@ impl Plugin for SettingsPlugin {
                 Update,
                 (
                     escape_to_landing,
-                    handle_scroll,
+                    handle_scroll::<ScrollableContainer>,
                     button_hover,
                     button_press,
                     slider_interaction,

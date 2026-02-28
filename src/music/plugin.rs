@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::config::GameConfig;
+
 use super::resources::BackgroundMusicEntity;
 use super::systems;
 
@@ -25,7 +27,8 @@ impl Plugin for MusicPlugin {
                 (
                     systems::play_background_music
                         .run_if(not(any_with_component::<BackgroundMusicEntity>)),
-                    systems::sync_volume_from_config,
+                    systems::sync_volume_from_config
+                        .run_if(resource_changed::<GameConfig>),
                 ),
             );
     }

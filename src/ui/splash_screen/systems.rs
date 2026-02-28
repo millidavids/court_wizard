@@ -4,15 +4,40 @@ use crate::config::GameConfig;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::state::{AppState, SplashState};
 
-use super::components::{SplashEntity, SplashTimer, SplashTransition};
+use super::components::{SplashAssets, SplashEntity, SplashTimer, SplashTransition};
 use super::constants::*;
+
+// ---------------------------------------------------------------------------
+// Skip splash check — runs once on entering the Splash state
+// ---------------------------------------------------------------------------
+
+/// Checks the skip_splash config flag and immediately transitions to MainMenu
+/// if enabled, avoiding unnecessary entity spawning and teardown.
+pub(super) fn check_skip_splash(
+    game_config: Option<Res<GameConfig>>,
+    mut next_app: ResMut<NextState<AppState>>,
+) {
+    if game_config
+        .as_ref()
+        .is_some_and(|config| config.skip_splash)
+    {
+        next_app.set(AppState::MainMenu);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Setup systems — one per substate
 // ---------------------------------------------------------------------------
 
 /// Black substate: brief black screen to let the render pipeline warm up.
-pub(super) fn setup_black(mut commands: Commands) {
+/// Also preloads all splash screen images so they're ready when needed.
+pub(super) fn setup_black(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(SplashAssets {
+        rust_logo: asset_server.load(RUST_LOGO_PATH),
+        bevy_logo: asset_server.load(BEVY_LOGO_PATH),
+        studio_image: asset_server.load(STUDIO_IMAGE_PATH),
+    });
+
     commands.spawn((
         Node {
             width: Val::Percent(100.0),
@@ -28,7 +53,7 @@ pub(super) fn setup_black(mut commands: Commands) {
 }
 
 /// Language substate: Rust logo with gray circle background.
-pub(super) fn setup_language(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub(super) fn setup_language(mut commands: Commands, splash_assets: Res<SplashAssets>) {
     commands
         .spawn((
             Node {
@@ -61,7 +86,7 @@ pub(super) fn setup_language(mut commands: Commands, asset_server: Res<AssetServ
                 ))
                 .with_children(|circle| {
                     circle.spawn((
-                        ImageNode::new(asset_server.load(RUST_LOGO_PATH)),
+                        ImageNode::new(splash_assets.rust_logo.clone()),
                         Node {
                             width: Val::Px(RUST_LOGO_SIZE),
                             height: Val::Px(RUST_LOGO_SIZE),
@@ -73,7 +98,7 @@ pub(super) fn setup_language(mut commands: Commands, asset_server: Res<AssetServ
 }
 
 /// Engine substate: Bevy logo centered, no background.
-pub(super) fn setup_engine(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub(super) fn setup_engine(mut commands: Commands, splash_assets: Res<SplashAssets>) {
     commands
         .spawn((
             Node {
@@ -91,7 +116,7 @@ pub(super) fn setup_engine(mut commands: Commands, asset_server: Res<AssetServer
         ))
         .with_children(|parent| {
             parent.spawn((
-                ImageNode::new(asset_server.load(BEVY_LOGO_PATH)),
+                ImageNode::new(splash_assets.bevy_logo.clone()),
                 Node {
                     height: Val::Px(BEVY_LOGO_HEIGHT),
                     ..default()
@@ -101,7 +126,7 @@ pub(super) fn setup_engine(mut commands: Commands, asset_server: Res<AssetServer
 }
 
 /// Studio substate: studio branding text with faint background image.
-pub(super) fn setup_studio(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub(super) fn setup_studio(mut commands: Commands, splash_assets: Res<SplashAssets>) {
     commands
         .spawn((
             Node {
@@ -131,7 +156,7 @@ pub(super) fn setup_studio(mut commands: Commands, asset_server: Res<AssetServer
                 })
                 .with_children(|wrapper| {
                     wrapper.spawn((
-                        ImageNode::new(asset_server.load(STUDIO_IMAGE_PATH))
+                        ImageNode::new(splash_assets.studio_image.clone())
                             .with_color(Color::srgba(1.0, 1.0, 1.0, STUDIO_IMAGE_MAX_OPACITY)),
                         Node {
                             height: Val::Percent(100.0),
@@ -165,17 +190,7 @@ pub(super) fn tick(
     mut next_splash: ResMut<NextState<SplashState>>,
     mut next_app: ResMut<NextState<AppState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
-    game_config: Option<Res<GameConfig>>,
 ) {
-    // Skip entire splash sequence if configured
-    if game_config
-        .as_ref()
-        .is_some_and(|config| config.skip_splash)
-    {
-        next_app.set(AppState::MainMenu);
-        return;
-    }
-
     for (mut timer, transition) in &mut splash_query {
         timer.elapsed += time.delta_secs();
 
@@ -198,4 +213,9 @@ pub(super) fn cleanup_substate(mut commands: Commands, query: Query<Entity, With
     for entity in &query {
         commands.entity(entity).despawn();
     }
+}
+
+/// Removes the preloaded splash assets when leaving the splash state entirely.
+pub(super) fn cleanup_assets(mut commands: Commands) {
+    commands.remove_resource::<SplashAssets>();
 }

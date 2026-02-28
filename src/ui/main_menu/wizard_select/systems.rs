@@ -1,6 +1,5 @@
 //! Wizard select screen systems.
 
-use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::config::save_data::{self, load_unified_save};
@@ -263,12 +262,3 @@ pub(super) fn button_action(
     }
 }
 
-/// Handles keyboard input in the wizard select screen.
-pub(super) fn keyboard_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_menu_state: ResMut<NextState<MenuState>>,
-) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_menu_state.set(MenuState::Landing);
-    }
-}

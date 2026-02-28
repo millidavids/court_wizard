@@ -15,6 +15,17 @@ pub(super) enum SplashTransition {
     MainMenu,
 }
 
+/// Preloaded image handles for all splash screens.
+///
+/// Inserted during the Black substate so assets begin loading immediately
+/// and are ready by the time each splash screen is displayed.
+#[derive(Resource)]
+pub(super) struct SplashAssets {
+    pub rust_logo: Handle<Image>,
+    pub bevy_logo: Handle<Image>,
+    pub studio_image: Handle<Image>,
+}
+
 /// Tracks how long a splash screen has been displayed.
 #[derive(Component)]
 pub(super) struct SplashTimer {

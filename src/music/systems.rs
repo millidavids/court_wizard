@@ -52,50 +52,23 @@ pub(super) fn play_background_music(
 
 /// Syncs volume from GameConfig to Bevy's audio system.
 ///
-/// Monitors the GameConfig resource and updates audio volumes whenever settings change.
+/// Gated by `resource_changed::<GameConfig>` run condition so this only
+/// executes when GameConfig actually changes, not every frame.
+///
 /// Each channel's effective volume is its own slider multiplied by the master volume:
 /// - Music effective volume = master_volume * music_volume
 /// - SFX effective volume = master_volume * sfx_volume (when SFX is implemented)
-///
-/// Also handles initial volume setup when GameConfig first becomes available.
-/// This allows the settings UI to control volumes in real-time.
 pub(super) fn sync_volume_from_config(
-    game_config: Option<Res<GameConfig>>,
+    game_config: Res<GameConfig>,
     mut music_query: Query<&mut AudioSink, With<BackgroundMusicEntity>>,
-    mut last_synced: Local<Option<(f32, f32)>>,
 ) {
-    // Wait for game config to be loaded
-    let Some(game_config) = game_config else {
-        return;
-    };
-
-    let current_volumes = (game_config.master_volume, game_config.music_volume);
-
-    // Check if volumes actually changed since last sync
-    // This prevents unnecessary updates during state transitions
-    let volumes_changed = match *last_synced {
-        Some((last_master, last_music)) => {
-            (last_master - current_volumes.0).abs() > 0.001
-                || (last_music - current_volumes.1).abs() > 0.001
-        }
-        None => true, // First run, always sync
-    };
-
-    if !volumes_changed {
-        return;
-    }
-
-    // Update music volume (master * music channel)
-    let effective_music = current_volumes.0 * current_volumes.1;
+    let effective_music = game_config.master_volume * game_config.music_volume;
     for mut sink in &mut music_query {
         sink.set_volume(Volume::Linear(effective_music));
     }
 
-    // Cache the values we just applied
-    *last_synced = Some(current_volumes);
-
-    info!(
+    debug!(
         "Audio volumes synced: master={:.2}, music={:.2} (effective={:.2})",
-        current_volumes.0, current_volumes.1, effective_music
+        game_config.master_volume, game_config.music_volume, effective_music
     );
 }

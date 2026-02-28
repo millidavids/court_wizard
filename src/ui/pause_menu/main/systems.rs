@@ -1,6 +1,5 @@
 //! Pause menu main screen systems.
 
-use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::config::ActiveSave;
@@ -134,14 +133,3 @@ pub fn button_action(
     }
 }
 
-/// Handles keyboard input in the pause menu.
-///
-/// - Escape: Resume game (same as Continue button)
-pub fn keyboard_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
-) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_in_game_state.set(InGameState::Running);
-    }
-}

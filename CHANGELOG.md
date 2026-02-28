@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.26] - 2026-02-28
+
+### Added
+- **CRT channel change effect** when pressing Escape to go back to the main menu from Settings, Progress, Changelog, and Instructions
+
+### Fixed
+- Splash screen images (Rust logo, Bevy logo, studio art) no longer pop in late — they now preload during the initial black screen so they appear instantly
+- Volume no longer spams log messages when adjusting the slider
+
 ## [v0.3.21] - 2026-02-28
 
 ### Added

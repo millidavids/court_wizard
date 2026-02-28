@@ -1,6 +1,5 @@
 //! Landing screen systems.
 
-use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::game::crt_effect::ChannelChangeMessage;
@@ -132,9 +131,3 @@ pub fn button_action(
     }
 }
 
-/// Handles keyboard input in the landing screen.
-pub fn keyboard_input(keyboard: Res<ButtonInput<KeyCode>>) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        // Do nothing - already at top level
-    }
-}

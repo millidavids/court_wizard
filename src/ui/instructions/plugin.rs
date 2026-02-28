@@ -7,10 +7,10 @@ use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::plugin::ButtonActionSet;
 
-use crate::ui::systems::{escape_to_landing, escape_to_pause_main};
+use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
 
-use super::components::BackButton;
-use super::systems::{cleanup, handle_scroll, setup_main_menu, setup_pause_menu};
+use super::components::{BackButton, ScrollableInstructionsContainer};
+use super::systems::{cleanup, setup_main_menu, setup_pause_menu};
 
 /// Plugin that manages the instructions screen UI for the main menu.
 #[derive(Default)]
@@ -28,7 +28,7 @@ impl Plugin for MainMenuInstructionsPlugin {
             )
             .add_systems(
                 Update,
-                (handle_scroll, escape_to_landing)
+                (handle_scroll::<ScrollableInstructionsContainer>, escape_to_landing)
                     .run_if(in_state(MenuState::Instructions)),
             );
     }
@@ -50,7 +50,7 @@ impl Plugin for PauseMenuInstructionsPlugin {
             )
             .add_systems(
                 Update,
-                (handle_scroll, escape_to_pause_main)
+                (handle_scroll::<ScrollableInstructionsContainer>, escape_to_pause_main)
                     .run_if(in_state(PauseMenuState::Instructions)),
             );
     }

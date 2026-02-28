@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::{consume_mouse_on_exit, escape_to_running, handle_scroll};
 
+use super::components::ScrollableSpellList;
 use super::systems;
 
 /// Plugin that handles the spell book UI.
@@ -25,7 +27,7 @@ impl Plugin for SpellBookPlugin {
                 OnExit(InGameState::SpellBook),
                 (
                     systems::despawn_spell_book_ui,
-                    systems::consume_mouse_on_exit,
+                    consume_mouse_on_exit,
                     systems::show_concentration_ui,
                 ),
             )
@@ -43,7 +45,7 @@ impl Plugin for SpellBookPlugin {
                 OnExit(MultiplayerGameState::SpellBook),
                 (
                     systems::despawn_spell_book_ui,
-                    systems::consume_mouse_on_exit,
+                    consume_mouse_on_exit,
                     systems::show_concentration_ui,
                 ),
             )
@@ -53,8 +55,8 @@ impl Plugin for SpellBookPlugin {
                 (
                     systems::button_action.in_set(ButtonActionSet),
                     systems::handle_hotkey_click.in_set(ButtonActionSet),
-                    systems::keyboard_input,
-                    systems::handle_spell_scroll,
+                    escape_to_running,
+                    handle_scroll::<ScrollableSpellList>,
                     systems::handle_number_key_assignment,
                     systems::update_detail_panel,
                 )

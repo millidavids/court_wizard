@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::escape_to_landing;
 
 use super::systems;
 
@@ -23,7 +24,7 @@ impl Plugin for WizardSelectPlugin {
             )
             .add_systems(
                 Update,
-                systems::keyboard_input.run_if(in_state(MenuState::WizardSelect)),
+                escape_to_landing.run_if(in_state(MenuState::WizardSelect)),
             );
     }
 }

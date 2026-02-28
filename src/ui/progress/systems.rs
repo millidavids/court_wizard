@@ -1,9 +1,6 @@
 //! Systems for progress screen.
 
-use bevy::ecs::relationship::Relationship;
-use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
-use bevy::ui::ComputedNode;
 
 use crate::config::WizardType;
 use crate::config::save_data::{
@@ -714,38 +711,6 @@ pub(super) fn setup_pause_menu(commands: Commands) {
     setup(commands, true);
 }
 
-/// Updates button colors on hover using each button's stored ButtonColors.
-pub(super) fn update_button_colors(
-    mut button_query: Query<
-        (
-            &Interaction,
-            &crate::ui::components::ButtonColors,
-            &mut BackgroundColor,
-            &mut BorderColor,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    use crate::ui::styles::{item_hovered, item_pressed};
-
-    for (interaction, colors, mut bg_color, mut border_color) in &mut button_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = item_pressed(colors.background).into();
-                *border_color = BorderColor::all(item_pressed(colors.border));
-            }
-            Interaction::Hovered => {
-                *bg_color = item_hovered(colors.background).into();
-                *border_color = BorderColor::all(item_hovered(colors.border));
-            }
-            Interaction::None => {
-                *bg_color = colors.background.into();
-                *border_color = BorderColor::all(colors.border);
-            }
-        }
-    }
-}
-
 /// Despawns all progress screen entities.
 pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<OnProgressScreen>>) {
     for entity in &query {
@@ -753,48 +718,3 @@ pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<OnProgre
     }
 }
 
-/// Handles mouse wheel scrolling for the progress container.
-pub(super) fn handle_scroll(
-    mut mouse_wheel_events: MessageReader<MouseWheel>,
-    hover_map: Res<bevy::picking::hover::HoverMap>,
-    mut scrollable_query: Query<
-        (&mut ScrollPosition, &ComputedNode),
-        With<ScrollableProgressContainer>,
-    >,
-    parent_query: Query<&ChildOf>,
-) {
-    const LINE_HEIGHT: f32 = 10.0;
-    const PIXEL_SCROLL_MULTIPLIER: f32 = 0.3;
-
-    for event in mouse_wheel_events.read() {
-        let dy = match event.unit {
-            bevy::input::mouse::MouseScrollUnit::Line => -event.y * LINE_HEIGHT,
-            bevy::input::mouse::MouseScrollUnit::Pixel => -event.y * PIXEL_SCROLL_MULTIPLIER,
-        };
-
-        for pointer_map in hover_map.values() {
-            for (hovered_entity, _) in pointer_map.iter() {
-                let mut current_entity = *hovered_entity;
-                loop {
-                    if let Ok((mut scroll_position, computed)) =
-                        scrollable_query.get_mut(current_entity)
-                    {
-                        let visible_size = computed.size();
-                        let content_size = computed.content_size();
-                        let max_scroll = (content_size.y - visible_size.y).max(0.0)
-                            * computed.inverse_scale_factor();
-
-                        scroll_position.y = (scroll_position.y + dy).clamp(0.0, max_scroll);
-                        break;
-                    }
-
-                    if let Ok(parent) = parent_query.get(current_entity) {
-                        current_entity = parent.get();
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}

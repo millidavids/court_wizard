@@ -60,7 +60,7 @@ pub(super) enum StudyButtonAction {
 
 /// Scrollable container for the spell research grid.
 #[derive(Component)]
-pub(super) struct ScrollableResearchContainer;
+pub struct ScrollableResearchContainer;
 
 /// Pending Insight allocation display in study header.
 #[derive(Component)]

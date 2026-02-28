@@ -19,7 +19,7 @@ pub(super) struct OnSpellBookScreen;
 
 /// Marker for the vertically scrollable spell list container.
 #[derive(Component)]
-pub(super) struct ScrollableSpellList;
+pub struct ScrollableSpellList;
 
 /// Tracks which spell is currently shown in the detail panel.
 #[derive(Resource)]

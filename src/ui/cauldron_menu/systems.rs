@@ -6,7 +6,6 @@ use crate::config::save_data::load_unified_save;
 use crate::game::cauldron::brews::{BrewEffect, Ingredient, Recipe};
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
-use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseClicked;
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
@@ -315,16 +314,6 @@ pub(super) fn button_action(
     }
 }
 
-/// Handles keyboard input (ESC to close).
-pub(super) fn keyboard_input(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut next_in_game_state: ResMut<NextState<InGameState>>,
-) {
-    if keys.just_pressed(KeyCode::Escape) {
-        next_in_game_state.set(InGameState::Running);
-    }
-}
-
 /// Despawns cauldron menu UI when exiting the CauldronMenu state.
 pub(super) fn despawn_cauldron_menu_ui(
     mut commands: Commands,
@@ -335,7 +324,3 @@ pub(super) fn despawn_cauldron_menu_ui(
     }
 }
 
-/// Consumes the mouse button when exiting cauldron menu to prevent click bleed-through.
-pub(super) fn consume_mouse_on_exit(mut mouse_state: ResMut<MouseButtonState>) {
-    mouse_state.left_consumed = true;
-}

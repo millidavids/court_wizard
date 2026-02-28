@@ -11,13 +11,13 @@ use crate::ui::plugin::ButtonActionSet;
 
 use super::components::{
     BackButton, CancelClearButton, ClearProgressButton, ConfirmClearButton, ConfirmationPopup,
+    ScrollableProgressContainer,
 };
-use crate::ui::systems::{escape_to_landing, escape_to_pause_main};
+use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
 
 use super::systems::{
     cleanup, clear_and_refresh_main_menu, clear_and_refresh_pause_menu, handle_clear_progress,
-    handle_scroll, setup_main_menu, setup_pause_menu, spawn_confirmation_popup,
-    update_button_colors,
+    setup_main_menu, setup_pause_menu, spawn_confirmation_popup,
 };
 
 /// Plugin that manages the progress screen UI for the main menu.
@@ -32,17 +32,16 @@ impl Plugin for MainMenuProgressPlugin {
                 Update,
                 (
                     handle_main_menu_back_button,
-                    handle_main_menu_clear_progress,
-                    handle_main_menu_confirm_clear,
-                    handle_main_menu_cancel_clear,
-                    update_button_colors,
+                    handle_clear_progress_button,
+                    handle_confirm_clear,
+                    handle_cancel_clear,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Progress)),
             )
             .add_systems(
                 Update,
-                (handle_scroll, escape_to_landing)
+                (handle_scroll::<ScrollableProgressContainer>, escape_to_landing)
                     .run_if(in_state(MenuState::Progress)),
             )
             .add_systems(
@@ -66,17 +65,16 @@ impl Plugin for PauseMenuProgressPlugin {
                 Update,
                 (
                     handle_pause_menu_back_button,
-                    handle_pause_menu_clear_progress,
-                    handle_pause_menu_confirm_clear,
-                    handle_pause_menu_cancel_clear,
-                    update_button_colors,
+                    handle_clear_progress_button,
+                    handle_confirm_clear,
+                    handle_cancel_clear,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(PauseMenuState::Progress)),
             )
             .add_systems(
                 Update,
-                (handle_scroll, escape_to_pause_main)
+                (handle_scroll::<ScrollableProgressContainer>, escape_to_pause_main)
                     .run_if(in_state(PauseMenuState::Progress)),
             )
             .add_systems(
@@ -116,8 +114,8 @@ fn handle_pause_menu_back_button(
     }
 }
 
-/// Handles clear progress button from main menu — shows confirmation popup.
-fn handle_main_menu_clear_progress(
+/// Handles the clear progress button — shows confirmation popup.
+fn handle_clear_progress_button(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&ClearProgressButton>,
@@ -129,8 +127,8 @@ fn handle_main_menu_clear_progress(
     }
 }
 
-/// Handles confirm button in popup from main menu — clears save data and writes message.
-fn handle_main_menu_confirm_clear(
+/// Handles the confirm button — clears save data and writes message.
+fn handle_confirm_clear(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&ConfirmClearButton>,
@@ -141,7 +139,6 @@ fn handle_main_menu_confirm_clear(
         if button_query.get(event.button).is_ok() {
             handle_clear_progress();
             clear_msg.write(ClearProgressMessage);
-            // Despawn popup
             for entity in &popup_query {
                 commands.entity(entity).despawn();
             }
@@ -149,8 +146,8 @@ fn handle_main_menu_confirm_clear(
     }
 }
 
-/// Handles cancel button in popup from main menu — just closes the popup.
-fn handle_main_menu_cancel_clear(
+/// Handles the cancel button — closes the popup.
+fn handle_cancel_clear(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&CancelClearButton>,
@@ -158,57 +155,6 @@ fn handle_main_menu_cancel_clear(
 ) {
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
-            // Despawn popup
-            for entity in &popup_query {
-                commands.entity(entity).despawn();
-            }
-        }
-    }
-}
-
-/// Handles clear progress button from pause menu — shows confirmation popup.
-fn handle_pause_menu_clear_progress(
-    mut commands: Commands,
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&ClearProgressButton>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            spawn_confirmation_popup(&mut commands);
-        }
-    }
-}
-
-/// Handles confirm button in popup from pause menu — clears save data and writes message.
-fn handle_pause_menu_confirm_clear(
-    mut commands: Commands,
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&ConfirmClearButton>,
-    popup_query: Query<Entity, With<ConfirmationPopup>>,
-    mut clear_msg: MessageWriter<ClearProgressMessage>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            handle_clear_progress();
-            clear_msg.write(ClearProgressMessage);
-            // Despawn popup
-            for entity in &popup_query {
-                commands.entity(entity).despawn();
-            }
-        }
-    }
-}
-
-/// Handles cancel button in popup from pause menu — just closes the popup.
-fn handle_pause_menu_cancel_clear(
-    mut commands: Commands,
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&CancelClearButton>,
-    popup_query: Query<Entity, With<ConfirmationPopup>>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            // Despawn popup
             for entity in &popup_query {
                 commands.entity(entity).despawn();
             }

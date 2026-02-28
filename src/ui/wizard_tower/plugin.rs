@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::handle_scroll;
 
+use super::components::ScrollableResearchContainer;
 use super::systems::*;
 
 pub struct WizardTowerPlugin;
@@ -34,7 +36,7 @@ impl Plugin for WizardTowerPlugin {
                 Update,
                 (
                     handle_allocation_slider_interaction,
-                    handle_study_scroll,
+                    handle_scroll::<ScrollableResearchContainer>,
                     update_allocation_sliders,
                     update_allocation_text,
                     update_pending_insight_display,

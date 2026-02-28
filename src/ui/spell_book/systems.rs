@@ -1,13 +1,10 @@
 use bevy::ecs::relationship::Relationship;
-use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
-use bevy::ui::ComputedNode;
 
 use super::components::*;
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::config::save_data::load_unified_save;
-use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{Spell, SpellCategory};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
@@ -547,64 +544,6 @@ pub(super) fn handle_number_key_assignment(
     }
 }
 
-/// Handles mouse wheel scrolling for the spell list.
-pub(super) fn handle_spell_scroll(
-    mut mouse_wheel_events: MessageReader<MouseWheel>,
-    hover_map: Res<bevy::picking::hover::HoverMap>,
-    mut scrollable_query: Query<(&mut ScrollPosition, &ComputedNode), With<ScrollableSpellList>>,
-    parent_query: Query<&ChildOf>,
-) {
-    const LINE_HEIGHT: f32 = 30.0;
-    const PIXEL_SCROLL_MULTIPLIER: f32 = 0.3;
-
-    for event in mouse_wheel_events.read() {
-        let dy = match event.unit {
-            bevy::input::mouse::MouseScrollUnit::Line => -event.y * LINE_HEIGHT,
-            bevy::input::mouse::MouseScrollUnit::Pixel => -event.y * PIXEL_SCROLL_MULTIPLIER,
-        };
-
-        for pointer_map in hover_map.values() {
-            for (hovered_entity, _) in pointer_map.iter() {
-                let mut current_entity = *hovered_entity;
-                loop {
-                    if let Ok((mut scroll_position, computed)) =
-                        scrollable_query.get_mut(current_entity)
-                    {
-                        let visible_size = computed.size();
-                        let content_size = computed.content_size();
-                        let max_scroll = (content_size.y - visible_size.y).max(0.0)
-                            * computed.inverse_scale_factor();
-
-                        scroll_position.y = (scroll_position.y + dy).clamp(0.0, max_scroll);
-                        break;
-                    }
-
-                    match parent_query.get(current_entity) {
-                        Ok(parent) => current_entity = parent.get(),
-                        Err(_) => break,
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Handles keyboard input (ESC to close).
-pub(super) fn keyboard_input(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
-    mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
-) {
-    if keys.just_pressed(KeyCode::Escape) {
-        if let Some(ref mut next_sp) = next_in_game_state {
-            next_sp.set(InGameState::Running);
-        }
-        if let Some(ref mut next_mp) = next_mp_state {
-            next_mp.set(MultiplayerGameState::Running);
-        }
-    }
-}
-
 /// Despawns spell book UI when exiting the SpellBook state.
 pub(super) fn despawn_spell_book_ui(
     mut commands: Commands,
@@ -614,11 +553,6 @@ pub(super) fn despawn_spell_book_ui(
         commands.entity(entity).despawn();
     }
     commands.remove_resource::<SelectedSpellPreview>();
-}
-
-/// Consumes the mouse button when exiting spell book to prevent click bleed-through.
-pub(super) fn consume_mouse_on_exit(mut mouse_state: ResMut<MouseButtonState>) {
-    mouse_state.left_consumed = true;
 }
 
 /// Sets the flag when entering spell book to prevent spell casting.

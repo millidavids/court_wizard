@@ -1,7 +1,6 @@
-use bevy::ecs::relationship::Relationship;
-use bevy::input::mouse::{MouseButton, MouseWheel};
+use bevy::input::mouse::MouseButton;
 use bevy::prelude::*;
-use bevy::ui::{ComputedNode, RelativeCursorPosition};
+use bevy::ui::RelativeCursorPosition;
 
 use crate::config::ActiveSave;
 use crate::config::save_data::{
@@ -1221,55 +1220,6 @@ pub(super) fn update_pending_insight_display(
     let total = allocation.total_allocated();
     for mut text in &mut texts {
         text.0 = format!("Pending: {}", total);
-    }
-}
-
-// ===========================================================================
-// Scroll system (study screen)
-// ===========================================================================
-
-/// Handles mouse wheel scrolling for the research container.
-pub(super) fn handle_study_scroll(
-    mut mouse_wheel_events: MessageReader<MouseWheel>,
-    hover_map: Res<bevy::picking::hover::HoverMap>,
-    mut scrollable_query: Query<
-        (&mut ScrollPosition, &ComputedNode),
-        With<ScrollableResearchContainer>,
-    >,
-    parent_query: Query<&ChildOf>,
-) {
-    const LINE_HEIGHT: f32 = 20.0;
-    const PIXEL_SCROLL_MULTIPLIER: f32 = 0.3;
-
-    for event in mouse_wheel_events.read() {
-        let dy = match event.unit {
-            bevy::input::mouse::MouseScrollUnit::Line => -event.y * LINE_HEIGHT,
-            bevy::input::mouse::MouseScrollUnit::Pixel => -event.y * PIXEL_SCROLL_MULTIPLIER,
-        };
-
-        for pointer_map in hover_map.values() {
-            for (hovered_entity, _) in pointer_map.iter() {
-                let mut current_entity = *hovered_entity;
-                loop {
-                    if let Ok((mut scroll_position, computed)) =
-                        scrollable_query.get_mut(current_entity)
-                    {
-                        let visible_size = computed.size();
-                        let content_size = computed.content_size();
-                        let max_scroll = (content_size.y - visible_size.y).max(0.0)
-                            * computed.inverse_scale_factor();
-
-                        scroll_position.y = (scroll_position.y + dy).clamp(0.0, max_scroll);
-                        break;
-                    }
-
-                    match parent_query.get(current_entity) {
-                        Ok(parent) => current_entity = parent.get(),
-                        Err(_) => break,
-                    }
-                }
-            }
-        }
     }
 }
 

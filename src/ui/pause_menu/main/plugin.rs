@@ -4,8 +4,9 @@ use bevy::prelude::*;
 
 use crate::state::PauseMenuState;
 use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::escape_to_running;
 
-use super::systems::{button_action, cleanup, keyboard_input, setup};
+use super::systems::{button_action, cleanup, setup};
 
 /// Plugin that manages the pause menu main screen UI.
 ///
@@ -28,7 +29,7 @@ impl Plugin for PauseMainPlugin {
             )
             .add_systems(
                 Update,
-                keyboard_input.run_if(in_state(PauseMenuState::Main)),
+                escape_to_running.run_if(in_state(PauseMenuState::Main)),
             );
     }
 }

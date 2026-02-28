@@ -2,10 +2,11 @@
 
 use bevy::prelude::*;
 
+use super::components::ScrollableChangelogContainer;
 use super::systems;
 use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
-use crate::ui::systems::escape_to_landing;
+use crate::ui::systems::{escape_to_landing, handle_scroll};
 
 /// Plugin that handles the changelog screen.
 pub struct ChangelogPlugin;
@@ -21,7 +22,7 @@ impl Plugin for ChangelogPlugin {
             )
             .add_systems(
                 Update,
-                (systems::handle_scroll, escape_to_landing)
+                (handle_scroll::<ScrollableChangelogContainer>, escape_to_landing)
                     .run_if(in_state(MenuState::Changelog)),
             )
             .add_systems(OnExit(MenuState::Changelog), systems::cleanup);

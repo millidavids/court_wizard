@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::InGameState;
 use crate::ui::plugin::ButtonActionSet;
+use crate::ui::systems::{consume_mouse_on_exit, escape_to_running};
 
 use super::components::IngredientSelection;
 use super::systems;
@@ -20,14 +21,14 @@ impl Plugin for CauldronMenuPlugin {
                 OnExit(InGameState::CauldronMenu),
                 (
                     systems::despawn_cauldron_menu_ui,
-                    systems::consume_mouse_on_exit,
+                    consume_mouse_on_exit,
                 ),
             )
             .add_systems(
                 Update,
                 (
                     systems::button_action.in_set(ButtonActionSet),
-                    systems::keyboard_input,
+                    escape_to_running,
                     systems::respawn_menu_on_toggle,
                 )
                     .run_if(in_state(InGameState::CauldronMenu)),
