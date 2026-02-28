@@ -91,6 +91,22 @@ impl BlackHole {
     }
 }
 
+/// Billboard ring that surrounds the black hole (or accretion disk).
+#[derive(Component)]
+pub(super) struct BlackHoleRing {
+    /// The parent black hole entity this ring follows.
+    pub black_hole_entity: Entity,
+    /// If true, this ring orbits the accretion disk instead of the billboard.
+    pub is_accretion: bool,
+}
+
+/// Flat accretion disk rendered in the XZ plane with a slight tilt.
+#[derive(Component)]
+pub(super) struct BlackHoleAccretionDisk {
+    /// The parent black hole entity this disk follows.
+    pub black_hole_entity: Entity,
+}
+
 /// Component tracking how long a unit has been inside the black hole.
 #[derive(Component)]
 pub(super) struct UnitInBlackHole {

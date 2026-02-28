@@ -38,8 +38,8 @@ pub struct CrtEffectSettings {
     pub channel_change: f32,
     /// Elapsed time for the channel-change animation.
     pub channel_change_time: f32,
-    /// Padding for 16-byte GPU alignment.
-    pub _padding1: f32,
+    /// Desaturation intensity (0.0 = full color, 1.0 = fully greyscale).
+    pub desaturation: f32,
     /// Padding for 16-byte GPU alignment.
     pub _padding2: f32,
 }
@@ -61,7 +61,7 @@ impl Default for CrtEffectSettings {
             time: 0.0,
             channel_change: 0.0,
             channel_change_time: 0.0,
-            _padding1: 0.0,
+            desaturation: 0.0,
             _padding2: 0.0,
         }
     }
@@ -76,6 +76,33 @@ pub(crate) struct ChannelChangeTimer {
 }
 
 impl ChannelChangeTimer {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            elapsed: 0.0,
+            duration,
+        }
+    }
+
+    /// Returns the current intensity (0→1→0) using a sine curve.
+    pub fn intensity(&self) -> f32 {
+        let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
+        (t * std::f32::consts::PI).sin()
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.elapsed >= self.duration
+    }
+}
+
+/// Timer resource that drives the screen desaturation animation.
+/// Inserted when a `ScreenDesaturateMessage` is received, removed when finished.
+#[derive(Resource)]
+pub(crate) struct DesaturationTimer {
+    pub elapsed: f32,
+    pub duration: f32,
+}
+
+impl DesaturationTimer {
     pub fn new(duration: f32) -> Self {
         Self {
             elapsed: 0.0,

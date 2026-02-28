@@ -19,12 +19,10 @@ use super::grease::GreasePlugin;
 use super::guardian_circle::GuardianCirclePlugin;
 use super::haste::HastePlugin;
 use super::healing_plume::HealingPlumePlugin;
-use super::hypnotic_pattern::HypnoticPatternPlugin;
 use super::lightning_rod::LightningRodPlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::mark_of_death::MarkOfDeathPlugin;
 use super::meteor_fall::MeteorFallPlugin;
-use super::phantasmal_force::PhantasmalForcePlugin;
 use super::plague_wind::PlagueWindPlugin;
 use super::polymorph::PolymorphPlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
@@ -70,13 +68,11 @@ impl Plugin for SpellsPlugin {
                 BerserkerRagePlugin,
                 FogCloudPlugin,
                 MarkOfDeathPlugin,
-                HypnoticPatternPlugin,
                 SleepPlugin,
             ))
             .add_plugins((
                 GreasePlugin,
                 PlagueWindPlugin,
-                PhantasmalForcePlugin,
                 MeteorFallPlugin,
                 BanishmentPlugin,
                 PolymorphPlugin,

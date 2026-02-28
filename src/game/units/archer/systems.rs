@@ -16,7 +16,7 @@ use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
     EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier,
-    HasteModifier, Health, Hitbox, MesmerizedModifier, MovementSpeed, PolymorphedModifier,
+    HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
     RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -65,7 +65,6 @@ pub fn archer_melee_combat(
             &Team,
             &mut AttackTiming,
             &Effectiveness,
-            Option<&MesmerizedModifier>,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
         ),
@@ -90,13 +89,12 @@ pub fn archer_melee_combat(
         archer_team,
         mut attack_timing,
         effectiveness,
-        mesmerized,
         sleeping,
         banished,
     ) in &mut archers
     {
-        // Skip attack if mesmerized, sleeping, or banished
-        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        // Skip attack if sleeping or banished
+        if sleeping.is_some() || banished.is_some() {
             continue;
         }
 
@@ -149,7 +147,6 @@ pub fn archer_ranged_combat(
             &AttackRange,
             &mut AttackTiming,
             &mut ArcherMovementTimer,
-            Option<&MesmerizedModifier>,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
         ),
@@ -175,13 +172,12 @@ pub fn archer_ranged_combat(
         attack_range,
         _attack_timing,
         mut movement_timer,
-        mesmerized,
         sleeping,
         banished,
     ) in archers.iter_mut()
     {
-        // Skip attack if mesmerized, sleeping, or banished
-        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        // Skip attack if sleeping or banished
+        if sleeping.is_some() || banished.is_some() {
             continue;
         }
 
@@ -521,7 +517,6 @@ pub fn archer_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -545,11 +540,11 @@ pub fn archer_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, polymorphed),
+        (sleeping, banished, grease, polymorphed),
     ) in &mut archer_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

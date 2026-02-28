@@ -8,6 +8,8 @@ use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
+use super::black_hole::constants::TORUS_MINOR_RADIUS;
+
 /// Pre-allocated meshes and materials for all spell visuals.
 ///
 /// Initialized once at startup. Local spell spawn functions and multiplayer
@@ -23,6 +25,8 @@ pub struct SpellVisualAssets {
     pub cross_plane_sphere: Handle<Mesh>,
     /// 2-plane cross cylinder (2 quads along Y axis, double-sided). Low-poly cylinder for beams.
     pub cross_plane_cylinder: Handle<Mesh>,
+    /// Low-resolution torus (unit-scale) for black hole rings.
+    pub black_hole_torus: Handle<Mesh>,
 
     // ── Zone materials (semi-transparent ground circles) ──────────────────
     pub spike_growth_zone: Handle<StandardMaterial>,
@@ -40,8 +44,6 @@ pub struct SpellVisualAssets {
     pub berserker_rage_indicator: Handle<StandardMaterial>,
     pub sleep_indicator: Handle<StandardMaterial>,
     pub guardian_circle_indicator: Handle<StandardMaterial>,
-    pub hypnotic_pattern_indicator: Handle<StandardMaterial>,
-    pub phantasmal_force_indicator: Handle<StandardMaterial>,
     pub spike_growth_indicator: Handle<StandardMaterial>,
     pub healing_plume_indicator: Handle<StandardMaterial>,
     pub entangle_indicator: Handle<StandardMaterial>,
@@ -58,6 +60,14 @@ pub struct SpellVisualAssets {
 
     // ── Object materials ─────────────────────────────────────────────────
     pub black_hole: Handle<StandardMaterial>,
+    /// Pure-black billboard material for the black hole circle.
+    pub black_hole_billboard: Handle<StandardMaterial>,
+    /// White emissive material for the billboard torus ring.
+    pub black_hole_ring: Handle<StandardMaterial>,
+    /// Dark red material for the accretion disk circle.
+    pub black_hole_accretion: Handle<StandardMaterial>,
+    /// Warm-white emissive material for the accretion disk torus ring.
+    pub black_hole_accretion_ring: Handle<StandardMaterial>,
     pub arcane_crystal: Handle<StandardMaterial>,
     pub lightning_rod: Handle<StandardMaterial>,
 
@@ -96,9 +106,17 @@ pub struct SpellVisualAssets {
     // ── Disintegrate smoke material ─────────────────────────────────────
     pub disintegrate_smoke: Handle<StandardMaterial>,
 
+    // ── Finger of Death VFX materials ────────────────────────────────────
+    pub necrotic_vein: Handle<StandardMaterial>,
+    pub finger_of_death_glow: Handle<StandardMaterial>,
+    pub necrotic_pulse: Handle<StandardMaterial>,
+
     // ── Crystal mini-spell materials ──────────────────────────────────────
     pub crystal_mini_missile: Handle<StandardMaterial>,
     pub crystal_range_indicator: Handle<StandardMaterial>,
+
+    // ── Heat shimmer material (fire haze) ─────────────────────────────
+    pub heat_shimmer: Handle<StandardMaterial>,
 
     // ── Magic missile VFX materials ────────────────────────────────────
     pub missile_glow: Handle<StandardMaterial>,
@@ -152,8 +170,6 @@ pub fn init_spell_visual_assets(
         berserker_rage_indicator: materials.add(unlit_blend(Color::srgba(0.9, 0.15, 0.1, 0.3))),
         sleep_indicator: materials.add(unlit_blend(Color::srgba(0.4, 0.3, 0.7, 0.3))),
         guardian_circle_indicator: materials.add(unlit_blend(Color::srgba(0.0, 0.8, 1.0, 0.3))),
-        hypnotic_pattern_indicator: materials.add(unlit_blend(Color::srgba(0.6, 0.3, 0.8, 0.3))),
-        phantasmal_force_indicator: materials.add(unlit_blend(Color::srgba(0.5, 0.5, 0.8, 0.3))),
         spike_growth_indicator: materials.add(unlit_blend(Color::srgba(0.2, 0.45, 0.1, 0.3))),
         healing_plume_indicator: materials.add(unlit_blend(Color::srgba(0.2, 0.8, 0.3, 0.3))),
         entangle_indicator: materials.add(unlit_blend(Color::srgba(0.1, 0.7, 0.2, 0.3))),
@@ -172,6 +188,34 @@ pub fn init_spell_visual_assets(
         black_hole: materials.add(StandardMaterial {
             base_color: Color::srgb(0.05, 0.0, 0.1),
             emissive: bevy::color::LinearRgba::new(0.2, 0.0, 0.4, 1.0),
+            ..default()
+        }),
+        black_hole_billboard: materials.add(StandardMaterial {
+            base_color: Color::BLACK,
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        }),
+        black_hole_ring: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.85, 0.8, 0.9),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(2.5, 1.5, 1.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        black_hole_accretion: materials.add(StandardMaterial {
+            base_color: Color::BLACK,
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        }),
+        black_hole_accretion_ring: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.85, 0.8, 0.9),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(2.5, 1.5, 1.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
             ..default()
         }),
         arcane_crystal: materials.add(StandardMaterial {
@@ -295,10 +339,45 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
+        // Heat shimmer (subtle warm haze near fire)
+        heat_shimmer: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.9, 0.7, 0.1),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
         // Disintegrate smoke
         disintegrate_smoke: materials.add(StandardMaterial {
             base_color: Color::srgba(0.05, 0.05, 0.05, 0.4),
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
+        // Finger of Death VFX
+        necrotic_vein: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.6, 0.0, 0.8, 0.8),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(1.5, 0.0, 2.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        finger_of_death_glow: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.2, 0.0, 0.3, 0.15),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(0.5, 0.0, 0.8, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        necrotic_pulse: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.4, 0.0, 0.6, 0.5),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(0.8, 0.0, 1.2, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
@@ -328,6 +407,13 @@ pub fn init_spell_visual_assets(
         cross_plane_sphere: meshes.add(build_cross_plane_sphere(1.0)),
         // Cross-plane cylinder: 2 intersecting quads along Y axis, radius 0.5, height 1.0
         cross_plane_cylinder: meshes.add(build_cross_plane_cylinder(0.5, 1.0)),
+        // Low-poly torus for black hole rings (unit-scale, scaled by Transform)
+        black_hole_torus: meshes.add(
+            Torus::new(1.0 - TORUS_MINOR_RADIUS, 1.0 + TORUS_MINOR_RADIUS)
+                .mesh()
+                .major_resolution(16)
+                .minor_resolution(8),
+        ),
 
         // Special meshes (magic missile radius = 5.0)
         magic_missile_mesh: meshes.add(build_cross_plane_sphere(5.0)),

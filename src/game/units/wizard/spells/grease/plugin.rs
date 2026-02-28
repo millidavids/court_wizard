@@ -24,6 +24,7 @@ impl Plugin for GreasePlugin {
                     systems::apply_grease_slow,
                     systems::check_grease_ignition,
                     systems::update_grease_fire_spread,
+                    systems::spawn_grease_fire_smoke,
                     systems::apply_grease_burn,
                     systems::fade_grease_zone,
                     systems::cleanup_grease_zone,

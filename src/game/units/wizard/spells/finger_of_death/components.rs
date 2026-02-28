@@ -6,6 +6,30 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct AwaitingFingerOfDeathRelease;
 
+/// Purple lightning-like particle that meanders along the ground from a hit unit.
+#[derive(Component)]
+pub struct NecroticVein {
+    pub velocity: Vec3,
+    pub time_alive: f32,
+    pub lifetime: f32,
+    pub base_size: f32,
+    pub wander_phase: f32,
+}
+
+/// Dark glow aura surrounding the Finger of Death beam.
+#[derive(Component)]
+pub struct FingerOfDeathGlow {
+    pub beam_entity: Entity,
+}
+
+/// Expanding dark ring on the ground from beam origin when it fires.
+#[derive(Component)]
+pub struct NecroticPulse {
+    pub time_alive: f32,
+    pub lifetime: f32,
+    pub max_radius: f32,
+}
+
 /// Finger of Death beam component tracking the devastating instant-cast beam.
 #[derive(Component)]
 pub struct FingerOfDeathBeam {

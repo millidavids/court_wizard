@@ -355,7 +355,6 @@ pub fn combat(
             Option<&CauldronDamageBonus>,
             Option<&EliteDamageBonus>,
             // New spell modifiers on attacker side
-            Option<&super::units::components::MesmerizedModifier>,
             Option<&super::units::components::SleepModifier>,
             Option<&super::units::components::BanishedModifier>,
             Option<&super::units::components::BattleHymnModifier>,
@@ -372,7 +371,6 @@ pub fn combat(
         Option<&super::units::components::MarkedForDeathModifier>,
         Option<&super::units::components::BerserkerRageModifier>,
         Option<&super::units::components::SleepModifier>,
-        Option<&super::units::components::MesmerizedModifier>,
     )>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -382,7 +380,7 @@ pub fn combat(
     let units_snapshot: Vec<_> = all_units
         .iter()
         .map(
-            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _)| {
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _)| {
                 (entity, transform.translation, *hitbox, *team)
             },
         )
@@ -402,15 +400,14 @@ pub fn combat(
         damage_mult,
         cauldron_damage_bonus,
         elite_damage_bonus,
-        mesmerized,
         sleeping,
         banished,
         battle_hymn,
         berserker_rage_attacker,
     ) in &mut all_units
     {
-        // Skip attack if mesmerized, sleeping, or banished
-        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        // Skip attack if sleeping or banished
+        if sleeping.is_some() || banished.is_some() {
             continue;
         }
 
@@ -458,7 +455,6 @@ pub fn combat(
                     marked_for_death,
                     berserker_rage_target,
                     target_sleeping,
-                    target_mesmerized,
                 )) = health_query.get_mut(*target_entity)
             {
                 // Check fog evasion
@@ -502,11 +498,6 @@ pub fn combat(
                     post_combat_removes.push((*target_entity, PostCombatAction::RemoveSleep));
                 }
 
-                // Break mesmerize on damage
-                if target_mesmerized.is_some() {
-                    post_combat_removes.push((*target_entity, PostCombatAction::RemoveMesmerize));
-                }
-
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.record_attack(current_time);
             }
@@ -521,11 +512,6 @@ pub fn combat(
                     .entity(entity)
                     .remove::<super::units::components::SleepModifier>();
             }
-            PostCombatAction::RemoveMesmerize => {
-                commands
-                    .entity(entity)
-                    .remove::<super::units::components::MesmerizedModifier>();
-            }
         }
     }
 }
@@ -533,7 +519,6 @@ pub fn combat(
 /// Post-combat actions to defer component removal after the main combat loop.
 enum PostCombatAction {
     RemoveSleep,
-    RemoveMesmerize,
 }
 
 /// Converts dead units to corpses instead of despawning them.
@@ -683,7 +668,6 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::RoughTerrainModifier>()
                 // New spell modifiers
                 .remove::<super::units::components::MarkedForDeathModifier>()
-                .remove::<super::units::components::MesmerizedModifier>()
                 .remove::<super::units::components::SleepModifier>()
                 .remove::<super::units::components::BattleHymnModifier>()
                 .remove::<super::units::components::BerserkerRageModifier>()
@@ -691,7 +675,6 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::GreaseSlipModifier>()
                 .remove::<super::units::components::BanishedModifier>()
                 .remove::<super::units::components::PolymorphedModifier>()
-                .remove::<super::units::components::IllusionDecoy>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>();

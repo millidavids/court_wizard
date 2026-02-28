@@ -2,13 +2,43 @@
 
 use bevy::prelude::*;
 
-use super::components::{FireGlow, FireSmoke, FireSpark, MissileGlow, MissileSparkle};
+use super::components::{FireGlow, FireSmoke, FireSpark, HeatShimmer, MissileGlow, MissileSparkle};
 use super::constants;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Rotation to make a circle mesh (XY plane) lie flat facing upward (XZ plane).
-const UPWARD_ROTATION: Quat = Quat::from_xyzw(-0.7071068, 0.0, 0.0, 0.7071068);
+const UPWARD_ROTATION: Quat = Quat::from_xyzw(-std::f32::consts::FRAC_1_SQRT_2, 0.0, 0.0, std::f32::consts::FRAC_1_SQRT_2);
+
+/// Computes an organic, time-varying fire color with layered sine-wave cycling.
+///
+/// Returns `(base_color, emissive)` where `base_color` shifts between orange,
+/// yellow, and red, and `emissive` brightens proportionally when the color is
+/// yellower.
+///
+/// * `time` — elapsed seconds (drives the oscillation)
+/// * `fade` — 0.0–1.0 multiplier for overall alpha (e.g. expiry fade-out)
+pub fn fire_color_at(time: f32, fade: f32) -> (Color, LinearRgba) {
+    let t = time;
+
+    // Flicker envelope (same 3-layer sine approach used elsewhere)
+    let flicker =
+        0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
+
+    // Color channels — shift between orange, yellow, and red
+    let r = 0.9 + 0.1 * (t * 5.3).sin();
+    let g = 0.35 + 0.2 * (t * 11.0).sin() + 0.1 * (t * 7.3).sin();
+    let b = 0.05 * ((t * 17.1).sin() * 0.5 + 0.5);
+
+    let alpha = 0.45 * fade * flicker;
+    let base_color = Color::srgba(r, g, b, alpha);
+
+    // Emissive — brighter when yellower (higher green), dimmer when redder
+    let emissive_strength = 2.0 + 1.5 * g;
+    let emissive = LinearRgba::new(r * emissive_strength, g * emissive_strength, b * 0.5, 0.0);
+
+    (base_color, emissive)
+}
 
 /// Updates glow halo position and pulsing scale to follow its source entity.
 pub fn update_fire_glow(
@@ -127,6 +157,7 @@ pub fn spawn_fire_glow(
 }
 
 /// Spawns smoke wisps at a given position with upward drift.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_fire_smoke_wisps(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -140,7 +171,7 @@ pub fn spawn_fire_smoke_wisps(
 ) {
     for i in 0..count {
         // Use multiple incommensurate frequencies + golden ratio to break uniform patterns
-        let seed = i as f32 * 1.618033988 + time_secs * 7.1;
+        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
         let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
         let spread_variation = 0.6 + 0.4 * ((seed * 17.3).sin() * 0.5 + 0.5);
         let rise_variation = 0.7 + 0.3 * ((seed * 23.1).cos() * 0.5 + 0.5);
@@ -289,7 +320,7 @@ pub fn spawn_missile_sparkles(
 ) {
     for i in 0..constants::SPARKLE_COUNT_PER_SPAWN {
         // Inherit missile velocity (scaled down) with some random spread
-        let seed = i as f32 * 1.618033988 + time_secs * 11.3;
+        let seed = i as f32 * 1.618_034 + time_secs * 11.3;
         let spread_x = (seed * 7.3).sin() * constants::SPARKLE_SPREAD_SPEED;
         let spread_y = (seed * 13.1).cos() * constants::SPARKLE_SPREAD_SPEED * 0.5;
         let spread_z = (seed * 19.7).sin() * constants::SPARKLE_SPREAD_SPEED;
@@ -341,5 +372,131 @@ pub fn update_missile_sparkles(
         let remaining = 1.0 - (sparkle.time_alive / sparkle.lifetime);
         let size = sparkle.base_size * remaining;
         transform.scale = Vec3::splat(size);
+    }
+}
+
+// ── Heat shimmer VFX ──────────────────────────────────────────────
+
+/// Spawns heat shimmer billboards at a given position for a lo-fi heat haze.
+pub fn spawn_heat_shimmer(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    count: usize,
+    time_secs: f32,
+) {
+    for i in 0..count {
+        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
+        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
+        let spread_variation = 0.6 + 0.4 * ((seed * 17.3).sin() * 0.5 + 0.5);
+        let rise_variation = 0.7 + 0.3 * ((seed * 23.1).cos() * 0.5 + 0.5);
+        let lateral_x = angle.cos() * constants::SHIMMER_SPREAD_SPEED * spread_variation;
+        let lateral_z = angle.sin() * constants::SHIMMER_SPREAD_SPEED * spread_variation;
+        let velocity = Vec3::new(
+            lateral_x,
+            constants::SHIMMER_RISE_SPEED * rise_variation,
+            lateral_z,
+        );
+
+        let phase = seed * std::f32::consts::PI + (seed * 41.7).sin();
+
+        commands.spawn((
+            HeatShimmer {
+                velocity,
+                time_alive: 0.0,
+                lifetime: constants::SHIMMER_LIFETIME,
+                base_size: constants::SHIMMER_SIZE,
+                phase,
+            },
+            Mesh3d(assets.particle_quad.clone()),
+            MeshMaterial3d(assets.heat_shimmer.clone()),
+            Transform::from_translation(position)
+                .with_rotation(UPWARD_ROTATION)
+                .with_scale(Vec3::splat(0.0)),
+            OnGameplayScreen,
+        ));
+    }
+}
+
+/// Spawns heat shimmer billboards with a custom size (for larger surface fire effects).
+pub fn spawn_heat_shimmer_sized(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    count: usize,
+    time_secs: f32,
+    base_size: f32,
+) {
+    for i in 0..count {
+        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
+        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
+        let spread_variation = 0.6 + 0.4 * ((seed * 17.3).sin() * 0.5 + 0.5);
+        let rise_variation = 0.7 + 0.3 * ((seed * 23.1).cos() * 0.5 + 0.5);
+        let lateral_x = angle.cos() * constants::SHIMMER_SPREAD_SPEED * spread_variation;
+        let lateral_z = angle.sin() * constants::SHIMMER_SPREAD_SPEED * spread_variation;
+        let velocity = Vec3::new(
+            lateral_x,
+            constants::SHIMMER_RISE_SPEED * rise_variation,
+            lateral_z,
+        );
+
+        let phase = seed * std::f32::consts::PI + (seed * 41.7).sin();
+
+        commands.spawn((
+            HeatShimmer {
+                velocity,
+                time_alive: 0.0,
+                lifetime: constants::SHIMMER_LIFETIME,
+                base_size,
+                phase,
+            },
+            Mesh3d(assets.particle_quad.clone()),
+            MeshMaterial3d(assets.heat_shimmer.clone()),
+            Transform::from_translation(position)
+                .with_rotation(UPWARD_ROTATION)
+                .with_scale(Vec3::splat(0.0)),
+            OnGameplayScreen,
+        ));
+    }
+}
+
+/// Drifts, sways, scale-fades, and despawns heat shimmer particles.
+pub fn update_heat_shimmer(
+    mut commands: Commands,
+    mut shimmer_query: Query<(Entity, &mut HeatShimmer, &mut Transform)>,
+    time: Res<Time>,
+) {
+    let dt = time.delta_secs();
+    let t = time.elapsed_secs();
+
+    for (entity, mut shimmer, mut transform) in shimmer_query.iter_mut() {
+        shimmer.time_alive += dt;
+
+        if shimmer.time_alive >= shimmer.lifetime {
+            commands.entity(entity).despawn();
+            continue;
+        }
+
+        let progress = shimmer.time_alive / shimmer.lifetime;
+
+        // Drift upward by velocity
+        transform.translation += shimmer.velocity * dt;
+
+        // Lateral sway oscillation
+        let sway = (t * constants::SHIMMER_SWAY_FREQUENCY * std::f32::consts::TAU + shimmer.phase)
+            .sin()
+            * constants::SHIMMER_SWAY_AMPLITUDE
+            * dt;
+        transform.translation.x += sway;
+
+        // Scale: fade in over first 20%, stable, fade out over last 20%
+        let scale_factor = if progress < 0.2 {
+            progress / 0.2
+        } else if progress > 0.8 {
+            (1.0 - progress) / 0.2
+        } else {
+            1.0
+        };
+        transform.scale = Vec3::splat(shimmer.base_size * scale_factor);
     }
 }

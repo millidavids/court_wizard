@@ -12,7 +12,7 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
     EliteSpeedBonus, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
-    Health, Hitbox, KingsGuard, MesmerizedModifier, MovementSpeed, PolymorphedModifier,
+    Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier,
     RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
     TargetingVelocity, Team, Teleportable,
 };
@@ -31,8 +31,16 @@ pub fn check_defender_activation(
     defender_query: Query<(&Transform, &Team), (With<Infantry>, Without<Corpse>)>,
     attacker_query: Query<(&Transform, &Team), Without<Corpse>>,
 ) {
-    // Skip if already activated (collective activation persists)
+    // If already activated, check whether any enemies remain on the battlefield.
+    // If not, deactivate so defenders hold position until the next wave arrives.
     if defenders_activated.active {
+        let enemies_exist = attacker_query.iter().any(|(_, team)| {
+            *team == Team::Attackers || *team == Team::Undead
+        });
+        if !enemies_exist {
+            defenders_activated.active = false;
+            info!("Defenders deactivated — no enemies on battlefield");
+        }
         return;
     }
 
@@ -143,7 +151,6 @@ pub fn infantry_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -167,11 +174,11 @@ pub fn infantry_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, polymorphed),
+        (sleeping, banished, grease, polymorphed),
     ) in &mut infantry_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

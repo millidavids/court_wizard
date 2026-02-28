@@ -256,6 +256,14 @@ pub fn spawn_fireball_smoke_trail(
             vfx::constants::SMOKE_RISE_SPEED,
             vfx::constants::SMOKE_SPREAD_SPEED,
         );
+
+        vfx::systems::spawn_heat_shimmer(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            1,
+            t,
+        );
     }
 }
 
@@ -374,6 +382,9 @@ fn spawn_explosion(
 
     // Explosion smoke burst
     vfx::systems::spawn_explosion_smoke(commands, assets, position, time_secs);
+
+    // Heat shimmer burst at impact
+    vfx::systems::spawn_heat_shimmer(commands, assets, position, 3, time_secs);
 }
 
 /// Updates explosion visuals and timing.

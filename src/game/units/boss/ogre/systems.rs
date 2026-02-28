@@ -11,7 +11,7 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MesmerizedModifier, MovementSpeed,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MovementSpeed,
     OriginalMaterial, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
     apply_damage_to_unit,
@@ -235,7 +235,6 @@ pub fn ogre_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -259,11 +258,11 @@ pub fn ogre_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, polymorphed),
+        (sleeping, banished, grease, polymorphed),
     ) in &mut bosses
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

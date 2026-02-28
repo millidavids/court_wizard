@@ -6,4 +6,5 @@ mod systems;
 
 pub(crate) use components::CrtEffectSettings;
 pub(crate) use messages::ChannelChangeMessage;
+pub(crate) use messages::ScreenDesaturateMessage;
 pub(crate) use plugin::CrtEffectPlugin;

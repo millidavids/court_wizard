@@ -29,3 +29,5 @@ pub const FIRE_SPREAD_DURATION: f32 = 1.0;
 pub const FIRE_OVERLAY_Y_POSITION: f32 = 1.5;
 /// Fraction of zone radius for initial burst damage at ignition point
 pub const IGNITION_BURST_RADIUS_FRACTION: f32 = 0.3;
+/// Interval between smoke wisp spawns for burning grease
+pub const FIRE_SMOKE_INTERVAL: f32 = 0.25;

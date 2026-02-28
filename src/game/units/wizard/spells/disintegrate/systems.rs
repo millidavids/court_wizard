@@ -14,6 +14,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Action the shared logic requests the wrapper to perform on beams.
@@ -702,6 +703,17 @@ pub fn spawn_beam_smoke(
                 OnGameplayScreen,
             ));
         }
+
+        // Heat shimmer along the beam
+        let shimmer_frac = (t * 5.3 + 0.37).fract();
+        let shimmer_pos = beam.origin + beam.direction * (current_len * shimmer_frac);
+        vfx::systems::spawn_heat_shimmer(
+            &mut commands,
+            &visual_assets,
+            shimmer_pos,
+            1,
+            t,
+        );
     }
 }
 

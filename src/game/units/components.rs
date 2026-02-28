@@ -757,28 +757,6 @@ impl MarkedForDeathModifier {
     }
 }
 
-/// Mesmerize effect from Hypnotic Pattern.
-///
-/// Mesmerized units cannot move or attack. Any damage received removes this effect.
-#[derive(Component)]
-pub struct MesmerizedModifier {
-    /// Time remaining before the effect expires (in seconds).
-    pub time_remaining: f32,
-}
-
-impl MesmerizedModifier {
-    pub const fn new(duration: f32) -> Self {
-        Self {
-            time_remaining: duration,
-        }
-    }
-
-    pub fn update(&mut self, delta: f32) -> bool {
-        self.time_remaining -= delta;
-        self.time_remaining <= 0.0
-    }
-}
-
 /// Sleep effect from Sleep spell.
 ///
 /// Sleeping units cannot move or attack. First damage hit deals bonus damage
@@ -990,28 +968,6 @@ impl PolymorphedModifier {
     }
 }
 
-/// Marker component for illusion decoys created by Phantasmal Force.
-///
-/// Decoys are fake units that enemies target. They have very low HP and deal no damage.
-/// Cannot be resurrected by Raise the Dead.
-#[derive(Component)]
-pub struct IllusionDecoy {
-    /// Time remaining before the decoy despawns (in seconds).
-    pub time_remaining: f32,
-}
-
-impl IllusionDecoy {
-    pub const fn new(duration: f32) -> Self {
-        Self {
-            time_remaining: duration,
-        }
-    }
-
-    pub fn update(&mut self, delta: f32) -> bool {
-        self.time_remaining -= delta;
-        self.time_remaining <= 0.0
-    }
-}
 
 /// Component indicating a unit is currently engaged in melee combat with a specific team.
 ///

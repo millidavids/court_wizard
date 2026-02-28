@@ -10,7 +10,7 @@ use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, FrostSlowModifier, GreaseSlipModifier, HasteModifier, Health, Hitbox,
-    MesmerizedModifier, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
+    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
     SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints,
     apply_damage_to_unit,
 };
@@ -191,7 +191,6 @@ pub fn dispeller_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -214,11 +213,11 @@ pub fn dispeller_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, polymorphed),
+        (sleeping, banished, grease, polymorphed),
     ) in &mut dispeller_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -367,7 +366,6 @@ pub fn dispeller_ranged_combat(
             &Transform,
             &Team,
             &mut DispellerAttackTimer,
-            Option<&MesmerizedModifier>,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
         ),
@@ -388,7 +386,6 @@ pub fn dispeller_ranged_combat(
         dispeller_transform,
         dispeller_team,
         mut attack_timer,
-        mesmerized,
         sleeping,
         banished,
     ) in &mut dispellers
@@ -396,7 +393,7 @@ pub fn dispeller_ranged_combat(
         attack_timer.time_since_last_attack += delta;
 
         // Skip if CC'd
-        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if sleeping.is_some() || banished.is_some() {
             continue;
         }
 

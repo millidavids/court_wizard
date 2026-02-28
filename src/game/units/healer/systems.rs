@@ -11,7 +11,7 @@ use crate::game::units::commander::components::Commander;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, FrostSlowModifier, GreaseSlipModifier, HasteModifier, Health, Hitbox,
-    MesmerizedModifier, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
+    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
     SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team,
 };
 use crate::game::units::dispeller::components::Dispeller;
@@ -176,7 +176,6 @@ pub fn healer_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -199,11 +198,11 @@ pub fn healer_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, polymorphed),
+        (sleeping, banished, grease, polymorphed),
     ) in &mut healer_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -264,7 +263,6 @@ pub fn healer_fire_heal_bolt(
             &Transform,
             &Team,
             &mut HealerAttackTimer,
-            Option<&MesmerizedModifier>,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
         ),
@@ -311,13 +309,13 @@ pub fn healer_fire_heal_bolt(
         )
         .collect();
 
-    for (healer_entity, healer_transform, healer_team, mut attack_timer, mesmerized, sleeping, banished) in
+    for (healer_entity, healer_transform, healer_team, mut attack_timer, sleeping, banished) in
         &mut healers
     {
         attack_timer.time_since_last_attack += delta;
 
         // Skip if CC'd
-        if mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if sleeping.is_some() || banished.is_some() {
             continue;
         }
 

@@ -8,7 +8,7 @@ use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, GreaseSlipModifier,
-    MarkedForDeathModifier, MesmerizedModifier, SleepModifier,
+    MarkedForDeathModifier, SleepModifier,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -83,8 +83,6 @@ impl Plugin for UnitsPlugin {
             (
                 systems::update_mark_of_death_modifiers
                     .run_if(any_with_component::<MarkedForDeathModifier>),
-                systems::update_mesmerized_modifiers
-                    .run_if(any_with_component::<MesmerizedModifier>),
                 systems::update_sleep_modifiers.run_if(any_with_component::<SleepModifier>),
                 systems::update_battle_hymn_modifiers
                     .run_if(any_with_component::<BattleHymnModifier>),

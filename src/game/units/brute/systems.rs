@@ -13,7 +13,7 @@ use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MesmerizedModifier, MovementSpeed,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MovementSpeed,
     PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
@@ -155,7 +155,6 @@ pub fn brute_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -178,11 +177,11 @@ pub fn brute_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, polymorphed),
+        (sleeping, banished, grease, polymorphed),
     ) in &mut brutes
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

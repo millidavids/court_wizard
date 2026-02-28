@@ -26,14 +26,12 @@ pub enum Spell {
     MeteorFall,
     MarkOfDeath,
     PlagueWind,
-    HypnoticPattern,
     Sleep,
     Grease,
     FogCloud,
     BattleHymn,
     HealingPlume,
     BerserkerRage,
-    PhantasmalForce,
     Banishment,
     Polymorph,
     ArcaneCrystal,
@@ -91,7 +89,6 @@ impl SpellCategory {
                 Spell::Entangle,
                 Spell::SpikeGrowth,
                 Spell::Squall,
-                Spell::HypnoticPattern,
                 Spell::Sleep,
                 Spell::Grease,
                 Spell::Polymorph,
@@ -108,7 +105,6 @@ impl SpellCategory {
             ],
             SpellCategory::Utility => &[
                 Spell::Telekinesis,
-                Spell::PhantasmalForce,
                 Spell::Banishment,
                 Spell::ArcaneCrystal,
                 Spell::Dispel,
@@ -141,14 +137,12 @@ impl Spell {
             Spell::MeteorFall,
             Spell::MarkOfDeath,
             Spell::PlagueWind,
-            Spell::HypnoticPattern,
             Spell::Sleep,
             Spell::Grease,
             Spell::FogCloud,
             Spell::BattleHymn,
             Spell::HealingPlume,
             Spell::BerserkerRage,
-            Spell::PhantasmalForce,
             Spell::Banishment,
             Spell::Polymorph,
             Spell::ArcaneCrystal,
@@ -176,7 +170,6 @@ impl Spell {
             | Spell::Entangle
             | Spell::SpikeGrowth
             | Spell::Squall
-            | Spell::HypnoticPattern
             | Spell::Sleep
             | Spell::Grease
             | Spell::Polymorph => SpellCategory::Control,
@@ -190,11 +183,9 @@ impl Spell {
             | Spell::FogCloud
             | Spell::BerserkerRage => SpellCategory::Support,
 
-            Spell::Telekinesis
-            | Spell::PhantasmalForce
-            | Spell::Banishment
-            | Spell::ArcaneCrystal
-            | Spell::Dispel => SpellCategory::Utility,
+            Spell::Telekinesis | Spell::Banishment | Spell::ArcaneCrystal | Spell::Dispel => {
+                SpellCategory::Utility
+            }
         }
     }
 
@@ -221,14 +212,12 @@ impl Spell {
             Spell::MeteorFall => "Meteor Fall",
             Spell::MarkOfDeath => "Mark of Death",
             Spell::PlagueWind => "Plague Wind",
-            Spell::HypnoticPattern => "Hypnotic Pattern",
             Spell::Sleep => "Sleep",
             Spell::Grease => "Grease",
             Spell::FogCloud => "Fog Cloud",
             Spell::BattleHymn => "Battle Hymn",
             Spell::HealingPlume => "Healing Plume",
             Spell::BerserkerRage => "Berserker Rage",
-            Spell::PhantasmalForce => "Phantasmal Force",
             Spell::Banishment => "Banishment",
             Spell::Polymorph => "Polymorph",
             Spell::ArcaneCrystal => "Arcane Crystal",
@@ -259,14 +248,12 @@ impl Spell {
             Spell::MeteorFall => "Meteor\nFall",
             Spell::MarkOfDeath => "Mark of\nDeath",
             Spell::PlagueWind => "Plague\nWind",
-            Spell::HypnoticPattern => "Hypnotic\nPattern",
             Spell::Sleep => "Sleep",
             Spell::Grease => "Grease",
             Spell::FogCloud => "Fog\nCloud",
             Spell::BattleHymn => "Battle\nHymn",
             Spell::HealingPlume => "Healing\nPlume",
             Spell::BerserkerRage => "Berserker\nRage",
-            Spell::PhantasmalForce => "Phantasmal\nForce",
             Spell::Banishment => "Banishment",
             Spell::Polymorph => "Polymorph",
             Spell::ArcaneCrystal => "Arcane\nCrystal",
@@ -329,9 +316,6 @@ impl Spell {
             Spell::PlagueWind => {
                 "Summons a toxic cloud that drifts across the battlefield, poisoning all units it passes through."
             }
-            Spell::HypnoticPattern => {
-                "Mesmerizes all units in radius, preventing movement and attacks. Taking any damage breaks the effect."
-            }
             Spell::Sleep => {
                 "Puts all units in radius to sleep. Sleeping units take bonus damage from the first hit that wakes them."
             }
@@ -349,9 +333,6 @@ impl Spell {
             }
             Spell::BerserkerRage => {
                 "Enrages all units in radius. They deal much more damage but also take more damage. Lasts 8 seconds."
-            }
-            Spell::PhantasmalForce => {
-                "Conjures illusory defenders that draw enemy attention. Illusions have very low health and deal no damage."
             }
             Spell::Banishment => {
                 "Banishes a single enemy from the battlefield for 8 seconds. The unit vanishes and returns when the effect ends."
@@ -395,14 +376,12 @@ impl Spell {
             Spell::MeteorFall => "When one fireball just isn't enough.",
             Spell::MarkOfDeath => "Everyone hits harder when they know where to aim.",
             Spell::PlagueWind => "A gentle breeze. With consequences.",
-            Spell::HypnoticPattern => "Ooh, pretty lights. Why can't I move?",
             Spell::Sleep => "Shh. They're having the best nap of their lives.",
             Spell::Grease => "What's worse than slipping? Slipping while on fire.",
             Spell::FogCloud => "Can't hit what you can't see.",
             Spell::BattleHymn => "Nothing motivates like a good war song.",
             Spell::HealingPlume => "Stand in the glowy green zone. Trust the wizard.",
             Spell::BerserkerRage => "Hit harder. Get hit harder. Worth it.",
-            Spell::PhantasmalForce => "Are those real soldiers? Only one way to find out.",
             Spell::Banishment => "Poof. Gone. Back in a minute.",
             Spell::Polymorph => "Baa.",
             Spell::ArcaneCrystal => {
@@ -415,10 +394,36 @@ impl Spell {
     /// Returns the asset path for this spell's icon image, if one exists.
     pub const fn icon_path(&self) -> Option<&'static str> {
         match self {
-            Spell::Fireball => Some("images/fireball_icon.png"),
-            Spell::MagicMissile => Some("images/magic_missile_icon.png"),
-            Spell::Disintegrate => Some("images/disintegrate_icon.png"),
-            _ => None,
+            Spell::Fireball => Some("images/icons/fireball_icon.png"),
+            Spell::MagicMissile => Some("images/icons/magic_missile_icon.png"),
+            Spell::Disintegrate => Some("images/icons/disintegrate_icon.png"),
+            Spell::WallOfFire => Some("images/icons/wall_of_fire_icon.png"),
+            Spell::MeteorFall => Some("images/icons/meteor_fall_icon.png"),
+            Spell::GuardianCircle => Some("images/icons/guardian_circle_icon.png"),
+            Spell::ChainLightning => Some("images/icons/chain_lightning_icon.png"),
+            Spell::FingerOfDeath => Some("images/icons/finger_of_death_icon.png"),
+            Spell::RaiseTheDead => Some("images/icons/raise_the_dead_icon.png"),
+            Spell::Teleport => Some("images/icons/teleport_icon.png"),
+            Spell::Squall => Some("images/icons/squall_icon.png"),
+            Spell::WallOfStone => Some("images/icons/wall_of_stone_icon.png"),
+            Spell::Entangle => Some("images/icons/entangle_icon.png"),
+            Spell::Haste => Some("images/icons/haste_icon.png"),
+            Spell::SpikeGrowth => Some("images/icons/spike_growth_icon.png"),
+            Spell::LightningRod => Some("images/icons/lightning_rod_icon.png"),
+            Spell::BlackHole => Some("images/icons/black_hole_icon.png"),
+            Spell::Telekinesis => Some("images/icons/telekinesis_icon.png"),
+            Spell::MarkOfDeath => Some("images/icons/mark_of_death_icon.png"),
+            Spell::Sleep => Some("images/icons/sleep_icon.png"),
+            Spell::PlagueWind => Some("images/icons/plague_wind_icon.png"),
+            Spell::BattleHymn => Some("images/icons/battle_hymn_icon.png"),
+            Spell::FogCloud => Some("images/icons/fog_cloud_icon.png"),
+            Spell::Grease => Some("images/icons/grease_icon.png"),
+            Spell::HealingPlume => Some("images/icons/healing_plume_icon.png"),
+            Spell::BerserkerRage => Some("images/icons/berserker_rage_icon.png"),
+            Spell::Banishment => Some("images/icons/banishment_icon.png"),
+            Spell::Polymorph => Some("images/icons/polymorph_icon.png"),
+            Spell::ArcaneCrystal => Some("images/icons/arcane_crystal_icon.png"),
+            Spell::Dispel => Some("images/icons/dispel_icon.png"),
         }
     }
 
@@ -445,14 +450,12 @@ impl Spell {
             Spell::MeteorFall => "Click and hold to place meteor storm",
             Spell::MarkOfDeath => "Click and hold to cast",
             Spell::PlagueWind => "Click and hold to place",
-            Spell::HypnoticPattern => "Click and hold to place",
             Spell::Sleep => "Click and hold to place",
             Spell::Grease => "Click and hold to place",
             Spell::FogCloud => "Click and hold to place",
             Spell::BattleHymn => "Click and hold to place",
             Spell::HealingPlume => "Click and hold to place",
             Spell::BerserkerRage => "Click and hold to place",
-            Spell::PhantasmalForce => "Click and hold to place",
             Spell::Banishment => "Click and hold to cast",
             Spell::Polymorph => "Click and hold to cast",
             Spell::ArcaneCrystal => "Click and hold to place",
@@ -468,11 +471,11 @@ impl Spell {
             disintegrate_constants, dispel_constants, entangle_constants,
             finger_of_death_constants, fireball_constants, fog_cloud_constants, grease_constants,
             guardian_circle_constants, haste_constants, healing_plume_constants,
-            hypnotic_pattern_constants, lightning_rod_constants, magic_missile_constants,
-            mark_of_death_constants, meteor_fall_constants, phantasmal_force_constants,
-            plague_wind_constants, polymorph_constants, raise_the_dead_constants, sleep_constants,
-            spike_growth_constants, squall_constants, telekinesis_constants, teleport_constants,
-            wall_of_fire_constants, wall_of_stone_constants,
+            lightning_rod_constants, magic_missile_constants, mark_of_death_constants,
+            meteor_fall_constants, plague_wind_constants, polymorph_constants,
+            raise_the_dead_constants, sleep_constants, spike_growth_constants, squall_constants,
+            telekinesis_constants, teleport_constants, wall_of_fire_constants,
+            wall_of_stone_constants,
         };
 
         match self {
@@ -496,14 +499,12 @@ impl Spell {
             Spell::MeteorFall => meteor_fall_constants::PRIMED_METEOR_FALL,
             Spell::MarkOfDeath => mark_of_death_constants::PRIMED_MARK_OF_DEATH,
             Spell::PlagueWind => plague_wind_constants::PRIMED_PLAGUE_WIND,
-            Spell::HypnoticPattern => hypnotic_pattern_constants::PRIMED_HYPNOTIC_PATTERN,
             Spell::Sleep => sleep_constants::PRIMED_SLEEP,
             Spell::Grease => grease_constants::PRIMED_GREASE,
             Spell::FogCloud => fog_cloud_constants::PRIMED_FOG_CLOUD,
             Spell::BattleHymn => battle_hymn_constants::PRIMED_BATTLE_HYMN,
             Spell::HealingPlume => healing_plume_constants::PRIMED_HEALING_PLUME,
             Spell::BerserkerRage => berserker_rage_constants::PRIMED_BERSERKER_RAGE,
-            Spell::PhantasmalForce => phantasmal_force_constants::PRIMED_PHANTASMAL_FORCE,
             Spell::Banishment => banishment_constants::PRIMED_BANISHMENT,
             Spell::Polymorph => polymorph_constants::PRIMED_POLYMORPH,
             Spell::ArcaneCrystal => arcane_crystal_constants::PRIMED_ARCANE_CRYSTAL,
@@ -534,14 +535,12 @@ impl Spell {
             Spell::MeteorFall => DamageType::Fire,
             Spell::MarkOfDeath => DamageType::Necrotic,
             Spell::PlagueWind => DamageType::Necrotic,
-            Spell::HypnoticPattern => DamageType::Force,
             Spell::Sleep => DamageType::Force,
             Spell::Grease => DamageType::Nature,
             Spell::FogCloud => DamageType::Frost,
             Spell::BattleHymn => DamageType::Force,
             Spell::HealingPlume => DamageType::Nature,
             Spell::BerserkerRage => DamageType::Force,
-            Spell::PhantasmalForce => DamageType::Force,
             Spell::Banishment => DamageType::Force,
             Spell::Polymorph => DamageType::Nature,
             Spell::ArcaneCrystal => DamageType::Force,
@@ -575,13 +574,11 @@ impl Spell {
             // Third-tier
             Spell::WallOfFire => 80,
             Spell::BattleHymn => 80,
-            Spell::HypnoticPattern => 80,
             Spell::PlagueWind => 80,
             // Fourth-tier (capstones)
             Spell::MeteorFall => 100,
             // Misc (require N total spells researched)
             Spell::Squall => 70,
-            Spell::PhantasmalForce => 50,
             Spell::FogCloud => 60,
             Spell::Sleep => 80,
             Spell::Banishment => 90,
@@ -613,9 +610,8 @@ impl Spell {
             Spell::Haste => Some(Spell::GuardianCircle),
             Spell::BerserkerRage => Some(Spell::GuardianCircle),
             Spell::BattleHymn => Some(Spell::Haste),
-            // Force chains: Wall of Stone → Teleport → Hypnotic Pattern
+            // Force chains: Wall of Stone → Teleport
             Spell::Teleport => Some(Spell::WallOfStone),
-            Spell::HypnoticPattern => Some(Spell::Teleport),
             _ => None,
         }
     }
@@ -626,7 +622,6 @@ impl Spell {
     pub const fn required_total_spells(&self) -> u32 {
         match self {
             Spell::Squall => 4,
-            Spell::PhantasmalForce => 5,
             Spell::FogCloud => 5,
             Spell::Sleep => 6,
             Spell::Banishment => 7,

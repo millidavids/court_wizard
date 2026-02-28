@@ -20,6 +20,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::networking::snapshot::SpellEffectKind;
@@ -525,6 +526,67 @@ pub fn update_grease_fire_spread(
     }
 }
 
+/// Spawns smoke wisps and heat shimmer rising off burning grease zones.
+pub fn spawn_grease_fire_smoke(
+    mut commands: Commands,
+    zones: Query<&GreaseZone>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < constants::FIRE_SMOKE_INTERVAL {
+        return;
+    }
+    *timer -= constants::FIRE_SMOKE_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for zone in zones.iter() {
+        if !zone.ignited {
+            continue;
+        }
+
+        // Don't emit smoke during the fade-out period
+        let remaining = zone.duration - zone.time_alive;
+        if remaining < constants::FADE_DURATION {
+            continue;
+        }
+
+        // Pick a pseudo-random position within the fire's current radius
+        let seed = t * 3.7 + zone.origin.x * 0.1 + zone.origin.z * 0.07;
+        let angle = seed * 2.39 + (seed * 13.7).sin();
+        let frac = (seed * 7.3).fract();
+        let offset_r = zone.radius * frac * 0.8;
+        let pos = Vec3::new(
+            zone.origin.x + angle.cos() * offset_r,
+            constants::FIRE_OVERLAY_Y_POSITION,
+            zone.origin.z + angle.sin() * offset_r,
+        );
+
+        vfx::systems::spawn_fire_smoke_wisps(
+            &mut commands,
+            &visual_assets,
+            pos,
+            vfx::constants::SURFACE_SMOKE_COUNT,
+            t,
+            vfx::constants::SMOKE_LIFETIME,
+            vfx::constants::SURFACE_SMOKE_SIZE,
+            vfx::constants::SMOKE_RISE_SPEED,
+            vfx::constants::SMOKE_SPREAD_SPEED,
+        );
+
+        vfx::systems::spawn_heat_shimmer_sized(
+            &mut commands,
+            &visual_assets,
+            pos,
+            vfx::constants::SURFACE_SHIMMER_COUNT,
+            t,
+            vfx::constants::SURFACE_SHIMMER_SIZE,
+        );
+    }
+}
+
 /// Applies burn damage from ignited grease zones.
 /// During fire spread, only damages units within the current fire radius.
 pub fn apply_grease_burn(
@@ -618,11 +680,14 @@ pub fn fade_grease_zone(
 
         // Fade the fire overlay mesh if this zone is ignited
         if zone.ignited {
+            let (fire_base, fire_emissive) =
+                vfx::systems::fire_color_at(zone.time_alive, fade);
             for (overlay, overlay_handle) in &mut overlays {
                 if overlay.zone_entity == zone_entity
                     && let Some(overlay_mat) = materials.get_mut(overlay_handle)
                 {
-                    overlay_mat.base_color = Color::srgba(0.9, 0.3, 0.05, 0.55 * fade);
+                    overlay_mat.base_color = fire_base;
+                    overlay_mat.emissive = fire_emissive;
                 }
             }
         }

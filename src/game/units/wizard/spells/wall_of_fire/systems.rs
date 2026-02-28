@@ -151,7 +151,7 @@ pub fn handle_wall_of_fire_casting(
                         cull_mode: None,
                         ..default()
                     })),
-                    Transform::from_xyz(pos.x, preview_height / 2.0, pos.z)
+                    Transform::from_xyz(pos.x, preview_height / 2.0 + 1.0, pos.z)
                         .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
                     WallOfFirePreview,
                     OnGameplayScreen,
@@ -177,7 +177,7 @@ pub fn handle_wall_of_fire_casting(
             let rotation = Quat::from_rotation_arc(Vec3::X, forward);
             let preview_height = 10.0;
 
-            preview_transform.translation = Vec3::new(center.x, preview_height / 2.0, center.z);
+            preview_transform.translation = Vec3::new(center.x, preview_height / 2.0 + 1.0, center.z);
             preview_transform.rotation = rotation;
             preview_transform.scale = Vec3::new(length, preview_height, WALL_WIDTH);
         }
@@ -291,7 +291,7 @@ fn wall_of_fire_casting_logic(
                 // Notify pathfinding about hazard
                 obstacle_events.write(ObstacleChanged {
                     bounds: wall_obstacle_bounds(wall_start, wall_end, half_width),
-                    obstacle_type: ObstacleType::Hazard(3.0),
+                    obstacle_type: ObstacleType::Hazard(4.5),
                 });
 
                 result.wall_placed = Some(WallPlacedInfo {
@@ -411,22 +411,17 @@ pub fn fade_wall_of_fire(
             continue;
         };
 
-        // Flicker using layered sine waves for organic fire look
-        let t = effect.time_alive;
-        let flicker =
-            0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
-
         // Fade out over the last second
-        let remaining = effect.duration - t;
+        let remaining = effect.duration - effect.time_alive;
         let fade = if remaining < FADE_DURATION {
             (remaining / FADE_DURATION).max(0.0)
         } else {
             1.0
         };
 
-        let base_alpha = 0.4 * fade * flicker;
-        let green = 0.5 + 0.15 * (t * 11.0).sin();
-        material.base_color = Color::srgba(1.0, green, 0.0, base_alpha);
+        let (base_color, emissive) = vfx::systems::fire_color_at(effect.time_alive, fade);
+        material.base_color = base_color;
+        material.emissive = emissive;
     }
 }
 
@@ -511,12 +506,21 @@ pub fn spawn_wall_of_fire_smoke(
             &mut commands,
             &visual_assets,
             pos,
-            1,
+            vfx::constants::SURFACE_SMOKE_COUNT,
             t,
             vfx::constants::SMOKE_LIFETIME,
-            vfx::constants::SMOKE_SIZE,
+            vfx::constants::SURFACE_SMOKE_SIZE,
             vfx::constants::SMOKE_RISE_SPEED,
             vfx::constants::SMOKE_SPREAD_SPEED,
+        );
+
+        vfx::systems::spawn_heat_shimmer_sized(
+            &mut commands,
+            &visual_assets,
+            pos,
+            vfx::constants::SURFACE_SHIMMER_COUNT,
+            t,
+            vfx::constants::SURFACE_SHIMMER_SIZE,
         );
     }
 }

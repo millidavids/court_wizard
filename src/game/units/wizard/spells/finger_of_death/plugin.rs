@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::FingerOfDeathBeam;
+use super::components::{FingerOfDeathBeam, FingerOfDeathGlow, NecroticPulse, NecroticVein};
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -26,6 +26,11 @@ impl Plugin for FingerOfDeathPlugin {
                 )
                     .chain()
                     .run_if(any_exist::<FingerOfDeathBeam>()),
+                update_necrotic_veins.run_if(any_exist::<NecroticVein>()),
+                (update_finger_of_death_glow, cleanup_finger_of_death_glow)
+                    .chain()
+                    .run_if(any_exist::<FingerOfDeathGlow>()),
+                update_necrotic_pulse.run_if(any_exist::<NecroticPulse>()),
             )
                 .run_if(is_spell_effects_active),
         );

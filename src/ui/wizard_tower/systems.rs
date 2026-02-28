@@ -5,9 +5,11 @@ use bevy::ui::{ComputedNode, RelativeCursorPosition};
 
 use crate::config::ActiveSave;
 use crate::config::save_data::{
-    add_spell_research_progress, get_insight, get_spell_research_progress, grant_insight,
-    load_unified_save, spend_insight,
+    add_spell_research_progress, get_insight, get_spell_research_progress, load_unified_save,
+    spend_insight,
 };
+#[cfg(debug_assertions)]
+use crate::config::save_data::grant_insight;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
@@ -93,14 +95,13 @@ const CHAINS: &[SpellChain] = &[
     SpellChain {
         label: "Earth",
         color: EARTH_COLOR,
-        spells: &[Spell::WallOfStone, Spell::Teleport, Spell::HypnoticPattern],
+        spells: &[Spell::WallOfStone, Spell::Teleport],
     },
 ];
 
 /// Miscellaneous spells (not in chains, require N total spells researched).
 const MISC_SPELLS: &[Spell] = &[
     Spell::Squall,
-    Spell::PhantasmalForce,
     Spell::FogCloud,
     Spell::Sleep,
     Spell::Banishment,

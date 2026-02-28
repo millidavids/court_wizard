@@ -8,3 +8,7 @@ use bevy::prelude::*;
 /// ```
 #[derive(Message)]
 pub(crate) struct ChannelChangeMessage;
+
+/// Broadcast message requesting a brief screen desaturation pulse.
+#[derive(Message)]
+pub(crate) struct ScreenDesaturateMessage;

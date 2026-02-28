@@ -31,7 +31,7 @@ struct CrtSettings {
     time: f32,
     channel_change: f32,
     channel_change_time: f32,
-    _padding1: f32,
+    desaturation: f32,
     _padding2: f32,
 }
 @group(0) @binding(2) var<uniform> settings: CrtSettings;
@@ -179,6 +179,12 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // D) Brief brightness flash (strongest at peak intensity).
         let flash = cc * cc * 0.15;
         color = vec4<f32>(color.rgb + vec3<f32>(flash), 1.0);
+    }
+
+    // 15. Desaturation pulse: convert to luma, mix with desaturation factor.
+    if (settings.desaturation > 0.0) {
+        let luma = dot(color.rgb, vec3<f32>(0.299, 0.587, 0.114));
+        color = vec4<f32>(mix(color.rgb, vec3<f32>(luma), settings.desaturation), 1.0);
     }
 
     return color;

@@ -44,6 +44,22 @@ pub struct MissileGlow {
     pub base_radius: f32,
 }
 
+/// Semi-transparent dithered billboard that sways and bobs near hot objects,
+/// creating a lo-fi heat haze effect.
+#[derive(Component)]
+pub struct HeatShimmer {
+    /// Gentle lateral sway velocity.
+    pub velocity: Vec3,
+    /// Seconds since this shimmer was spawned.
+    pub time_alive: f32,
+    /// Total lifetime before despawn (seconds).
+    pub lifetime: f32,
+    /// Base size of this shimmer particle.
+    pub base_size: f32,
+    /// Random phase offset for dither animation.
+    pub phase: f32,
+}
+
 /// White sparkle particle that trails behind a magic missile.
 /// Spawns at the missile's position, inherits its velocity, then decelerates
 /// to create a comet-like trail effect.

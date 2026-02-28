@@ -12,7 +12,7 @@ use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, Te
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, KingsGuard, MesmerizedModifier,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, KingsGuard,
     MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
@@ -176,7 +176,6 @@ pub fn king_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&MesmerizedModifier>,
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&GreaseSlipModifier>,
@@ -200,11 +199,11 @@ pub fn king_movement(
         terrain_modifier,
         (frost_modifier, spike_growth_modifier),
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (mesmerized, sleeping, banished, grease, _polymorphed),
+        (sleeping, banished, grease, _polymorphed),
     ) in &mut king_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || mesmerized.is_some() || sleeping.is_some() || banished.is_some() {
+        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

@@ -1,7 +1,11 @@
 //! Shared UI components used across all menus and screens.
 
+use std::collections::HashMap;
+
 use bevy::asset::AssetId;
 use bevy::prelude::*;
+
+use crate::game::units::wizard::components::Spell;
 
 /// Replaces Bevy's built-in default font (FiraMono) with PressStart2P.
 ///
@@ -26,6 +30,32 @@ pub struct ButtonColors {
     pub background: Color,
     /// The button's border color in its default state.
     pub border: Color,
+}
+
+/// Pre-loaded spell icon image handles.
+///
+/// Loaded at startup so spell icons display instantly in the spell book and action bar.
+#[derive(Resource)]
+pub struct SpellIconAssets {
+    icons: HashMap<Spell, Handle<Image>>,
+}
+
+impl SpellIconAssets {
+    /// Returns the pre-loaded icon handle for a spell, if it has one.
+    pub fn get(&self, spell: &Spell) -> Option<&Handle<Image>> {
+        self.icons.get(spell)
+    }
+}
+
+/// Loads all spell icon images at startup.
+pub fn load_spell_icon_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let mut icons = HashMap::new();
+    for spell in Spell::all() {
+        if let Some(path) = spell.icon_path() {
+            icons.insert(*spell, asset_server.load(path));
+        }
+    }
+    commands.insert_resource(SpellIconAssets { icons });
 }
 
 /// Configuration for button dimensions and styling.

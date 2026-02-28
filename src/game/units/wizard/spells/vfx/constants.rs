@@ -65,3 +65,27 @@ pub(crate) const SPARKLE_SIZE: f32 = 2.0;
 pub(crate) const SPARKLE_DRAG: f32 = 3.0;
 /// Random spread speed added to sparkles on spawn.
 pub(crate) const SPARKLE_SPREAD_SPEED: f32 = 30.0;
+
+// ── Surface fire particles (wall of fire, grease fire, ground fire pools) ──
+/// Size of smoke wisps rising off surface fires (2× trail size).
+pub(crate) const SURFACE_SMOKE_SIZE: f32 = 6.0;
+/// Number of smoke wisps per spawn batch for surface fires.
+pub(crate) const SURFACE_SMOKE_COUNT: usize = 2;
+/// Number of shimmer wisps per spawn batch for surface fires.
+pub(crate) const SURFACE_SHIMMER_COUNT: usize = 2;
+/// Size of shimmer billboards for surface fires (2× base size).
+pub(crate) const SURFACE_SHIMMER_SIZE: f32 = 16.0;
+
+// ── Heat shimmer (fire haze) ────────────────────────────────────────
+/// How long each shimmer wisp lives (seconds).
+pub(crate) const SHIMMER_LIFETIME: f32 = 0.6;
+/// Base size of each shimmer billboard.
+pub(crate) const SHIMMER_SIZE: f32 = 8.0;
+/// Gentle upward drift speed.
+pub(crate) const SHIMMER_RISE_SPEED: f32 = 25.0;
+/// Slight lateral wobble speed.
+pub(crate) const SHIMMER_SPREAD_SPEED: f32 = 15.0;
+/// Hz for lateral sway oscillation.
+pub(crate) const SHIMMER_SWAY_FREQUENCY: f32 = 3.0;
+/// Pixels of lateral sway.
+pub(crate) const SHIMMER_SWAY_AMPLITUDE: f32 = 5.0;

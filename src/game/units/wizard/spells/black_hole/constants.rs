@@ -34,7 +34,7 @@ pub const MAX_RADIUS: f32 = 50.0;
 
 /// Height offset from ground where black hole spawns.
 /// Matches infantry unit Y position (hitbox.height / 2.0 + 1.0 = 25.0 / 2.0 + 1.0 = 13.5).
-pub const BLACK_HOLE_HEIGHT: f32 = 13.5;
+pub const BLACK_HOLE_HEIGHT: f32 = 23.5;
 
 // ===== Gravitational Physics =====
 
@@ -77,3 +77,17 @@ pub const VIBRATION_AMPLITUDE: f32 = 2.0;
 
 /// Frequency of the vibration effect (cycles per second).
 pub const VIBRATION_FREQUENCY: f32 = 8.0;
+
+// ===== Ring & Accretion Disk =====
+
+/// Pulsing speed for torus rings (cycles per second).
+pub const RING_PULSE_FREQUENCY: f32 = 3.0;
+
+/// Pulsing scale amplitude for torus rings.
+pub const RING_PULSE_AMPLITUDE: f32 = 0.03;
+
+/// Tilt of the accretion disk from horizontal (~15°).
+pub const ACCRETION_TILT: f32 = 0.26;
+
+/// Torus tube thickness (unit-scale, used in visual_assets.rs mesh creation).
+pub(crate) const TORUS_MINOR_RADIUS: f32 = 0.03;

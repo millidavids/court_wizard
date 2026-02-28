@@ -7,7 +7,7 @@ use crate::config::{ConfigChanged, GameConfig};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
-use crate::ui::components::ButtonColors;
+use crate::ui::components::{ButtonColors, SpellIconAssets};
 
 /// Calculates the appropriate font size for action bar spell names based on max line width.
 ///
@@ -30,7 +30,7 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
 pub(super) fn spawn_action_bar(
     mut commands: Commands,
     config: Res<GameConfig>,
-    asset_server: Res<AssetServer>,
+    icon_assets: Res<SpellIconAssets>,
 ) {
     commands
         .spawn((
@@ -88,12 +88,12 @@ pub(super) fn spawn_action_bar(
                                 ));
 
                                 // Spell icon or name in center
-                                let has_icon =
-                                    spell.is_some_and(|s| s.icon_path().is_some());
-                                if has_icon {
-                                    let icon_path = spell.unwrap().icon_path().unwrap();
+                                let icon_handle = spell
+                                    .and_then(|s| icon_assets.get(&s).cloned());
+                                let has_icon = icon_handle.is_some();
+                                if let Some(handle) = icon_handle {
                                     button.spawn((
-                                        ImageNode::new(asset_server.load(icon_path)),
+                                        ImageNode::new(handle),
                                         Node {
                                             width: Val::Px(SPELL_ICON_SIZE),
                                             height: Val::Px(SPELL_ICON_SIZE),
@@ -169,7 +169,7 @@ pub(super) fn handle_keyboard_input(
 /// Updates action bar slot text and icons when config changes.
 pub(super) fn update_action_bar_slots(
     config: Res<GameConfig>,
-    asset_server: Res<AssetServer>,
+    icon_assets: Res<SpellIconAssets>,
     mut slot_text_query: Query<(
         &mut Text,
         &mut TextFont,
@@ -186,7 +186,7 @@ pub(super) fn update_action_bar_slots(
             **text = spell_name.to_string();
             text_font.font_size = calculate_action_bar_font_size(spell_name);
 
-            let has_icon = spell.is_some_and(|s| s.icon_path().is_some());
+            let has_icon = spell.is_some_and(|s| icon_assets.get(&s).is_some());
             *visibility = if has_icon {
                 Visibility::Hidden
             } else {
@@ -197,8 +197,8 @@ pub(super) fn update_action_bar_slots(
 
         for (mut image_node, mut visibility, mut node, slot_icon) in &mut slot_icon_query {
             let spell = config.action_bar_slots[slot_icon.slot as usize];
-            if let Some(icon_path) = spell.and_then(|s| s.icon_path()) {
-                *image_node = ImageNode::new(asset_server.load(icon_path));
+            if let Some(handle) = spell.and_then(|s| icon_assets.get(&s).cloned()) {
+                *image_node = ImageNode::new(handle);
                 *visibility = Visibility::Inherited;
                 node.width = Val::Px(SPELL_ICON_SIZE);
                 node.height = Val::Px(SPELL_ICON_SIZE);

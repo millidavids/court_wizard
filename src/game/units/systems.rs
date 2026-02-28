@@ -4,7 +4,7 @@ use rand::Rng;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, Corpse, Effectiveness, ElectricCharge, FireDoT,
     FlockingVelocity, FogEvasionModifier, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
-    Health, InMelee, MarkedForDeathModifier, MesmerizedModifier, OriginalMaterial,
+    Health, InMelee, MarkedForDeathModifier, OriginalMaterial,
     PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
     SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints,
     apply_damage_to_unit,
@@ -317,20 +317,6 @@ pub fn update_mark_of_death_modifiers(
     for (entity, mut modifier) in query.iter_mut() {
         if modifier.update(delta) {
             commands.entity(entity).remove::<MarkedForDeathModifier>();
-        }
-    }
-}
-
-/// Updates all mesmerized modifiers and removes expired components.
-pub fn update_mesmerized_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut MesmerizedModifier)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<MesmerizedModifier>();
         }
     }
 }

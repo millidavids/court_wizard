@@ -65,3 +65,6 @@ pub const GROUND_FIRE_TICK: f32 = 0.5;
 
 /// Duration of the fade-out effect before ground fire expires (seconds).
 pub const GROUND_FIRE_FADE_DURATION: f32 = 2.0;
+
+/// Interval between smoke wisp spawns for ground fire pools (seconds).
+pub const GROUND_FIRE_SMOKE_INTERVAL: f32 = 0.25;

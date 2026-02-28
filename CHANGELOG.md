@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.3] - 2026-02-27
+
+### Added
+- **Black hole visual overhaul** — black holes now look like a cinematic singularity with a flat black circle facing the wizard, a tilted accretion disk below it, and two pulsing whitish-red torus rings around each
+- **Screen desaturation effect** — certain powerful spells briefly flash the screen to greyscale through the CRT filter
+- **Finger of Death ground scorch** — the beam now leaves a glowing burn mark on the ground where it hits
+- **Fireball ground scorch** — fireballs now leave a burning ground scar at the impact point
+- **Disintegrate ground scorch** — the beam scorches the earth beneath it
+- **Grease fire explosion VFX** — igniting a grease slick now triggers a fiery explosion with sparks, smoke, and heat shimmer
+- **Meteor ground fire VFX** — meteor impacts now show flames, smoke wisps, and heat shimmer on the burning ground they leave behind
+- **Wall of Fire VFX** — fire walls now have visible flames, rising smoke, and heat shimmer along their length
+- **Spell icons for all spells** — every spell now has a unique icon that loads instantly in the spell book and action bar
+
+### Changed
+- Spell book buttons now show the icon on the left with the spell name to the right, instead of centered
+- Black hole spawns higher above the ground so it's easier to see
+- Wall of Fire pushes enemies away more strongly
+- Defenders now return to their positions between waves instead of chasing the last enemy across the map
+
+### Removed
+- Removed Hypnotic Pattern and Phantasmal Force spells from the game
+
 ## [v0.2.381] - 2026-02-27
 
 ### Added

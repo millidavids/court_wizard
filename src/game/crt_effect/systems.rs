@@ -2,9 +2,9 @@ use bevy::math::DVec2;
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved};
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings};
-use super::constants::CHANNEL_CHANGE_DURATION;
-use super::messages::ChannelChangeMessage;
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer};
+use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION};
+use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 
 /// Stores the raw (uncorrected) cursor position from OS events.
 ///
@@ -123,5 +123,40 @@ pub(super) fn animate_channel_change(
             settings.channel_change_time = 0.0;
         }
         commands.remove_resource::<ChannelChangeTimer>();
+    }
+}
+
+/// Reads `ScreenDesaturateMessage` and starts the desaturation animation.
+pub(super) fn handle_desaturation_message(
+    mut commands: Commands,
+    mut messages: MessageReader<ScreenDesaturateMessage>,
+    existing_timer: Option<Res<DesaturationTimer>>,
+) {
+    if messages.read().next().is_some() && existing_timer.is_none() {
+        commands.insert_resource(DesaturationTimer::new(DESATURATION_DURATION));
+    }
+}
+
+/// Ticks the desaturation timer, writes intensity to CrtEffectSettings,
+/// and removes the timer when the animation is complete.
+pub(super) fn animate_desaturation(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<DesaturationTimer>,
+    mut query: Query<&mut CrtEffectSettings>,
+) {
+    timer.elapsed += time.delta_secs();
+
+    let intensity = timer.intensity();
+
+    for mut settings in &mut query {
+        settings.desaturation = intensity;
+    }
+
+    if timer.is_finished() {
+        for mut settings in &mut query {
+            settings.desaturation = 0.0;
+        }
+        commands.remove_resource::<DesaturationTimer>();
     }
 }

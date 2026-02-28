@@ -472,6 +472,14 @@ pub(super) fn spawn_meteor_smoke_trail(
             vfx::constants::SMOKE_RISE_SPEED,
             vfx::constants::SMOKE_SPREAD_SPEED,
         );
+
+        vfx::systems::spawn_heat_shimmer(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            1,
+            t,
+        );
     }
 }
 
@@ -518,6 +526,15 @@ pub(super) fn check_meteor_collisions(
                 &mut commands,
                 &visual_assets,
                 pos,
+                t,
+            );
+
+            // Heat shimmer burst at impact
+            vfx::systems::spawn_heat_shimmer(
+                &mut commands,
+                &visual_assets,
+                pos,
+                3,
                 t,
             );
 
@@ -608,6 +625,63 @@ pub(super) fn update_meteor_explosions(
         if explosion.time_alive >= EXPLOSION_LIFETIME {
             commands.entity(explosion_entity).despawn();
         }
+    }
+}
+
+/// Spawns smoke wisps and heat shimmer rising off meteor ground fire pools.
+pub(super) fn spawn_ground_fire_smoke(
+    mut commands: Commands,
+    fires: Query<&MeteorGroundFire>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < GROUND_FIRE_SMOKE_INTERVAL {
+        return;
+    }
+    *timer -= GROUND_FIRE_SMOKE_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for fire in fires.iter() {
+        // Don't emit smoke during the fade-out period
+        let remaining = fire.duration - fire.time_alive;
+        if remaining < GROUND_FIRE_FADE_DURATION {
+            continue;
+        }
+
+        // Pick a pseudo-random position within the fire's radius
+        let seed = t * 3.7 + fire.origin.x * 0.1 + fire.origin.z * 0.07;
+        let angle = seed * 2.39 + (seed * 13.7).sin();
+        let frac = (seed * 7.3).fract();
+        let offset_r = fire.radius * frac * 0.8;
+        let pos = Vec3::new(
+            fire.origin.x + angle.cos() * offset_r,
+            0.5,
+            fire.origin.z + angle.sin() * offset_r,
+        );
+
+        vfx::systems::spawn_fire_smoke_wisps(
+            &mut commands,
+            &visual_assets,
+            pos,
+            vfx::constants::SURFACE_SMOKE_COUNT,
+            t,
+            vfx::constants::SMOKE_LIFETIME,
+            vfx::constants::SURFACE_SMOKE_SIZE,
+            vfx::constants::SMOKE_RISE_SPEED,
+            vfx::constants::SMOKE_SPREAD_SPEED,
+        );
+
+        vfx::systems::spawn_heat_shimmer_sized(
+            &mut commands,
+            &visual_assets,
+            pos,
+            vfx::constants::SURFACE_SHIMMER_COUNT,
+            t,
+            vfx::constants::SURFACE_SHIMMER_SIZE,
+        );
     }
 }
 

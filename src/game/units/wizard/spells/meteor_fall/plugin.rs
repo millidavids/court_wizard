@@ -38,6 +38,7 @@ impl Plugin for MeteorFallPlugin {
                 update_meteor_explosions.run_if(any_exist::<MeteorExplosion>()),
                 // Ground fire systems (chained for correct ordering)
                 (
+                    spawn_ground_fire_smoke,
                     apply_ground_fire_damage,
                     fade_ground_fire,
                     cleanup_ground_fire,

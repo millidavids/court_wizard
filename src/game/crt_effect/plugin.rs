@@ -24,11 +24,11 @@ use bevy::{
     },
 };
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings};
-use super::messages::ChannelChangeMessage;
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer};
+use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use super::systems::{
-    animate_channel_change, correct_cursor_for_barrel_distortion, handle_channel_change_message,
-    RawCursorPosition,
+    animate_channel_change, animate_desaturation, correct_cursor_for_barrel_distortion,
+    handle_channel_change_message, handle_desaturation_message, RawCursorPosition,
 };
 
 const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
@@ -44,12 +44,18 @@ impl Plugin for CrtEffectPlugin {
 
         app.init_resource::<RawCursorPosition>();
         app.add_message::<ChannelChangeMessage>();
+        app.add_message::<ScreenDesaturateMessage>();
 
         app.add_systems(Update, update_crt_time);
         app.add_systems(Update, handle_channel_change_message);
         app.add_systems(
             Update,
             animate_channel_change.run_if(resource_exists::<ChannelChangeTimer>),
+        );
+        app.add_systems(Update, handle_desaturation_message);
+        app.add_systems(
+            Update,
+            animate_desaturation.run_if(resource_exists::<DesaturationTimer>),
         );
 
         // Correct cursor position for barrel distortion before any game systems read it.

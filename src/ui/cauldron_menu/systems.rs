@@ -87,9 +87,12 @@ fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientS
                             border: UiRect::all(Val::Px(FRAME_BORDER_WIDTH)),
                             padding: UiRect::all(Val::Px(FRAME_PADDING)),
                             flex_direction: FlexDirection::Row,
+                            flex_wrap: FlexWrap::Wrap,
                             column_gap: Val::Px(INGREDIENT_COLUMN_GAP),
+                            row_gap: Val::Px(INGREDIENT_COLUMN_GAP),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::FlexStart,
+                            max_width: Val::Vw(90.0),
                             ..default()
                         },
                         BorderColor::all(FRAME_BORDER_COLOR),
