@@ -7,6 +7,7 @@ use super::super::super::components::{
 use super::components::*;
 use super::constants;
 use super::styles::*;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -16,6 +17,7 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
@@ -40,6 +42,8 @@ pub fn handle_fireball_casting(
     caster_query: Query<&SpellCaster>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -69,6 +73,8 @@ pub fn handle_fireball_casting(
         &caster_query,
         &mut commands,
         &visual_assets,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -88,6 +94,8 @@ fn fireball_casting_logic(
     caster_query: &Query<&SpellCaster>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     let mut completed = false;
 
@@ -114,6 +122,7 @@ fn fireball_casting_logic(
                     let spawn_origin = SPELL_ORIGIN
                         + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
                     spawn_fireball(commands, assets, spawn_origin, target_pos, primed_spell);
+                    audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config);
                     completed = true;
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
@@ -277,6 +286,8 @@ pub fn check_fireball_collisions(
     fireballs: Query<(Entity, &Transform, &Fireball)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let t = time.elapsed_secs();
 
@@ -296,6 +307,8 @@ pub fn check_fireball_collisions(
                     fireball.damage,
                     fireball.empowerment,
                     t,
+                    &sfx,
+                    &game_config,
                 );
                 commands.entity(fireball_entity).despawn();
                 hit_wall = true;
@@ -318,6 +331,8 @@ pub fn check_fireball_collisions(
                 fireball.damage,
                 fireball.empowerment,
                 t,
+                &sfx,
+                &game_config,
             );
             commands.entity(fireball_entity).despawn();
             continue;
@@ -336,6 +351,8 @@ pub fn check_fireball_collisions(
                     fireball.damage,
                     fireball.empowerment,
                     t,
+                    &sfx,
+                    &game_config,
                 );
                 commands.entity(fireball_entity).despawn();
                 break;
@@ -353,6 +370,8 @@ fn spawn_explosion(
     damage: f32,
     empowerment: f32,
     time_secs: f32,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) {
     commands.spawn((
         Mesh3d(assets.cross_plane_sphere.clone()),
@@ -385,6 +404,9 @@ fn spawn_explosion(
 
     // Heat shimmer burst at impact
     vfx::systems::spawn_heat_shimmer(commands, assets, position, 3, time_secs);
+
+    // Impact sound effect
+    audio::play_sfx(commands, &sfx.fireball_impact, position, game_config);
 }
 
 /// Updates explosion visuals and timing.

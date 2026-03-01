@@ -36,6 +36,7 @@ pub enum Spell {
     Polymorph,
     ArcaneCrystal,
     Dispel,
+    MindControl,
 }
 
 /// Spell categories for organizing the spell book.
@@ -92,6 +93,7 @@ impl SpellCategory {
                 Spell::Sleep,
                 Spell::Grease,
                 Spell::Polymorph,
+                Spell::MindControl,
             ],
             SpellCategory::Support => &[
                 Spell::GuardianCircle,
@@ -147,6 +149,7 @@ impl Spell {
             Spell::Polymorph,
             Spell::ArcaneCrystal,
             Spell::Dispel,
+            Spell::MindControl,
         ]
     }
 
@@ -172,7 +175,8 @@ impl Spell {
             | Spell::Squall
             | Spell::Sleep
             | Spell::Grease
-            | Spell::Polymorph => SpellCategory::Control,
+            | Spell::Polymorph
+            | Spell::MindControl => SpellCategory::Control,
 
             Spell::GuardianCircle
             | Spell::Haste
@@ -222,6 +226,7 @@ impl Spell {
             Spell::Polymorph => "Polymorph",
             Spell::ArcaneCrystal => "Arcane Crystal",
             Spell::Dispel => "Dispel",
+            Spell::MindControl => "Mind Control",
         }
     }
 
@@ -258,6 +263,7 @@ impl Spell {
             Spell::Polymorph => "Polymorph",
             Spell::ArcaneCrystal => "Arcane\nCrystal",
             Spell::Dispel => "Dispel",
+            Spell::MindControl => "Mind\nControl",
         }
     }
 
@@ -346,6 +352,9 @@ impl Spell {
             Spell::Dispel => {
                 "Fires a bolt of nullifying energy at the cursor. On impact, an expanding wave removes any spell effects it touches."
             }
+            Spell::MindControl => {
+                "Hold to cast on the nearest enemy to your cursor. The target turns against its allies, attacking them instead. Wears off over time."
+            }
         }
     }
 
@@ -388,6 +397,7 @@ impl Spell {
                 "A prism for the ambitious. What goes in comes out... everywhere."
             }
             Spell::Dispel => "Sometimes the best magic is no magic at all.",
+            Spell::MindControl => "Why fight your enemies when they can fight each other?",
         }
     }
 
@@ -424,6 +434,7 @@ impl Spell {
             Spell::Polymorph => Some("images/icons/polymorph_icon.png"),
             Spell::ArcaneCrystal => Some("images/icons/arcane_crystal_icon.png"),
             Spell::Dispel => Some("images/icons/dispel_icon.png"),
+            Spell::MindControl => Some("images/icons/mind_control_icon.png"),
         }
     }
 
@@ -460,6 +471,7 @@ impl Spell {
             Spell::Polymorph => "Click and hold to cast",
             Spell::ArcaneCrystal => "Click and hold to place",
             Spell::Dispel => "Click to fire",
+            Spell::MindControl => "Click and hold to cast",
         }
     }
 
@@ -472,7 +484,8 @@ impl Spell {
             finger_of_death_constants, fireball_constants, fog_cloud_constants, grease_constants,
             guardian_circle_constants, haste_constants, healing_plume_constants,
             lightning_rod_constants, magic_missile_constants, mark_of_death_constants,
-            meteor_fall_constants, plague_wind_constants, polymorph_constants,
+            meteor_fall_constants, mind_control_constants, plague_wind_constants,
+            polymorph_constants,
             raise_the_dead_constants, sleep_constants, spike_growth_constants, squall_constants,
             telekinesis_constants, teleport_constants, wall_of_fire_constants,
             wall_of_stone_constants,
@@ -509,6 +522,7 @@ impl Spell {
             Spell::Polymorph => polymorph_constants::PRIMED_POLYMORPH,
             Spell::ArcaneCrystal => arcane_crystal_constants::PRIMED_ARCANE_CRYSTAL,
             Spell::Dispel => dispel_constants::PRIMED_DISPEL,
+            Spell::MindControl => mind_control_constants::PRIMED_MIND_CONTROL,
         }
     }
 
@@ -545,6 +559,7 @@ impl Spell {
             Spell::Polymorph => DamageType::Nature,
             Spell::ArcaneCrystal => DamageType::Force,
             Spell::Dispel => DamageType::Force,
+            Spell::MindControl => DamageType::Force,
         }
     }
 
@@ -586,6 +601,7 @@ impl Spell {
             Spell::Polymorph => 100,
             Spell::ArcaneCrystal => 80,
             Spell::Dispel => 40,
+            Spell::MindControl => 80,
         }
     }
 
@@ -612,6 +628,8 @@ impl Spell {
             Spell::BattleHymn => Some(Spell::Haste),
             // Force chains: Wall of Stone → Teleport
             Spell::Teleport => Some(Spell::WallOfStone),
+            // Control chain: Sleep → Mind Control
+            Spell::MindControl => Some(Spell::Sleep),
             _ => None,
         }
     }
@@ -629,6 +647,7 @@ impl Spell {
             Spell::Polymorph => 8,
             Spell::ArcaneCrystal => 6,
             Spell::Dispel => 3,
+            Spell::MindControl => 0,
             _ => 0,
         }
     }

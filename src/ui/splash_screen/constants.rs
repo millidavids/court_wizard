@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-/// How long the initial black screen is shown to let the render pipeline warm up.
-pub(super) const INIT_DURATION: f32 = 0.5;
-
 /// How long each splash screen is displayed (seconds).
 pub(super) const HOLD_DURATION: f32 = 4.0;
+
+/// Asset path for the CRT effect shader (waited on during Black substate).
+pub(super) const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
 
 /// Studio name text color (at full opacity).
 pub(super) const STUDIO_TEXT_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);

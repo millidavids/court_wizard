@@ -117,7 +117,7 @@ pub fn update_king_targeting(
     defenders_activated: Res<crate::game::units::infantry::components::DefendersActivated>,
     mut commands: Commands,
     mut king: Query<
-        (Entity, &Transform, &Team, &mut TargetingVelocity),
+        (Entity, &Transform, &Team, &mut TargetingVelocity, Option<&crate::game::units::components::RetaliationTarget>),
         (With<King>, Without<Corpse>),
     >,
     all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
@@ -129,7 +129,7 @@ pub fn update_king_targeting(
         .collect();
 
     // Update King's targeting velocity
-    for (entity, transform, team, mut targeting_velocity) in &mut king {
+    for (entity, transform, team, mut targeting_velocity, retaliation) in &mut king {
         // Skip inactive King (wait for defenders to activate)
         if !defenders_activated.active {
             *targeting_velocity = TargetingVelocity::default();
@@ -144,6 +144,7 @@ pub fn update_king_targeting(
             *team,
             &mut targeting_velocity,
             &mut commands,
+            retaliation.map(|r| r.0),
         );
     }
 }

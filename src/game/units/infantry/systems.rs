@@ -89,6 +89,7 @@ pub fn update_infantry_targeting(
             &Transform,
             &Team,
             &mut crate::game::units::components::TargetingVelocity,
+            Option<&crate::game::units::components::RetaliationTarget>,
         ),
         (
             With<Infantry>,
@@ -104,7 +105,7 @@ pub fn update_infantry_targeting(
         .collect();
 
     // Update each infantry's targeting velocity
-    for (entity, transform, team, mut targeting_velocity) in &mut infantry {
+    for (entity, transform, team, mut targeting_velocity, retaliation) in &mut infantry {
         // Skip inactive defender infantry (but always process attackers)
         if *team == Team::Defenders && !defenders_activated.active {
             *targeting_velocity = TargetingVelocity::default();
@@ -119,6 +120,7 @@ pub fn update_infantry_targeting(
             *team,
             &mut targeting_velocity,
             &mut commands,
+            retaliation.map(|r| r.0),
         );
     }
 }

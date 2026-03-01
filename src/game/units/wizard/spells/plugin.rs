@@ -23,6 +23,7 @@ use super::lightning_rod::LightningRodPlugin;
 use super::magic_missile::MagicMissilePlugin;
 use super::mark_of_death::MarkOfDeathPlugin;
 use super::meteor_fall::MeteorFallPlugin;
+use super::mind_control::MindControlPlugin;
 use super::plague_wind::PlagueWindPlugin;
 use super::polymorph::PolymorphPlugin;
 use super::raise_the_dead::RaiseTheDeadPlugin;
@@ -40,7 +41,13 @@ pub struct SpellsPlugin;
 
 impl Plugin for SpellsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, super::visual_assets::init_spell_visual_assets)
+        app.add_systems(
+            Startup,
+            (
+                super::visual_assets::init_spell_visual_assets,
+                super::audio::load_spell_sfx_assets,
+            ),
+        )
             .add_plugins((
                 MagicMissilePlugin,
                 DisintegratePlugin,
@@ -78,6 +85,7 @@ impl Plugin for SpellsPlugin {
                 PolymorphPlugin,
                 ArcaneCrystalPlugin,
                 DispelPlugin,
+                MindControlPlugin,
             ))
             .add_plugins(VfxPlugin)
             .add_systems(

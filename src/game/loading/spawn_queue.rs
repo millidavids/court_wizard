@@ -38,6 +38,7 @@ pub enum SpawnTask {
     },
     Brute,
     Ogre,
+    Hags,
     Battlefield,
     #[allow(dead_code)]
     Castle,

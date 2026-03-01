@@ -14,8 +14,8 @@ use super::units::archer::Archer;
 use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteDamageBonus, Health, Hitbox,
-    MovementSpeed, ResidualFireDamaged, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
-    TemporaryHitPoints, apply_damage_to_unit,
+    Invulnerable, MovementSpeed, ResidualFireDamaged, RetaliationTarget, RoughTerrain,
+    RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
@@ -55,7 +55,7 @@ pub fn init_level_from_config(mut current_level: ResMut<CurrentLevel>, config: R
 /// in their respective systems. This encourages tactical positioning and rewards
 /// units that fight together while penalizing isolated units.
 pub fn calculate_effectiveness(
-    mut units: Query<(Entity, &Transform, &Hitbox, &Team, &mut Effectiveness), Without<Corpse>>,
+    mut units: Query<(Entity, &Transform, &Hitbox, &Team, &mut Effectiveness), (Without<Corpse>, Without<Boss>)>,
 ) {
     // Collect snapshot for symmetric calculations
     let unit_data: Vec<_> = units
@@ -359,8 +359,13 @@ pub fn combat(
             Option<&super::units::components::BanishedModifier>,
             Option<&super::units::components::BattleHymnModifier>,
             Option<&super::units::components::BerserkerRageModifier>,
+            Option<&RetaliationTarget>,
         ),
         (Without<Corpse>, Without<Boss>),
+    >,
+    boss_units: Query<
+        (Entity, &Transform, &Hitbox, &Team),
+        (With<Boss>, Without<Corpse>),
     >,
     mut health_query: Query<(
         &mut Health,
@@ -376,15 +381,20 @@ pub fn combat(
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
 
-    // Collect snapshot of all units for enemy detection
-    let units_snapshot: Vec<_> = all_units
+    // Collect snapshot of all units for enemy detection (includes bosses as targets)
+    let mut units_snapshot: Vec<_> = all_units
         .iter()
         .map(
-            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _)| {
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _)| {
                 (entity, transform.translation, *hitbox, *team)
             },
         )
         .collect();
+
+    // Include boss units in the snapshot so they can be targeted by defenders
+    for (entity, transform, hitbox, team) in &boss_units {
+        units_snapshot.push((entity, transform.translation, *hitbox, *team));
+    }
 
     // Collect post-combat actions to apply after the main loop
     let mut post_combat_removes: Vec<(Entity, PostCombatAction)> = Vec::new();
@@ -404,6 +414,7 @@ pub fn combat(
         banished,
         battle_hymn,
         berserker_rage_attacker,
+        retaliation,
     ) in &mut all_units
     {
         // Skip attack if sleeping or banished
@@ -411,17 +422,20 @@ pub fn combat(
             continue;
         }
 
-        // Find nearest enemy within attack range
+        let retaliation_entity = retaliation.map(|r| r.0);
+
+        // Find nearest enemy within attack range (also considers retaliation target)
         if let Some((target_entity, _, _)) = units_snapshot
             .iter()
             .filter(|(entity, _, _, team)| {
                 *entity != attacker_entity
-                    && match (attacker_team, team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => team != attacker_team,
-                    }
+                    && (retaliation_entity == Some(*entity)
+                        || match (attacker_team, team) {
+                            (Team::Undead, Team::Undead) => false,
+                            (Team::Undead, _) => true,
+                            (_, Team::Undead) => true,
+                            _ => team != attacker_team,
+                        })
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
                 let dx = attacker_transform.translation.x - target_pos.x;
@@ -523,6 +537,18 @@ enum PostCombatAction {
 
 /// Converts dead units to corpses instead of despawning them.
 ///
+/// Negates all damage for units with the `Invulnerable` component by restoring
+/// their health to the snapshot each frame. Must run after all combat systems.
+pub fn enforce_invulnerability(
+    mut query: Query<(&mut Invulnerable, &mut Health), Without<Corpse>>,
+) {
+    for (mut invuln, mut health) in &mut query {
+        // Restore health to at least the snapshot (damage negated, heals preserved)
+        health.current = health.current.max(invuln.health_snapshot).min(health.max);
+        invuln.health_snapshot = health.current;
+    }
+}
+
 /// When a unit's health reaches zero, this system replaces the unit's material with
 /// a pre-loaded corpse material based on team and converts the unit into a corpse
 /// that slows living units walking over it.
@@ -544,6 +570,7 @@ pub fn convert_dead_to_corpses(
             Option<&Infantry>,
             Option<&Archer>,
             Option<&super::units::king::components::King>,
+            Option<&Boss>,
             Option<&SpellDamaged>,
             Option<&ResidualFireDamaged>,
         ),
@@ -562,6 +589,7 @@ pub fn convert_dead_to_corpses(
         is_infantry,
         is_archer,
         is_king,
+        is_boss,
         spell_damaged,
         residual_fire_damaged,
     ) in &query
@@ -623,6 +651,13 @@ pub fn convert_dead_to_corpses(
             commands
                 .entity(entity)
                 .insert(MeshMaterial3d(corpse_material));
+
+            // Bosses have oversized meshes — swap to infantry mesh for a normal-sized corpse
+            if is_boss.is_some() {
+                commands
+                    .entity(entity)
+                    .insert(Mesh3d(infantry_assets.mesh.clone()));
+            }
 
             // Create a new transform for the corpse: lay flat on ground at Y=1
             // Rotate -90 degrees around X axis to make it face upward

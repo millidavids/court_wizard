@@ -7,6 +7,7 @@ use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType, OBSTACLE_BUFFER};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::units::components::MindControlled;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::grease::components::GreaseZone;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
@@ -201,6 +202,7 @@ pub fn update_dispel_impacts(
     grease_query: Query<&GreaseZone>,
     meteor_fire_query: Query<&MeteorGroundFire>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
+    mind_controlled_query: Query<(Entity, &Transform), (With<MindControlled>, Without<DispelImpact>)>,
 ) {
     for (entity, mut impact, mut transform, material_handle) in &mut impacts {
         impact.time_alive += time.delta_secs();
@@ -222,8 +224,9 @@ pub fn update_dispel_impacts(
             material.base_color = constants::PROJECTILE_COLOR.with_alpha(alpha);
         }
 
-        // Check overlap with dispellable spell effects
         let impact_center = transform.translation;
+
+        // Check overlap with dispellable spell effects
         for (spell_entity, spell_tf, nse) in &spell_effects {
             if !is_dispellable(nse.kind) {
                 continue;
@@ -251,6 +254,17 @@ pub fn update_dispel_impacts(
                     &meteor_fire_query,
                     &mut obstacle_events,
                 );
+            }
+        }
+
+        // Remove mind control from units in range
+        for (mc_entity, mc_transform) in &mind_controlled_query {
+            let dx = mc_transform.translation.x - impact_center.x;
+            let dz = mc_transform.translation.z - impact_center.z;
+            let dist = (dx * dx + dz * dz).sqrt();
+
+            if dist <= radius {
+                commands.entity(mc_entity).remove::<MindControlled>();
             }
         }
     }

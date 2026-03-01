@@ -3,6 +3,7 @@
 //! Handles wizard spells, projectiles, and spell effects.
 
 pub(crate) mod arcane_crystal;
+pub(crate) mod audio;
 pub(crate) mod banishment;
 pub(crate) mod battle_hymn;
 pub(crate) mod berserker_rage;
@@ -24,6 +25,7 @@ pub(crate) mod lightning_rod;
 pub(crate) mod magic_missile;
 pub(crate) mod mark_of_death;
 pub(crate) mod meteor_fall;
+pub(crate) mod mind_control;
 pub(crate) mod plague_wind;
 mod plugin;
 pub(crate) mod polymorph;
@@ -60,6 +62,7 @@ pub(in crate::game::units::wizard) use lightning_rod::constants as lightning_rod
 pub(in crate::game) use magic_missile::constants as magic_missile_constants;
 pub(in crate::game::units::wizard) use mark_of_death::constants as mark_of_death_constants;
 pub(in crate::game::units::wizard) use meteor_fall::constants as meteor_fall_constants;
+pub(in crate::game::units::wizard) use mind_control::constants as mind_control_constants;
 pub(in crate::game::units::wizard) use plague_wind::constants as plague_wind_constants;
 pub(in crate::game::units::wizard) use polymorph::constants as polymorph_constants;
 pub(in crate::game::units::wizard) use raise_the_dead::constants as raise_the_dead_constants;

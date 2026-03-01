@@ -93,6 +93,7 @@ pub fn update_ogre_targeting(
             *boss_team,
             &mut targeting,
             &mut commands,
+            None,
         );
     }
 }

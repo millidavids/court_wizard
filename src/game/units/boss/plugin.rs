@@ -1,11 +1,12 @@
 use bevy::prelude::*;
 
+use super::hags::HagsPlugin;
 use super::ogre::OgrePlugin;
 
 pub struct BossPlugin;
 
 impl Plugin for BossPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(OgrePlugin);
+        app.add_plugins((OgrePlugin, HagsPlugin));
     }
 }

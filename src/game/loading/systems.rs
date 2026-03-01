@@ -74,9 +74,22 @@ pub fn init_loading_progress(
     use crate::game::units::brute::constants::BRUTE_START_TIER;
 
     if is_boss_level(level) {
-        // Boss level: only spawn the ogre, no other attackers, no wave system
-        queue.tasks.push(SpawnTask::Ogre);
-        kill_stats.total_attackers_spawned = 1;
+        let tier = get_tier(level);
+        match tier {
+            0 => {
+                queue.tasks.push(SpawnTask::Ogre);
+                kill_stats.total_attackers_spawned = 1;
+            }
+            1 => {
+                queue.tasks.push(SpawnTask::Hags);
+                kill_stats.total_attackers_spawned = 3;
+            }
+            _ => {
+                // Fallback: Ogre
+                queue.tasks.push(SpawnTask::Ogre);
+                kill_stats.total_attackers_spawned = 1;
+            }
+        }
         commands.insert_resource(WaveState {
             current_wave: 0,
             total_waves: 1,
@@ -174,6 +187,7 @@ pub fn process_spawn_queue(
     attacker_assets: (
         Res<crate::game::units::brute::resources::BruteAssets>,
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
+        Res<crate::game::units::boss::hags::resources::HagAssets>,
     ),
     current_level: Res<CurrentLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -269,6 +283,12 @@ pub fn process_spawn_queue(
                 crate::game::units::boss::ogre::systems::spawn_ogre(
                     commands.reborrow(),
                     Res::clone(&attacker_assets.1),
+                );
+            }
+            SpawnTask::Hags => {
+                crate::game::units::boss::hags::systems::spawn_hags(
+                    commands.reborrow(),
+                    Res::clone(&attacker_assets.2),
                 );
             }
             SpawnTask::Battlefield => {

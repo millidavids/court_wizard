@@ -16,7 +16,7 @@ pub const OGRE_HITBOX_HEIGHT: f32 = 60.0;
 pub const OGRE_MOVEMENT_SPEED: f32 = 110.0;
 
 // Combat
-pub const OGRE_HEALTH: f32 = 3000.0;
+pub const OGRE_HEALTH: f32 = 6000.0;
 pub const OGRE_DAMAGE_MULTIPLIER: f32 = -0.5;
 pub const OGRE_ATTACK_DAMAGE: f32 = 30.0;
 pub const OGRE_ATTACK_COOLDOWN: f32 = 1.0;

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.86] - 2026-03-01
+
+### Added
+- **New boss fight: The Hags** — a trio of witches with unique abilities, each with their own health bar section
+- **Mind Control spell** — hold to cast on an enemy near your cursor, turning them against their allies for a limited time
+- **Spell sound effects** — magic missile and fireball now play cast and impact sounds, with volume fading based on distance from the wizard
+
+### Changed
+- **Ogre boss is tougher** — doubled its health
+- **Boss health bar** is wider and easier to read
+- **Dispel now removes mind control** from affected units
+
 ## [v0.3.40] - 2026-02-28
 
 ### Changed

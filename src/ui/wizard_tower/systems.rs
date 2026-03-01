@@ -108,6 +108,7 @@ const MISC_SPELLS: &[Spell] = &[
     Spell::Polymorph,
     Spell::ArcaneCrystal,
     Spell::Dispel,
+    Spell::MindControl,
 ];
 
 /// Returns the number of spells the player has fully researched.

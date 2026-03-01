@@ -14,7 +14,7 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
     GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MovementSpeed,
-    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
+    PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
 };
 use crate::game::units::random_position_in_cell;
@@ -111,7 +111,7 @@ pub fn spawn_brute(
 /// Updates brute targeting velocity toward nearest enemy.
 pub fn update_brute_targeting(
     mut commands: Commands,
-    mut brutes: Query<(Entity, &Transform, &Team, &mut TargetingVelocity), With<Brute>>,
+    mut brutes: Query<(Entity, &Transform, &Team, &mut TargetingVelocity, Option<&RetaliationTarget>), With<Brute>>,
     all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
@@ -119,7 +119,7 @@ pub fn update_brute_targeting(
         .map(|(entity, transform, team)| (entity, transform.translation, *team))
         .collect();
 
-    for (entity, brute_transform, brute_team, mut targeting) in &mut brutes {
+    for (entity, brute_transform, brute_team, mut targeting, retaliation) in &mut brutes {
         crate::game::units::systems::update_melee_unit_targeting(
             &unit_snapshot,
             entity,
@@ -127,6 +127,7 @@ pub fn update_brute_targeting(
             *brute_team,
             &mut targeting,
             &mut commands,
+            retaliation.map(|r| r.0),
         );
     }
 }

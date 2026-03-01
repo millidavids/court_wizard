@@ -538,37 +538,39 @@ pub(super) fn check_meteor_collisions(
                 t,
             );
 
-            // Spawn ground fire hazard
-            let fire_radius = GROUND_FIRE_RADIUS * projectile.empowerment;
-            let fire_damage = GROUND_FIRE_DAMAGE * projectile.empowerment;
-            let fire_duration = GROUND_FIRE_DURATION;
+            // Spawn ground fire hazard (only if empowered — boss meteors skip this)
+            if projectile.empowerment > 0.0 {
+                let fire_radius = GROUND_FIRE_RADIUS * projectile.empowerment;
+                let fire_damage = GROUND_FIRE_DAMAGE * projectile.empowerment;
+                let fire_duration = GROUND_FIRE_DURATION;
 
-            commands.spawn((
-                Mesh3d(visual_assets.unit_circle.clone()),
-                MeshMaterial3d(visual_assets.meteor_ground_fire.clone()),
-                Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
-                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                    .with_scale(Vec3::splat(fire_radius)),
-                MeteorGroundFire::new(
-                    Vec3::new(pos.x, 0.0, pos.z),
-                    fire_radius,
-                    fire_damage,
-                    GROUND_FIRE_TICK,
-                    fire_duration,
-                ),
-                NetworkedSpellEffect {
-                    kind: SpellEffectKind::MeteorGroundFire,
-                },
-                OnGameplayScreen,
-            ));
+                commands.spawn((
+                    Mesh3d(visual_assets.unit_circle.clone()),
+                    MeshMaterial3d(visual_assets.meteor_ground_fire.clone()),
+                    Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
+                        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                        .with_scale(Vec3::splat(fire_radius)),
+                    MeteorGroundFire::new(
+                        Vec3::new(pos.x, 0.0, pos.z),
+                        fire_radius,
+                        fire_damage,
+                        GROUND_FIRE_TICK,
+                        fire_duration,
+                    ),
+                    NetworkedSpellEffect {
+                        kind: SpellEffectKind::MeteorGroundFire,
+                    },
+                    OnGameplayScreen,
+                ));
 
-            // Mark fire zone in pathfinding base_costs so future rebuilds avoid it
-            let origin_2d = Vec2::new(pos.x, pos.z);
-            let buffered = fire_radius + OBSTACLE_BUFFER;
-            let bounds = Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0));
-            let shape = crate::game::pathfinding::ObstacleShape::circle(origin_2d, buffered);
-            let cells = pathfinding.shape_filtered_cells(bounds, &shape);
-            pathfinding.set_terrain_cost(&cells, 8.0);
+                // Mark fire zone in pathfinding base_costs so future rebuilds avoid it
+                let origin_2d = Vec2::new(pos.x, pos.z);
+                let buffered = fire_radius + OBSTACLE_BUFFER;
+                let bounds = Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0));
+                let shape = crate::game::pathfinding::ObstacleShape::circle(origin_2d, buffered);
+                let cells = pathfinding.shape_filtered_cells(bounds, &shape);
+                pathfinding.set_terrain_cost(&cells, 8.0);
+            }
 
             // Despawn the projectile
             commands.entity(entity).despawn();

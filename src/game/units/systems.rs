@@ -4,7 +4,7 @@ use rand::Rng;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, Corpse, Effectiveness, ElectricCharge, FireDoT,
     FlockingVelocity, FogEvasionModifier, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
-    Health, InMelee, MarkedForDeathModifier, OriginalMaterial,
+    Health, InMelee, MarkedForDeathModifier, MindControlled, OriginalMaterial,
     PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
     SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints,
     apply_damage_to_unit,
@@ -15,6 +15,7 @@ use super::constants::{
     ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, FIRE_EFFECT_COLOR,
     FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_PULSE_SPEED,
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
+    MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
 };
 use super::damage::DamageType;
 use super::king::components::SpellShield;
@@ -30,13 +31,8 @@ use crate::game::pathfinding::FlowFieldVelocity;
 /// Finds the nearest enemy using team-based logic and updates targeting velocity.
 /// Also manages the InMelee component based on distance to enemy.
 ///
-/// # Parameters
-/// - `unit_snapshot`: Pre-collected snapshot of all unit positions (entity, pos, team)
-/// - `entity`: The entity being updated
-/// - `transform`: The unit's transform
-/// - `team`: The unit's team
-/// - `targeting_velocity`: Mutable targeting velocity to update
-/// - `commands`: Commands to insert/remove InMelee component
+/// If `retaliation_target` is `Some(entity)`, that entity is also considered a valid
+/// target regardless of team (used when a mind-controlled unit attacks an ally).
 #[inline]
 pub fn update_melee_unit_targeting(
     unit_snapshot: &[(Entity, Vec3, Team)],
@@ -45,18 +41,20 @@ pub fn update_melee_unit_targeting(
     team: Team,
     targeting_velocity: &mut TargetingVelocity,
     commands: &mut Commands,
+    retaliation_target: Option<Entity>,
 ) {
     // Find nearest enemy using team-based targeting logic
     let nearest_enemy = unit_snapshot
         .iter()
         .filter(|(other_entity, _, other_team)| {
             *other_entity != entity
-                && match (team, other_team) {
-                    (Team::Undead, Team::Undead) => false,
-                    (Team::Undead, _) => true,
-                    (_, Team::Undead) => true,
-                    _ => *other_team != team,
-                }
+                && (retaliation_target == Some(*other_entity)
+                    || match (team, other_team) {
+                        (Team::Undead, Team::Undead) => false,
+                        (Team::Undead, _) => true,
+                        (_, Team::Undead) => true,
+                        _ => *other_team != team,
+                    })
         })
         .min_by(|a, b| {
             let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -642,6 +640,7 @@ pub fn update_persistent_effect_visuals(
             Has<RemoteFireEffect>,
             Has<RemoteFrostEffect>,
             Has<RemoteElectricEffect>,
+            Has<MindControlled>,
             Option<&OriginalMaterial>,
         ),
         Or<(
@@ -651,6 +650,7 @@ pub fn update_persistent_effect_visuals(
             With<RemoteFireEffect>,
             With<RemoteFrostEffect>,
             With<RemoteElectricEffect>,
+            With<MindControlled>,
             With<OriginalMaterial>,
         )>,
     >,
@@ -666,13 +666,14 @@ pub fn update_persistent_effect_visuals(
         remote_fire,
         remote_frost,
         remote_electric,
+        has_mind_control,
         original_mat,
     ) in &query
     {
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;
-        let has_any_effect = has_fire || has_frost || has_electric;
+        let has_any_effect = has_fire || has_frost || has_electric || has_mind_control;
 
         if has_any_effect && original_mat.is_none() {
             // Phase 1: First effect applied — clone the material and store original
@@ -719,6 +720,11 @@ pub fn update_persistent_effect_visuals(
                     + flicker * (ELECTRIC_EFFECT_MAX_INTENSITY - ELECTRIC_EFFECT_MIN_INTENSITY);
                 let electric_linear = ELECTRIC_EFFECT_COLOR.to_linear();
                 result_linear = result_linear.mix(&electric_linear, intensity);
+            }
+
+            if has_mind_control {
+                let mc_linear = MIND_CONTROL_EFFECT_COLOR.to_linear();
+                result_linear = result_linear.mix(&mc_linear, MIND_CONTROL_EFFECT_INTENSITY);
             }
 
             if let Some(cloned_material) = materials.get_mut(material_handle) {

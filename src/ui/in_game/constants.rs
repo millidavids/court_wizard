@@ -37,8 +37,8 @@ pub const BUTTON_TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 pub const BUTTON_FONT_SIZE: f32 = 9.0;
 
 /// Boss health bar dimensions.
-pub const BOSS_HEALTH_BAR_WIDTH: Val = Val::Vw(40.0); // 40% of screen width
-pub const BOSS_HEALTH_BAR_HEIGHT: Val = Val::Px(25.0);
+pub const BOSS_HEALTH_BAR_WIDTH: Val = Val::Vw(50.0); // 50% of screen width
+pub const BOSS_HEALTH_BAR_HEIGHT: Val = Val::Px(30.0);
 pub const BOSS_HEALTH_BAR_TOP_MARGIN: f32 = 15.0;
 
 /// Boss health bar colors.
@@ -47,10 +47,21 @@ pub const BOSS_HEALTH_BAR_FILL_COLOR: Color = Color::srgba(0.8, 0.1, 0.1, 0.8);
 pub const BOSS_HEALTH_BAR_BORDER_COLOR: Color = Color::srgba(0.5, 0.1, 0.1, 1.0);
 
 /// Boss name font size.
-pub const BOSS_NAME_FONT_SIZE: f32 = 10.0;
+pub const BOSS_NAME_FONT_SIZE: f32 = 12.0;
 
 /// Boss health bar text font size.
-pub const BOSS_HEALTH_TEXT_FONT_SIZE: f32 = 7.0;
+pub const BOSS_HEALTH_TEXT_FONT_SIZE: f32 = 9.0;
+
+/// Hag health bar section colors (per identity).
+pub const HAG_JUSTINA_BAR_COLOR: Color = Color::srgba(0.9, 0.4, 0.1, 0.8);
+pub const HAG_MARTINA_BAR_COLOR: Color = Color::srgba(0.5, 0.15, 0.7, 0.8);
+pub const HAG_JOSEPHINA_BAR_COLOR: Color = Color::srgba(0.6, 0.35, 0.15, 0.8);
+
+/// Gap between hag health bar sections.
+pub const HAG_BAR_SECTION_GAP: f32 = 3.0;
+
+/// Dimmed color for permanently dead hag sections.
+pub const HAG_BAR_DEAD_COLOR: Color = Color::srgba(0.3, 0.3, 0.3, 0.4);
 
 /// King health bar dimensions.
 pub(super) const KING_HEALTH_BAR_WIDTH: Val = Val::Px(20.0);

@@ -24,6 +24,8 @@ pub(super) struct SplashAssets {
     pub rust_logo: Handle<Image>,
     pub bevy_logo: Handle<Image>,
     pub studio_image: Handle<Image>,
+    /// CRT shader handle — Black substate waits until this is loaded.
+    pub shader: Handle<Shader>,
 }
 
 /// Tracks how long a splash screen has been displayed.

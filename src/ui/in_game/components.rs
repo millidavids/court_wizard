@@ -47,6 +47,18 @@ pub(super) struct BossHealthBarText;
 #[derive(Component)]
 pub(super) struct KingHealthBarFill;
 
+/// Marker component for a hag health bar section fill.
+#[derive(Component)]
+pub(super) struct HagHealthBarFill {
+    pub identity: crate::game::units::boss::hags::components::HagIdentity,
+}
+
+/// Marker component for a hag health bar section text.
+#[derive(Component)]
+pub(super) struct HagHealthBarText {
+    pub identity: crate::game::units::boss::hags::components::HagIdentity,
+}
+
 /// Marker component for the wave counter display text.
 #[derive(Component)]
 pub(super) struct WaveDisplay;

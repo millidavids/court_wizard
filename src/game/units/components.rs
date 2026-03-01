@@ -17,6 +17,18 @@ pub enum Team {
     Undead,
 }
 
+impl Team {
+    /// Returns true if units on these two teams are hostile to each other.
+    /// Undead are hostile to everyone (including other Undead is false).
+    pub fn is_enemy(&self, other: &Team) -> bool {
+        match (self, other) {
+            (Team::Undead, Team::Undead) => false,
+            (Team::Undead, _) | (_, Team::Undead) => true,
+            _ => self != other,
+        }
+    }
+}
+
 /// Health component for all units.
 ///
 /// Tracks the current and maximum health of a unit.
@@ -323,6 +335,14 @@ pub fn apply_damage_to_unit(
     };
 
     health.take_damage(overflow);
+}
+
+/// Invulnerability status effect — prevents all damage while attached.
+/// Health is snapshotted each frame; any damage taken is undone.
+#[derive(Component)]
+pub struct Invulnerable {
+    /// Health value to restore to each frame (damage negation).
+    pub health_snapshot: f32,
 }
 
 /// Marker component for units that have been damaged by a spell.
@@ -1020,6 +1040,24 @@ pub struct KingsGuard(pub u32);
 pub struct FlockingVelocity {
     pub velocity: Vec3,
 }
+
+/// Mind control effect — unit targets allies instead of enemies.
+/// Used by both the Hag boss (Martina) and the player's Mind Control spell.
+#[derive(Component)]
+pub struct MindControlled {
+    /// Time elapsed since mind control was applied.
+    pub time_elapsed: f32,
+    /// Duration before mind control wears off.
+    pub wear_off_duration: f32,
+    /// Original defender spawn position for restoring flow field on wear-off.
+    pub original_spawn_pos: Option<Vec2>,
+}
+
+/// Marks a unit as wanting to retaliate against a specific entity.
+/// Inserted when a mind-controlled unit attacks a same-team ally, causing
+/// the victim to consider the attacker a valid target despite being on the same team.
+#[derive(Component)]
+pub struct RetaliationTarget(pub Entity);
 
 // Re-export elite components
 #[allow(unused_imports)]

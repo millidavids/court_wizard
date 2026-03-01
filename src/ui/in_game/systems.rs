@@ -12,6 +12,7 @@ use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::messages::WaveSpawnedMessage;
 use crate::game::resources::{CurrentLevel, WaveState};
 use crate::game::units::boss::components::Boss;
+use crate::game::units::boss::hags::components::{Hag, HagIdentity, PermanentlyDead};
 use crate::game::units::components::{Corpse, Health, Team};
 use crate::game::units::king::components::King;
 use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, PrimedSpell};
@@ -527,10 +528,12 @@ pub(super) fn update_past_victory_display(
 pub(super) fn spawn_boss_health_bar(
     mut commands: Commands,
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
+    hag_query: Query<&HagIdentity, (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
     let boss_exists = boss_query.iter().next().is_some();
     let bar_exists = bar_query.iter().next().is_some();
+    let is_hags = hag_query.iter().next().is_some();
 
     if boss_exists && !bar_exists {
         // Top-center absolute container
@@ -549,71 +552,218 @@ pub(super) fn spawn_boss_health_bar(
                 OnGameplayScreen,
             ))
             .with_children(|parent| {
-                // Boss name
-                parent.spawn((
-                    Text::new("Ogre"),
-                    TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
-                    TextColor(Color::WHITE),
-                ));
+                if is_hags {
+                    // "The Hags" title
+                    parent.spawn((
+                        Text::new("The Hags"),
+                        TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
+                        TextColor(Color::WHITE),
+                    ));
 
-                // Health bar background
-                parent
-                    .spawn((
-                        Node {
+                    // Three-section bar container
+                    parent
+                        .spawn(Node {
                             width: BOSS_HEALTH_BAR_WIDTH,
                             height: BOSS_HEALTH_BAR_HEIGHT,
-                            border: UiRect::all(Val::Px(2.0)),
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(HAG_BAR_SECTION_GAP),
                             ..default()
-                        },
-                        BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
-                        BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
-                        BorderRadius::all(Val::Px(3.0)),
-                    ))
-                    .with_children(|bar| {
-                        // Health bar fill
-                        bar.spawn((
+                        })
+                        .with_children(|bar_row| {
+                            // Spawn one section per hag
+                            for (identity, name, color) in [
+                                (HagIdentity::Justina, "Justina", HAG_JUSTINA_BAR_COLOR),
+                                (HagIdentity::Martina, "Martina", HAG_MARTINA_BAR_COLOR),
+                                (HagIdentity::Josephina, "Josephina", HAG_JOSEPHINA_BAR_COLOR),
+                            ] {
+                                spawn_hag_bar_section(bar_row, identity, name, color);
+                            }
+                        });
+                } else {
+                    // Original ogre boss bar
+                    parent.spawn((
+                        Text::new("Ogre"),
+                        TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
+                        TextColor(Color::WHITE),
+                    ));
+
+                    parent
+                        .spawn((
                             Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
+                                width: BOSS_HEALTH_BAR_WIDTH,
+                                height: BOSS_HEALTH_BAR_HEIGHT,
+                                border: UiRect::all(Val::Px(2.0)),
                                 ..default()
                             },
-                            BackgroundColor(BOSS_HEALTH_BAR_FILL_COLOR),
-                            BorderRadius::all(Val::Px(2.0)),
-                            BossHealthBarFill,
-                        ));
+                            BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
+                            BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
+                            BorderRadius::all(Val::Px(3.0)),
+                        ))
+                        .with_children(|bar| {
+                            bar.spawn((
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                BackgroundColor(BOSS_HEALTH_BAR_FILL_COLOR),
+                                BorderRadius::all(Val::Px(2.0)),
+                                BossHealthBarFill,
+                            ));
 
-                        // Health percentage text — absolute overlay centered on full bar
-                        bar.spawn((Node {
-                            position_type: PositionType::Absolute,
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(100.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },))
-                            .with_children(|overlay| {
-                                overlay.spawn((
-                                    Text::new("100%"),
-                                    TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
-                                    TextColor(Color::WHITE),
-                                    BossHealthBarText,
-                                ));
-                            });
-                    });
+                            bar.spawn((Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },))
+                                .with_children(|overlay| {
+                                    overlay.spawn((
+                                        Text::new("100%"),
+                                        TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                                        TextColor(Color::WHITE),
+                                        BossHealthBarText,
+                                    ));
+                                });
+                        });
+                }
             });
     }
+}
+
+/// Spawns a single hag health bar section within the three-part bar.
+fn spawn_hag_bar_section(
+    parent: &mut ChildSpawnerCommands,
+    identity: HagIdentity,
+    name: &str,
+    fill_color: Color,
+) {
+    parent
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Column,
+                flex_grow: 1.0,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+        ))
+        .with_children(|section| {
+            // Name label
+            section.spawn((
+                Text::new(name.to_string()),
+                TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                TextColor(Color::WHITE),
+            ));
+
+            // Bar background
+            section
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        ..default()
+                    },
+                    BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
+                    BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
+                    BorderRadius::all(Val::Px(2.0)),
+                ))
+                .with_children(|bar| {
+                    // Fill
+                    bar.spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(fill_color),
+                        BorderRadius::all(Val::Px(1.0)),
+                        HagHealthBarFill { identity },
+                    ));
+
+                    // Text overlay
+                    bar.spawn((Node {
+                        position_type: PositionType::Absolute,
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },))
+                        .with_children(|overlay| {
+                            overlay.spawn((
+                                Text::new("100%"),
+                                TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                                TextColor(Color::WHITE),
+                                HagHealthBarText { identity },
+                            ));
+                        });
+                });
+        });
 }
 
 /// Updates the boss health bar fill and text. Despawns the bar when the boss dies.
 pub(super) fn update_boss_health_bar(
     mut commands: Commands,
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
+    hag_query: Query<(&HagIdentity, &Health), (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
     mut fill_query: Query<&mut Node, With<BossHealthBarFill>>,
     mut text_query: Query<&mut Text, With<BossHealthBarText>>,
+    mut hag_fill_query: Query<(&mut Node, &mut BackgroundColor, &HagHealthBarFill), Without<BossHealthBarFill>>,
+    mut hag_text_query: Query<(&mut Text, &HagHealthBarText), Without<BossHealthBarText>>,
 ) {
-    if let Some(health) = boss_query.iter().next() {
-        // Update fill width and text
+    // Build a fixed-size lookup of living hag health (no heap allocation)
+    let mut living = [None::<f32>; 3]; // indexed: Justina=0, Martina=1, Josephina=2
+    let mut any_hag = false;
+    for (identity, health) in &hag_query {
+        any_hag = true;
+        let idx = match identity {
+            HagIdentity::Justina => 0,
+            HagIdentity::Martina => 1,
+            HagIdentity::Josephina => 2,
+        };
+        living[idx] = Some((health.current / health.max * 100.0).clamp(0.0, 100.0));
+    }
+
+    if any_hag {
+        // Single pass over UI elements — update or dim based on living lookup
+        for (mut node, mut bg, fill) in &mut hag_fill_query {
+            let idx = match fill.identity {
+                HagIdentity::Justina => 0,
+                HagIdentity::Martina => 1,
+                HagIdentity::Josephina => 2,
+            };
+            if let Some(hp_percent) = living[idx] {
+                node.width = Val::Percent(hp_percent);
+            } else {
+                node.width = Val::Percent(0.0);
+                bg.0 = HAG_BAR_DEAD_COLOR;
+            }
+        }
+        for (mut text, text_marker) in &mut hag_text_query {
+            let idx = match text_marker.identity {
+                HagIdentity::Justina => 0,
+                HagIdentity::Martina => 1,
+                HagIdentity::Josephina => 2,
+            };
+            if let Some(hp_percent) = living[idx] {
+                **text = format!("{:.0}%", hp_percent);
+            } else {
+                **text = "Dead".to_string();
+            }
+        }
+
+        // Remove bar when all hags are dead
+        if living.iter().all(|h| h.is_none()) {
+            for entity in &bar_query {
+                commands.entity(entity).despawn();
+            }
+        }
+    } else if let Some(health) = boss_query.iter().next() {
+        // Original ogre update
         let hp_percent = (health.current / health.max * 100.0).clamp(0.0, 100.0);
         if let Ok(mut node) = fill_query.single_mut() {
             node.width = Val::Percent(hp_percent);

@@ -23,6 +23,7 @@ use super::resources::{
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
+use super::units::boss::hags::systems as hags_systems;
 use super::wave_systems;
 use super::win_lose_systems;
 
@@ -191,6 +192,8 @@ impl Plugin for GamePlugin {
                 (
                     shared_systems::enforce_wall_collision,
                     shared_systems::combat,
+                    shared_systems::enforce_invulnerability,
+                    hags_systems::resurrect_eyed_hags,
                     shared_systems::convert_dead_to_corpses,
                 )
                     .chain()

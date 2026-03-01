@@ -8,45 +8,19 @@ use super::components::{SplashAssets, SplashEntity, SplashTimer, SplashTransitio
 use super::constants::*;
 
 // ---------------------------------------------------------------------------
-// Skip splash check — runs during Update while in Splash state
+// Black substate — waits for the CRT shader to load before proceeding
 // ---------------------------------------------------------------------------
 
-/// Checks the skip_splash config flag and immediately transitions to MainMenu
-/// if enabled. Uses a Local<bool> to ensure it only runs once per splash entry.
-///
-/// This runs during Update (not OnEnter) because OnEnter for the default initial
-/// state fires before Startup, which means GameConfig hasn't been loaded yet.
-pub(super) fn check_skip_splash(
-    game_config: Option<Res<GameConfig>>,
-    mut next_app: ResMut<NextState<AppState>>,
-    mut checked: Local<bool>,
-) {
-    if *checked {
-        return;
-    }
-    *checked = true;
-
-    if game_config
-        .as_ref()
-        .is_some_and(|config| config.skip_splash)
-    {
-        next_app.set(AppState::MainMenu);
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Setup systems — one per substate
-// ---------------------------------------------------------------------------
-
-/// Black substate: brief black screen to let the render pipeline warm up.
-/// Also preloads all splash screen images so they're ready when needed.
+/// Black substate setup: preloads all splash assets including the CRT shader.
 pub(super) fn setup_black(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(SplashAssets {
         rust_logo: asset_server.load(RUST_LOGO_PATH),
         bevy_logo: asset_server.load(BEVY_LOGO_PATH),
         studio_image: asset_server.load(STUDIO_IMAGE_PATH),
+        shader: asset_server.load(SHADER_ASSET_PATH),
     });
 
+    // Just a black screen — no timer, transitions are handled by tick_black
     commands.spawn((
         Node {
             width: Val::Percent(100.0),
@@ -56,10 +30,42 @@ pub(super) fn setup_black(mut commands: Commands, asset_server: Res<AssetServer>
         BackgroundColor(Color::BLACK),
         GlobalZIndex(1000),
         SplashEntity,
-        SplashTimer::new(INIT_DURATION),
-        SplashTransition::NextSplash(SplashState::Language),
     ));
 }
+
+/// Ticks the Black substate — waits for the CRT shader asset to be loaded,
+/// then transitions to the next state. If skip_splash is enabled, goes
+/// straight to MainMenu. Otherwise proceeds to the Language splash.
+pub(super) fn tick_black(
+    splash_assets: Option<Res<SplashAssets>>,
+    asset_server: Res<AssetServer>,
+    game_config: Option<Res<GameConfig>>,
+    mut next_splash: ResMut<NextState<SplashState>>,
+    mut next_app: ResMut<NextState<AppState>>,
+) {
+    let Some(assets) = splash_assets else {
+        return;
+    };
+
+    // Wait until the shader is fully loaded
+    if !asset_server.is_loaded_with_dependencies(&assets.shader) {
+        return;
+    }
+
+    let skip = game_config
+        .as_ref()
+        .is_some_and(|config| config.skip_splash);
+
+    if skip {
+        next_app.set(AppState::MainMenu);
+    } else {
+        next_splash.set(SplashState::Language);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Setup systems — one per visual substate
+// ---------------------------------------------------------------------------
 
 /// Language substate: Rust logo with gray circle background.
 pub(super) fn setup_language(mut commands: Commands, splash_assets: Res<SplashAssets>) {
@@ -190,7 +196,7 @@ pub(super) fn setup_studio(mut commands: Commands, splash_assets: Res<SplashAsse
 }
 
 // ---------------------------------------------------------------------------
-// Shared tick — drives all splash substates
+// Shared tick — drives Language/Engine/Studio substates
 // ---------------------------------------------------------------------------
 
 pub(super) fn tick(

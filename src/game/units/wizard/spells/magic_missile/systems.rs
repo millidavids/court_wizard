@@ -13,6 +13,8 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::crdt::PeerId;
@@ -42,6 +44,8 @@ pub fn handle_magic_missile_casting(
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     peer_id: Option<Res<PeerId>>,
+    sfx: Res<SpellSfxAssets>,
+    config: Res<GameConfig>,
 ) {
     // Only fire on initial click, not while mouse is held
     if !mouse.just_pressed(MouseButton::Left) {
@@ -93,6 +97,8 @@ pub fn handle_magic_missile_casting(
             target_teams,
         );
     }
+
+    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config);
 
     // Set cooldown
     commands.entity(wizard_entity).insert(MagicMissileCooldown {
