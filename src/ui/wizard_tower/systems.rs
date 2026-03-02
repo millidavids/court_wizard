@@ -1,4 +1,4 @@
-use bevy::input::mouse::MouseButton;
+use bevy::input::mouse::{MouseButton, MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
@@ -21,95 +21,11 @@ use crate::ui::systems::spawn_button;
 
 use super::components::*;
 use super::constants::*;
+use super::graph::build_spell_graph;
 
 // ===========================================================================
 // Shared helpers
 // ===========================================================================
-
-/// Returns a scaled font size for spell names that may overflow their container.
-/// Shrinks the font when the longest word exceeds `max_chars` characters.
-fn scaled_spell_name_font_size(name: &str, base_size: f32, max_chars: usize) -> f32 {
-    let longest_word = name.split_whitespace().map(|w| w.len()).max().unwrap_or(0);
-    if longest_word > max_chars {
-        base_size * max_chars as f32 / longest_word as f32
-    } else {
-        base_size
-    }
-}
-
-/// Element chain definition for organizing the research UI.
-struct SpellChain {
-    label: &'static str,
-    color: Color,
-    spells: &'static [Spell],
-}
-
-/// All spell chains displayed in the research UI.
-const CHAINS: &[SpellChain] = &[
-    SpellChain {
-        label: "Fire",
-        color: FIRE_COLOR,
-        spells: &[
-            Spell::Disintegrate,
-            Spell::Fireball,
-            Spell::WallOfFire,
-            Spell::MeteorFall,
-        ],
-    },
-    SpellChain {
-        label: "Nature",
-        color: NATURE_COLOR,
-        spells: &[Spell::Grease, Spell::Entangle, Spell::SpikeGrowth],
-    },
-    SpellChain {
-        label: "",
-        color: NATURE_COLOR,
-        spells: &[Spell::HealingPlume],
-    },
-    SpellChain {
-        label: "Electric",
-        color: ELECTRIC_COLOR,
-        spells: &[Spell::ChainLightning, Spell::LightningRod],
-    },
-    SpellChain {
-        label: "Necrotic",
-        color: NECROTIC_COLOR,
-        spells: &[Spell::FingerOfDeath, Spell::RaiseTheDead],
-    },
-    SpellChain {
-        label: "",
-        color: NECROTIC_COLOR,
-        spells: &[Spell::MarkOfDeath, Spell::PlagueWind],
-    },
-    SpellChain {
-        label: "Force",
-        color: FORCE_COLOR,
-        spells: &[Spell::GuardianCircle, Spell::Haste, Spell::BattleHymn],
-    },
-    SpellChain {
-        label: "",
-        color: FORCE_COLOR,
-        spells: &[Spell::BerserkerRage],
-    },
-    SpellChain {
-        label: "Earth",
-        color: EARTH_COLOR,
-        spells: &[Spell::WallOfStone, Spell::Teleport],
-    },
-];
-
-/// Miscellaneous spells (not in chains, require N total spells researched).
-const MISC_SPELLS: &[Spell] = &[
-    Spell::Squall,
-    Spell::FogCloud,
-    Spell::Sleep,
-    Spell::Banishment,
-    Spell::BlackHole,
-    Spell::Polymorph,
-    Spell::ArcaneCrystal,
-    Spell::Dispel,
-    Spell::MindControl,
-];
 
 /// Returns the number of spells the player has fully researched.
 fn count_researched_spells() -> u32 {
@@ -357,118 +273,18 @@ pub(super) fn handle_main_button_actions(
 // Study (MetaGameState::Study) systems
 // ===========================================================================
 
-/// Sets up the study screen with scrollable spell grid and allocation sliders.
+/// Sets up the study screen with the spell graph.
 pub(super) fn setup_study_screen(
     mut commands: Commands,
     battle_insight: Res<BattleInsightData>,
     asset_server: Res<AssetServer>,
 ) {
     commands.insert_resource(InsightAllocation::default());
+    commands.insert_resource(GraphViewState::default());
+    commands.insert_resource(GraphDragState::default());
+    commands.insert_resource(SelectedStudySpell::default());
 
-    let insight_balance = get_insight();
-    let affinities = &battle_insight.damage_types_used;
-
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(16.0)),
-                row_gap: Val::Px(8.0),
-                ..default()
-            },
-            BackgroundColor(BACKGROUND_COLOR),
-            OnWizardTowerScreen,
-            OnStudyScreen,
-        ))
-        .with_children(|parent| {
-            // Header row
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::SpaceBetween,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::horizontal(Val::Px(20.0)),
-                    ..default()
-                })
-                .with_children(|header| {
-                    header.spawn((
-                        Text::new("Study Spells"),
-                        TextFont::from_font_size(TITLE_FONT_SIZE),
-                        TextColor(TITLE_COLOR),
-                    ));
-
-                    header.spawn((
-                        Text::new(format!("Arcane Insight: {}", insight_balance)),
-                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                        TextColor(INSIGHT_COLOR),
-                        StudyInsightDisplay,
-                    ));
-
-                    header.spawn((
-                        Text::new("Pending: 0"),
-                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                        TextColor(PENDING_COLOR),
-                        PendingInsightDisplay,
-                    ));
-                });
-
-            // Scrollable research area
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Percent(SCROLL_CONTAINER_WIDTH_PCT),
-                        flex_grow: 1.0,
-                        overflow: Overflow::scroll_y(),
-                        border: UiRect::all(Val::Px(FRAME_BORDER_WIDTH)),
-                        padding: UiRect::all(Val::Px(FRAME_PADDING)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(12.0),
-                        ..default()
-                    },
-                    BorderColor::all(FRAME_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(8.0)),
-                    BackgroundColor(FRAME_BACKGROUND),
-                    ScrollPosition::default(),
-                    ScrollableResearchContainer,
-                ))
-                .with_children(|scroll| {
-                    for chain in CHAINS {
-                        spawn_chain_row(scroll, chain, affinities, &asset_server);
-                    }
-                    spawn_misc_section(scroll, affinities, &asset_server);
-                });
-
-            // Footer buttons
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(20.0),
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                })
-                .with_children(|footer| {
-                    spawn_button(
-                        footer,
-                        "Commit",
-                        StudyButtonAction::Commit,
-                        &COMMIT_BUTTON_STYLE,
-                    );
-
-                    spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
-
-                    #[cfg(debug_assertions)]
-                    spawn_button(
-                        footer,
-                        "+10000 Insight",
-                        StudyButtonAction::DebugGrantInsight,
-                        &DEBUG_BUTTON_STYLE,
-                    );
-                });
-        });
+    spawn_study_screen(&mut commands, &battle_insight, &asset_server);
 }
 
 /// Cleans up study screen entities and resources.
@@ -480,6 +296,9 @@ pub(super) fn cleanup_study_screen(
         commands.entity(entity).despawn();
     }
     commands.remove_resource::<InsightAllocation>();
+    commands.remove_resource::<GraphViewState>();
+    commands.remove_resource::<GraphDragState>();
+    commands.remove_resource::<SelectedStudySpell>();
 }
 
 /// Handles Commit and Back button actions on the study screen.
@@ -494,6 +313,7 @@ pub(super) fn handle_study_button_actions(
     mut spell_researched: MessageWriter<SpellResearchedMessage>,
     screen_query: Query<Entity, With<OnStudyScreen>>,
     asset_server: Res<AssetServer>,
+    mut selected: Option<ResMut<SelectedStudySpell>>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -514,12 +334,10 @@ pub(super) fn handle_study_button_actions(
                     continue;
                 }
 
-                // Spend all insight at once
                 if !spend_insight(total) {
                     continue;
                 }
 
-                // Apply progress per spell
                 let affinities = &battle_insight.damage_types_used;
                 let mut newly_unlocked = Vec::new();
 
@@ -537,325 +355,649 @@ pub(super) fn handle_study_button_actions(
                     }
                 }
 
-                // Fire popup messages for newly unlocked spells
                 for spell in newly_unlocked {
                     spell_researched.write(SpellResearchedMessage { spell });
                 }
 
-                // Despawn and rebuild study screen to reflect new state
+                // Despawn and rebuild
                 for entity in &screen_query {
                     commands.entity(entity).despawn();
                 }
                 commands.remove_resource::<InsightAllocation>();
+                commands.insert_resource(InsightAllocation::default());
+                if let Some(ref mut sel) = selected {
+                    sel.0 = None;
+                }
 
-                // Re-setup will happen via OnEnter since we stay in Study state.
-                // Instead, rebuild inline.
-                rebuild_study_screen(&mut commands, &battle_insight, &asset_server);
+                // Reset view state
+                commands.insert_resource(GraphViewState::default());
+
+                spawn_study_screen(&mut commands, &battle_insight, &asset_server);
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
                 grant_insight(10000);
 
-                // Rebuild UI to show updated balance
                 for entity in &screen_query {
                     commands.entity(entity).despawn();
                 }
                 commands.remove_resource::<InsightAllocation>();
-                rebuild_study_screen(&mut commands, &battle_insight, &asset_server);
+                commands.insert_resource(InsightAllocation::default());
+                if let Some(ref mut sel) = selected {
+                    sel.0 = None;
+                }
+
+                spawn_study_screen(&mut commands, &battle_insight, &asset_server);
             }
         }
     }
 }
 
-/// Rebuilds the study screen after a commit (stays in Study state).
-fn rebuild_study_screen(
+/// Spawns the study screen graph UI.
+fn spawn_study_screen(
     commands: &mut Commands,
     battle_insight: &BattleInsightData,
     asset_server: &AssetServer,
 ) {
-    commands.insert_resource(InsightAllocation::default());
-
     let insight_balance = get_insight();
+    let (node_defs, edge_defs) = build_spell_graph();
     let affinities = &battle_insight.damage_types_used;
 
+    // Root container
     commands
         .spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(16.0)),
-                row_gap: Val::Px(8.0),
                 ..default()
             },
             BackgroundColor(BACKGROUND_COLOR),
             OnWizardTowerScreen,
             OnStudyScreen,
         ))
-        .with_children(|parent| {
-            // Header row
-            parent
-                .spawn(Node {
+        .with_children(|root| {
+            // -- Graph Area (full size, clipped) --
+            root.spawn((
+                Node {
                     width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    overflow: Overflow::clip(),
+                    ..default()
+                },
+                BackgroundColor(GRAPH_AREA_BG),
+                SpellGraphArea,
+            ))
+            .with_children(|graph_area| {
+                // Edges as L-shaped connectors (H + V segments per edge)
+                for edge_def in &edge_defs {
+                    let to_unlocked = is_spell_unlocked(edge_def.to_spell);
+                    let to_prereq_met = is_prereq_met(edge_def.to_spell);
+                    let edge_color = if to_unlocked || to_prereq_met {
+                        GRAPH_EDGE_COLOR
+                    } else {
+                        GRAPH_EDGE_LOCKED_COLOR
+                    };
+
+                    // Horizontal segment
+                    graph_area.spawn((
+                        Node {
+                            height: Val::Px(GRAPH_EDGE_THICKNESS),
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            ..default()
+                        },
+                        BackgroundColor(edge_color),
+                        SpellGraphEdge {
+                            from_spell: edge_def.from_spell,
+                            to_spell: edge_def.to_spell,
+                        },
+                        EdgeSegmentH,
+                    ));
+
+                    // Vertical segment
+                    graph_area.spawn((
+                        Node {
+                            width: Val::Px(GRAPH_EDGE_THICKNESS),
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            ..default()
+                        },
+                        BackgroundColor(edge_color),
+                        SpellGraphEdge {
+                            from_spell: edge_def.from_spell,
+                            to_spell: edge_def.to_spell,
+                        },
+                        EdgeSegmentV,
+                    ));
+                }
+
+                // Central "Free" anchor node
+                graph_area.spawn((
+                    Node {
+                        width: Val::Px(GRAPH_FREE_NODE_SIZE),
+                        height: Val::Px(GRAPH_FREE_NODE_SIZE),
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(0.0),
+                        top: Val::Px(0.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(GRAPH_NODE_BG),
+                    BorderColor::all(GRAPH_NODE_FREE_BORDER),
+                    BorderRadius::all(Val::Percent(50.0)),
+                    ZIndex(1),
+                    FreeNode,
+                ))
+                .with_children(|node| {
+                    node.spawn((
+                        ImageNode::new(asset_server.load("images/logo.png")),
+                        Node {
+                            width: Val::Percent(80.0),
+                            height: Val::Percent(80.0),
+                            ..default()
+                        },
+                    ));
+                });
+
+                // Spell nodes
+                for node_def in &node_defs {
+                    let Some(spell) = node_def.spell else {
+                        continue; // Skip central anchor (already spawned)
+                    };
+
+                    let unlocked = is_spell_unlocked(spell);
+                    let prereq_met = is_prereq_met(spell);
+                    let has_affinity = affinities.contains(&spell.damage_type());
+                    let progress = get_spell_research_progress(spell);
+                    let cost = spell.research_cost();
+                    let is_free = cost == 0; // MagicMissile, Telekinesis
+
+                    let (bg, border) = if is_free || unlocked {
+                        (GRAPH_NODE_BG, GRAPH_NODE_COMPLETED_BORDER)
+                    } else if has_affinity && prereq_met {
+                        (GRAPH_NODE_BG, AFFINITY_COLOR)
+                    } else if prereq_met {
+                        (GRAPH_NODE_BG, GRAPH_NODE_BORDER)
+                    } else {
+                        (GRAPH_NODE_LOCKED_BG, GRAPH_NODE_LOCKED_BORDER)
+                    };
+
+                    graph_area
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Px(GRAPH_NODE_SIZE),
+                                height: Val::Px(GRAPH_NODE_SIZE),
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                flex_direction: FlexDirection::Column,
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                border: UiRect::all(Val::Px(2.0)),
+                                overflow: Overflow::clip(),
+                                ..default()
+                            },
+                            BackgroundColor(bg),
+                            BorderColor::all(border),
+                            BorderRadius::all(Val::Px(GRAPH_NODE_SIZE / 2.0)),
+                            ZIndex(1),
+                            SpellGraphNode {
+                                spell,
+                                graph_position: node_def.position,
+                            },
+                        ))
+                        .with_children(|node| {
+                            if let Some(icon_path) = spell.icon_path() {
+                                node.spawn((
+                                    ImageNode::new(asset_server.load(icon_path)),
+                                    Node {
+                                        width: Val::Percent(55.0),
+                                        height: Val::Percent(55.0),
+                                        ..default()
+                                    },
+                                ));
+                            }
+
+                            // Progress indicator (small bar at bottom of node)
+                            if cost > 0 && !unlocked {
+                                let fill_pct = if cost > 0 {
+                                    (progress as f32 / cost as f32 * 100.0).min(100.0)
+                                } else {
+                                    0.0
+                                };
+                                node.spawn((
+                                    Node {
+                                        width: Val::Percent(80.0),
+                                        height: Val::Px(3.0),
+                                        position_type: PositionType::Absolute,
+                                        bottom: Val::Px(3.0),
+                                        left: Val::Percent(10.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(PROGRESS_BAR_BACKGROUND),
+                                    BorderRadius::all(Val::Px(1.5)),
+                                ))
+                                .with_children(|bar| {
+                                    bar.spawn((
+                                        Node {
+                                            width: Val::Percent(fill_pct),
+                                            height: Val::Percent(100.0),
+                                            ..default()
+                                        },
+                                        BackgroundColor(if fill_pct >= 100.0 {
+                                            PROGRESS_BAR_FULL
+                                        } else {
+                                            PROGRESS_BAR_FILL
+                                        }),
+                                        BorderRadius::all(Val::Px(1.5)),
+                                    ));
+                                });
+                            }
+                        });
+                }
+            });
+
+            // -- Header Overlay (top, absolute) --
+            root.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(0.0),
+                    left: Val::Px(0.0),
                     flex_direction: FlexDirection::Row,
                     justify_content: JustifyContent::SpaceBetween,
                     align_items: AlignItems::Center,
-                    padding: UiRect::horizontal(Val::Px(20.0)),
+                    padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                     ..default()
-                })
-                .with_children(|header| {
-                    header.spawn((
-                        Text::new("Study Spells"),
-                        TextFont::from_font_size(TITLE_FONT_SIZE),
-                        TextColor(TITLE_COLOR),
-                    ));
+                },
+                BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
+            ))
+            .with_children(|header| {
+                header.spawn((
+                    Text::new("Study Spells"),
+                    TextFont::from_font_size(TITLE_FONT_SIZE),
+                    TextColor(TITLE_COLOR),
+                ));
 
-                    header.spawn((
-                        Text::new(format!("Arcane Insight: {}", insight_balance)),
-                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                        TextColor(INSIGHT_COLOR),
-                        StudyInsightDisplay,
-                    ));
+                header.spawn((
+                    Text::new(format!("Arcane Insight: {}", insight_balance)),
+                    TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                    TextColor(INSIGHT_COLOR),
+                    StudyInsightDisplay,
+                ));
 
-                    header.spawn((
-                        Text::new("Pending: 0"),
-                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                        TextColor(PENDING_COLOR),
-                        PendingInsightDisplay,
-                    ));
-                });
+                header.spawn((
+                    Text::new("Pending: 0"),
+                    TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                    TextColor(PENDING_COLOR),
+                    PendingInsightDisplay,
+                ));
+            });
 
-            // Scrollable research area
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Percent(SCROLL_CONTAINER_WIDTH_PCT),
-                        flex_grow: 1.0,
-                        overflow: Overflow::scroll_y(),
-                        border: UiRect::all(Val::Px(FRAME_BORDER_WIDTH)),
-                        padding: UiRect::all(Val::Px(FRAME_PADDING)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(12.0),
-                        ..default()
-                    },
-                    BorderColor::all(FRAME_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(8.0)),
-                    BackgroundColor(FRAME_BACKGROUND),
-                    ScrollPosition::default(),
-                    ScrollableResearchContainer,
-                ))
-                .with_children(|scroll| {
-                    for chain in CHAINS {
-                        spawn_chain_row(scroll, chain, affinities, asset_server);
-                    }
-                    spawn_misc_section(scroll, affinities, asset_server);
-                });
-
-            // Footer buttons
-            parent
-                .spawn(Node {
+            // -- Footer Overlay (bottom, absolute) --
+            root.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(0.0),
+                    left: Val::Px(0.0),
+                    width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     column_gap: Val::Px(20.0),
-                    margin: UiRect::top(Val::Px(4.0)),
+                    padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
                     ..default()
-                })
-                .with_children(|footer| {
-                    spawn_button(
-                        footer,
-                        "Commit",
-                        StudyButtonAction::Commit,
-                        &COMMIT_BUTTON_STYLE,
-                    );
+                },
+                BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
+            ))
+            .with_children(|footer| {
+                spawn_button(
+                    footer,
+                    "Commit",
+                    StudyButtonAction::Commit,
+                    &COMMIT_BUTTON_STYLE,
+                );
 
-                    spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
+                spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
 
-                    #[cfg(debug_assertions)]
-                    spawn_button(
-                        footer,
-                        "+10000 Insight",
-                        StudyButtonAction::DebugGrantInsight,
-                        &DEBUG_BUTTON_STYLE,
-                    );
-                });
+                #[cfg(debug_assertions)]
+                spawn_button(
+                    footer,
+                    "+10000 Insight",
+                    StudyButtonAction::DebugGrantInsight,
+                    &DEBUG_BUTTON_STYLE,
+                );
+            });
+
+            // -- Detail Panel (left side, absolute, hidden by default) --
+            root.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(60.0),
+                    left: Val::Px(12.0),
+                    width: Val::Px(DETAIL_PANEL_WIDTH),
+                    max_height: Val::Percent(80.0),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(DETAIL_PANEL_PADDING)),
+                    row_gap: Val::Px(8.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    overflow: Overflow::clip_y(),
+                    display: Display::None,
+                    ..default()
+                },
+                BackgroundColor(DETAIL_PANEL_BG),
+                BorderColor::all(DETAIL_PANEL_BORDER),
+                BorderRadius::all(Val::Px(8.0)),
+                StudyDetailPanel,
+            ));
         });
 }
 
 // ===========================================================================
-// Spell card spawning helpers
+// Graph node selection
 // ===========================================================================
 
-/// Spawns a horizontal chain row: label + spell cards with arrows between them.
-fn spawn_chain_row(
-    parent: &mut ChildSpawnerCommands,
-    chain: &SpellChain,
-    affinities: &std::collections::HashSet<DamageType>,
-    asset_server: &AssetServer,
+/// Detects clicks on spell graph nodes and updates the selected spell.
+pub(super) fn handle_graph_node_clicks(
+    mut button_clicked: MessageReader<MouseClicked>,
+    node_query: Query<&SpellGraphNode>,
+    mut selected: ResMut<SelectedStudySpell>,
 ) {
-    parent
-        .spawn(Node {
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: Val::Px(8.0),
-            ..default()
-        })
-        .with_children(|row| {
-            // Chain element label
-            row.spawn(Node {
-                width: Val::Px(70.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            })
-            .with_children(|label_container| {
-                label_container.spawn((
-                    Text::new(chain.label),
-                    TextFont::from_font_size(CHAIN_LABEL_FONT_SIZE),
-                    TextColor(chain.color),
-                ));
-            });
-
-            for (i, spell) in chain.spells.iter().enumerate() {
-                if i > 0 {
-                    row.spawn((
-                        Text::new(">"),
-                        TextFont::from_font_size(18.0),
-                        TextColor(ARROW_COLOR),
-                    ));
-                }
-
-                spawn_spell_card(row, *spell, affinities, asset_server);
+    for event in button_clicked.read() {
+        if let Ok(node) = node_query.get(event.button) {
+            if selected.0 == Some(node.spell) {
+                selected.0 = None;
+            } else {
+                selected.0 = Some(node.spell);
             }
-        });
+        }
+    }
 }
 
-/// Spawns the miscellaneous spells section.
-fn spawn_misc_section(
-    parent: &mut ChildSpawnerCommands,
-    affinities: &std::collections::HashSet<DamageType>,
-    asset_server: &AssetServer,
+// ===========================================================================
+// Pan & Zoom
+// ===========================================================================
+
+/// Handles panning the graph via left-click drag on the background.
+pub(super) fn handle_graph_pan(
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window>,
+    mut view: ResMut<GraphViewState>,
+    mut drag: ResMut<GraphDragState>,
+    node_interactions: Query<&Interaction, With<SpellGraphNode>>,
 ) {
-    parent
-        .spawn(Node {
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::FlexStart,
-            column_gap: Val::Px(8.0),
-            ..default()
-        })
-        .with_children(|row| {
-            row.spawn(Node {
-                width: Val::Px(70.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            })
-            .with_children(|label_container| {
-                label_container.spawn((
-                    Text::new("Misc"),
-                    TextFont::from_font_size(CHAIN_LABEL_FONT_SIZE),
-                    TextColor(MISC_COLOR),
-                ));
-            });
-
-            row.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                flex_wrap: FlexWrap::Wrap,
-                column_gap: Val::Px(8.0),
-                row_gap: Val::Px(8.0),
-                flex_grow: 1.0,
-                min_width: Val::Px(0.0),
-                ..default()
-            })
-            .with_children(|grid| {
-                for spell in MISC_SPELLS {
-                    spawn_spell_card(grid, *spell, affinities, asset_server);
-                }
-            });
-        });
-}
-
-/// Spawns a single spell research card.
-fn spawn_spell_card(
-    parent: &mut ChildSpawnerCommands,
-    spell: Spell,
-    affinities: &std::collections::HashSet<DamageType>,
-    asset_server: &AssetServer,
-) {
-    let unlocked = is_spell_unlocked(spell);
-    let prereq_met = is_prereq_met(spell);
-    let progress = get_spell_research_progress(spell);
-    let cost = spell.research_cost();
-    let has_affinity = affinities.contains(&spell.damage_type());
-
-    let (bg_color, border_color) = if unlocked {
-        (CARD_BACKGROUND, CARD_COMPLETED_BORDER)
-    } else if has_affinity && prereq_met {
-        (CARD_BACKGROUND, CARD_AFFINITY_BORDER)
-    } else if prereq_met {
-        (CARD_BACKGROUND, CARD_BORDER)
-    } else {
-        (CARD_LOCKED_BACKGROUND, CARD_LOCKED_BORDER)
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Some(cursor_pos) = window.cursor_position() else {
+        if drag.dragging {
+            drag.dragging = false;
+        }
+        return;
     };
 
-    parent
-        .spawn((
-            Node {
-                width: Val::Px(CARD_WIDTH),
-                min_height: Val::Px(CARD_HEIGHT),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceBetween,
-                padding: UiRect::all(Val::Px(6.0)),
-                border: UiRect::all(Val::Px(CARD_BORDER_WIDTH)),
-                ..default()
-            },
-            BackgroundColor(bg_color),
-            BorderColor::all(border_color),
-            BorderRadius::all(Val::Px(6.0)),
-        ))
-        .with_children(|card| {
-            let name_font_size =
-                scaled_spell_name_font_size(spell.display_name(), SPELL_NAME_FONT_SIZE, 10);
+    if buttons.just_pressed(MouseButton::Left) {
+        // Don't start dragging if a node is being pressed
+        let any_node_pressed = node_interactions
+            .iter()
+            .any(|i| *i == Interaction::Pressed);
+        if !any_node_pressed {
+            drag.dragging = true;
+            drag.last_cursor = cursor_pos;
+        }
+    }
 
-            if unlocked {
-                // Researched: show icon (if available) + name + element + "Researched"
-                if let Some(icon_path) = spell.icon_path() {
-                    card.spawn((
-                        ImageNode::new(asset_server.load(icon_path)),
-                        Node {
-                            width: Val::Px(SPELL_ICON_SIZE),
-                            height: Val::Px(SPELL_ICON_SIZE),
-                            ..default()
-                        },
-                    ));
-                }
+    if !buttons.pressed(MouseButton::Left) {
+        drag.dragging = false;
+        return;
+    }
 
-                card.spawn((
-                    Text::new(spell.display_name()),
-                    TextFont::from_font_size(name_font_size),
-                    TextColor(COMPLETED_COLOR),
-                ));
+    if drag.dragging {
+        let delta = cursor_pos - drag.last_cursor;
+        view.offset += delta;
+        drag.last_cursor = cursor_pos;
+    }
+}
 
-                card.spawn((
-                    Text::new(spell.damage_type().display_name()),
-                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
-                    TextColor(element_color(spell.damage_type())),
-                ));
+/// Handles zooming the graph via mouse scroll wheel.
+pub(super) fn handle_graph_zoom(
+    mut mouse_wheel: MessageReader<MouseWheel>,
+    windows: Query<&Window>,
+    mut view: ResMut<GraphViewState>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Some(cursor_pos) = window.cursor_position() else {
+        return;
+    };
 
-                card.spawn((
-                    Text::new("Researched"),
-                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
-                    TextColor(COMPLETED_COLOR),
-                ));
+    let container_center = if let Ok(computed) = graph_area_query.single() {
+        computed.size() / 2.0
+    } else {
+        Vec2::new(window.width() / 2.0, window.height() / 2.0)
+    };
 
-                card.spawn(Node {
-                    flex_grow: 1.0,
-                    ..default()
-                });
+    for event in mouse_wheel.read() {
+        let scroll_delta = match event.unit {
+            MouseScrollUnit::Line => event.y,
+            MouseScrollUnit::Pixel => event.y / 100.0,
+        };
+
+        let old_scale = view.scale;
+        let new_scale =
+            (old_scale * (1.0 + scroll_delta * GRAPH_ZOOM_SPEED)).clamp(GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX);
+
+        if (new_scale - old_scale).abs() > f32::EPSILON {
+            // Adjust offset to keep point under cursor stationary
+            let cursor_from_center = cursor_pos - container_center;
+            let graph_point = (cursor_from_center - view.offset) / old_scale;
+            view.offset = cursor_from_center - graph_point * new_scale;
+            view.scale = new_scale;
+        }
+    }
+}
+
+// ===========================================================================
+// Position update systems
+// ===========================================================================
+
+/// Updates the screen position of all graph nodes based on pan/zoom state.
+pub(super) fn update_graph_node_positions(
+    view: Res<GraphViewState>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    mut node_query: Query<(&mut Node, &SpellGraphNode), Without<FreeNode>>,
+    mut free_node_query: Query<&mut Node, (With<FreeNode>, Without<SpellGraphNode>)>,
+    selected: Res<SelectedStudySpell>,
+    mut border_query: Query<
+        (&mut BorderColor, &SpellGraphNode),
+        Without<FreeNode>,
+    >,
+) {
+    let Ok(computed) = graph_area_query.single() else {
+        return;
+    };
+    let container_center = computed.size() / 2.0;
+    let scale = view.scale;
+
+    // Update spell nodes
+    for (mut node, graph_node) in &mut node_query {
+        let screen_pos =
+            graph_node.graph_position * scale + view.offset + container_center;
+        let scaled_size = GRAPH_NODE_SIZE * scale;
+        node.left = Val::Px(screen_pos.x - scaled_size / 2.0);
+        node.top = Val::Px(screen_pos.y - scaled_size / 2.0);
+        node.width = Val::Px(scaled_size);
+        node.height = Val::Px(scaled_size);
+    }
+
+    // Update free node
+    for mut node in &mut free_node_query {
+        let screen_pos = view.offset + container_center;
+        let scaled_size = GRAPH_FREE_NODE_SIZE * scale;
+        node.left = Val::Px(screen_pos.x - scaled_size / 2.0);
+        node.top = Val::Px(screen_pos.y - scaled_size / 2.0);
+        node.width = Val::Px(scaled_size);
+        node.height = Val::Px(scaled_size);
+    }
+
+    // Update selected border highlight
+    for (mut border_color, graph_node) in &mut border_query {
+        if selected.0 == Some(graph_node.spell) {
+            *border_color = BorderColor::all(GRAPH_NODE_SELECTED_BORDER);
+        } else {
+            let spell = graph_node.spell;
+            let unlocked = is_spell_unlocked(spell);
+            let prereq_met = is_prereq_met(spell);
+            let cost = spell.research_cost();
+            let is_free = cost == 0;
+
+            let border = if is_free || unlocked {
+                GRAPH_NODE_COMPLETED_BORDER
             } else if prereq_met {
-                // Available: show icon (if available) + name, element+affinity, progress bar, slider
-                if let Some(icon_path) = spell.icon_path() {
-                    card.spawn((
+                GRAPH_NODE_BORDER
+            } else {
+                GRAPH_NODE_LOCKED_BORDER
+            };
+            *border_color = BorderColor::all(border);
+        }
+    }
+}
+
+/// Updates graph edge L-shaped connector positions based on pan/zoom state.
+/// Each edge has a horizontal segment and a vertical segment forming an L-path.
+pub(super) fn update_graph_edge_positions(
+    view: Res<GraphViewState>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    node_query: Query<&SpellGraphNode>,
+    mut h_segments: Query<
+        (&mut Node, &SpellGraphEdge),
+        (With<EdgeSegmentH>, Without<EdgeSegmentV>),
+    >,
+    mut v_segments: Query<
+        (&mut Node, &SpellGraphEdge),
+        (With<EdgeSegmentV>, Without<EdgeSegmentH>),
+    >,
+) {
+    let Ok(computed) = graph_area_query.single() else {
+        return;
+    };
+    let container_center = computed.size() / 2.0;
+    let scale = view.scale;
+    let thickness = (GRAPH_EDGE_THICKNESS * scale).max(1.0);
+
+    // Build a map of spell -> graph_position
+    let mut spell_positions: std::collections::HashMap<Option<Spell>, Vec2> =
+        std::collections::HashMap::new();
+    spell_positions.insert(None, Vec2::ZERO);
+    for graph_node in &node_query {
+        spell_positions.insert(Some(graph_node.spell), graph_node.graph_position);
+    }
+
+    // Horizontal segments: from source X to target X, at source Y
+    for (mut node, edge) in &mut h_segments {
+        let Some(&from_graph) = spell_positions.get(&edge.from_spell) else {
+            continue;
+        };
+        let Some(&to_graph) = spell_positions.get(&Some(edge.to_spell)) else {
+            continue;
+        };
+
+        let from_screen = from_graph * scale + view.offset + container_center;
+        let to_screen = to_graph * scale + view.offset + container_center;
+
+        let min_x = from_screen.x.min(to_screen.x);
+        let max_x = from_screen.x.max(to_screen.x);
+        let y = from_screen.y;
+
+        node.left = Val::Px(min_x);
+        node.top = Val::Px(y - thickness / 2.0);
+        node.width = Val::Px((max_x - min_x).max(thickness));
+        node.height = Val::Px(thickness);
+    }
+
+    // Vertical segments: from source Y to target Y, at target X
+    for (mut node, edge) in &mut v_segments {
+        let Some(&from_graph) = spell_positions.get(&edge.from_spell) else {
+            continue;
+        };
+        let Some(&to_graph) = spell_positions.get(&Some(edge.to_spell)) else {
+            continue;
+        };
+
+        let from_screen = from_graph * scale + view.offset + container_center;
+        let to_screen = to_graph * scale + view.offset + container_center;
+
+        let x = to_screen.x;
+        let min_y = from_screen.y.min(to_screen.y);
+        let max_y = from_screen.y.max(to_screen.y);
+
+        node.left = Val::Px(x - thickness / 2.0);
+        node.top = Val::Px(min_y);
+        node.width = Val::Px(thickness);
+        node.height = Val::Px((max_y - min_y).max(thickness));
+    }
+}
+
+// ===========================================================================
+// Detail panel
+// ===========================================================================
+
+/// Updates the detail panel based on the currently selected spell.
+pub(super) fn update_study_detail_panel(
+    mut commands: Commands,
+    selected: Res<SelectedStudySpell>,
+    battle_insight: Res<BattleInsightData>,
+    allocation: Option<Res<InsightAllocation>>,
+    mut panel_query: Query<(Entity, &mut Node), With<StudyDetailPanel>>,
+    asset_server: Res<AssetServer>,
+) {
+    if !selected.is_changed() {
+        return;
+    }
+
+    let Ok((panel_entity, mut panel_node)) = panel_query.single_mut() else {
+        return;
+    };
+
+    // Clear existing children
+    commands.entity(panel_entity).despawn_related::<Children>();
+
+    let Some(spell) = selected.0 else {
+        panel_node.display = Display::None;
+        return;
+    };
+
+    panel_node.display = Display::Flex;
+
+    let unlocked = is_spell_unlocked(spell);
+    let prereq_met = is_prereq_met(spell);
+    let cost = spell.research_cost();
+    let progress = get_spell_research_progress(spell);
+    let is_free = cost == 0;
+    let affinities = &battle_insight.damage_types_used;
+    let has_affinity = affinities.contains(&spell.damage_type());
+
+    commands.entity(panel_entity).with_children(|panel| {
+        // Spell icon + name row
+        panel
+            .spawn(Node {
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: Val::Px(10.0),
+                ..default()
+            })
+            .with_children(|row| {
+                if let Some(icon_path) = spell.icon_path()
+                    && (unlocked || prereq_met || is_free)
+                {
+                    row.spawn((
                         ImageNode::new(asset_server.load(icon_path)),
                         Node {
                             width: Val::Px(SPELL_ICON_SIZE),
@@ -864,71 +1006,155 @@ fn spawn_spell_card(
                         },
                     ));
                 }
-
-                card.spawn((
-                    Text::new(spell.display_name()),
-                    TextFont::from_font_size(name_font_size),
-                    TextColor(TEXT_COLOR),
+                row.spawn((
+                    Text::new(if !prereq_met && !unlocked && !is_free {
+                        "???"
+                    } else {
+                        spell.display_name()
+                    }),
+                    TextFont::from_font_size(DETAIL_TITLE_FONT_SIZE),
+                    TextColor(if unlocked || is_free {
+                        COMPLETED_COLOR
+                    } else if prereq_met {
+                        TEXT_COLOR
+                    } else {
+                        LOCKED_TEXT_COLOR
+                    }),
                 ));
+            });
 
-                let element_text = if has_affinity {
-                    format!("{} (2x)", spell.damage_type().display_name())
-                } else {
-                    spell.damage_type().display_name().to_string()
-                };
-                let element_text_color = if has_affinity {
+        // Element type
+        if unlocked || prereq_met || is_free {
+            let element_text = if has_affinity && prereq_met && !unlocked && !is_free {
+                format!("{} (2x Affinity)", spell.damage_type().display_name())
+            } else {
+                spell.damage_type().display_name().to_string()
+            };
+            panel.spawn((
+                Text::new(element_text),
+                TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
+                TextColor(if has_affinity && !unlocked && !is_free {
                     AFFINITY_COLOR
                 } else {
                     element_color(spell.damage_type())
-                };
+                }),
+            ));
+        }
 
-                card.spawn((
-                    Text::new(element_text),
-                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
-                    TextColor(element_text_color),
-                ));
-
-                // Progress bar (shows existing research)
-                let fill_pct = if cost > 0 {
-                    (progress as f32 / cost as f32 * 100.0).min(100.0)
-                } else {
-                    100.0
-                };
-                spawn_progress_bar(card, fill_pct);
-
-                // Allocation slider
-                let remaining = cost.saturating_sub(progress);
-                spawn_allocation_slider(card, spell, 0, remaining);
-
-                // Allocation text: "current+pending / total"
-                card.spawn((
-                    Text::new(format!("{}/{}", progress, cost)),
-                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    AllocationText { spell },
-                ));
-            } else {
-                // Locked: show only flavor text (no name!)
-                card.spawn((
-                    Text::new(spell.locked_description()),
-                    TextFont::from_font_size(SPELL_DETAIL_FONT_SIZE),
-                    TextColor(LOCKED_TEXT_COLOR),
-                    Node {
-                        margin: UiRect::top(Val::Px(4.0)),
-                        ..default()
-                    },
-                ));
-
-                card.spawn(Node {
-                    flex_grow: 1.0,
+        // Description
+        if unlocked || prereq_met || is_free {
+            panel.spawn((
+                Text::new(spell.description()),
+                TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                Node {
+                    max_width: Val::Px(DETAIL_PANEL_WIDTH - DETAIL_PANEL_PADDING * 2.0),
                     ..default()
-                });
+                },
+            ));
+        } else {
+            panel.spawn((
+                Text::new(spell.locked_description()),
+                TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                TextColor(LOCKED_TEXT_COLOR),
+            ));
+        }
+
+        // Research status
+        if is_free {
+            panel.spawn((
+                Text::new("Default Spell"),
+                TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
+                TextColor(COMPLETED_COLOR),
+            ));
+        } else if unlocked {
+            panel.spawn((
+                Text::new("Researched"),
+                TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
+                TextColor(COMPLETED_COLOR),
+            ));
+        } else if prereq_met {
+            // Progress bar
+            let fill_pct = if cost > 0 {
+                (progress as f32 / cost as f32 * 100.0).min(100.0)
+            } else {
+                100.0
+            };
+            spawn_detail_progress_bar(panel, fill_pct);
+
+            // Allocation slider
+            let current_alloc = allocation
+                .as_ref()
+                .map(|a| a.get(&spell))
+                .unwrap_or(0);
+            let remaining = cost.saturating_sub(progress);
+            spawn_detail_allocation_slider(panel, spell, current_alloc, remaining);
+
+            // Allocation text
+            let effective = if has_affinity {
+                current_alloc * 2
+            } else {
+                current_alloc
+            };
+            let alloc_text = if current_alloc > 0 {
+                format!("{}+{}/{}", progress, effective, cost)
+            } else {
+                format!("{}/{}", progress, cost)
+            };
+            panel.spawn((
+                Text::new(alloc_text),
+                TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                StudyAllocationText { spell },
+            ));
+        } else {
+            // Locked — show requirements
+            panel.spawn(Node {
+                height: Val::Px(4.0),
+                ..default()
+            });
+
+            if let Some(prereq) = spell.prerequisite() {
+                let prereq_done = is_spell_unlocked(prereq);
+                panel.spawn((
+                    Text::new(format!(
+                        "Requires: {}{}",
+                        prereq.display_name(),
+                        if prereq_done { " ✓" } else { "" }
+                    )),
+                    TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                    TextColor(if prereq_done {
+                        COMPLETED_COLOR
+                    } else {
+                        LOCKED_TEXT_COLOR
+                    }),
+                ));
             }
-        });
+
+            let required = spell.required_total_spells();
+            if required > 0 {
+                let researched = count_researched_spells();
+                panel.spawn((
+                    Text::new(format!(
+                        "Spells researched: {}/{}{}",
+                        researched,
+                        required,
+                        if researched >= required { " ✓" } else { "" }
+                    )),
+                    TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                    TextColor(if researched >= required {
+                        COMPLETED_COLOR
+                    } else {
+                        LOCKED_TEXT_COLOR
+                    }),
+                ));
+            }
+        }
+    });
 }
 
-/// Spawns a progress bar showing existing research progress.
-fn spawn_progress_bar(parent: &mut ChildSpawnerCommands, fill_pct: f32) {
+/// Spawns a progress bar in the detail panel.
+fn spawn_detail_progress_bar(parent: &mut ChildSpawnerCommands, fill_pct: f32) {
     let fill_color = if fill_pct >= 100.0 {
         PROGRESS_BAR_FULL
     } else {
@@ -943,7 +1169,7 @@ fn spawn_progress_bar(parent: &mut ChildSpawnerCommands, fill_pct: f32) {
                 ..default()
             },
             BackgroundColor(PROGRESS_BAR_BACKGROUND),
-            BorderRadius::all(Val::Px(3.0)),
+            BorderRadius::all(Val::Px(4.0)),
         ))
         .with_children(|bg| {
             bg.spawn((
@@ -953,13 +1179,13 @@ fn spawn_progress_bar(parent: &mut ChildSpawnerCommands, fill_pct: f32) {
                     ..default()
                 },
                 BackgroundColor(fill_color),
-                BorderRadius::all(Val::Px(3.0)),
+                BorderRadius::all(Val::Px(4.0)),
             ));
         });
 }
 
-/// Spawns an allocation slider for a spell.
-fn spawn_allocation_slider(
+/// Spawns an allocation slider in the detail panel.
+fn spawn_detail_allocation_slider(
     parent: &mut ChildSpawnerCommands,
     spell: Spell,
     current_alloc: u32,
@@ -983,11 +1209,11 @@ fn spawn_allocation_slider(
                 ..default()
             },
             BorderColor::all(SLIDER_TRACK_BORDER),
-            BorderRadius::all(Val::Px(5.0)),
+            BorderRadius::all(Val::Px(6.0)),
             BackgroundColor(SLIDER_TRACK_BG),
             Interaction::default(),
             RelativeCursorPosition::default(),
-            AllocationSliderTrack { spell },
+            StudyAllocationSlider { spell },
         ))
         .with_children(|track| {
             // Fill
@@ -998,13 +1224,13 @@ fn spawn_allocation_slider(
                     ..default()
                 },
                 BorderRadius {
-                    top_left: Val::Px(5.0),
-                    bottom_left: Val::Px(5.0),
+                    top_left: Val::Px(6.0),
+                    bottom_left: Val::Px(6.0),
                     top_right: Val::Px(0.0),
                     bottom_right: Val::Px(0.0),
                 },
                 BackgroundColor(SLIDER_FILL_COLOR),
-                AllocationSliderFill { spell },
+                StudyAllocationFill { spell },
             ));
 
             // Handle
@@ -1017,11 +1243,11 @@ fn spawn_allocation_slider(
                     top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
                     ..default()
                 },
-                BorderRadius::all(Val::Px(2.0)),
+                BorderRadius::all(Val::Px(3.0)),
                 BackgroundColor(SLIDER_HANDLE_COLOR),
                 Interaction::default(),
                 RelativeCursorPosition::default(),
-                AllocationSliderHandle {
+                StudyAllocationHandle {
                     spell,
                     is_dragging: false,
                 },
@@ -1030,27 +1256,23 @@ fn spawn_allocation_slider(
 }
 
 // ===========================================================================
-// Slider interaction systems (study screen)
+// Detail panel slider interaction
 // ===========================================================================
 
-/// Handles click and drag on allocation slider tracks using cursor position.
-///
-/// While the mouse button is held down on a track, the slider continuously
-/// tracks the cursor's x position on the track to set the allocation value.
-pub(super) fn handle_allocation_slider_interaction(
+/// Handles click and drag on the detail panel allocation slider.
+pub(super) fn handle_detail_slider_interaction(
     buttons: Res<ButtonInput<MouseButton>>,
-    mut slider_handles: Query<(&Interaction, &mut AllocationSliderHandle)>,
+    mut slider_handles: Query<(&Interaction, &mut StudyAllocationHandle)>,
     slider_tracks: Query<(
         &Interaction,
         &RelativeCursorPosition,
-        &AllocationSliderTrack,
+        &StudyAllocationSlider,
     )>,
     mut allocation: ResMut<InsightAllocation>,
     mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
     let insight_balance = get_insight();
 
-    // On initial click, mark which handle is being dragged
     if buttons.just_pressed(MouseButton::Left) {
         for (interaction, cursor_pos, track) in &slider_tracks {
             if !matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
@@ -1067,7 +1289,6 @@ pub(super) fn handle_allocation_slider_interaction(
             }
         }
 
-        // Also check direct handle clicks
         for (interaction, mut handle) in &mut slider_handles {
             if *interaction == Interaction::Pressed {
                 handle.is_dragging = true;
@@ -1075,7 +1296,6 @@ pub(super) fn handle_allocation_slider_interaction(
         }
     }
 
-    // Release mouse → stop all dragging
     if !buttons.pressed(MouseButton::Left) {
         for (_interaction, mut handle) in &mut slider_handles {
             handle.is_dragging = false;
@@ -1083,8 +1303,6 @@ pub(super) fn handle_allocation_slider_interaction(
         return;
     }
 
-    // While mouse is held, find which handle is dragging and read cursor
-    // position from its parent track to set allocation.
     let mut dragging_spell: Option<Spell> = None;
     for (_interaction, handle) in &slider_handles {
         if handle.is_dragging {
@@ -1097,7 +1315,6 @@ pub(super) fn handle_allocation_slider_interaction(
         return;
     };
 
-    // Find the track for this spell and read cursor position
     for (_interaction, cursor_pos, track) in &slider_tracks {
         if track.spell != spell {
             continue;
@@ -1115,11 +1332,9 @@ pub(super) fn handle_allocation_slider_interaction(
             continue;
         }
 
-        // RelativeCursorPosition.normalized: center=(0,0), left=-0.5, right=0.5
         let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
         let desired = (normalized * remaining as f32).round() as u32;
 
-        // Cap by available insight (total balance minus other spell allocations)
         let others: u32 = allocation
             .allocations
             .iter()
@@ -1137,11 +1352,11 @@ pub(super) fn handle_allocation_slider_interaction(
     }
 }
 
-/// Updates slider fill widths and handle positions when InsightAllocation changes.
-pub(super) fn update_allocation_sliders(
+/// Updates slider fill widths and handle positions in the detail panel.
+pub(super) fn update_detail_sliders(
     allocation: Res<InsightAllocation>,
-    mut slider_fills: Query<(&mut Node, &AllocationSliderFill), Without<AllocationSliderHandle>>,
-    mut slider_handles: Query<(&mut Node, &AllocationSliderHandle), Without<AllocationSliderFill>>,
+    mut slider_fills: Query<(&mut Node, &StudyAllocationFill), Without<StudyAllocationHandle>>,
+    mut slider_handles: Query<(&mut Node, &StudyAllocationHandle), Without<StudyAllocationFill>>,
 ) {
     if !allocation.is_changed() {
         return;
@@ -1180,11 +1395,11 @@ pub(super) fn update_allocation_sliders(
     }
 }
 
-/// Updates "current+pending / total" text for each spell allocation.
+/// Updates "current+pending / total" text for the detail panel allocation.
 pub(super) fn update_allocation_text(
     allocation: Res<InsightAllocation>,
     battle_insight: Res<BattleInsightData>,
-    mut texts: Query<(&mut Text, &AllocationText)>,
+    mut texts: Query<(&mut Text, &StudyAllocationText)>,
 ) {
     if !allocation.is_changed() {
         return;
@@ -1237,4 +1452,7 @@ pub(super) fn cleanup_wizard_tower_screen(
         commands.entity(entity).despawn();
     }
     commands.remove_resource::<InsightAllocation>();
+    commands.remove_resource::<GraphViewState>();
+    commands.remove_resource::<GraphDragState>();
+    commands.remove_resource::<SelectedStudySpell>();
 }

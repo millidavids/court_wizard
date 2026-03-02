@@ -19,6 +19,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -283,7 +284,7 @@ pub fn check_fireball_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     time: Res<Time>,
-    fireballs: Query<(Entity, &Transform, &Fireball)>,
+    fireballs: Query<(Entity, &Transform, &Fireball, Option<&CrystalSpawn>)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
     sfx: Res<SpellSfxAssets>,
@@ -291,7 +292,7 @@ pub fn check_fireball_collisions(
 ) {
     let t = time.elapsed_secs();
 
-    for (fireball_entity, fireball_transform, fireball) in &fireballs {
+    for (fireball_entity, fireball_transform, fireball, crystal_spawn) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
         // Check collision with walls
@@ -309,6 +310,7 @@ pub fn check_fireball_collisions(
                     t,
                     &sfx,
                     &game_config,
+                    crystal_spawn,
                 );
                 commands.entity(fireball_entity).despawn();
                 hit_wall = true;
@@ -333,6 +335,7 @@ pub fn check_fireball_collisions(
                 t,
                 &sfx,
                 &game_config,
+                crystal_spawn,
             );
             commands.entity(fireball_entity).despawn();
             continue;
@@ -353,6 +356,7 @@ pub fn check_fireball_collisions(
                     t,
                     &sfx,
                     &game_config,
+                    crystal_spawn,
                 );
                 commands.entity(fireball_entity).despawn();
                 break;
@@ -372,23 +376,33 @@ fn spawn_explosion(
     time_secs: f32,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
+    crystal_spawn: Option<&CrystalSpawn>,
 ) {
-    commands.spawn((
-        Mesh3d(assets.cross_plane_sphere.clone()),
-        MeshMaterial3d(assets.fireball_explosion.clone()),
-        Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
-        FireballExplosion::new(
-            position,
-            max_radius,
-            damage,
-            constants::DAMAGE_TYPE,
-            empowerment,
-        ),
-        NetworkedSpellEffect {
-            kind: SpellEffectKind::FireballExplosion,
-        },
-        OnGameplayScreen,
-    ));
+    let entity = commands
+        .spawn((
+            Mesh3d(assets.cross_plane_sphere.clone()),
+            MeshMaterial3d(assets.fireball_explosion.clone()),
+            Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
+            FireballExplosion::new(
+                position,
+                max_radius,
+                damage,
+                constants::DAMAGE_TYPE,
+                empowerment,
+            ),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::FireballExplosion,
+            },
+            OnGameplayScreen,
+        ))
+        .id();
+
+    if let Some(cs) = crystal_spawn {
+        commands.entity(entity).insert(CrystalSpawn {
+            origin: cs.origin,
+            max_range: cs.max_range,
+        });
+    }
 
     // Impact sparks
     vfx::systems::spawn_fire_sparks(

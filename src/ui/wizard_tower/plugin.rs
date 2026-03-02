@@ -2,9 +2,7 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
-use crate::ui::systems::handle_scroll;
 
-use super::components::ScrollableResearchContainer;
 use super::systems::*;
 
 pub struct WizardTowerPlugin;
@@ -28,16 +26,22 @@ impl Plugin for WizardTowerPlugin {
             .add_systems(OnExit(MetaGameState::Study), cleanup_study_screen)
             .add_systems(
                 Update,
-                handle_study_button_actions
-                    .in_set(ButtonActionSet)
+                (
+                    handle_study_button_actions.in_set(ButtonActionSet),
+                    handle_graph_node_clicks.in_set(ButtonActionSet),
+                )
                     .run_if(in_state(MetaGameState::Study)),
             )
             .add_systems(
                 Update,
                 (
-                    handle_allocation_slider_interaction,
-                    handle_scroll::<ScrollableResearchContainer>,
-                    update_allocation_sliders,
+                    handle_graph_pan,
+                    handle_graph_zoom,
+                    update_graph_node_positions,
+                    update_graph_edge_positions,
+                    handle_detail_slider_interaction,
+                    update_detail_sliders,
+                    update_study_detail_panel,
                     update_allocation_text,
                     update_pending_insight_display,
                 )
