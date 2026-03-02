@@ -5,7 +5,7 @@ use crate::config::GameConfig;
 use crate::state::AppState;
 
 use super::resources::{
-    ActiveMusic, MusicAssets, MusicEntity, MusicFadeIn, MusicFadeOut, MusicTrack, FADE_DURATION_SECS,
+    FadeDirection, MusicAssets, MusicEntity, MusicFade, MusicTrack, FADE_DURATION_SECS,
 };
 
 /// Loads both music track assets at startup.
@@ -14,7 +14,6 @@ pub(super) fn load_music_assets(mut commands: Commands, asset_server: Res<AssetS
         menu_music: asset_server.load("audio/citadel-of-frozen-ink.ogg"),
         gameplay_music: asset_server.load("audio/fireball_dungeon_mix.ogg"),
     });
-    commands.insert_resource(ActiveMusic::default());
     info!("Music assets loading: menu and gameplay tracks");
 }
 
@@ -38,8 +37,8 @@ pub(super) fn check_music_transition(
     app_state: Res<State<AppState>>,
     music_assets: Option<Res<MusicAssets>>,
     game_config: Option<Res<GameConfig>>,
-    mut active_music: ResMut<ActiveMusic>,
-    music_query: Query<Entity, (With<MusicEntity>, Without<MusicFadeOut>)>,
+    mut previous_track: Local<Option<MusicTrack>>,
+    music_query: Query<Entity, (With<MusicEntity>, Without<MusicFade>)>,
 ) {
     let Some(music_assets) = music_assets else {
         return;
@@ -50,23 +49,21 @@ pub(super) fn check_music_transition(
 
     let desired_track = track_for_state(app_state.get());
 
-    if active_music.current_track == Some(desired_track) {
+    if *previous_track == Some(desired_track) {
         return;
     }
 
     info!(
         "Music transition: {:?} -> {:?}",
-        active_music.current_track, desired_track
+        *previous_track, desired_track
     );
 
-    // Fade out all existing music entities that aren't already fading out
+    // Fade out all existing music entities that aren't already fading
     for entity in &music_query {
-        commands
-            .entity(entity)
-            .remove::<MusicFadeIn>()
-            .insert(MusicFadeOut {
-                timer: Timer::from_seconds(FADE_DURATION_SECS, TimerMode::Once),
-            });
+        commands.entity(entity).insert(MusicFade {
+            timer: Timer::from_seconds(FADE_DURATION_SECS, TimerMode::Once),
+            direction: FadeDirection::Out,
+        });
     }
 
     // Spawn new music with fade-in (starts at volume 0)
@@ -75,10 +72,10 @@ pub(super) fn check_music_transition(
         MusicTrack::Gameplay => music_assets.gameplay_music.clone(),
     };
 
-    let target_volume = game_config.master_volume * game_config.music_volume;
+    let target_volume = game_config.effective_music_volume();
 
     // If no previous track was playing, skip the fade-in and start at full volume
-    let is_first_track = active_music.current_track.is_none();
+    let is_first_track = previous_track.is_none();
 
     if is_first_track {
         commands.spawn((
@@ -91,55 +88,48 @@ pub(super) fn check_music_transition(
             MusicEntity,
             AudioPlayer::new(handle),
             PlaybackSettings::LOOP.with_volume(Volume::Linear(0.0)),
-            MusicFadeIn {
+            MusicFade {
                 timer: Timer::from_seconds(FADE_DURATION_SECS, TimerMode::Once),
+                direction: FadeDirection::In,
             },
         ));
     }
 
-    active_music.current_track = Some(desired_track);
+    *previous_track = Some(desired_track);
 }
 
-/// Gradually increases volume of fading-in music entities.
-pub(super) fn process_music_fade_in(
+/// Processes music fade-in and fade-out transitions.
+/// Fade-in: gradually increases volume, removes MusicFade when complete.
+/// Fade-out: gradually decreases volume, despawns entity when complete.
+pub(super) fn process_music_fade(
     mut commands: Commands,
     time: Res<Time>,
     game_config: Option<Res<GameConfig>>,
-    mut query: Query<(Entity, &mut MusicFadeIn, &mut AudioSink)>,
+    mut query: Query<(Entity, &mut MusicFade, &mut AudioSink)>,
 ) {
     let Some(game_config) = game_config else {
         return;
     };
-    let target = game_config.master_volume * game_config.music_volume;
+    let target = game_config.effective_music_volume();
 
     for (entity, mut fade, mut sink) in &mut query {
         fade.timer.tick(time.delta());
-        sink.set_volume(Volume::Linear(target * fade.timer.fraction()));
+
+        let fraction = match fade.direction {
+            FadeDirection::In => fade.timer.fraction(),
+            FadeDirection::Out => 1.0 - fade.timer.fraction(),
+        };
+        sink.set_volume(Volume::Linear(target * fraction));
 
         if fade.timer.is_finished() {
-            commands.entity(entity).remove::<MusicFadeIn>();
-        }
-    }
-}
-
-/// Gradually decreases volume of fading-out music entities, despawning when silent.
-pub(super) fn process_music_fade_out(
-    mut commands: Commands,
-    time: Res<Time>,
-    game_config: Option<Res<GameConfig>>,
-    mut query: Query<(Entity, &mut MusicFadeOut, &mut AudioSink)>,
-) {
-    let Some(game_config) = game_config else {
-        return;
-    };
-    let target = game_config.master_volume * game_config.music_volume;
-
-    for (entity, mut fade, mut sink) in &mut query {
-        fade.timer.tick(time.delta());
-        sink.set_volume(Volume::Linear(target * (1.0 - fade.timer.fraction())));
-
-        if fade.timer.is_finished() {
-            commands.entity(entity).despawn();
+            match fade.direction {
+                FadeDirection::In => {
+                    commands.entity(entity).remove::<MusicFade>();
+                }
+                FadeDirection::Out => {
+                    commands.entity(entity).despawn();
+                }
+            }
         }
     }
 }
@@ -147,16 +137,9 @@ pub(super) fn process_music_fade_out(
 /// Syncs volume from GameConfig to active (non-fading) music entities.
 pub(super) fn sync_music_volume(
     game_config: Res<GameConfig>,
-    mut query: Query<
-        &mut AudioSink,
-        (
-            With<MusicEntity>,
-            Without<MusicFadeIn>,
-            Without<MusicFadeOut>,
-        ),
-    >,
+    mut query: Query<&mut AudioSink, (With<MusicEntity>, Without<MusicFade>)>,
 ) {
-    let effective = game_config.master_volume * game_config.music_volume;
+    let effective = game_config.effective_music_volume();
     for mut sink in &mut query {
         sink.set_volume(Volume::Linear(effective));
     }

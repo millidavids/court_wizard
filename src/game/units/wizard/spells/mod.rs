@@ -36,6 +36,7 @@ pub(crate) mod spike_growth;
 pub(crate) mod squall;
 mod systems;
 pub(crate) mod telekinesis;
+pub(crate) mod utils;
 pub(crate) mod teleport;
 pub(crate) mod visual_assets;
 pub(crate) mod wall_of_fire;

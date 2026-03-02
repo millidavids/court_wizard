@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::resources::{ActiveMusic, MusicFadeIn, MusicFadeOut};
+use super::resources::MusicFade;
 use super::systems;
 
 /// Plugin that manages background music with crossfading between tracks.
@@ -19,16 +19,11 @@ impl Plugin for MusicPlugin {
                 Update,
                 (
                     systems::check_music_transition.run_if(
-                        resource_changed::<State<crate::state::AppState>>.or(
-                            |active: Option<Res<ActiveMusic>>| {
-                                active.map_or(true, |a| a.current_track.is_none())
-                            },
-                        ),
+                        resource_changed::<State<crate::state::AppState>>
+                            .or(resource_added::<super::resources::MusicAssets>),
                     ),
-                    systems::process_music_fade_in
-                        .run_if(any_with_component::<MusicFadeIn>),
-                    systems::process_music_fade_out
-                        .run_if(any_with_component::<MusicFadeOut>),
+                    systems::process_music_fade
+                        .run_if(any_with_component::<MusicFade>),
                     systems::sync_music_volume
                         .run_if(resource_changed::<crate::config::GameConfig>),
                 ),

@@ -220,16 +220,6 @@ pub(super) fn tick(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Shared cleanup — despawns all entities with SplashEntity
-// ---------------------------------------------------------------------------
-
-pub(super) fn cleanup_substate(mut commands: Commands, query: Query<Entity, With<SplashEntity>>) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
-}
-
 /// Removes the preloaded splash assets when leaving the splash state entirely.
 pub(super) fn cleanup_assets(mut commands: Commands) {
     commands.remove_resource::<SplashAssets>();

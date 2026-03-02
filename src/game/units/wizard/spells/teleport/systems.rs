@@ -16,6 +16,7 @@ use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::Teleportable;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::resources::NetworkConnection;
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 
 /// Result from teleport casting logic, used to communicate state back to the wrapper.
 struct TeleportCastResult {
@@ -517,38 +518,5 @@ pub fn update_circle_animations(
             let pulse = indicator.pulse_scale();
             transform.scale = Vec3::splat(radius * pulse);
         }
-    }
-}
-
-/// Gets cursor position projected onto Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
-    }
-}
-
-/// Clamps a position to be within the wizard's spell range.
-fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec3 {
-    let diff = target - wizard_pos;
-    let distance = diff.length();
-
-    if distance > spell_range {
-        wizard_pos + diff.normalize() * spell_range
-    } else {
-        target
     }
 }

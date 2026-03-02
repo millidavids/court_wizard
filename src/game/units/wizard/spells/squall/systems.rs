@@ -20,86 +20,7 @@ use crate::game::units::wizard::components::{
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
-
-/// Gets cursor position projected onto Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    // Intersect ray with Y=0 plane
-    if ray.direction.y.abs() < 0.0001 {
-        return None; // Ray is parallel to plane
-    }
-
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None; // Intersection is behind camera
-    }
-
-    Some(ray.origin + ray.direction * t)
-}
-
-/// Clamps a position to be within the wizard's spell range.
-fn clamp_to_spell_range(
-    target: Vec3,
-    wizard_pos: Vec3,
-    spell_range: f32,
-    storm_radius: f32,
-) -> Vec3 {
-    let wizard_height = wizard_pos.y;
-
-    // Calculate max ground radius using Pythagorean theorem
-    let max_ground_radius = if wizard_height < spell_range {
-        (spell_range * spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
-
-    // Account for storm radius so entire circle stays within range
-    let max_center_distance = (max_ground_radius - storm_radius).max(0.0);
-
-    // Calculate XZ plane distance from wizard to cursor
-    let direction = target - wizard_pos;
-    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
-
-    if distance > max_center_distance && distance > 0.001 {
-        // Clamp to ensure entire circle stays within spell range
-        let normalized_direction = direction / distance;
-        wizard_pos + normalized_direction * max_center_distance
-    } else {
-        target
-    }
-}
-
-/// Spawns the visual circle indicator during casting.
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = STORM_RADIUS * empowerment;
-
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.squall_indicator.clone()),
-            Transform::from_translation(Vec3::new(position.x, CIRCLE_Y_POSITION, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                .with_scale(Vec3::splat(radius)),
-            SquallCircleIndicator::new(position, empowerment),
-            OnGameplayScreen,
-        ))
-        .id()
-}
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard squall casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -202,7 +123,7 @@ fn squall_casting_logic(
     let scale = primed_spell.empowerment;
     let storm_radius = STORM_RADIUS * scale;
 
-    cursor_world_pos = clamp_to_spell_range(
+    cursor_world_pos = clamp_to_spell_range_ground(
         cursor_world_pos,
         wizard_pos,
         wizard.spell_range,
@@ -219,9 +140,13 @@ fn squall_casting_logic(
                 let circle_entity = spawn_circle_indicator(
                     commands,
                     assets,
+                    assets.squall_indicator.clone(),
                     cursor_world_pos,
-                    primed_spell.empowerment,
-                );
+                    STORM_RADIUS * primed_spell.empowerment,
+                    CIRCLE_Y_POSITION,
+                )
+                .insert(SquallCircleIndicator::new(cursor_world_pos, primed_spell.empowerment))
+                .id();
                 commands
                     .entity(wizard_entity)
                     .insert(SpellCaster::with_indicator(circle_entity));
@@ -290,29 +215,6 @@ fn squall_casting_logic(
     }
 
     completed
-}
-
-/// Updates circle indicator visuals during casting.
-///
-/// Applies pulse animation and updates position.
-pub(super) fn update_circle_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut SquallCircleIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        // Update time alive for pulse animation
-        indicator.time_alive += time.delta_secs();
-
-        // Apply pulse scale
-        let radius = STORM_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-
-        // Update position
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 /// Spawns ice projectiles periodically from active storms.

@@ -22,9 +22,3 @@ pub(super) fn setup(mut commands: Commands) {
     ));
 }
 
-/// Despawns the version text.
-pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<VersionText>>) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
-}

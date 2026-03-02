@@ -23,6 +23,7 @@ use crate::game::units::wizard::components::{
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
@@ -30,39 +31,6 @@ struct CastResult {
     completed: bool,
     /// Cursor position at time of completion (for network message).
     cursor_pos: Option<Vec3>,
-}
-
-/// Gets cursor position projected onto Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
-    }
-}
-
-/// Clamps a position to be within the wizard's spell range.
-fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec3 {
-    let diff = target - wizard_pos;
-    let distance = diff.length();
-
-    if distance > spell_range {
-        wizard_pos + diff.normalize() * spell_range
-    } else {
-        target
-    }
 }
 
 /// Spawns a black hole entity with billboard circle, torus ring, accretion disk, accretion ring, and looping sound.

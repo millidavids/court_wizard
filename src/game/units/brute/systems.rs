@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 
 use super::components::*;
@@ -246,12 +248,7 @@ pub fn track_brute_attack_target(
                 .iter()
                 .filter(|(entity, _, _, team)| {
                     *entity != brute_entity
-                        && match (brute_team, team) {
-                            (Team::Undead, Team::Undead) => false,
-                            (Team::Undead, _) => true,
-                            (_, Team::Undead) => true,
-                            _ => *team != *brute_team,
-                        }
+                        && brute_team.is_enemy(team)
                 })
                 .filter_map(|(entity, target_pos, target_hitbox, _)| {
                     let dx = brute_transform.translation.x - target_pos.x;
@@ -265,7 +262,7 @@ pub fn track_brute_attack_target(
                         None
                     }
                 })
-                .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
+                .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
             attack_events.write(BruteAttackMessage {
                 target_position: *target_pos,

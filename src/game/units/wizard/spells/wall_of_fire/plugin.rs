@@ -20,11 +20,14 @@ impl Plugin for WallOfFirePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::apply_wall_of_fire_damage,
-                systems::fade_wall_of_fire,
+                systems::apply_wall_of_fire_damage
+                    .run_if(any_exist::<WallOfFireEffect>()),
+                systems::fade_wall_of_fire
+                    .run_if(any_exist::<WallOfFireEffect>()),
                 systems::spawn_wall_of_fire_smoke
                     .run_if(any_exist::<WallOfFireEffect>()),
-                systems::cleanup_wall_of_fire,
+                systems::cleanup_wall_of_fire
+                    .run_if(any_exist::<WallOfFireEffect>()),
             )
                 .run_if(is_spell_effects_active),
         );

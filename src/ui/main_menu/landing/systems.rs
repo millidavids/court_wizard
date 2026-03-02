@@ -86,15 +86,6 @@ pub fn setup(mut commands: Commands) {
         });
 }
 
-/// Cleans up the landing screen UI when exiting the state.
-///
-/// Despawns all entities marked with `OnLandingScreen`.
-pub fn cleanup(mut commands: Commands, landing_items: Query<Entity, With<OnLandingScreen>>) {
-    for entity in &landing_items {
-        commands.entity(entity).despawn();
-    }
-}
-
 /// Handles menu button actions.
 ///
 /// Triggers state transitions based on the button's `MenuButtonAction` component.

@@ -22,6 +22,7 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Local wizard fireball casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -142,28 +143,6 @@ fn fireball_casting_logic(
     }
 
     completed
-}
-
-/// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
-    }
 }
 
 /// Spawns a fireball projectile from a PrimedSpell (wizard casting).

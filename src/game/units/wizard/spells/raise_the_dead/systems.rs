@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -20,6 +22,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::infantry::components::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Unit radius for infantry hitboxes (matches infantry/styles.rs::UNIT_RADIUS)
 const UNIT_RADIUS: f32 = 8.0;
@@ -191,7 +194,7 @@ fn resurrect_nearest_corpse(
         .min_by(|a, b| {
             let dist_a = target_pos.distance(a.1.translation);
             let dist_b = target_pos.distance(b.1.translation);
-            dist_a.partial_cmp(&dist_b).unwrap()
+            dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
         })
     {
         // Replace with undead material
@@ -245,26 +248,5 @@ fn resurrect_nearest_corpse(
             .insert(Infantry)
             .insert(crate::game::units::components::TargetingVelocity::default())
             .insert(crate::game::units::components::FlockingVelocity::default());
-    }
-}
-
-/// Gets cursor position projected onto Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
     }
 }

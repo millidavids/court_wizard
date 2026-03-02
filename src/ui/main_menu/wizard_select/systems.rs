@@ -161,11 +161,8 @@ fn spawn_detail_panel(
     });
 }
 
-/// Cleans up the wizard select screen UI when exiting the state.
-pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<OnWizardSelectScreen>>) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
+/// Cleans up wizard select-specific resources when exiting the state.
+pub(super) fn cleanup_wizard_select_resources(mut commands: Commands) {
     commands.remove_resource::<SelectedWizardPreview>();
 }
 

@@ -7,12 +7,12 @@ use super::super::super::components::{
 use super::components::GuardianCircleIndicator;
 use super::constants;
 use crate::game::achievements::messages::GuardianCircleHitAttackerMessage;
-use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard Guardian Circle casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -81,9 +81,13 @@ pub fn handle_guardian_circle_casting(
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
                     &visual_assets,
+                    visual_assets.guardian_circle_indicator.clone(),
                     pos,
-                    primed_spell.empowerment,
-                );
+                    constants::CIRCLE_RADIUS * primed_spell.empowerment,
+                    constants::CIRCLE_Y_POSITION,
+                )
+                .insert(GuardianCircleIndicator::new(pos, primed_spell.empowerment))
+                .id();
                 commands
                     .entity(wizard_entity)
                     .insert(SpellCaster::with_indicator(circle_entity));
@@ -215,29 +219,6 @@ fn clamp_cursor_to_range(
     Some(pos)
 }
 
-/// Updates circle indicator visuals during casting.
-///
-/// Applies pulse animation and updates position/scale.
-pub fn update_circle_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut GuardianCircleIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        // Update time alive for pulse animation
-        indicator.time_alive += time.delta_secs();
-
-        // Apply pulse scale (preserve rotation by only scaling)
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-
-        // Update position (preserve rotation by only updating translation)
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
-}
-
 /// Helper function to apply Guardian Circle buff to all units in radius.
 ///
 /// Grants temporary HP to units. If a unit already has temp HP, takes the maximum.
@@ -273,73 +254,4 @@ pub(crate) fn apply_guardian_circle_buff(
             }
         }
     }
-}
-
-/// Helper function to spawn the visual circle indicator.
-///
-/// Creates a translucent cyan circle mesh at the target position.
-/// Scales radius by 1.25x when empowered.
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = constants::CIRCLE_RADIUS * empowerment;
-
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.guardian_circle_indicator.clone()),
-            Transform::from_translation(Vec3::new(
-                position.x,
-                constants::CIRCLE_Y_POSITION,
-                position.z,
-            ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(radius)),
-            GuardianCircleIndicator::new(position, empowerment),
-            OnGameplayScreen,
-        ))
-        .id()
-}
-
-/// Helper function to get cursor world position at Y=0 plane.
-///
-/// Ray casts from camera through cursor to find intersection with ground plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return None;
-    };
-    let Ok(window) = window_query.single() else {
-        return None;
-    };
-
-    let cursor_position = window.cursor_position()?;
-
-    // Convert cursor position to world ray
-    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        return None;
-    };
-
-    // Intersect ray with Y=0 plane
-    // Ray equation: P = origin + t * direction
-    // Plane equation: Y = 0
-    // Solve for t: origin.y + t * direction.y = 0
-    // t = -origin.y / direction.y
-
-    if ray.direction.y.abs() < 0.0001 {
-        return None; // Ray is parallel to plane
-    }
-
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None; // Intersection is behind camera
-    }
-
-    let intersection = ray.origin + ray.direction * t;
-    Some(intersection)
 }

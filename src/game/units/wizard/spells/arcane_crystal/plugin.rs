@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use super::components::{ArcaneCrystal, ArcaneCrystalCircleIndicator, CrystalSpawn};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::units::wizard::spells::utils;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::{
     any_exist, mouse_held_or_wizard_casting, mouse_left_not_consumed, spell_input_not_blocked,
@@ -25,7 +26,7 @@ impl Plugin for ArcaneCrystalPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::update_circle_indicator
+                utils::update_circle_indicator::<ArcaneCrystalCircleIndicator>
                     .run_if(any_exist::<ArcaneCrystalCircleIndicator>()),
                 // Crystal lifetime & visuals
                 systems::update_crystal_visuals.run_if(any_with_component::<ArcaneCrystal>),

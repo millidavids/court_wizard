@@ -113,12 +113,7 @@ pub fn update_healer_targeting(
             .iter()
             .filter(|(other_entity, _, other_team)| {
                 *other_entity != entity
-                    && match (*team, other_team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => *other_team != *team,
-                    }
+                    && team.is_enemy(other_team)
             })
             .min_by(|a, b| {
                 let dist_a = (transform.translation.x - a.1.x).powi(2)

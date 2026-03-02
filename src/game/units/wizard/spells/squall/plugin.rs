@@ -2,9 +2,10 @@
 
 use bevy::prelude::*;
 
-use super::components::SquallCircleIndicator;
+use super::components::{IceExplosion, IceProjectile, SquallCircleIndicator, SquallStorm};
 use super::systems::*;
-use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::run_conditions::{any_exist, is_spell_effects_active};
+use crate::game::units::wizard::spells::utils;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
 
@@ -25,13 +26,13 @@ impl Plugin for SquallPlugin {
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
                 // Circle indicator updates
-                update_circle_indicator.run_if(any_exist::<SquallCircleIndicator>()),
+                utils::update_circle_indicator::<SquallCircleIndicator>.run_if(any_exist::<SquallCircleIndicator>()),
                 // Storm systems (spawn projectiles, update physics, check collisions)
-                spawn_ice_projectiles,
-                update_ice_projectiles,
-                check_ice_projectile_collisions,
+                spawn_ice_projectiles.run_if(any_exist::<SquallStorm>()),
+                update_ice_projectiles.run_if(any_exist::<IceProjectile>()),
+                check_ice_projectile_collisions.run_if(any_exist::<IceProjectile>()),
                 // Explosion updates
-                update_ice_explosions,
+                update_ice_explosions.run_if(any_exist::<IceExplosion>()),
             )
                 .run_if(is_spell_effects_active),
         );

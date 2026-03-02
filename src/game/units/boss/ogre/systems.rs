@@ -138,13 +138,7 @@ pub fn ogre_combat(
             if entity == boss_entity {
                 continue;
             }
-            let is_enemy = match (boss_team, team) {
-                (Team::Undead, Team::Undead) => false,
-                (Team::Undead, _) => true,
-                (_, Team::Undead) => true,
-                _ => team != boss_team,
-            };
-            if !is_enemy {
+            if !boss_team.is_enemy(team) {
                 continue;
             }
 
@@ -172,12 +166,7 @@ pub fn ogre_combat(
             if entity == boss_entity {
                 continue;
             }
-            let is_enemy = match (boss_team, team) {
-                (Team::Undead, Team::Undead) => false,
-                (Team::Undead, _) => true,
-                (_, Team::Undead) => true,
-                _ => team != boss_team,
-            };
+            let is_enemy = boss_team.is_enemy(team);
             if !is_enemy {
                 continue;
             }

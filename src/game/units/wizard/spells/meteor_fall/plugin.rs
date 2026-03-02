@@ -7,6 +7,7 @@ use super::components::{
 };
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::units::wizard::spells::utils;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
 
@@ -28,7 +29,7 @@ impl Plugin for MeteorFallPlugin {
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
                 // Circle indicator updates
-                update_circle_indicator.run_if(any_exist::<MeteorFallCircleIndicator>()),
+                utils::update_circle_indicator::<MeteorFallCircleIndicator>.run_if(any_exist::<MeteorFallCircleIndicator>()),
                 // Storm systems (spawn projectiles, update physics, check collisions)
                 spawn_meteor_projectiles.run_if(any_exist::<MeteorFallStorm>()),
                 update_meteor_projectiles.run_if(any_exist::<MeteorProjectile>()),

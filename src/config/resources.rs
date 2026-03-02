@@ -319,6 +319,18 @@ impl Default for GameConfig {
     }
 }
 
+impl GameConfig {
+    /// Effective music volume (master × music slider).
+    pub fn effective_music_volume(&self) -> f32 {
+        self.master_volume * self.music_volume
+    }
+
+    /// Effective SFX volume (master × sfx slider).
+    pub fn effective_sfx_volume(&self) -> f32 {
+        self.master_volume * self.sfx_volume
+    }
+}
+
 /// Resource that tracks debounce timer for automatic config saving.
 ///
 /// This prevents excessive file writes during window resizing by waiting

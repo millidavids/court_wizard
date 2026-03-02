@@ -7,8 +7,9 @@ use super::brute::BrutePlugin;
 use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
-    BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, GreaseSlipModifier,
-    MarkedForDeathModifier, SleepModifier,
+    BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, FrostSlowModifier,
+    GreaseSlipModifier, HasteModifier, MarkedForDeathModifier, RootedModifier, SleepModifier,
+    SpikeGrowthSlowModifier, TemporaryHitPoints,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -29,7 +30,7 @@ use super::{ApplyTransformsSet, MovementCalculationSet};
 /// - King unit (defender only) (KingPlugin)
 ///
 /// Also registers global unit systems for:
-/// - Temporary hit points expiration
+/// - Timed modifier expiration
 /// - Movement application (transforms)
 pub struct UnitsPlugin;
 
@@ -56,11 +57,11 @@ impl Plugin for UnitsPlugin {
         .add_systems(
             Update,
             (
-                systems::update_temporary_hit_points,
-                systems::update_frost_slow_modifiers,
-                systems::update_rooted_modifiers,
-                systems::update_haste_modifiers,
-                systems::update_spike_growth_slow_modifiers,
+                systems::update_timed_modifier::<TemporaryHitPoints>,
+                systems::update_timed_modifier::<FrostSlowModifier>,
+                systems::update_timed_modifier::<RootedModifier>,
+                systems::update_timed_modifier::<HasteModifier>,
+                systems::update_timed_modifier::<SpikeGrowthSlowModifier>,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
             )
                 .run_if(is_gameplay_running),
@@ -81,16 +82,17 @@ impl Plugin for UnitsPlugin {
         .add_systems(
             Update,
             (
-                systems::update_mark_of_death_modifiers
+                systems::update_timed_modifier::<MarkedForDeathModifier>
                     .run_if(any_with_component::<MarkedForDeathModifier>),
-                systems::update_sleep_modifiers.run_if(any_with_component::<SleepModifier>),
-                systems::update_battle_hymn_modifiers
+                systems::update_timed_modifier::<SleepModifier>
+                    .run_if(any_with_component::<SleepModifier>),
+                systems::update_timed_modifier::<BattleHymnModifier>
                     .run_if(any_with_component::<BattleHymnModifier>),
-                systems::update_berserker_rage_modifiers
+                systems::update_timed_modifier::<BerserkerRageModifier>
                     .run_if(any_with_component::<BerserkerRageModifier>),
-                systems::update_fog_evasion_modifiers
+                systems::update_timed_modifier::<FogEvasionModifier>
                     .run_if(any_with_component::<FogEvasionModifier>),
-                systems::update_grease_slip_modifiers
+                systems::update_timed_modifier::<GreaseSlipModifier>
                     .run_if(any_with_component::<GreaseSlipModifier>),
             )
                 .run_if(is_gameplay_running),

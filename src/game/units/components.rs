@@ -7,6 +7,39 @@ use super::constants::{
 };
 use super::damage::DamageType;
 
+/// Trait for modifier components with a timed duration that can expire.
+///
+/// Implementing this trait allows use of the generic `update_timed_modifier::<T>` system
+/// which automatically ticks and removes expired modifiers.
+pub trait TimedModifier {
+    /// Tick the modifier's timer by `delta` seconds. Returns `true` if expired.
+    fn tick(&mut self, delta: f32) -> bool;
+}
+
+macro_rules! impl_timed_modifier {
+    ($($ty:ty),* $(,)?) => {
+        $(impl TimedModifier for $ty {
+            fn tick(&mut self, delta: f32) -> bool {
+                self.update(delta)
+            }
+        })*
+    };
+}
+
+impl_timed_modifier!(
+    FrostSlowModifier,
+    SpikeGrowthSlowModifier,
+    TemporaryHitPoints,
+    RootedModifier,
+    HasteModifier,
+    MarkedForDeathModifier,
+    SleepModifier,
+    BattleHymnModifier,
+    BerserkerRageModifier,
+    FogEvasionModifier,
+    GreaseSlipModifier,
+);
+
 /// Team component for all units.
 ///
 /// Determines which side a unit is on. Units attack members of opposing teams.

@@ -2,6 +2,9 @@
 
 use bevy::prelude::*;
 
+use super::constants::{CIRCLE_Y_POSITION, CRYSTAL_RANGE};
+use crate::game::units::wizard::spells::utils::CircleIndicator;
+
 /// The type of spell the crystal has most recently absorbed.
 /// Used for auto-casting on a timer.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -145,6 +148,27 @@ impl ArcaneCrystalCircleIndicator {
         let pulse_freq = 2.0;
         let pulse_amplitude = 0.05;
         1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+    }
+}
+
+impl CircleIndicator for ArcaneCrystalCircleIndicator {
+    fn position(&self) -> Vec3 {
+        self.position
+    }
+    fn time_alive(&self) -> f32 {
+        self.time_alive
+    }
+    fn set_time_alive(&mut self, time: f32) {
+        self.time_alive = time;
+    }
+    fn base_radius(&self) -> f32 {
+        CRYSTAL_RANGE * self.empowerment
+    }
+    fn circle_y_position(&self) -> f32 {
+        CIRCLE_Y_POSITION
+    }
+    fn pulse_scale(&self) -> f32 {
+        self.pulse_scale()
     }
 }
 

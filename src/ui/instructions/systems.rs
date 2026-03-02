@@ -109,10 +109,4 @@ pub(super) fn setup_pause_menu(commands: Commands) {
     setup(commands, true);
 }
 
-/// Despawns all instructions screen entities.
-pub(super) fn cleanup(mut commands: Commands, query: Query<Entity, With<OnInstructionsScreen>>) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
-}
 

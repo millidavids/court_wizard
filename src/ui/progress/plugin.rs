@@ -16,7 +16,7 @@ use super::components::{
 use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
 
 use super::systems::{
-    cleanup, clear_and_refresh_main_menu, clear_and_refresh_pause_menu, handle_clear_progress,
+    clear_and_refresh_main_menu, clear_and_refresh_pause_menu, handle_clear_progress,
     setup_main_menu, setup_pause_menu, spawn_confirmation_popup,
 };
 
@@ -27,7 +27,7 @@ pub struct MainMenuProgressPlugin;
 impl Plugin for MainMenuProgressPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::Progress), setup_main_menu)
-            .add_systems(OnExit(MenuState::Progress), cleanup)
+            .add_systems(OnExit(MenuState::Progress), crate::ui::systems::cleanup_screen::<super::components::OnProgressScreen>)
             .add_systems(
                 Update,
                 (
@@ -60,7 +60,7 @@ pub struct PauseMenuProgressPlugin;
 impl Plugin for PauseMenuProgressPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(PauseMenuState::Progress), setup_pause_menu)
-            .add_systems(OnExit(PauseMenuState::Progress), cleanup)
+            .add_systems(OnExit(PauseMenuState::Progress), crate::ui::systems::cleanup_screen::<super::components::OnProgressScreen>)
             .add_systems(
                 Update,
                 (

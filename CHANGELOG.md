@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.138] - 2026-03-02
+
+### Improved
+- **Better game performance** — spells and effects that aren't active no longer run background checks every frame, reducing unnecessary work
+- **Fixed a memory leak** — electric arc visual effects were quietly leaking graphics resources every frame; now properly cleaned up
+- **Safer number handling** — distance comparisons across the game now handle edge cases gracefully instead of risking crashes
+
 ## [v0.3.131] - 2026-03-02
 
 ### Added

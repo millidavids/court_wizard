@@ -2,11 +2,10 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    BattleHymnModifier, BerserkerRageModifier, Corpse, Effectiveness, ElectricCharge, FireDoT,
-    FlockingVelocity, FogEvasionModifier, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
-    Health, InMelee, MarkedForDeathModifier, MindControlled, OriginalMaterial,
-    PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
-    SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team, TemporaryHitPoints,
+    Corpse, Effectiveness, ElectricCharge, FireDoT,
+    FlockingVelocity, FrostSlowModifier, Health, InMelee, MindControlled, OriginalMaterial,
+    PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
+    TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
     apply_damage_to_unit,
 };
 use super::constants::{
@@ -49,12 +48,7 @@ pub fn update_melee_unit_targeting(
         .filter(|(other_entity, _, other_team)| {
             *other_entity != entity
                 && (retaliation_target == Some(*other_entity)
-                    || match (team, other_team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => *other_team != team,
-                    })
+                    || team.is_enemy(other_team))
         })
         .min_by(|a, b| {
             let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -235,170 +229,16 @@ pub fn calculate_weighted_movement(
     velocity.z *= damping;
 }
 
-/// Updates all temporary hit points timers and removes expired components.
-///
-/// This system runs each frame to:
-/// - Decrement time_remaining on all TemporaryHitPoints components
-/// - Remove components that have expired (time <= 0 or amount <= 0)
-pub fn update_temporary_hit_points(
+/// Generic system that ticks all instances of a `TimedModifier` component and removes expired ones.
+pub fn update_timed_modifier<T: Component<Mutability = bevy::ecs::component::Mutable> + TimedModifier>(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut TemporaryHitPoints)>,
-) {
-    let delta = time.delta_secs();
-
-    for (entity, mut temp_hp) in query.iter_mut() {
-        if temp_hp.update(delta) {
-            // Temp HP has expired, remove the component
-            commands.entity(entity).remove::<TemporaryHitPoints>();
-        }
-    }
-}
-
-/// Updates all frost slow modifiers and removes expired components.
-///
-/// This system runs each frame to:
-/// - Decrement time_remaining on all FrostSlowModifier components
-/// - Remove components that have expired (time <= 0)
-pub fn update_frost_slow_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut FrostSlowModifier)>,
-) {
-    let delta = time.delta_secs();
-
-    for (entity, mut frost_slow) in query.iter_mut() {
-        if frost_slow.update(delta) {
-            commands.entity(entity).remove::<FrostSlowModifier>();
-        }
-    }
-}
-
-/// Updates all rooted modifiers and removes expired components.
-pub fn update_rooted_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut RootedModifier)>,
-) {
-    let delta = time.delta_secs();
-
-    for (entity, mut rooted) in query.iter_mut() {
-        if rooted.update(delta) {
-            commands.entity(entity).remove::<RootedModifier>();
-        }
-    }
-}
-
-/// Updates all haste modifiers and removes expired components.
-pub fn update_haste_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut HasteModifier)>,
-) {
-    let delta = time.delta_secs();
-
-    for (entity, mut haste) in query.iter_mut() {
-        if haste.update(delta) {
-            commands.entity(entity).remove::<HasteModifier>();
-        }
-    }
-}
-
-/// Updates all spike growth slow modifiers and removes expired components.
-pub fn update_spike_growth_slow_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut SpikeGrowthSlowModifier)>,
-) {
-    let delta = time.delta_secs();
-
-    for (entity, mut slow) in query.iter_mut() {
-        if slow.update(delta) {
-            commands.entity(entity).remove::<SpikeGrowthSlowModifier>();
-        }
-    }
-}
-
-/// Updates all mark of death modifiers and removes expired components.
-pub fn update_mark_of_death_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut MarkedForDeathModifier)>,
+    mut query: Query<(Entity, &mut T)>,
 ) {
     let delta = time.delta_secs();
     for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<MarkedForDeathModifier>();
-        }
-    }
-}
-
-/// Updates all sleep modifiers and removes expired components.
-pub fn update_sleep_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut SleepModifier)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<SleepModifier>();
-        }
-    }
-}
-
-/// Updates all battle hymn modifiers and removes expired components.
-pub fn update_battle_hymn_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut BattleHymnModifier)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<BattleHymnModifier>();
-        }
-    }
-}
-
-/// Updates all berserker rage modifiers and removes expired components.
-pub fn update_berserker_rage_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut BerserkerRageModifier)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<BerserkerRageModifier>();
-        }
-    }
-}
-
-/// Updates all fog evasion modifiers and removes expired components.
-pub fn update_fog_evasion_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut FogEvasionModifier)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<FogEvasionModifier>();
-        }
-    }
-}
-
-/// Updates all grease slip modifiers and removes expired components.
-pub fn update_grease_slip_modifiers(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut GreaseSlipModifier)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut modifier) in query.iter_mut() {
-        if modifier.update(delta) {
-            commands.entity(entity).remove::<GreaseSlipModifier>();
+        if modifier.tick(delta) {
+            commands.entity(entity).remove::<T>();
         }
     }
 }
@@ -562,6 +402,10 @@ pub fn update_electric_charge(
         for (target_entity, target_pos, _) in &targets {
             arc_events.push((source_pos, *target_entity, *target_pos));
         }
+    }
+
+    if arc_events.is_empty() {
+        return;
     }
 
     // Process arc events: deal damage and spawn visuals

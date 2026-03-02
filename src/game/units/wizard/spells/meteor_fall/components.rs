@@ -2,6 +2,9 @@
 
 use bevy::prelude::*;
 
+use super::constants::{CIRCLE_Y_POSITION, STORM_RADIUS};
+use crate::game::units::wizard::spells::utils::CircleIndicator;
+
 /// Meteor Fall storm component - invisible marker entity that spawns meteor projectiles.
 ///
 /// The storm persists as long as the wizard maintains concentration.
@@ -74,6 +77,27 @@ impl MeteorFallCircleIndicator {
         let pulse_freq = 2.0; // Hz
         let pulse_amplitude = 0.05;
         1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+    }
+}
+
+impl CircleIndicator for MeteorFallCircleIndicator {
+    fn position(&self) -> Vec3 {
+        self.position
+    }
+    fn time_alive(&self) -> f32 {
+        self.time_alive
+    }
+    fn set_time_alive(&mut self, time: f32) {
+        self.time_alive = time;
+    }
+    fn base_radius(&self) -> f32 {
+        STORM_RADIUS * self.empowerment
+    }
+    fn circle_y_position(&self) -> f32 {
+        CIRCLE_Y_POSITION
+    }
+    fn pulse_scale(&self) -> f32 {
+        self.pulse_scale()
     }
 }
 

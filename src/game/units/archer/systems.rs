@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -117,7 +119,7 @@ pub fn archer_melee_combat(
                     None
                 }
             })
-            .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
+            .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
             // Attack if we're in the unit's attack window
             if attack_timing.can_attack(current_time, last_time)
@@ -222,7 +224,7 @@ pub fn archer_ranged_combat(
             .min_by(|a, b| {
                 let dist_a = archer_transform.translation.distance(a.1.translation);
                 let dist_b = archer_transform.translation.distance(b.1.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
+                dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
             });
 
         if let Some((_, target_transform, _, _, _, _)) = nearest_enemy {
@@ -242,12 +244,7 @@ pub fn archer_ranged_combat(
 
 /// Checks if a target is valid for the given team (same logic as combat system).
 fn is_valid_target(source_team: &Team, target_team: &Team) -> bool {
-    match (source_team, target_team) {
-        (Team::Undead, Team::Undead) => false, // Undead don't attack each other
-        (Team::Undead, _) => true,             // Undead attack living
-        (_, Team::Undead) => true,             // Living attack undead
-        _ => target_team != source_team,       // Normal team logic
-    }
+    source_team.is_enemy(target_team)
 }
 
 /// Spawns an arrow projectile from archer toward target.
@@ -369,13 +366,7 @@ pub fn check_arrow_collisions(
                 continue;
             }
 
-            // Check if enemy (using same logic as combat system)
-            let is_enemy = match (arrow.source_team, *team) {
-                (Team::Undead, Team::Undead) => false,
-                (Team::Undead, _) => true,
-                (_, Team::Undead) => true,
-                _ => *team != arrow.source_team,
-            };
+            let is_enemy = arrow.source_team.is_enemy(team);
 
             if !is_enemy {
                 continue;
@@ -431,12 +422,7 @@ pub fn update_archer_targeting(
             .iter()
             .filter(|(other_entity, _, other_team)| {
                 *other_entity != entity
-                    && match (*team, other_team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => *other_team != *team,
-                    }
+                    && team.is_enemy(other_team)
             })
             .min_by(|a, b| {
                 let dist_a = (transform.translation.x - a.1.x).powi(2)

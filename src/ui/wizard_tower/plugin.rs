@@ -15,10 +15,10 @@ impl Plugin for WizardTowerPlugin {
         app.add_plugins(UiMaterialPlugin::<RadialProgressMaterial>::default())
             .add_plugins(UiMaterialPlugin::<StarSkyMaterial>::default())
             // Top-level cleanup when leaving MetaGame entirely
-            .add_systems(OnExit(AppState::MetaGame), cleanup_wizard_tower_screen)
+            .add_systems(OnExit(AppState::MetaGame), (crate::ui::systems::cleanup_screen::<super::components::OnWizardTowerScreen>, cleanup_wizard_tower_resources))
             // WizardTower substate (hub screen)
             .add_systems(OnEnter(MetaGameState::WizardTower), setup_wizard_tower_main)
-            .add_systems(OnExit(MetaGameState::WizardTower), cleanup_main_screen)
+            .add_systems(OnExit(MetaGameState::WizardTower), crate::ui::systems::cleanup_screen::<super::components::OnMainScreen>)
             .add_systems(
                 Update,
                 handle_main_button_actions
@@ -27,7 +27,7 @@ impl Plugin for WizardTowerPlugin {
             )
             // Study substate
             .add_systems(OnEnter(MetaGameState::Study), setup_study_screen)
-            .add_systems(OnExit(MetaGameState::Study), cleanup_study_screen)
+            .add_systems(OnExit(MetaGameState::Study), (crate::ui::systems::cleanup_screen::<super::components::OnStudyScreen>, cleanup_study_resources))
             .add_systems(
                 Update,
                 (

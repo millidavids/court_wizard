@@ -17,6 +17,7 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard plague wind casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -66,7 +67,7 @@ pub fn handle_plague_wind_casting(
     let radius = constants::CLOUD_RADIUS * scale;
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, wizard_pos, wizard.spell_range, radius));
+        .map(|pos| clamp_to_spell_range_ground(pos, wizard_pos, wizard.spell_range, radius));
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -74,7 +75,16 @@ pub fn handle_plague_wind_casting(
         && mana.can_afford(constants::MANA_COST)
         && let Some(pos) = clamped_pos
     {
-        let circle_entity = spawn_circle_indicator(&mut commands, &visual_assets, pos, scale);
+        let circle_entity =spawn_circle_indicator(
+            &mut commands,
+            &visual_assets,
+            visual_assets.plague_wind_indicator.clone(),
+            pos,
+            constants::CLOUD_RADIUS * scale,
+            constants::CIRCLE_Y_POSITION,
+        )
+        .insert(PlagueWindIndicator::new(pos, constants::CLOUD_RADIUS * scale))
+        .id();
         commands
             .entity(wizard_entity)
             .insert(SpellCaster::with_indicator(circle_entity));
@@ -390,71 +400,3 @@ pub fn cleanup_plague_wind_cloud(
 }
 
 // --- Helper functions ---
-
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-
-    Some(ray.origin + ray.direction * t)
-}
-
-fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32, radius: f32) -> Vec3 {
-    let wizard_height = wizard_pos.y;
-    let max_ground_radius = if wizard_height < spell_range {
-        (spell_range * spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
-    let max_center_distance = (max_ground_radius - radius).max(0.0);
-    let direction = target - wizard_pos;
-    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
-
-    if distance > max_center_distance && distance > 0.001 {
-        let normalized_direction = direction / distance;
-        wizard_pos + normalized_direction * max_center_distance
-    } else {
-        target
-    }
-}
-
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = constants::CLOUD_RADIUS * empowerment;
-
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.plague_wind_indicator.clone()),
-            Transform::from_translation(Vec3::new(
-                position.x,
-                constants::CIRCLE_Y_POSITION,
-                position.z,
-            ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(radius)),
-            PlagueWindIndicator::new(position, radius),
-            OnGameplayScreen,
-        ))
-        .id()
-}

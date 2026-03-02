@@ -545,20 +545,6 @@ fn spawn_slider_control(
     );
 }
 
-/// Cleans up the settings menu UI when exiting the state.
-///
-/// Despawns all entities marked with `OnSettingsScreen`.
-///
-/// # Arguments
-///
-/// * `commands` - Bevy command buffer for despawning entities
-/// * `settings_items` - Query for all entities with the `OnSettingsScreen` marker
-pub fn cleanup(mut commands: Commands, settings_items: Query<Entity, With<OnSettingsScreen>>) {
-    for entity in &settings_items {
-        commands.entity(entity).despawn();
-    }
-}
-
 /// Handles button hover visual feedback.
 ///
 /// Changes button colors when the cursor hovers over them.

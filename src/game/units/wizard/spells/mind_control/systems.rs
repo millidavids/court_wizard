@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -9,6 +11,7 @@ use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, MindControlled, Team};
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Tracked highlight target — stored as system-local state so we have a single
 /// source of truth that doesn't depend on deferred command timing.
@@ -147,7 +150,7 @@ fn find_nearest_enemy(
                     None
                 }
             })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal))
             .map(|(entity, _)| entity)
     })
 }
@@ -232,28 +235,4 @@ pub(super) fn tick_mind_control_cooldown(
             commands.entity(entity).remove::<MindControlCooldown>();
         }
     }
-}
-
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return None;
-    };
-    let Ok(window) = window_query.single() else {
-        return None;
-    };
-    let cursor_position = window.cursor_position()?;
-    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        return None;
-    };
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-    Some(ray.origin + ray.direction * t)
 }

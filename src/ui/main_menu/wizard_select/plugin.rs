@@ -15,7 +15,7 @@ pub struct WizardSelectPlugin;
 impl Plugin for WizardSelectPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::WizardSelect), systems::setup)
-            .add_systems(OnExit(MenuState::WizardSelect), systems::cleanup)
+            .add_systems(OnExit(MenuState::WizardSelect), (crate::ui::systems::cleanup_screen::<super::components::OnWizardSelectScreen>, systems::cleanup_wizard_select_resources))
             .add_systems(
                 Update,
                 systems::button_action

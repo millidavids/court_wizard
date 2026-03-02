@@ -25,12 +25,12 @@ impl Plugin for SplashScreenPlugin {
                     .run_if(in_state(AppState::Splash))
                     .run_if(not(in_state(SplashState::Black))),
             )
-            .add_systems(OnExit(SplashState::Black), systems::cleanup_substate)
-            .add_systems(OnExit(SplashState::Language), systems::cleanup_substate)
-            .add_systems(OnExit(SplashState::Engine), systems::cleanup_substate)
+            .add_systems(OnExit(SplashState::Black), crate::ui::systems::cleanup_screen::<super::components::SplashEntity>)
+            .add_systems(OnExit(SplashState::Language), crate::ui::systems::cleanup_screen::<super::components::SplashEntity>)
+            .add_systems(OnExit(SplashState::Engine), crate::ui::systems::cleanup_screen::<super::components::SplashEntity>)
             .add_systems(
                 OnExit(AppState::Splash),
-                (systems::cleanup_substate, systems::cleanup_assets),
+                (crate::ui::systems::cleanup_screen::<super::components::SplashEntity>, systems::cleanup_assets),
             );
     }
 }

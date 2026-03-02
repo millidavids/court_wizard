@@ -20,6 +20,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
@@ -451,34 +452,6 @@ pub fn cleanup_wall_of_fire(
 
             commands.entity(entity).despawn();
         }
-    }
-}
-
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-    let t = -ray.origin.y / ray.direction.y;
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
-    }
-}
-
-fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec3 {
-    let diff = target - wizard_pos;
-    let distance = diff.length();
-    if distance > spell_range {
-        wizard_pos + diff.normalize() * spell_range
-    } else {
-        target
     }
 }
 

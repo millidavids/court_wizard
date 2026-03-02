@@ -18,6 +18,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard spike growth casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -90,9 +91,13 @@ pub fn handle_spike_growth_casting(
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
                     &visual_assets,
+                    visual_assets.spike_growth_indicator.clone(),
                     clamped_cursor,
-                    primed_spell.empowerment,
-                );
+                    constants::CIRCLE_RADIUS * primed_spell.empowerment,
+                    constants::CIRCLE_Y_POSITION,
+                )
+                .insert(SpikeGrowthIndicator::new(clamped_cursor, primed_spell.empowerment))
+                .id();
                 commands
                     .entity(wizard_entity)
                     .insert(SpellCaster::with_indicator(circle_entity));
@@ -349,53 +354,4 @@ pub(crate) fn spawn_spike_growth_zone(
         },
         OnGameplayScreen,
     ));
-}
-
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = constants::CIRCLE_RADIUS * empowerment;
-
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.spike_growth_indicator.clone()),
-            Transform::from_translation(Vec3::new(
-                position.x,
-                constants::CIRCLE_Y_POSITION,
-                position.z,
-            ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(radius)),
-            SpikeGrowthIndicator::new(position, empowerment),
-            OnGameplayScreen,
-        ))
-        .id()
-}
-
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return None;
-    };
-    let Ok(window) = window_query.single() else {
-        return None;
-    };
-    let cursor_position = window.cursor_position()?;
-    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        return None;
-    };
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-    Some(ray.origin + ray.direction * t)
 }

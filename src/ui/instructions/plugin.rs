@@ -10,7 +10,7 @@ use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
 
 use super::components::{BackButton, ScrollableInstructionsContainer};
-use super::systems::{cleanup, setup_main_menu, setup_pause_menu};
+use super::systems::{setup_main_menu, setup_pause_menu};
 
 /// Plugin that manages the instructions screen UI for the main menu.
 #[derive(Default)]
@@ -19,7 +19,7 @@ pub struct MainMenuInstructionsPlugin;
 impl Plugin for MainMenuInstructionsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::Instructions), setup_main_menu)
-            .add_systems(OnExit(MenuState::Instructions), cleanup)
+            .add_systems(OnExit(MenuState::Instructions), crate::ui::systems::cleanup_screen::<super::components::OnInstructionsScreen>)
             .add_systems(
                 Update,
                 handle_main_menu_back_button
@@ -41,7 +41,7 @@ pub struct PauseMenuInstructionsPlugin;
 impl Plugin for PauseMenuInstructionsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(PauseMenuState::Instructions), setup_pause_menu)
-            .add_systems(OnExit(PauseMenuState::Instructions), cleanup)
+            .add_systems(OnExit(PauseMenuState::Instructions), crate::ui::systems::cleanup_screen::<super::components::OnInstructionsScreen>)
             .add_systems(
                 Update,
                 handle_pause_menu_back_button

@@ -87,15 +87,6 @@ pub fn setup(mut commands: Commands) {
         });
 }
 
-/// Cleans up the pause menu main screen UI when exiting the state.
-///
-/// Despawns all entities marked with `OnPauseMainScreen`.
-pub fn cleanup(mut commands: Commands, main_items: Query<Entity, With<OnPauseMainScreen>>) {
-    for entity in &main_items {
-        commands.entity(entity).despawn();
-    }
-}
-
 /// Handles pause menu button actions.
 ///
 /// Triggers state transitions based on the button's `PauseMenuButtonAction` component.

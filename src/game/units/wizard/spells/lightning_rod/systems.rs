@@ -1,5 +1,7 @@
 //! Lightning Rod spell systems.
 
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -20,6 +22,7 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard Lightning Rod casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -64,7 +67,7 @@ pub(super) fn handle_lightning_rod_casting(
 
     let clamped_pos = input
         .cursor_pos
-        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
+        .map(|pos| clamp_to_spell_range_ground(pos, SPELL_ORIGIN, wizard.spell_range, 0.0));
 
     // Spawn indicator on Resting -> Casting transition
     if matches!(*casting_state, CastingState::Resting)
@@ -73,7 +76,16 @@ pub(super) fn handle_lightning_rod_casting(
         && let Some(pos) = clamped_pos
     {
         let circle_entity =
-            spawn_circle_indicator(&mut commands, &visual_assets, pos, primed_spell.empowerment);
+            spawn_circle_indicator(
+                &mut commands,
+                &visual_assets,
+                visual_assets.lightning_rod_indicator.clone(),
+                pos,
+                ARC_RADIUS * primed_spell.empowerment,
+                CIRCLE_Y_POSITION,
+            )
+            .insert(LightningRodCircleIndicator::new(pos, primed_spell.empowerment))
+            .id();
         commands
             .entity(wizard_entity)
             .insert(SpellCaster::with_indicator(circle_entity));
@@ -197,74 +209,6 @@ fn lightning_rod_casting_logic(
     completed
 }
 
-/// Gets cursor position projected onto Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-
-    Some(ray.origin + ray.direction * t)
-}
-
-/// Clamps a position to be within the wizard's spell range.
-fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec3 {
-    let wizard_height = wizard_pos.y;
-
-    let max_ground_radius = if wizard_height < spell_range {
-        (spell_range * spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
-
-    let direction = target - wizard_pos;
-    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
-
-    if distance > max_ground_radius && distance > 0.001 {
-        let normalized_direction = direction / distance;
-        wizard_pos + normalized_direction * max_ground_radius
-    } else {
-        target
-    }
-}
-
-/// Spawns the visual circle indicator during casting.
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = ARC_RADIUS * empowerment;
-
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.lightning_rod_indicator.clone()),
-            Transform::from_translation(Vec3::new(position.x, CIRCLE_Y_POSITION, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                .with_scale(Vec3::splat(radius)),
-            LightningRodCircleIndicator::new(position, empowerment),
-            OnGameplayScreen,
-        ))
-        .id()
-}
-
 /// Spawns the lightning rod tower entity.
 pub(crate) fn spawn_lightning_rod(
     commands: &mut Commands,
@@ -300,24 +244,6 @@ pub(crate) fn spawn_lightning_rod(
         },
         OnGameplayScreen,
     ));
-}
-
-/// Updates circle indicator visuals during casting.
-pub(super) fn update_circle_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut LightningRodCircleIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-
-        let radius = ARC_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 /// Updates lightning rod timers, spawns lightning strikes, and despawns expired rods.
@@ -447,7 +373,7 @@ fn spawn_arcs_to_nearby_units(
         .filter(|(_, _, dist)| *dist <= radius)
         .collect();
 
-    targets.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+    targets.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
     targets.truncate(ARC_MAX_TARGETS);
 
     // Apply damage and spawn arc visuals

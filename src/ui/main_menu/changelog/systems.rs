@@ -113,10 +113,4 @@ pub(super) fn handle_back_button(
     }
 }
 
-/// Despawns all changelog screen entities.
-pub fn cleanup(mut commands: Commands, query: Query<Entity, With<OnChangelogScreen>>) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
-}
 

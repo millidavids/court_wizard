@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
@@ -18,6 +20,7 @@ use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::crdt::PeerId;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Local wizard magic missile casting — instant cast with cooldown.
 ///
@@ -229,7 +232,7 @@ pub(crate) fn spawn_magic_missile(
                 .min_by(|a, b| {
                     let dist_a = spawn_pos.distance(a.1.translation);
                     let dist_b = spawn_pos.distance(b.1.translation);
-                    dist_a.partial_cmp(&dist_b).unwrap()
+                    dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
                 })
                 .map(|(entity, _, _)| entity)
         }
@@ -538,26 +541,5 @@ pub fn despawn_distant_magic_missiles(
         if distance_from_origin > missile.spell_range {
             commands.entity(entity).despawn();
         }
-    }
-}
-
-/// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
     }
 }

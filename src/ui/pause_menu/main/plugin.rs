@@ -6,7 +6,7 @@ use crate::state::PauseMenuState;
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::escape_to_running;
 
-use super::systems::{button_action, cleanup, setup};
+use super::systems::{button_action, setup};
 
 /// Plugin that manages the pause menu main screen UI.
 ///
@@ -20,7 +20,7 @@ pub struct PauseMainPlugin;
 impl Plugin for PauseMainPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(PauseMenuState::Main), setup)
-            .add_systems(OnExit(PauseMenuState::Main), cleanup)
+            .add_systems(OnExit(PauseMenuState::Main), crate::ui::systems::cleanup_screen::<super::components::OnPauseMainScreen>)
             .add_systems(
                 Update,
                 button_action

@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
@@ -82,13 +84,7 @@ pub fn calculate_effectiveness(
             let melee_range = (hitbox.radius + other_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
 
             if distance <= melee_range {
-                // Team logic matches combat system
-                let is_enemy = match (*team, *other_team) {
-                    (Team::Undead, Team::Undead) => false,
-                    (Team::Undead, _) => true,
-                    (_, Team::Undead) => true,
-                    _ => other_team != team,
-                };
+                let is_enemy = team.is_enemy(other_team);
 
                 if is_enemy {
                     enemy_count += 1;
@@ -430,12 +426,7 @@ pub fn combat(
             .filter(|(entity, _, _, team)| {
                 *entity != attacker_entity
                     && (retaliation_entity == Some(*entity)
-                        || match (attacker_team, team) {
-                            (Team::Undead, Team::Undead) => false,
-                            (Team::Undead, _) => true,
-                            (_, Team::Undead) => true,
-                            _ => team != attacker_team,
-                        })
+                        || attacker_team.is_enemy(team))
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
                 let dx = attacker_transform.translation.x - target_pos.x;
@@ -449,7 +440,7 @@ pub fn combat(
                     None
                 }
             })
-            .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
+            .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
             // Calculate effective attack speed (BattleHymn makes attacks come faster)
             let attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed);
@@ -992,13 +983,7 @@ pub fn activate_defenders_on_proximity(
                 continue;
             }
 
-            // Check if enemy (using same logic as combat)
-            let is_enemy = match (*defender_team, *enemy_team) {
-                (Team::Undead, Team::Undead) => false,
-                (Team::Undead, _) => true,
-                (_, Team::Undead) => true,
-                _ => *enemy_team != *defender_team,
-            };
+            let is_enemy = defender_team.is_enemy(enemy_team);
 
             if !is_enemy {
                 continue;

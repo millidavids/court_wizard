@@ -38,45 +38,9 @@ use crate::game::units::wizard::spells::{
     meteor_fall_constants,
 };
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
 
 // ===== Helper Functions =====
-
-/// Gets cursor position projected onto Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-
-    Some(ray.origin + ray.direction * t)
-}
-
-/// Clamps a position to be within the wizard's spell range.
-fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec3 {
-    let diff = target - wizard_pos;
-    let distance = diff.length();
-
-    if distance > spell_range {
-        wizard_pos + diff.normalize() * spell_range
-    } else {
-        target
-    }
-}
 
 /// Finds random targets within range of a position.
 /// Returns up to `count` random targets from any team (spells are indiscriminate).
@@ -217,9 +181,13 @@ pub(super) fn handle_arcane_crystal_casting(
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
                     &visual_assets,
+                    visual_assets.arcane_crystal_indicator.clone(),
                     pos,
-                    primed_spell.empowerment,
-                );
+                    CRYSTAL_RANGE * primed_spell.empowerment,
+                    CIRCLE_Y_POSITION,
+                )
+                .insert(ArcaneCrystalCircleIndicator::new(pos, primed_spell.empowerment))
+                .id();
                 commands
                     .entity(wizard_entity)
                     .insert(SpellCaster::with_indicator(circle_entity));
@@ -312,46 +280,6 @@ fn arcane_crystal_casting_logic(
     }
 
     completed
-}
-
-/// Spawns the visual circle indicator during casting.
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = CRYSTAL_RANGE * empowerment;
-
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.arcane_crystal_indicator.clone()),
-            Transform::from_translation(Vec3::new(position.x, CIRCLE_Y_POSITION, position.z))
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                .with_scale(Vec3::splat(radius)),
-            ArcaneCrystalCircleIndicator::new(position, empowerment),
-            OnGameplayScreen,
-        ))
-        .id()
-}
-
-/// Updates circle indicator visuals during casting.
-pub(super) fn update_circle_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut ArcaneCrystalCircleIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-
-        let radius = CRYSTAL_RANGE * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 /// Spawns the crystal entity with visual mesh and range indicator.

@@ -19,24 +19,21 @@ pub(super) struct MusicAssets {
     pub(super) gameplay_music: Handle<AudioSource>,
 }
 
-/// Resource tracking which music track is currently active.
-#[derive(Resource, Default)]
-pub(super) struct ActiveMusic {
-    pub(super) current_track: Option<MusicTrack>,
-}
-
-/// Marker component identifying a music entity and its track.
+/// Marker component identifying a music entity.
 #[derive(Component)]
 pub(super) struct MusicEntity;
 
-/// Component for music entities that are fading in.
-#[derive(Component)]
-pub(super) struct MusicFadeIn {
-    pub(super) timer: Timer,
+/// Direction of a music volume fade.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum FadeDirection {
+    In,
+    Out,
 }
 
-/// Component for music entities that are fading out (despawned when complete).
+/// Component for music entities that are fading in or out.
+/// Entities fading out are despawned when complete; fade-in components are removed.
 #[derive(Component)]
-pub(super) struct MusicFadeOut {
+pub(super) struct MusicFade {
     pub(super) timer: Timer,
+    pub(super) direction: FadeDirection,
 }

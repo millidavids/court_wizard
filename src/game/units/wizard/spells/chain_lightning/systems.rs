@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -22,6 +24,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Local wizard chain lightning casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -210,30 +213,6 @@ fn chain_lightning_casting_logic(
     completed
 }
 
-/// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    // Create a ray from the camera through the cursor position
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    // Intersect ray with Y=0 plane (battlefield surface)
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
-    }
-}
-
 /// Finds the closest enemy, lightning rod, or arcane crystal near the given position
 /// within TARGETING_RADIUS.
 /// Note: position should be at Y=0 (battlefield plane). Uses XZ distance for targeting.
@@ -272,7 +251,7 @@ fn find_target_near_position(
             let b_pos_2d = Vec3::new(b.1.x, 0.0, b.1.z);
             let dist_a = target_pos_2d.distance(a_pos_2d);
             let dist_b = target_pos_2d.distance(b_pos_2d);
-            dist_a.partial_cmp(&dist_b).unwrap()
+            dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
         })
 }
 
@@ -570,7 +549,7 @@ fn find_next_bounce_targets(
     }
 
     // Sort by distance (closest first)
-    candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+    candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
 
     // Take up to max_targets
     candidates

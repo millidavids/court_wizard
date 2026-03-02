@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
 
-use super::systems::{button_action, cleanup, setup};
+use super::systems::{button_action, setup};
 
 /// Plugin that manages the landing screen UI.
 ///
@@ -19,7 +19,7 @@ pub struct LandingPlugin;
 impl Plugin for LandingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::Landing), setup)
-            .add_systems(OnExit(MenuState::Landing), cleanup)
+            .add_systems(OnExit(MenuState::Landing), crate::ui::systems::cleanup_screen::<super::components::OnLandingScreen>)
             .add_systems(
                 Update,
                 button_action

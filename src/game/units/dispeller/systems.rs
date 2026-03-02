@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use bevy::prelude::*;
 
 use super::components::*;
@@ -127,12 +129,7 @@ pub fn update_dispeller_targeting(
             .iter()
             .filter(|(other_entity, _, other_team)| {
                 *other_entity != entity
-                    && match (*team, other_team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => *other_team != *team,
-                    }
+                    && team.is_enemy(other_team)
             })
             .min_by(|a, b| {
                 let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -408,12 +405,7 @@ pub fn dispeller_ranged_combat(
             .iter()
             .filter(|(entity, _, team)| {
                 *entity != dispeller_entity
-                    && match (*dispeller_team, *team) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => **team != *dispeller_team,
-                    }
+                    && dispeller_team.is_enemy(team)
             })
             .filter(|(_, transform, _)| {
                 let distance = dispeller_transform
@@ -424,7 +416,7 @@ pub fn dispeller_ranged_combat(
             .min_by(|a, b| {
                 let dist_a = dispeller_transform.translation.distance(a.1.translation);
                 let dist_b = dispeller_transform.translation.distance(b.1.translation);
-                dist_a.partial_cmp(&dist_b).unwrap()
+                dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
             });
 
         if let Some((_, target_transform, _)) = nearest_enemy {
@@ -493,13 +485,7 @@ pub fn check_bolt_collisions(
                 continue;
             }
 
-            // Check if enemy
-            let is_enemy = match (bolt.source_team, *team) {
-                (Team::Undead, Team::Undead) => false,
-                (Team::Undead, _) => true,
-                (_, Team::Undead) => true,
-                _ => *team != bolt.source_team,
-            };
+            let is_enemy = bolt.source_team.is_enemy(team);
 
             if !is_enemy {
                 continue;

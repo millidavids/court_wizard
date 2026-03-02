@@ -360,11 +360,3 @@ pub(super) fn handle_button_actions(
     }
 }
 
-pub(super) fn cleanup_game_over_screen(
-    mut commands: Commands,
-    query: Query<Entity, With<OnGameOverScreen>>,
-) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
-}

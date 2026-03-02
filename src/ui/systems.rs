@@ -259,6 +259,15 @@ pub fn handle_scroll<T: Component>(
 // Shared button spawning
 // ---------------------------------------------------------------------------
 
+/// Generic screen cleanup system that despawns all entities with the given marker component.
+///
+/// Use as `cleanup_screen::<OnMyScreen>` when registering `OnExit` systems.
+pub fn cleanup_screen<T: Component>(mut commands: Commands, query: Query<Entity, With<T>>) {
+    for entity in &query {
+        commands.entity(entity).despawn();
+    }
+}
+
 /// Spawns a styled button as a child of the given parent.
 ///
 /// # Arguments

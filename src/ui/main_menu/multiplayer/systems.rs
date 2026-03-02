@@ -575,11 +575,8 @@ fn build_opponent_status_text(opponent_ready: bool) -> String {
     }
 }
 
-/// Cleans up the multiplayer screen UI when exiting the state.
-pub fn cleanup(mut commands: Commands, screen_items: Query<Entity, With<OnMultiplayerScreen>>) {
-    for entity in &screen_items {
-        commands.entity(entity).despawn();
-    }
+/// Cleans up multiplayer-specific resources when exiting the state.
+pub fn cleanup_multiplayer_resources(mut commands: Commands) {
     commands.remove_resource::<LobbyPhase>();
     commands.remove_resource::<SelectedWizardPreview>();
 }

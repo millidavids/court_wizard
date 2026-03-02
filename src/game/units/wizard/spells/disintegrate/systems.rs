@@ -18,6 +18,7 @@ use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
@@ -261,33 +262,6 @@ fn disintegrate_casting_logic(
     }
 
     result
-}
-
-/// Gets the cursor position projected onto the battlefield surface (Y=0 plane).
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
-
-    // Create a ray from the camera through the cursor position
-    let ray = camera
-        .viewport_to_world(camera_transform, cursor_pos)
-        .ok()?;
-
-    // Intersect ray with Y=0 plane (battlefield surface)
-    // Ray equation: origin + direction * t
-    // Plane equation: y = 0
-    // Solve for t: origin.y + direction.y * t = 0
-    let t = -ray.origin.y / ray.direction.y;
-
-    if t > 0.0 {
-        Some(ray.origin + ray.direction * t)
-    } else {
-        None
-    }
 }
 
 /// System that applies damage to all units hit by disintegrate beams.

@@ -227,16 +227,6 @@ pub(super) fn setup_wizard_tower_main(mut commands: Commands, current_level: Res
         });
 }
 
-/// Cleans up main hub screen entities.
-pub(super) fn cleanup_main_screen(
-    mut commands: Commands,
-    query: Query<Entity, With<OnMainScreen>>,
-) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
-}
-
 /// Handles button actions on the hub screen.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_main_button_actions(
@@ -317,14 +307,8 @@ pub(super) fn setup_study_screen(
     );
 }
 
-/// Cleans up study screen entities and resources.
-pub(super) fn cleanup_study_screen(
-    mut commands: Commands,
-    query: Query<Entity, With<OnStudyScreen>>,
-) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
+/// Cleans up study screen-specific resources when exiting the state.
+pub(super) fn cleanup_study_resources(mut commands: Commands) {
     commands.remove_resource::<InsightAllocation>();
     commands.remove_resource::<GraphViewState>();
     commands.remove_resource::<GraphDragState>();
@@ -1538,14 +1522,8 @@ pub(super) fn update_pending_insight_display(
 // Top-level cleanup (exiting WizardTower entirely)
 // ===========================================================================
 
-/// Cleans up all wizard tower screen entities when leaving AppState::MetaGame.
-pub(super) fn cleanup_wizard_tower_screen(
-    mut commands: Commands,
-    query: Query<Entity, With<OnWizardTowerScreen>>,
-) {
-    for entity in &query {
-        commands.entity(entity).despawn();
-    }
+/// Cleans up wizard tower-specific resources when leaving AppState::MetaGame.
+pub(super) fn cleanup_wizard_tower_resources(mut commands: Commands) {
     commands.remove_resource::<InsightAllocation>();
     commands.remove_resource::<GraphViewState>();
     commands.remove_resource::<GraphDragState>();

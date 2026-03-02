@@ -12,6 +12,7 @@ use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Local wizard Telekinesis casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -294,35 +295,4 @@ fn spawn_indicator(
             OnGameplayScreen,
         ))
         .id()
-}
-
-/// Gets cursor world position at Y=0 plane.
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return None;
-    };
-    let Ok(window) = window_query.single() else {
-        return None;
-    };
-
-    let cursor_position = window.cursor_position()?;
-
-    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        return None;
-    };
-
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-
-    let intersection = ray.origin + ray.direction * t;
-    Some(intersection)
 }

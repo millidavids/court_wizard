@@ -1103,12 +1103,7 @@ pub fn josephina_leap(
                 let josephina_pos = transform.translation;
                 let defender_positions: Vec<Vec3> = defenders
                     .iter()
-                    .filter(|(_, t)| match (team, *t) {
-                        (Team::Undead, Team::Undead) => false,
-                        (Team::Undead, _) => true,
-                        (_, Team::Undead) => true,
-                        _ => *t != team,
-                    })
+                    .filter(|(_, t)| team.is_enemy(t))
                     .map(|(t, _)| t.translation)
                     .filter(|pos| {
                         let dx = pos.x - josephina_pos.x;

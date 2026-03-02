@@ -7,13 +7,13 @@ use super::super::super::components::{
 use super::components::BerserkerRageIndicator;
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::BerserkerRageModifier;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard berserker rage casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -84,9 +84,13 @@ pub fn handle_berserker_rage_casting(
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
                     &visual_assets,
+                    visual_assets.berserker_rage_indicator.clone(),
                     pos,
-                    primed_spell.empowerment,
-                );
+                    constants::CIRCLE_RADIUS * primed_spell.empowerment,
+                    constants::CIRCLE_Y_POSITION,
+                )
+                .insert(BerserkerRageIndicator::new(pos, primed_spell.empowerment))
+                .id();
                 commands
                     .entity(wizard_entity)
                     .insert(SpellCaster::with_indicator(circle_entity));
@@ -258,52 +262,4 @@ pub(crate) fn apply_berserker_rage_buff(
             }
         }
     }
-}
-
-fn spawn_circle_indicator(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-    empowerment: f32,
-) -> Entity {
-    let radius = constants::CIRCLE_RADIUS * empowerment;
-    commands
-        .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.berserker_rage_indicator.clone()),
-            Transform::from_translation(Vec3::new(
-                position.x,
-                constants::CIRCLE_Y_POSITION,
-                position.z,
-            ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(radius)),
-            BerserkerRageIndicator::new(position, empowerment),
-            OnGameplayScreen,
-        ))
-        .id()
-}
-
-fn get_cursor_world_position(
-    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-) -> Option<Vec3> {
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        return None;
-    };
-    let Ok(window) = window_query.single() else {
-        return None;
-    };
-    let cursor_position = window.cursor_position()?;
-    let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-        return None;
-    };
-    if ray.direction.y.abs() < 0.0001 {
-        return None;
-    }
-    let t = -ray.origin.y / ray.direction.y;
-    if t < 0.0 {
-        return None;
-    }
-    Some(ray.origin + ray.direction * t)
 }

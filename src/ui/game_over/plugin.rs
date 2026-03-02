@@ -22,7 +22,7 @@ impl Plugin for GameOverPlugin {
             )
                 .chain(),
         )
-        .add_systems(OnExit(InGameState::ScoreScreen), cleanup_game_over_screen)
+        .add_systems(OnExit(InGameState::ScoreScreen), crate::ui::systems::cleanup_screen::<super::components::OnGameOverScreen>)
         .add_systems(
             Update,
             handle_button_actions

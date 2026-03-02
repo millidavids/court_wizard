@@ -63,7 +63,7 @@ pub(crate) fn play_sfx_scaled(
     let distance = effect_pos.distance(SPELL_ORIGIN);
     let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
     let attenuation = linear * linear * linear * linear * linear * linear; // steep falloff for distant sounds
-    let volume = game_config.master_volume * game_config.sfx_volume * attenuation * volume_scale;
+    let volume = game_config.effective_sfx_volume() * attenuation * volume_scale;
 
     if volume <= 0.0 {
         return;
@@ -86,7 +86,7 @@ pub(crate) fn play_looping_sfx(
     handle: &Handle<AudioSource>,
     game_config: &GameConfig,
 ) -> Entity {
-    let volume = game_config.master_volume * game_config.sfx_volume;
+    let volume = game_config.effective_sfx_volume();
 
     if volume <= 0.0 {
         return commands
@@ -114,7 +114,7 @@ pub(crate) fn play_looping_sfx_at(
     let distance = effect_pos.distance(SPELL_ORIGIN);
     let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
     let attenuation = linear * linear * linear * linear * linear * linear;
-    let volume = game_config.master_volume * game_config.sfx_volume * attenuation;
+    let volume = game_config.effective_sfx_volume() * attenuation;
 
     if volume <= 0.0 {
         return commands.spawn(OnGameplayScreen).id();
