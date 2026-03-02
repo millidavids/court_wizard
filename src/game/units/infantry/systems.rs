@@ -108,7 +108,8 @@ pub fn update_infantry_targeting(
     for (entity, transform, team, mut targeting_velocity, retaliation) in &mut infantry {
         // Skip inactive defender infantry (but always process attackers)
         if *team == Team::Defenders && !defenders_activated.active {
-            *targeting_velocity = TargetingVelocity::default();
+            targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = f32::MAX;
             continue;
         }
 

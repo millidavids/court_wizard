@@ -13,7 +13,9 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
+use crate::config::GameConfig;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
+use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -65,6 +67,9 @@ pub fn handle_disintegrate_casting(
     glow_query: Query<Entity, With<BeamGlow>>,
     flare_query: Query<Entity, With<BeamOriginFlare>>,
     particle_query: Query<Entity, With<DisintegrateParticle>>,
+    channeling_sfx_query: Query<Entity, With<ChannelingSfx>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -122,6 +127,11 @@ pub fn handle_disintegrate_casting(
                 length,
                 empowerment,
             );
+            audio::play_looping_sfx(
+                &mut commands,
+                &sfx.disintegrate_channel,
+                &game_config,
+            );
         }
         BeamAction::DespawnAll => {
             despawn_all_beam_visuals(
@@ -131,6 +141,9 @@ pub fn handle_disintegrate_casting(
                 &flare_query,
                 &particle_query,
             );
+            for entity in channeling_sfx_query.iter() {
+                commands.entity(entity).despawn();
+            }
         }
         BeamAction::None => {}
     }
@@ -350,6 +363,7 @@ pub fn cleanup_beams_on_cancel(
     glow_query: Query<Entity, With<BeamGlow>>,
     flare_query: Query<Entity, With<BeamOriginFlare>>,
     particle_query: Query<Entity, With<DisintegrateParticle>>,
+    channeling_sfx_query: Query<Entity, With<ChannelingSfx>>,
 ) {
     if let Ok(casting_state) = wizard_query.single()
         && matches!(casting_state, CastingState::Resting)
@@ -364,6 +378,9 @@ pub fn cleanup_beams_on_cancel(
             commands.entity(entity).despawn();
         }
         for entity in particle_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in channeling_sfx_query.iter() {
             commands.entity(entity).despawn();
         }
     }

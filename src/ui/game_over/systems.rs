@@ -6,8 +6,8 @@ use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats};
-use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
 use crate::ui::systems::spawn_button;
 
@@ -176,7 +176,7 @@ pub(super) fn setup_game_over_screen(
                     let button_text = match *game_outcome {
                         GameOutcome::Victory => "Continue".to_string(),
                         GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                            format!("Try Again (Level {})", current_level.0)
+                            format!("Time Rewind (Level {})", current_level.0)
                         }
                     };
 

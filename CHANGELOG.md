@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.130] - 2026-03-02
+
+### Added
+- **More spell sound effects** — arcane crystal, banishment, battle hymn, berserker rage, chain lightning, healing plume, and meteor fall impacts now all have sound effects
+- **Disintegrate channeling sound** — a continuous sound plays while the disintegrate beam is active
+- **Black hole ambient sound** — black holes now emit a looping sound for their entire duration, louder when closer to the wizard
+
+### Changed
+- **Distant spells are quieter** — sound effects further from the wizard fade out more aggressively
+
+### Fixed
+- **Archers now retreat properly** — defender archers would sometimes get stuck in place instead of returning to their starting positions when there are no enemies on the field
+
 ## [v0.3.122] - 2026-03-02
 
 ### Added

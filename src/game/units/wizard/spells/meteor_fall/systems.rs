@@ -21,6 +21,8 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::config::GameConfig;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
@@ -489,6 +491,8 @@ pub(super) fn check_meteor_collisions(
     visual_assets: Res<SpellVisualAssets>,
     projectiles: Query<(Entity, &Transform, &MeteorProjectile)>,
     mut pathfinding: ResMut<PathfindingGrid>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
@@ -536,6 +540,15 @@ pub(super) fn check_meteor_collisions(
                 pos,
                 3,
                 t,
+            );
+
+            // Impact sound at 50% volume
+            audio::play_sfx_scaled(
+                &mut commands,
+                &sfx.fireball_impact,
+                pos,
+                &game_config,
+                0.5,
             );
 
             // Spawn ground fire hazard (only if empowered — boss meteors skip this)

@@ -132,7 +132,8 @@ pub fn update_king_targeting(
     for (entity, transform, team, mut targeting_velocity, retaliation) in &mut king {
         // Skip inactive King (wait for defenders to activate)
         if !defenders_activated.active {
-            *targeting_velocity = TargetingVelocity::default();
+            targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = f32::MAX;
             continue;
         }
 

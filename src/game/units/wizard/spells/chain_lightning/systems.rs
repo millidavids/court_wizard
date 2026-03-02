@@ -16,7 +16,9 @@ use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::config::GameConfig;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -48,6 +50,8 @@ pub fn handle_chain_lightning_casting(
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
     )>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -83,6 +87,7 @@ pub fn handle_chain_lightning_casting(
     );
 
     if completed {
+        audio::play_sfx(&mut commands, &sfx.chain_lightning_cast, SPELL_ORIGIN, &game_config);
         mouse_state.left_consumed = true;
     }
 }

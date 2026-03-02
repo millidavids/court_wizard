@@ -5,9 +5,12 @@ use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
 };
 use super::constants;
+use crate::config::GameConfig;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{BanishedModifier, Corpse, Team, WasBanished};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 
 /// Local wizard banishment casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -35,6 +38,8 @@ pub fn handle_banishment_casting(
             Without<BanishedModifier>,
         ),
     >,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -65,6 +70,7 @@ pub fn handle_banishment_casting(
     );
 
     if completed {
+        audio::play_sfx(&mut commands, &sfx.banishment_cast, SPELL_ORIGIN, &game_config);
         mouse_state.left_consumed = true;
     }
 }

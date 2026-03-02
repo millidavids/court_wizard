@@ -422,7 +422,8 @@ pub fn update_archer_targeting(
     for (entity, transform, team, attack_range, mut targeting_velocity) in &mut archers {
         // Skip inactive defender archers (but always process attackers)
         if *team == Team::Defenders && !defenders_activated.active {
-            *targeting_velocity = TargetingVelocity::default();
+            targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = f32::MAX;
             continue;
         }
         // Find nearest enemy

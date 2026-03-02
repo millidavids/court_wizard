@@ -6,12 +6,14 @@ use super::super::super::components::{
 };
 use super::components::{HealingPlumeIndicator, HealingPlumeZone};
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, Health};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -38,6 +40,8 @@ pub fn handle_healing_plume_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut HealingPlumeIndicator>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -124,6 +128,12 @@ pub fn handle_healing_plume_casting(
                     indicator.position,
                     radius,
                     indicator.empowerment,
+                );
+                audio::play_sfx(
+                    &mut commands,
+                    &sfx.healing_plume_cast,
+                    indicator.position,
+                    &game_config,
                 );
             }
             commands.entity(indicator_entity).despawn();

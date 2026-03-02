@@ -7,6 +7,7 @@ use super::components::{
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::units::wizard::spells::audio::ChannelingSfx;
 
 /// Plugin that handles disintegrate spell casting and behavior.
 pub struct DisintegratePlugin;
@@ -35,7 +36,8 @@ impl Plugin for DisintegratePlugin {
                     .run_if(
                         any_exist::<DisintegrateBeam>()
                             .or(any_exist::<BeamGlow>())
-                            .or(any_exist::<BeamOriginFlare>()),
+                            .or(any_exist::<BeamOriginFlare>())
+                            .or(any_exist::<ChannelingSfx>()),
                     )
                     .run_if(is_spell_effects_active),
                 systems::update_impact_particles

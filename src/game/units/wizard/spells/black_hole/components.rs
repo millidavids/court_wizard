@@ -107,6 +107,13 @@ pub(super) struct BlackHoleAccretionDisk {
     pub black_hole_entity: Entity,
 }
 
+/// Looping sound effect entity that follows a black hole.
+#[derive(Component)]
+pub(super) struct BlackHoleSfx {
+    /// The parent black hole entity this sound tracks.
+    pub black_hole_entity: Entity,
+}
+
 /// Component tracking how long a unit has been inside the black hole.
 #[derive(Component)]
 pub(super) struct UnitInBlackHole {

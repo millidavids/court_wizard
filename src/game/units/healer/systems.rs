@@ -75,7 +75,8 @@ pub fn update_healer_targeting(
     for (entity, transform, team, mut targeting_velocity) in &mut healers {
         // Skip inactive defender healers
         if *team == Team::Defenders && !defenders_activated.active {
-            *targeting_velocity = TargetingVelocity::default();
+            targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = f32::MAX;
             continue;
         }
 

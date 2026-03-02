@@ -6,6 +6,7 @@ use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -30,6 +31,7 @@ use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
 use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
@@ -168,6 +170,8 @@ pub(super) fn handle_arcane_crystal_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut ArcaneCrystalCircleIndicator>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -254,6 +258,12 @@ pub(super) fn handle_arcane_crystal_casting(
                     &visual_assets,
                     indicator.position,
                     primed_spell.empowerment,
+                );
+                audio::play_sfx(
+                    &mut commands,
+                    &sfx.arcane_crystal_cast,
+                    indicator.position,
+                    &game_config,
                 );
             }
             commands.entity(indicator_entity).despawn();

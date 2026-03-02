@@ -3,8 +3,11 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::components::{BlackHole, BlackHoleAccretionDisk, BlackHoleRing, UnitInBlackHole};
+use super::components::{
+    BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx, UnitInBlackHole,
+};
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -17,6 +20,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -61,12 +65,14 @@ fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: f32) -> Vec
     }
 }
 
-/// Spawns a black hole entity with billboard circle, torus ring, accretion disk, and accretion ring.
+/// Spawns a black hole entity with billboard circle, torus ring, accretion disk, accretion ring, and looping sound.
 pub(crate) fn spawn_black_hole(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,
     empowerment: f32,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) {
     let max_radius = MAX_RADIUS * empowerment;
     let spawn_pos = Vec3::new(position.x, BLACK_HOLE_HEIGHT, position.z);
@@ -117,6 +123,17 @@ pub(crate) fn spawn_black_hole(
         Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
         OnGameplayScreen,
     ));
+
+    // Looping sound effect attenuated by distance from wizard to black hole
+    let sfx_entity = audio::play_looping_sfx_at(
+        commands,
+        &sfx.black_hole_persistent,
+        spawn_pos,
+        game_config,
+    );
+    commands.entity(sfx_entity).insert(BlackHoleSfx {
+        black_hole_entity,
+    });
 }
 
 /// Local wizard Black Hole casting -- reads mouse input.
@@ -138,6 +155,8 @@ pub(super) fn handle_black_hole_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     visual_assets: Res<SpellVisualAssets>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -168,7 +187,14 @@ pub(super) fn handle_black_hole_casting(
 
     if cast_result.completed {
         if let Some(pos) = cast_result.cursor_pos {
-            spawn_black_hole(&mut commands, &visual_assets, pos, primed_spell.empowerment);
+            spawn_black_hole(
+                &mut commands,
+                &visual_assets,
+                pos,
+                primed_spell.empowerment,
+                &sfx,
+                &game_config,
+            );
         }
         mouse_state.left_consumed = true;
     }
@@ -529,6 +555,19 @@ pub(super) fn cleanup_black_hole_accretion_disk(
 ) {
     for (entity, disk) in disks.iter() {
         if black_holes.get(disk.black_hole_entity).is_err() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Despawns orphaned black hole sound effects whose parent no longer exists.
+pub(super) fn cleanup_black_hole_sfx(
+    mut commands: Commands,
+    sfx_entities: Query<(Entity, &BlackHoleSfx)>,
+    black_holes: Query<&BlackHole>,
+) {
+    for (entity, sfx) in sfx_entities.iter() {
+        if black_holes.get(sfx.black_hole_entity).is_err() {
             commands.entity(entity).despawn();
         }
     }
