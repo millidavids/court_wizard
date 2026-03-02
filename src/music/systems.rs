@@ -2,73 +2,162 @@ use bevy::audio::Volume;
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
+use crate::state::AppState;
 
-use super::resources::{BackgroundMusicAssets, BackgroundMusicEntity};
+use super::resources::{
+    ActiveMusic, MusicAssets, MusicEntity, MusicFadeIn, MusicFadeOut, MusicTrack, FADE_DURATION_SECS,
+};
 
-/// Loads the background music audio asset at startup.
-///
-/// The audio handle is stored in the BackgroundMusicAssets resource for later use.
+/// Loads both music track assets at startup.
 pub(super) fn load_music_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let music_handle = asset_server.load("audio/fireball_dungeon_mix.ogg");
-    commands.insert_resource(BackgroundMusicAssets { music_handle });
-    info!("Music asset loading: audio/fireball_dungeon_mix.ogg");
+    commands.insert_resource(MusicAssets {
+        menu_music: asset_server.load("audio/citadel-of-frozen-ink.ogg"),
+        gameplay_music: asset_server.load("audio/fireball_dungeon_mix.ogg"),
+    });
+    commands.insert_resource(ActiveMusic::default());
+    info!("Music assets loading: menu and gameplay tracks");
 }
 
-/// Spawns the background music entity once all resources are ready.
+/// Maps an AppState to the appropriate music track.
+fn track_for_state(state: &AppState) -> MusicTrack {
+    match state {
+        AppState::Splash | AppState::MainMenu | AppState::MetaGame => MusicTrack::Menu,
+        AppState::Loading
+        | AppState::InGame
+        | AppState::MultiplayerLoading
+        | AppState::MultiplayerGame => MusicTrack::Gameplay,
+    }
+}
+
+/// Detects music zone changes and triggers crossfade transitions.
 ///
-/// The music is configured to loop continuously. Volume is controlled by:
-/// - Bevy's GlobalVolume resource (master_volume from GameConfig)
-/// - Individual AudioPlayer volume (music_volume from GameConfig)
-///
-/// Runs in Update with a run_if condition to only execute when music doesn't exist yet.
-pub(super) fn play_background_music(
+/// When the AppState maps to a different track than what's currently playing,
+/// fades out existing music and spawns the new track with a fade-in.
+pub(super) fn check_music_transition(
     mut commands: Commands,
-    music_assets: Option<Res<BackgroundMusicAssets>>,
+    app_state: Res<State<AppState>>,
+    music_assets: Option<Res<MusicAssets>>,
     game_config: Option<Res<GameConfig>>,
+    mut active_music: ResMut<ActiveMusic>,
+    music_query: Query<Entity, (With<MusicEntity>, Without<MusicFadeOut>)>,
 ) {
-    // Wait for music assets to be loaded
     let Some(music_assets) = music_assets else {
         return;
     };
-
-    // Wait for game config to be loaded
     let Some(game_config) = game_config else {
         return;
     };
 
-    // Spawn looping music entity (no cleanup marker - persists across states)
-    // GlobalVolume handles master_volume, individual volume handles music_volume
-    commands.spawn((
-        BackgroundMusicEntity,
-        AudioPlayer::new(music_assets.music_handle.clone()),
-        PlaybackSettings::LOOP.with_volume(Volume::Linear(game_config.master_volume * game_config.music_volume)),
-    ));
+    let desired_track = track_for_state(app_state.get());
 
-    info!(
-        "Background music spawned: master_volume={:.2}, music_volume={:.2}",
-        game_config.master_volume, game_config.music_volume
-    );
-}
-
-/// Syncs volume from GameConfig to Bevy's audio system.
-///
-/// Gated by `resource_changed::<GameConfig>` run condition so this only
-/// executes when GameConfig actually changes, not every frame.
-///
-/// Each channel's effective volume is its own slider multiplied by the master volume:
-/// - Music effective volume = master_volume * music_volume
-/// - SFX effective volume = master_volume * sfx_volume (when SFX is implemented)
-pub(super) fn sync_volume_from_config(
-    game_config: Res<GameConfig>,
-    mut music_query: Query<&mut AudioSink, With<BackgroundMusicEntity>>,
-) {
-    let effective_music = game_config.master_volume * game_config.music_volume;
-    for mut sink in &mut music_query {
-        sink.set_volume(Volume::Linear(effective_music));
+    if active_music.current_track == Some(desired_track) {
+        return;
     }
 
-    debug!(
-        "Audio volumes synced: master={:.2}, music={:.2} (effective={:.2})",
-        game_config.master_volume, game_config.music_volume, effective_music
+    info!(
+        "Music transition: {:?} -> {:?}",
+        active_music.current_track, desired_track
     );
+
+    // Fade out all existing music entities that aren't already fading out
+    for entity in &music_query {
+        commands
+            .entity(entity)
+            .remove::<MusicFadeIn>()
+            .insert(MusicFadeOut {
+                timer: Timer::from_seconds(FADE_DURATION_SECS, TimerMode::Once),
+            });
+    }
+
+    // Spawn new music with fade-in (starts at volume 0)
+    let handle = match desired_track {
+        MusicTrack::Menu => music_assets.menu_music.clone(),
+        MusicTrack::Gameplay => music_assets.gameplay_music.clone(),
+    };
+
+    let target_volume = game_config.master_volume * game_config.music_volume;
+
+    // If no previous track was playing, skip the fade-in and start at full volume
+    let is_first_track = active_music.current_track.is_none();
+
+    if is_first_track {
+        commands.spawn((
+            MusicEntity,
+            AudioPlayer::new(handle),
+            PlaybackSettings::LOOP.with_volume(Volume::Linear(target_volume)),
+        ));
+    } else {
+        commands.spawn((
+            MusicEntity,
+            AudioPlayer::new(handle),
+            PlaybackSettings::LOOP.with_volume(Volume::Linear(0.0)),
+            MusicFadeIn {
+                timer: Timer::from_seconds(FADE_DURATION_SECS, TimerMode::Once),
+            },
+        ));
+    }
+
+    active_music.current_track = Some(desired_track);
+}
+
+/// Gradually increases volume of fading-in music entities.
+pub(super) fn process_music_fade_in(
+    mut commands: Commands,
+    time: Res<Time>,
+    game_config: Option<Res<GameConfig>>,
+    mut query: Query<(Entity, &mut MusicFadeIn, &mut AudioSink)>,
+) {
+    let Some(game_config) = game_config else {
+        return;
+    };
+    let target = game_config.master_volume * game_config.music_volume;
+
+    for (entity, mut fade, mut sink) in &mut query {
+        fade.timer.tick(time.delta());
+        sink.set_volume(Volume::Linear(target * fade.timer.fraction()));
+
+        if fade.timer.is_finished() {
+            commands.entity(entity).remove::<MusicFadeIn>();
+        }
+    }
+}
+
+/// Gradually decreases volume of fading-out music entities, despawning when silent.
+pub(super) fn process_music_fade_out(
+    mut commands: Commands,
+    time: Res<Time>,
+    game_config: Option<Res<GameConfig>>,
+    mut query: Query<(Entity, &mut MusicFadeOut, &mut AudioSink)>,
+) {
+    let Some(game_config) = game_config else {
+        return;
+    };
+    let target = game_config.master_volume * game_config.music_volume;
+
+    for (entity, mut fade, mut sink) in &mut query {
+        fade.timer.tick(time.delta());
+        sink.set_volume(Volume::Linear(target * (1.0 - fade.timer.fraction())));
+
+        if fade.timer.is_finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Syncs volume from GameConfig to active (non-fading) music entities.
+pub(super) fn sync_music_volume(
+    game_config: Res<GameConfig>,
+    mut query: Query<
+        &mut AudioSink,
+        (
+            With<MusicEntity>,
+            Without<MusicFadeIn>,
+            Without<MusicFadeOut>,
+        ),
+    >,
+) {
+    let effective = game_config.master_volume * game_config.music_volume;
+    for mut sink in &mut query {
+        sink.set_volume(Volume::Linear(effective));
+    }
 }

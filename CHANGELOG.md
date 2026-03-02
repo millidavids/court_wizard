@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.131] - 2026-03-02
+
+### Added
+- **Menu music** — a new ambient track plays during the main menu and between battles
+- **Smooth music transitions** — music crossfades smoothly when switching between menus and gameplay instead of cutting abruptly
+
 ## [v0.3.130] - 2026-03-02
 
 ### Added

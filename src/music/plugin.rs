@@ -1,22 +1,15 @@
 use bevy::prelude::*;
 
-use crate::config::GameConfig;
-
-use super::resources::BackgroundMusicEntity;
+use super::resources::{ActiveMusic, MusicFadeIn, MusicFadeOut};
 use super::systems;
 
-/// Plugin that manages background music playback.
+/// Plugin that manages background music with crossfading between tracks.
 ///
-/// Loads the background music at startup and plays it when entering the main menu.
-/// The music loops continuously throughout the game and respects volume settings from GameConfig.
+/// Two music tracks:
+/// - Menu music (citadel-of-frozen-ink.ogg): Splash, MainMenu, MetaGame
+/// - Gameplay music (fireball_dungeon_mix.ogg): Loading, InGame, Multiplayer
 ///
-/// Uses Bevy's GlobalVolume resource for master volume control and individual AudioPlayer
-/// volume for music-specific volume, allowing separate SFX volume control in the future.
-///
-/// Lifecycle:
-/// - Startup: Load audio asset
-/// - Update: Spawn looping music entity once resources are ready (runs once)
-/// - Update: Sync volume from GameConfig to Bevy audio system
+/// Transitions between tracks use smooth fade-in/fade-out crossfades.
 pub struct MusicPlugin;
 
 impl Plugin for MusicPlugin {
@@ -25,10 +18,19 @@ impl Plugin for MusicPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::play_background_music
-                        .run_if(not(any_with_component::<BackgroundMusicEntity>)),
-                    systems::sync_volume_from_config
-                        .run_if(resource_changed::<GameConfig>),
+                    systems::check_music_transition.run_if(
+                        resource_changed::<State<crate::state::AppState>>.or(
+                            |active: Option<Res<ActiveMusic>>| {
+                                active.map_or(true, |a| a.current_track.is_none())
+                            },
+                        ),
+                    ),
+                    systems::process_music_fade_in
+                        .run_if(any_with_component::<MusicFadeIn>),
+                    systems::process_music_fade_out
+                        .run_if(any_with_component::<MusicFadeOut>),
+                    systems::sync_music_volume
+                        .run_if(resource_changed::<crate::config::GameConfig>),
                 ),
             );
     }
