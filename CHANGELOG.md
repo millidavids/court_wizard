@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.122] - 2026-03-02
+
+### Added
+- **Spell web** — the Study screen now shows your spells as a zoomable constellation-style web instead of a flat grid. Click nodes to see details, scroll to zoom, and drag to pan around
+- **Starry sky background** — the spell web floats over a twinkling night sky with a subtle parallax effect as you pan and zoom
+- **Spell research progress rings** — nodes with partial research show a radial progress ring around the spell icon
+
+### Changed
+- **Spell research tree reorganized** — spells are now grouped into four branches (Offense, Control, Support, Utility) radiating out from the center, each with a clear prerequisite chain
+- **Panning is now limited** — you can no longer scroll endlessly past the edges of the spell web
+
 ## [v0.3.86] - 2026-03-01
 
 ### Added

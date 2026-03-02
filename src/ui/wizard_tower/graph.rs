@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+use super::constants::{
+    GRAPH_EDGE_AVOIDANCE_MARGIN, GRAPH_EDGE_CURVE_SEGMENTS, GRAPH_FREE_NODE_SIZE, GRAPH_NODE_SIZE,
+};
 use crate::game::units::wizard::components::Spell;
 
 /// Definition of a node in the spell graph.
@@ -16,6 +19,8 @@ pub(super) struct SpellEdgeDef {
     pub from_spell: Option<Spell>,
     /// Destination spell.
     pub to_spell: Spell,
+    /// Precomputed waypoints for rendering (clipped to node edges, routed around obstacles).
+    pub waypoints: Vec<Vec2>,
 }
 
 /// Pushes overlapping nodes apart using iterative repulsion.
@@ -62,15 +67,43 @@ fn separate_overlapping_nodes(nodes: &mut [SpellNodeDef]) {
 
 /// Builds the full spell graph with node positions and edges.
 ///
-/// Layout centered at origin:
+/// Radial web layout centered at origin with 4 category roots:
 /// - (0, 0): Central "Free" anchor node (visual hub, not a spell)
-/// - Near center: MagicMissile + Telekinesis (free defaults)
-/// - Radial clusters extending outward per element chain
-/// - Gate spells: radiate from center at varying distances
-/// - After placement, overlapping nodes are pushed apart
+/// - Offense (MagicMissile): upper-right quadrant
+/// - Control (Entangle): upper-left quadrant
+/// - Support (GuardianCircle): lower-left quadrant
+/// - Utility (Telekinesis): lower-right quadrant
+/// Nodes are placed using polar coordinates (angle + distance from center)
+/// so every branch radiates outward like a web.
 pub(super) fn build_spell_graph() -> (Vec<SpellNodeDef>, Vec<SpellEdgeDef>) {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
+
+    // Place a node at (angle°, distance) from origin and connect it
+    let add = |nodes: &mut Vec<SpellNodeDef>,
+               edges: &mut Vec<SpellEdgeDef>,
+               spell: Spell,
+               angle_deg: f32,
+               distance: f32,
+               from: Option<Spell>| {
+        let angle = angle_deg.to_radians();
+        let pos = Vec2::new(angle.cos() * distance, angle.sin() * distance);
+        nodes.push(SpellNodeDef {
+            spell: Some(spell),
+            position: pos,
+        });
+        edges.push(SpellEdgeDef {
+            from_spell: from,
+            to_spell: spell,
+            waypoints: Vec::new(),
+        });
+    };
+
+    // Ring distances from center
+    let r1: f32 = 110.0; // Root category nodes
+    let r2: f32 = 230.0; // Depth 2
+    let r3: f32 = 350.0; // Depth 3
+    let r4: f32 = 470.0; // Depth 4
 
     // Central anchor node
     nodes.push(SpellNodeDef {
@@ -79,281 +112,225 @@ pub(super) fn build_spell_graph() -> (Vec<SpellNodeDef>, Vec<SpellEdgeDef>) {
     });
 
     // -----------------------------------------------------------------------
-    // Free default spells (near center)
+    // Offense (upper-right quadrant, centered around -45°)
     // -----------------------------------------------------------------------
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::MagicMissile),
-        position: Vec2::new(-80.0, -50.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::MagicMissile,
-    });
+    add(&mut nodes, &mut edges, Spell::MagicMissile, -45.0, r1, None);
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Telekinesis),
-        position: Vec2::new(80.0, -50.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::Telekinesis,
-    });
+    // MagicMissile → 4 children fanning from -70° to -15°
+    add(&mut nodes, &mut edges, Spell::PlagueWind,      -68.0, r2, Some(Spell::MagicMissile));
+    add(&mut nodes, &mut edges, Spell::Disintegrate,     -53.0, r2, Some(Spell::MagicMissile));
+    add(&mut nodes, &mut edges, Spell::ChainLightning,   -35.0, r2, Some(Spell::MagicMissile));
+    add(&mut nodes, &mut edges, Spell::FingerOfDeath,    -15.0, r2, Some(Spell::MagicMissile));
 
-    // -----------------------------------------------------------------------
-    // Fire chain (upper-right): Disintegrate → Fireball → WallOfFire → MeteorFall
-    // -----------------------------------------------------------------------
-    let fire_base = Vec2::new(180.0, -160.0);
-    let fire_step = Vec2::new(100.0, -70.0);
+    // Disintegrate → Fireball → MeteorFall
+    add(&mut nodes, &mut edges, Spell::Fireball,   -56.0, r3, Some(Spell::Disintegrate));
+    add(&mut nodes, &mut edges, Spell::MeteorFall,  -58.0, r4, Some(Spell::Fireball));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Disintegrate),
-        position: fire_base,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::Disintegrate,
-    });
+    // ChainLightning → LightningRod
+    add(&mut nodes, &mut edges, Spell::LightningRod, -32.0, r3, Some(Spell::ChainLightning));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Fireball),
-        position: fire_base + fire_step,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Disintegrate),
-        to_spell: Spell::Fireball,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::WallOfFire),
-        position: fire_base + fire_step * 2.0,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Fireball),
-        to_spell: Spell::WallOfFire,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::MeteorFall),
-        position: fire_base + fire_step * 3.0,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::WallOfFire),
-        to_spell: Spell::MeteorFall,
-    });
+    // FingerOfDeath → MarkOfDeath
+    add(&mut nodes, &mut edges, Spell::MarkOfDeath, -12.0, r3, Some(Spell::FingerOfDeath));
 
     // -----------------------------------------------------------------------
-    // Electric chain (right): ChainLightning → LightningRod
+    // Control (upper-left quadrant, centered around -135°)
     // -----------------------------------------------------------------------
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::ChainLightning),
-        position: Vec2::new(300.0, 10.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::ChainLightning,
-    });
+    add(&mut nodes, &mut edges, Spell::Entangle, -135.0, r1, None);
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::LightningRod),
-        position: Vec2::new(430.0, 40.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::ChainLightning),
-        to_spell: Spell::LightningRod,
-    });
+    // Entangle → 3 children fanning from -158° to -115°
+    add(&mut nodes, &mut edges, Spell::Grease,       -157.0, r2, Some(Spell::Entangle));
+    add(&mut nodes, &mut edges, Spell::SpikeGrowth,  -135.0, r2, Some(Spell::Entangle));
+    add(&mut nodes, &mut edges, Spell::Sleep,         -116.0, r2, Some(Spell::Entangle));
 
-    // -----------------------------------------------------------------------
-    // Necrotic chain (lower-right): FingerOfDeath → {RaiseTheDead, MarkOfDeath → PlagueWind}
-    // -----------------------------------------------------------------------
-    let necro_base = Vec2::new(200.0, 180.0);
+    // Grease → WallOfFire
+    add(&mut nodes, &mut edges, Spell::WallOfFire, -160.0, r3, Some(Spell::Grease));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::FingerOfDeath),
-        position: necro_base,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::FingerOfDeath,
-    });
+    // SpikeGrowth → WallOfStone, Squall
+    add(&mut nodes, &mut edges, Spell::WallOfStone, -141.0, r3, Some(Spell::SpikeGrowth));
+    add(&mut nodes, &mut edges, Spell::Squall,       -129.0, r3, Some(Spell::SpikeGrowth));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::RaiseTheDead),
-        position: necro_base + Vec2::new(140.0, -60.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::FingerOfDeath),
-        to_spell: Spell::RaiseTheDead,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::MarkOfDeath),
-        position: necro_base + Vec2::new(140.0, 60.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::FingerOfDeath),
-        to_spell: Spell::MarkOfDeath,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::PlagueWind),
-        position: necro_base + Vec2::new(280.0, 60.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::MarkOfDeath),
-        to_spell: Spell::PlagueWind,
-    });
+    // Sleep → MindControl, Polymorph → BlackHole
+    add(&mut nodes, &mut edges, Spell::MindControl, -122.0, r3, Some(Spell::Sleep));
+    add(&mut nodes, &mut edges, Spell::Polymorph,    -110.0, r3, Some(Spell::Sleep));
+    add(&mut nodes, &mut edges, Spell::BlackHole,    -108.0, r4, Some(Spell::Polymorph));
 
     // -----------------------------------------------------------------------
-    // Force chain (lower-left): GuardianCircle → {Haste → BattleHymn, BerserkerRage}
+    // Support (lower-left quadrant, centered around 135°)
     // -----------------------------------------------------------------------
-    let force_base = Vec2::new(-180.0, 200.0);
+    add(&mut nodes, &mut edges, Spell::GuardianCircle, 135.0, r1, None);
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::GuardianCircle),
-        position: force_base,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::GuardianCircle,
-    });
+    // GuardianCircle → 3 children fanning from 115° to 158°
+    add(&mut nodes, &mut edges, Spell::BattleHymn,     118.0, r2, Some(Spell::GuardianCircle));
+    add(&mut nodes, &mut edges, Spell::FogCloud,        140.0, r2, Some(Spell::GuardianCircle));
+    add(&mut nodes, &mut edges, Spell::BerserkerRage,   158.0, r2, Some(Spell::GuardianCircle));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Haste),
-        position: force_base + Vec2::new(-130.0, 90.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::GuardianCircle),
-        to_spell: Spell::Haste,
-    });
+    // BattleHymn → HealingPlume, Haste
+    add(&mut nodes, &mut edges, Spell::HealingPlume, 110.0, r3, Some(Spell::BattleHymn));
+    add(&mut nodes, &mut edges, Spell::Haste,         125.0, r3, Some(Spell::BattleHymn));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::BattleHymn),
-        position: force_base + Vec2::new(-260.0, 140.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Haste),
-        to_spell: Spell::BattleHymn,
-    });
+    // FogCloud → Teleport
+    add(&mut nodes, &mut edges, Spell::Teleport, 143.0, r3, Some(Spell::FogCloud));
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::BerserkerRage),
-        position: force_base + Vec2::new(-130.0, -50.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::GuardianCircle),
-        to_spell: Spell::BerserkerRage,
-    });
+    // BerserkerRage → RaiseTheDead
+    add(&mut nodes, &mut edges, Spell::RaiseTheDead, 162.0, r3, Some(Spell::BerserkerRage));
 
     // -----------------------------------------------------------------------
-    // Nature chain (upper-left): Grease → Entangle → {SpikeGrowth, HealingPlume}
+    // Utility (lower-right quadrant, centered around 45°)
     // -----------------------------------------------------------------------
-    let nature_base = Vec2::new(-200.0, -160.0);
+    add(&mut nodes, &mut edges, Spell::Telekinesis, 45.0, r1, None);
 
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Grease),
-        position: nature_base,
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::Grease,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Entangle),
-        position: nature_base + Vec2::new(-130.0, -70.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Grease),
-        to_spell: Spell::Entangle,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::SpikeGrowth),
-        position: nature_base + Vec2::new(-260.0, -30.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Entangle),
-        to_spell: Spell::SpikeGrowth,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::HealingPlume),
-        position: nature_base + Vec2::new(-260.0, -120.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Entangle),
-        to_spell: Spell::HealingPlume,
-    });
-
-    // -----------------------------------------------------------------------
-    // Earth chain (left): WallOfStone → Teleport
-    // -----------------------------------------------------------------------
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::WallOfStone),
-        position: Vec2::new(-300.0, 40.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: None,
-        to_spell: Spell::WallOfStone,
-    });
-
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::Teleport),
-        position: Vec2::new(-430.0, 20.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::WallOfStone),
-        to_spell: Spell::Teleport,
-    });
-
-    // -----------------------------------------------------------------------
-    // Gate spells (radiate from center, distance proportional to required_total_spells)
-    // -----------------------------------------------------------------------
-    // Angles chosen to fill gaps between element chains.
-    // Using negative Y = up, positive Y = down in UI coordinates.
-    let gate_spells: &[(Spell, f32)] = &[
-        (Spell::Dispel, 350.0_f32.to_radians()),        // 3 req - close, near fire
-        (Spell::Squall, 80.0_f32.to_radians()),          // 4 req - between electric/necrotic
-        (Spell::FogCloud, 130.0_f32.to_radians()),       // 5 req - between necrotic/force
-        (Spell::Sleep, 160.0_f32.to_radians()),           // 6 req - between force/earth
-        (Spell::ArcaneCrystal, 310.0_f32.to_radians()),  // 6 req - between fire/nature
-        (Spell::Banishment, 230.0_f32.to_radians()),     // 7 req - between earth/nature
-        (Spell::BlackHole, 260.0_f32.to_radians()),      // 8 req - far left-down
-        (Spell::Polymorph, 280.0_f32.to_radians()),      // 8 req - far left-up
-    ];
-
-    for &(spell, angle) in gate_spells {
-        let required = spell.required_total_spells();
-        let distance = 140.0 + required as f32 * 35.0;
-        let position = Vec2::new(angle.cos() * distance, angle.sin() * distance);
-
-        nodes.push(SpellNodeDef {
-            spell: Some(spell),
-            position,
-        });
-        edges.push(SpellEdgeDef {
-            from_spell: None,
-            to_spell: spell,
-        });
-    }
-
-    // MindControl branches from Sleep (positioned further out along Sleep's direction)
-    let sleep_pos = nodes
-        .iter()
-        .find(|n| n.spell == Some(Spell::Sleep))
-        .map(|n| n.position)
-        .unwrap_or_default();
-    nodes.push(SpellNodeDef {
-        spell: Some(Spell::MindControl),
-        position: sleep_pos + Vec2::new(-110.0, 70.0),
-    });
-    edges.push(SpellEdgeDef {
-        from_spell: Some(Spell::Sleep),
-        to_spell: Spell::MindControl,
-    });
+    // Telekinesis → 3 children fanning from 28° to 62°
+    add(&mut nodes, &mut edges, Spell::Dispel,        28.0, r2, Some(Spell::Telekinesis));
+    add(&mut nodes, &mut edges, Spell::Banishment,     45.0, r2, Some(Spell::Telekinesis));
+    add(&mut nodes, &mut edges, Spell::ArcaneCrystal,  62.0, r2, Some(Spell::Telekinesis));
 
     // Push apart any nodes that overlap
     separate_overlapping_nodes(&mut nodes);
 
+    // Compute edge waypoints (clipped to node edges, routed around obstacles)
+    compute_edge_waypoints(&nodes, &mut edges);
+
     (nodes, edges)
+}
+
+/// Returns the visual radius for a node (half its rendered size).
+fn node_radius(spell: Option<Spell>) -> f32 {
+    if spell.is_some() {
+        GRAPH_NODE_SIZE / 2.0
+    } else {
+        GRAPH_FREE_NODE_SIZE / 2.0
+    }
+}
+
+/// Finds the closest point on segment AB to point P.
+fn closest_point_on_segment(a: Vec2, b: Vec2, p: Vec2) -> Vec2 {
+    let ab = b - a;
+    let len_sq = ab.length_squared();
+    if len_sq < 0.001 {
+        return a;
+    }
+    let t = ((p - a).dot(ab) / len_sq).clamp(0.0, 1.0);
+    a + ab * t
+}
+
+/// Computes waypoints for each edge: clips endpoints to node borders and routes
+/// around any intermediate nodes the line would visually intersect.
+fn compute_edge_waypoints(nodes: &[SpellNodeDef], edges: &mut [SpellEdgeDef]) {
+    for edge in edges.iter_mut() {
+        // Find positions of the two endpoints
+        let from_pos = nodes
+            .iter()
+            .find(|n| n.spell == edge.from_spell)
+            .map(|n| n.position)
+            .unwrap_or(Vec2::ZERO);
+        let to_pos = nodes
+            .iter()
+            .find(|n| n.spell == Some(edge.to_spell))
+            .map(|n| n.position)
+            .unwrap_or(Vec2::ZERO);
+
+        let delta = to_pos - from_pos;
+        let total_len = delta.length();
+        if total_len < 0.1 {
+            edge.waypoints = vec![from_pos, to_pos];
+            continue;
+        }
+        let dir = delta / total_len;
+
+        // Edges run center-to-center (nodes are opaque and rendered on top)
+        let start = from_pos;
+        let end = to_pos;
+
+        // Check if any intermediate nodes are too close to the line
+        let mut detours: Vec<(f32, Vec2)> = Vec::new();
+
+        for node in nodes {
+            // Skip the edge's own endpoints
+            if node.spell == edge.from_spell || node.spell == Some(edge.to_spell) {
+                continue;
+            }
+
+            let r = node_radius(node.spell) + GRAPH_EDGE_AVOIDANCE_MARGIN;
+            let closest = closest_point_on_segment(start, end, node.position);
+            let dist = (node.position - closest).length();
+
+            if dist < r {
+                // Need to route around this node — perpendicular offset
+                let perp = Vec2::new(-dir.y, dir.x);
+                // Choose the side that moves away from the node center
+                let to_node = node.position - closest;
+                let side = if to_node.dot(perp) > 0.0 {
+                    -1.0
+                } else {
+                    1.0
+                };
+                let waypoint = node.position + perp * side * (r + 4.0);
+
+                // Track parameter along edge for ordering
+                let t = (closest - start).dot(dir);
+                detours.push((t, waypoint));
+            }
+        }
+
+        // Sort detours by parameter along the edge direction
+        detours.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Build raw waypoints then smooth into a curve if there are detours
+        let mut raw = vec![start];
+        for (_, wp) in &detours {
+            raw.push(*wp);
+        }
+        raw.push(end);
+
+        edge.waypoints = if raw.len() > 2 {
+            smooth_waypoints(&raw)
+        } else {
+            raw
+        };
+    }
+}
+
+/// Subdivides a polyline with 3+ control points into a smooth Catmull-Rom curve.
+/// Straight edges (2 points) should not be passed here.
+fn smooth_waypoints(control_points: &[Vec2]) -> Vec<Vec2> {
+    let n = control_points.len();
+    debug_assert!(n >= 3);
+
+    // Build extended control points for Catmull-Rom (mirror endpoints)
+    let mut pts = Vec::with_capacity(n + 2);
+    pts.push(control_points[0] * 2.0 - control_points[1]); // virtual start
+    pts.extend_from_slice(control_points);
+    pts.push(control_points[n - 1] * 2.0 - control_points[n - 2]); // virtual end
+
+    let segments = n - 1; // number of spans between original control points
+    let steps_per_span = GRAPH_EDGE_CURVE_SEGMENTS / segments;
+    let steps = steps_per_span.max(4);
+
+    let mut result = Vec::with_capacity(segments * steps + 1);
+
+    // Evaluate Catmull-Rom for each span between consecutive original points
+    for i in 0..segments {
+        let p0 = pts[i];
+        let p1 = pts[i + 1];
+        let p2 = pts[i + 2];
+        let p3 = pts[i + 3];
+
+        let end = if i == segments - 1 { steps } else { steps - 1 };
+        for s in 0..=end {
+            let t = s as f32 / steps as f32;
+            result.push(catmull_rom(p0, p1, p2, p3, t));
+        }
+    }
+
+    result
+}
+
+/// Evaluates a Catmull-Rom spline at parameter t ∈ [0, 1] between p1 and p2.
+fn catmull_rom(p0: Vec2, p1: Vec2, p2: Vec2, p3: Vec2, t: f32) -> Vec2 {
+    let t2 = t * t;
+    let t3 = t2 * t;
+    0.5 * ((2.0 * p1)
+        + (-p0 + p2) * t
+        + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2
+        + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3)
 }

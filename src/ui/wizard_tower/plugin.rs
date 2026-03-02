@@ -1,15 +1,19 @@
 use bevy::prelude::*;
+use bevy::prelude::UiMaterialPlugin;
 
 use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 
+use super::components::{GraphViewAnimation, GraphViewState, SelectedStudySpell};
+use super::materials::{RadialProgressMaterial, StarSkyMaterial};
 use super::systems::*;
 
 pub struct WizardTowerPlugin;
 
 impl Plugin for WizardTowerPlugin {
     fn build(&self, app: &mut App) {
-        app
+        app.add_plugins(UiMaterialPlugin::<RadialProgressMaterial>::default())
+            .add_plugins(UiMaterialPlugin::<StarSkyMaterial>::default())
             // Top-level cleanup when leaving MetaGame entirely
             .add_systems(OnExit(AppState::MetaGame), cleanup_wizard_tower_screen)
             // WizardTower substate (hub screen)
@@ -34,11 +38,21 @@ impl Plugin for WizardTowerPlugin {
             )
             .add_systems(
                 Update,
+                update_star_sky_time.run_if(in_state(MetaGameState::Study)),
+            )
+            .add_systems(
+                Update,
                 (
                     handle_graph_pan,
                     handle_graph_zoom,
-                    update_graph_node_positions,
-                    update_graph_edge_positions,
+                    animate_graph_view
+                        .run_if(resource_exists::<GraphViewAnimation>),
+                    update_graph_node_positions
+                        .run_if(resource_exists::<GraphViewState>),
+                    update_graph_edge_positions
+                        .run_if(resource_exists::<GraphViewState>),
+                    update_graph_node_borders
+                        .run_if(resource_exists::<SelectedStudySpell>.and(resource_changed::<SelectedStudySpell>)),
                     handle_detail_slider_interaction,
                     update_detail_sliders,
                     update_study_detail_panel,

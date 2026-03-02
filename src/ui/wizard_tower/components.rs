@@ -93,6 +93,25 @@ impl Default for GraphViewState {
 pub(super) struct GraphDragState {
     pub dragging: bool,
     pub last_cursor: Vec2,
+    pub start_cursor: Vec2,
+}
+
+/// Resource driving an animated pan+zoom towards a target view state.
+/// Inserted when a node is selected; removed when the animation completes or is interrupted.
+#[derive(Resource)]
+pub(super) struct GraphViewAnimation {
+    pub target_offset: Vec2,
+    pub target_scale: f32,
+    /// Lerp speed (fraction of remaining distance per second).
+    pub speed: f32,
+}
+
+/// Bounding box of the spell graph in graph-space coordinates.
+/// Used to clamp pan/zoom so the user can't scroll beyond the node extents.
+#[derive(Resource)]
+pub(super) struct GraphBounds {
+    pub min: Vec2,
+    pub max: Vec2,
 }
 
 /// Marks the graph container for hit-testing and as the pan/zoom area.
@@ -106,20 +125,12 @@ pub(super) struct SpellGraphNode {
     pub graph_position: Vec2,
 }
 
-/// Marks an edge entity connecting two nodes in the graph.
+/// Marks an edge segment entity with its two graph-space endpoints.
 #[derive(Component)]
 pub(super) struct SpellGraphEdge {
-    pub from_spell: Option<Spell>,
-    pub to_spell: Spell,
+    pub start: Vec2,
+    pub end: Vec2,
 }
-
-/// Marks the horizontal segment of an L-shaped edge connector.
-#[derive(Component)]
-pub(super) struct EdgeSegmentH;
-
-/// Marks the vertical segment of an L-shaped edge connector.
-#[derive(Component)]
-pub(super) struct EdgeSegmentV;
 
 /// Marks the central anchor node in the graph.
 #[derive(Component)]
@@ -139,7 +150,11 @@ pub(super) struct StudyAllocationSlider {
     pub spell: Spell,
 }
 
-/// Marks a detail panel's allocation slider fill.
+/// Marks the committed progress fill (non-draggable floor) in the unified slider.
+#[derive(Component)]
+pub(super) struct StudyProgressFill;
+
+/// Marks the pending allocation fill (draggable region) in the unified slider.
 #[derive(Component)]
 pub(super) struct StudyAllocationFill {
     pub spell: Spell,

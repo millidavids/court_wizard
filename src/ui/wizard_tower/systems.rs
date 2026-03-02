@@ -22,6 +22,7 @@ use crate::ui::systems::spawn_button;
 use super::components::*;
 use super::constants::*;
 use super::graph::build_spell_graph;
+use super::materials::{RadialProgressData, RadialProgressMaterial, StarSkyData, StarSkyMaterial};
 
 // ===========================================================================
 // Shared helpers
@@ -88,6 +89,27 @@ fn element_color(damage_type: DamageType) -> Color {
         DamageType::Force => FORCE_COLOR,
         DamageType::Frost => FROST_COLOR,
     }
+}
+
+/// Converts a graph-space position to screen-space given the current view state.
+fn graph_to_screen(graph_pos: Vec2, view: &GraphViewState, container_center: Vec2) -> Vec2 {
+    graph_pos * view.scale + view.offset + container_center
+}
+
+/// Computes progress and allocation fractions for the unified slider.
+/// Returns `(progress_frac, alloc_frac, handle_pos)` where handle_pos = progress_frac + alloc_frac.
+fn compute_slider_fracs(progress: u32, alloc: u32, cost: u32) -> (f32, f32, f32) {
+    let progress_frac = if cost > 0 {
+        (progress as f32 / cost as f32).min(1.0)
+    } else {
+        0.0
+    };
+    let alloc_frac = if cost > 0 {
+        (alloc as f32 / cost as f32).min(1.0 - progress_frac)
+    } else {
+        0.0
+    };
+    (progress_frac, alloc_frac, progress_frac + alloc_frac)
 }
 
 // ===========================================================================
@@ -278,13 +300,21 @@ pub(super) fn setup_study_screen(
     mut commands: Commands,
     battle_insight: Res<BattleInsightData>,
     asset_server: Res<AssetServer>,
+    mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
+    mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
 ) {
     commands.insert_resource(InsightAllocation::default());
     commands.insert_resource(GraphViewState::default());
     commands.insert_resource(GraphDragState::default());
     commands.insert_resource(SelectedStudySpell::default());
 
-    spawn_study_screen(&mut commands, &battle_insight, &asset_server);
+    spawn_study_screen(
+        &mut commands,
+        &battle_insight,
+        &asset_server,
+        &mut progress_materials,
+        &mut star_sky_materials,
+    );
 }
 
 /// Cleans up study screen entities and resources.
@@ -299,6 +329,8 @@ pub(super) fn cleanup_study_screen(
     commands.remove_resource::<GraphViewState>();
     commands.remove_resource::<GraphDragState>();
     commands.remove_resource::<SelectedStudySpell>();
+    commands.remove_resource::<GraphViewAnimation>();
+    commands.remove_resource::<GraphBounds>();
 }
 
 /// Handles Commit and Back button actions on the study screen.
@@ -314,6 +346,8 @@ pub(super) fn handle_study_button_actions(
     screen_query: Query<Entity, With<OnStudyScreen>>,
     asset_server: Res<AssetServer>,
     mut selected: Option<ResMut<SelectedStudySpell>>,
+    mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
+    mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
 ) {
     for event in button_clicked.read() {
         let Ok(action) = button_query.get(event.button) else {
@@ -359,38 +393,52 @@ pub(super) fn handle_study_button_actions(
                     spell_researched.write(SpellResearchedMessage { spell });
                 }
 
-                // Despawn and rebuild
-                for entity in &screen_query {
-                    commands.entity(entity).despawn();
-                }
-                commands.remove_resource::<InsightAllocation>();
-                commands.insert_resource(InsightAllocation::default());
-                if let Some(ref mut sel) = selected {
-                    sel.0 = None;
-                }
-
-                // Reset view state
-                commands.insert_resource(GraphViewState::default());
-
-                spawn_study_screen(&mut commands, &battle_insight, &asset_server);
+                rebuild_study_ui(
+                    &mut commands, &screen_query, &mut selected,
+                    &battle_insight, &asset_server, &mut progress_materials,
+                    &mut star_sky_materials, true,
+                );
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
                 grant_insight(10000);
-
-                for entity in &screen_query {
-                    commands.entity(entity).despawn();
-                }
-                commands.remove_resource::<InsightAllocation>();
-                commands.insert_resource(InsightAllocation::default());
-                if let Some(ref mut sel) = selected {
-                    sel.0 = None;
-                }
-
-                spawn_study_screen(&mut commands, &battle_insight, &asset_server);
+                rebuild_study_ui(
+                    &mut commands, &screen_query, &mut selected,
+                    &battle_insight, &asset_server, &mut progress_materials,
+                    &mut star_sky_materials, false,
+                );
             }
         }
     }
+}
+
+/// Tears down and rebuilds the study screen UI. Optionally animates back to default view.
+fn rebuild_study_ui(
+    commands: &mut Commands,
+    screen_query: &Query<Entity, With<OnStudyScreen>>,
+    selected: &mut Option<ResMut<SelectedStudySpell>>,
+    battle_insight: &BattleInsightData,
+    asset_server: &AssetServer,
+    progress_materials: &mut Assets<RadialProgressMaterial>,
+    star_sky_materials: &mut Assets<StarSkyMaterial>,
+    animate_to_default: bool,
+) {
+    for entity in screen_query {
+        commands.entity(entity).despawn();
+    }
+    commands.remove_resource::<InsightAllocation>();
+    commands.insert_resource(InsightAllocation::default());
+    if let Some(sel) = selected {
+        sel.0 = None;
+    }
+    if animate_to_default {
+        commands.insert_resource(GraphViewAnimation {
+            target_offset: Vec2::ZERO,
+            target_scale: 1.0,
+            speed: GRAPH_ANIMATION_SPEED,
+        });
+    }
+    spawn_study_screen(commands, battle_insight, asset_server, progress_materials, star_sky_materials);
 }
 
 /// Spawns the study screen graph UI.
@@ -398,10 +446,24 @@ fn spawn_study_screen(
     commands: &mut Commands,
     battle_insight: &BattleInsightData,
     asset_server: &AssetServer,
+    progress_materials: &mut Assets<RadialProgressMaterial>,
+    star_sky_materials: &mut Assets<StarSkyMaterial>,
 ) {
     let insight_balance = get_insight();
     let (node_defs, edge_defs) = build_spell_graph();
     let affinities = &battle_insight.damage_types_used;
+
+    // Compute graph bounds from node positions for pan clamping.
+    let mut bounds_min = Vec2::ZERO;
+    let mut bounds_max = Vec2::ZERO;
+    for node_def in &node_defs {
+        bounds_min = bounds_min.min(node_def.position);
+        bounds_max = bounds_max.max(node_def.position);
+    }
+    commands.insert_resource(GraphBounds {
+        min: bounds_min,
+        max: bounds_max,
+    });
 
     // Root container
     commands
@@ -416,19 +478,27 @@ fn spawn_study_screen(
             OnStudyScreen,
         ))
         .with_children(|root| {
-            // -- Graph Area (full size, clipped) --
+            // -- Graph Area (full size, clipped) with starry sky background --
+            let sky_mat = star_sky_materials.add(StarSkyMaterial {
+                data: StarSkyData {
+                    base_color: GRAPH_AREA_BG.to_linear(),
+                    time: 0.0,
+                    zoom: 1.0,
+                    pan_offset: Vec2::ZERO,
+                },
+            });
             root.spawn((
+                MaterialNode(sky_mat),
                 Node {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
                     overflow: Overflow::clip(),
                     ..default()
                 },
-                BackgroundColor(GRAPH_AREA_BG),
                 SpellGraphArea,
             ))
             .with_children(|graph_area| {
-                // Edges as L-shaped connectors (H + V segments per edge)
+                // Edges as rotated line segments between waypoints
                 for edge_def in &edge_defs {
                     let to_unlocked = is_spell_unlocked(edge_def.to_spell);
                     let to_prereq_met = is_prereq_met(edge_def.to_spell);
@@ -438,39 +508,25 @@ fn spawn_study_screen(
                         GRAPH_EDGE_LOCKED_COLOR
                     };
 
-                    // Horizontal segment
-                    graph_area.spawn((
-                        Node {
-                            height: Val::Px(GRAPH_EDGE_THICKNESS),
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
-                            ..default()
-                        },
-                        BackgroundColor(edge_color),
-                        SpellGraphEdge {
-                            from_spell: edge_def.from_spell,
-                            to_spell: edge_def.to_spell,
-                        },
-                        EdgeSegmentH,
-                    ));
-
-                    // Vertical segment
-                    graph_area.spawn((
-                        Node {
-                            width: Val::Px(GRAPH_EDGE_THICKNESS),
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
-                            ..default()
-                        },
-                        BackgroundColor(edge_color),
-                        SpellGraphEdge {
-                            from_spell: edge_def.from_spell,
-                            to_spell: edge_def.to_spell,
-                        },
-                        EdgeSegmentV,
-                    ));
+                    // One entity per consecutive waypoint pair
+                    for pair in edge_def.waypoints.windows(2) {
+                        graph_area.spawn((
+                            Node {
+                                width: Val::Px(0.0),
+                                height: Val::Px(GRAPH_EDGE_THICKNESS),
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                ..default()
+                            },
+                            BackgroundColor(edge_color),
+                            UiTransform::default(),
+                            SpellGraphEdge {
+                                start: pair[0],
+                                end: pair[1],
+                            },
+                        ));
+                    }
                 }
 
                 // Central "Free" anchor node
@@ -544,7 +600,7 @@ fn spawn_study_screen(
                             },
                             BackgroundColor(bg),
                             BorderColor::all(border),
-                            BorderRadius::all(Val::Px(GRAPH_NODE_SIZE / 2.0)),
+                            BorderRadius::all(Val::Percent(50.0)),
                             ZIndex(1),
                             SpellGraphNode {
                                 spell,
@@ -552,51 +608,47 @@ fn spawn_study_screen(
                             },
                         ))
                         .with_children(|node| {
-                            if let Some(icon_path) = spell.icon_path() {
+                            // Radial progress ring (behind icon, covers full node)
+                            if cost > 0 && !unlocked && prereq_met && progress > 0 {
+                                let fill_frac = (progress as f32 / cost as f32).min(1.0);
+                                let mat = progress_materials.add(RadialProgressMaterial {
+                                    data: RadialProgressData {
+                                        fill_color: PROGRESS_BAR_FILL.to_linear(),
+                                        bg_color: LinearRgba::new(0.15, 0.15, 0.15, 0.6),
+                                        progress: fill_frac,
+                                        ring_width: 0.14,
+                                    },
+                                });
                                 node.spawn((
-                                    ImageNode::new(asset_server.load(icon_path)),
+                                    MaterialNode(mat),
                                     Node {
-                                        width: Val::Percent(55.0),
-                                        height: Val::Percent(55.0),
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
+                                        position_type: PositionType::Absolute,
+                                        left: Val::Px(0.0),
+                                        top: Val::Px(0.0),
                                         ..default()
                                     },
                                 ));
                             }
 
-                            // Progress indicator (small bar at bottom of node)
-                            if cost > 0 && !unlocked {
-                                let fill_pct = if cost > 0 {
-                                    (progress as f32 / cost as f32 * 100.0).min(100.0)
-                                } else {
-                                    0.0
-                                };
-                                node.spawn((
-                                    Node {
-                                        width: Val::Percent(80.0),
-                                        height: Val::Px(3.0),
-                                        position_type: PositionType::Absolute,
-                                        bottom: Val::Px(3.0),
-                                        left: Val::Percent(10.0),
-                                        ..default()
-                                    },
-                                    BackgroundColor(PROGRESS_BAR_BACKGROUND),
-                                    BorderRadius::all(Val::Px(1.5)),
-                                ))
-                                .with_children(|bar| {
-                                    bar.spawn((
+                            if prereq_met || unlocked || is_free {
+                                if let Some(icon_path) = spell.icon_path() {
+                                    node.spawn((
+                                        ImageNode::new(asset_server.load(icon_path)),
                                         Node {
-                                            width: Val::Percent(fill_pct),
-                                            height: Val::Percent(100.0),
+                                            width: Val::Percent(55.0),
+                                            height: Val::Percent(55.0),
                                             ..default()
                                         },
-                                        BackgroundColor(if fill_pct >= 100.0 {
-                                            PROGRESS_BAR_FULL
-                                        } else {
-                                            PROGRESS_BAR_FILL
-                                        }),
-                                        BorderRadius::all(Val::Px(1.5)),
                                     ));
-                                });
+                                }
+                            } else {
+                                node.spawn((
+                                    Text::new("???"),
+                                    TextFont::from_font_size(14.0),
+                                    TextColor(LOCKED_TEXT_COLOR),
+                                ));
                             }
                         });
                 }
@@ -693,6 +745,7 @@ fn spawn_study_screen(
                 BackgroundColor(DETAIL_PANEL_BG),
                 BorderColor::all(DETAIL_PANEL_BORDER),
                 BorderRadius::all(Val::Px(8.0)),
+                Interaction::None,
                 StudyDetailPanel,
             ));
         });
@@ -704,16 +757,37 @@ fn spawn_study_screen(
 
 /// Detects clicks on spell graph nodes and updates the selected spell.
 pub(super) fn handle_graph_node_clicks(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     node_query: Query<&SpellGraphNode>,
     mut selected: ResMut<SelectedStudySpell>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(node) = node_query.get(event.button) {
             if selected.0 == Some(node.spell) {
                 selected.0 = None;
+                commands.remove_resource::<GraphViewAnimation>();
             } else {
                 selected.0 = Some(node.spell);
+
+                // Animate pan+zoom so the node ends up centered in the right 2/3
+                if let Ok(computed) = graph_area_query.single() {
+                    let size = computed.size();
+                    let container_center = size / 2.0;
+                    let target_x = DETAIL_PANEL_WIDTH
+                        + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
+                    let target_y = size.y / 2.0;
+                    let target = Vec2::new(target_x, target_y);
+                    let target_scale = GRAPH_ZOOM_MAX;
+                    let target_offset =
+                        target - container_center - node.graph_position * target_scale;
+                    commands.insert_resource(GraphViewAnimation {
+                        target_offset,
+                        target_scale,
+                        speed: GRAPH_ANIMATION_SPEED,
+                    });
+                }
             }
         }
     }
@@ -723,13 +797,36 @@ pub(super) fn handle_graph_node_clicks(
 // Pan & Zoom
 // ===========================================================================
 
+/// Clamps the view offset so the outermost graph nodes can reach roughly
+/// the screen center but no further.
+fn clamp_view_offset(view: &mut GraphViewState, bounds: &GraphBounds) {
+    let margin = GRAPH_NODE_SIZE;
+    // When panning, stop when the outermost node reaches near the center.
+    // offset.x range: [-max_x * scale - margin, -min_x * scale + margin]
+    let min_x = -bounds.max.x * view.scale - margin;
+    let max_x = -bounds.min.x * view.scale + margin;
+    let min_y = -bounds.max.y * view.scale - margin;
+    let max_y = -bounds.min.y * view.scale + margin;
+
+    view.offset.x = view.offset.x.clamp(min_x, max_x);
+    view.offset.y = view.offset.y.clamp(min_y, max_y);
+}
+
 /// Handles panning the graph via left-click drag on the background.
 pub(super) fn handle_graph_pan(
+    mut commands: Commands,
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     mut view: ResMut<GraphViewState>,
     mut drag: ResMut<GraphDragState>,
+    bounds: Option<Res<GraphBounds>>,
+    mut selected: ResMut<SelectedStudySpell>,
     node_interactions: Query<&Interaction, With<SpellGraphNode>>,
+    panel_interaction: Query<&Interaction, With<StudyDetailPanel>>,
+    slider_interactions: Query<
+        &Interaction,
+        Or<(With<StudyAllocationSlider>, With<StudyAllocationHandle>)>,
+    >,
 ) {
     let Ok(window) = windows.single() else {
         return;
@@ -742,14 +839,32 @@ pub(super) fn handle_graph_pan(
     };
 
     if buttons.just_pressed(MouseButton::Left) {
-        // Don't start dragging if a node is being pressed
+        // Don't start dragging if a node, the detail panel, or a slider is being pressed
         let any_node_pressed = node_interactions
             .iter()
             .any(|i| *i == Interaction::Pressed);
-        if !any_node_pressed {
+        let panel_pressed = panel_interaction
+            .iter()
+            .any(|i| *i != Interaction::None);
+        let slider_pressed = slider_interactions
+            .iter()
+            .any(|i| *i != Interaction::None);
+        if !any_node_pressed && !panel_pressed && !slider_pressed {
             drag.dragging = true;
             drag.last_cursor = cursor_pos;
+            drag.start_cursor = cursor_pos;
+            commands.remove_resource::<GraphViewAnimation>();
         }
+    }
+
+    if buttons.just_released(MouseButton::Left) && drag.dragging {
+        let total_moved = (cursor_pos - drag.start_cursor).length();
+        // Deselect on a click (not a drag) on empty space
+        if total_moved < 4.0 {
+            selected.0 = None;
+        }
+        drag.dragging = false;
+        return;
     }
 
     if !buttons.pressed(MouseButton::Left) {
@@ -760,15 +875,20 @@ pub(super) fn handle_graph_pan(
     if drag.dragging {
         let delta = cursor_pos - drag.last_cursor;
         view.offset += delta;
+        if let Some(bounds) = &bounds {
+            clamp_view_offset(&mut view, bounds);
+        }
         drag.last_cursor = cursor_pos;
     }
 }
 
 /// Handles zooming the graph via mouse scroll wheel.
 pub(super) fn handle_graph_zoom(
+    mut commands: Commands,
     mut mouse_wheel: MessageReader<MouseWheel>,
     windows: Query<&Window>,
     mut view: ResMut<GraphViewState>,
+    bounds: Option<Res<GraphBounds>>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
 ) {
     let Ok(window) = windows.single() else {
@@ -795,12 +915,48 @@ pub(super) fn handle_graph_zoom(
             (old_scale * (1.0 + scroll_delta * GRAPH_ZOOM_SPEED)).clamp(GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX);
 
         if (new_scale - old_scale).abs() > f32::EPSILON {
+            // Cancel any running animation
+            commands.remove_resource::<GraphViewAnimation>();
             // Adjust offset to keep point under cursor stationary
             let cursor_from_center = cursor_pos - container_center;
             let graph_point = (cursor_from_center - view.offset) / old_scale;
             view.offset = cursor_from_center - graph_point * new_scale;
             view.scale = new_scale;
+            if let Some(bounds) = &bounds {
+                clamp_view_offset(&mut view, bounds);
+            }
         }
+    }
+}
+
+/// Smoothly animates the graph view toward a target offset and zoom.
+/// Removed automatically when the animation reaches its destination.
+pub(super) fn animate_graph_view(
+    mut commands: Commands,
+    time: Res<Time>,
+    animation: Option<Res<GraphViewAnimation>>,
+    bounds: Option<Res<GraphBounds>>,
+    mut view: ResMut<GraphViewState>,
+) {
+    let Some(anim) = animation else {
+        return;
+    };
+
+    let t = (anim.speed * time.delta_secs()).min(1.0);
+    view.offset = view.offset.lerp(anim.target_offset, t);
+    view.scale = view.scale + (anim.target_scale - view.scale) * t;
+
+    if let Some(bounds) = &bounds {
+        clamp_view_offset(&mut view, bounds);
+    }
+
+    // Stop when close enough
+    let offset_dist = (view.offset - anim.target_offset).length();
+    let scale_dist = (view.scale - anim.target_scale).abs();
+    if offset_dist < 0.5 && scale_dist < 0.001 {
+        view.offset = anim.target_offset;
+        view.scale = anim.target_scale;
+        commands.remove_resource::<GraphViewAnimation>();
     }
 }
 
@@ -814,40 +970,37 @@ pub(super) fn update_graph_node_positions(
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
     mut node_query: Query<(&mut Node, &SpellGraphNode), Without<FreeNode>>,
     mut free_node_query: Query<&mut Node, (With<FreeNode>, Without<SpellGraphNode>)>,
-    selected: Res<SelectedStudySpell>,
-    mut border_query: Query<
-        (&mut BorderColor, &SpellGraphNode),
-        Without<FreeNode>,
-    >,
 ) {
     let Ok(computed) = graph_area_query.single() else {
         return;
     };
     let container_center = computed.size() / 2.0;
-    let scale = view.scale;
 
-    // Update spell nodes
     for (mut node, graph_node) in &mut node_query {
-        let screen_pos =
-            graph_node.graph_position * scale + view.offset + container_center;
-        let scaled_size = GRAPH_NODE_SIZE * scale;
+        let screen_pos = graph_to_screen(graph_node.graph_position, &view, container_center);
+        let scaled_size = GRAPH_NODE_SIZE * view.scale;
         node.left = Val::Px(screen_pos.x - scaled_size / 2.0);
         node.top = Val::Px(screen_pos.y - scaled_size / 2.0);
         node.width = Val::Px(scaled_size);
         node.height = Val::Px(scaled_size);
     }
 
-    // Update free node
     for mut node in &mut free_node_query {
-        let screen_pos = view.offset + container_center;
-        let scaled_size = GRAPH_FREE_NODE_SIZE * scale;
+        let screen_pos = graph_to_screen(Vec2::ZERO, &view, container_center);
+        let scaled_size = GRAPH_FREE_NODE_SIZE * view.scale;
         node.left = Val::Px(screen_pos.x - scaled_size / 2.0);
         node.top = Val::Px(screen_pos.y - scaled_size / 2.0);
         node.width = Val::Px(scaled_size);
         node.height = Val::Px(scaled_size);
     }
+}
 
-    // Update selected border highlight
+/// Updates border colors on spell nodes based on the selected spell.
+/// Only runs when selection changes, avoiding per-frame save data loads.
+pub(super) fn update_graph_node_borders(
+    selected: Res<SelectedStudySpell>,
+    mut border_query: Query<(&mut BorderColor, &SpellGraphNode)>,
+) {
     for (mut border_color, graph_node) in &mut border_query {
         if selected.0 == Some(graph_node.spell) {
             *border_color = BorderColor::all(GRAPH_NODE_SELECTED_BORDER);
@@ -870,78 +1023,35 @@ pub(super) fn update_graph_node_positions(
     }
 }
 
-/// Updates graph edge L-shaped connector positions based on pan/zoom state.
-/// Each edge has a horizontal segment and a vertical segment forming an L-path.
+/// Updates graph edge segment positions based on pan/zoom state.
+/// Each segment is a rotated rectangle connecting two consecutive waypoints.
 pub(super) fn update_graph_edge_positions(
     view: Res<GraphViewState>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
-    node_query: Query<&SpellGraphNode>,
-    mut h_segments: Query<
-        (&mut Node, &SpellGraphEdge),
-        (With<EdgeSegmentH>, Without<EdgeSegmentV>),
-    >,
-    mut v_segments: Query<
-        (&mut Node, &SpellGraphEdge),
-        (With<EdgeSegmentV>, Without<EdgeSegmentH>),
-    >,
+    mut segments: Query<(&mut Node, &mut UiTransform, &SpellGraphEdge)>,
 ) {
     let Ok(computed) = graph_area_query.single() else {
         return;
     };
     let container_center = computed.size() / 2.0;
-    let scale = view.scale;
-    let thickness = (GRAPH_EDGE_THICKNESS * scale).max(1.0);
+    let thickness = (GRAPH_EDGE_THICKNESS * view.scale).max(1.0);
 
-    // Build a map of spell -> graph_position
-    let mut spell_positions: std::collections::HashMap<Option<Spell>, Vec2> =
-        std::collections::HashMap::new();
-    spell_positions.insert(None, Vec2::ZERO);
-    for graph_node in &node_query {
-        spell_positions.insert(Some(graph_node.spell), graph_node.graph_position);
-    }
+    for (mut node, mut ui_transform, edge) in &mut segments {
+        let screen_a = graph_to_screen(edge.start, &view, container_center);
+        let screen_b = graph_to_screen(edge.end, &view, container_center);
 
-    // Horizontal segments: from source X to target X, at source Y
-    for (mut node, edge) in &mut h_segments {
-        let Some(&from_graph) = spell_positions.get(&edge.from_spell) else {
-            continue;
-        };
-        let Some(&to_graph) = spell_positions.get(&Some(edge.to_spell)) else {
-            continue;
-        };
+        let delta = screen_b - screen_a;
+        let length = delta.length();
+        let angle = delta.y.atan2(delta.x);
 
-        let from_screen = from_graph * scale + view.offset + container_center;
-        let to_screen = to_graph * scale + view.offset + container_center;
-
-        let min_x = from_screen.x.min(to_screen.x);
-        let max_x = from_screen.x.max(to_screen.x);
-        let y = from_screen.y;
-
-        node.left = Val::Px(min_x);
-        node.top = Val::Px(y - thickness / 2.0);
-        node.width = Val::Px((max_x - min_x).max(thickness));
+        // Position at the midpoint of the segment
+        let midpoint = (screen_a + screen_b) / 2.0;
+        node.left = Val::Px(midpoint.x - length / 2.0);
+        node.top = Val::Px(midpoint.y - thickness / 2.0);
+        node.width = Val::Px(length);
         node.height = Val::Px(thickness);
-    }
 
-    // Vertical segments: from source Y to target Y, at target X
-    for (mut node, edge) in &mut v_segments {
-        let Some(&from_graph) = spell_positions.get(&edge.from_spell) else {
-            continue;
-        };
-        let Some(&to_graph) = spell_positions.get(&Some(edge.to_spell)) else {
-            continue;
-        };
-
-        let from_screen = from_graph * scale + view.offset + container_center;
-        let to_screen = to_graph * scale + view.offset + container_center;
-
-        let x = to_screen.x;
-        let min_y = from_screen.y.min(to_screen.y);
-        let max_y = from_screen.y.max(to_screen.y);
-
-        node.left = Val::Px(x - thickness / 2.0);
-        node.top = Val::Px(min_y);
-        node.width = Val::Px(thickness);
-        node.height = Val::Px((max_y - min_y).max(thickness));
+        ui_transform.rotation = Rot2::radians(angle);
     }
 }
 
@@ -1074,21 +1184,12 @@ pub(super) fn update_study_detail_panel(
                 TextColor(COMPLETED_COLOR),
             ));
         } else if prereq_met {
-            // Progress bar
-            let fill_pct = if cost > 0 {
-                (progress as f32 / cost as f32 * 100.0).min(100.0)
-            } else {
-                100.0
-            };
-            spawn_detail_progress_bar(panel, fill_pct);
-
-            // Allocation slider
+            // Unified progress + allocation slider
             let current_alloc = allocation
                 .as_ref()
                 .map(|a| a.get(&spell))
                 .unwrap_or(0);
-            let remaining = cost.saturating_sub(progress);
-            spawn_detail_allocation_slider(panel, spell, current_alloc, remaining);
+            spawn_detail_unified_slider(panel, spell, progress, cost, current_alloc);
 
             // Allocation text
             let effective = if has_affinity {
@@ -1154,48 +1255,19 @@ pub(super) fn update_study_detail_panel(
 }
 
 /// Spawns a progress bar in the detail panel.
-fn spawn_detail_progress_bar(parent: &mut ChildSpawnerCommands, fill_pct: f32) {
-    let fill_color = if fill_pct >= 100.0 {
-        PROGRESS_BAR_FULL
-    } else {
-        PROGRESS_BAR_FILL
-    };
-
-    parent
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(PROGRESS_BAR_HEIGHT),
-                ..default()
-            },
-            BackgroundColor(PROGRESS_BAR_BACKGROUND),
-            BorderRadius::all(Val::Px(4.0)),
-        ))
-        .with_children(|bg| {
-            bg.spawn((
-                Node {
-                    width: Val::Percent(fill_pct),
-                    height: Val::Percent(100.0),
-                    ..default()
-                },
-                BackgroundColor(fill_color),
-                BorderRadius::all(Val::Px(4.0)),
-            ));
-        });
-}
-
-/// Spawns an allocation slider in the detail panel.
-fn spawn_detail_allocation_slider(
+/// Spawns a unified progress + allocation slider in the detail panel.
+/// Committed progress is shown as a non-reducible filled region on the left.
+/// The slider handle controls the pending allocation region that starts after the
+/// committed progress.
+fn spawn_detail_unified_slider(
     parent: &mut ChildSpawnerCommands,
     spell: Spell,
+    progress: u32,
+    cost: u32,
     current_alloc: u32,
-    max_alloc: u32,
 ) {
-    let normalized = if max_alloc > 0 {
-        current_alloc as f32 / max_alloc as f32
-    } else {
-        0.0
-    };
+    let (progress_frac, alloc_frac, handle_pos) =
+        compute_slider_fracs(progress, current_alloc, cost);
 
     parent
         .spawn((
@@ -1216,11 +1288,14 @@ fn spawn_detail_allocation_slider(
             StudyAllocationSlider { spell },
         ))
         .with_children(|track| {
-            // Fill
+            // Committed progress fill (non-draggable floor)
             track.spawn((
                 Node {
-                    width: Val::Percent(normalized * 100.0),
+                    width: Val::Percent(progress_frac * 100.0),
                     height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
                     ..default()
                 },
                 BorderRadius {
@@ -1228,6 +1303,20 @@ fn spawn_detail_allocation_slider(
                     bottom_left: Val::Px(6.0),
                     top_right: Val::Px(0.0),
                     bottom_right: Val::Px(0.0),
+                },
+                BackgroundColor(PROGRESS_BAR_FILL),
+                StudyProgressFill,
+            ));
+
+            // Pending allocation fill (on top of progress, extends right)
+            track.spawn((
+                Node {
+                    width: Val::Percent(alloc_frac * 100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent(progress_frac * 100.0),
+                    top: Val::Px(0.0),
+                    ..default()
                 },
                 BackgroundColor(SLIDER_FILL_COLOR),
                 StudyAllocationFill { spell },
@@ -1239,7 +1328,9 @@ fn spawn_detail_allocation_slider(
                     width: Val::Px(SLIDER_HANDLE_WIDTH),
                     height: Val::Px(SLIDER_HANDLE_HEIGHT),
                     position_type: PositionType::Absolute,
-                    left: Val::Px(normalized * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0),
+                    left: Val::Px(
+                        handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0,
+                    ),
                     top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
                     ..default()
                 },
@@ -1271,8 +1362,6 @@ pub(super) fn handle_detail_slider_interaction(
     mut allocation: ResMut<InsightAllocation>,
     mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
-    let insight_balance = get_insight();
-
     if buttons.just_pressed(MouseButton::Left) {
         for (interaction, cursor_pos, track) in &slider_tracks {
             if !matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
@@ -1315,6 +1404,8 @@ pub(super) fn handle_detail_slider_interaction(
         return;
     };
 
+    let insight_balance = get_insight();
+
     for (_interaction, cursor_pos, track) in &slider_tracks {
         if track.spell != spell {
             continue;
@@ -1332,8 +1423,17 @@ pub(super) fn handle_detail_slider_interaction(
             continue;
         }
 
-        let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
-        let desired = (normalized * remaining as f32).round() as u32;
+        // Cursor position maps to fraction of total cost bar
+        let cursor_frac = (pos.x + 0.5).clamp(0.0, 1.0);
+        // Floor: committed progress fraction (can't go below this)
+        let progress_frac = if cost > 0 {
+            progress as f32 / cost as f32
+        } else {
+            0.0
+        };
+        // Allocation = how far above the floor the cursor is, in cost units
+        let alloc_frac = (cursor_frac - progress_frac).max(0.0);
+        let desired = (alloc_frac * cost as f32).round() as u32;
 
         let others: u32 = allocation
             .allocations
@@ -1352,46 +1452,41 @@ pub(super) fn handle_detail_slider_interaction(
     }
 }
 
-/// Updates slider fill widths and handle positions in the detail panel.
+/// Updates slider fill widths and handle positions in the unified progress+allocation bar.
 pub(super) fn update_detail_sliders(
     allocation: Res<InsightAllocation>,
-    mut slider_fills: Query<(&mut Node, &StudyAllocationFill), Without<StudyAllocationHandle>>,
-    mut slider_handles: Query<(&mut Node, &StudyAllocationHandle), Without<StudyAllocationFill>>,
+    mut alloc_fills: Query<
+        (&mut Node, &StudyAllocationFill),
+        (Without<StudyAllocationHandle>, Without<StudyProgressFill>),
+    >,
+    mut slider_handles: Query<
+        (&mut Node, &StudyAllocationHandle),
+        (Without<StudyAllocationFill>, Without<StudyProgressFill>),
+    >,
 ) {
     if !allocation.is_changed() {
         return;
     }
 
-    for (mut node, fill) in &mut slider_fills {
+    for (mut node, fill) in &mut alloc_fills {
         let spell = fill.spell;
-        let cost = spell.research_cost();
         let progress = get_spell_research_progress(spell);
-        let remaining = cost.saturating_sub(progress);
         let alloc = allocation.get(&spell);
+        let (progress_frac, alloc_frac, _) =
+            compute_slider_fracs(progress, alloc, spell.research_cost());
 
-        let normalized = if remaining > 0 {
-            alloc as f32 / remaining as f32
-        } else {
-            0.0
-        };
-
-        node.width = Val::Percent(normalized * 100.0);
+        node.left = Val::Percent(progress_frac * 100.0);
+        node.width = Val::Percent(alloc_frac * 100.0);
     }
 
     for (mut node, handle) in &mut slider_handles {
         let spell = handle.spell;
-        let cost = spell.research_cost();
         let progress = get_spell_research_progress(spell);
-        let remaining = cost.saturating_sub(progress);
         let alloc = allocation.get(&spell);
+        let (_, _, handle_pos) =
+            compute_slider_fracs(progress, alloc, spell.research_cost());
 
-        let normalized = if remaining > 0 {
-            alloc as f32 / remaining as f32
-        } else {
-            0.0
-        };
-
-        node.left = Val::Px(normalized * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0);
+        node.left = Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0);
     }
 }
 
@@ -1455,4 +1550,39 @@ pub(super) fn cleanup_wizard_tower_screen(
     commands.remove_resource::<GraphViewState>();
     commands.remove_resource::<GraphDragState>();
     commands.remove_resource::<SelectedStudySpell>();
+    commands.remove_resource::<GraphViewAnimation>();
+    commands.remove_resource::<GraphBounds>();
+}
+
+// ===========================================================================
+// Star sky time update
+// ===========================================================================
+
+/// Updates the time and parallax uniforms on all StarSkyMaterial instances each frame.
+pub(super) fn update_star_sky_time(
+    time: Res<Time>,
+    view: Option<Res<GraphViewState>>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    mut materials: ResMut<Assets<StarSkyMaterial>>,
+) {
+    let elapsed = time.elapsed_secs();
+
+    // Compute normalized pan offset for parallax.
+    let (pan_normalized, zoom) = if let Some(view) = &view {
+        let container_size = graph_area_query
+            .single()
+            .map(|c| c.size())
+            .unwrap_or(Vec2::ONE);
+        // Normalize offset to roughly 0..1 range relative to container size.
+        let pan = view.offset / container_size.max(Vec2::ONE);
+        (pan, view.scale)
+    } else {
+        (Vec2::ZERO, 1.0)
+    };
+
+    for (_id, mat) in materials.iter_mut() {
+        mat.data.time = elapsed;
+        mat.data.pan_offset = pan_normalized;
+        mat.data.zoom = zoom;
+    }
 }

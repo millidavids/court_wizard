@@ -608,28 +608,37 @@ impl Spell {
     /// Returns the prerequisite spell that must be researched first, if any.
     pub const fn prerequisite(&self) -> Option<Spell> {
         match self {
-            // Fire chain: Disintegrate → Fireball → Wall of Fire → Meteor Fall
+            // Offense tree: MagicMissile (root)
+            Spell::Disintegrate => Some(Spell::MagicMissile),
+            Spell::ChainLightning => Some(Spell::MagicMissile),
+            Spell::FingerOfDeath => Some(Spell::MagicMissile),
+            Spell::PlagueWind => Some(Spell::MagicMissile),
             Spell::Fireball => Some(Spell::Disintegrate),
-            Spell::WallOfFire => Some(Spell::Fireball),
-            Spell::MeteorFall => Some(Spell::WallOfFire),
-            // Nature chain: Grease → Entangle → Spike Growth, Entangle → Healing Plume
-            Spell::Entangle => Some(Spell::Grease),
-            Spell::HealingPlume => Some(Spell::Entangle),
-            Spell::SpikeGrowth => Some(Spell::Entangle),
-            // Electric chain: Chain Lightning → Lightning Rod
+            Spell::MeteorFall => Some(Spell::Fireball),
             Spell::LightningRod => Some(Spell::ChainLightning),
-            // Necrotic chain: Finger of Death → Raise the Dead, → Mark of Death → Plague Wind
-            Spell::RaiseTheDead => Some(Spell::FingerOfDeath),
             Spell::MarkOfDeath => Some(Spell::FingerOfDeath),
-            Spell::PlagueWind => Some(Spell::MarkOfDeath),
-            // Force chains: Guardian Circle → Haste → Battle Hymn, Guardian Circle → Berserker Rage
-            Spell::Haste => Some(Spell::GuardianCircle),
-            Spell::BerserkerRage => Some(Spell::GuardianCircle),
-            Spell::BattleHymn => Some(Spell::Haste),
-            // Force chains: Wall of Stone → Teleport
-            Spell::Teleport => Some(Spell::WallOfStone),
-            // Control chain: Sleep → Mind Control
+            // Control tree: Entangle (root)
+            Spell::Grease => Some(Spell::Entangle),
+            Spell::SpikeGrowth => Some(Spell::Entangle),
+            Spell::Sleep => Some(Spell::Entangle),
+            Spell::WallOfFire => Some(Spell::Grease),
+            Spell::WallOfStone => Some(Spell::SpikeGrowth),
+            Spell::Squall => Some(Spell::SpikeGrowth),
             Spell::MindControl => Some(Spell::Sleep),
+            Spell::Polymorph => Some(Spell::Sleep),
+            Spell::BlackHole => Some(Spell::Polymorph),
+            // Support tree: GuardianCircle (root)
+            Spell::BattleHymn => Some(Spell::GuardianCircle),
+            Spell::FogCloud => Some(Spell::GuardianCircle),
+            Spell::BerserkerRage => Some(Spell::GuardianCircle),
+            Spell::HealingPlume => Some(Spell::BattleHymn),
+            Spell::Haste => Some(Spell::BattleHymn),
+            Spell::Teleport => Some(Spell::FogCloud),
+            Spell::RaiseTheDead => Some(Spell::BerserkerRage),
+            // Utility tree: Telekinesis (root)
+            Spell::Dispel => Some(Spell::Telekinesis),
+            Spell::Banishment => Some(Spell::Telekinesis),
+            Spell::ArcaneCrystal => Some(Spell::Telekinesis),
             _ => None,
         }
     }
@@ -638,18 +647,8 @@ impl Spell {
     /// before this spell becomes available (0 = no requirement).
     /// Used for miscellaneous spells not in a prerequisite chain.
     pub const fn required_total_spells(&self) -> u32 {
-        match self {
-            Spell::Squall => 4,
-            Spell::FogCloud => 5,
-            Spell::Sleep => 6,
-            Spell::Banishment => 7,
-            Spell::BlackHole => 8,
-            Spell::Polymorph => 8,
-            Spell::ArcaneCrystal => 6,
-            Spell::Dispel => 3,
-            Spell::MindControl => 0,
-            _ => 0,
-        }
+        // All spells are now in prerequisite chains; no gate requirements needed.
+        0
     }
 
     /// Returns true if this spell is researchable (not a default spell).
