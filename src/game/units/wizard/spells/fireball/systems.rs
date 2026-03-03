@@ -331,6 +331,7 @@ pub fn spawn_fireball_smoke_trail(
 ///
 /// When a fireball hits a unit or the ground, it explodes.
 /// Talent effects: Cluster Bomb spawns mini-fireballs, Scorched Earth leaves burning ground.
+#[allow(clippy::too_many_arguments)]
 pub fn check_fireball_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
@@ -395,6 +396,7 @@ pub fn check_fireball_collisions(
 }
 
 /// Spawns a fireball explosion with talent effects at the given position.
+#[allow(clippy::too_many_arguments)]
 fn spawn_explosion_with_talents(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -628,10 +630,10 @@ pub fn apply_explosion_damage(
                 }
             }
 
-            if hit_count > 0 {
-                if let Some(ref mut progress) = talent_progress {
-                    progress.increment(explosion.source_spell, hit_count);
-                }
+            if hit_count > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(explosion.source_spell, hit_count);
             }
         }
     }

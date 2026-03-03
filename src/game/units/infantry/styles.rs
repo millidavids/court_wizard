@@ -1,11 +1,14 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, DEFENDER_BASE, TINT_RED, tint};
-
-// Entity Colors — derived from team base with subtle tints
-pub const DEFENDER_COLOR: Color = DEFENDER_BASE;
-pub const ATTACKER_COLOR: Color = ATTACKER_BASE;
-pub const KINGS_GUARD_COLOR: Color = tint(DEFENDER_BASE, TINT_RED, 0.3); // Red tint (elite)
-
 // Entity Sizes
 pub const UNIT_RADIUS: f32 = 8.0; // Circle radius for units
+
+// Sprite animation
+pub const INFANTRY_SPRITE_WIDTH: f32 = 24.0; // World-space quad width (~0.75 aspect ratio)
+pub const INFANTRY_SPRITE_HEIGHT: f32 = 32.0; // World-space quad height
+
+// Sprite tint colors (applied to team-specific textures)
+pub const DEFENDER_SPRITE_TINT: Color = Color::srgb(1.3, 1.3, 1.5);
+pub const ATTACKER_SPRITE_TINT: Color = Color::srgb(0.55, 0.45, 0.45);
+pub const KINGS_GUARD_SPRITE_TINT: Color = Color::srgb(1.2, 0.45, 0.35);
+pub const UNDEAD_SPRITE_TINT: Color = Color::srgb(0.55, 0.35, 0.75);

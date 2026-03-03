@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::HasteIndicator;
+use super::super::utils::update_circle_indicator;
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -22,7 +23,7 @@ impl Plugin for HastePlugin {
         );
         app.add_systems(
             Update,
-            systems::update_haste_indicator
+            update_circle_indicator::<HasteIndicator>
                 .run_if(any_exist::<HasteIndicator>())
                 .run_if(is_spell_effects_active),
         );

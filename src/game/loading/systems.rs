@@ -217,12 +217,13 @@ pub fn process_spawn_queue(
     if let Some(task) = batch.into_iter().next() {
         match task {
             SpawnTask::DefenderInfantry { unit_index } => {
-                infantry_systems::spawn_single_defender(&mut commands, &unit_assets.0, unit_index);
+                infantry_systems::spawn_single_defender(&mut commands, &unit_assets.0, &mut materials, unit_index);
             }
             SpawnTask::AttackerInfantry { unit_index, level } => {
                 infantry_systems::spawn_single_attacker(
                     &mut commands,
                     &unit_assets.0,
+                    &mut materials,
                     unit_index,
                     level,
                 );
@@ -231,6 +232,7 @@ pub fn process_spawn_queue(
                 archer_systems::spawn_single_defender_archer(
                     &mut commands,
                     &unit_assets.1,
+                    &mut materials,
                     unit_index,
                 );
             }
@@ -238,6 +240,7 @@ pub fn process_spawn_queue(
                 archer_systems::spawn_single_attacker_archer(
                     &mut commands,
                     &unit_assets.1,
+                    &mut materials,
                     unit_index,
                     level,
                 );
@@ -269,6 +272,7 @@ pub fn process_spawn_queue(
                 infantry_systems::spawn_single_kings_guard(
                     &mut commands,
                     &unit_assets.0,
+                    &mut materials,
                     guard_index,
                 );
             }

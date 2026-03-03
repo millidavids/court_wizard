@@ -194,6 +194,7 @@ pub fn update_hag_targeting(
 
 /// Hag melee combat — only hags with the invulnerability eye (or both eyes) attack.
 /// Ability-only and blind hags skip combat. Consuming a corpse stops attacks.
+#[allow(clippy::type_complexity)]
 pub fn hag_combat(
     time: Res<Time>,
     mut hags: Query<
@@ -302,10 +303,10 @@ pub fn hag_combat(
             }
         }
 
-        if let Some((target_entity, _)) = nearest_target {
-            if let Ok((_, _, _, _, mut health, mut temp_hp)) = targets.get_mut(target_entity) {
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), HAG_ATTACK_DAMAGE);
-            }
+        if let Some((target_entity, _)) = nearest_target
+            && let Ok((_, _, _, _, mut health, mut temp_hp)) = targets.get_mut(target_entity)
+        {
+            apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), HAG_ATTACK_DAMAGE);
         }
     }
 }
@@ -666,12 +667,12 @@ pub fn tick_eye_transfer(
                     },
                 ));
             }
-        } else if current_ability_holder.is_none() {
-            if let Ok((_, _, mut eye_state)) = hags.get_mut(new_holder) {
-                eye_state.has_ability_eye = true;
-                let both = new_invuln_holder == Some(new_holder);
-                spawn_eye_visual(&mut commands, new_holder, EyeType::Ability, &hag_assets, both);
-            }
+        } else if current_ability_holder.is_none()
+            && let Ok((_, _, mut eye_state)) = hags.get_mut(new_holder)
+        {
+            eye_state.has_ability_eye = true;
+            let both = new_invuln_holder == Some(new_holder);
+            spawn_eye_visual(&mut commands, new_holder, EyeType::Ability, &hag_assets, both);
         }
         // If staying on same hag, do nothing
     }
@@ -933,10 +934,10 @@ pub fn justina_chain_lightning(
             let dx = target_transform.translation.x - hag_pos.x;
             let dz = target_transform.translation.z - hag_pos.z;
             let dist = (dx * dx + dz * dz).sqrt();
-            if dist <= CHAIN_LIGHTNING_RANGE {
-                if nearest.is_none() || dist < nearest.unwrap().2 {
-                    nearest = Some((entity, target_transform.translation, dist));
-                }
+            if dist <= CHAIN_LIGHTNING_RANGE
+                && (nearest.is_none() || dist < nearest.unwrap().2)
+            {
+                nearest = Some((entity, target_transform.translation, dist));
             }
         }
 
@@ -1331,6 +1332,7 @@ pub fn josephina_corpse_consume(
 
 /// Martina's teleport pull — teleports random defenders to her position.
 /// King and guards move as a group.
+#[allow(clippy::type_complexity)]
 pub fn martina_teleport_pull(
     time: Res<Time>,
     death_tracker: Res<HagDeathTracker>,
@@ -1400,14 +1402,13 @@ pub fn martina_teleport_pull(
         }
 
         // If we haven't pulled enough and king is available, pull king + all guards as a group
-        if pulled < TELEPORT_PULL_COUNT {
-            if let Some(king_e) = king_entity {
-                if let Ok((_, mut king_transform, _, _, _)) = defenders.get_mut(king_e) {
-                    king_transform.translation.x = pull_pos.x + rng.gen_range(-20.0..20.0);
-                    king_transform.translation.z = pull_pos.z + rng.gen_range(-20.0..20.0);
-                }
-                // Guards will snap to king via their existing system
-            }
+        if pulled < TELEPORT_PULL_COUNT
+            && let Some(king_e) = king_entity
+            && let Ok((_, mut king_transform, _, _, _)) = defenders.get_mut(king_e)
+        {
+            king_transform.translation.x = pull_pos.x + rng.gen_range(-20.0..20.0);
+            king_transform.translation.z = pull_pos.z + rng.gen_range(-20.0..20.0);
+            // Guards will snap to king via their existing system
         }
     }
 }

@@ -20,8 +20,8 @@ use crate::game::units::archer::constants::{
 use crate::game::units::archer::styles::ARCHER_RADIUS;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{
-    AttackTiming, Effectiveness, FlockingVelocity, Health, Hitbox, MovementSpeed,
-    TargetingVelocity, Team, Teleportable,
+    AttackTiming, Effectiveness, FacingDirection, FlockingVelocity, Health, Hitbox, MovementSpeed,
+    TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -250,6 +250,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_infantry(
                     &mut commands,
                     &infantry_assets,
+                    &mut materials,
                     unit_index,
                     Team::Defenders,
                     true, // host side (Castle 1)
@@ -259,6 +260,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_infantry(
                     &mut commands,
                     &infantry_assets,
+                    &mut materials,
                     unit_index,
                     Team::Attackers,
                     false, // guest side (Castle 2)
@@ -268,6 +270,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_archer(
                     &mut commands,
                     &archer_assets,
+                    &mut materials,
                     unit_index,
                     Team::Defenders,
                     true,
@@ -277,6 +280,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_archer(
                     &mut commands,
                     &archer_assets,
+                    &mut materials,
                     unit_index,
                     Team::Attackers,
                     false,
@@ -311,6 +315,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_kings_guard(
                     &mut commands,
                     &infantry_assets,
+                    &mut materials,
                     guard_index,
                     WIZARD_POSITION,
                     DEFENDER_GRID_CENTER_ANGLE,
@@ -322,6 +327,7 @@ pub fn process_mp_spawn_queue(
                 spawn_mp_kings_guard(
                     &mut commands,
                     &infantry_assets,
+                    &mut materials,
                     guard_index,
                     WIZARD_2_POSITION,
                     mirrored_angle,
@@ -540,6 +546,7 @@ fn spawn_mp_wizard(
 fn spawn_mp_infantry(
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
     team: Team,
     host_side: bool,
@@ -576,11 +583,12 @@ fn spawn_mp_infantry(
             let spawn_y = hitbox.height / 2.0 + 1.0;
             let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
-            let material = if host_side {
-                infantry_assets.defender_material.clone()
-            } else {
-                infantry_assets.attacker_material.clone()
-            };
+            let tint = crate::game::units::systems::sprite_tint_for_team(team);
+            let material = crate::game::units::systems::create_sprite_material(
+                materials,
+                infantry_assets.sprite_textures[0].clone(),
+                tint,
+            );
 
             let flow_field = if host_side {
                 FlowFieldInfluence::Defender { spawn_pos }
@@ -590,7 +598,7 @@ fn spawn_mp_infantry(
 
             commands
                 .spawn((
-                    Mesh3d(infantry_assets.mesh.clone()),
+                    Mesh3d(infantry_assets.sprite_mesh.clone()),
                     MeshMaterial3d(material),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     crate::game::components::Velocity::default(),
@@ -604,6 +612,8 @@ fn spawn_mp_infantry(
                     Infantry,
                 ))
                 .insert((
+                    WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+                    FacingDirection::default(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
                     FlowFieldVelocity::default(),
@@ -622,6 +632,7 @@ fn spawn_mp_infantry(
 fn spawn_mp_archer(
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
+    materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
     team: Team,
     host_side: bool,
@@ -649,11 +660,12 @@ fn spawn_mp_archer(
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            let material = if host_side {
-                archer_assets.defender_material.clone()
-            } else {
-                archer_assets.attacker_material.clone()
-            };
+            let tint = crate::game::units::systems::sprite_tint_for_team(team);
+            let material = crate::game::units::systems::create_sprite_material(
+                materials,
+                archer_assets.sprite_textures[0].clone(),
+                tint,
+            );
 
             let flow_field = if host_side {
                 FlowFieldInfluence::Defender {
@@ -665,7 +677,7 @@ fn spawn_mp_archer(
 
             commands
                 .spawn((
-                    Mesh3d(archer_assets.mesh.clone()),
+                    Mesh3d(archer_assets.sprite_mesh.clone()),
                     MeshMaterial3d(material),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     crate::game::components::Velocity::default(),
@@ -679,6 +691,8 @@ fn spawn_mp_archer(
                     Archer,
                 ))
                 .insert((
+                    WalkingAnimation::new(archer_assets.sprite_textures.clone()),
+                    FacingDirection::default(),
                     AttackRange {
                         min_range: ARCHER_MIN_RANGE,
                         max_range: ARCHER_MAX_RANGE,
@@ -730,10 +744,16 @@ fn spawn_mp_king(
         _ => TeamFilter::Defenders,
     };
 
+    let king_material = crate::game::units::systems::create_sprite_material(
+        materials,
+        king_assets.sprite_textures[0].clone(),
+        KING_SPRITE_TINT,
+    );
+
     let king_entity = commands
         .spawn((
-            Mesh3d(king_assets.mesh.clone()),
-            MeshMaterial3d(king_assets.material.clone()),
+            Mesh3d(king_assets.sprite_mesh.clone()),
+            MeshMaterial3d(king_material),
             Transform::from_xyz(spawn_x, spawn_y, spawn_z),
             crate::game::components::Velocity::default(),
             crate::game::components::Acceleration::new(),
@@ -747,6 +767,8 @@ fn spawn_mp_king(
             King,
         ))
         .insert((
+            WalkingAnimation::new(king_assets.sprite_textures.clone()),
+            FacingDirection::default(),
             Commander {
                 aura_radius: KING_AURA_RADIUS,
                 team_filter,
@@ -797,6 +819,7 @@ fn spawn_mp_king(
 fn spawn_mp_kings_guard(
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
     guard_index: u32,
     wizard_position: Vec3,
     center_angle: f32,
@@ -804,6 +827,7 @@ fn spawn_mp_kings_guard(
 ) {
     use crate::game::units::components::KingsGuard;
     use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
+    use crate::game::units::infantry::styles::KINGS_GUARD_SPRITE_TINT;
 
     // King's position: same calculation as spawn_mp_king
     let radius = MP_DEFENDER_GRID_GROUND_RANGE + 600.0;
@@ -817,10 +841,16 @@ fn spawn_mp_kings_guard(
     let final_x = king_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
     let final_z = king_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
 
+    let guard_material = crate::game::units::systems::create_sprite_material(
+        materials,
+        infantry_assets.sprite_textures[0].clone(),
+        KINGS_GUARD_SPRITE_TINT,
+    );
+
     commands
         .spawn((
-            Mesh3d(infantry_assets.mesh.clone()),
-            MeshMaterial3d(infantry_assets.kings_guard_material.clone()),
+            Mesh3d(infantry_assets.sprite_mesh.clone()),
+            MeshMaterial3d(guard_material),
             Transform::from_xyz(final_x, spawn_y, final_z),
             hitbox,
             Health::new(UNIT_HEALTH),
@@ -831,6 +861,8 @@ fn spawn_mp_kings_guard(
             KingsGuard(guard_index),
         ))
         .insert((
+            WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+            FacingDirection::default(),
             Teleportable,
             Billboard,
             OnMultiplayerGameScreen,

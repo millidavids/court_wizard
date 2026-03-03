@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::game::units::wizard::spells::utils::indicator_pulse_scale;
+
 #[derive(Component)]
 pub struct FogCloudIndicator {
     pub position: Vec3,
@@ -17,7 +19,7 @@ impl FogCloudIndicator {
     }
 
     pub fn pulse_scale(&self) -> f32 {
-        1.0 + (self.time_alive * 2.0 * std::f32::consts::TAU).sin() * 0.05
+        indicator_pulse_scale(self.time_alive)
     }
 }
 

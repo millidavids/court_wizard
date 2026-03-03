@@ -196,20 +196,6 @@ fn sleep_casting_logic(
     completed
 }
 
-pub fn update_sleep_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut SleepIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
-}
 
 pub(crate) fn apply_sleep(
     commands: &mut Commands,

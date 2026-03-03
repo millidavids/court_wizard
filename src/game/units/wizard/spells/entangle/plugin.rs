@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{EntangleGroundEffect, EntangleIndicator};
+use super::super::utils::update_circle_indicator;
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -19,7 +20,7 @@ impl Plugin for EntanglePlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::update_entangle_indicator.run_if(any_exist::<EntangleIndicator>()),
+                update_circle_indicator::<EntangleIndicator>.run_if(any_exist::<EntangleIndicator>()),
                 (
                     systems::fade_entangle_ground_effect,
                     systems::cleanup_entangle_ground_effect,

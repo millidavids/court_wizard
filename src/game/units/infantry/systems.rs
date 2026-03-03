@@ -11,10 +11,10 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier, HasteModifier,
-    Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier,
+    EliteSpeedBonus, FacingDirection, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier,
+    HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier,
     RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
-    TargetingVelocity, Team, Teleportable,
+    TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
@@ -225,6 +225,7 @@ pub fn infantry_movement(
 pub(in crate::game) fn spawn_single_defender(
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
 ) {
     let total_units = INITIAL_DEFENDER_COUNT;
@@ -257,10 +258,16 @@ pub(in crate::game) fn spawn_single_defender(
             let spawn_y = hitbox.height / 2.0 + 1.0;
             let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
+            let material = crate::game::units::systems::create_sprite_material(
+                materials,
+                infantry_assets.sprite_textures[0].clone(),
+                DEFENDER_SPRITE_TINT,
+            );
+
             commands
                 .spawn((
-                    Mesh3d(infantry_assets.mesh.clone()),
-                    MeshMaterial3d(infantry_assets.defender_material.clone()),
+                    Mesh3d(infantry_assets.sprite_mesh.clone()),
+                    MeshMaterial3d(material),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     Velocity::default(),
                     Acceleration::new(),
@@ -273,6 +280,8 @@ pub(in crate::game) fn spawn_single_defender(
                     Infantry,
                 ))
                 .insert((
+                    WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+                    FacingDirection::default(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
                     FlowFieldVelocity::default(),
@@ -292,6 +301,7 @@ pub(in crate::game) fn spawn_single_defender(
 pub(in crate::game) fn spawn_single_attacker(
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
     level: u32,
 ) {
@@ -320,10 +330,16 @@ pub(in crate::game) fn spawn_single_attacker(
             let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
+            let material = crate::game::units::systems::create_sprite_material(
+                materials,
+                infantry_assets.sprite_textures[0].clone(),
+                ATTACKER_SPRITE_TINT,
+            );
+
             commands
                 .spawn((
-                    Mesh3d(infantry_assets.mesh.clone()),
-                    MeshMaterial3d(infantry_assets.attacker_material.clone()),
+                    Mesh3d(infantry_assets.sprite_mesh.clone()),
+                    MeshMaterial3d(material),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     Velocity::default(),
                     Acceleration::new(),
@@ -336,6 +352,8 @@ pub(in crate::game) fn spawn_single_attacker(
                     Infantry,
                 ))
                 .insert((
+                    WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+                    FacingDirection::default(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
                     FlowFieldVelocity::default(),
@@ -355,6 +373,7 @@ pub(in crate::game) fn spawn_single_attacker(
 pub(in crate::game) fn spawn_single_kings_guard(
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
     guard_index: u32,
 ) {
     // King spawns at centroid_x + 100, centroid_z
@@ -371,10 +390,16 @@ pub(in crate::game) fn spawn_single_kings_guard(
     let final_x = spawn_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
     let final_z = spawn_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
 
+    let material = crate::game::units::systems::create_sprite_material(
+        materials,
+        infantry_assets.sprite_textures[0].clone(),
+        KINGS_GUARD_SPRITE_TINT,
+    );
+
     commands
         .spawn((
-            Mesh3d(infantry_assets.mesh.clone()),
-            MeshMaterial3d(infantry_assets.kings_guard_material.clone()),
+            Mesh3d(infantry_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
             Transform::from_xyz(final_x, spawn_y, final_z),
             hitbox,
             Health::new(UNIT_HEALTH),
@@ -385,6 +410,8 @@ pub(in crate::game) fn spawn_single_kings_guard(
             KingsGuard(guard_index),
         ))
         .insert((
+            WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+            FacingDirection::default(),
             Teleportable,
             Billboard,
             OnGameplayScreen,

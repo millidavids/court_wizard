@@ -705,6 +705,7 @@ fn spawn_hag_bar_section(
 }
 
 /// Updates the boss health bar fill and text. Despawns the bar when the boss dies.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn update_boss_health_bar(
     mut commands: Commands,
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,

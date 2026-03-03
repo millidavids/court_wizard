@@ -89,6 +89,34 @@ pub(crate) fn clamp_to_spell_range_ground(
     }
 }
 
+/// Convenience wrapper that clamps an optional cursor position to spell range on the ground plane.
+///
+/// Returns `None` if `cursor_pos` is `None`, otherwise clamps the position using
+/// [`clamp_to_spell_range_ground`] with `SPELL_ORIGIN` as the wizard position.
+pub(crate) fn clamp_cursor_to_spell_range(
+    cursor_pos: Option<Vec3>,
+    spell_range: f32,
+    effect_radius: f32,
+) -> Option<Vec3> {
+    let pos = cursor_pos?;
+    Some(clamp_to_spell_range_ground(
+        pos,
+        crate::game::constants::SPELL_ORIGIN,
+        spell_range,
+        effect_radius,
+    ))
+}
+
+/// Computes a standard pulse scale factor for circle indicators.
+///
+/// Returns a value oscillating around 1.0 with a small amplitude, creating
+/// a subtle breathing/pulsing effect on the indicator circle.
+pub(crate) fn indicator_pulse_scale(time_alive: f32) -> f32 {
+    let pulse_freq = 2.0;
+    let pulse_amplitude = 0.05;
+    1.0 + (time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+}
+
 /// Spawns a circle indicator entity on the ground plane.
 ///
 /// Creates a unit circle mesh with the given material, positioned at the target location

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::constants;
-use crate::game::units::wizard::spells::utils::CircleIndicator;
+use crate::game::units::wizard::spells::utils::{CircleIndicator, indicator_pulse_scale};
 
 /// Visual indicator for the Guardian Circle area during casting.
 ///
@@ -30,9 +30,7 @@ impl GuardianCircleIndicator {
     ///
     /// Pulsates between 0.95 and 1.05 during cast time.
     pub fn pulse_scale(&self) -> f32 {
-        let pulse_freq = 2.0; // Hz
-        let pulse_amplitude = 0.05;
-        1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+        indicator_pulse_scale(self.time_alive)
     }
 }
 

@@ -51,8 +51,6 @@ pub const TINT_BLUE: Color = Color::srgb(0.2, 0.2, 1.0);
 pub const TINT_ORANGE: Color = Color::srgb(1.0, 0.6, 0.0);
 pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
 pub const TINT_GREEN: Color = Color::srgb(0.2, 0.9, 0.3);
-pub const TINT_WHITE: Color = Color::WHITE;
-
 // ===== Undead Color =====
 
 /// Base color for undead units (purple).
@@ -306,7 +304,7 @@ pub const DEFENDER_GRID_ROWS: u32 = 4;
 pub const DEFENDER_GRID_CENTER_ANGLE: f32 = ATTACKER_GRID_CENTER_ANGLE;
 
 /// Ground-plane distance from wizard to defender spawn grid.
-pub const DEFENDER_GRID_GROUND_RANGE: f32 = 400.0;
+pub const DEFENDER_GRID_GROUND_RANGE: f32 = 300.0;
 
 /// Returns the world-space center of the defender spawn grid.
 /// Used as the rally point when defenders return between waves.

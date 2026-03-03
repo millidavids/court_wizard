@@ -7,13 +7,12 @@ use super::super::super::components::{
 use super::components::BerserkerRageIndicator;
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::BerserkerRageModifier;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
+use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard berserker rage casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -61,7 +60,7 @@ pub fn handle_berserker_rage_casting(
     if primed_spell.spell != Spell::BerserkerRage {
         return;
     }
-    let clamped_cursor = clamp_cursor_to_range(input.cursor_pos, wizard, primed_spell);
+    let clamped_cursor = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, constants::CIRCLE_RADIUS * primed_spell.empowerment);
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -192,34 +191,6 @@ fn berserker_rage_casting_logic(
     }
 
     completed
-}
-
-/// Clamps cursor position to spell range accounting for circle radius.
-fn clamp_cursor_to_range(
-    cursor_pos: Option<Vec3>,
-    wizard: &Wizard,
-    primed_spell: &PrimedSpell,
-) -> Option<Vec3> {
-    let mut pos = cursor_pos?;
-
-    let wizard_pos = SPELL_ORIGIN;
-    let wizard_height = wizard_pos.y;
-    let max_ground_radius = if wizard_height < wizard.spell_range {
-        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
-    let scale = primed_spell.empowerment;
-    let circle_radius = constants::CIRCLE_RADIUS * scale;
-    let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
-    let direction = pos - wizard_pos;
-    let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
-    if distance > max_center_distance && distance > 0.001 {
-        let normalized_direction = direction / distance;
-        pos = wizard_pos + normalized_direction * max_center_distance;
-    }
-
-    Some(pos)
 }
 
 pub fn update_berserker_rage_indicator(

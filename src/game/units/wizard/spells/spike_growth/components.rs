@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::game::units::wizard::spells::utils::indicator_pulse_scale;
+
 /// Visual indicator for the Spike Growth area during casting.
 #[derive(Component)]
 pub struct SpikeGrowthIndicator {
@@ -18,9 +20,7 @@ impl SpikeGrowthIndicator {
     }
 
     pub fn pulse_scale(&self) -> f32 {
-        let pulse_freq = 2.0;
-        let pulse_amplitude = 0.05;
-        1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+        indicator_pulse_scale(self.time_alive)
     }
 }
 

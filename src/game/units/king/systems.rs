@@ -11,11 +11,12 @@ use crate::game::resources::InitialDefenderCount;
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, KingsGuard,
+    Effectiveness, EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
+    FrostSlowModifier, GreaseSlipModifier, HasteModifier, Health, Hitbox, KingsGuard,
     MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
-    SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
+    SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
+use crate::game::units::systems::create_sprite_material;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::session::MultiplayerSession;
 
@@ -46,11 +47,17 @@ pub fn spawn_king(
     // Store spawn position for rallying when not activated
     let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
+    let king_material = create_sprite_material(
+        &mut materials,
+        king_assets.sprite_textures[0].clone(),
+        KING_SPRITE_TINT,
+    );
+
     // Spawn the King unit with Commander components
     let king_entity = commands
         .spawn((
-            Mesh3d(king_assets.mesh.clone()),
-            MeshMaterial3d(king_assets.material.clone()),
+            Mesh3d(king_assets.sprite_mesh.clone()),
+            MeshMaterial3d(king_material),
             Transform::from_xyz(spawn_x, spawn_y, spawn_z),
             Velocity::default(),
             Acceleration::new(),
@@ -64,6 +71,8 @@ pub fn spawn_king(
             King, // Marker for game-ending logic
         ))
         .insert((
+            WalkingAnimation::new(king_assets.sprite_textures.clone()),
+            FacingDirection::default(),
             // Commander components
             Commander {
                 aura_radius: KING_AURA_RADIUS,

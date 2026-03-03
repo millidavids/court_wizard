@@ -5,14 +5,14 @@ use crate::config::GameConfig;
 use crate::state::AppState;
 
 use super::resources::{
-    FadeDirection, MusicAssets, MusicEntity, MusicFade, MusicTrack, FADE_DURATION_SECS,
+    FADE_DURATION_SECS, FadeDirection, MusicAssets, MusicEntity, MusicFade, MusicTrack,
 };
 
 /// Loads both music track assets at startup.
 pub(super) fn load_music_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(MusicAssets {
-        menu_music: asset_server.load("audio/citadel-of-frozen-ink.ogg"),
-        gameplay_music: asset_server.load("audio/fireball_dungeon_mix.ogg"),
+        menu_music: asset_server.load("audio/music/citadel-of-frozen-ink.ogg"),
+        gameplay_music: asset_server.load("audio/music/fireball_dungeon_mix.ogg"),
     });
     info!("Music assets loading: menu and gameplay tracks");
 }

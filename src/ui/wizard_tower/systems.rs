@@ -397,6 +397,7 @@ pub(super) fn handle_study_button_actions(
 }
 
 /// Tears down and rebuilds the study screen UI. Optionally animates back to default view.
+#[allow(clippy::too_many_arguments)]
 fn rebuild_study_ui(
     commands: &mut Commands,
     screen_query: &Query<Entity, With<OnStudyScreen>>,
@@ -845,6 +846,7 @@ fn clamp_view_offset(view: &mut GraphViewState, bounds: &GraphBounds) {
 }
 
 /// Handles panning the graph via left-click drag on the background.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_graph_pan(
     mut commands: Commands,
     buttons: Res<ButtonInput<MouseButton>>,

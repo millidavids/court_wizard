@@ -490,10 +490,10 @@ pub fn combat(
                 }
 
                 // Apply Battle Hymn damage reduction (Anthem of Resilience talent)
-                if let Some(hymn) = target_battle_hymn {
-                    if hymn.damage_reduction > 0.0 {
-                        modified_damage *= 1.0 - hymn.damage_reduction;
-                    }
+                if let Some(hymn) = target_battle_hymn
+                    && hymn.damage_reduction > 0.0
+                {
+                    modified_damage *= 1.0 - hymn.damage_reduction;
                 }
 
                 // Apply target's Mark of Death amplification
@@ -652,8 +652,17 @@ pub fn convert_dead_to_corpses(
                 .entity(entity)
                 .insert(MeshMaterial3d(corpse_material));
 
-            // Bosses have oversized meshes — swap to infantry mesh for a normal-sized corpse
-            if is_boss.is_some() {
+            // Swap sprite rectangle mesh to circle mesh for corpses
+            // Bosses have oversized meshes; all units use sprite_mesh for live state
+            if is_boss.is_some() || is_king.is_some() {
+                commands
+                    .entity(entity)
+                    .insert(Mesh3d(infantry_assets.mesh.clone()));
+            } else if is_archer.is_some() {
+                commands
+                    .entity(entity)
+                    .insert(Mesh3d(archer_assets.mesh.clone()));
+            } else {
                 commands
                     .entity(entity)
                     .insert(Mesh3d(infantry_assets.mesh.clone()));
@@ -712,7 +721,9 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::PolymorphedModifier>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
-                .remove::<CauldronSpeedModifier>();
+                .remove::<CauldronSpeedModifier>()
+                .remove::<super::units::components::WalkingAnimation>()
+                .remove::<super::units::components::FacingDirection>();
         }
     }
 }

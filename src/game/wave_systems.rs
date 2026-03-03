@@ -23,6 +23,7 @@ pub fn tick_wave_timer(
     brute_assets: Res<BruteAssets>,
     mut kill_stats: ResMut<KillStats>,
     mut wave_events: MessageWriter<WaveSpawnedMessage>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     if wave_state.waves_complete {
         return;
@@ -50,13 +51,13 @@ pub fn tick_wave_timer(
     // Spawn infantry for this wave
     let total_infantry = calculate_total_infantry(level);
     for i in 0..total_infantry {
-        infantry::systems::spawn_single_attacker(&mut commands, &infantry_assets, i, level);
+        infantry::systems::spawn_single_attacker(&mut commands, &infantry_assets, &mut materials, i, level);
     }
 
     // Spawn archers for this wave
     let total_archers = calculate_total_archers(level);
     for i in 0..total_archers {
-        archer::systems::spawn_single_attacker_archer(&mut commands, &archer_assets, i, level);
+        archer::systems::spawn_single_attacker_archer(&mut commands, &archer_assets, &mut materials, i, level);
     }
 
     // Spawn brute if tier qualifies

@@ -1,3 +1,4 @@
+use bevy::math::Affine2;
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -16,12 +17,15 @@ use super::constants::{
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
     MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
 };
+use super::components::{
+    ANIMATION_MOVE_THRESHOLD_SQ, FacingDirection, WalkingAnimation,
+};
 use super::damage::DamageType;
 use super::king::components::SpellShield;
-use crate::game::components::{Acceleration, OnGameplayScreen, Velocity};
+use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    GLOBAL_SPEED_MULTIPLIER, MELEE_SLOWDOWN_DISTANCE, MELEE_SLOWDOWN_FACTOR, STEERING_FORCE,
-    VELOCITY_DAMPING,
+    DEFENDER_HITBOX_HEIGHT, GLOBAL_SPEED_MULTIPLIER, MELEE_SLOWDOWN_DISTANCE,
+    MELEE_SLOWDOWN_FACTOR, STEERING_FORCE, VELOCITY_DAMPING,
 };
 use crate::game::pathfinding::FlowFieldVelocity;
 
@@ -580,6 +584,201 @@ pub fn update_persistent_effect_visuals(
                 .entity(entity)
                 .insert(MeshMaterial3d(original.0.clone()));
             commands.entity(entity).remove::<OriginalMaterial>();
+        }
+    }
+}
+
+// === Sprite animation helpers ===
+
+/// Creates a per-entity sprite material with the given texture and tint.
+pub fn create_sprite_material(
+    materials: &mut Assets<StandardMaterial>,
+    texture: Handle<Image>,
+    tint: Color,
+) -> Handle<StandardMaterial> {
+    materials.add(StandardMaterial {
+        base_color_texture: Some(texture),
+        base_color: tint,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        uv_transform: Affine2::from_scale_angle_translation(
+            Vec2::new(0.5, 0.5),
+            0.0,
+            Vec2::ZERO,
+        ),
+        ..default()
+    })
+}
+
+/// Returns the sprite tint color for a given team.
+pub fn sprite_tint_for_team(team: Team) -> Color {
+    use super::infantry::styles::{
+        ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT,
+    };
+    match team {
+        Team::Defenders => DEFENDER_SPRITE_TINT,
+        Team::Attackers => ATTACKER_SPRITE_TINT,
+        Team::Undead => UNDEAD_SPRITE_TINT,
+    }
+}
+
+/// Resurrects a corpse entity as an infantry unit with sprite animation.
+///
+/// Shared between Raise the Dead, Perpetual Unrest, and Font of Life.
+/// The caller should add any extra components (RaisedUndead, PermanentCorpse, etc.) afterward.
+#[allow(clippy::too_many_arguments)]
+pub fn resurrect_corpse_as_infantry(
+    commands: &mut Commands,
+    entity: Entity,
+    position: Vec3,
+    team: Team,
+    health: f32,
+    speed: f32,
+    tint: Color,
+    infantry_assets: &super::infantry::resources::InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    use super::components::{
+        AttackTiming, Effectiveness, FlockingVelocity, Hitbox, MovementSpeed, RoughTerrain,
+        TargetingVelocity, Teleportable,
+    };
+    use super::infantry::components::Infantry;
+    use super::infantry::styles::UNIT_RADIUS;
+
+    let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
+    let upright_transform = Transform::from_xyz(position.x, spawn_y, position.z);
+
+    let material = create_sprite_material(
+        materials,
+        infantry_assets.sprite_textures[0].clone(),
+        tint,
+    );
+
+    commands
+        .entity(entity)
+        .remove::<Corpse>()
+        .remove::<RoughTerrain>()
+        .insert(upright_transform)
+        .insert(Mesh3d(infantry_assets.sprite_mesh.clone()))
+        .insert(MeshMaterial3d(material))
+        .insert(WalkingAnimation::new(infantry_assets.sprite_textures.clone()))
+        .insert(FacingDirection::default())
+        .insert(team)
+        .insert(Health::new(health))
+        .insert(Velocity::default())
+        .insert(Acceleration::new())
+        .insert(MovementSpeed(speed))
+        .insert(AttackTiming::new())
+        .insert(Effectiveness::new())
+        .insert(Billboard)
+        .insert(hitbox)
+        .insert(Teleportable)
+        .insert(Infantry)
+        .insert(TargetingVelocity::default())
+        .insert(FlockingVelocity::default());
+}
+
+/// Advances walking animation frames and updates UV transforms.
+pub fn update_walking_animation(
+    time: Res<Time>,
+    mut anim_query: Query<
+        (
+            &mut WalkingAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+            &Velocity,
+        ),
+        Without<Corpse>,
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (mut anim, material_handle, velocity) in &mut anim_query {
+        let speed_sq = Vec3::new(velocity.x, 0.0, velocity.z).length_squared();
+
+        // Stationary: reset to frame 0
+        if speed_sq < ANIMATION_MOVE_THRESHOLD_SQ {
+            if anim.current_frame != 0 {
+                anim.current_frame = 0;
+                anim.elapsed = 0.0;
+                if let Some(mat) = materials.get_mut(material_handle) {
+                    mat.uv_transform = Affine2::from_scale_angle_translation(
+                        Vec2::new(0.5, 0.5),
+                        0.0,
+                        Vec2::ZERO,
+                    );
+                }
+            }
+            continue;
+        }
+
+        // Advance animation
+        if anim.tick(delta)
+            && let Some(mat) = materials.get_mut(material_handle)
+        {
+            let (offset_x, offset_y) = anim.uv_offset();
+            mat.uv_transform = Affine2::from_scale_angle_translation(
+                Vec2::new(0.5, 0.5),
+                0.0,
+                Vec2::new(offset_x, offset_y),
+            );
+        }
+    }
+}
+
+/// Updates facing direction based on velocity relative to camera, swapping textures.
+pub fn update_facing_direction(
+    camera_query: Query<&Transform, With<Camera3d>>,
+    mut unit_query: Query<
+        (
+            &Velocity,
+            &mut FacingDirection,
+            &WalkingAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+        ),
+        Without<Corpse>,
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Ok(camera_transform) = camera_query.single() else {
+        return;
+    };
+
+    // Camera forward/right on XZ plane
+    let cam_forward = camera_transform.forward();
+    let cam_forward_xz = Vec3::new(cam_forward.x, 0.0, cam_forward.z).normalize_or_zero();
+    let cam_right = Vec3::new(-cam_forward_xz.z, 0.0, cam_forward_xz.x);
+
+    for (velocity, mut facing, anim, material_handle) in &mut unit_query {
+        let vel_xz = Vec3::new(velocity.x, 0.0, velocity.z);
+        if vel_xz.length_squared() < ANIMATION_MOVE_THRESHOLD_SQ {
+            continue;
+        }
+
+        // Project velocity onto camera axes
+        let forward_dot = vel_xz.dot(cam_forward_xz);
+        let right_dot = vel_xz.dot(cam_right);
+
+        let new_facing = if forward_dot.abs() > right_dot.abs() {
+            if forward_dot < 0.0 {
+                FacingDirection::Back
+            } else {
+                FacingDirection::Forward
+            }
+        } else if right_dot > 0.0 {
+            FacingDirection::Right
+        } else {
+            FacingDirection::Left
+        };
+
+        if *facing != new_facing {
+            *facing = new_facing;
+            if let Some(mat) = materials.get_mut(material_handle) {
+                mat.base_color_texture =
+                    Some(anim.textures[new_facing as usize].clone());
+            }
         }
     }
 }

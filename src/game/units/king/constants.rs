@@ -1,10 +1,5 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{DEFENDER_BASE, TINT_BLUE, tint};
-
-// King visual style
-pub const KING_COLOR: Color = tint(DEFENDER_BASE, TINT_BLUE, 0.3); // Blue tint (commander)
-
 // King stats
 pub const KING_HEALTH: f32 = 100.0; // Double standard 50
 pub const KING_DAMAGE_PERCENTAGE: f32 = 1.0; // 100% bonus = double damage
@@ -23,6 +18,11 @@ pub const KING_COHESION_BASE: f32 = 0.0; // No cohesion when no enemies inside a
 pub const KING_COHESION_THREATENED: f32 = 1.2; // Cohesion strength when enemies are inside aura
 
 // Re-export aura constants from commander module for convenience
+// Sprite animation
+pub const KING_SPRITE_WIDTH: f32 = 36.0; // Larger than infantry, ~0.75 aspect ratio
+pub const KING_SPRITE_HEIGHT: f32 = 48.0;
+pub const KING_SPRITE_TINT: Color = Color::srgb(1.4, 1.15, 0.4); // Golden
+
 pub use crate::game::units::commander::constants::{
     KING_AURA_COLOR, KING_AURA_DAMAGE_PERCENTAGE, KING_AURA_RADIUS, KING_AURA_SPEED_PERCENTAGE,
 };

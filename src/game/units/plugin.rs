@@ -7,9 +7,10 @@ use super::brute::BrutePlugin;
 use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
-    BattleHymnModifier, BerserkerRageModifier, FogEvasionModifier, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, MarkedForDeathModifier, RootedModifier, SleepModifier,
-    SpikeGrowthSlowModifier, TemporaryHitPoints,
+    BattleHymnModifier, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
+    FrostSlowModifier, GreaseSlipModifier, HasteModifier, MarkedForDeathModifier, RootedModifier,
+    SleepModifier, SpikeGrowthSlowModifier, TemporaryHitPoints,
+    WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -63,6 +64,12 @@ impl Plugin for UnitsPlugin {
                 systems::update_timed_modifier::<HasteModifier>,
                 systems::update_timed_modifier::<SpikeGrowthSlowModifier>,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
+                systems::update_walking_animation
+                    .after(ApplyTransformsSet)
+                    .run_if(any_with_component::<WalkingAnimation>),
+                systems::update_facing_direction
+                    .after(ApplyTransformsSet)
+                    .run_if(any_with_component::<FacingDirection>),
             )
                 .run_if(is_gameplay_running),
         )

@@ -133,6 +133,7 @@ pub fn apply_state_snapshot(
             &infantry_assets,
             &archer_assets,
             &king_assets,
+            &mut materials,
             team,
             is_corpse,
             is_king,
@@ -140,12 +141,21 @@ pub fn apply_state_snapshot(
             is_guard,
         );
 
-        let mesh_handle = if is_king {
-            king_assets.mesh.clone()
+        // Corpses use circle meshes, live units use sprite meshes
+        let mesh_handle = if is_corpse {
+            if is_king {
+                king_assets.mesh.clone()
+            } else if is_archer {
+                archer_assets.mesh.clone()
+            } else {
+                infantry_assets.mesh.clone()
+            }
+        } else if is_king {
+            king_assets.sprite_mesh.clone()
         } else if is_archer {
-            archer_assets.mesh.clone()
+            archer_assets.sprite_mesh.clone()
         } else {
-            infantry_assets.mesh.clone()
+            infantry_assets.sprite_mesh.clone()
         };
 
         let pos = Vec3::new(unit.x, unit.y, unit.z);
@@ -390,14 +400,16 @@ pub fn send_crdt_snapshot(
     }
 }
 
-/// Picks the correct preloaded material handle for a ghost entity.
+/// Picks the correct material handle for a ghost entity.
 ///
-/// Corpse materials already have low alpha baked into the preloaded assets.
+/// Corpses use shared preloaded materials (simple circles, no texture).
+/// Live units get per-entity sprite materials with team tinting.
 #[allow(clippy::too_many_arguments)]
 fn pick_material(
     infantry_assets: &InfantryAssets,
     archer_assets: &ArcherAssets,
     king_assets: &KingAssets,
+    materials: &mut Assets<StandardMaterial>,
     team: crate::game::units::components::Team,
     is_corpse: bool,
     is_king: bool,
@@ -416,7 +428,6 @@ fn pick_material(
                 Team::Undead => archer_assets.undead_corpse_material.clone(),
             }
         } else {
-            // Infantry and King's Guard corpses use the same material
             match team {
                 Team::Defenders => infantry_assets.defender_corpse_material.clone(),
                 Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
@@ -424,22 +435,33 @@ fn pick_material(
             }
         }
     } else if is_king {
-        king_assets.material.clone()
+        use crate::game::units::king::constants::KING_SPRITE_TINT;
+        crate::game::units::systems::create_sprite_material(
+            materials,
+            king_assets.sprite_textures[0].clone(),
+            KING_SPRITE_TINT,
+        )
     } else if is_archer {
-        match team {
-            Team::Defenders => archer_assets.defender_material.clone(),
-            Team::Attackers => archer_assets.attacker_material.clone(),
-            Team::Undead => archer_assets.undead_material.clone(),
-        }
+        let tint = crate::game::units::systems::sprite_tint_for_team(team);
+        crate::game::units::systems::create_sprite_material(
+            materials,
+            archer_assets.sprite_textures[0].clone(),
+            tint,
+        )
     } else if is_guard {
-        infantry_assets.kings_guard_material.clone()
+        use crate::game::units::infantry::styles::KINGS_GUARD_SPRITE_TINT;
+        crate::game::units::systems::create_sprite_material(
+            materials,
+            infantry_assets.sprite_textures[0].clone(),
+            KINGS_GUARD_SPRITE_TINT,
+        )
     } else {
-        // Infantry
-        match team {
-            Team::Defenders => infantry_assets.defender_material.clone(),
-            Team::Attackers => infantry_assets.attacker_material.clone(),
-            Team::Undead => infantry_assets.undead_material.clone(),
-        }
+        let tint = crate::game::units::systems::sprite_tint_for_team(team);
+        crate::game::units::systems::create_sprite_material(
+            materials,
+            infantry_assets.sprite_textures[0].clone(),
+            tint,
+        )
     }
 }
 

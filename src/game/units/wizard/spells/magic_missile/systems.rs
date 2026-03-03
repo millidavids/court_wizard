@@ -452,6 +452,7 @@ pub fn tick_magic_missile_cooldown(
 /// Updates magic missile movement with homing and wobble.
 ///
 /// Missiles lock onto their initial target and only retarget if it despawns.
+#[allow(clippy::too_many_arguments)]
 pub fn move_magic_missiles(
     time: Res<Time>,
     mut commands: Commands,

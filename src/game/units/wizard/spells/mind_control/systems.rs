@@ -103,20 +103,20 @@ pub(super) fn handle_mind_control_casting(
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 // Apply mind control to the currently highlighted target
-                if let Some(ref highlighted) = highlight.target {
-                    if mana.consume(constants::MANA_COST) {
-                        commands.entity(highlighted.entity).insert(MindControlled {
-                            time_elapsed: 0.0,
-                            wear_off_duration: constants::EFFECT_WEAR_OFF_DURATION,
-                            original_spawn_pos: None,
-                        });
+                if let Some(ref highlighted) = highlight.target
+                    && mana.consume(constants::MANA_COST)
+                {
+                    commands.entity(highlighted.entity).insert(MindControlled {
+                        time_elapsed: 0.0,
+                        wear_off_duration: constants::EFFECT_WEAR_OFF_DURATION,
+                        original_spawn_pos: None,
+                    });
 
-                        commands
-                            .entity(wizard_entity)
-                            .insert(MindControlCooldown { remaining: constants::COOLDOWN });
+                    commands
+                        .entity(wizard_entity)
+                        .insert(MindControlCooldown { remaining: constants::COOLDOWN });
 
-                        mouse_state.left_consumed = true;
-                    }
+                    mouse_state.left_consumed = true;
                 }
 
                 clear_highlight(&mut commands, &mut materials, &mut highlight);
@@ -178,28 +178,28 @@ fn update_highlight(
     clear_highlight(commands, materials, highlight);
 
     // Clone + tint new target's material
-    if let Some(target_entity) = nearest {
-        if let Ok((_, _, _, material_handle)) = enemies_query.get(target_entity) {
-            let original_handle = material_handle.0.clone();
-            if let Some(original_mat) = materials.get(&original_handle) {
-                let mut tinted_mat = original_mat.clone();
-                let base_linear = tinted_mat.base_color.to_linear();
-                let highlight_linear = constants::HIGHLIGHT_COLOR.to_linear();
-                let blended = base_linear.mix(&highlight_linear, 0.6);
-                tinted_mat.base_color = Color::from(blended);
-                let tinted_handle = materials.add(tinted_mat);
+    if let Some(target_entity) = nearest
+        && let Ok((_, _, _, material_handle)) = enemies_query.get(target_entity)
+    {
+        let original_handle = material_handle.0.clone();
+        if let Some(original_mat) = materials.get(&original_handle) {
+            let mut tinted_mat = original_mat.clone();
+            let base_linear = tinted_mat.base_color.to_linear();
+            let highlight_linear = constants::HIGHLIGHT_COLOR.to_linear();
+            let blended = base_linear.mix(&highlight_linear, 0.6);
+            tinted_mat.base_color = Color::from(blended);
+            let tinted_handle = materials.add(tinted_mat);
 
-                // Swap the entity's material to the tinted clone
-                commands
-                    .entity(target_entity)
-                    .insert(MeshMaterial3d(tinted_handle.clone()));
+            // Swap the entity's material to the tinted clone
+            commands
+                .entity(target_entity)
+                .insert(MeshMaterial3d(tinted_handle.clone()));
 
-                highlight.target = Some(HighlightedUnit {
-                    entity: target_entity,
-                    original_handle,
-                    tinted_handle,
-                });
-            }
+            highlight.target = Some(HighlightedUnit {
+                entity: target_entity,
+                original_handle,
+                tinted_handle,
+            });
         }
     }
 }

@@ -554,6 +554,64 @@ pub fn apply_spell_damage(
     });
 }
 
+/// Which direction a unit faces, determining which sprite texture to show.
+#[derive(Component, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FacingDirection {
+    #[default]
+    Forward = 0,
+    Back = 1,
+    Left = 2,
+    Right = 3,
+}
+
+/// Minimum velocity squared to count as "moving" for animation purposes (5.0 units/sec).
+pub const ANIMATION_MOVE_THRESHOLD_SQ: f32 = 25.0;
+
+/// Walking animation state for sprite-sheet-animated units.
+///
+/// Stores per-entity frame state and the 4 directional texture handles.
+#[derive(Component)]
+pub struct WalkingAnimation {
+    pub current_frame: usize,
+    pub elapsed: f32,
+    pub textures: [Handle<Image>; 4],
+}
+
+impl WalkingAnimation {
+    const FRAME_DURATION: f32 = 0.125;
+    const FRAME_COUNT: usize = 4;
+
+    pub fn new(textures: [Handle<Image>; 4]) -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: rand::random::<f32>() * Self::FRAME_DURATION, // stagger
+            textures,
+        }
+    }
+
+    /// Advance animation by `delta` seconds. Returns `true` if the frame changed.
+    pub fn tick(&mut self, delta: f32) -> bool {
+        self.elapsed += delta;
+        if self.elapsed >= Self::FRAME_DURATION {
+            self.elapsed -= Self::FRAME_DURATION;
+            let old = self.current_frame;
+            self.current_frame = (self.current_frame + 1) % Self::FRAME_COUNT;
+            old != self.current_frame
+        } else {
+            false
+        }
+    }
+
+    /// UV offset for the current frame in a 2x2 sprite grid.
+    /// Returns (x, y) where each cell is 0.5 x 0.5.
+    /// Layout: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right.
+    pub fn uv_offset(&self) -> (f32, f32) {
+        let col = (self.current_frame % 2) as f32;
+        let row = (self.current_frame / 2) as f32;
+        (col * 0.5, row * 0.5)
+    }
+}
+
 /// Marker component for dead units (corpses).
 ///
 /// Dead units remain on the battlefield as corpses that affect living units.

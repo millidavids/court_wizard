@@ -68,11 +68,13 @@ fn separate_overlapping_nodes(nodes: &mut [SpellNodeDef]) {
 /// Builds the full spell graph with node positions and edges.
 ///
 /// Radial web layout centered at origin with 4 category roots:
+///
 /// - (0, 0): Central "Free" anchor node (visual hub, not a spell)
 /// - Offense (MagicMissile): upper-right quadrant
 /// - Control (Entangle): upper-left quadrant
 /// - Support (GuardianCircle): lower-left quadrant
 /// - Utility (Telekinesis): lower-right quadrant
+///
 /// Nodes are placed using polar coordinates (angle + distance from center)
 /// so every branch radiates outward like a web.
 pub(super) fn build_spell_graph() -> (Vec<SpellNodeDef>, Vec<SpellEdgeDef>) {

@@ -37,6 +37,7 @@ fn do_unlock<T: AchievementResource>(
 
 /// Collects battle data, updates meta-progression counters, and writes `BattleEndedMessage`.
 /// Replaces the counter-incrementing part of the old `check_victory_progression_achievements`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn send_battle_ended(
     game_outcome: Res<GameOutcome>,
     current_level: Res<CurrentLevel>,

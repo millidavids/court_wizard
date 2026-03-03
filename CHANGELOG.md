@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.174] - 2026-03-03
+
+### Added
+- **Animated unit sprites** — infantry, archers, the king, and the king's guard now have walking sprite animations instead of plain colored circles. Units animate when moving and face the direction they're walking
+- **Team-colored units** — defenders, attackers, undead, and the king's guard each have distinct color tinting so you can tell teams apart at a glance
+
+### Changed
+- **Defenders start closer to the wizard** — the defender army now spawns and rallies nearer to the castle wall
+
 ## [v0.3.165] - 2026-03-02
 
 ### Added

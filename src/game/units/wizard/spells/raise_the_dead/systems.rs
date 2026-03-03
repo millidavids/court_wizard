@@ -11,21 +11,12 @@ use super::constants::{
     CHANNEL_RAMP_TIME, INITIAL_CHANNEL_INTERVAL, MANA_COST_PER_CORPSE, MIN_CHANNEL_INTERVAL,
     RESURRECTION_RADIUS,
 };
-use crate::game::components::{Acceleration, Billboard, Velocity};
-use crate::game::constants::{DEFENDER_HITBOX_HEIGHT, UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
+use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::archer::Archer;
-use crate::game::units::archer::resources::ArcherAssets;
-use crate::game::units::components::{
-    AttackTiming, Corpse, Effectiveness, Health, Hitbox, MovementSpeed, PermanentCorpse,
-    RoughTerrain, Team, Teleportable,
-};
-use crate::game::units::infantry::components::Infantry;
+use crate::game::units::components::{Corpse, PermanentCorpse, Team};
 use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-
-/// Unit radius for infantry hitboxes (matches infantry/styles.rs::UNIT_RADIUS)
-const UNIT_RADIUS: f32 = 8.0;
 
 /// Local wizard Raise The Dead casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -37,17 +28,11 @@ pub fn handle_raise_the_dead_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     corpse_query: Query<
-        (
-            Entity,
-            &Transform,
-            &Team,
-            Option<&Infantry>,
-            Option<&Archer>,
-        ),
+        (Entity, &Transform),
         (With<Corpse>, Without<PermanentCorpse>),
     >,
     infantry_assets: Res<InfantryAssets>,
-    archer_assets: Res<ArcherAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -74,7 +59,7 @@ pub fn handle_raise_the_dead_casting(
         &mut commands,
         &corpse_query,
         &infantry_assets,
-        &archer_assets,
+        &mut materials,
     );
 }
 
@@ -91,17 +76,11 @@ fn raise_the_dead_casting_logic(
     primed_spell: &PrimedSpell,
     commands: &mut Commands,
     corpse_query: &Query<
-        (
-            Entity,
-            &Transform,
-            &Team,
-            Option<&Infantry>,
-            Option<&Archer>,
-        ),
+        (Entity, &Transform),
         (With<Corpse>, Without<PermanentCorpse>),
     >,
-    infantry_assets: &Res<InfantryAssets>,
-    archer_assets: &Res<ArcherAssets>,
+    infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
 ) {
     // Check for release event
     if input.just_released {
@@ -125,7 +104,7 @@ fn raise_the_dead_casting_logic(
                             cursor_pos,
                             corpse_query,
                             infantry_assets,
-                            archer_assets,
+                            materials,
                             primed_spell.empowerment,
                         );
                     }
@@ -146,7 +125,7 @@ fn raise_the_dead_casting_logic(
                             cursor_pos,
                             corpse_query,
                             infantry_assets,
-                            archer_assets,
+                            materials,
                             primed_spell.empowerment,
                         );
                     }
@@ -164,31 +143,25 @@ fn raise_the_dead_casting_logic(
     }
 }
 
-/// Resurrects the nearest corpse to the target position as infantry.
+/// Resurrects the nearest corpse to the target position as undead infantry.
 ///
 /// Searches for corpses within RESURRECTION_RADIUS and resurrects the closest one.
-/// All raised undead are infantry units.
+/// Uses the shared `resurrect_corpse_as_infantry` helper.
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
     corpse_query: &Query<
-        (
-            Entity,
-            &Transform,
-            &Team,
-            Option<&Infantry>,
-            Option<&Archer>,
-        ),
+        (Entity, &Transform),
         (With<Corpse>, Without<PermanentCorpse>),
     >,
-    infantry_assets: &Res<InfantryAssets>,
-    archer_assets: &Res<ArcherAssets>,
+    infantry_assets: &InfantryAssets,
+    materials: &mut Assets<StandardMaterial>,
     empowerment: f32,
 ) {
     // Find nearest corpse within radius
-    if let Some((corpse_entity, corpse_transform, _, is_infantry, is_archer)) = corpse_query
+    if let Some((corpse_entity, corpse_transform)) = corpse_query
         .iter()
-        .filter(|(_, transform, _, _, _)| {
+        .filter(|(_, transform)| {
             target_pos.distance(transform.translation) <= RESURRECTION_RADIUS
         })
         .min_by(|a, b| {
@@ -197,56 +170,29 @@ fn resurrect_nearest_corpse(
             dist_a.partial_cmp(&dist_b).unwrap_or(Ordering::Equal)
         })
     {
-        // Replace with undead material
-        let undead_material = if is_infantry.is_some() {
-            infantry_assets.undead_material.clone()
-        } else if is_archer.is_some() {
-            archer_assets.undead_material.clone()
-        } else {
-            // Fallback to infantry material
-            infantry_assets.undead_material.clone()
-        };
+        let health = UNIT_HEALTH * empowerment;
+        let speed = UNIT_MOVEMENT_SPEED * 0.5 * empowerment;
 
-        // Calculate upright position: bottom edge 1 unit above battlefield
-        let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
-        let spawn_y = hitbox.height / 2.0 + 1.0;
-        let upright_transform = Transform::from_xyz(
-            corpse_transform.translation.x,
-            spawn_y,
-            corpse_transform.translation.z,
+        crate::game::units::systems::resurrect_corpse_as_infantry(
+            commands,
+            corpse_entity,
+            corpse_transform.translation,
+            Team::Undead,
+            health,
+            speed,
+            UNDEAD_SPRITE_TINT,
+            infantry_assets,
+            materials,
         );
 
-        // Apply empowerment scaling (1.25x bonus to stats if empowered)
-        let scale = empowerment;
-        let health = UNIT_HEALTH * scale;
-        let speed = UNIT_MOVEMENT_SPEED * 0.5 * scale; // Base is half speed, then apply scaling
+        // Add RaisedUndead marker for tracking
+        commands.entity(corpse_entity).insert(RaisedUndead);
 
-        // Create effectiveness with spell bonus for damage scaling if empowered
-        let mut effectiveness = Effectiveness::new();
+        // Apply empowerment bonus if applicable
         if empowerment > 1.0 {
-            effectiveness.spell_bonus = 0.25; // +25% damage bonus
+            let mut effectiveness = crate::game::units::components::Effectiveness::new();
+            effectiveness.spell_bonus = 0.25;
+            commands.entity(corpse_entity).insert(effectiveness);
         }
-
-        // Restore combat components but change team
-        commands
-            .entity(corpse_entity)
-            .remove::<Corpse>()
-            .remove::<RoughTerrain>()
-            .insert(upright_transform) // Stand upright
-            .insert(MeshMaterial3d(undead_material)) // Replace with undead material
-            .insert(Team::Undead)
-            .insert(Health::new(health)) // Full health restoration with empowerment scaling
-            .insert(Velocity::default())
-            .insert(Acceleration::new())
-            .insert(MovementSpeed(speed)) // Half speed with empowerment scaling
-            .insert(AttackTiming::new())
-            .insert(effectiveness) // Effectiveness with empowerment bonus if applicable
-            .insert(Billboard)
-            .insert(hitbox) // Restore collision
-            .insert(Teleportable) // Can be teleported
-            .insert(RaisedUndead) // Marker for tracking
-            .insert(Infantry)
-            .insert(crate::game::units::components::TargetingVelocity::default())
-            .insert(crate::game::units::components::FlockingVelocity::default());
     }
 }

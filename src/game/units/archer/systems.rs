@@ -17,10 +17,11 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier, GreaseSlipModifier,
-    HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
+    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity, FrostSlowModifier,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
     RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
-    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
+    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, WalkingAnimation,
+    apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::random_position_in_cell;
@@ -593,6 +594,7 @@ pub fn archer_movement(
 pub(in crate::game) fn spawn_single_defender_archer(
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
+    materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
 ) {
     // Calculate where infantry spawned to determine archer row
@@ -618,10 +620,16 @@ pub(in crate::game) fn spawn_single_defender_archer(
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
+            let material = crate::game::units::systems::create_sprite_material(
+                materials,
+                archer_assets.sprite_textures[0].clone(),
+                DEFENDER_SPRITE_TINT,
+            );
+
             commands
                 .spawn((
-                    Mesh3d(archer_assets.mesh.clone()),
-                    MeshMaterial3d(archer_assets.defender_material.clone()),
+                    Mesh3d(archer_assets.sprite_mesh.clone()),
+                    MeshMaterial3d(material),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     Velocity::default(),
                     Acceleration::new(),
@@ -634,6 +642,8 @@ pub(in crate::game) fn spawn_single_defender_archer(
                     Archer,
                 ))
                 .insert((
+                    WalkingAnimation::new(archer_assets.sprite_textures.clone()),
+                    FacingDirection::default(),
                     AttackRange {
                         min_range: ARCHER_MIN_RANGE,
                         max_range: ARCHER_MAX_RANGE,
@@ -661,6 +671,7 @@ pub(in crate::game) fn spawn_single_defender_archer(
 pub(in crate::game) fn spawn_single_attacker_archer(
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
+    materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
     level: u32,
 ) {
@@ -687,10 +698,16 @@ pub(in crate::game) fn spawn_single_attacker_archer(
             let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
+            let material = crate::game::units::systems::create_sprite_material(
+                materials,
+                archer_assets.sprite_textures[0].clone(),
+                ATTACKER_SPRITE_TINT,
+            );
+
             commands
                 .spawn((
-                    Mesh3d(archer_assets.mesh.clone()),
-                    MeshMaterial3d(archer_assets.attacker_material.clone()),
+                    Mesh3d(archer_assets.sprite_mesh.clone()),
+                    MeshMaterial3d(material),
                     Transform::from_xyz(final_x, spawn_y, final_z),
                     Velocity::default(),
                     Acceleration::new(),
@@ -703,6 +720,8 @@ pub(in crate::game) fn spawn_single_attacker_archer(
                     Archer,
                 ))
                 .insert((
+                    WalkingAnimation::new(archer_assets.sprite_textures.clone()),
+                    FacingDirection::default(),
                     AttackRange {
                         min_range: ARCHER_MIN_RANGE,
                         max_range: ARCHER_MAX_RANGE,

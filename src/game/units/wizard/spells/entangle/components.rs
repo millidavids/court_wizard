@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+use super::constants;
+use crate::game::units::wizard::spells::utils::{CircleIndicator, indicator_pulse_scale};
+
 /// Visual indicator for the Entangle area during casting.
 #[derive(Component)]
 pub struct EntangleIndicator {
@@ -16,11 +19,26 @@ impl EntangleIndicator {
             empowerment,
         }
     }
+}
 
-    pub fn pulse_scale(&self) -> f32 {
-        let pulse_freq = 2.0;
-        let pulse_amplitude = 0.05;
-        1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
+impl CircleIndicator for EntangleIndicator {
+    fn position(&self) -> Vec3 {
+        self.position
+    }
+    fn time_alive(&self) -> f32 {
+        self.time_alive
+    }
+    fn set_time_alive(&mut self, time: f32) {
+        self.time_alive = time;
+    }
+    fn base_radius(&self) -> f32 {
+        constants::CIRCLE_RADIUS * self.empowerment
+    }
+    fn circle_y_position(&self) -> f32 {
+        constants::CIRCLE_Y_POSITION
+    }
+    fn pulse_scale(&self) -> f32 {
+        indicator_pulse_scale(self.time_alive)
     }
 }
 
