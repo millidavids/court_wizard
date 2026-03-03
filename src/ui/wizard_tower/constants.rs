@@ -65,29 +65,51 @@ pub(super) const GRAPH_AREA_BG: Color = Color::srgba(0.04, 0.04, 0.06, 0.8);
 // ---------------------------------------------------------------------------
 // Detail panel
 // ---------------------------------------------------------------------------
-pub(super) const DETAIL_PANEL_WIDTH: f32 = 280.0;
-pub(super) const DETAIL_PANEL_PADDING: f32 = 16.0;
+pub(super) const DETAIL_PANEL_WIDTH: f32 = 340.0;
+pub(super) const DETAIL_PANEL_PADDING: f32 = 14.0;
 pub(super) const DETAIL_PANEL_BG: Color = Color::srgb(0.1, 0.1, 0.13);
 pub(super) const DETAIL_PANEL_BORDER: Color = Color::srgb(0.3, 0.3, 0.4);
-pub(super) const DETAIL_TITLE_FONT_SIZE: f32 = 18.0;
-pub(super) const DETAIL_TEXT_FONT_SIZE: f32 = 13.0;
-pub(super) const DETAIL_SMALL_FONT_SIZE: f32 = 11.0;
+pub(super) const DETAIL_TITLE_FONT_SIZE: f32 = 20.0;
+pub(super) const DETAIL_TEXT_FONT_SIZE: f32 = 14.0;
+pub(super) const DETAIL_SMALL_FONT_SIZE: f32 = 12.0;
 
 // Progress fill color (used in node rings and unified slider)
 pub(super) const PROGRESS_BAR_FILL: Color = Color::srgb(0.3, 0.6, 0.9);
 
 // Allocation slider (used in detail panel)
-pub(super) const SLIDER_TRACK_WIDTH: f32 = 220.0;
-pub(super) const SLIDER_TRACK_HEIGHT: f32 = 12.0;
-pub(super) const SLIDER_HANDLE_WIDTH: f32 = 6.0;
-pub(super) const SLIDER_HANDLE_HEIGHT: f32 = 22.0;
+pub(super) const SLIDER_TRACK_WIDTH: f32 = 260.0;
+pub(super) const SLIDER_TRACK_HEIGHT: f32 = 14.0;
+pub(super) const SLIDER_HANDLE_WIDTH: f32 = 7.0;
+pub(super) const SLIDER_HANDLE_HEIGHT: f32 = 24.0;
 pub(super) const SLIDER_TRACK_BG: Color = Color::srgb(0.2, 0.2, 0.2);
 pub(super) const SLIDER_TRACK_BORDER: Color = Color::srgb(0.35, 0.35, 0.4);
 pub(super) const SLIDER_FILL_COLOR: Color = Color::srgb(0.5, 0.7, 0.3);
 pub(super) const SLIDER_HANDLE_COLOR: Color = Color::WHITE;
 
+// ---------------------------------------------------------------------------
+// Talent UI
+// ---------------------------------------------------------------------------
+
+// Talent progress bar
+pub(super) const TALENT_BAR_WIDTH: f32 = 12.0;
+pub(super) const TALENT_BAR_BG: Color = Color::srgb(0.12, 0.12, 0.12);
+pub(super) const TALENT_BAR_FILL: Color = Color::srgb(0.6, 0.4, 0.9);
+
+// Talent cards
+pub(super) const TALENT_CARD_WIDTH: f32 = 80.0;
+pub(super) const TALENT_CARD_HEIGHT: f32 = 56.0;
+pub(super) const TALENT_CARD_GAP: f32 = 5.0;
+pub(super) const TALENT_CARD_FONT: f32 = 9.0;
+pub(super) const TALENT_SELECTED_BORDER: Color = Color::srgb(0.9, 0.8, 0.2);
+pub(super) const TALENT_UNLOCKED_BG: Color = Color::srgb(0.14, 0.14, 0.18);
+pub(super) const TALENT_LOCKED_BG: Color = Color::srgb(0.07, 0.07, 0.07);
+pub(super) const TALENT_LOCKED_BORDER: Color = Color::srgb(0.18, 0.18, 0.18);
+pub(super) const TALENT_UNLOCKED_BORDER: Color = Color::srgb(0.3, 0.3, 0.35);
+pub(super) const TALENT_TIER_LABEL_FONT: f32 = 10.0;
+pub(super) const TALENT_DESC_FONT: f32 = 11.0;
+
 // Spell icon
-pub(super) const SPELL_ICON_SIZE: f32 = 32.0;
+pub(super) const SPELL_ICON_SIZE: f32 = 34.0;
 
 // ---------------------------------------------------------------------------
 // Buttons

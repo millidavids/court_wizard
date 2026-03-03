@@ -415,6 +415,7 @@ pub fn update_archer_targeting(
         if *team == Team::Defenders && !defenders_activated.active {
             targeting_velocity.velocity = Vec3::ZERO;
             targeting_velocity.distance_to_target = f32::MAX;
+            commands.entity(entity).remove::<crate::game::units::components::InMelee>();
             continue;
         }
         // Find nearest enemy

@@ -4,8 +4,8 @@ use bevy::ui::RelativeCursorPosition;
 
 use crate::config::ActiveSave;
 use crate::config::save_data::{
-    add_spell_research_progress, get_insight, get_spell_research_progress, load_unified_save,
-    spend_insight,
+    add_spell_research_progress, get_insight, get_spell_research_progress,
+    get_spell_talent_progress, get_spell_talent_selections, load_unified_save, spend_insight,
 };
 #[cfg(debug_assertions)]
 use crate::config::save_data::grant_insight;
@@ -638,100 +638,138 @@ fn spawn_study_screen(
                 }
             });
 
-            // -- Header Overlay (top, absolute) --
+            // -- UI Overlay (above graph, full-screen flex column) --
             root.spawn((
                 Node {
-                    width: Val::Percent(100.0),
                     position_type: PositionType::Absolute,
                     top: Val::Px(0.0),
                     left: Val::Px(0.0),
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::SpaceBetween,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
-            ))
-            .with_children(|header| {
-                header.spawn((
-                    Text::new("Study Spells"),
-                    TextFont::from_font_size(TITLE_FONT_SIZE),
-                    TextColor(TITLE_COLOR),
-                ));
-
-                header.spawn((
-                    Text::new(format!("Arcane Insight: {}", insight_balance)),
-                    TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                    TextColor(INSIGHT_COLOR),
-                    StudyInsightDisplay,
-                ));
-
-                header.spawn((
-                    Text::new("Pending: 0"),
-                    TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                    TextColor(PENDING_COLOR),
-                    PendingInsightDisplay,
-                ));
-            });
-
-            // -- Footer Overlay (bottom, absolute) --
-            root.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(0.0),
-                    left: Val::Px(0.0),
                     width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(20.0),
-                    padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
-            ))
-            .with_children(|footer| {
-                spawn_button(
-                    footer,
-                    "Commit",
-                    StudyButtonAction::Commit,
-                    &COMMIT_BUTTON_STYLE,
-                );
-
-                spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
-
-                #[cfg(debug_assertions)]
-                spawn_button(
-                    footer,
-                    "+10000 Insight",
-                    StudyButtonAction::DebugGrantInsight,
-                    &DEBUG_BUTTON_STYLE,
-                );
-            });
-
-            // -- Detail Panel (left side, absolute, hidden by default) --
-            root.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(60.0),
-                    left: Val::Px(12.0),
-                    width: Val::Px(DETAIL_PANEL_WIDTH),
-                    max_height: Val::Percent(80.0),
+                    height: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(DETAIL_PANEL_PADDING)),
-                    row_gap: Val::Px(8.0),
-                    border: UiRect::all(Val::Px(2.0)),
-                    overflow: Overflow::clip_y(),
-                    display: Display::None,
                     ..default()
                 },
-                BackgroundColor(DETAIL_PANEL_BG),
-                BorderColor::all(DETAIL_PANEL_BORDER),
-                BorderRadius::all(Val::Px(8.0)),
-                Interaction::None,
-                StudyDetailPanel,
-            ));
+                Pickable::IGNORE,
+            ))
+            .with_children(|overlay| {
+                // -- Header --
+                overlay
+                    .spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            flex_shrink: 0.0,
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::SpaceBetween,
+                            align_items: AlignItems::Center,
+                            padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
+                    ))
+                    .with_children(|header| {
+                        header.spawn((
+                            Text::new("Study Spells"),
+                            TextFont::from_font_size(TITLE_FONT_SIZE),
+                            TextColor(TITLE_COLOR),
+                        ));
+
+                        header.spawn((
+                            Text::new(format!("Arcane Insight: {}", insight_balance)),
+                            TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                            TextColor(INSIGHT_COLOR),
+                            StudyInsightDisplay,
+                        ));
+
+                        header.spawn((
+                            Text::new("Pending: 0"),
+                            TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                            TextColor(PENDING_COLOR),
+                            PendingInsightDisplay,
+                        ));
+                    });
+
+                // -- Middle area (fills space between header & footer) --
+                overlay
+                    .spawn((
+                        Node {
+                            flex_grow: 1.0,
+                            flex_shrink: 1.0,
+                            min_height: Val::Px(0.0),
+                            overflow: Overflow::clip_y(),
+                            padding: UiRect::new(
+                                Val::Px(12.0),
+                                Val::Px(0.0),
+                                Val::Px(8.0),
+                                Val::Px(8.0),
+                            ),
+                            ..default()
+                        },
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|middle| {
+                        // -- Detail Panel (hidden by default) --
+                        middle.spawn((
+                            Node {
+                                width: Val::Px(DETAIL_PANEL_WIDTH),
+                                flex_direction: FlexDirection::Column,
+                                padding: UiRect::all(Val::Px(DETAIL_PANEL_PADDING)),
+                                row_gap: Val::Px(8.0),
+                                border: UiRect::all(Val::Px(2.0)),
+                                overflow: Overflow::clip_y(),
+                                display: Display::None,
+                                ..default()
+                            },
+                            BackgroundColor(DETAIL_PANEL_BG),
+                            BorderColor::all(DETAIL_PANEL_BORDER),
+                            BorderRadius::all(Val::Px(8.0)),
+                            Interaction::None,
+                            Pickable {
+                                should_block_lower: true,
+                                is_hoverable: true,
+                            },
+                            StudyDetailPanel,
+                        ));
+                    });
+
+                // -- Footer --
+                overlay
+                    .spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            flex_shrink: 0.0,
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            column_gap: Val::Px(20.0),
+                            padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
+                    ))
+                    .with_children(|footer| {
+                        spawn_button(
+                            footer,
+                            "Commit",
+                            StudyButtonAction::Commit,
+                            &COMMIT_BUTTON_STYLE,
+                        );
+
+                        spawn_button(
+                            footer,
+                            "Back",
+                            StudyButtonAction::Back,
+                            &BACK_BUTTON_STYLE,
+                        );
+
+                        #[cfg(debug_assertions)]
+                        spawn_button(
+                            footer,
+                            "+10000 Insight",
+                            StudyButtonAction::DebugGrantInsight,
+                            &DEBUG_BUTTON_STYLE,
+                        );
+                    });
+            });
         });
 }
 
@@ -746,7 +784,17 @@ pub(super) fn handle_graph_node_clicks(
     node_query: Query<&SpellGraphNode>,
     mut selected: ResMut<SelectedStudySpell>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    panel_query: Query<(&Interaction, &Node), With<StudyDetailPanel>>,
 ) {
+    // Block node clicks when cursor is interacting with the detail panel
+    let panel_active = panel_query.iter().any(|(interaction, node)| {
+        node.display != Display::None && *interaction != Interaction::None
+    });
+    if panel_active {
+        for _ in button_clicked.read() {}
+        return;
+    }
+
     for event in button_clicked.read() {
         if let Ok(node) = node_query.get(event.button) {
             if selected.0 == Some(node.spell) {
@@ -806,7 +854,7 @@ pub(super) fn handle_graph_pan(
     bounds: Option<Res<GraphBounds>>,
     mut selected: ResMut<SelectedStudySpell>,
     node_interactions: Query<&Interaction, With<SpellGraphNode>>,
-    panel_interaction: Query<&Interaction, With<StudyDetailPanel>>,
+    panel_query: Query<(&Interaction, &Node), With<StudyDetailPanel>>,
     slider_interactions: Query<
         &Interaction,
         Or<(With<StudyAllocationSlider>, With<StudyAllocationHandle>)>,
@@ -822,18 +870,20 @@ pub(super) fn handle_graph_pan(
         return;
     };
 
+    // Check if cursor is over the detail panel using Bevy's Interaction state
+    let cursor_over_panel = panel_query.iter().any(|(interaction, node)| {
+        node.display != Display::None && *interaction != Interaction::None
+    });
+
     if buttons.just_pressed(MouseButton::Left) {
         // Don't start dragging if a node, the detail panel, or a slider is being pressed
         let any_node_pressed = node_interactions
             .iter()
             .any(|i| *i == Interaction::Pressed);
-        let panel_pressed = panel_interaction
-            .iter()
-            .any(|i| *i != Interaction::None);
         let slider_pressed = slider_interactions
             .iter()
             .any(|i| *i != Interaction::None);
-        if !any_node_pressed && !panel_pressed && !slider_pressed {
+        if !any_node_pressed && !cursor_over_panel && !slider_pressed {
             drag.dragging = true;
             drag.last_cursor = cursor_pos;
             drag.start_cursor = cursor_pos;
@@ -843,8 +893,8 @@ pub(super) fn handle_graph_pan(
 
     if buttons.just_released(MouseButton::Left) && drag.dragging {
         let total_moved = (cursor_pos - drag.start_cursor).length();
-        // Deselect on a click (not a drag) on empty space
-        if total_moved < 4.0 {
+        // Deselect on a click (not a drag) on empty space, but not over the detail panel
+        if total_moved < 4.0 && !cursor_over_panel {
             selected.0 = None;
         }
         drag.dragging = false;
@@ -1161,12 +1211,14 @@ pub(super) fn update_study_detail_panel(
                 TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
                 TextColor(COMPLETED_COLOR),
             ));
+            spawn_talent_section(panel, spell);
         } else if unlocked {
             panel.spawn((
                 Text::new("Researched"),
                 TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
                 TextColor(COMPLETED_COLOR),
             ));
+            spawn_talent_section(panel, spell);
         } else if prereq_met {
             // Unified progress + allocation slider
             let current_alloc = allocation
@@ -1195,7 +1247,7 @@ pub(super) fn update_study_detail_panel(
         } else {
             // Locked — show requirements
             panel.spawn(Node {
-                height: Val::Px(4.0),
+                height: Val::Px(6.0),
                 ..default()
             });
 
@@ -1238,6 +1290,197 @@ pub(super) fn update_study_detail_panel(
     });
 }
 
+/// Spawns the talent section below the research status for unlocked spells.
+fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
+    use crate::game::talents::{constants as talent_consts, definitions};
+
+    let talent_progress = get_spell_talent_progress(spell);
+    let thresholds = talent_consts::tier_thresholds(spell);
+    let metric_label = talent_consts::progress_metric_label(spell);
+    let defs = definitions::talent_definitions(spell);
+    let selections = get_spell_talent_selections(spell);
+
+    // Separator
+    parent.spawn(Node {
+        height: Val::Px(6.0),
+        ..default()
+    });
+
+    // "Talents" header with progress count
+    let max_threshold = thresholds[2];
+    parent.spawn((
+        Text::new(format!(
+            "-- Talents -- ({}/{})",
+            talent_progress.min(max_threshold),
+            max_threshold
+        )),
+        TextFont::from_font_size(TALENT_TIER_LABEL_FONT),
+        TextColor(Color::srgba(0.6, 0.6, 0.7, 0.8)),
+    ));
+
+    // Progress metric label
+    parent.spawn((
+        Text::new(metric_label),
+        TextFont::from_font_size(TALENT_CARD_FONT),
+        TextColor(Color::srgba(0.5, 0.5, 0.6, 0.6)),
+    ));
+
+    // Main talent layout: progress bar on left, tier cards on right
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(6.0),
+            margin: UiRect::top(Val::Px(4.0)),
+            align_items: AlignItems::Stretch,
+            ..default()
+        })
+        .with_children(|row| {
+            // Vertical progress bar (stretches to match tier column height)
+            row.spawn((
+                Node {
+                    width: Val::Px(TALENT_BAR_WIDTH),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                BackgroundColor(TALENT_BAR_BG),
+                BorderRadius::all(Val::Px(3.0)),
+            ))
+            .with_children(|bar| {
+                // Fill from top
+                let fill_frac = if max_threshold > 0 {
+                    (talent_progress as f32 / max_threshold as f32).min(1.0)
+                } else {
+                    0.0
+                };
+                bar.spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(fill_frac * 100.0),
+                        ..default()
+                    },
+                    BackgroundColor(TALENT_BAR_FILL),
+                    BorderRadius::all(Val::Px(3.0)),
+                    TalentProgressBarFill { spell },
+                ));
+            });
+
+            // Tier cards column
+            row.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(5.0),
+                ..default()
+            })
+            .with_children(|tiers_col| {
+                for tier in 0..3u8 {
+                    let tier_unlocked = talent_progress >= thresholds[tier as usize];
+                    let tier_defs = &defs[tier as usize];
+                    let current_selection = selections[tier as usize];
+
+                    // Tier label
+                    let tier_label = if tier_unlocked {
+                        format!("Tier {}", tier + 1)
+                    } else {
+                        format!("Tier {} ({}/{})", tier + 1, talent_progress.min(thresholds[tier as usize]), thresholds[tier as usize])
+                    };
+                    tiers_col.spawn((
+                        Text::new(tier_label),
+                        TextFont::from_font_size(TALENT_TIER_LABEL_FONT),
+                        TextColor(if tier_unlocked {
+                            TEXT_COLOR
+                        } else {
+                            LOCKED_TEXT_COLOR
+                        }),
+                    ));
+
+                    // Three cards in a row
+                    tiers_col
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(TALENT_CARD_GAP),
+                            ..default()
+                        })
+                        .with_children(|card_row| {
+                            for choice in 0..3u8 {
+                                let def = &tier_defs[choice as usize];
+                                let is_selected = current_selection == Some(choice);
+
+                                let bg_color = if tier_unlocked {
+                                    TALENT_UNLOCKED_BG
+                                } else {
+                                    TALENT_LOCKED_BG
+                                };
+                                let border_color = if is_selected {
+                                    TALENT_SELECTED_BORDER
+                                } else if tier_unlocked {
+                                    TALENT_UNLOCKED_BORDER
+                                } else {
+                                    TALENT_LOCKED_BORDER
+                                };
+
+                                let display_name = if tier_unlocked {
+                                    def.name
+                                } else {
+                                    "???"
+                                };
+
+                                card_row
+                                    .spawn((
+                                        Node {
+                                            width: Val::Px(TALENT_CARD_WIDTH),
+                                            height: Val::Px(TALENT_CARD_HEIGHT),
+                                            border: UiRect::all(Val::Px(if is_selected {
+                                                2.0
+                                            } else {
+                                                1.0
+                                            })),
+                                            padding: UiRect::all(Val::Px(3.0)),
+                                            justify_content: JustifyContent::Center,
+                                            align_items: AlignItems::Center,
+                                            overflow: Overflow::clip(),
+                                            ..default()
+                                        },
+                                        BackgroundColor(bg_color),
+                                        BorderColor::all(border_color),
+                                        BorderRadius::all(Val::Px(4.0)),
+                                        Interaction::default(),
+                                        TalentCard {
+                                            spell,
+                                            tier,
+                                            choice,
+                                        },
+                                    ))
+                                    .with_children(|card| {
+                                        card.spawn((
+                                            Text::new(display_name),
+                                            TextFont::from_font_size(TALENT_CARD_FONT),
+                                            TextColor(if tier_unlocked {
+                                                TEXT_COLOR
+                                            } else {
+                                                LOCKED_TEXT_COLOR
+                                            }),
+                                            TextLayout::new_with_justify(Justify::Center),
+                                        ));
+                                    });
+                            }
+                        });
+                }
+            });
+        });
+
+    // Description area for hovered/selected talent
+    parent.spawn((
+        Text::new(""),
+        TextFont::from_font_size(TALENT_DESC_FONT),
+        TextColor(TEXT_COLOR),
+        Node {
+            max_width: Val::Px(DETAIL_PANEL_WIDTH - DETAIL_PANEL_PADDING * 2.0),
+            margin: UiRect::top(Val::Px(4.0)),
+            ..default()
+        },
+        TalentDescriptionText,
+    ));
+}
+
 /// Spawns a progress bar in the detail panel.
 /// Spawns a unified progress + allocation slider in the detail panel.
 /// Committed progress is shown as a non-reducible filled region on the left.
@@ -1258,14 +1501,14 @@ fn spawn_detail_unified_slider(
             Node {
                 width: Val::Px(SLIDER_TRACK_WIDTH),
                 height: Val::Px(SLIDER_TRACK_HEIGHT),
-                border: UiRect::all(Val::Px(1.0)),
+                border: UiRect::all(Val::Px(2.0)),
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 position_type: PositionType::Relative,
                 ..default()
             },
             BorderColor::all(SLIDER_TRACK_BORDER),
-            BorderRadius::all(Val::Px(6.0)),
+            BorderRadius::all(Val::Px(8.0)),
             BackgroundColor(SLIDER_TRACK_BG),
             Interaction::default(),
             RelativeCursorPosition::default(),
@@ -1283,8 +1526,8 @@ fn spawn_detail_unified_slider(
                     ..default()
                 },
                 BorderRadius {
-                    top_left: Val::Px(6.0),
-                    bottom_left: Val::Px(6.0),
+                    top_left: Val::Px(8.0),
+                    bottom_left: Val::Px(8.0),
                     top_right: Val::Px(0.0),
                     bottom_right: Val::Px(0.0),
                 },
@@ -1318,7 +1561,7 @@ fn spawn_detail_unified_slider(
                     top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
                     ..default()
                 },
-                BorderRadius::all(Val::Px(3.0)),
+                BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(SLIDER_HANDLE_COLOR),
                 Interaction::default(),
                 RelativeCursorPosition::default(),
@@ -1562,5 +1805,98 @@ pub(super) fn update_star_sky_time(
         mat.data.time = elapsed;
         mat.data.pan_offset = pan_normalized;
         mat.data.zoom = zoom;
+    }
+}
+
+// ===========================================================================
+// Talent interaction systems
+// ===========================================================================
+
+/// Handles clicks on talent cards to select/deselect talents.
+pub(super) fn handle_talent_card_clicks(
+    mut selected: ResMut<SelectedStudySpell>,
+    interaction_query: Query<(&Interaction, &TalentCard), Changed<Interaction>>,
+) {
+    use crate::config::save_data::{get_spell_talent_progress, set_spell_talent_selection};
+    use crate::game::talents::constants as talent_consts;
+
+    for (interaction, card) in &interaction_query {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+
+        let talent_progress = get_spell_talent_progress(card.spell);
+        let thresholds = talent_consts::tier_thresholds(card.spell);
+
+        // Check if tier is unlocked
+        if talent_progress < thresholds[card.tier as usize] {
+            continue;
+        }
+
+        // Toggle selection: if already selected, deselect; otherwise select
+        let current = crate::config::save_data::get_spell_talent_selections(card.spell);
+        let new_choice = if current[card.tier as usize] == Some(card.choice) {
+            None
+        } else {
+            Some(card.choice)
+        };
+
+        set_spell_talent_selection(card.spell, card.tier as usize, new_choice);
+
+        // Force detail panel refresh by re-triggering SelectedStudySpell change
+        let spell = selected.0;
+        selected.0 = None;
+        selected.0 = spell;
+    }
+}
+
+/// Updates the talent description text when hovering over talent cards.
+pub(super) fn update_talent_hover_description(
+    interaction_query: Query<(&Interaction, &TalentCard), Changed<Interaction>>,
+    mut desc_query: Query<(&mut Text, &mut TextColor), With<TalentDescriptionText>>,
+) {
+    use crate::config::save_data::get_spell_talent_progress;
+    use crate::game::talents::{constants as talent_consts, definitions};
+
+    for (interaction, card) in &interaction_query {
+        if *interaction != Interaction::Hovered && *interaction != Interaction::Pressed {
+            continue;
+        }
+
+        let talent_progress = get_spell_talent_progress(card.spell);
+        let thresholds = talent_consts::tier_thresholds(card.spell);
+        let tier_unlocked = talent_progress >= thresholds[card.tier as usize];
+        let defs = definitions::talent_definitions(card.spell);
+        let def = &defs[card.tier as usize][card.choice as usize];
+
+        for (mut text, mut color) in &mut desc_query {
+            if tier_unlocked {
+                *text = Text::new(format!("{}: {}", def.name, def.description));
+                *color = TextColor(TEXT_COLOR);
+            } else {
+                *text = Text::new(def.locked_text);
+                *color = TextColor(LOCKED_TEXT_COLOR);
+            }
+        }
+    }
+}
+
+/// Clears the talent description text when not hovering any talent card.
+pub(super) fn clear_talent_hover_description(
+    interaction_query: Query<&Interaction, (With<TalentCard>, Changed<Interaction>)>,
+    mut desc_query: Query<&mut Text, With<TalentDescriptionText>>,
+) {
+    for interaction in &interaction_query {
+        if *interaction == Interaction::None {
+            // Only clear if no other card is hovered
+            let any_hovered = interaction_query
+                .iter()
+                .any(|i| *i == Interaction::Hovered || *i == Interaction::Pressed);
+            if !any_hovered {
+                for mut text in &mut desc_query {
+                    *text = Text::new("");
+                }
+            }
+        }
     }
 }

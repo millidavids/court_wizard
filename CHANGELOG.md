@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.165] - 2026-03-02
+
+### Added
+- **Spell talent system** — each spell now has a talent tree where using the spell in battle earns progress toward unlocking upgrades. Each spell has 3 tiers with 3 choices each — pick one per tier to customize how the spell works. Change your picks anytime from the Study screen
+- **Talent progress persists forever** — progress carries over between battles and never resets
+- **Talents for Magic Missile, Fireball, and Battle Hymn** — fully playable talent choices for these three spells, with placeholder talents shown for the rest
+
+### Fixed
+- **Defenders no longer crawl back to position** — after all enemies were defeated, defenders would sometimes inch back to their spots extremely slowly instead of walking at normal speed
+- **Clicking the spell detail panel no longer interacts with the spell web behind it**
+
 ## [v0.3.138] - 2026-03-02
 
 ### Improved

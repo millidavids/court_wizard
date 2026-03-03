@@ -17,6 +17,7 @@ use super::messages::{
     WaveSpawnedMessage,
 };
 use super::pathfinding::PathfindingPlugin;
+use super::talents::TalentsPlugin;
 use super::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
 };
@@ -110,6 +111,7 @@ impl Plugin for GamePlugin {
                 AchievementsPlugin,
                 DropsPlugin,
                 CrtEffectPlugin,
+                TalentsPlugin,
             ))
             .add_systems(
                 OnEnter(AppState::MetaGame),

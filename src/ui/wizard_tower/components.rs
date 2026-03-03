@@ -174,6 +174,41 @@ pub(super) struct StudyAllocationText {
 }
 
 // ---------------------------------------------------------------------------
+// Talent UI components
+// ---------------------------------------------------------------------------
+
+/// Marker for the talent section container.
+#[derive(Component)]
+#[allow(dead_code)]
+pub(super) struct TalentSection;
+
+/// Marker for a clickable talent card.
+#[derive(Component)]
+#[allow(dead_code)]
+pub(super) struct TalentCard {
+    pub spell: Spell,
+    pub tier: u8,
+    pub choice: u8,
+}
+
+/// Marker for the talent progress bar fill.
+#[derive(Component)]
+#[allow(dead_code)]
+pub(super) struct TalentProgressBarFill {
+    pub spell: Spell,
+}
+
+/// Marker for the talent description text area.
+#[derive(Component)]
+#[allow(dead_code)]
+pub(super) struct TalentDescriptionText;
+
+/// Resource tracking which talent card is hovered for description display.
+#[derive(Resource, Default)]
+#[allow(dead_code)]
+pub(super) struct HoveredTalent(pub Option<(Spell, u8, u8)>);
+
+// ---------------------------------------------------------------------------
 // Allocation resource
 // ---------------------------------------------------------------------------
 

@@ -45,6 +45,7 @@ pub(crate) fn send_battle_ended(
     mut retry_tracker: ResMut<RetryTracker>,
     mut message: MessageWriter<BattleEndedMessage>,
     mut battle_insight: ResMut<BattleInsightData>,
+    talent_progress: Option<Res<crate::game::talents::resources::BattleTalentProgress>>,
 ) {
     let is_victory = *game_outcome == GameOutcome::Victory;
 
@@ -92,6 +93,11 @@ pub(crate) fn send_battle_ended(
 
     battle_insight.insight_earned = insight;
     grant_insight(insight);
+
+    // Flush accumulated talent progress to save data
+    if let Some(tp) = &talent_progress {
+        tp.flush_to_save();
+    }
 
     message.write(BattleEndedMessage {
         outcome: *game_outcome,

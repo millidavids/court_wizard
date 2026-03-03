@@ -21,6 +21,7 @@ impl Plugin for FireballPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 (
                     systems::move_fireballs,
+                    systems::update_napalm_trails,
                     systems::spawn_fireball_smoke_trail,
                     systems::check_fireball_collisions,
                     systems::despawn_distant_fireballs,

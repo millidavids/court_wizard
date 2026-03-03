@@ -4,6 +4,38 @@ use super::constants;
 use crate::game::units::DamageType;
 use crate::game::units::components::Team;
 
+/// Concentration entity for Arcane Barrage talent.
+/// Periodically auto-casts magic missile volleys while active.
+#[derive(Component)]
+pub struct ArcaneBarrage {
+    /// Time since last volley was fired.
+    pub timer: f32,
+    /// Interval between volleys.
+    pub interval: f32,
+    /// Number of missiles per volley (from tier 1 talent).
+    pub missile_count: u32,
+    /// Damage multiplier (from tier 1/3 talents).
+    pub damage_mult: f32,
+    /// Whether missiles pierce (tier 2, choice 2 — Piercing Bolts).
+    pub piercing: bool,
+    /// Whether missiles use heavy ordnance radius (tier 1, choice 1).
+    pub heavy: bool,
+    /// Whether missiles have storm wobble (tier 3, choice 0).
+    pub storm_wobble: bool,
+    /// Whether missiles detonate on impact (tier 3, choice 1).
+    pub detonation: bool,
+    /// Whether missiles split on kill (tier 2, choice 0 — Seeker Swarm).
+    pub seeker_swarm: bool,
+    /// Whether missiles are cursor-guided (tier 3, choice 2 — Guided Devastation).
+    pub guided: bool,
+    /// Which teams to target.
+    pub target_teams: TargetTeams,
+    /// Wizard spell range.
+    pub spell_range: f32,
+    /// Empowerment multiplier.
+    pub empowerment: f32,
+}
+
 /// Cooldown timer for magic missile casting.
 ///
 /// Attached to the wizard entity. When `remaining > 0`, the wizard cannot cast another volley.
@@ -62,6 +94,18 @@ pub struct MagicMissile {
     pub spell_range: f32,
     /// Where the missile was spawned from (for despawn distance check).
     pub origin_pos: Vec3,
+    /// Whether this missile pierces through the first target (Piercing Bolts talent).
+    pub piercing: bool,
+    /// Number of targets already pierced (for piercing talent).
+    pub pierced_count: u8,
+    /// Whether this missile detonates on impact for AoE (Arcane Detonation talent).
+    pub detonation: bool,
+    /// Whether this missile splits into 2 on kill (Seeker Swarm talent).
+    pub seeker_swarm: bool,
+    /// Split generation (0 = original, limits recursive splitting).
+    pub split_generation: u8,
+    /// Whether this missile is cursor-guided (Guided Devastation talent).
+    pub guided: bool,
 }
 
 impl MagicMissile {
@@ -99,6 +143,12 @@ impl MagicMissile {
             target_teams,
             spell_range,
             origin_pos,
+            piercing: false,
+            pierced_count: 0,
+            detonation: false,
+            seeker_swarm: false,
+            split_generation: 0,
+            guided: false,
         }
     }
 

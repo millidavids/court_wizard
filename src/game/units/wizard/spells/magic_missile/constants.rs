@@ -61,7 +61,7 @@ pub const MIN_PROXIMITY_SPEED: f32 = 300.0;
 pub const SLOWDOWN_DISTANCE: f32 = 300.0;
 
 /// Damage dealt by each magic missile.
-pub const DAMAGE: f32 = 30.0;
+pub const DAMAGE: f32 = 24.0;
 
 /// Type of damage dealt by magic missiles.
 pub const DAMAGE_TYPE: DamageType = DamageType::Force;

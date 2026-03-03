@@ -54,6 +54,13 @@ pub(crate) struct PlayerMetaProgress {
     /// Per-spell research progress: spell debug name → insight invested so far.
     #[serde(default)]
     pub(crate) spell_research_progress: HashMap<String, u32>,
+    /// Per-spell talent progress: spell debug name → cumulative usage progress.
+    #[serde(default)]
+    pub(crate) spell_talent_progress: HashMap<String, u32>,
+    /// Per-spell talent selections: spell debug name → Vec<i8> of length 3
+    /// where -1 = no selection, 0-2 = choice index.
+    #[serde(default)]
+    pub(crate) spell_talent_selections: HashMap<String, Vec<i8>>,
 }
 
 /// Tracks which content the player has unlocked (spells, ingredients, wizard types).
@@ -413,6 +420,8 @@ pub(crate) fn clear_progress() {
     save_file.player.total_undead_killed = 0;
     save_file.player.arcane_insight = 0;
     save_file.player.spell_research_progress.clear();
+    save_file.player.spell_talent_progress.clear();
+    save_file.player.spell_talent_selections.clear();
 
     // Reset all wizard saves to level 1
     for wizard in &mut save_file.wizards {
@@ -834,6 +843,78 @@ pub(crate) fn add_spell_research_progress(spell: Spell, amount: u32) -> bool {
 
     save_unified(&save_file);
     newly_unlocked
+}
+
+// ---------------------------------------------------------------------------
+// Spell Talent Progress & Selections
+// ---------------------------------------------------------------------------
+
+/// Returns the talent progress for a specific spell.
+pub(crate) fn get_spell_talent_progress(spell: Spell) -> u32 {
+    let name = format!("{:?}", spell);
+    load_unified_save()
+        .and_then(|s| s.player.spell_talent_progress.get(&name).copied())
+        .unwrap_or(0)
+}
+
+/// Add talent progress to a spell and persist.
+pub(crate) fn add_spell_talent_progress(spell: Spell, amount: u32) {
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+    let name = format!("{:?}", spell);
+    let entry = save_file
+        .player
+        .spell_talent_progress
+        .entry(name)
+        .or_insert(0);
+    *entry += amount;
+    save_unified(&save_file);
+}
+
+/// Returns the talent selections for a spell as [Option<u8>; 3].
+pub(crate) fn get_spell_talent_selections(spell: Spell) -> [Option<u8>; 3] {
+    let name = format!("{:?}", spell);
+    let raw = load_unified_save()
+        .and_then(|s| s.player.spell_talent_selections.get(&name).cloned());
+
+    match raw {
+        Some(vec) => {
+            let mut result = [None; 3];
+            for (i, &val) in vec.iter().take(3).enumerate() {
+                result[i] = if val >= 0 { Some(val as u8) } else { None };
+            }
+            result
+        }
+        None => [None; 3],
+    }
+}
+
+/// Set a talent selection for a spell at a given tier and persist.
+pub(crate) fn set_spell_talent_selection(spell: Spell, tier: usize, choice: Option<u8>) {
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+    let name = format!("{:?}", spell);
+    let entry = save_file
+        .player
+        .spell_talent_selections
+        .entry(name)
+        .or_insert_with(|| vec![-1, -1, -1]);
+
+    // Ensure vec is at least 3 elements
+    while entry.len() < 3 {
+        entry.push(-1);
+    }
+
+    if tier < 3 {
+        entry[tier] = match choice {
+            Some(c) => c as i8,
+            None => -1,
+        };
+    }
+
+    save_unified(&save_file);
 }
 
 /// Grant one-time Insight bonus for an achievement. Returns the amount granted (0 if none).

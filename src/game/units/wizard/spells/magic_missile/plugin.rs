@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{MagicMissile, MagicMissileCooldown};
+use super::components::{ArcaneBarrage, MagicMissile, MagicMissileCooldown};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -21,6 +21,9 @@ impl Plugin for MagicMissilePlugin {
                     .run_if(spell_is_primed(Spell::MagicMissile))
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
+                    .run_if(is_spell_effects_active),
+                systems::update_arcane_barrage
+                    .run_if(any_exist::<ArcaneBarrage>())
                     .run_if(is_spell_effects_active),
                 (
                     systems::move_magic_missiles,

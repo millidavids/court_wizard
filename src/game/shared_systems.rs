@@ -372,6 +372,7 @@ pub fn combat(
         Option<&super::units::components::MarkedForDeathModifier>,
         Option<&super::units::components::BerserkerRageModifier>,
         Option<&super::units::components::SleepModifier>,
+        Option<&super::units::components::BattleHymnModifier>,
     )>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -460,6 +461,7 @@ pub fn combat(
                     marked_for_death,
                     berserker_rage_target,
                     target_sleeping,
+                    target_battle_hymn,
                 )) = health_query.get_mut(*target_entity)
             {
                 // Check fog evasion
@@ -485,6 +487,13 @@ pub fn combat(
                 // Apply target's damage resistance (Wormwood brew)
                 if let Some(resistance) = target_resistance {
                     modified_damage *= 1.0 - resistance.0;
+                }
+
+                // Apply Battle Hymn damage reduction (Anthem of Resilience talent)
+                if let Some(hymn) = target_battle_hymn {
+                    if hymn.damage_reduction > 0.0 {
+                        modified_damage *= 1.0 - hymn.damage_reduction;
+                    }
                 }
 
                 // Apply target's Mark of Death amplification

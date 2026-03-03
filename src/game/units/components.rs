@@ -847,6 +847,10 @@ pub struct BattleHymnModifier {
     pub attack_speed: f32,
     /// Time remaining before the buff expires (in seconds).
     pub time_remaining: f32,
+    /// Echoing Song talent: if > 0, buff re-applies with this duration when it expires.
+    pub echo_duration: f32,
+    /// Anthem of Resilience talent: damage reduction percentage (e.g., 0.3 = 30% less damage taken).
+    pub damage_reduction: f32,
 }
 
 impl BattleHymnModifier {
@@ -855,12 +859,25 @@ impl BattleHymnModifier {
             damage_bonus,
             attack_speed,
             time_remaining: duration,
+            echo_duration: 0.0,
+            damage_reduction: 0.0,
         }
     }
 
     pub fn update(&mut self, delta: f32) -> bool {
         self.time_remaining -= delta;
-        self.time_remaining <= 0.0
+        if self.time_remaining <= 0.0 {
+            if self.echo_duration > 0.0 {
+                // Echoing Song: re-apply at reduced duration
+                self.time_remaining = self.echo_duration;
+                self.echo_duration = 0.0;
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 
     pub fn refresh(&mut self, duration: f32) {

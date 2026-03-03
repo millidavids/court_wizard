@@ -58,6 +58,9 @@ impl Plugin for WizardTowerPlugin {
                     update_study_detail_panel,
                     update_allocation_text,
                     update_pending_insight_display,
+                    handle_talent_card_clicks,
+                    update_talent_hover_description,
+                    clear_talent_hover_description,
                 )
                     .run_if(in_state(MetaGameState::Study)),
             );

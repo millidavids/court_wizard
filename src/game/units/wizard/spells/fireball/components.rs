@@ -20,6 +20,18 @@ pub struct Fireball {
     pub radius: f32,
     /// Whether this fireball is empowered (for residual effect scaling).
     pub empowerment: f32,
+    /// Cluster Bomb talent: on impact, spawn 3 mini-fireballs.
+    pub cluster_bomb: bool,
+    /// Napalm talent: leaves burning trail while flying.
+    pub napalm: bool,
+    /// Napalm timer for periodic trail spawning.
+    pub napalm_timer: f32,
+    /// Scorched Earth talent: explosion leaves persistent burning ground.
+    pub scorched_earth: bool,
+    /// Chain Ignition talent: hit enemies take +50% damage for 3s.
+    pub chain_ignition: bool,
+    /// Override explosion duration (0.0 = use default).
+    pub explosion_duration: f32,
 }
 
 impl Fireball {
@@ -39,6 +51,12 @@ impl Fireball {
             explosion_radius,
             radius,
             empowerment,
+            cluster_bomb: false,
+            napalm: false,
+            napalm_timer: 0.0,
+            scorched_earth: false,
+            chain_ignition: false,
+            explosion_duration: 0.0,
         }
     }
 }
@@ -64,6 +82,14 @@ pub struct FireballExplosion {
     /// Empowerment multiplier for spell effectiveness.
     #[allow(dead_code)]
     pub empowerment: f32,
+    /// Duration of this explosion (allows per-explosion override, e.g. Lingering Flames).
+    pub duration: f32,
+    /// Chain Ignition talent: apply damage amplification debuff to hit enemies.
+    pub chain_ignition: bool,
+    /// Skip radius growth — start at full size immediately.
+    pub skip_growth: bool,
+    /// Which spell created this explosion (for talent progress tracking).
+    pub source_spell: crate::game::units::wizard::components::Spell,
 }
 
 impl FireballExplosion {
@@ -75,6 +101,7 @@ impl FireballExplosion {
         damage_type: DamageType,
         empowerment: f32,
     ) -> Self {
+        use super::constants;
         Self {
             origin,
             max_radius,
@@ -83,16 +110,20 @@ impl FireballExplosion {
             time_alive: 0.0,
             time_since_last_tick: 0.0,
             empowerment,
+            duration: constants::EXPLOSION_DURATION,
+            chain_ignition: false,
+            skip_growth: false,
+            source_spell: crate::game::units::wizard::components::Spell::Fireball,
         }
     }
 
     /// Returns the current radius of the explosion based on how long it's been active.
-    pub fn current_radius(&self, duration: f32) -> f32 {
-        if duration <= 0.0 {
+    pub fn current_radius(&self) -> f32 {
+        if self.skip_growth || self.duration <= 0.0 {
             return self.max_radius;
         }
 
-        let growth_factor = (self.time_alive / duration).min(1.0);
+        let growth_factor = (self.time_alive / self.duration).min(1.0);
         self.max_radius * growth_factor
     }
 }

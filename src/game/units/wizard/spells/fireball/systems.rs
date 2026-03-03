@@ -14,11 +14,12 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
-use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{Health, MarkedForDeathModifier, Team, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::talents::resources::ActiveTalents;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
@@ -46,6 +47,7 @@ pub fn handle_fireball_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -77,6 +79,7 @@ pub fn handle_fireball_casting(
         &visual_assets,
         &sfx,
         &game_config,
+        &active_talents,
     );
 
     if completed {
@@ -98,6 +101,7 @@ fn fireball_casting_logic(
     assets: &SpellVisualAssets,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
+    active_talents: &Option<Res<ActiveTalents>>,
 ) -> bool {
     let mut completed = false;
 
@@ -110,6 +114,14 @@ fn fireball_casting_logic(
         return false;
     }
 
+    // Determine talent-modified cast time
+    let talents = active_talents.as_deref();
+    let t2 = talents.and_then(|t| t.get_selection(Spell::Fireball, 1));
+    let cast_time = match t2 {
+        Some(2) => 2.0, // Quick Ignition (tier 2, choice 2)
+        _ => primed_spell.cast_time,
+    };
+
     match *casting_state {
         CastingState::Channeling { .. } => {
             casting_state.cancel();
@@ -117,13 +129,13 @@ fn fireball_casting_logic(
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
 
-            if casting_state.is_complete(primed_spell.cast_time) {
+            if casting_state.is_complete(cast_time) {
                 if mana.consume(constants::MANA_COST)
                     && let Some(target_pos) = input.cursor_pos
                 {
                     let spawn_origin = SPELL_ORIGIN
                         + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
-                    spawn_fireball(commands, assets, spawn_origin, target_pos, primed_spell);
+                    spawn_fireball_with_talents(commands, assets, spawn_origin, target_pos, primed_spell, active_talents);
                     audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config);
                     completed = true;
                 }
@@ -145,30 +157,89 @@ fn fireball_casting_logic(
     completed
 }
 
-/// Spawns a fireball projectile from a PrimedSpell (wizard casting).
-pub(crate) fn spawn_fireball(
+/// Spawns a fireball with talent modifications applied.
+fn spawn_fireball_with_talents(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     origin: Vec3,
     target: Vec3,
     primed_spell: &PrimedSpell,
+    active_talents: &Option<Res<ActiveTalents>>,
 ) {
-    let direction = (target - origin).normalize();
-    let speed = primed_spell.scale(constants::PROJECTILE_SPEED);
-    let velocity = direction * speed;
+    let talents = active_talents.as_deref();
+    let t1 = talents.and_then(|t| t.get_selection(Spell::Fireball, 0));
+    let t2 = talents.and_then(|t| t.get_selection(Spell::Fireball, 1));
+    let t3 = talents.and_then(|t| t.get_selection(Spell::Fireball, 2));
 
-    spawn_fireball_entity(
-        commands,
-        assets,
-        origin,
+    // Tier 1 modifications
+    let radius_mult = match t1 {
+        Some(0) => 1.5,  // Wider Blast
+        Some(2) => 0.5,  // Focused Blast: half radius
+        _ => 1.0,
+    };
+    let duration_mult = match t1 {
+        Some(1) => 1.8,  // Lingering Flames: +80% duration
+        _ => 1.0,
+    };
+    let damage_mult = match t1 {
+        Some(2) => 2.0,  // Focused Blast: double damage
+        _ => 1.0,
+    };
+
+    // Tier 2 modifications
+    let cluster_bomb = t2 == Some(0);
+    let napalm = t2 == Some(1);
+
+    // Tier 3 modifications
+    let scorched_earth = t3 == Some(1);
+    let chain_ignition = t3 == Some(2);
+    let is_meteor = t3 == Some(0);
+    let radius_mult = if is_meteor { radius_mult * 1.3 } else { radius_mult };
+
+    // Calculate spawn position and velocity
+    let (spawn_origin, velocity) = if is_meteor {
+        // Meteor: spawn high above target, drop straight down
+        let meteor_origin = Vec3::new(target.x, 800.0, target.z);
+        let speed = primed_spell.scale(constants::PROJECTILE_SPEED) * 1.5;
+        (meteor_origin, Vec3::new(0.0, -speed, 0.0))
+    } else {
+        let direction = (target - origin).normalize();
+        let speed = primed_spell.scale(constants::PROJECTILE_SPEED);
+        (origin, direction * speed)
+    };
+
+    let explosion_duration = constants::EXPLOSION_DURATION * duration_mult;
+    let damage = primed_spell.scale(constants::DAMAGE_PER_TICK) * damage_mult / duration_mult;
+    let explosion_radius = primed_spell.scale(constants::EXPLOSION_RADIUS) * radius_mult;
+    let collision_radius = primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS);
+    let visual_radius = primed_spell.scale(FIREBALL_RADIUS);
+
+    // Build fireball with talent flags
+    let mut fireball = Fireball::new(
         velocity,
-        primed_spell.scale(constants::DAMAGE_PER_TICK),
+        damage,
         constants::DAMAGE_TYPE,
-        primed_spell.scale(constants::EXPLOSION_RADIUS),
-        primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS),
+        explosion_radius,
+        collision_radius,
         primed_spell.empowerment,
-        primed_spell.scale(FIREBALL_RADIUS),
     );
+    fireball.cluster_bomb = cluster_bomb;
+    fireball.napalm = napalm;
+    fireball.scorched_earth = scorched_earth;
+    fireball.chain_ignition = chain_ignition;
+    fireball.explosion_duration = explosion_duration;
+
+    let entity = commands
+        .spawn((
+            Mesh3d(assets.cross_plane_sphere.clone()),
+            MeshMaterial3d(assets.fireball_projectile.clone()),
+            Transform::from_translation(spawn_origin).with_scale(Vec3::splat(visual_radius)),
+            fireball,
+            OnGameplayScreen,
+        ))
+        .id();
+
+    vfx::systems::spawn_fire_glow(commands, assets, entity, spawn_origin, visual_radius);
 }
 
 /// Spawns a raw fireball entity with explicit parameters.
@@ -259,6 +330,7 @@ pub fn spawn_fireball_smoke_trail(
 /// Checks for fireball collisions with units or the ground.
 ///
 /// When a fireball hits a unit or the ground, it explodes.
+/// Talent effects: Cluster Bomb spawns mini-fireballs, Scorched Earth leaves burning ground.
 pub fn check_fireball_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
@@ -274,23 +346,24 @@ pub fn check_fireball_collisions(
     for (fireball_entity, fireball_transform, fireball, crystal_spawn) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
+        let explode_at = |commands: &mut Commands, pos: Vec3| {
+            spawn_explosion_with_talents(
+                commands,
+                &visual_assets,
+                pos,
+                fireball,
+                t,
+                &sfx,
+                &game_config,
+                crystal_spawn,
+            );
+        };
+
         // Check collision with walls
         let mut hit_wall = false;
         for wall in &walls {
             if wall.contains_point_xz(fireball_pos) && fireball_pos.y <= wall.height {
-                let explosion_pos = fireball_pos;
-                spawn_explosion(
-                    &mut commands,
-                    &visual_assets,
-                    explosion_pos,
-                    fireball.explosion_radius,
-                    fireball.damage,
-                    fireball.empowerment,
-                    t,
-                    &sfx,
-                    &game_config,
-                    crystal_spawn,
-                );
+                explode_at(&mut commands, fireball_pos);
                 commands.entity(fireball_entity).despawn();
                 hit_wall = true;
                 break;
@@ -302,20 +375,8 @@ pub fn check_fireball_collisions(
 
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {
-            // Raise slightly above ground so cross-plane sphere isn't hidden
             let explosion_pos = Vec3::new(fireball_pos.x, 5.0, fireball_pos.z);
-            spawn_explosion(
-                &mut commands,
-                &visual_assets,
-                explosion_pos,
-                fireball.explosion_radius,
-                fireball.damage,
-                fireball.empowerment,
-                t,
-                &sfx,
-                &game_config,
-                crystal_spawn,
-            );
+            explode_at(&mut commands, explosion_pos);
             commands.entity(fireball_entity).despawn();
             continue;
         }
@@ -325,18 +386,7 @@ pub fn check_fireball_collisions(
             let distance = fireball_pos.distance(target_transform.translation);
 
             if distance < fireball.radius {
-                spawn_explosion(
-                    &mut commands,
-                    &visual_assets,
-                    fireball_pos,
-                    fireball.explosion_radius,
-                    fireball.damage,
-                    fireball.empowerment,
-                    t,
-                    &sfx,
-                    &game_config,
-                    crystal_spawn,
-                );
+                explode_at(&mut commands, fireball_pos);
                 commands.entity(fireball_entity).despawn();
                 break;
             }
@@ -344,31 +394,39 @@ pub fn check_fireball_collisions(
     }
 }
 
-/// Spawns a fireball explosion at the given position with sparks and smoke.
-fn spawn_explosion(
+/// Spawns a fireball explosion with talent effects at the given position.
+fn spawn_explosion_with_talents(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,
-    max_radius: f32,
-    damage: f32,
-    empowerment: f32,
+    fireball: &Fireball,
     time_secs: f32,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     crystal_spawn: Option<&CrystalSpawn>,
 ) {
+    let explosion_duration = if fireball.explosion_duration > 0.0 {
+        fireball.explosion_duration
+    } else {
+        constants::EXPLOSION_DURATION
+    };
+
+    let mut explosion = FireballExplosion::new(
+        position,
+        fireball.explosion_radius,
+        fireball.damage,
+        constants::DAMAGE_TYPE,
+        fireball.empowerment,
+    );
+    explosion.duration = explosion_duration;
+    explosion.chain_ignition = fireball.chain_ignition;
+
     let entity = commands
         .spawn((
             Mesh3d(assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.fireball_explosion.clone()),
             Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
-            FireballExplosion::new(
-                position,
-                max_radius,
-                damage,
-                constants::DAMAGE_TYPE,
-                empowerment,
-            ),
+            explosion,
             NetworkedSpellEffect {
                 kind: SpellEffectKind::FireballExplosion,
             },
@@ -400,6 +458,117 @@ fn spawn_explosion(
 
     // Impact sound effect
     audio::play_sfx(commands, &sfx.fireball_impact, position, game_config);
+
+    // Cluster Bomb: spawn 3 mini-fireballs in random directions
+    if fireball.cluster_bomb {
+        spawn_cluster_bombs(commands, assets, position, fireball);
+    }
+
+    // Scorched Earth: spawn persistent burning ground circle
+    if fireball.scorched_earth {
+        let scorched_pos = Vec3::new(position.x, 1.5, position.z);
+        let mut scorched = FireballExplosion::new(
+            scorched_pos,
+            fireball.explosion_radius * 0.8,
+            fireball.damage * 0.3,
+            constants::DAMAGE_TYPE,
+            fireball.empowerment,
+        );
+        scorched.duration = 5.0;
+        scorched.skip_growth = true;
+        scorched.chain_ignition = fireball.chain_ignition;
+
+        commands.spawn((
+            Mesh3d(assets.unit_circle.clone()),
+            MeshMaterial3d(assets.grease_fire.clone()),
+            Transform::from_translation(scorched_pos)
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(fireball.explosion_radius * 0.8)),
+            scorched,
+            OnGameplayScreen,
+        ));
+    }
+}
+
+/// Spawns 3 mini-fireballs for the Cluster Bomb talent.
+fn spawn_cluster_bombs(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    origin: Vec3,
+    parent_fireball: &Fireball,
+) {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..3 {
+        let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+        let distance = rng.gen_range(100.0..300.0);
+        let flight_time = 0.4;
+        let horizontal_speed = distance / flight_time;
+        let vy = -(origin.y.max(5.0)) / flight_time;
+        let velocity = Vec3::new(angle.cos() * horizontal_speed, vy, angle.sin() * horizontal_speed);
+
+        let mut mini = Fireball::new(
+            velocity,
+            parent_fireball.damage * 0.5,
+            constants::DAMAGE_TYPE,
+            parent_fireball.explosion_radius * 0.5,
+            parent_fireball.radius * 0.5,
+            parent_fireball.empowerment,
+        );
+        mini.scorched_earth = parent_fireball.scorched_earth;
+        mini.chain_ignition = parent_fireball.chain_ignition;
+
+        let visual_radius = 15.0 * parent_fireball.empowerment;
+
+        let entity = commands
+            .spawn((
+                Mesh3d(assets.cross_plane_sphere.clone()),
+                MeshMaterial3d(assets.fireball_projectile.clone()),
+                Transform::from_translation(origin).with_scale(Vec3::splat(visual_radius)),
+                mini,
+                OnGameplayScreen,
+            ))
+            .id();
+
+        vfx::systems::spawn_fire_glow(commands, assets, entity, origin, visual_radius);
+    }
+}
+
+/// Napalm talent: fireballs with napalm leave small burning zones behind them.
+pub fn update_napalm_trails(
+    mut commands: Commands,
+    time: Res<Time>,
+    visual_assets: Res<SpellVisualAssets>,
+    mut fireballs: Query<(&Transform, &mut Fireball)>,
+) {
+    for (transform, mut fireball) in &mut fireballs {
+        if !fireball.napalm {
+            continue;
+        }
+        fireball.napalm_timer += time.delta_secs();
+        if fireball.napalm_timer >= 0.1 {
+            fireball.napalm_timer = 0.0;
+
+            let pos = Vec3::new(transform.translation.x, 3.0, transform.translation.z);
+            let mut trail_explosion = FireballExplosion::new(
+                pos,
+                30.0 * fireball.empowerment,
+                fireball.damage * 0.2,
+                constants::DAMAGE_TYPE,
+                fireball.empowerment,
+            );
+            trail_explosion.duration = 1.0;
+
+            commands.spawn((
+                Mesh3d(visual_assets.cross_plane_sphere.clone()),
+                MeshMaterial3d(visual_assets.fireball_explosion.clone()),
+                Transform::from_translation(pos).with_scale(Vec3::splat(30.0 * fireball.empowerment)),
+                trail_explosion,
+                OnGameplayScreen,
+            ));
+        }
+    }
 }
 
 /// Updates explosion visuals and timing.
@@ -411,7 +580,7 @@ pub fn update_explosions(
         explosion.time_alive += time.delta_secs();
         explosion.time_since_last_tick += time.delta_secs();
 
-        let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
+        let current_radius = explosion.current_radius();
         transform.scale = Vec3::splat(current_radius);
     }
 }
@@ -426,15 +595,18 @@ pub fn apply_explosion_damage(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        Option<&MarkedForDeathModifier>,
     )>,
+    mut talent_progress: Option<ResMut<crate::game::talents::resources::BattleTalentProgress>>,
 ) {
     for mut explosion in &mut explosions {
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
             explosion.time_since_last_tick = 0.0;
 
-            let current_radius = explosion.current_radius(constants::EXPLOSION_DURATION);
+            let current_radius = explosion.current_radius();
+            let mut hit_count = 0u32;
 
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield, existing_mark) in &mut targets {
                 let distance = explosion.origin.distance(transform.translation);
 
                 if distance <= current_radius {
@@ -444,9 +616,21 @@ pub fn apply_explosion_damage(
                         &mut health,
                         temp_hp.as_deref_mut(),
                         explosion.damage_per_tick,
-                        constants::DAMAGE_TYPE,
+                        explosion.damage_type,
                         has_spell_shield,
                     );
+                    hit_count += 1;
+
+                    // Chain Ignition: apply damage amplification debuff
+                    if explosion.chain_ignition && existing_mark.is_none() {
+                        commands.entity(entity).insert(MarkedForDeathModifier::new(0.5, 3.0));
+                    }
+                }
+            }
+
+            if hit_count > 0 {
+                if let Some(ref mut progress) = talent_progress {
+                    progress.increment(explosion.source_spell, hit_count);
                 }
             }
         }
@@ -459,7 +643,7 @@ pub fn cleanup_finished_explosions(
     explosions: Query<(Entity, &FireballExplosion)>,
 ) {
     for (entity, explosion) in &explosions {
-        if explosion.time_alive >= constants::EXPLOSION_DURATION {
+        if explosion.time_alive >= explosion.duration {
             commands.entity(entity).despawn();
         }
     }
