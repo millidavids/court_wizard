@@ -26,11 +26,36 @@ pub(super) enum WizardTowerButtonAction {
     StudySpells,
     StartNextBattle,
     ReturnToMenu,
+    StartTimeTravel,
     #[cfg(debug_assertions)]
     DebugLevelUp,
     #[cfg(debug_assertions)]
     DebugLevelDown,
 }
+
+// ---------------------------------------------------------------------------
+// Time Travel components
+// ---------------------------------------------------------------------------
+
+/// Marker for the outer collapsible time travel container (toggled visible/hidden).
+#[derive(Component)]
+pub(super) struct TimeTravelContainer;
+
+/// Marker for the scrollable time travel level list (used by handle_scroll).
+#[derive(Component)]
+pub(super) struct TimeTravelSection;
+
+/// Clickable level entry in the time travel list.
+#[derive(Component)]
+pub(super) struct TimeTravelLevelButton(pub u32);
+
+/// Text showing the currently selected time travel level.
+#[derive(Component)]
+pub(super) struct TimeTravelSelectedDisplay;
+
+/// Tracks which level is selected in the time travel list.
+#[derive(Resource, Default)]
+pub(super) struct SelectedTimeTravelLevel(pub Option<u32>);
 
 /// Marker for the level display text on the hub screen (for reactive updates).
 #[cfg(debug_assertions)]

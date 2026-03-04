@@ -4,9 +4,10 @@ use bevy::prelude::UiMaterialPlugin;
 use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 
-use super::components::{GraphViewAnimation, GraphViewState, SelectedStudySpell};
+use super::components::{GraphViewAnimation, GraphViewState, SelectedStudySpell, SelectedTimeTravelLevel, TimeTravelSection};
 use super::materials::{RadialProgressMaterial, StarSkyMaterial};
 use super::systems::*;
+use crate::ui::systems::handle_scroll;
 
 pub struct WizardTowerPlugin;
 
@@ -21,8 +22,14 @@ impl Plugin for WizardTowerPlugin {
             .add_systems(OnExit(MetaGameState::WizardTower), crate::ui::systems::cleanup_screen::<super::components::OnMainScreen>)
             .add_systems(
                 Update,
-                handle_main_button_actions
-                    .in_set(ButtonActionSet)
+                (
+                    handle_main_button_actions.in_set(ButtonActionSet),
+                    handle_time_travel_level_clicks
+                        .in_set(ButtonActionSet)
+                        .run_if(resource_exists::<SelectedTimeTravelLevel>),
+                    handle_time_travel_level_hover,
+                    handle_scroll::<TimeTravelSection>,
+                )
                     .run_if(in_state(MetaGameState::WizardTower)),
             )
             // Study substate

@@ -12,7 +12,8 @@ use crate::config::save_data::grant_insight;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
-use crate::game::resources::{BattleInsightData, CurrentLevel, KillStats};
+use crate::game::constants::boss_name_for_level;
+use crate::game::resources::{BattleInsightData, CurrentLevel, KillStats, TimeTravelState};
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
 use crate::state::{AppState, MetaGameState};
@@ -123,58 +124,73 @@ fn compute_slider_fracs(progress: u32, alloc: u32, cost: u32) -> (f32, f32, f32)
 // ===========================================================================
 
 /// Sets up the wizard tower main hub screen.
-pub(super) fn setup_wizard_tower_main(mut commands: Commands, current_level: Res<CurrentLevel>) {
+pub(super) fn setup_wizard_tower_main(
+    mut commands: Commands,
+    current_level: Res<CurrentLevel>,
+    config: Res<crate::config::GameConfig>,
+) {
     let insight_balance = get_insight();
+    commands.insert_resource(SelectedTimeTravelLevel::default());
+
+    let show_time_travel = config.highest_level_achieved > 1;
 
     commands
         .spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
+                flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                row_gap: Val::Px(20.0),
+                column_gap: Val::Px(60.0),
                 ..default()
             },
             BackgroundColor(BACKGROUND_COLOR),
             OnWizardTowerScreen,
             OnMainScreen,
         ))
-        .with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Wizard's Tower"),
-                TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TITLE_COLOR),
-            ));
+        .with_children(|root| {
+            // Left column - main hub content
+            root.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            })
+            .with_children(|left| {
+                // Title
+                left.spawn((
+                    Text::new("Wizard's Tower"),
+                    TextFont::from_font_size(TITLE_FONT_SIZE),
+                    TextColor(TITLE_COLOR),
+                ));
 
-            // Level display
-            #[cfg(debug_assertions)]
-            parent.spawn((
-                Text::new(format!("Level {}", current_level.0)),
-                TextFont::from_font_size(LEVEL_FONT_SIZE),
-                TextColor(TEXT_COLOR),
-                LevelDisplay,
-            ));
-            #[cfg(not(debug_assertions))]
-            parent.spawn((
-                Text::new(format!("Level {}", current_level.0)),
-                TextFont::from_font_size(LEVEL_FONT_SIZE),
-                TextColor(TEXT_COLOR),
-            ));
+                // Level display
+                #[cfg(debug_assertions)]
+                left.spawn((
+                    Text::new(format!("Level {}", current_level.0)),
+                    TextFont::from_font_size(LEVEL_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                    LevelDisplay,
+                ));
+                #[cfg(not(debug_assertions))]
+                left.spawn((
+                    Text::new(format!("Level {}", current_level.0)),
+                    TextFont::from_font_size(LEVEL_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                ));
 
-            // Insight balance
-            parent.spawn((
-                Text::new(format!("Arcane Insight: {}", insight_balance)),
-                TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                TextColor(INSIGHT_COLOR),
-                InsightDisplay,
-            ));
+                // Insight balance
+                left.spawn((
+                    Text::new(format!("Arcane Insight: {}", insight_balance)),
+                    TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                    TextColor(INSIGHT_COLOR),
+                    InsightDisplay,
+                ));
 
-            // Buttons
-            parent
-                .spawn(Node {
+                // Buttons
+                left.spawn(Node {
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     row_gap: Val::Px(12.0),
@@ -230,19 +246,121 @@ pub(super) fn setup_wizard_tower_main(mut commands: Commands, current_level: Res
                             });
                     }
                 });
+            });
+
+            // Right column - Time Travel (only if player has beaten at least level 1)
+            if show_time_travel {
+                root.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    row_gap: Val::Px(10.0),
+                    ..default()
+                })
+                .with_children(|right| {
+                    // Title
+                    right.spawn((
+                        Text::new("Time Travel"),
+                        TextFont::from_font_size(20.0),
+                        TextColor(TIME_TRAVEL_BOSS_COLOR),
+                    ));
+
+                    // Level list container with border
+                    right
+                        .spawn((
+                            Node {
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::Center,
+                                row_gap: Val::Px(6.0),
+                                padding: UiRect::all(Val::Px(8.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                width: Val::Px(240.0),
+                                ..default()
+                            },
+                            BackgroundColor(TIME_TRAVEL_SECTION_BG),
+                            BorderColor::all(TIME_TRAVEL_SECTION_BORDER),
+                            TimeTravelContainer,
+                        ))
+                        .with_children(|section| {
+                            // Scrollable level list
+                            section
+                                .spawn((
+                                    Node {
+                                        flex_direction: FlexDirection::Column,
+                                        align_items: AlignItems::Stretch,
+                                        max_height: Val::Px(TIME_TRAVEL_LIST_MAX_HEIGHT),
+                                        width: Val::Percent(100.0),
+                                        overflow: Overflow::scroll_y(),
+                                        ..default()
+                                    },
+                                    ScrollPosition::default(),
+                                    TimeTravelSection,
+                                ))
+                                .with_children(|list| {
+                                    for level in 1..config.highest_level_achieved {
+                                        let label = if let Some(boss) = boss_name_for_level(level) {
+                                            format!("Level {} ({})", level, boss)
+                                        } else {
+                                            format!("Level {}", level)
+                                        };
+                                        let text_color = if boss_name_for_level(level).is_some() {
+                                            TIME_TRAVEL_BOSS_COLOR
+                                        } else {
+                                            TEXT_COLOR
+                                        };
+
+                                        list.spawn((
+                                            Button,
+                                            Node {
+                                                height: Val::Px(TIME_TRAVEL_LEVEL_HEIGHT),
+                                                padding: UiRect::horizontal(Val::Px(8.0)),
+                                                align_items: AlignItems::Center,
+                                                ..default()
+                                            },
+                                            BackgroundColor(Color::NONE),
+                                            TimeTravelLevelButton(level),
+                                        ))
+                                        .with_child((
+                                            Text::new(label),
+                                            TextFont::from_font_size(TIME_TRAVEL_LEVEL_FONT_SIZE),
+                                            TextColor(text_color),
+                                        ));
+                                    }
+                                });
+
+                            // Selected level display
+                            section.spawn((
+                                Text::new("Select a level..."),
+                                TextFont::from_font_size(TIME_TRAVEL_LEVEL_FONT_SIZE),
+                                TextColor(TEXT_COLOR),
+                                TimeTravelSelectedDisplay,
+                            ));
+
+                            // Start button
+                            spawn_button(
+                                section,
+                                "Start Time Travel",
+                                WizardTowerButtonAction::StartTimeTravel,
+                                &START_TIME_TRAVEL_BUTTON_STYLE,
+                            );
+                        });
+                });
+            }
         });
 }
 
 /// Handles button actions on the hub screen.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_main_button_actions(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&WizardTowerButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_wt_state: ResMut<NextState<MetaGameState>>,
     mut kill_stats: ResMut<KillStats>,
+    mut current_level: ResMut<CurrentLevel>,
     mut active_save: ResMut<ActiveSave>,
-    #[cfg(debug_assertions)] mut current_level: ResMut<CurrentLevel>,
+    selected_tt_level: Option<Res<SelectedTimeTravelLevel>>,
     #[cfg(debug_assertions)] mut config: ResMut<crate::config::GameConfig>,
     #[cfg(debug_assertions)] mut level_texts: Query<&mut Text, With<LevelDisplay>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
@@ -264,6 +382,19 @@ pub(super) fn handle_main_button_actions(
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }
+                WizardTowerButtonAction::StartTimeTravel => {
+                    if let Some(ref sel) = selected_tt_level {
+                        if let Some(level) = sel.0 {
+                            commands.insert_resource(TimeTravelState {
+                                real_level: current_level.0,
+                            });
+                            current_level.0 = level;
+                            channel_change.write(ChannelChangeMessage);
+                            kill_stats.reset();
+                            next_app_state.set(AppState::Loading);
+                        }
+                    }
+                }
                 #[cfg(debug_assertions)]
                 WizardTowerButtonAction::DebugLevelUp => {
                     current_level.0 += 1;
@@ -284,6 +415,87 @@ pub(super) fn handle_main_button_actions(
                 }
             }
         }
+    }
+}
+
+/// Handles clicks on time travel level buttons.
+pub(super) fn handle_time_travel_level_clicks(
+    mut button_clicked: MessageReader<MouseClicked>,
+    level_buttons: Query<&TimeTravelLevelButton>,
+    mut selected: ResMut<SelectedTimeTravelLevel>,
+    mut level_button_nodes: Query<(
+        &TimeTravelLevelButton,
+        &mut BackgroundColor,
+        &Children,
+    )>,
+    mut text_queries: ParamSet<(
+        Query<(&mut Text, &mut TextColor), With<TimeTravelSelectedDisplay>>,
+        Query<&mut TextColor>,
+    )>,
+) {
+    for event in button_clicked.read() {
+        if let Ok(btn) = level_buttons.get(event.button) {
+            let selected_level = btn.0;
+            selected.0 = Some(selected_level);
+
+            // Update display text
+            for (mut text, mut color) in &mut text_queries.p0() {
+                text.0 = format!("Selected: Level {}", selected_level);
+                color.0 = TIME_TRAVEL_SELECTED_TEXT;
+            }
+
+            // Collect child updates needed (to avoid borrow conflicts)
+            let updates: Vec<(Entity, Color)> = level_button_nodes
+                .iter()
+                .flat_map(|(lb, _, children)| {
+                    let is_selected = lb.0 == selected_level;
+                    let color = if is_selected {
+                        TIME_TRAVEL_SELECTED_TEXT
+                    } else if boss_name_for_level(lb.0).is_some() {
+                        TIME_TRAVEL_BOSS_COLOR
+                    } else {
+                        TEXT_COLOR
+                    };
+                    children.iter().map(move |child| (child, color))
+                })
+                .collect();
+
+            // Apply background highlights
+            for (lb, mut bg, _) in &mut level_button_nodes {
+                bg.0 = if lb.0 == selected_level {
+                    TIME_TRAVEL_SELECTED_BG
+                } else {
+                    Color::NONE
+                };
+            }
+
+            // Apply text color updates
+            let mut text_colors = text_queries.p1();
+            for (entity, color) in updates {
+                if let Ok(mut tc) = text_colors.get_mut(entity) {
+                    tc.0 = color;
+                }
+            }
+        }
+    }
+}
+
+/// Handles hover effects on time travel level buttons.
+pub(super) fn handle_time_travel_level_hover(
+    mut level_buttons: Query<
+        (&Interaction, &TimeTravelLevelButton, &mut BackgroundColor),
+        Changed<Interaction>,
+    >,
+    selected: Option<Res<SelectedTimeTravelLevel>>,
+) {
+    let selected_level = selected.and_then(|s| s.0);
+    for (interaction, btn, mut bg) in &mut level_buttons {
+        let is_selected = selected_level == Some(btn.0);
+        bg.0 = match *interaction {
+            Interaction::Hovered | Interaction::Pressed if !is_selected => TIME_TRAVEL_HOVER_BG,
+            _ if is_selected => TIME_TRAVEL_SELECTED_BG,
+            _ => Color::NONE,
+        };
     }
 }
 
@@ -1789,6 +2001,7 @@ pub(super) fn cleanup_wizard_tower_resources(mut commands: Commands) {
     commands.remove_resource::<SelectedStudySpell>();
     commands.remove_resource::<GraphViewAnimation>();
     commands.remove_resource::<GraphBounds>();
+    commands.remove_resource::<SelectedTimeTravelLevel>();
 }
 
 // ===========================================================================

@@ -360,6 +360,18 @@ pub const fn is_boss_level(level: u32) -> bool {
     level >= LEVELS_PER_TIER && level.is_multiple_of(LEVELS_PER_TIER)
 }
 
+/// Returns the boss name for a given boss level, or None if not a boss level.
+pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
+    if !is_boss_level(level) {
+        return None;
+    }
+    Some(match get_tier(level) {
+        0 => "Ogre",
+        1 => "Hags",
+        _ => "Ogre",
+    })
+}
+
 // ===== Level-Based Spawn Calculations =====
 
 /// Maximum units per grid cell before spilling to the next cell.

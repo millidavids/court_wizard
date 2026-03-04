@@ -7,7 +7,7 @@ use super::upgrade_systems;
 use crate::config::GameConfig;
 use crate::game::constants::*;
 use crate::game::crt_effect::ChannelChangeMessage;
-use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats, WaveState};
+use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats, TimeTravelState, WaveState};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
@@ -26,9 +26,13 @@ pub fn init_loading_progress(
     mut current_level: ResMut<CurrentLevel>,
     mut kill_stats: ResMut<KillStats>,
     config: Res<GameConfig>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
-    // Sync CurrentLevel from GameConfig (may have been updated by save loading)
-    current_level.0 = config.current_level;
+    // Sync CurrentLevel from GameConfig, but skip during time travel
+    // (CurrentLevel was already overridden by the wizard tower hub)
+    if time_travel.is_none() {
+        current_level.0 = config.current_level;
+    }
 
     commands.insert_resource(LoadingProgress::new());
 

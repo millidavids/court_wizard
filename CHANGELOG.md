@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.228] - 2026-03-04
+
+### Added
+- **Time Travel** — replay any previously beaten level from the Wizard Tower hub. A new panel on the right side shows all your cleared levels, with boss levels highlighted by name. Selecting a level and hitting "Start Time Travel" lets you replay it without affecting your progression. After the battle, you return to the tower at your real level
+
 ## [v0.3.220] - 2026-03-04
 
 ### Added

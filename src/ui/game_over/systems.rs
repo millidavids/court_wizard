@@ -5,7 +5,7 @@ use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
-use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats};
+use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats, TimeTravelState};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
@@ -23,7 +23,11 @@ pub(super) fn save_efficiency_to_config(
     mut config: ResMut<GameConfig>,
     kill_stats: Res<KillStats>,
     mut config_events: MessageWriter<ConfigChanged>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
+    if time_travel.is_some() {
+        return;
+    }
     // Calculate efficiency ratio for this level
     let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
     let defenders_lost = kill_stats.defenders_killed as f32;
@@ -47,7 +51,11 @@ pub(super) fn update_level_after_display(
     mut config: ResMut<GameConfig>,
     game_outcome: Res<GameOutcome>,
     mut config_events: MessageWriter<ConfigChanged>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
+    if time_travel.is_some() {
+        return;
+    }
     // Update level based on win/loss
     match *game_outcome {
         GameOutcome::Victory => {
@@ -75,8 +83,9 @@ pub(super) fn save_walls_on_victory(
     game_outcome: Res<GameOutcome>,
     mut config: ResMut<GameConfig>,
     walls: Query<&WallOfStone>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
-    if *game_outcome != GameOutcome::Victory {
+    if time_travel.is_some() || *game_outcome != GameOutcome::Victory {
         return;
     }
 
@@ -104,7 +113,9 @@ pub(super) fn setup_game_over_screen(
     current_level: Res<CurrentLevel>,
     config: Res<GameConfig>,
     battle_insight: Res<BattleInsightData>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
+    let is_time_travel = time_travel.is_some();
     // Load lifetime stats (already accumulated by send_battle_ended)
     let save = load_unified_save();
     let lifetime_attackers = save
@@ -172,41 +183,64 @@ pub(super) fn setup_game_over_screen(
                         ));
                     }
 
-                    // Play Again button text depends on outcome
-                    let button_text = match *game_outcome {
-                        GameOutcome::Victory => "Continue".to_string(),
-                        GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                            format!("Time Rewind (Level {})", current_level.0)
+                    if is_time_travel {
+                        // Time travel: victory shows only "Return to Tower"
+                        // Defeat shows retry + return to tower
+                        if matches!(
+                            *game_outcome,
+                            GameOutcome::Defeat | GameOutcome::DefeatKingDied
+                        ) {
+                            spawn_button(
+                                buttons,
+                                &format!("Time Rewind (Level {})", current_level.0),
+                                GameOverButtonAction::PlayAgain,
+                                &BUTTON_STYLE,
+                            );
                         }
-                    };
 
-                    spawn_button(
-                        buttons,
-                        &button_text,
-                        GameOverButtonAction::PlayAgain,
-                        &BUTTON_STYLE,
-                    );
-
-                    // Return to Tower button (only on defeat)
-                    if matches!(
-                        *game_outcome,
-                        GameOutcome::Defeat | GameOutcome::DefeatKingDied
-                    ) {
                         spawn_button(
                             buttons,
                             "Return to Tower",
                             GameOverButtonAction::ReturnToTower,
                             &BUTTON_STYLE,
                         );
-                    }
+                    } else {
+                        // Normal flow
+                        let button_text = match *game_outcome {
+                            GameOutcome::Victory => "Continue".to_string(),
+                            GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
+                                format!("Time Rewind (Level {})", current_level.0)
+                            }
+                        };
 
-                    // Return to Menu button
-                    spawn_button(
-                        buttons,
-                        "Return to Menu",
-                        GameOverButtonAction::ReturnToMenu,
-                        &BUTTON_STYLE,
-                    );
+                        spawn_button(
+                            buttons,
+                            &button_text,
+                            GameOverButtonAction::PlayAgain,
+                            &BUTTON_STYLE,
+                        );
+
+                        // Return to Tower button (only on defeat)
+                        if matches!(
+                            *game_outcome,
+                            GameOutcome::Defeat | GameOutcome::DefeatKingDied
+                        ) {
+                            spawn_button(
+                                buttons,
+                                "Return to Tower",
+                                GameOverButtonAction::ReturnToTower,
+                                &BUTTON_STYLE,
+                            );
+                        }
+
+                        // Return to Menu button
+                        spawn_button(
+                            buttons,
+                            "Return to Menu",
+                            GameOverButtonAction::ReturnToMenu,
+                            &BUTTON_STYLE,
+                        );
+                    }
                 });
 
             // Right column - Statistics
@@ -321,12 +355,15 @@ pub(super) fn setup_game_over_screen(
 }
 
 pub(super) fn handle_button_actions(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&GameOverButtonAction>,
     game_outcome: Res<GameOutcome>,
     mut next_app_state: ResMut<NextState<AppState>>,
+    mut current_level: ResMut<CurrentLevel>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
+    time_travel: Option<Res<TimeTravelState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -334,24 +371,45 @@ pub(super) fn handle_button_actions(
             channel_change.write(ChannelChangeMessage);
             match action {
                 GameOverButtonAction::PlayAgain => {
-                    match *game_outcome {
-                        GameOutcome::Victory => {
-                            // Go to Wizard Tower for progression (direct, no Loading)
-                            next_app_state.set(AppState::MetaGame);
+                    if let Some(ref tt) = time_travel {
+                        match *game_outcome {
+                            GameOutcome::Victory => {
+                                // Time travel victory: restore real level, return to tower
+                                current_level.0 = tt.real_level;
+                                commands.remove_resource::<TimeTravelState>();
+                                next_app_state.set(AppState::MetaGame);
+                            }
+                            GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
+                                // Retry the time-traveled level (TimeTravelState persists)
+                                kill_stats.reset();
+                                next_app_state.set(AppState::Loading);
+                            }
                         }
-                        GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                            // Immediate retry via Loading → InGame
-                            kill_stats.reset();
-                            next_app_state.set(AppState::Loading);
+                    } else {
+                        match *game_outcome {
+                            GameOutcome::Victory => {
+                                next_app_state.set(AppState::MetaGame);
+                            }
+                            GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
+                                kill_stats.reset();
+                                next_app_state.set(AppState::Loading);
+                            }
                         }
                     }
                 }
                 GameOverButtonAction::ReturnToTower => {
                     kill_stats.reset();
+                    if let Some(ref tt) = time_travel {
+                        current_level.0 = tt.real_level;
+                        commands.remove_resource::<TimeTravelState>();
+                    }
                     next_app_state.set(AppState::MetaGame);
                 }
                 GameOverButtonAction::ReturnToMenu => {
                     kill_stats.reset();
+                    if time_travel.is_some() {
+                        commands.remove_resource::<TimeTravelState>();
+                    }
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }

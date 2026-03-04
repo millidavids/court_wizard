@@ -144,6 +144,29 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
 };
 
+// ---------------------------------------------------------------------------
+// Time Travel
+// ---------------------------------------------------------------------------
+pub(super) const TIME_TRAVEL_SECTION_BG: Color = Color::srgb(0.06, 0.04, 0.1);
+pub(super) const TIME_TRAVEL_SECTION_BORDER: Color = Color::srgb(0.3, 0.2, 0.5);
+pub(super) const TIME_TRAVEL_LIST_MAX_HEIGHT: f32 = 200.0;
+pub(super) const TIME_TRAVEL_LEVEL_HEIGHT: f32 = 32.0;
+pub(super) const TIME_TRAVEL_BOSS_COLOR: Color = Color::srgb(1.0, 0.7, 0.2);
+pub(super) const TIME_TRAVEL_HOVER_BG: Color = Color::srgba(1.0, 0.95, 0.7, 0.1);
+pub(super) const TIME_TRAVEL_SELECTED_BG: Color = Color::srgba(1.0, 0.85, 0.3, 0.15);
+pub(super) const TIME_TRAVEL_SELECTED_TEXT: Color = Color::srgb(1.0, 0.85, 0.3);
+pub(super) const TIME_TRAVEL_LEVEL_FONT_SIZE: f32 = 14.0;
+
+pub(super) const START_TIME_TRAVEL_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 200.0,
+    height: 40.0,
+    border_width: 2.0,
+    font_size: 14.0,
+    background: Color::srgb(0.2, 0.1, 0.35),
+    border: Color::srgb(0.5, 0.3, 0.7),
+    text_color: Color::srgb(0.9, 0.85, 1.0),
+};
+
 #[cfg(debug_assertions)]
 pub(super) const DEBUG_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: 200.0,
