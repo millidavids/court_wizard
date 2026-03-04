@@ -25,6 +25,8 @@ pub struct SpellVisualAssets {
     pub cross_plane_sphere: Handle<Mesh>,
     /// 2-plane cross cylinder (2 quads along Y axis, double-sided). Low-poly cylinder for beams.
     pub cross_plane_cylinder: Handle<Mesh>,
+    /// 2-plane cross triangle (tapers from point at Y=0 to full width at Y=height, double-sided).
+    pub cross_plane_triangle: Handle<Mesh>,
     /// Low-resolution torus (unit-scale) for black hole rings.
     pub black_hole_torus: Handle<Mesh>,
 
@@ -105,6 +107,12 @@ pub struct SpellVisualAssets {
 
     // ── Disintegrate smoke material ─────────────────────────────────────
     pub disintegrate_smoke: Handle<StandardMaterial>,
+
+    // ── Disintegrate talent materials ────────────────────────────────────
+    /// Bright white-gold material for searing finale detonation.
+    pub searing_finale: Handle<StandardMaterial>,
+    /// Dark glowing ground eclipse at beam impact point.
+    pub disintegrate_eclipse: Handle<StandardMaterial>,
 
     // ── Finger of Death VFX materials ────────────────────────────────────
     pub necrotic_vein: Handle<StandardMaterial>,
@@ -357,6 +365,24 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
+        // Disintegrate talent materials
+        searing_finale: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.95, 0.7, 0.8),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(5.0, 4.5, 2.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        disintegrate_eclipse: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(2.5, 1.0, 0.1, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
         // Finger of Death VFX
         necrotic_vein: materials.add(StandardMaterial {
             base_color: Color::srgba(0.6, 0.0, 0.8, 0.8),
@@ -407,6 +433,8 @@ pub fn init_spell_visual_assets(
         cross_plane_sphere: meshes.add(build_cross_plane_sphere(1.0)),
         // Cross-plane cylinder: 2 intersecting quads along Y axis, radius 0.5, height 1.0
         cross_plane_cylinder: meshes.add(build_cross_plane_cylinder(0.5, 1.0)),
+        // Cross-plane triangle: 2 intersecting triangles (point at Y=0, widens to radius at Y=height)
+        cross_plane_triangle: meshes.add(build_cross_plane_triangle(0.5, 1.0)),
         // Low-poly torus for black hole rings (unit-scale, scaled by Transform)
         black_hole_torus: meshes.add(
             Torus::new(1.0 - TORUS_MINOR_RADIUS, 1.0 + TORUS_MINOR_RADIUS)
@@ -499,6 +527,63 @@ fn build_cross_plane_sphere(radius: f32) -> Mesh {
             indices.push(base + 1 + i);
         }
     }
+
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        bevy::asset::RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh.insert_indices(Indices::U16(indices));
+    mesh
+}
+
+/// Builds a cross-plane triangle mesh: 2 perpendicular triangles that taper from a point
+/// at Y=0 to full `base_radius` width at Y=`height`. Used for disintegrate beam (narrow at
+/// origin, wide at tip). Double-sided rendering (8 triangles total).
+fn build_cross_plane_triangle(base_radius: f32, height: f32) -> Mesh {
+    let r = base_radius;
+    let h = height;
+
+    // XY plane: point at origin, widens along X at Y=height
+    // ZY plane: point at origin, widens along Z at Y=height
+    // Each triangle is doubled for back-face rendering
+    let positions: Vec<[f32; 3]> = vec![
+        // XY plane front (3 verts)
+        [0.0, 0.0, 0.0], [-r, h, 0.0], [r, h, 0.0],
+        // XY plane back (3 verts, reversed winding)
+        [0.0, 0.0, 0.0], [r, h, 0.0], [-r, h, 0.0],
+        // ZY plane front (3 verts)
+        [0.0, 0.0, 0.0], [0.0, h, -r], [0.0, h, r],
+        // ZY plane back (3 verts, reversed winding)
+        [0.0, 0.0, 0.0], [0.0, h, r], [0.0, h, -r],
+    ];
+
+    let normals: Vec<[f32; 3]> = vec![
+        // XY plane front
+        [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0],
+        // XY plane back
+        [0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0],
+        // ZY plane front
+        [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
+        // ZY plane back
+        [-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0],
+    ];
+
+    let uvs: Vec<[f32; 2]> = vec![
+        [0.5, 0.0], [0.0, 1.0], [1.0, 1.0],
+        [0.5, 0.0], [1.0, 1.0], [0.0, 1.0],
+        [0.5, 0.0], [0.0, 1.0], [1.0, 1.0],
+        [0.5, 0.0], [1.0, 1.0], [0.0, 1.0],
+    ];
+
+    let indices: Vec<u16> = vec![
+        0, 1, 2,     // XY front
+        3, 4, 5,     // XY back
+        6, 7, 8,     // ZY front
+        9, 10, 11,   // ZY back
+    ];
 
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,

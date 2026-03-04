@@ -179,7 +179,7 @@ pub fn move_dispel_projectiles(
                 },
                 OnGameplayScreen,
             ));
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -209,7 +209,7 @@ pub fn update_dispel_impacts(
         impact.time_alive += time.delta_secs();
 
         if impact.time_alive >= impact.duration {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -431,5 +431,5 @@ pub(crate) fn despawn_spell_effect(
         });
     }
 
-    commands.entity(spell_entity).despawn();
+    commands.entity(spell_entity).try_despawn();
 }

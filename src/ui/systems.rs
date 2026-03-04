@@ -13,6 +13,21 @@ use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::MouseButtonState;
 use crate::state::{InGameState, MenuState, MultiplayerGameState, PauseMenuState};
 
+/// Scales a font size down based on text width to fit within a constrained area.
+///
+/// Returns `base_font` when `max_width <= min_chars`, scaling linearly down to
+/// `base_font * min_scale` when `max_width >= max_chars`.
+pub(crate) fn scale_font_by_text_width(
+    max_width: f32,
+    min_chars: f32,
+    max_chars: f32,
+    min_scale: f32,
+    base_font: f32,
+) -> f32 {
+    let t = ((max_width - min_chars) / (max_chars - min_chars)).clamp(0.0, 1.0);
+    base_font * (1.0 - t * (1.0 - min_scale))
+}
+
 /// Marker component to track that a button was pressed down.
 #[derive(Component)]
 pub struct ButtonPressedDown;
@@ -281,7 +296,7 @@ pub fn handle_scroll<T: Component>(
 /// Use as `cleanup_screen::<OnMyScreen>` when registering `OnExit` systems.
 pub fn cleanup_screen<T: Component>(mut commands: Commands, query: Query<Entity, With<T>>) {
     for entity in &query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 }
 

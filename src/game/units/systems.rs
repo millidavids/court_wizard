@@ -460,7 +460,7 @@ pub fn update_electric_arc_visuals(
     for (entity, mut arc) in query.iter_mut() {
         arc.time_alive += delta;
         if arc.time_alive >= arc.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

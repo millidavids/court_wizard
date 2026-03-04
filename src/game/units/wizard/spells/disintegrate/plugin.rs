@@ -3,7 +3,8 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{
-    BeamGlow, BeamOriginFlare, BeamSmoke, DisintegrateBeam, DisintegrateParticle,
+    BeamEclipse, BeamGlow, BeamOriginFlare, BeamSmoke, DisintegrateBeam, DisintegrateParticle,
+    SearingFinaleDetonation,
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -24,9 +25,11 @@ impl Plugin for DisintegratePlugin {
                     .run_if(mouse_held_or_wizard_casting)
                     .run_if(is_spell_effects_active),
                 (
+                    systems::update_sweep_beams,
                     systems::update_beam_visuals,
                     systems::update_beam_glow,
                     systems::update_beam_origin_flare,
+                    systems::update_beam_eclipse,
                     systems::spawn_impact_particles,
                     systems::spawn_beam_smoke,
                     systems::apply_disintegrate_damage,
@@ -37,6 +40,7 @@ impl Plugin for DisintegratePlugin {
                         any_exist::<DisintegrateBeam>()
                             .or(any_exist::<BeamGlow>())
                             .or(any_exist::<BeamOriginFlare>())
+                            .or(any_exist::<BeamEclipse>())
                             .or(any_exist::<ChannelingSfx>()),
                     )
                     .run_if(is_spell_effects_active),
@@ -45,6 +49,9 @@ impl Plugin for DisintegratePlugin {
                     .run_if(is_spell_effects_active),
                 systems::update_beam_smoke
                     .run_if(any_exist::<BeamSmoke>())
+                    .run_if(is_spell_effects_active),
+                systems::update_searing_finale_detonations
+                    .run_if(any_exist::<SearingFinaleDetonation>())
                     .run_if(is_spell_effects_active),
             ),
         );

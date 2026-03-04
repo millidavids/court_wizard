@@ -46,7 +46,7 @@ pub(crate) fn send_battle_ended(
     mut retry_tracker: ResMut<RetryTracker>,
     mut message: MessageWriter<BattleEndedMessage>,
     mut battle_insight: ResMut<BattleInsightData>,
-    talent_progress: Option<Res<crate::game::talents::resources::BattleTalentProgress>>,
+    talent_progress: Option<Res<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
 ) {
     let is_victory = *game_outcome == GameOutcome::Victory;
 

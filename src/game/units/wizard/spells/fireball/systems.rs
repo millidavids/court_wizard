@@ -19,7 +19,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::talents::resources::ActiveTalents;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
@@ -365,7 +365,7 @@ pub fn check_fireball_collisions(
         for wall in &walls {
             if wall.contains_point_xz(fireball_pos) && fireball_pos.y <= wall.height {
                 explode_at(&mut commands, fireball_pos);
-                commands.entity(fireball_entity).despawn();
+                commands.entity(fireball_entity).try_despawn();
                 hit_wall = true;
                 break;
             }
@@ -378,7 +378,7 @@ pub fn check_fireball_collisions(
         if fireball_pos.y <= 0.0 {
             let explosion_pos = Vec3::new(fireball_pos.x, 5.0, fireball_pos.z);
             explode_at(&mut commands, explosion_pos);
-            commands.entity(fireball_entity).despawn();
+            commands.entity(fireball_entity).try_despawn();
             continue;
         }
 
@@ -388,7 +388,7 @@ pub fn check_fireball_collisions(
 
             if distance < fireball.radius {
                 explode_at(&mut commands, fireball_pos);
-                commands.entity(fireball_entity).despawn();
+                commands.entity(fireball_entity).try_despawn();
                 break;
             }
         }
@@ -440,6 +440,7 @@ fn spawn_explosion_with_talents(
         commands.entity(entity).insert(CrystalSpawn {
             origin: cs.origin,
             max_range: cs.max_range,
+            lifetime: None,
         });
     }
 
@@ -599,7 +600,7 @@ pub fn apply_explosion_damage(
         Has<SpellShield>,
         Option<&MarkedForDeathModifier>,
     )>,
-    mut talent_progress: Option<ResMut<crate::game::talents::resources::BattleTalentProgress>>,
+    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
 ) {
     for mut explosion in &mut explosions {
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
@@ -646,7 +647,7 @@ pub fn cleanup_finished_explosions(
 ) {
     for (entity, explosion) in &explosions {
         if explosion.time_alive >= explosion.duration {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -667,7 +668,7 @@ pub fn despawn_distant_fireballs(
         let distance_from_wizard = transform.translation.distance(SPELL_ORIGIN);
 
         if distance_from_wizard > spell_range {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

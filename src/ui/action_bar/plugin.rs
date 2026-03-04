@@ -4,6 +4,7 @@ use crate::game::run_conditions::is_local_wizard_active;
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::plugin::ButtonActionSet;
 
+use super::components::InfiniteMana;
 use super::messages::AssignSpellToSlot;
 use super::systems;
 
@@ -13,7 +14,8 @@ pub struct ActionBarPlugin;
 
 impl Plugin for ActionBarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<AssignSpellToSlot>()
+        app.init_resource::<InfiniteMana>()
+            .add_message::<AssignSpellToSlot>()
             // SP spawn
             .add_systems(OnEnter(InGameState::Running), systems::spawn_action_bar)
             // MP spawn
@@ -25,6 +27,7 @@ impl Plugin for ActionBarPlugin {
                 Update,
                 (
                     systems::handle_slot_click.in_set(ButtonActionSet),
+                    systems::handle_debug_mana_click.in_set(ButtonActionSet),
                     systems::handle_keyboard_input,
                 )
                     .run_if(is_local_wizard_active),

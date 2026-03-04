@@ -217,7 +217,7 @@ pub(super) fn update_achievement_popups(
         timer.elapsed += time.delta_secs();
 
         if timer.is_expired() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 

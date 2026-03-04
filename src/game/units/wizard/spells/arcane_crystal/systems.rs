@@ -23,8 +23,11 @@ use crate::game::units::wizard::components::{
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::constants as cl_constants;
 use crate::game::units::wizard::spells::chain_lightning::systems as chain_lightning_systems;
-use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
+use crate::game::units::wizard::spells::disintegrate::components::{
+    BeamEclipse, BeamGlow, BeamOriginFlare, DisintegrateBeam,
+};
 use crate::game::units::wizard::spells::disintegrate::systems as disintegrate_systems;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::wizard::spells::finger_of_death::components::FingerOfDeathBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
@@ -42,13 +45,26 @@ use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor
 
 // ===== Helper Functions =====
 
+/// Computes beam direction and length for a crystal beam.
+/// The beam slopes from crystal height (origin.y) to Y=0 at max_range,
+/// with its XZ direction aimed toward the target.
+fn crystal_beam_geometry(origin: Vec3, target: Vec3, max_range: f32) -> (Vec3, f32) {
+    let origin_xz = Vec3::new(origin.x, 0.0, origin.z);
+    let target_xz = Vec3::new(target.x, 0.0, target.z);
+    let xz_dir = (target_xz - origin_xz).normalize_or(Vec3::X);
+    let end_point = origin_xz + xz_dir * max_range; // Y=0 at range edge
+    let direction = (end_point - origin).normalize();
+    let length = origin.distance(end_point);
+    (direction, length)
+}
+
 /// Finds random targets within range of a position.
 /// Returns up to `count` random targets from any team (spells are indiscriminate).
 fn find_random_targets_in_range(
     crystal_pos: Vec3,
     range: f32,
     count: usize,
-    units: &Query<(Entity, &Transform), Without<Corpse>>,
+    units: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) -> Vec<(Entity, Vec3)> {
     let mut rng = rand::thread_rng();
 
@@ -164,7 +180,7 @@ pub(super) fn handle_arcane_crystal_casting(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -205,7 +221,7 @@ pub(super) fn handle_arcane_crystal_casting(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -234,7 +250,7 @@ pub(super) fn handle_arcane_crystal_casting(
                     &game_config,
                 );
             }
-            commands.entity(indicator_entity).despawn();
+            commands.entity(indicator_entity).try_despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;
@@ -374,21 +390,25 @@ pub(super) fn cleanup_expired_crystals(
     for (crystal_entity, crystal) in &crystals {
         if crystal.time_alive >= crystal.duration {
             // Despawn active persistent beams
-            for (beam_entity, _) in &crystal.active_beams {
-                commands.entity(*beam_entity).despawn();
+            for (beam_entities, _) in &crystal.active_beams {
+                for beam_entity in beam_entities {
+                    commands.entity(*beam_entity).try_despawn();
+                }
             }
 
             // Despawn auto-disintegrate beam if present
-            if let Some((beam_entity, _)) = crystal.auto_disintegrate_beam {
-                commands.entity(beam_entity).try_despawn();
+            if let Some((beam_entities, _)) = &crystal.auto_disintegrate_beam {
+                for beam_entity in beam_entities {
+                    commands.entity(*beam_entity).try_despawn();
+                }
             }
 
-            commands.entity(crystal_entity).despawn();
+            commands.entity(crystal_entity).try_despawn();
 
             // Despawn associated range indicator
             for (indicator_entity, indicator) in &indicators {
                 if indicator.crystal_entity == crystal_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
             }
         }
@@ -416,10 +436,10 @@ pub(super) fn crystal_black_hole_interaction(
 
             // Check if crystal is inside the black hole sphere
             if black_hole.contains_point(crystal.position) {
-                commands.entity(crystal_entity).despawn();
+                commands.entity(crystal_entity).try_despawn();
                 for (indicator_entity, indicator) in &indicators {
                     if indicator.crystal_entity == crystal_entity {
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                 }
                 break;
@@ -456,7 +476,46 @@ pub(super) fn despawn_out_of_range_crystal_spawns(
         .length();
 
         if distance > crystal_spawn.max_range {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
+        }
+    }
+}
+
+/// Despawns crystal beams (and their visuals) that have exceeded their lifetime.
+pub(super) fn cleanup_expired_crystal_beams(
+    mut commands: Commands,
+    beams: Query<(Entity, &DisintegrateBeam, &CrystalSpawn)>,
+    glow_query: Query<(Entity, &BeamGlow)>,
+    flare_query: Query<(Entity, &BeamOriginFlare)>,
+    eclipse_query: Query<(Entity, &BeamEclipse)>,
+) {
+    let mut despawned = Vec::new();
+    for (entity, beam, crystal_spawn) in &beams {
+        if let Some(lifetime) = crystal_spawn.lifetime {
+            if beam.time_alive > lifetime {
+                commands.entity(entity).try_despawn();
+                despawned.push(entity);
+            }
+        }
+    }
+
+    if despawned.is_empty() {
+        return;
+    }
+
+    for (entity, glow) in &glow_query {
+        if despawned.contains(&glow.beam_entity) {
+            commands.entity(entity).try_despawn();
+        }
+    }
+    for (entity, flare) in &flare_query {
+        if despawned.contains(&flare.beam_entity) {
+            commands.entity(entity).try_despawn();
+        }
+    }
+    for (entity, eclipse) in &eclipse_query {
+        if despawned.contains(&eclipse.beam_entity) {
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -471,7 +530,7 @@ pub(super) fn detect_fireball_hits(
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     explosions: Query<(Entity, &FireballExplosion), Without<CrystalSpawn>>,
-    targets: Query<(Entity, &Transform), Without<Corpse>>,
+    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
     for (explosion_entity, explosion) in &explosions {
         for mut crystal in &mut crystals {
@@ -524,6 +583,7 @@ pub(super) fn detect_fireball_hits(
                     commands.entity(entity).insert(CrystalSpawn {
                         origin: crystal.position,
                         max_range: crystal.range,
+                        lifetime: None,
                     });
                 }
             }
@@ -546,8 +606,10 @@ pub(super) fn detect_beam_hits(
     disintegrate_beams: Query<&DisintegrateBeam, Without<CrystalSpawn>>,
     fod_beams: Query<(Entity, &FingerOfDeathBeam)>,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
-    targets: Query<(Entity, &Transform), Without<Corpse>>,
+    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
+    let talent_cfg = disintegrate_systems::compute_talent_config(active_talents.as_deref());
     for mut crystal in &mut crystals {
         // === Disintegrate: persistent beams while channeling ===
         let mut hit_by_disintegrate = false;
@@ -564,16 +626,16 @@ pub(super) fn detect_beam_hits(
             crystal.remembered_spell = Some(RememberedSpell::Disintegrate);
             crystal.auto_cast_timer = 0.0;
 
-            // Clean up beams whose beam entity was despawned externally
-            crystal
-                .active_beams
-                .retain(|(beam_e, _)| crystal_beams.get(*beam_e).is_ok());
+            // Clean up beam groups whose entities were despawned externally
+            crystal.active_beams.retain(|(beam_entities, _)| {
+                beam_entities.iter().any(|e| crystal_beams.get(*e).is_ok())
+            });
 
-            // Check each existing beam's target — replace if dead or out of range
+            // Check each existing beam group's target — replace if dead or out of range
             let mut used_targets: Vec<Entity> = Vec::new();
-            let mut beams_needing_new_target: Vec<usize> = Vec::new();
+            let mut groups_needing_new_target: Vec<usize> = Vec::new();
 
-            for (i, (beam_entity, target_entity)) in crystal.active_beams.iter().enumerate() {
+            for (i, (beam_entities, target_entity)) in crystal.active_beams.iter().enumerate() {
                 if let Ok((_, target_transform)) = targets.get(*target_entity) {
                     let dist = Vec3::new(
                         crystal.position.x - target_transform.translation.x,
@@ -582,30 +644,32 @@ pub(super) fn detect_beam_hits(
                     )
                     .length();
                     if dist <= crystal.range {
-                        // Target still valid — update beam to track it
-                        if let Ok(mut beam) =
-                            crystal_beams.get_mut(*beam_entity).map(|(_, beam)| beam)
-                        {
-                            let direction =
-                                (target_transform.translation - crystal.position).normalize();
-                            let length = crystal
-                                .position
-                                .distance(target_transform.translation)
-                                .min(crystal.range);
-                            beam.origin = crystal.position;
-                            beam.direction = direction;
-                            beam.length = length;
+                        // Target still valid — update all beams in group to track it
+                        let (base_direction, length) = crystal_beam_geometry(
+                            crystal.position, target_transform.translation, crystal.range,
+                        );
+                        for beam_entity in beam_entities {
+                            if let Ok(mut beam) =
+                                crystal_beams.get_mut(*beam_entity).map(|(_, beam)| beam)
+                            {
+                                beam.origin = crystal.position;
+                                beam.direction = Quat::from_axis_angle(
+                                    Vec3::Y,
+                                    beam.fan_offset_angle,
+                                ) * base_direction;
+                                beam.length = length;
+                            }
                         }
                         used_targets.push(*target_entity);
                         continue;
                     }
                 }
                 // Target dead or out of range
-                beams_needing_new_target.push(i);
+                groups_needing_new_target.push(i);
             }
 
-            // Find replacement targets for beams that lost theirs
-            if !beams_needing_new_target.is_empty() {
+            // Find replacement targets for beam groups that lost theirs
+            if !groups_needing_new_target.is_empty() {
                 let mut candidates: Vec<(Entity, Vec3)> = targets
                     .iter()
                     .filter(|(e, _)| !used_targets.contains(e))
@@ -628,37 +692,43 @@ pub(super) fn detect_beam_hits(
                     candidates.swap(i, j);
                 }
 
-                for (idx, beam_idx) in beams_needing_new_target.iter().enumerate() {
+                for (idx, group_idx) in groups_needing_new_target.iter().enumerate() {
                     if let Some((new_target, new_pos)) = candidates.get(idx) {
-                        let (beam_entity, _) = crystal.active_beams[*beam_idx];
-                        crystal.active_beams[*beam_idx] = (beam_entity, *new_target);
-                        if let Ok(mut beam) =
-                            crystal_beams.get_mut(beam_entity).map(|(_, beam)| beam)
-                        {
-                            let direction = (*new_pos - crystal.position).normalize();
-                            let length = crystal.position.distance(*new_pos).min(crystal.range);
-                            beam.origin = crystal.position;
-                            beam.direction = direction;
-                            beam.length = length;
+                        // Despawn old group, spawn new group targeting new enemy
+                        let (old_beams, _) = &crystal.active_beams[*group_idx];
+                        for beam_entity in old_beams {
+                            commands.entity(*beam_entity).try_despawn();
                         }
+                        let new_beams = spawn_crystal_disintegrate_beam(
+                            &mut commands,
+                            &visual_assets,
+                            crystal.position,
+                            *new_pos,
+                            crystal.range,
+                            crystal.empowerment,
+                            Some(&talent_cfg),
+                        );
+                        crystal.active_beams[*group_idx] = (new_beams, *new_target);
                         used_targets.push(*new_target);
                     } else {
-                        // No replacement available — despawn the beam
-                        let (beam_entity, _) = crystal.active_beams[*beam_idx];
-                        commands.entity(beam_entity).despawn();
+                        // No replacement available — despawn the group
+                        let (old_beams, _) = &crystal.active_beams[*group_idx];
+                        for beam_entity in old_beams {
+                            commands.entity(*beam_entity).try_despawn();
+                        }
                     }
                 }
 
-                // Remove beams that had no replacement (iterate in reverse to keep indices valid)
+                // Remove groups that had no replacement (iterate in reverse to keep indices valid)
                 let candidate_count = candidates.len();
-                for (idx, beam_idx) in beams_needing_new_target.iter().enumerate().rev() {
+                for (idx, group_idx) in groups_needing_new_target.iter().enumerate().rev() {
                     if idx >= candidate_count {
-                        crystal.active_beams.remove(*beam_idx);
+                        crystal.active_beams.remove(*group_idx);
                     }
                 }
             }
 
-            // Spawn new beams if we have fewer than BEAM_COUNT
+            // Spawn new beam groups if we have fewer than BEAM_COUNT
             if crystal.active_beams.len() < BEAM_COUNT {
                 let needed = BEAM_COUNT - crystal.active_beams.len();
                 let mut candidates: Vec<(Entity, Vec3)> = targets
@@ -685,29 +755,25 @@ pub(super) fn detect_beam_hits(
                 candidates.truncate(needed);
 
                 for (target_entity, target_pos) in &candidates {
-                    let direction = (*target_pos - crystal.position).normalize();
-                    let length = crystal.position.distance(*target_pos).min(crystal.range);
-                    let beam_entity = disintegrate_systems::spawn_beam_with_damage(
+                    let beam_entities = spawn_crystal_disintegrate_beam(
                         &mut commands,
                         &visual_assets,
                         crystal.position,
-                        direction,
-                        length,
+                        *target_pos,
+                        crystal.range,
                         crystal.empowerment,
-                        disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
+                        Some(&talent_cfg),
                     );
-                    commands.entity(beam_entity).insert(CrystalSpawn {
-                        origin: crystal.position,
-                        max_range: crystal.range,
-                    });
-                    crystal.active_beams.push((beam_entity, *target_entity));
+                    crystal.active_beams.push((beam_entities, *target_entity));
                 }
             }
         } else if crystal.hit_by_disintegrate {
             // Disintegrate just stopped — despawn persistent beams
             crystal.hit_by_disintegrate = false;
-            for (beam_entity, _) in crystal.active_beams.drain(..) {
-                commands.entity(beam_entity).despawn();
+            for (beam_entities, _) in crystal.active_beams.drain(..) {
+                for beam_entity in beam_entities {
+                    commands.entity(beam_entity).try_despawn();
+                }
             }
         }
 
@@ -731,22 +797,40 @@ pub(super) fn detect_beam_hits(
                 );
                 let fod_damage_per_tick = finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE
                     / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
+                let forked = talent_cfg.forked;
+                let offsets: &[f32] = if forked {
+                    &[-FORKED_FAN_HALF_ANGLE, 0.0, FORKED_FAN_HALF_ANGLE]
+                } else {
+                    &[0.0]
+                };
                 for (_, target_pos) in &enemies {
-                    let direction = (*target_pos - crystal.position).normalize();
-                    let length = crystal.position.distance(*target_pos).min(crystal.range);
-                    let beam_entity = disintegrate_systems::spawn_beam_with_damage(
-                        &mut commands,
-                        &visual_assets,
-                        crystal.position,
-                        direction,
-                        length,
-                        crystal.empowerment,
-                        fod_damage_per_tick,
+                    let (base_direction, length) = crystal_beam_geometry(
+                        crystal.position, *target_pos, crystal.range,
                     );
-                    commands.entity(beam_entity).insert(CrystalSpawn {
-                        origin: crystal.position,
-                        max_range: crystal.range,
-                    });
+                    for &offset in offsets {
+                        let direction = if offset.abs() > 0.001 {
+                            Quat::from_axis_angle(Vec3::Y, offset) * base_direction
+                        } else {
+                            base_direction
+                        };
+                        let beam_entity = disintegrate_systems::spawn_beam_with_damage(
+                            &mut commands,
+                            &visual_assets,
+                            crystal.position,
+                            direction,
+                            length,
+                            crystal.empowerment,
+                            fod_damage_per_tick,
+                            Some(&talent_cfg),
+                            BEAM_DAMAGE_SCALE,
+                            offset,
+                        );
+                        commands.entity(beam_entity).insert(CrystalSpawn {
+                            origin: crystal.position,
+                            max_range: crystal.range,
+                            lifetime: Some(BEAM_DURATION),
+                        });
+                    }
                 }
             }
         }
@@ -762,7 +846,7 @@ pub(super) fn detect_meteor_hits(
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     meteors: Query<(Entity, &Transform, &MeteorProjectile)>,
-    targets: Query<(Entity, &Transform), Without<Corpse>>,
+    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
     let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
 
@@ -781,7 +865,7 @@ pub(super) fn detect_meteor_hits(
                 && meteor_transform.translation.y >= 0.0
             {
                 // Absorb the meteor
-                commands.entity(meteor_entity).despawn();
+                commands.entity(meteor_entity).try_despawn();
                 crystal.trigger_pulse();
                 crystal.remembered_spell = Some(RememberedSpell::Meteor);
                 crystal.auto_cast_timer = 0.0;
@@ -808,6 +892,7 @@ pub(super) fn detect_meteor_hits(
                     commands.entity(entity).insert(CrystalSpawn {
                         origin: crystal.position,
                         max_range: crystal.range,
+                        lifetime: None,
                     });
                 }
 
@@ -834,7 +919,7 @@ pub(super) fn detect_magic_missile_hits(
 
             if distance <= crystal.collision_radius {
                 // Absorb the missile
-                commands.entity(missile_entity).despawn();
+                commands.entity(missile_entity).try_despawn();
                 crystal.trigger_pulse();
                 crystal.remembered_spell = Some(RememberedSpell::MagicMissile);
                 crystal.auto_cast_timer = 0.0;
@@ -891,7 +976,7 @@ pub(super) fn detect_chain_lightning_hits(
     groups: Query<
         &crate::game::units::wizard::spells::chain_lightning::components::ChainLightningGroup,
     >,
-    targets: Query<(Entity, &Transform), Without<Corpse>>,
+    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
@@ -977,14 +1062,16 @@ pub(super) fn auto_cast_remembered_spell(
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<&mut ArcaneCrystal>,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
-    targets: Query<(Entity, &Transform), Without<Corpse>>,
+    targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
     )>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
+    let talent_cfg = disintegrate_systems::compute_talent_config(active_talents.as_deref());
     let delta = time.delta_secs();
 
     // Collect crystal data to avoid borrow conflicts
@@ -997,7 +1084,7 @@ pub(super) fn auto_cast_remembered_spell(
                 c.empowerment,
                 c.remembered_spell,
                 c.auto_cast_timer,
-                c.auto_disintegrate_beam,
+                c.auto_disintegrate_beam.clone(),
             )
         })
         .collect();
@@ -1007,8 +1094,10 @@ pub(super) fn auto_cast_remembered_spell(
     {
         let Some(remembered) = remembered else {
             // No remembered spell — clean up any lingering auto-disintegrate beam
-            if let Some((beam_entity, _)) = auto_beam {
-                commands.entity(beam_entity).try_despawn();
+            if let Some((beam_entities, _)) = &auto_beam {
+                for beam_entity in beam_entities {
+                    commands.entity(*beam_entity).try_despawn();
+                }
                 if let Some(mut crystal) = crystals.iter_mut().nth(idx) {
                     crystal.auto_disintegrate_beam = None;
                 }
@@ -1029,6 +1118,7 @@ pub(super) fn auto_cast_remembered_spell(
                 &mut crystal_beams,
                 &targets,
                 &mut crystals,
+                &talent_cfg,
             );
             continue;
         }
@@ -1036,8 +1126,10 @@ pub(super) fn auto_cast_remembered_spell(
         // === Timer-based auto-cast for all other spells ===
 
         // Clean up any lingering auto-disintegrate beam if spell changed
-        if let Some((beam_entity, _)) = auto_beam {
-            commands.entity(beam_entity).try_despawn();
+        if let Some((beam_entities, _)) = &auto_beam {
+            for beam_entity in beam_entities {
+                commands.entity(*beam_entity).try_despawn();
+            }
             if let Some(mut crystal) = crystals.iter_mut().nth(idx) {
                 crystal.auto_disintegrate_beam = None;
             }
@@ -1103,6 +1195,7 @@ pub(super) fn auto_cast_remembered_spell(
                         &mut commands,
                         &visual_assets,
                         &targets,
+                        &talent_cfg,
                     );
                 }
                 RememberedSpell::Disintegrate => unreachable!(),
@@ -1116,27 +1209,29 @@ pub(super) fn auto_cast_remembered_spell(
     }
 }
 
-/// Manages a single persistent auto-disintegrate beam.
+/// Manages a persistent auto-disintegrate beam group.
 ///
-/// Instead of despawning/respawning the beam every frame (which resets time_alive
-/// and breaks the growth animation + damage), we update the beam's fields in-place.
-/// A new beam is only spawned when the old target dies/leaves range.
+/// Instead of despawning/respawning beams every frame (which resets time_alive
+/// and breaks the growth animation + damage), we update beam fields in-place.
+/// New beams are only spawned when the old target dies/leaves range.
 #[allow(clippy::too_many_arguments)]
 fn handle_auto_disintegrate(
     crystal_idx: usize,
     position: Vec3,
     range: f32,
     empowerment: f32,
-    auto_beam: Option<(Entity, Entity)>,
+    auto_beam: Option<(Vec<Entity>, Entity)>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     crystal_beams: &mut Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
-    targets: &Query<(Entity, &Transform), Without<Corpse>>,
+    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     crystals: &mut Query<&mut ArcaneCrystal>,
+    talent_cfg: &disintegrate_systems::TalentConfig,
 ) {
-    if let Some((beam_entity, target_entity)) = auto_beam {
-        // Check if beam entity still exists
-        if crystal_beams.get(beam_entity).is_err() {
+    if let Some((beam_entities, target_entity)) = auto_beam {
+        // Check if any beam entity still exists
+        let any_alive = beam_entities.iter().any(|e| crystal_beams.get(*e).is_ok());
+        if !any_alive {
             if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                 crystal.auto_disintegrate_beam = None;
             }
@@ -1150,50 +1245,46 @@ fn handle_auto_disintegrate(
             )
             .length();
             if dist <= range {
-                // Target still valid — update beam to track it in-place
-                if let Ok((_, mut beam)) = crystal_beams.get_mut(beam_entity) {
-                    let direction = (target_transform.translation - position).normalize();
-                    let length = position.distance(target_transform.translation).min(range);
-                    beam.origin = position;
-                    beam.direction = direction;
-                    beam.length = length;
+                // Target still valid — update all beams to track it in-place
+                let (base_direction, length) = crystal_beam_geometry(
+                    position, target_transform.translation, range,
+                );
+                for beam_entity in &beam_entities {
+                    if let Ok((_, mut beam)) = crystal_beams.get_mut(*beam_entity) {
+                        beam.origin = position;
+                        beam.direction = Quat::from_axis_angle(
+                            Vec3::Y,
+                            beam.fan_offset_angle,
+                        ) * base_direction;
+                        beam.length = length;
+                    }
                 }
                 return;
             }
-            // Target out of range — despawn old beam and find new target
-            commands.entity(beam_entity).try_despawn();
+            // Target out of range — despawn old beams and find new target
+            despawn_beam_group(commands, &beam_entities);
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
-                let new_beam = spawn_crystal_disintegrate_beam(
-                    commands,
-                    assets,
-                    position,
-                    *new_pos,
-                    range,
-                    empowerment,
+                let new_beams = spawn_crystal_disintegrate_beam(
+                    commands, assets, position, *new_pos, range, empowerment, Some(talent_cfg),
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
-                    crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
+                    crystal.auto_disintegrate_beam = Some((new_beams, *new_target));
                 }
             } else if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                 crystal.auto_disintegrate_beam = None;
             }
             return;
         } else {
-            // Target dead — despawn old beam and find new target
-            commands.entity(beam_entity).try_despawn();
+            // Target dead — despawn old beams and find new target
+            despawn_beam_group(commands, &beam_entities);
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
-                let new_beam = spawn_crystal_disintegrate_beam(
-                    commands,
-                    assets,
-                    position,
-                    *new_pos,
-                    range,
-                    empowerment,
+                let new_beams = spawn_crystal_disintegrate_beam(
+                    commands, assets, position, *new_pos, range, empowerment, Some(talent_cfg),
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
-                    crystal.auto_disintegrate_beam = Some((new_beam, *new_target));
+                    crystal.auto_disintegrate_beam = Some((new_beams, *new_target));
                 }
             } else if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                 crystal.auto_disintegrate_beam = None;
@@ -1205,21 +1296,25 @@ fn handle_auto_disintegrate(
     // No beam exists — try to spawn one
     let new_targets = find_random_targets_in_range(position, range, 1, targets);
     if let Some((target_entity, target_pos)) = new_targets.first() {
-        let beam_entity = spawn_crystal_disintegrate_beam(
-            commands,
-            assets,
-            position,
-            *target_pos,
-            range,
-            empowerment,
+        let beam_entities = spawn_crystal_disintegrate_beam(
+            commands, assets, position, *target_pos, range, empowerment, Some(talent_cfg),
         );
         if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
-            crystal.auto_disintegrate_beam = Some((beam_entity, *target_entity));
+            crystal.auto_disintegrate_beam = Some((beam_entities, *target_entity));
         }
     }
 }
 
-/// Spawns a DisintegrateBeam with crystal damage scaling and CrystalSpawn marker.
+/// Helper to despawn all beams in a group.
+fn despawn_beam_group(commands: &mut Commands, beam_entities: &[Entity]) {
+    for beam_entity in beam_entities {
+        commands.entity(*beam_entity).try_despawn();
+    }
+}
+
+/// Spawns crystal disintegrate beam(s) with damage scaling and CrystalSpawn marker.
+/// When forked talent is active, spawns 3 beams in a fan pattern.
+/// Returns all spawned beam entities.
 fn spawn_crystal_disintegrate_beam(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -1227,22 +1322,42 @@ fn spawn_crystal_disintegrate_beam(
     target: Vec3,
     max_range: f32,
     empowerment: f32,
-) -> Entity {
-    let direction = (target - origin).normalize();
-    let length = origin.distance(target).min(max_range);
-    let beam_entity = disintegrate_systems::spawn_beam_with_damage(
-        commands,
-        assets,
-        origin,
-        direction,
-        length,
-        empowerment,
-        disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
-    );
-    commands
-        .entity(beam_entity)
-        .insert(CrystalSpawn { origin, max_range });
-    beam_entity
+    talent_cfg: Option<&disintegrate_systems::TalentConfig>,
+) -> Vec<Entity> {
+    let (base_direction, length) = crystal_beam_geometry(origin, target, max_range);
+    let forked = talent_cfg.is_some_and(|cfg| cfg.forked);
+
+    let offsets: &[f32] = if forked {
+        &[-FORKED_FAN_HALF_ANGLE, 0.0, FORKED_FAN_HALF_ANGLE]
+    } else {
+        &[0.0]
+    };
+
+    let mut entities = Vec::with_capacity(offsets.len());
+    for &offset in offsets {
+        let direction = if offset.abs() > 0.001 {
+            Quat::from_axis_angle(Vec3::Y, offset) * base_direction
+        } else {
+            base_direction
+        };
+        let beam_entity = disintegrate_systems::spawn_beam_with_damage(
+            commands,
+            assets,
+            origin,
+            direction,
+            length,
+            empowerment,
+            disintegrate_constants::DAMAGE_PER_TICK * BEAM_DAMAGE_SCALE,
+            talent_cfg,
+            BEAM_DAMAGE_SCALE,
+            offset,
+        );
+        commands
+            .entity(beam_entity)
+            .insert(CrystalSpawn { origin, max_range, lifetime: None });
+        entities.push(beam_entity);
+    }
+    entities
 }
 
 /// Auto-casts mini magic missiles at random enemies (not defenders).
@@ -1285,7 +1400,7 @@ fn auto_cast_fireballs(
     empowerment: f32,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), Without<Corpse>>,
+    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
     let enemies = find_random_targets_in_range(position, range, MINI_FB_COUNT, targets);
     let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
@@ -1311,6 +1426,7 @@ fn auto_cast_fireballs(
         commands.entity(entity).insert(CrystalSpawn {
             origin: position,
             max_range: range,
+            lifetime: None,
         });
     }
 }
@@ -1323,7 +1439,7 @@ fn auto_cast_chain_lightning(
     empowerment: f32,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), Without<Corpse>>,
+    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     health_query: &mut Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
@@ -1359,7 +1475,7 @@ fn auto_cast_meteors(
     empowerment: f32,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), Without<Corpse>>,
+    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
     let enemies = find_random_targets_in_range(position, range, 2, targets);
     let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
@@ -1382,6 +1498,7 @@ fn auto_cast_meteors(
         commands.entity(entity).insert(CrystalSpawn {
             origin: position,
             max_range: range,
+            lifetime: None,
         });
     }
 }
@@ -1393,27 +1510,44 @@ fn auto_cast_fod_beams(
     empowerment: f32,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    targets: &Query<(Entity, &Transform), Without<Corpse>>,
+    targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
+    talent_cfg: &disintegrate_systems::TalentConfig,
 ) {
     let enemies = find_random_targets_in_range(position, range, BEAM_COUNT, targets);
     let fod_damage_per_tick = finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE
         / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
+    let forked = talent_cfg.forked;
+    let offsets: &[f32] = if forked {
+        &[-FORKED_FAN_HALF_ANGLE, 0.0, FORKED_FAN_HALF_ANGLE]
+    } else {
+        &[0.0]
+    };
     for (_, target_pos) in &enemies {
-        let direction = (*target_pos - position).normalize();
-        let length = position.distance(*target_pos).min(range);
-        let beam_entity = disintegrate_systems::spawn_beam_with_damage(
-            commands,
-            assets,
-            position,
-            direction,
-            length,
-            empowerment,
-            fod_damage_per_tick,
-        );
-        commands.entity(beam_entity).insert(CrystalSpawn {
-            origin: position,
-            max_range: range,
-        });
+        let (base_direction, length) = crystal_beam_geometry(position, *target_pos, range);
+        for &offset in offsets {
+            let direction = if offset.abs() > 0.001 {
+                Quat::from_axis_angle(Vec3::Y, offset) * base_direction
+            } else {
+                base_direction
+            };
+            let beam_entity = disintegrate_systems::spawn_beam_with_damage(
+                commands,
+                assets,
+                position,
+                direction,
+                length,
+                empowerment,
+                fod_damage_per_tick,
+                Some(talent_cfg),
+                BEAM_DAMAGE_SCALE,
+                offset,
+            );
+            commands.entity(beam_entity).insert(CrystalSpawn {
+                origin: position,
+                max_range: range,
+                lifetime: Some(BEAM_DURATION),
+            });
+        }
     }
 }
 
@@ -1448,6 +1582,7 @@ fn spawn_crystal_mini_missile(
         CrystalSpawn {
             origin: crystal_position,
             max_range: crystal_range,
+            lifetime: None,
         },
         Mesh3d(assets.unit_circle.clone()),
         MeshMaterial3d(assets.crystal_mini_missile.clone()),

@@ -28,3 +28,11 @@ pub(super) struct ActionBarSlotIcon {
     /// The slot index this icon belongs to.
     pub(super) slot: u8,
 }
+
+/// Marker component for the debug infinite mana toggle button.
+#[derive(Component)]
+pub(super) struct DebugManaButton;
+
+/// Resource that tracks whether infinite mana is enabled.
+#[derive(Resource, Default)]
+pub struct InfiniteMana(pub bool);

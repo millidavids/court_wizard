@@ -122,7 +122,7 @@ pub(super) fn fly_drops_to_wizard(
             collected_msg.write(IngredientCollectedMessage {
                 ingredient: flying_drop.ingredient,
             });
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 

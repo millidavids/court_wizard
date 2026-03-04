@@ -57,6 +57,9 @@ pub const BEAM_COUNT: usize = 5;
 /// Damage scale for crystal beams (50% of original).
 pub const BEAM_DAMAGE_SCALE: f32 = 0.5;
 
+/// Half-angle of the forked fan spread for crystal beams (radians, ~7.5 degrees).
+pub const FORKED_FAN_HALF_ANGLE: f32 = 0.13;
+
 /// Number of targets for crystal lightning arcs.
 pub const LIGHTNING_ARC_COUNT: usize = 3;
 

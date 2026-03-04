@@ -58,10 +58,10 @@ pub fn handle_teleport_cancel(
 
     // Despawn any active circles
     if let Some(dest_entity) = caster.destination_circle {
-        commands.entity(dest_entity).despawn();
+        commands.entity(dest_entity).try_despawn();
     }
     if let Some(source_entity) = caster.source_circle {
-        commands.entity(source_entity).despawn();
+        commands.entity(source_entity).try_despawn();
     }
 
     // Reset all state
@@ -251,10 +251,10 @@ pub fn handle_teleport_casting(
     // Cleanup circles on completion or first-phase release
     if cast_result.completed {
         if let Some(dest_entity) = caster.destination_circle {
-            commands.entity(dest_entity).despawn();
+            commands.entity(dest_entity).try_despawn();
         }
         if let Some(source_entity) = caster.source_circle {
-            commands.entity(source_entity).despawn();
+            commands.entity(source_entity).try_despawn();
         }
         caster.destination_circle = None;
         caster.source_circle = None;

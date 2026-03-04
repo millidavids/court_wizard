@@ -99,7 +99,7 @@ fn fog_cloud_casting_logic(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -174,7 +174,7 @@ fn fog_cloud_casting_logic(
                                 indicator.empowerment,
                             );
                         }
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
@@ -183,7 +183,7 @@ fn fog_cloud_casting_logic(
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
@@ -193,7 +193,7 @@ fn fog_cloud_casting_logic(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -274,7 +274,7 @@ pub fn fade_fog_cloud_zone(
 pub fn cleanup_fog_cloud_zone(mut commands: Commands, zones: Query<(Entity, &FogCloudZone)>) {
     for (entity, zone) in &zones {
         if zone.time_alive >= zone.duration {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

@@ -127,7 +127,7 @@ pub(super) fn process_music_fade(
                     commands.entity(entity).remove::<MusicFade>();
                 }
                 FadeDirection::Out => {
-                    commands.entity(entity).despawn();
+                    commands.entity(entity).try_despawn();
                 }
             }
         }

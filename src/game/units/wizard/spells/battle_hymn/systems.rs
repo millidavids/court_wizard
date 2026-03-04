@@ -10,7 +10,7 @@ use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::talents::resources::ActiveTalents;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::components::{BattleHymnModifier, HasteModifier, Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -44,7 +44,7 @@ pub fn handle_battle_hymn_casting(
     >,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    mut talent_progress: Option<ResMut<crate::game::talents::resources::BattleTalentProgress>>,
+    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
@@ -83,7 +83,7 @@ pub fn handle_battle_hymn_casting(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -133,7 +133,7 @@ pub fn handle_battle_hymn_casting(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -189,7 +189,7 @@ pub fn handle_battle_hymn_casting(
                     &game_config,
                 );
             }
-            commands.entity(indicator_entity).despawn();
+            commands.entity(indicator_entity).try_despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;
@@ -261,7 +261,7 @@ pub(crate) fn apply_battle_hymn_buff(
     radius: f32,
     empowerment: f32,
     targets: &mut Query<(Entity, &Transform, &Team, Option<&mut BattleHymnModifier>, Option<&mut TemporaryHitPoints>, Option<&mut HasteModifier>), Without<Wizard>>,
-    talent_progress: &mut Option<ResMut<crate::game::talents::resources::BattleTalentProgress>>,
+    talent_progress: &mut Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
     active_talents: Option<&ActiveTalents>,
 ) {
     let t1 = active_talents.and_then(|t| t.get_selection(Spell::BattleHymn, 0));

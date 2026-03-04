@@ -247,7 +247,7 @@ pub fn apply_state_snapshot(
                     // Despawn all shield visuals
                     for vis_entity in &shield_visuals {
                         if let Ok(mut ec) = commands.get_entity(vis_entity) {
-                            ec.despawn();
+                            ec.try_despawn();
                         }
                     }
                 }
@@ -320,14 +320,14 @@ pub fn apply_state_snapshot(
         if let Some(entity) = entity_map.remove_by_remote(stale_id)
             && let Ok(mut entity_commands) = commands.get_entity(entity)
         {
-            entity_commands.despawn();
+            entity_commands.try_despawn();
         }
     }
 
     // Replace all ghost arrows with fresh positions from the snapshot.
     for entity in &ghost_arrows {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 

@@ -71,7 +71,7 @@ pub fn cleanup_orphaned_glows(
 ) {
     for (glow_entity, glow) in glow_query.iter() {
         if source_query.get(glow.source_entity).is_err() {
-            commands.entity(glow_entity).despawn();
+            commands.entity(glow_entity).try_despawn();
         }
     }
 }
@@ -88,7 +88,7 @@ pub fn update_fire_smoke(
         smoke.time_alive += dt;
 
         if smoke.time_alive >= smoke.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -121,7 +121,7 @@ pub fn update_fire_sparks(
         spark.time_alive += dt;
 
         if spark.time_alive >= constants::SPARK_LIFETIME {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -304,7 +304,7 @@ pub fn cleanup_orphaned_missile_glows(
 ) {
     for (glow_entity, glow) in glow_query.iter() {
         if source_query.get(glow.source_entity).is_err() {
-            commands.entity(glow_entity).despawn();
+            commands.entity(glow_entity).try_despawn();
         }
     }
 }
@@ -357,7 +357,7 @@ pub fn update_missile_sparkles(
         sparkle.time_alive += dt;
 
         if sparkle.time_alive >= sparkle.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -473,7 +473,7 @@ pub fn update_heat_shimmer(
         shimmer.time_alive += dt;
 
         if shimmer.time_alive >= shimmer.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 

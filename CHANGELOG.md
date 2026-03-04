@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.220] - 2026-03-04
+
+### Added
+- **Disintegrate talents** — the Disintegrate spell now has a full talent tree with 9 unique upgrades across 3 tiers, including Focused Lens, Forked Beam, Sweeping Destruction, Annihilation Beam, and more
+- **Arcane Crystal inherits disintegrate talents** — when the crystal absorbs or auto-casts disintegrate beams, it now uses your equipped talents (scaled down for balance). Forked beam creates 3-beam spreads from the crystal too
+- **Talent progress UI** — the action bar now shows spell talent progress during battle
+
+### Fixed
+- **Arcane Crystal beams now despawn properly** — crystal beams no longer linger forever after targets die or the crystal expires
+- **Annihilation beam smoke and particles** — visual effects no longer appear at the wizard's position when casting the sky beam variant
+- **Arcane Crystal beam collision** — crystal beams now correctly hit ground-level enemies despite originating from the elevated crystal
+- **Arcane Crystal no longer targets corpses** — the crystal only targets living enemies now
+- **Eliminated entity despawn warnings** — replaced all entity despawns with safe versions that don't warn about already-removed entities
+
+### Changed
+- **Talents moved into spell modules** — talent definitions now live alongside each spell instead of in a separate global module
+
 ## [v0.3.182] - 2026-03-03
 
 ### Added

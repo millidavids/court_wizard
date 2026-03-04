@@ -304,7 +304,7 @@ pub const DEFENDER_GRID_ROWS: u32 = 4;
 pub const DEFENDER_GRID_CENTER_ANGLE: f32 = ATTACKER_GRID_CENTER_ANGLE;
 
 /// Ground-plane distance from wizard to defender spawn grid.
-pub const DEFENDER_GRID_GROUND_RANGE: f32 = 300.0;
+pub const DEFENDER_GRID_GROUND_RANGE: f32 = 200.0;
 
 /// Returns the world-space center of the defender spawn grid.
 /// Used as the rally point when defenders return between waves.

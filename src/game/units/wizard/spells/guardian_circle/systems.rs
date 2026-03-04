@@ -63,7 +63,7 @@ pub fn handle_guardian_circle_casting(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -104,7 +104,7 @@ pub fn handle_guardian_circle_casting(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -140,7 +140,7 @@ pub fn handle_guardian_circle_casting(
                     &mut attacker_hit_msg,
                 );
             }
-            commands.entity(indicator_entity).despawn();
+            commands.entity(indicator_entity).try_despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;

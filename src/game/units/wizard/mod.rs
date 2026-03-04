@@ -4,6 +4,7 @@
 
 pub(crate) mod archetypes;
 pub(crate) mod components;
+pub(crate) mod talents;
 pub(in crate::game) mod constants;
 pub(crate) mod messages;
 mod plugin;

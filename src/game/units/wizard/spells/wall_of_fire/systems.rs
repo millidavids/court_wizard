@@ -235,7 +235,7 @@ pub fn handle_wall_of_fire_casting(
     // Despawn preview on failure (too short / can't afford)
     if cast_result.despawn_preview {
         if let Some(preview_entity) = caster.preview_entity {
-            commands.entity(preview_entity).despawn();
+            commands.entity(preview_entity).try_despawn();
         }
         caster.preview_entity = None;
     }
@@ -356,7 +356,7 @@ pub fn handle_wall_of_fire_cancel(
     };
 
     if let Some(preview_entity) = caster.preview_entity {
-        commands.entity(preview_entity).despawn();
+        commands.entity(preview_entity).try_despawn();
     }
 
     caster.anchor = None;
@@ -450,7 +450,7 @@ pub fn cleanup_wall_of_fire(
                 )),
             });
 
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

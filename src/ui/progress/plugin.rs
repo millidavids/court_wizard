@@ -140,7 +140,7 @@ fn handle_confirm_clear(
             handle_clear_progress();
             clear_msg.write(ClearProgressMessage);
             for entity in &popup_query {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         }
     }
@@ -156,7 +156,7 @@ fn handle_cancel_clear(
     for event in button_clicked.read() {
         if button_query.get(event.button).is_ok() {
             for entity in &popup_query {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         }
     }

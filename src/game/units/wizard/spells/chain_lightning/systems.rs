@@ -373,7 +373,7 @@ pub fn process_chain_lightning_bounces(
 
         // Despawn bolt if no more bounces and timer expired
         if bolt.bounces_remaining == 0 && bolt.bounce_delay_timer <= 0.0 {
-            commands.entity(bolt_entity).despawn();
+            commands.entity(bolt_entity).try_despawn();
         }
     }
 
@@ -594,7 +594,7 @@ pub fn update_chain_lightning_arcs(
 pub fn cleanup_chain_lightning(mut commands: Commands, arcs: Query<(Entity, &ChainLightningArc)>) {
     for (entity, arc) in &arcs {
         if arc.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -608,7 +608,7 @@ pub fn cleanup_chain_lightning_groups(
     for group_entity in &groups {
         let has_bolts = bolts.iter().any(|bolt| bolt.group_entity == group_entity);
         if !has_bolts {
-            commands.entity(group_entity).despawn();
+            commands.entity(group_entity).try_despawn();
         }
     }
 }

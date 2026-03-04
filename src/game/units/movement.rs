@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 use crate::game::components::{Acceleration, Velocity};
+use crate::game::units::components::Corpse;
 
 /// Applies velocity to position for all units.
 ///
@@ -33,5 +34,20 @@ pub fn apply_unit_movement(
 
         // FINALLY: Reset acceleration for next frame
         acceleration.reset();
+    }
+}
+
+/// Zeroes corpse velocity after movement so corpses don't drift between frames.
+///
+/// External forces (black hole, Josephina's leap, The Hag) apply acceleration each
+/// frame they're active, which gets integrated into velocity and applied to position
+/// by `apply_unit_movement`. This system then clears that velocity so corpses only
+/// move while actively being pushed.
+pub fn clear_corpse_velocity(
+    mut corpses: Query<&mut Velocity, With<Corpse>>,
+) {
+    for mut velocity in corpses.iter_mut() {
+        velocity.x = 0.0;
+        velocity.z = 0.0;
     }
 }

@@ -550,7 +550,7 @@ pub(super) fn despawn_spell_book_ui(
     query: Query<Entity, With<OnSpellBookScreen>>,
 ) {
     for entity in &query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     commands.remove_resource::<SelectedSpellPreview>();
 }

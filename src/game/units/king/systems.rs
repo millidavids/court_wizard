@@ -397,7 +397,7 @@ pub fn update_king_spell_shield(
 
         // Despawn shield visual
         for visual_entity in &shield_visuals {
-            commands.entity(visual_entity).despawn();
+            commands.entity(visual_entity).try_despawn();
         }
     }
 }

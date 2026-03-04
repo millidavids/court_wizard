@@ -4,7 +4,7 @@
 //! organized by menu/screen type.
 
 mod achievement_popup;
-mod action_bar;
+pub(crate) mod action_bar;
 mod arcanorouter_display;
 mod cauldron_menu;
 pub(crate) mod components;

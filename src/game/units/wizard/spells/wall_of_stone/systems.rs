@@ -161,7 +161,7 @@ pub fn handle_wall_of_stone_casting(
     // Despawn preview on completion or cancel
     if cast_result.completed || cast_result.despawn_preview {
         if let Some(preview_entity) = caster.preview_entity {
-            commands.entity(preview_entity).despawn();
+            commands.entity(preview_entity).try_despawn();
         }
         caster.preview_entity = None;
     }
@@ -306,7 +306,7 @@ pub fn handle_wall_of_stone_cancel(
     };
 
     if let Some(preview_entity) = caster.preview_entity {
-        commands.entity(preview_entity).despawn();
+        commands.entity(preview_entity).try_despawn();
     }
 
     caster.anchor = None;
@@ -353,7 +353,7 @@ pub fn cleanup_expired_walls(
             continue;
         }
         if wall.time_alive >= wall.duration {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
 
             // Notify pathfinding system that the obstacle is removed
             let obs_bounds = wall.obstacle_bounds();

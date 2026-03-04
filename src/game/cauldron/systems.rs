@@ -178,7 +178,7 @@ pub fn update_brew_bubble(
         bubble.time_alive += time.delta_secs();
 
         if bubble.time_alive >= bubble.duration {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 

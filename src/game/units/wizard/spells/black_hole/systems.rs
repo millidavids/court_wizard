@@ -291,7 +291,7 @@ pub(super) fn apply_corpse_gravity_and_despawn(
 
             // Check if corpse intersects the black hole sphere - if so, despawn it
             if black_hole.contains_point(corpse_pos) {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
                 continue;
             }
 
@@ -429,7 +429,7 @@ pub(super) fn despawn_expired_black_holes(
 ) {
     for (entity, black_hole) in black_holes.iter() {
         if black_hole.is_expired() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -510,7 +510,7 @@ pub(super) fn cleanup_black_hole_rings(
 ) {
     for (entity, ring) in rings.iter() {
         if black_holes.get(ring.black_hole_entity).is_err() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -523,7 +523,7 @@ pub(super) fn cleanup_black_hole_accretion_disk(
 ) {
     for (entity, disk) in disks.iter() {
         if black_holes.get(disk.black_hole_entity).is_err() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -536,7 +536,7 @@ pub(super) fn cleanup_black_hole_sfx(
 ) {
     for (entity, sfx) in sfx_entities.iter() {
         if black_holes.get(sfx.black_hole_entity).is_err() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

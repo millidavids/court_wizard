@@ -345,7 +345,7 @@ pub fn check_arrow_collisions(
         let mut hit_wall = false;
         for wall in &walls {
             if wall.contains_point_xz(arrow_pos) && arrow_pos.y <= wall.height {
-                commands.entity(arrow_entity).despawn();
+                commands.entity(arrow_entity).try_despawn();
                 hit_wall = true;
                 break;
             }
@@ -356,7 +356,7 @@ pub fn check_arrow_collisions(
 
         // Ground collision
         if arrow_pos.y <= 0.0 {
-            commands.entity(arrow_entity).despawn();
+            commands.entity(arrow_entity).try_despawn();
             continue;
         }
 
@@ -377,7 +377,7 @@ pub fn check_arrow_collisions(
             let distance = arrow_pos.distance(target_transform.translation);
             if distance < hitbox.radius + ARROW_WIDTH {
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), arrow.damage);
-                commands.entity(arrow_entity).despawn();
+                commands.entity(arrow_entity).try_despawn();
                 break;
             }
         }

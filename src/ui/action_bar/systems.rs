@@ -8,22 +8,18 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
+use crate::ui::systems::scale_font_by_text_width;
+
+const DEBUG_BUTTON_SIZE: f32 = 30.0;
+const DEBUG_BUTTON_GAP: f32 = 8.0;
+const DEBUG_BUTTON_BG_OFF: Color = Color::srgba(0.2, 0.1, 0.1, 0.8);
+const DEBUG_BUTTON_BG_ON: Color = Color::srgba(0.1, 0.5, 0.1, 0.9);
+const DEBUG_BUTTON_BORDER: Color = Color::srgba(0.6, 0.3, 0.3, 1.0);
 
 /// Calculates the appropriate font size for action bar spell names based on max line width.
-///
-/// Spell names may contain newlines to split long names across multiple lines.
-/// Font size is scaled based on the longest line to ensure it fits in the button.
 fn calculate_action_bar_font_size(name: &str) -> f32 {
     let max_line_width = name.lines().map(|line| line.len()).max().unwrap_or(0) as f32;
-
-    // Scale down for longer names to fit in button
-    // Short names (≤6 chars) = full size (16px)
-    // Long names (≥11 chars) = 65% size (~10.4px)
-    let min_chars = 6.0;
-    let max_chars = 11.0;
-    let min_scale = 0.65;
-    let t = ((max_line_width - min_chars) / (max_chars - min_chars)).clamp(0.0, 1.0);
-    SPELL_NAME_FONT_SIZE * (1.0 - t * (1.0 - min_scale))
+    scale_font_by_text_width(max_line_width, 6.0, 11.0, 0.65, SPELL_NAME_FONT_SIZE)
 }
 
 /// Spawns the action bar UI at the bottom-left of the screen.
@@ -49,6 +45,7 @@ pub(super) fn spawn_action_bar(
                 .spawn(Node {
                     flex_direction: FlexDirection::Row,
                     column_gap: Val::Px(SLOT_GAP),
+                    align_items: AlignItems::End,
                     ..default()
                 })
                 .with_children(|parent| {
@@ -129,6 +126,38 @@ pub(super) fn spawn_action_bar(
                                     });
                             });
                     }
+
+                    // Debug: infinite mana toggle button
+                    parent
+                        .spawn(Node {
+                            width: Val::Px(DEBUG_BUTTON_GAP),
+                            ..default()
+                        });
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Px(DEBUG_BUTTON_SIZE),
+                                height: Val::Px(DEBUG_BUTTON_SIZE),
+                                border: UiRect::all(Val::Px(1.0)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BorderColor::all(DEBUG_BUTTON_BORDER),
+                            BorderRadius::all(Val::Px(4.0)),
+                            BackgroundColor(DEBUG_BUTTON_BG_OFF),
+                            ButtonColors {
+                                background: DEBUG_BUTTON_BG_OFF,
+                                border: DEBUG_BUTTON_BORDER,
+                            },
+                            DebugManaButton,
+                        ))
+                        .with_child((
+                            Text::new("INF"),
+                            TextFont::from_font_size(7.0),
+                            TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
+                        ));
                 });
         });
 }
@@ -208,6 +237,29 @@ pub(super) fn update_action_bar_slots(
                 node.flex_grow = 0.0;
                 node.width = Val::Px(0.0);
                 node.height = Val::Px(0.0);
+            }
+        }
+    }
+}
+
+/// Handles clicks on the debug infinite mana button.
+pub(super) fn handle_debug_mana_click(
+    mut button_clicked: MessageReader<MouseClicked>,
+    debug_button_query: Query<Entity, With<DebugManaButton>>,
+    mut infinite_mana: ResMut<InfiniteMana>,
+    mut bg_query: Query<(&mut BackgroundColor, &mut ButtonColors), With<DebugManaButton>>,
+) {
+    for event in button_clicked.read() {
+        if debug_button_query.get(event.button).is_ok() {
+            infinite_mana.0 = !infinite_mana.0;
+            let new_bg = if infinite_mana.0 {
+                DEBUG_BUTTON_BG_ON
+            } else {
+                DEBUG_BUTTON_BG_OFF
+            };
+            for (mut bg, mut colors) in bg_query.iter_mut() {
+                bg.0 = new_bg;
+                colors.background = new_bg;
             }
         }
     }

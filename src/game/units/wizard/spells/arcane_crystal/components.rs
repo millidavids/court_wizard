@@ -69,17 +69,18 @@ pub(crate) struct ArcaneCrystal {
     pub fod_beams_processed: Vec<Entity>,
     /// Set of FireballExplosion entities already processed (prevents re-triggering).
     pub explosions_processed: Vec<Entity>,
-    /// Active persistent beam + target pairs (beam_entity, target_entity).
-    pub active_beams: Vec<(Entity, Entity)>,
+    /// Active persistent beam groups + target pairs (beam_entities, target_entity).
+    /// Each group may contain multiple beams when forked talent is active.
+    pub active_beams: Vec<(Vec<Entity>, Entity)>,
     /// Whether the crystal was hit by disintegrate last frame.
     pub hit_by_disintegrate: bool,
     /// The last spell type that hit the crystal (for auto-casting).
     pub remembered_spell: Option<RememberedSpell>,
     /// Timer for auto-casting the remembered spell.
     pub auto_cast_timer: f32,
-    /// Active auto-cast disintegrate beam + target pair (beam_entity, target_entity).
+    /// Active auto-cast disintegrate beam group + target pair (beam_entities, target_entity).
     /// Only used when remembered_spell is Disintegrate.
-    pub auto_disintegrate_beam: Option<(Entity, Entity)>,
+    pub auto_disintegrate_beam: Option<(Vec<Entity>, Entity)>,
 }
 
 impl ArcaneCrystal {
@@ -183,4 +184,7 @@ pub(crate) struct CrystalSpawn {
     pub origin: Vec3,
     /// Maximum distance from origin before despawning.
     pub max_range: f32,
+    /// Optional lifetime in seconds. When set, the entity is despawned after this duration.
+    /// Used for one-shot beams (e.g. FoD burst) that aren't tracked by crystal code.
+    pub lifetime: Option<f32>,
 }

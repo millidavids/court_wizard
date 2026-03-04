@@ -59,7 +59,7 @@ pub(super) fn spawn_concentration_ui(
     // Despawn UI if no concentration spell but UI exists
     if !has_concentration_spell && has_ui {
         for entity in ui_query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 
@@ -97,7 +97,7 @@ pub(super) fn handle_end_concentration_click(
         if button_query.iter().any(|e| e == click.button) {
             // Despawn all concentration spells
             for spell_entity in concentration_spells.iter() {
-                commands.entity(spell_entity).despawn();
+                commands.entity(spell_entity).try_despawn();
             }
         }
     }

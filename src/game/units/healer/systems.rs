@@ -371,7 +371,7 @@ pub fn move_heal_bolts(
     for (entity, mut bolt_transform, mut bolt) in &mut bolts {
         bolt.lifetime -= delta;
         if bolt.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -382,7 +382,7 @@ pub fn move_heal_bolts(
             bolt_transform.translation += direction * bolt.speed * delta;
         } else {
             // Target gone — despawn bolt
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -399,7 +399,7 @@ pub fn check_heal_bolt_arrivals(
         if let Ok((target_transform, hitbox, team, mut health)) = targets.get_mut(bolt.target) {
             // Verify same team
             if *team != bolt.source_team {
-                commands.entity(bolt_entity).despawn();
+                commands.entity(bolt_entity).try_despawn();
                 continue;
             }
 
@@ -408,7 +408,7 @@ pub fn check_heal_bolt_arrivals(
             if distance < hitbox.radius + HEAL_BOLT_RADIUS {
                 // Heal to full
                 health.current = health.max;
-                commands.entity(bolt_entity).despawn();
+                commands.entity(bolt_entity).try_despawn();
             }
         }
     }

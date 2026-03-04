@@ -729,7 +729,7 @@ pub fn cleanup_game(
 ) {
     // Don't reset level - it persists between sessions via config
     for entity in &query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 }
 
@@ -742,7 +742,7 @@ pub fn cleanup_for_replay(
     gameplay_entities: Query<Entity, With<super::components::OnGameplayScreen>>,
 ) {
     for entity in &gameplay_entities {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 }
 

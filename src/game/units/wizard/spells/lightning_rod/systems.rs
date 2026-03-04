@@ -153,7 +153,7 @@ fn lightning_rod_casting_logic(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -189,7 +189,7 @@ fn lightning_rod_casting_logic(
                 if let Ok(caster) = caster_query.get(wizard_entity)
                     && let Some(indicator_entity) = caster.indicator_entity
                 {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
                 casting_state.cancel();
@@ -198,7 +198,7 @@ fn lightning_rod_casting_logic(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -261,7 +261,7 @@ pub(super) fn update_lightning_rod(
 
         // Despawn if expired
         if rod.is_expired() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -337,7 +337,7 @@ pub(super) fn update_lightning_strikes(
             );
 
             // Despawn the strike bolt
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -440,7 +440,7 @@ pub(super) fn update_lightning_rod_arcs(
 
         // Despawn expired arcs
         if arc.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 

@@ -106,7 +106,7 @@ fn squall_casting_logic(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -167,7 +167,7 @@ fn squall_casting_logic(
                 if mana.consume(MANA_COST) {
                     // Despawn any existing storms (only one storm at a time)
                     for existing_storm in existing_storms.iter() {
-                        commands.entity(existing_storm).despawn();
+                        commands.entity(existing_storm).try_despawn();
                     }
 
                     if let Ok(caster) = caster_query.get(wizard_entity)
@@ -186,7 +186,7 @@ fn squall_casting_logic(
                                 OnGameplayScreen,
                             ));
                         }
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
 
                     commands.entity(wizard_entity).remove::<SpellCaster>();
@@ -196,7 +196,7 @@ fn squall_casting_logic(
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
@@ -206,7 +206,7 @@ fn squall_casting_logic(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -309,7 +309,7 @@ pub(super) fn check_ice_projectile_collisions(
                     projectile.damage,
                     projectile.empowerment,
                 );
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
                 hit_wall = true;
                 break;
             }
@@ -330,7 +330,7 @@ pub(super) fn check_ice_projectile_collisions(
                 projectile.damage,
                 projectile.empowerment,
             );
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -409,7 +409,7 @@ pub(super) fn update_ice_explosions(
 
         // Despawn explosion after lifetime
         if explosion.time_alive >= EXPLOSION_LIFETIME {
-            commands.entity(explosion_entity).despawn();
+            commands.entity(explosion_entity).try_despawn();
         }
     }
 }

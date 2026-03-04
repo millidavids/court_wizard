@@ -41,8 +41,10 @@ impl Plugin for ArcaneCrystalPlugin {
                 systems::detect_chain_lightning_hits.run_if(any_with_component::<ArcaneCrystal>),
                 // Auto-casting
                 systems::auto_cast_remembered_spell.run_if(any_with_component::<ArcaneCrystal>),
-                // Range-limiting
+                // Range-limiting & lifetime cleanup
                 systems::despawn_out_of_range_crystal_spawns
+                    .run_if(any_with_component::<CrystalSpawn>),
+                systems::cleanup_expired_crystal_beams
                     .run_if(any_with_component::<CrystalSpawn>),
             )
                 .chain()

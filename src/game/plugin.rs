@@ -17,7 +17,7 @@ use super::messages::{
     WaveSpawnedMessage,
 };
 use super::pathfinding::PathfindingPlugin;
-use super::talents::TalentsPlugin;
+use super::units::wizard::talents::TalentsPlugin;
 use super::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
 };

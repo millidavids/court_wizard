@@ -61,7 +61,7 @@ pub fn handle_haste_casting(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -123,7 +123,7 @@ pub fn handle_haste_casting(
                                 &mut targets_query,
                             );
                         }
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
@@ -132,7 +132,7 @@ pub fn handle_haste_casting(
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
@@ -142,7 +142,7 @@ pub fn handle_haste_casting(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }

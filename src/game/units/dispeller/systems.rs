@@ -456,7 +456,7 @@ pub fn move_dispeller_bolts(
         transform.translation += bolt.velocity * delta;
         bolt.lifetime -= delta;
         if bolt.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -496,7 +496,7 @@ pub fn check_bolt_collisions(
             let distance = bolt_pos.distance(target_transform.translation);
             if distance < hitbox.radius + BOLT_RADIUS {
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), bolt.damage);
-                commands.entity(bolt_entity).despawn();
+                commands.entity(bolt_entity).try_despawn();
                 break;
             }
         }

@@ -5,20 +5,121 @@ use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
 use super::components::{
-    BeamGlow, BeamOriginFlare, BeamSmoke, DisintegrateBeam, DisintegrateParticle,
+    BeamEclipse, BeamGlow, BeamOriginFlare, BeamSmoke, DisintegrateBeam, DisintegrateParticle,
+    SearingFinaleDetonation,
 };
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
-use crate::config::GameConfig;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
+use crate::game::units::wizard::spells::fireball;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+
+/// Talent configuration computed once from ActiveTalents.
+pub(crate) struct TalentConfig {
+    pub(crate) width_multiplier: f32,
+    pub(crate) damage_multiplier: f32,
+    pub(crate) mana_cost_multiplier: f32,
+    pub(crate) forked: bool,
+    pub(crate) escalating: bool,
+    pub(crate) sweeping: bool,
+    pub(crate) searing_finale: bool,
+    pub(crate) resonance: bool,
+    pub(crate) annihilation: bool,
+}
+
+impl Default for TalentConfig {
+    fn default() -> Self {
+        Self {
+            width_multiplier: 1.0,
+            damage_multiplier: 1.0,
+            mana_cost_multiplier: 1.0,
+            forked: false,
+            escalating: false,
+            sweeping: false,
+            searing_finale: false,
+            resonance: false,
+            annihilation: false,
+        }
+    }
+}
+
+pub(crate) fn compute_talent_config(active_talents: Option<&ActiveTalents>) -> TalentConfig {
+    let talents = active_talents;
+    let t1 = talents.and_then(|t| t.get_selection(Spell::Disintegrate, 0));
+    let t2 = talents.and_then(|t| t.get_selection(Spell::Disintegrate, 1));
+    let t3 = talents.and_then(|t| t.get_selection(Spell::Disintegrate, 2));
+
+    let mut cfg = TalentConfig::default();
+
+    // Tier 1
+    match t1 {
+        Some(0) => {
+            // Focused Lens
+            cfg.width_multiplier *= constants::FOCUSED_LENS_WIDTH_MULT;
+            cfg.damage_multiplier *= constants::FOCUSED_LENS_DAMAGE_MULT;
+        }
+        Some(1) => {
+            // Unfocused Beam
+            cfg.width_multiplier *= constants::UNFOCUSED_BEAM_WIDTH_MULT;
+            cfg.damage_multiplier *= constants::UNFOCUSED_BEAM_DAMAGE_MULT;
+        }
+        Some(2) => {
+            // Efficient Channeling
+            cfg.mana_cost_multiplier *= constants::EFFICIENT_CHANNELING_MANA_MULT;
+        }
+        _ => {}
+    }
+
+    // Tier 2
+    match t2 {
+        Some(0) => {
+            // Forked Beam
+            cfg.forked = true;
+            cfg.damage_multiplier *= constants::FORKED_DAMAGE_MULT;
+        }
+        Some(1) => {
+            // Escalating Intensity
+            cfg.escalating = true;
+        }
+        Some(2) => {
+            // Sweeping Destruction (+100% damage since player loses aim control)
+            cfg.sweeping = true;
+            cfg.damage_multiplier *= constants::SWEEPING_DAMAGE_MULT;
+        }
+        _ => {}
+    }
+
+    // Tier 3
+    match t3 {
+        Some(0) => {
+            // Annihilation Beam
+            cfg.width_multiplier *= constants::ANNIHILATION_WIDTH_MULT;
+            cfg.damage_multiplier *= constants::ANNIHILATION_DAMAGE_MULT;
+            cfg.mana_cost_multiplier *= constants::ANNIHILATION_MANA_MULT;
+            cfg.annihilation = true;
+        }
+        Some(1) => {
+            // Searing Finale
+            cfg.searing_finale = true;
+        }
+        Some(2) => {
+            // Unstable Resonance
+            cfg.resonance = true;
+        }
+        _ => {}
+    }
+
+    cfg
+}
 
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
@@ -63,14 +164,16 @@ pub fn handle_disintegrate_casting(
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    mut beams: Query<(Entity, &mut DisintegrateBeam)>,
+    mut beams: Query<(Entity, &mut DisintegrateBeam), Without<CrystalSpawn>>,
     visual_assets: Res<SpellVisualAssets>,
     glow_query: Query<Entity, With<BeamGlow>>,
     flare_query: Query<Entity, With<BeamOriginFlare>>,
     particle_query: Query<Entity, With<DisintegrateParticle>>,
+    eclipse_query: Query<Entity, With<BeamEclipse>>,
     channeling_sfx_query: Query<Entity, With<ChannelingSfx>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -90,6 +193,7 @@ pub fn handle_disintegrate_casting(
         return;
     }
 
+    let talent_cfg = compute_talent_config(active_talents.as_deref());
     let has_existing_beam = beams.iter().next().is_some();
 
     let result = disintegrate_casting_logic(
@@ -100,6 +204,7 @@ pub fn handle_disintegrate_casting(
         primed_spell,
         wizard,
         has_existing_beam,
+        talent_cfg.mana_cost_multiplier,
     );
 
     match result.beam_action {
@@ -108,26 +213,114 @@ pub fn handle_disintegrate_casting(
             direction,
             length,
         } => {
-            if let Some((_, mut beam)) = beams.iter_mut().next() {
+            // Update ALL existing beams (supports forked multi-beam)
+            for (_, mut beam) in beams.iter_mut() {
+                // Annihilation beams are position-locked — skip origin/direction/length updates
+                if beam.annihilation {
+                    continue;
+                }
                 beam.origin = origin;
-                beam.direction = direction;
                 beam.length = length;
+                // For sweeping beams, don't update direction directly — the sweep system handles it.
+                // For non-sweeping beams, update direction (applying fan offset if forked).
+                if beam.sweeping {
+                    beam.sweep_center_direction = direction;
+                } else if beam.fan_offset_angle.abs() > 0.001 {
+                    // Forked: apply fan offset from base direction
+                    let up = Vec3::Y;
+                    let rotated = Quat::from_axis_angle(up, beam.fan_offset_angle) * direction;
+                    beam.direction = rotated;
+                } else {
+                    beam.direction = direction;
+                }
             }
         }
         BeamAction::SpawnBeam {
-            origin,
-            direction,
-            length,
+            mut origin,
+            mut direction,
+            mut length,
             empowerment,
         } => {
-            spawn_beam(
-                &mut commands,
-                &visual_assets,
-                origin,
-                direction,
-                length,
-                empowerment,
-            );
+            // Annihilation Beam: shoot from the sky above the clamped target
+            let mut annihilation_forward = Vec3::X;
+            if talent_cfg.annihilation {
+                // Use the already range-clamped target from casting logic
+                let ground_target = origin + direction * length;
+                let wizard_xz = Vec3::new(SPELL_ORIGIN.x, 0.0, SPELL_ORIGIN.z);
+                let target_xz = Vec3::new(ground_target.x, 0.0, ground_target.z);
+                annihilation_forward = (target_xz - wizard_xz).normalize_or(Vec3::X);
+
+                origin = Vec3::new(
+                    ground_target.x,
+                    constants::ANNIHILATION_SKY_HEIGHT,
+                    ground_target.z,
+                );
+                direction = Vec3::NEG_Y;
+                length = constants::ANNIHILATION_SKY_HEIGHT;
+            }
+
+            if talent_cfg.forked {
+                // Spawn 3 beams in a fan pattern
+                let offsets = [
+                    -constants::FORKED_FAN_HALF_ANGLE,
+                    0.0,
+                    constants::FORKED_FAN_HALF_ANGLE,
+                ];
+                for &offset in &offsets {
+                    let (beam_origin, beam_dir, beam_len) = if talent_cfg.annihilation {
+                        // Shared origin, angled directions to offset ground targets
+                        let perp = Vec3::new(
+                            -annihilation_forward.z,
+                            0.0,
+                            annihilation_forward.x,
+                        );
+                        let lateral = offset / constants::FORKED_FAN_HALF_ANGLE;
+                        let offset_xz =
+                            perp * lateral * constants::ANNIHILATION_FORKED_SPREAD;
+                        let ground_target = Vec3::new(
+                            origin.x + offset_xz.x,
+                            0.0,
+                            origin.z + offset_xz.z,
+                        );
+                        let to_target = ground_target - origin;
+                        (origin, to_target.normalize(), to_target.length())
+                    } else {
+                        (
+                            origin,
+                            Quat::from_axis_angle(Vec3::Y, offset) * direction,
+                            length,
+                        )
+                    };
+                    // Shared cast_pos for all annihilation beams so they sweep together
+                    let cast_pos = Vec3::new(origin.x, 0.0, origin.z);
+                    spawn_beam_with_talents(
+                        &mut commands,
+                        &visual_assets,
+                        beam_origin,
+                        beam_dir,
+                        beam_len,
+                        empowerment,
+                        &talent_cfg,
+                        offset,
+                        cast_pos,
+                        annihilation_forward,
+                    );
+                }
+            } else {
+                let cast_pos = Vec3::new(origin.x, 0.0, origin.z);
+                spawn_beam_with_talents(
+                    &mut commands,
+                    &visual_assets,
+                    origin,
+                    direction,
+                    length,
+                    empowerment,
+                    &talent_cfg,
+                    0.0,
+                    cast_pos,
+                    annihilation_forward,
+                );
+            }
             audio::play_looping_sfx(
                 &mut commands,
                 &sfx.disintegrate_channel,
@@ -135,15 +328,34 @@ pub fn handle_disintegrate_casting(
             );
         }
         BeamAction::DespawnAll => {
+            // Spawn searing finale detonations before despawning
+            if talent_cfg.searing_finale {
+                for (_, beam) in beams.iter() {
+                    spawn_searing_finale(
+                        &mut commands,
+                        &visual_assets,
+                        &beam,
+                    );
+                    // Play fireball impact sound at beam tip
+                    let tip = beam.origin + beam.direction * beam.current_length();
+                    audio::play_sfx(
+                        &mut commands,
+                        &sfx.fireball_impact,
+                        tip,
+                        &game_config,
+                    );
+                }
+            }
             despawn_all_beam_visuals(
                 &mut commands,
                 &beams,
                 &glow_query,
                 &flare_query,
                 &particle_query,
+                &eclipse_query,
             );
             for entity in channeling_sfx_query.iter() {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         }
         BeamAction::None => {}
@@ -162,6 +374,7 @@ fn disintegrate_casting_logic(
     primed_spell: &PrimedSpell,
     wizard: &Wizard,
     has_existing_beam: bool,
+    mana_cost_multiplier: f32,
 ) -> CastingResult {
     let mut result = CastingResult {
         beam_action: BeamAction::None,
@@ -180,7 +393,8 @@ fn disintegrate_casting_logic(
         CastingState::Channeling { .. } => {
             casting_state.advance_channel(time.delta_secs());
 
-            let mana_cost = constants::MANA_COST_PER_SECOND * time.delta_secs();
+            let mana_cost =
+                constants::MANA_COST_PER_SECOND * mana_cost_multiplier * time.delta_secs();
 
             if mana.consume(mana_cost) {
                 if let Some(target_pos) = input.cursor_pos {
@@ -254,7 +468,7 @@ fn disintegrate_casting_logic(
         }
         CastingState::Resting => {
             if (input.just_pressed || input.pressed)
-                && mana.can_afford(constants::MANA_COST_PER_SECOND * 0.1)
+                && mana.can_afford(constants::MANA_COST_PER_SECOND * mana_cost_multiplier * 0.1)
             {
                 casting_state.start_cast();
             }
@@ -282,42 +496,80 @@ pub fn apply_disintegrate_damage(
         ),
         Without<Wizard>,
     >,
-    walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     time: Res<Time>,
+    visual_assets: Res<SpellVisualAssets>,
+    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
 ) {
+
     for mut beam in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
         beam.update_time_alive(time.delta_secs());
 
-        // Find the nearest wall intersection to limit beam reach
-        let beam_end = beam.origin + beam.direction * beam.current_length();
-        let mut max_t = 1.0_f32;
-        for wall in &walls {
-            if let Some(t) = wall.line_segment_intersects(beam.origin, beam_end) {
-                max_t = max_t.min(t);
+        // Advance resonance timer and spawn mini-fireballs along beam
+        if beam.resonance {
+            beam.resonance_timer += time.delta_secs();
+            if beam.resonance_timer >= constants::MINI_FIREBALL_INTERVAL {
+                beam.resonance_timer -= constants::MINI_FIREBALL_INTERVAL;
+                let current_len = beam.current_length();
+                if current_len > 1.0 {
+                    let scale = beam.mini_spell_scale;
+                    let mini_damage = fireball::constants::TOTAL_DAMAGE
+                        * constants::MINI_FIREBALL_DAMAGE_FRACTION * scale;
+                    let explosion_radius = fireball::constants::EXPLOSION_RADIUS
+                        * constants::MINI_FIREBALL_DAMAGE_FRACTION * scale;
+                    let visual_radius = 8.0 * scale;
+                    // Annihilation beams: spawn fireball at impact point (ground level),
+                    // flying outward in XZ. Normal beams: spawn at origin, fly along beam.
+                    let (spawn_pos, velocity) = if beam.annihilation {
+                        let tip = beam.origin + beam.direction * current_len;
+                        let ground_pos = Vec3::new(tip.x, 0.0, tip.z);
+                        // Random outward XZ direction
+                        let angle = beam.resonance_timer * 137.5; // pseudo-random angle
+                        let xz_dir = Vec3::new(angle.cos(), 0.0, angle.sin()).normalize();
+                        (ground_pos, xz_dir * fireball::constants::PROJECTILE_SPEED * 0.5)
+                    } else {
+                        (beam.origin, beam.direction * fireball::constants::PROJECTILE_SPEED)
+                    };
+                    fireball::systems::spawn_fireball_entity(
+                        &mut commands,
+                        &visual_assets,
+                        spawn_pos,
+                        velocity,
+                        mini_damage,
+                        constants::DAMAGE_TYPE,
+                        explosion_radius,
+                        fireball::constants::PROJECTILE_COLLISION_RADIUS * scale,
+                        beam.empowerment,
+                        visual_radius,
+                    );
+                }
             }
         }
-        let effective_length = beam.current_length() * max_t;
 
         if beam.should_damage() {
+            let mut hit_count = 0_u32;
+            let damage = beam.damage_per_tick();
+
             for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
                 target_query.iter_mut()
             {
-                let position = transform.translation;
-                // Check if unit's hitbox intersects beam AND is before the wall
-                if beam.contains_point_with_radius(position, hitbox.radius) {
-                    let proj = (position - beam.origin).dot(beam.direction);
-                    if proj <= effective_length + hitbox.radius {
-                        apply_spell_damage(
-                            &mut commands,
-                            entity,
-                            &mut health,
-                            temp_hp.as_deref_mut(),
-                            beam.damage_per_tick(),
-                            constants::DAMAGE_TYPE,
-                            has_spell_shield,
-                        );
-                    }
+                if beam.contains_point_with_radius(transform.translation, hitbox.radius) {
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        damage,
+                        constants::DAMAGE_TYPE,
+                        has_spell_shield,
+                    );
+                    hit_count += 1;
+                }
+            }
+
+            if hit_count > 0 {
+                if let Some(ref mut progress) = talent_progress {
+                    progress.increment(Spell::Disintegrate, hit_count);
                 }
             }
 
@@ -334,44 +586,43 @@ pub fn cleanup_beams_on_cancel(
     mut commands: Commands,
     wizard_query: Query<&CastingState, With<LocalWizard>>,
     beam_query: Query<Entity, (With<DisintegrateBeam>, Without<CrystalSpawn>)>,
-    glow_query: Query<Entity, With<BeamGlow>>,
-    flare_query: Query<Entity, With<BeamOriginFlare>>,
+    glow_query: Query<(Entity, &BeamGlow)>,
+    flare_query: Query<(Entity, &BeamOriginFlare)>,
     particle_query: Query<Entity, With<DisintegrateParticle>>,
+    eclipse_query: Query<(Entity, &BeamEclipse)>,
     channeling_sfx_query: Query<Entity, With<ChannelingSfx>>,
 ) {
     if let Ok(casting_state) = wizard_query.single()
         && matches!(casting_state, CastingState::Resting)
     {
-        for entity in beam_query.iter() {
-            commands.entity(entity).despawn();
+        // Collect wizard beam entities for filtering visuals
+        let wizard_beams: Vec<Entity> = beam_query.iter().collect();
+        for entity in &wizard_beams {
+            commands.entity(*entity).try_despawn();
         }
-        for entity in glow_query.iter() {
-            commands.entity(entity).despawn();
+        // Only despawn visuals that belong to wizard beams
+        for (entity, glow) in &glow_query {
+            if wizard_beams.contains(&glow.beam_entity) {
+                commands.entity(entity).try_despawn();
+            }
         }
-        for entity in flare_query.iter() {
-            commands.entity(entity).despawn();
+        for (entity, flare) in &flare_query {
+            if wizard_beams.contains(&flare.beam_entity) {
+                commands.entity(entity).try_despawn();
+            }
         }
         for entity in particle_query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
+        }
+        for (entity, eclipse) in &eclipse_query {
+            if wizard_beams.contains(&eclipse.beam_entity) {
+                commands.entity(entity).try_despawn();
+            }
         }
         for entity in channeling_sfx_query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
-}
-
-/// Spawns a beam entity with a cylinder mesh visible from all angles,
-/// plus glow and flare sibling entities.
-pub(crate) fn spawn_beam(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    origin: Vec3,
-    direction: Vec3,
-    length: f32,
-    empowerment: f32,
-) -> Entity {
-    let beam = DisintegrateBeam::new(origin, direction, length, empowerment);
-    spawn_beam_visuals(commands, assets, beam)
 }
 
 /// Spawns a beam entity with custom damage per tick (for crystal use),
@@ -385,36 +636,97 @@ pub(crate) fn spawn_beam_with_damage(
     length: f32,
     empowerment: f32,
     damage_per_tick: f32,
+    talent_cfg: Option<&TalentConfig>,
+    mini_spell_scale: f32,
+    fan_offset_angle: f32,
 ) -> Entity {
     let mut beam = DisintegrateBeam::new(origin, direction, length, empowerment);
     beam.damage_per_tick_override = Some(damage_per_tick);
-    spawn_beam_visuals(commands, assets, beam)
+    if let Some(cfg) = talent_cfg {
+        beam.width_multiplier = cfg.width_multiplier;
+        beam.damage_multiplier = cfg.damage_multiplier;
+        beam.escalating = cfg.escalating;
+        beam.resonance = cfg.resonance;
+    }
+    beam.mini_spell_scale = mini_spell_scale;
+    beam.fan_offset_angle = fan_offset_angle;
+    beam.ground_collision = true;
+    // Crystal beams only get the core beam mesh — no glow, flare, or eclipse.
+    spawn_beam_core(commands, assets, beam)
 }
 
-/// Shared helper that spawns the core beam entity plus glow and flare siblings.
-fn spawn_beam_visuals(
+/// Spawns a beam with talent configuration applied.
+#[allow(clippy::too_many_arguments)]
+fn spawn_beam_with_talents(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    origin: Vec3,
+    direction: Vec3,
+    length: f32,
+    empowerment: f32,
+    cfg: &TalentConfig,
+    fan_offset_angle: f32,
+    annihilation_cast_pos: Vec3,
+    annihilation_sweep_dir: Vec3,
+) {
+    let mut beam = DisintegrateBeam::new(origin, direction, length, empowerment);
+    beam.width_multiplier = cfg.width_multiplier;
+    beam.damage_multiplier = cfg.damage_multiplier;
+    beam.fan_offset_angle = fan_offset_angle;
+    beam.escalating = cfg.escalating;
+    beam.sweeping = cfg.sweeping;
+    beam.searing_finale = cfg.searing_finale;
+    beam.resonance = cfg.resonance;
+    beam.annihilation = cfg.annihilation;
+    beam.annihilation_cast_pos = annihilation_cast_pos;
+    if cfg.sweeping {
+        if cfg.annihilation {
+            // For sky beams, sweep_center_direction stores the XZ forward reference
+            beam.sweep_center_direction = annihilation_sweep_dir;
+        } else {
+            beam.sweep_center_direction = direction;
+        }
+        beam.sweep_direction = 1.0;
+    }
+    spawn_beam_visuals(commands, assets, beam);
+}
+
+/// Spawns only the core beam entity (mesh + component). Used by crystal beams
+/// which don't need glow, flare, or eclipse siblings.
+fn spawn_beam_core(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     beam: DisintegrateBeam,
 ) -> Entity {
     let midpoint = beam.origin + beam.direction * (beam.length / 2.0);
 
-    let beam_entity = commands
+    commands
         .spawn((
             beam,
-            Mesh3d(assets.cross_plane_cylinder.clone()),
+            Mesh3d(assets.cross_plane_triangle.clone()),
             MeshMaterial3d(assets.disintegrate_beam.clone()),
             Transform::from_translation(midpoint),
             OnGameplayScreen,
         ))
-        .id();
+        .id()
+}
 
-    // Glow cylinder sibling (wider, semi-transparent)
+/// Spawns the core beam entity plus glow, flare, and eclipse siblings.
+/// Used by wizard-cast disintegrate beams.
+fn spawn_beam_visuals(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    beam: DisintegrateBeam,
+) -> Entity {
+    let midpoint = beam.origin + beam.direction * (beam.length / 2.0);
+    let beam_entity = spawn_beam_core(commands, assets, beam);
+
+    // Glow triangle sibling (wider, semi-transparent)
     commands.spawn((
         BeamGlow {
             beam_entity,
         },
-        Mesh3d(assets.cross_plane_cylinder.clone()),
+        Mesh3d(assets.cross_plane_triangle.clone()),
         MeshMaterial3d(assets.disintegrate_glow.clone()),
         Transform::from_translation(midpoint),
         OnGameplayScreen,
@@ -431,28 +743,44 @@ fn spawn_beam_visuals(
         OnGameplayScreen,
     ));
 
+    // Ground eclipse at beam impact point
+    commands.spawn((
+        BeamEclipse {
+            beam_entity,
+        },
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(assets.disintegrate_eclipse.clone()),
+        Transform::from_translation(Vec3::new(0.0, 0.05, 0.0))
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        OnGameplayScreen,
+    ));
+
     beam_entity
 }
 
 /// Helper to despawn all beam-related visual entities.
 fn despawn_all_beam_visuals(
     commands: &mut Commands,
-    beams: &Query<(Entity, &mut DisintegrateBeam)>,
+    beams: &Query<(Entity, &mut DisintegrateBeam), Without<CrystalSpawn>>,
     glow_query: &Query<Entity, With<BeamGlow>>,
     flare_query: &Query<Entity, With<BeamOriginFlare>>,
     particle_query: &Query<Entity, With<DisintegrateParticle>>,
+    eclipse_query: &Query<Entity, With<BeamEclipse>>,
 ) {
     for (entity, _) in beams.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     for entity in glow_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     for entity in flare_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     for entity in particle_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
+    }
+    for entity in eclipse_query.iter() {
+        commands.entity(entity).try_despawn();
     }
 }
 
@@ -467,18 +795,19 @@ pub fn update_beam_visuals(
 
     for (beam, mut transform, material_handle) in beam_query.iter_mut() {
         let current_len = beam.current_length();
-        let midpoint = beam.origin + beam.direction * (current_len / 2.0);
-        transform.translation = midpoint;
+        // Crystal beams (ground_collision) shouldn't overshoot past their range.
+        let overshoot = if beam.ground_collision { 0.0 } else { constants::BEAM_VISUAL_OVERSHOOT };
+        let visual_len = current_len + overshoot;
 
-        let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
-        transform.rotation = rotation;
+        transform.translation = beam.origin;
+        transform.rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
 
-        // Pulsing width
+        // Pulsing width — use beam.beam_width() which includes talent multipliers
         let pulse = 1.0
             + constants::BEAM_PULSE_AMPLITUDE
                 * (t * constants::BEAM_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
-        let beam_width = constants::BEAM_WIDTH * beam.empowerment * pulse;
-        transform.scale = Vec3::new(beam_width, current_len, beam_width);
+        let beam_width = beam.beam_width() * pulse;
+        transform.scale = Vec3::new(beam_width, visual_len, beam_width);
 
         // Color cycling: orange -> yellow -> white -> yellow -> orange
         if let Some(mat) = materials.get_mut(material_handle) {
@@ -512,11 +841,10 @@ pub fn update_beam_glow(
         };
 
         let current_len = beam.current_length();
-        let midpoint = beam.origin + beam.direction * (current_len / 2.0);
-        transform.translation = midpoint;
+        let visual_len = current_len + constants::BEAM_VISUAL_OVERSHOOT;
 
-        let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
-        transform.rotation = rotation;
+        transform.translation = beam.origin;
+        transform.rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
 
         // Glow pulse + shimmer jitter from incommensurate frequencies
         let pulse = 1.0
@@ -525,9 +853,8 @@ pub fn update_beam_glow(
         let shimmer = constants::SHIMMER_AMPLITUDE
             * ((t * constants::SHIMMER_FREQ_A).sin() + (t * constants::SHIMMER_FREQ_B).cos());
         let glow_width =
-            constants::BEAM_WIDTH * beam.empowerment * constants::GLOW_WIDTH_MULTIPLIER
-                * (pulse + shimmer);
-        transform.scale = Vec3::new(glow_width, current_len, glow_width);
+            beam.beam_width() * constants::GLOW_WIDTH_MULTIPLIER * (pulse + shimmer);
+        transform.scale = Vec3::new(glow_width, visual_len, glow_width);
     }
 }
 
@@ -544,6 +871,12 @@ pub fn update_beam_origin_flare(
             continue;
         };
 
+        // Annihilation beams originate from Y=2000 — hide the flare.
+        if beam.annihilation {
+            transform.scale = Vec3::ZERO;
+            continue;
+        }
+
         transform.translation = beam.origin;
 
         // Pulsing scale
@@ -552,6 +885,62 @@ pub fn update_beam_origin_flare(
                 * (t * constants::FLARE_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
         let radius = constants::FLARE_RADIUS * pulse;
         transform.scale = Vec3::splat(radius);
+    }
+}
+
+/// System that positions and scales the ground eclipse at the beam's impact point.
+///
+/// The eclipse is an ellipse matching the shadow a sphere would cast onto the
+/// ground plane. Its major axis stretches along the beam's ground projection by
+/// `1 / sin(elevation)`. Pulses in sync with the beam.
+pub fn update_beam_eclipse(
+    mut eclipse_query: Query<(&BeamEclipse, &mut Transform)>,
+    beam_query: Query<&DisintegrateBeam>,
+    wizard_query: Query<&Wizard>,
+    time: Res<Time>,
+) {
+    let t = time.elapsed_secs();
+    let spell_range = wizard_query
+        .iter()
+        .next()
+        .map(|w| w.spell_range)
+        .unwrap_or(500.0);
+
+    for (eclipse, mut transform) in eclipse_query.iter_mut() {
+        let Ok(beam) = beam_query.get(eclipse.beam_entity) else {
+            continue;
+        };
+
+        // Hide eclipse when beam angle is too steep (nearly horizontal)
+        if beam.direction.y.abs() < 0.15 {
+            transform.scale = Vec3::ZERO;
+            continue;
+        }
+
+        let Some((eclipse_center, major_axis, _minor_axis, clipped_major, minor_radius)) =
+            beam.eclipse_geometry(spell_range)
+        else {
+            transform.scale = Vec3::ZERO;
+            continue;
+        };
+
+        transform.translation = Vec3::new(eclipse_center.x, 2.0, eclipse_center.z);
+
+        // Pulse in sync with the beam core
+        let pulse = 1.0
+            + constants::BEAM_PULSE_AMPLITUDE
+                * (t * constants::BEAM_PULSE_FREQUENCY * std::f32::consts::TAU).sin();
+
+        let major_pulsed = clipped_major * pulse;
+        let minor_pulsed = minor_radius * pulse;
+
+        // Orient the ellipse so major axis aligns with beam's ground projection
+        let theta = major_axis.z.atan2(major_axis.x);
+
+        // Lay circle flat (XY → XZ), then rotate around Y to align stretch
+        transform.rotation =
+            Quat::from_rotation_y(theta) * Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2);
+        transform.scale = Vec3::new(major_pulsed, minor_pulsed, 1.0);
     }
 }
 
@@ -576,6 +965,11 @@ pub fn spawn_impact_particles(
         }
 
         let tip = beam.origin + beam.direction * current_len;
+
+        // Annihilation beams: skip particles when tip is still high in the sky (growth phase).
+        if beam.annihilation && tip.y > 50.0 {
+            continue;
+        }
 
         // Build a perpendicular basis for random spread
         let up = if beam.direction.y.abs() > 0.9 {
@@ -622,7 +1016,7 @@ pub fn update_impact_particles(
         particle.time_alive += dt;
 
         if particle.time_alive >= constants::PARTICLE_LIFETIME {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -673,7 +1067,13 @@ pub fn spawn_beam_smoke(
             let frac = ((i as f32 + 0.5) / constants::SMOKE_COUNT_PER_SPAWN as f32
                 + (t * 13.7).fract())
                 % 1.0;
+
             let pos = beam.origin + beam.direction * (current_len * frac);
+
+            // Annihilation beams span from Y=2000 — only spawn smoke near ground level.
+            if beam.annihilation && pos.y > 50.0 {
+                continue;
+            }
 
             // Mostly upward drift with slight lateral spread
             let angle = (i as f32 * 2.39 + t * 7.1).sin(); // pseudo-random lateral
@@ -698,6 +1098,11 @@ pub fn spawn_beam_smoke(
         // Heat shimmer along the beam
         let shimmer_frac = (t * 5.3 + 0.37).fract();
         let shimmer_pos = beam.origin + beam.direction * (current_len * shimmer_frac);
+
+        // Annihilation beams: skip shimmer high in the sky
+        if beam.annihilation && shimmer_pos.y > 50.0 {
+            continue;
+        }
         vfx::systems::spawn_heat_shimmer(
             &mut commands,
             &visual_assets,
@@ -721,7 +1126,7 @@ pub fn update_beam_smoke(
         smoke.time_alive += dt;
 
         if smoke.time_alive >= constants::SMOKE_LIFETIME {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -739,3 +1144,157 @@ pub fn update_beam_smoke(
         transform.scale = Vec3::splat(size);
     }
 }
+
+// ── Talent-specific systems ──────────────────────────────────────────
+
+/// System that auto-sweeps beams with the Sweeping Destruction talent.
+/// Oscillates the beam direction around the sweep_center_direction.
+pub fn update_sweep_beams(
+    mut beam_query: Query<&mut DisintegrateBeam>,
+    time: Res<Time>,
+) {
+    let dt = time.delta_secs();
+
+    for mut beam in beam_query.iter_mut() {
+        if !beam.sweeping {
+            continue;
+        }
+
+        // Advance sweep angle
+        beam.sweep_angle += constants::SWEEP_SPEED * beam.sweep_direction * dt;
+
+        // Reverse direction at arc limits
+        if beam.sweep_angle.abs() > constants::SWEEP_HALF_ARC {
+            beam.sweep_angle = beam.sweep_angle.clamp(
+                -constants::SWEEP_HALF_ARC,
+                constants::SWEEP_HALF_ARC,
+            );
+            beam.sweep_direction *= -1.0;
+        }
+
+        if beam.annihilation {
+            // Sky beam: sweep origin position in XZ instead of rotating direction
+            let forward = beam.sweep_center_direction;
+            let perp = Vec3::new(-forward.z, 0.0, forward.x);
+            let offset = perp * beam.sweep_angle * constants::ANNIHILATION_SWEEP_RADIUS;
+            beam.origin = Vec3::new(
+                beam.annihilation_cast_pos.x + offset.x,
+                constants::ANNIHILATION_SKY_HEIGHT,
+                beam.annihilation_cast_pos.z + offset.z,
+            );
+        } else {
+            // Normal beam: apply sweep rotation to center direction
+            let total_angle = beam.sweep_angle + beam.fan_offset_angle;
+            let rotated = Quat::from_axis_angle(Vec3::Y, total_angle)
+                * beam.sweep_center_direction;
+            beam.direction = rotated;
+        }
+    }
+}
+
+/// System that processes searing finale detonations.
+/// Applies burst damage once along the detonation line, then fades and despawns.
+pub fn update_searing_finale_detonations(
+    mut commands: Commands,
+    mut detonation_query: Query<(Entity, &mut SearingFinaleDetonation, &mut Transform)>,
+    mut target_query: Query<
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
+        (Without<Wizard>, Without<SearingFinaleDetonation>),
+    >,
+    time: Res<Time>,
+) {
+    let dt = time.delta_secs();
+
+    for (det_entity, mut detonation, mut transform) in detonation_query.iter_mut() {
+        detonation.time_alive += dt;
+
+        if detonation.time_alive >= constants::SEARING_FINALE_DURATION {
+            commands.entity(det_entity).try_despawn();
+            continue;
+        }
+
+        // Apply damage once
+        if !detonation.damage_applied {
+            detonation.damage_applied = true;
+
+            for (entity, target_transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
+                target_query.iter_mut()
+            {
+                let pos = target_transform.translation;
+                let to_point = pos - detonation.origin;
+                let proj = to_point.dot(detonation.direction);
+
+                if proj < -hitbox.radius || proj > detonation.length + hitbox.radius {
+                    continue;
+                }
+
+                let closest = detonation.origin
+                    + detonation.direction * proj.clamp(0.0, detonation.length);
+                let dist = pos.distance(closest);
+
+                if dist <= detonation.half_width + hitbox.radius {
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        detonation.damage,
+                        constants::DAMAGE_TYPE,
+                        has_spell_shield,
+                    );
+                }
+            }
+        }
+
+        // Visual: expand width over duration
+        let progress = detonation.time_alive / constants::SEARING_FINALE_DURATION;
+        let visual_width = detonation.half_width * 2.0 * (1.0 + progress * 0.5);
+        let alpha = 1.0 - progress;
+        transform.scale = Vec3::new(visual_width * alpha, detonation.length, visual_width * alpha);
+    }
+}
+
+/// Spawns a searing finale detonation entity along a beam's path.
+fn spawn_searing_finale(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    beam: &DisintegrateBeam,
+) {
+    let current_len = beam.current_length();
+    if current_len < 1.0 {
+        return;
+    }
+
+    let midpoint = beam.origin + beam.direction * (current_len / 2.0);
+    let half_width = beam.beam_width() * constants::SEARING_FINALE_WIDTH_MULT;
+    let damage = beam.damage_per_tick() / constants::DAMAGE_INTERVAL
+        * constants::SEARING_FINALE_DAMAGE_MULT;
+
+    let rotation = Quat::from_rotation_arc(Vec3::Y, beam.direction);
+
+    commands.spawn((
+        SearingFinaleDetonation {
+            origin: beam.origin,
+            direction: beam.direction,
+            length: current_len,
+            half_width,
+            damage,
+            time_alive: 0.0,
+            damage_applied: false,
+        },
+        Mesh3d(assets.cross_plane_cylinder.clone()),
+        MeshMaterial3d(assets.searing_finale.clone()),
+        Transform::from_translation(midpoint)
+            .with_rotation(rotation)
+            .with_scale(Vec3::new(half_width * 2.0, current_len, half_width * 2.0)),
+        OnGameplayScreen,
+    ));
+}
+

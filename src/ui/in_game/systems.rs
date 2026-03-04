@@ -760,7 +760,7 @@ pub(super) fn update_boss_health_bar(
         // Remove bar when all hags are dead
         if living.iter().all(|h| h.is_none()) {
             for entity in &bar_query {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         }
     } else if let Some(health) = boss_query.iter().next() {
@@ -775,7 +775,7 @@ pub(super) fn update_boss_health_bar(
     } else {
         // Boss is dead or doesn't exist — remove the bar
         for entity in &bar_query {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -831,7 +831,7 @@ pub(super) fn spawn_wave_incoming_flash(
     for event in wave_events.read() {
         // Remove any existing flash
         for entity in &existing_flash {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
 
         commands.spawn((
@@ -867,7 +867,7 @@ pub(super) fn update_wave_incoming_flash(
     for (entity, mut flash, mut text_color) in &mut flash_query {
         flash.timer -= time.delta_secs();
         if flash.timer <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         } else {
             // Fade out over the last second
             let opacity = (flash.timer / 1.0).min(1.0);

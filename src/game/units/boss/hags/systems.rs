@@ -601,7 +601,7 @@ pub fn tick_eye_transfer(
                 if child_of.parent() == source
                     && eye_visual.eye_type == EyeType::Invulnerability
                 {
-                    commands.entity(eye_entity).despawn();
+                    commands.entity(eye_entity).try_despawn();
                 }
             }
             // Get source position and spawn flying eye
@@ -646,7 +646,7 @@ pub fn tick_eye_transfer(
             // Despawn eye visual from source
             for (eye_entity, child_of, eye_visual) in &eye_visuals {
                 if child_of.parent() == source && eye_visual.eye_type == EyeType::Ability {
-                    commands.entity(eye_entity).despawn();
+                    commands.entity(eye_entity).try_despawn();
                 }
             }
             // Get source position and spawn flying eye
@@ -692,7 +692,7 @@ pub fn tick_eye_transfer(
             // Despawn existing eye visuals for this hag
             for (eye_entity, child_of, _) in &eye_visuals {
                 if child_of.parent() == entity {
-                    commands.entity(eye_entity).despawn();
+                    commands.entity(eye_entity).try_despawn();
                 }
             }
             // Re-spawn with correct offset
@@ -728,13 +728,13 @@ pub fn update_eye_flight(
             target_transform.translation + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0)
         } else {
             // Target died or despawned — just despawn the eye
-            commands.entity(eye_entity).despawn();
+            commands.entity(eye_entity).try_despawn();
             continue;
         };
 
         if flight.progress >= 1.0 {
             // Eye arrived — deliver to target hag
-            commands.entity(eye_entity).despawn();
+            commands.entity(eye_entity).try_despawn();
 
             if let Ok((_, _, mut eye_state, health)) = hags.get_mut(flight.target) {
                 match flight.eye_type {
@@ -754,7 +754,7 @@ pub fn update_eye_flight(
                 if has_both {
                     for (vis_entity, child_of, _) in &existing_eye_visuals {
                         if child_of.parent() == flight.target {
-                            commands.entity(vis_entity).despawn();
+                            commands.entity(vis_entity).try_despawn();
                         }
                     }
                     // Re-spawn the other eye type with both=true offset
@@ -824,12 +824,12 @@ pub fn intercept_blind_hag_death(
                 // First permanent death: invulnerability eye disappears
                 for (eye_entity, _, eye_visual) in &eye_visuals {
                     if eye_visual.eye_type == EyeType::Invulnerability {
-                        commands.entity(eye_entity).despawn();
+                        commands.entity(eye_entity).try_despawn();
                     }
                 }
                 for (flight_entity, flight) in &eyes_in_flight {
                     if flight.eye_type == EyeType::Invulnerability {
-                        commands.entity(flight_entity).despawn();
+                        commands.entity(flight_entity).try_despawn();
                     }
                 }
                 for (hag_entity, mut eye_state) in &mut living_eye_states {
@@ -840,10 +840,10 @@ pub fn intercept_blind_hag_death(
             2 => {
                 // Second permanent death: ability eye also disappears
                 for (eye_entity, _, _) in &eye_visuals {
-                    commands.entity(eye_entity).despawn();
+                    commands.entity(eye_entity).try_despawn();
                 }
                 for (flight_entity, _) in &eyes_in_flight {
-                    commands.entity(flight_entity).despawn();
+                    commands.entity(flight_entity).try_despawn();
                 }
                 for (_, mut eye_state) in &mut living_eye_states {
                     eye_state.has_ability_eye = false;
@@ -1290,7 +1290,7 @@ pub fn josephina_corpse_consume(
                 // Heal and despawn corpse
                 let heal = health.max * CORPSE_CONSUME_HEAL_PERCENT;
                 health.current = (health.current + heal).min(health.max);
-                commands.entity(state.corpse_entity).despawn();
+                commands.entity(state.corpse_entity).try_despawn();
                 commands.entity(entity).remove::<CorpseConsumeState>();
             }
         } else {

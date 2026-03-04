@@ -112,7 +112,7 @@ fn meteor_fall_casting_logic(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -180,7 +180,7 @@ fn meteor_fall_casting_logic(
                 if mana.consume(MANA_COST) {
                     // Despawn any existing storms (only one storm at a time)
                     for existing_storm in existing_storms.iter() {
-                        commands.entity(existing_storm).despawn();
+                        commands.entity(existing_storm).try_despawn();
                     }
 
                     // Get final circle position and spawn storm
@@ -202,7 +202,7 @@ fn meteor_fall_casting_logic(
                         }
 
                         // Despawn circle indicator
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
 
                     // Remove caster marker immediately
@@ -216,7 +216,7 @@ fn meteor_fall_casting_logic(
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
-                        commands.entity(indicator_entity).despawn();
+                        commands.entity(indicator_entity).try_despawn();
                     }
                     commands.entity(wizard_entity).remove::<SpellCaster>();
                     casting_state.cancel();
@@ -227,7 +227,7 @@ fn meteor_fall_casting_logic(
             // Meteor Fall doesn't use channeling, cancel if we somehow get here
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -488,7 +488,7 @@ pub(super) fn check_meteor_collisions(
             }
 
             // Despawn the projectile
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -541,7 +541,7 @@ pub(super) fn update_meteor_explosions(
 
         // Despawn explosion after lifetime
         if explosion.time_alive >= EXPLOSION_LIFETIME {
-            commands.entity(explosion_entity).despawn();
+            commands.entity(explosion_entity).try_despawn();
         }
     }
 }
@@ -679,7 +679,7 @@ pub(super) fn cleanup_ground_fire(
             let cells = pathfinding.shape_filtered_cells(bounds, &shape);
             pathfinding.set_terrain_cost(&cells, 1.0);
 
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

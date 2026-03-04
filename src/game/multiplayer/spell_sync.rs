@@ -478,7 +478,7 @@ pub fn apply_remote_spell_snapshot(
         if let Some(entity) = effect_map.remove_by_remote(stale_id)
             && let Ok(mut ec) = commands.get_entity(entity)
         {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 
@@ -486,7 +486,7 @@ pub fn apply_remote_spell_snapshot(
 
     for entity in &ghost_projectiles {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 
@@ -522,7 +522,7 @@ pub fn apply_remote_spell_snapshot(
 
     for entity in &ghost_arcs {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 
@@ -587,7 +587,7 @@ pub fn apply_remote_spell_snapshot(
 
     for entity in &ghost_missiles {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 
@@ -605,7 +605,7 @@ pub fn apply_remote_spell_snapshot(
 
     for entity in &ghost_beams {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 

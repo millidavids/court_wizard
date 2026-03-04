@@ -84,7 +84,7 @@ pub(super) fn update_debug_visualization(
 
     // Despawn existing arrows.
     for entity in &arrows {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 
     if *mode == FlowFieldDebugMode::Off {

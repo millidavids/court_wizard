@@ -685,7 +685,7 @@ pub(super) fn clear_and_refresh_main_menu(
     query: Query<Entity, With<OnProgressScreen>>,
 ) {
     for entity in &query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     setup(commands, false);
 }
@@ -696,7 +696,7 @@ pub(super) fn clear_and_refresh_pause_menu(
     query: Query<Entity, With<OnProgressScreen>>,
 ) {
     for entity in &query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     setup(commands, true);
 }

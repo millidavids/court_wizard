@@ -930,7 +930,7 @@ pub fn process_lobby_messages(
 
                         // Despawn the connection-phase UI and spawn the wizard select screen
                         for entity in &screen_items {
-                            commands.entity(entity).despawn();
+                            commands.entity(entity).try_despawn();
                         }
 
                         let initial_wizard = my_wt[0];
@@ -1384,7 +1384,7 @@ pub fn update_ui_state(
             {
                 area.showing_ready = *my_ready;
                 for child in children.iter() {
-                    commands.entity(child).despawn();
+                    commands.entity(child).try_despawn();
                 }
                 commands.entity(entity).with_children(|area| {
                     spawn_ready_button_contents(area, *my_ready);

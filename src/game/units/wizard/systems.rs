@@ -117,11 +117,16 @@ pub fn update_wizard_animation(
 pub fn regenerate_mana(
     time: Res<Time>,
     cauldron_buffs: Res<CauldronBuffs>,
+    infinite_mana: Res<crate::ui::action_bar::InfiniteMana>,
     mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>,
 ) {
     for (mut mana, regen) in &mut wizards {
-        let rate = regen.rate * cauldron_buffs.mana_regen_multiplier();
-        mana.regenerate(rate * time.delta_secs());
+        if infinite_mana.0 {
+            mana.current = mana.max;
+        } else {
+            let rate = regen.rate * cauldron_buffs.mana_regen_multiplier();
+            mana.regenerate(rate * time.delta_secs());
+        }
     }
 }
 

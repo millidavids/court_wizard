@@ -17,7 +17,7 @@ use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
 use crate::state::{AppState, MetaGameState};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{scale_font_by_text_width, spawn_button};
 
 use super::components::*;
 use super::constants::*;
@@ -27,6 +27,12 @@ use super::materials::{RadialProgressData, RadialProgressMaterial, StarSkyData, 
 // ===========================================================================
 // Shared helpers
 // ===========================================================================
+
+/// Calculates font size for talent card names based on the longest word.
+fn calculate_talent_font_size(name: &str) -> f32 {
+    let max_word_width = name.split_whitespace().map(|w| w.len()).max().unwrap_or(0) as f32;
+    scale_font_by_text_width(max_word_width, 7.0, 13.0, 0.65, TALENT_CARD_FONT)
+}
 
 /// Returns the number of spells the player has fully researched.
 fn count_researched_spells() -> u32 {
@@ -409,7 +415,7 @@ fn rebuild_study_ui(
     animate_to_default: bool,
 ) {
     for entity in screen_query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     commands.remove_resource::<InsightAllocation>();
     commands.insert_resource(InsightAllocation::default());
@@ -1300,7 +1306,7 @@ pub(super) fn update_study_detail_panel(
 
 /// Spawns the talent section below the research status for unlocked spells.
 fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
-    use crate::game::talents::{constants as talent_consts, definitions};
+    use crate::game::units::wizard::talents::{constants as talent_consts, definitions};
 
     let talent_progress = get_spell_talent_progress(spell);
     let thresholds = talent_consts::tier_thresholds(spell);
@@ -1460,7 +1466,9 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                                     .with_children(|card| {
                                         card.spawn((
                                             Text::new(display_name),
-                                            TextFont::from_font_size(TALENT_CARD_FONT),
+                                            TextFont::from_font_size(
+                                                calculate_talent_font_size(display_name),
+                                            ),
                                             TextColor(if tier_unlocked {
                                                 TEXT_COLOR
                                             } else {
@@ -1826,7 +1834,7 @@ pub(super) fn handle_talent_card_clicks(
     interaction_query: Query<(&Interaction, &TalentCard), Changed<Interaction>>,
 ) {
     use crate::config::save_data::{get_spell_talent_progress, set_spell_talent_selection};
-    use crate::game::talents::constants as talent_consts;
+    use crate::game::units::wizard::talents::constants as talent_consts;
 
     for (interaction, card) in &interaction_query {
         if *interaction != Interaction::Pressed {
@@ -1864,7 +1872,7 @@ pub(super) fn update_talent_hover_description(
     mut desc_query: Query<(&mut Text, &mut TextColor), With<TalentDescriptionText>>,
 ) {
     use crate::config::save_data::get_spell_talent_progress;
-    use crate::game::talents::{constants as talent_consts, definitions};
+    use crate::game::units::wizard::talents::{constants as talent_consts, definitions};
 
     for (interaction, card) in &interaction_query {
         if *interaction != Interaction::Hovered && *interaction != Interaction::Pressed {

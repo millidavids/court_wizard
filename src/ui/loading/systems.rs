@@ -36,7 +36,7 @@ pub fn despawn_loading_screen(
 ) {
     for entity in &loading_screen_query {
         if let Ok(mut entity_commands) = commands.get_entity(entity) {
-            entity_commands.despawn();
+            entity_commands.try_despawn();
         }
     }
 }

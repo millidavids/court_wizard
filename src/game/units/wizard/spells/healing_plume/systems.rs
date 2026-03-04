@@ -67,7 +67,7 @@ pub fn handle_healing_plume_casting(
     if input.just_released {
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).despawn();
+                commands.entity(indicator_entity).try_despawn();
             }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
@@ -108,7 +108,7 @@ pub fn handle_healing_plume_casting(
         CastingState::Channeling { .. } => {
             if let Ok(caster) = caster_query.get(wizard_entity) {
                 if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).despawn();
+                    commands.entity(indicator_entity).try_despawn();
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
             }
@@ -140,7 +140,7 @@ pub fn handle_healing_plume_casting(
                     &game_config,
                 );
             }
-            commands.entity(indicator_entity).despawn();
+            commands.entity(indicator_entity).try_despawn();
         }
         commands.entity(wizard_entity).remove::<SpellCaster>();
         mouse_state.left_consumed = true;
@@ -262,7 +262,7 @@ pub fn cleanup_healing_plume_zone(
 ) {
     for (entity, zone) in &zones {
         if zone.time_alive >= zone.duration {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

@@ -141,7 +141,7 @@ pub fn handle_finger_of_death_casting(
         }
         BeamAction::DespawnAll => {
             for (beam_entity, _) in beams.iter() {
-                commands.entity(beam_entity).despawn();
+                commands.entity(beam_entity).try_despawn();
             }
         }
         BeamAction::None => {}
@@ -547,7 +547,7 @@ pub fn update_necrotic_veins(
         vein.time_alive += dt;
 
         if vein.time_alive >= vein.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -638,7 +638,7 @@ pub fn cleanup_finger_of_death_glow(
 ) {
     for (glow_entity, glow) in glow_query.iter() {
         if beam_query.get(glow.beam_entity).is_err() {
-            commands.entity(glow_entity).despawn();
+            commands.entity(glow_entity).try_despawn();
         }
     }
 }
@@ -661,7 +661,7 @@ pub fn update_necrotic_pulse(
         pulse.time_alive += dt;
 
         if pulse.time_alive >= pulse.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 
@@ -698,7 +698,7 @@ pub fn cleanup_finger_of_death_beams(
         };
 
         if should_despawn {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

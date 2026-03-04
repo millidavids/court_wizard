@@ -43,7 +43,7 @@ pub fn check_projectile_collisions(
             if wall.contains_point_xz(proj_transform.translation)
                 && proj_transform.translation.y <= wall.height
             {
-                commands.entity(projectile_entity).despawn();
+                commands.entity(projectile_entity).try_despawn();
                 hit_wall = true;
                 break;
             }
@@ -68,7 +68,7 @@ pub fn check_projectile_collisions(
                     continue;
                 }
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), projectile.damage);
-                commands.entity(projectile_entity).despawn();
+                commands.entity(projectile_entity).try_despawn();
                 break; // Projectile is destroyed, stop checking
             }
         }
@@ -87,7 +87,7 @@ pub fn update_spell_effects(
         effect.lifetime -= time.delta_secs();
 
         if effect.lifetime <= 0.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -105,7 +105,7 @@ pub fn despawn_distant_projectiles(
         let distance_from_origin = transform.translation.length();
 
         if distance_from_origin > MAX_DISTANCE {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

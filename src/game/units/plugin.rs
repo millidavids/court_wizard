@@ -64,6 +64,7 @@ impl Plugin for UnitsPlugin {
                 systems::update_timed_modifier::<HasteModifier>,
                 systems::update_timed_modifier::<SpikeGrowthSlowModifier>,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
+                movement::clear_corpse_velocity.after(movement::apply_unit_movement),
                 systems::update_walking_animation
                     .after(ApplyTransformsSet)
                     .run_if(any_with_component::<WalkingAnimation>),

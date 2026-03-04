@@ -10,7 +10,7 @@ use super::super::super::components::{
 use super::components::*;
 use super::constants;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::talents::resources::ActiveTalents;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
@@ -150,7 +150,7 @@ pub fn handle_magic_missile_casting(
 
         // Despawn any existing barrage
         for entity in existing_barrage.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
 
         // 5s base interval; Swift Salvo reduces it
@@ -657,7 +657,7 @@ pub fn check_magic_missile_collisions(
         (Without<MagicMissile>, Without<Corpse>),
     >,
     walls: Query<&WallOfStone>,
-    mut talent_progress: Option<ResMut<crate::game::talents::resources::BattleTalentProgress>>,
+    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
     visual_assets: Res<SpellVisualAssets>,
 ) {
     // Collect split spawns to avoid borrow conflicts
@@ -670,7 +670,7 @@ pub fn check_magic_missile_collisions(
             if wall.contains_point_xz(missile_transform.translation)
                 && missile_transform.translation.y <= wall.height
             {
-                commands.entity(missile_entity).despawn();
+                commands.entity(missile_entity).try_despawn();
                 hit_wall = true;
                 break;
             }
@@ -753,7 +753,7 @@ pub fn check_magic_missile_collisions(
         }
 
         if should_despawn {
-            commands.entity(missile_entity).despawn();
+            commands.entity(missile_entity).try_despawn();
         }
     }
 
@@ -817,7 +817,7 @@ pub fn despawn_distant_magic_missiles(
     for (entity, transform, missile) in &missiles {
         let distance_from_origin = transform.translation.distance(missile.origin_pos);
         if distance_from_origin > missile.spell_range || missile.time_alive > 5.0 {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

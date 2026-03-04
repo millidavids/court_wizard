@@ -321,7 +321,7 @@ fn cleanup_mp_game(
 ) {
     for entity in &mp_entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 
@@ -449,7 +449,7 @@ fn cleanup_mp_score_screen(
 ) {
     for entity in &score_entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
     commands.remove_resource::<MpRematchState>();
@@ -651,7 +651,7 @@ fn setup_mp_pause_menu(mut commands: Commands) {
 fn cleanup_mp_pause_menu(mut commands: Commands, entities: Query<Entity, With<OnMpPauseScreen>>) {
     for entity in &entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 }
@@ -736,7 +736,7 @@ fn cleanup_mp_disconnected(
 ) {
     for entity in &entities {
         if let Ok(mut ec) = commands.get_entity(entity) {
-            ec.despawn();
+            ec.try_despawn();
         }
     }
 }

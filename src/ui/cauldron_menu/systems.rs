@@ -291,7 +291,7 @@ pub(super) fn button_action(
                     selection.toggle(*ingredient);
                     // Despawn menu so respawn_menu_on_toggle rebuilds it next frame
                     for entity in &menu_query {
-                        commands.entity(entity).despawn();
+                        commands.entity(entity).try_despawn();
                     }
                 }
                 CauldronMenuButtonAction::StartBrew => {
@@ -320,7 +320,7 @@ pub(super) fn despawn_cauldron_menu_ui(
     query: Query<Entity, With<OnCauldronMenuScreen>>,
 ) {
     for entity in &query {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 }
 
