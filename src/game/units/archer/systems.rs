@@ -620,9 +620,10 @@ pub(in crate::game) fn spawn_single_defender_archer(
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            let material = crate::game::units::systems::create_sprite_material(
+            let anim = WalkingAnimation::default();
+            let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
-                archer_assets.sprite_textures[0].clone(),
+                archer_assets.sprite_texture.clone(),
                 DEFENDER_SPRITE_TINT,
             );
 
@@ -642,7 +643,7 @@ pub(in crate::game) fn spawn_single_defender_archer(
                     Archer,
                 ))
                 .insert((
-                    WalkingAnimation::new(archer_assets.sprite_textures.clone()),
+                    anim,
                     FacingDirection::default(),
                     AttackRange {
                         min_range: ARCHER_MIN_RANGE,
@@ -698,9 +699,10 @@ pub(in crate::game) fn spawn_single_attacker_archer(
             let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            let material = crate::game::units::systems::create_sprite_material(
+            let anim = WalkingAnimation::default();
+            let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
-                archer_assets.sprite_textures[0].clone(),
+                archer_assets.sprite_texture.clone(),
                 ATTACKER_SPRITE_TINT,
             );
 
@@ -720,7 +722,7 @@ pub(in crate::game) fn spawn_single_attacker_archer(
                     Archer,
                 ))
                 .insert((
-                    WalkingAnimation::new(archer_assets.sprite_textures.clone()),
+                    anim,
                     FacingDirection::default(),
                     AttackRange {
                         min_range: ARCHER_MIN_RANGE,

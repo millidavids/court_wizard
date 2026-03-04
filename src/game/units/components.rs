@@ -1,3 +1,4 @@
+use bevy::math::Affine2;
 use bevy::prelude::*;
 
 use super::constants::{
@@ -567,27 +568,53 @@ pub enum FacingDirection {
 /// Minimum velocity squared to count as "moving" for animation purposes (5.0 units/sec).
 pub const ANIMATION_MOVE_THRESHOLD_SQ: f32 = 25.0;
 
+// Combined sprite sheet constants (shared by infantry and archer sheets).
+pub const SPRITE_SHEET_IMAGE_WIDTH: f32 = 832.0;
+pub const SPRITE_SHEET_IMAGE_HEIGHT: f32 = 256.0;
+pub const SPRITE_FRAME_SIZE: f32 = 64.0;
+pub const SPRITE_COLUMNS: usize = 8;
+/// Maps FacingDirection [Forward, Back, Left, Right] to sprite sheet rows.
+/// Sheet row order: Away(0), Left(1), Forward(2), Right(3).
+pub const SPRITE_DIRECTION_ROWS: [usize; 4] = [2, 0, 1, 3];
+
+/// Number of pre-generated corpse material variants per unit type/team.
+pub const CORPSE_MATERIAL_VARIANTS: usize = 3;
+
 /// Walking animation state for sprite-sheet-animated units.
 ///
-/// Stores per-entity frame state and the 4 directional texture handles.
+/// Uses a single combined sprite sheet with columns = animation frames
+/// and rows = facing directions. The `direction_rows` array maps each
+/// `FacingDirection` variant to the correct sheet row.
 #[derive(Component)]
 pub struct WalkingAnimation {
     pub current_frame: usize,
     pub elapsed: f32,
-    pub textures: [Handle<Image>; 4],
+    /// Number of animation frames (columns) per direction.
+    pub columns: usize,
+    /// UV size of a single frame: (frame_width / image_width, frame_height / image_height).
+    pub frame_uv: Vec2,
+    /// Maps `FacingDirection` enum index to the sprite sheet row.
+    /// Index order: [Forward, Back, Left, Right].
+    pub direction_rows: [usize; 4],
+}
+
+impl Default for WalkingAnimation {
+    fn default() -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: rand::random::<f32>() * Self::FRAME_DURATION, // stagger
+            columns: SPRITE_COLUMNS,
+            frame_uv: Vec2::new(
+                SPRITE_FRAME_SIZE / SPRITE_SHEET_IMAGE_WIDTH,
+                SPRITE_FRAME_SIZE / SPRITE_SHEET_IMAGE_HEIGHT,
+            ),
+            direction_rows: SPRITE_DIRECTION_ROWS,
+        }
+    }
 }
 
 impl WalkingAnimation {
     const FRAME_DURATION: f32 = 0.125;
-    const FRAME_COUNT: usize = 4;
-
-    pub fn new(textures: [Handle<Image>; 4]) -> Self {
-        Self {
-            current_frame: 0,
-            elapsed: rand::random::<f32>() * Self::FRAME_DURATION, // stagger
-            textures,
-        }
-    }
 
     /// Advance animation by `delta` seconds. Returns `true` if the frame changed.
     pub fn tick(&mut self, delta: f32) -> bool {
@@ -595,20 +622,23 @@ impl WalkingAnimation {
         if self.elapsed >= Self::FRAME_DURATION {
             self.elapsed -= Self::FRAME_DURATION;
             let old = self.current_frame;
-            self.current_frame = (self.current_frame + 1) % Self::FRAME_COUNT;
+            self.current_frame = (self.current_frame + 1) % self.columns;
             old != self.current_frame
         } else {
             false
         }
     }
 
-    /// UV offset for the current frame in a 2x2 sprite grid.
-    /// Returns (x, y) where each cell is 0.5 x 0.5.
-    /// Layout: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right.
-    pub fn uv_offset(&self) -> (f32, f32) {
-        let col = (self.current_frame % 2) as f32;
-        let row = (self.current_frame / 2) as f32;
-        (col * 0.5, row * 0.5)
+    /// UV offset for the current frame and facing direction.
+    pub fn uv_offset(&self, facing: FacingDirection) -> Vec2 {
+        let col = self.current_frame as f32;
+        let row = self.direction_rows[facing as usize] as f32;
+        Vec2::new(col * self.frame_uv.x, row * self.frame_uv.y)
+    }
+
+    /// Returns the `Affine2` UV transform for the current frame and facing direction.
+    pub fn uv_transform(&self, facing: FacingDirection) -> Affine2 {
+        Affine2::from_scale_angle_translation(self.frame_uv, 0.0, self.uv_offset(facing))
     }
 }
 

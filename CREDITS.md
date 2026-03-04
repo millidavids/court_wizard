@@ -37,6 +37,9 @@ For complete license information, see the `Cargo.lock` file which lists all depe
 - **Anthropic** and **Claude** for AI-assisted development and code generation
 - The Bevy community for their excellent documentation and examples
 - The Rust community for creating an amazing language and ecosystem
+- Sprites contributed as part of the Liberated Pixel Cup project from OpenGameArt.org: http://opengameart.org/content/lpc-collection
+License: Creative Commons Attribution-ShareAlike 3.0 (CC-BY-SA 3.0) http://creativecommons.org/licenses/by-sa/3.0/
+Detailed credits: [credits.csv](credits/SPRITE_CREDITS.csv)
 
 ---
 

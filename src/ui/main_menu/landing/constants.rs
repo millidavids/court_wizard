@@ -31,6 +31,17 @@ pub const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 /// Margin between landing screen UI elements in pixels.
 pub const MARGIN: f32 = 20.0;
 
+/// Back button style shared across sub-screens (changelog, credits, etc.).
+pub const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 200.0,
+    height: 60.0,
+    border_width: 3.0,
+    font_size: 32.0,
+    background: BUTTON_BACKGROUND,
+    border: BUTTON_BORDER,
+    text_color: TEXT_COLOR,
+};
+
 /// Button style configuration for the landing screen.
 pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: BUTTON_WIDTH,

@@ -584,9 +584,10 @@ fn spawn_mp_infantry(
             let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
             let tint = crate::game::units::systems::sprite_tint_for_team(team);
-            let material = crate::game::units::systems::create_sprite_material(
+            let anim = WalkingAnimation::default();
+            let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
-                infantry_assets.sprite_textures[0].clone(),
+                infantry_assets.sprite_texture.clone(),
                 tint,
             );
 
@@ -612,7 +613,7 @@ fn spawn_mp_infantry(
                     Infantry,
                 ))
                 .insert((
-                    WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+                    anim,
                     FacingDirection::default(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
@@ -660,10 +661,11 @@ fn spawn_mp_archer(
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            let tint = crate::game::units::systems::sprite_tint_for_team(team);
-            let material = crate::game::units::systems::create_sprite_material(
+            let tint = crate::game::units::systems::archer_sprite_tint_for_team(team);
+            let anim = WalkingAnimation::default();
+            let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
-                archer_assets.sprite_textures[0].clone(),
+                archer_assets.sprite_texture.clone(),
                 tint,
             );
 
@@ -691,7 +693,7 @@ fn spawn_mp_archer(
                     Archer,
                 ))
                 .insert((
-                    WalkingAnimation::new(archer_assets.sprite_textures.clone()),
+                    anim,
                     FacingDirection::default(),
                     AttackRange {
                         min_range: ARCHER_MIN_RANGE,
@@ -744,9 +746,10 @@ fn spawn_mp_king(
         _ => TeamFilter::Defenders,
     };
 
-    let king_material = crate::game::units::systems::create_sprite_material(
+    let anim = WalkingAnimation::default();
+    let king_material = crate::game::units::systems::create_default_sprite_material(
         materials,
-        king_assets.sprite_textures[0].clone(),
+        king_assets.sprite_texture.clone(),
         KING_SPRITE_TINT,
     );
 
@@ -767,7 +770,7 @@ fn spawn_mp_king(
             King,
         ))
         .insert((
-            WalkingAnimation::new(king_assets.sprite_textures.clone()),
+            anim,
             FacingDirection::default(),
             Commander {
                 aura_radius: KING_AURA_RADIUS,
@@ -841,9 +844,10 @@ fn spawn_mp_kings_guard(
     let final_x = king_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
     let final_z = king_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
 
-    let guard_material = crate::game::units::systems::create_sprite_material(
+    let anim = WalkingAnimation::default();
+    let guard_material = crate::game::units::systems::create_default_sprite_material(
         materials,
-        infantry_assets.sprite_textures[0].clone(),
+        infantry_assets.sprite_texture.clone(),
         KINGS_GUARD_SPRITE_TINT,
     );
 
@@ -861,7 +865,7 @@ fn spawn_mp_kings_guard(
             KingsGuard(guard_index),
         ))
         .insert((
-            WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+            anim,
             FacingDirection::default(),
             Teleportable,
             Billboard,

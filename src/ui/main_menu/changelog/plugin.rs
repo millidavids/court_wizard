@@ -6,7 +6,7 @@ use super::components::ScrollableChangelogContainer;
 use super::systems;
 use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
-use crate::ui::systems::{escape_to_landing, handle_scroll};
+use crate::ui::systems::{escape_to_landing, handle_back_to_landing, handle_scroll};
 
 /// Plugin that handles the changelog screen.
 pub struct ChangelogPlugin;
@@ -16,7 +16,7 @@ impl Plugin for ChangelogPlugin {
         app.add_systems(OnEnter(MenuState::Changelog), systems::setup)
             .add_systems(
                 Update,
-                systems::handle_back_button
+                handle_back_to_landing
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Changelog)),
             )

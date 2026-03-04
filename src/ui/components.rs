@@ -58,6 +58,12 @@ pub fn load_spell_icon_assets(mut commands: Commands, asset_server: Res<AssetSer
     commands.insert_resource(SpellIconAssets { icons });
 }
 
+/// Shared marker component for back buttons across menu screens.
+///
+/// Used by `handle_back_to_landing` in `ui::systems` to navigate back to the landing page.
+#[derive(Component)]
+pub struct BackButton;
+
 /// Configuration for button dimensions and styling.
 ///
 /// Pass this to `spawn_button` to control button size, font, and colors.

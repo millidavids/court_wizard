@@ -258,9 +258,10 @@ pub(in crate::game) fn spawn_single_defender(
             let spawn_y = hitbox.height / 2.0 + 1.0;
             let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
-            let material = crate::game::units::systems::create_sprite_material(
+            let anim = WalkingAnimation::default();
+            let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
-                infantry_assets.sprite_textures[0].clone(),
+                infantry_assets.sprite_texture.clone(),
                 DEFENDER_SPRITE_TINT,
             );
 
@@ -280,7 +281,7 @@ pub(in crate::game) fn spawn_single_defender(
                     Infantry,
                 ))
                 .insert((
-                    WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+                    anim,
                     FacingDirection::default(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
@@ -330,9 +331,10 @@ pub(in crate::game) fn spawn_single_attacker(
             let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            let material = crate::game::units::systems::create_sprite_material(
+            let anim = WalkingAnimation::default();
+            let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
-                infantry_assets.sprite_textures[0].clone(),
+                infantry_assets.sprite_texture.clone(),
                 ATTACKER_SPRITE_TINT,
             );
 
@@ -352,7 +354,7 @@ pub(in crate::game) fn spawn_single_attacker(
                     Infantry,
                 ))
                 .insert((
-                    WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+                    anim,
                     FacingDirection::default(),
                     TargetingVelocity::default(),
                     FlockingVelocity::default(),
@@ -390,9 +392,10 @@ pub(in crate::game) fn spawn_single_kings_guard(
     let final_x = spawn_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
     let final_z = spawn_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
 
-    let material = crate::game::units::systems::create_sprite_material(
+    let anim = WalkingAnimation::default();
+    let material = crate::game::units::systems::create_default_sprite_material(
         materials,
-        infantry_assets.sprite_textures[0].clone(),
+        infantry_assets.sprite_texture.clone(),
         KINGS_GUARD_SPRITE_TINT,
     );
 
@@ -410,7 +413,7 @@ pub(in crate::game) fn spawn_single_kings_guard(
             KingsGuard(guard_index),
         ))
         .insert((
-            WalkingAnimation::new(infantry_assets.sprite_textures.clone()),
+            anim,
             FacingDirection::default(),
             Teleportable,
             Billboard,

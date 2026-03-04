@@ -16,7 +16,7 @@ use crate::game::units::components::{
     MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
-use crate::game::units::systems::create_sprite_material;
+use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::session::MultiplayerSession;
 
@@ -47,9 +47,10 @@ pub fn spawn_king(
     // Store spawn position for rallying when not activated
     let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
-    let king_material = create_sprite_material(
+    let anim = WalkingAnimation::default();
+    let king_material = create_default_sprite_material(
         &mut materials,
-        king_assets.sprite_textures[0].clone(),
+        king_assets.sprite_texture.clone(),
         KING_SPRITE_TINT,
     );
 
@@ -71,7 +72,7 @@ pub fn spawn_king(
             King, // Marker for game-ending logic
         ))
         .insert((
-            WalkingAnimation::new(king_assets.sprite_textures.clone()),
+            anim,
             FacingDirection::default(),
             // Commander components
             Commander {

@@ -64,6 +64,9 @@ wasm-bindgen \
   --target web \
   ./target/wasm32-unknown-unknown/$BUILD_TYPE/court_wizard.wasm
 
+# Copy sprite credits CSV so it's accessible from the browser
+cp ./credits/SPRITE_CREDITS.csv $OUT_DIR/SPRITE_CREDITS.csv
+
 # Apply wasm-opt based on build type
 if command -v wasm-opt &> /dev/null; then
     if [ "$PROFILE_NAME" = "release" ] || [ "$PROFILE_NAME" = "wasm-release" ]; then

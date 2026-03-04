@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.182] - 2026-03-03
+
+### Added
+- **Credits screen** — view the game's credits from the main menu
+- **Sprite-based corpses** — when units die, their corpses now show a random frame from their walking animation instead of plain colored circles. Each corpse looks slightly different for visual variety
+
+### Fixed
+- **Spell web works properly on all screen sizes** — zooming and panning the spell web no longer drifts off-center on ultrawide monitors or non-standard resolutions
+- **Bosses can no longer be mind controlled** — the Mind Control spell now correctly skips boss enemies
+
+### Changed
+- **Attacker archers are lighter colored** — attacker archers now have a noticeably lighter tint than attacker infantry, making them easier to tell apart
+
 ## [v0.3.174] - 2026-03-03
 
 ### Added

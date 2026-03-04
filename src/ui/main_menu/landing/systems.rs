@@ -76,6 +76,14 @@ pub fn setup(mut commands: Commands) {
                 &BUTTON_STYLE,
             );
 
+            // Credits button
+            spawn_button(
+                parent,
+                "Credits",
+                MenuButtonAction::Credits,
+                &BUTTON_STYLE,
+            );
+
             // Multiplayer button
             spawn_button(
                 parent,
@@ -113,6 +121,9 @@ pub fn button_action(
                 }
                 MenuButtonAction::Progress => {
                     next_menu_state.set(MenuState::Progress);
+                }
+                MenuButtonAction::Credits => {
+                    next_menu_state.set(MenuState::Credits);
                 }
                 MenuButtonAction::Multiplayer => {
                     next_menu_state.set(MenuState::Multiplayer);

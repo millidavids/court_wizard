@@ -160,6 +160,23 @@ pub fn spawn_page_container<M: Component>(
 // Shared Escape key handling
 // ---------------------------------------------------------------------------
 
+/// Handles back button click to return to the main menu landing screen.
+///
+/// Shared across all menu sub-screens (changelog, credits, instructions, etc.).
+pub fn handle_back_to_landing(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&super::components::BackButton>,
+    mut next_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
+) {
+    for event in button_clicked.read() {
+        if button_query.get(event.button).is_ok() {
+            channel_change.write(ChannelChangeMessage);
+            next_state.set(MenuState::Landing);
+        }
+    }
+}
+
 /// Handles Escape key to return to the main menu landing screen.
 pub fn escape_to_landing(
     keyboard: Res<ButtonInput<KeyCode>>,

@@ -51,7 +51,8 @@ fn main() {
                     ..default()
                 }),
                 ..default()
-            }),
+            })
+            .set(ImagePlugin::default_nearest()),
     )
     .add_plugins((
         ConfigPlugin,

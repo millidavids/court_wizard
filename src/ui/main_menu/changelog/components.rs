@@ -6,10 +6,6 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub(super) struct OnChangelogScreen;
 
-/// Marker component for the back button.
-#[derive(Component)]
-pub(super) struct BackButton;
-
 /// Marker component for the scrollable changelog container.
 #[derive(Component)]
 pub(super) struct ScrollableChangelogContainer;

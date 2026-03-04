@@ -8,5 +8,7 @@ pub const ARCHER_RADIUS: f32 = 8.0; // Same as infantry
 pub const ARCHER_SPRITE_WIDTH: f32 = 24.0; // World-space quad width (~0.75 aspect ratio)
 pub const ARCHER_SPRITE_HEIGHT: f32 = 32.0; // World-space quad height
 
-// Sprite tint colors (reuse infantry tints for team consistency)
-pub use crate::game::units::infantry::styles::{ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT};
+// Sprite tint colors
+pub use crate::game::units::infantry::styles::DEFENDER_SPRITE_TINT;
+/// Lighter attacker tint for archers (infantry uses darker 0.55/0.45/0.45).
+pub const ATTACKER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);

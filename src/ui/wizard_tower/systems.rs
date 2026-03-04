@@ -806,7 +806,7 @@ pub(super) fn handle_graph_node_clicks(
 
                 // Animate pan+zoom so the node ends up centered in the right 2/3
                 if let Ok(computed) = graph_area_query.single() {
-                    let size = computed.size();
+                    let size = computed.size() * computed.inverse_scale_factor();
                     let container_center = size / 2.0;
                     let target_x = DETAIL_PANEL_WIDTH
                         + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
@@ -851,6 +851,7 @@ pub(super) fn handle_graph_pan(
     mut commands: Commands,
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
+    ui_scale: Res<bevy::ui::UiScale>,
     mut view: ResMut<GraphViewState>,
     mut drag: ResMut<GraphDragState>,
     bounds: Option<Res<GraphBounds>>,
@@ -871,6 +872,8 @@ pub(super) fn handle_graph_pan(
         }
         return;
     };
+    // Convert window-logical cursor to UI space
+    let cursor_ui = cursor_pos / ui_scale.0;
 
     // Check if cursor is over the detail panel using Bevy's Interaction state
     let cursor_over_panel = panel_query.iter().any(|(interaction, node)| {
@@ -887,14 +890,14 @@ pub(super) fn handle_graph_pan(
             .any(|i| *i != Interaction::None);
         if !any_node_pressed && !cursor_over_panel && !slider_pressed {
             drag.dragging = true;
-            drag.last_cursor = cursor_pos;
-            drag.start_cursor = cursor_pos;
+            drag.last_cursor = cursor_ui;
+            drag.start_cursor = cursor_ui;
             commands.remove_resource::<GraphViewAnimation>();
         }
     }
 
     if buttons.just_released(MouseButton::Left) && drag.dragging {
-        let total_moved = (cursor_pos - drag.start_cursor).length();
+        let total_moved = (cursor_ui - drag.start_cursor).length();
         // Deselect on a click (not a drag) on empty space, but not over the detail panel
         if total_moved < 4.0 && !cursor_over_panel {
             selected.0 = None;
@@ -909,12 +912,12 @@ pub(super) fn handle_graph_pan(
     }
 
     if drag.dragging {
-        let delta = cursor_pos - drag.last_cursor;
+        let delta = cursor_ui - drag.last_cursor;
         view.offset += delta;
         if let Some(bounds) = &bounds {
             clamp_view_offset(&mut view, bounds);
         }
-        drag.last_cursor = cursor_pos;
+        drag.last_cursor = cursor_ui;
     }
 }
 
@@ -923,6 +926,7 @@ pub(super) fn handle_graph_zoom(
     mut commands: Commands,
     mut mouse_wheel: MessageReader<MouseWheel>,
     windows: Query<&Window>,
+    ui_scale: Res<bevy::ui::UiScale>,
     mut view: ResMut<GraphViewState>,
     bounds: Option<Res<GraphBounds>>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
@@ -933,11 +937,13 @@ pub(super) fn handle_graph_zoom(
     let Some(cursor_pos) = window.cursor_position() else {
         return;
     };
+    // Convert window-logical cursor to UI space (ComputedNode sizes are in UI space)
+    let cursor_ui = cursor_pos / ui_scale.0;
 
     let container_center = if let Ok(computed) = graph_area_query.single() {
-        computed.size() / 2.0
+        computed.size() * computed.inverse_scale_factor() / 2.0
     } else {
-        Vec2::new(window.width() / 2.0, window.height() / 2.0)
+        Vec2::new(window.width() / 2.0, window.height() / 2.0) / ui_scale.0
     };
 
     for event in mouse_wheel.read() {
@@ -954,7 +960,7 @@ pub(super) fn handle_graph_zoom(
             // Cancel any running animation
             commands.remove_resource::<GraphViewAnimation>();
             // Adjust offset to keep point under cursor stationary
-            let cursor_from_center = cursor_pos - container_center;
+            let cursor_from_center = cursor_ui - container_center;
             let graph_point = (cursor_from_center - view.offset) / old_scale;
             view.offset = cursor_from_center - graph_point * new_scale;
             view.scale = new_scale;
@@ -1010,7 +1016,7 @@ pub(super) fn update_graph_node_positions(
     let Ok(computed) = graph_area_query.single() else {
         return;
     };
-    let container_center = computed.size() / 2.0;
+    let container_center = computed.size() * computed.inverse_scale_factor() / 2.0;
 
     for (mut node, graph_node) in &mut node_query {
         let screen_pos = graph_to_screen(graph_node.graph_position, &view, container_center);
@@ -1069,7 +1075,7 @@ pub(super) fn update_graph_edge_positions(
     let Ok(computed) = graph_area_query.single() else {
         return;
     };
-    let container_center = computed.size() / 2.0;
+    let container_center = computed.size() * computed.inverse_scale_factor() / 2.0;
     let thickness = (GRAPH_EDGE_THICKNESS * view.scale).max(1.0);
 
     for (mut node, mut ui_transform, edge) in &mut segments {
@@ -1794,7 +1800,7 @@ pub(super) fn update_star_sky_time(
     let (pan_normalized, zoom) = if let Some(view) = &view {
         let container_size = graph_area_query
             .single()
-            .map(|c| c.size())
+            .map(|c| c.size() * c.inverse_scale_factor())
             .unwrap_or(Vec2::ONE);
         // Normalize offset to roughly 0..1 range relative to container size.
         let pan = view.offset / container_size.max(Vec2::ONE);

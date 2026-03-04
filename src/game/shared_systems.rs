@@ -15,10 +15,12 @@ use super::resources::CurrentLevel;
 use super::units::archer::Archer;
 use super::units::boss::components::Boss;
 use super::units::components::{
-    AttackTiming, Corpse, DamageMultiplier, Effectiveness, EliteDamageBonus, Health, Hitbox,
-    Invulnerable, MovementSpeed, ResidualFireDamaged, RetaliationTarget, RoughTerrain,
-    RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
+    AttackTiming, CORPSE_MATERIAL_VARIANTS, Corpse, DamageMultiplier, Effectiveness,
+    EliteDamageBonus, Health, Hitbox, Invulnerable, MovementSpeed, ResidualFireDamaged,
+    RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
+use super::units::systems::corpse_material_for_team;
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
 
@@ -589,7 +591,7 @@ pub fn convert_dead_to_corpses(
         is_infantry,
         is_archer,
         is_king,
-        is_boss,
+        _is_boss,
         spell_damaged,
         residual_fire_damaged,
     ) in &query
@@ -624,49 +626,41 @@ pub fn convert_dead_to_corpses(
                 scorched_earth_events.write(ScorchedEarthMessage);
             }
 
-            // Replace with appropriate corpse material
-            let corpse_material = if is_king.is_some() {
-                king_assets.corpse_material.clone()
+            // Pick a random corpse material variant and appropriate mesh
+            let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
+
+            let (mat, mesh) = if is_king.is_some() {
+                (king_assets.corpse_materials[idx].clone(), king_assets.sprite_mesh.clone())
             } else if is_infantry.is_some() {
-                match team {
-                    Team::Defenders => infantry_assets.defender_corpse_material.clone(),
-                    Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
-                    Team::Undead => infantry_assets.undead_corpse_material.clone(),
-                }
+                let mat = corpse_material_for_team(
+                    &infantry_assets.defender_corpse_materials,
+                    &infantry_assets.attacker_corpse_materials,
+                    &infantry_assets.undead_corpse_materials,
+                    *team, idx,
+                );
+                (mat, infantry_assets.sprite_mesh.clone())
             } else if is_archer.is_some() {
-                match team {
-                    Team::Defenders => archer_assets.defender_corpse_material.clone(),
-                    Team::Attackers => archer_assets.attacker_corpse_material.clone(),
-                    Team::Undead => archer_assets.undead_corpse_material.clone(),
-                }
+                let mat = corpse_material_for_team(
+                    &archer_assets.defender_corpse_materials,
+                    &archer_assets.attacker_corpse_materials,
+                    &archer_assets.undead_corpse_materials,
+                    *team, idx,
+                );
+                (mat, archer_assets.sprite_mesh.clone())
             } else {
-                // Fallback for other unit types (shouldn't happen but be safe)
-                match team {
-                    Team::Defenders => infantry_assets.defender_corpse_material.clone(),
-                    Team::Attackers => infantry_assets.attacker_corpse_material.clone(),
-                    Team::Undead => infantry_assets.undead_corpse_material.clone(),
-                }
+                // Boss and fallback use infantry corpse materials + circle mesh
+                let mat = corpse_material_for_team(
+                    &infantry_assets.defender_corpse_materials,
+                    &infantry_assets.attacker_corpse_materials,
+                    &infantry_assets.undead_corpse_materials,
+                    *team, idx,
+                );
+                (mat, infantry_assets.mesh.clone())
             };
 
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(corpse_material));
-
-            // Swap sprite rectangle mesh to circle mesh for corpses
-            // Bosses have oversized meshes; all units use sprite_mesh for live state
-            if is_boss.is_some() || is_king.is_some() {
-                commands
-                    .entity(entity)
-                    .insert(Mesh3d(infantry_assets.mesh.clone()));
-            } else if is_archer.is_some() {
-                commands
-                    .entity(entity)
-                    .insert(Mesh3d(archer_assets.mesh.clone()));
-            } else {
-                commands
-                    .entity(entity)
-                    .insert(Mesh3d(infantry_assets.mesh.clone()));
-            }
+            commands.entity(entity)
+                .insert(MeshMaterial3d(mat))
+                .insert(Mesh3d(mesh));
 
             // Create a new transform for the corpse: lay flat on ground at Y=1
             // Rotate -90 degrees around X axis to make it face upward

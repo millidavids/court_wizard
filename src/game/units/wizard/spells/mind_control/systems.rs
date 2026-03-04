@@ -10,6 +10,7 @@ use super::components::*;
 use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, MindControlled, Team};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
@@ -52,7 +53,7 @@ pub(super) fn handle_mind_control_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     enemies_query: Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
-        (Without<Corpse>, Without<MindControlled>),
+        (Without<Corpse>, Without<MindControlled>, Without<Boss>),
     >,
     existing_controlled: Query<&MindControlled>,
     mut highlight: Local<HighlightState>,
@@ -131,10 +132,11 @@ pub(super) fn handle_mind_control_casting(
 }
 
 /// Finds the nearest enemy to the cursor within TARGET_SEARCH_RADIUS.
+/// Bosses are excluded from mind control targeting.
 fn find_nearest_enemy(
     enemies_query: &Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
-        (Without<Corpse>, Without<MindControlled>),
+        (Without<Corpse>, Without<MindControlled>, Without<Boss>),
     >,
     cursor_pos: Option<Vec3>,
 ) -> Option<Entity> {
@@ -162,7 +164,7 @@ fn update_highlight(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     enemies_query: &Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
-        (Without<Corpse>, Without<MindControlled>),
+        (Without<Corpse>, Without<MindControlled>, Without<Boss>),
     >,
     highlight: &mut HighlightState,
     nearest: Option<Entity>,

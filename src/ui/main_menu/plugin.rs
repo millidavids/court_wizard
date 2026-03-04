@@ -5,6 +5,7 @@
 use bevy::prelude::*;
 
 use super::changelog::ChangelogPlugin;
+use super::credits::CreditsPlugin;
 use super::landing::plugin::LandingPlugin;
 use super::multiplayer::plugin::MultiplayerPlugin;
 use super::settings::plugin::SettingsPlugin;
@@ -28,6 +29,7 @@ impl Plugin for MainMenuPlugin {
             LandingPlugin,
             SettingsPlugin,
             ChangelogPlugin,
+            CreditsPlugin,
             MainMenuInstructionsPlugin,
             MainMenuProgressPlugin,
             WizardSelectPlugin,

@@ -4,6 +4,7 @@
 //! and WizardSelect screens.
 
 mod changelog;
+mod credits;
 mod landing;
 mod multiplayer;
 mod plugin;

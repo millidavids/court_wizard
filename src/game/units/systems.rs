@@ -18,7 +18,8 @@ use super::constants::{
     MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
 };
 use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, FacingDirection, WalkingAnimation,
+    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, FacingDirection, SPRITE_FRAME_SIZE,
+    SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
 };
 use super::damage::DamageType;
 use super::king::components::SpellShield;
@@ -590,11 +591,36 @@ pub fn update_persistent_effect_visuals(
 
 // === Sprite animation helpers ===
 
+/// Creates corpse sprite materials, each using a random frame from the sprite sheet.
+///
+/// Each material shows one frozen animation frame with the corpse tint color applied.
+/// These are shared across all deaths of a given unit type/team for efficiency.
+pub fn create_corpse_sprite_materials(
+    materials: &mut Assets<StandardMaterial>,
+    texture: Handle<Image>,
+    tint: Color,
+) -> [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS] {
+    let mut rng = rand::thread_rng();
+    let anim = WalkingAnimation::default();
+    let rows = (SPRITE_SHEET_IMAGE_HEIGHT / SPRITE_FRAME_SIZE) as usize;
+    let total_frames = anim.columns * rows;
+
+    std::array::from_fn(|_| {
+        let frame = rng.gen_range(0..total_frames);
+        let col = frame % anim.columns;
+        let row = frame / anim.columns;
+        let uv_offset = Vec2::new(col as f32 * anim.frame_uv.x, row as f32 * anim.frame_uv.y);
+        create_sprite_material(materials, texture.clone(), tint, anim.frame_uv, uv_offset)
+    })
+}
+
 /// Creates a per-entity sprite material with the given texture and tint.
 pub fn create_sprite_material(
     materials: &mut Assets<StandardMaterial>,
     texture: Handle<Image>,
     tint: Color,
+    uv_scale: Vec2,
+    uv_offset: Vec2,
 ) -> Handle<StandardMaterial> {
     materials.add(StandardMaterial {
         base_color_texture: Some(texture),
@@ -602,16 +628,45 @@ pub fn create_sprite_material(
         alpha_mode: AlphaMode::Blend,
         unlit: true,
         cull_mode: None,
-        uv_transform: Affine2::from_scale_angle_translation(
-            Vec2::new(0.5, 0.5),
-            0.0,
-            Vec2::ZERO,
-        ),
+        uv_transform: Affine2::from_scale_angle_translation(uv_scale, 0.0, uv_offset),
         ..default()
     })
 }
 
-/// Returns the sprite tint color for a given team.
+/// Creates a sprite material using the default forward-facing UV offset.
+///
+/// Convenience wrapper used by all unit spawn functions.
+pub fn create_default_sprite_material(
+    materials: &mut Assets<StandardMaterial>,
+    texture: Handle<Image>,
+    tint: Color,
+) -> Handle<StandardMaterial> {
+    let anim = WalkingAnimation::default();
+    create_sprite_material(
+        materials,
+        texture,
+        tint,
+        anim.frame_uv,
+        anim.uv_offset(FacingDirection::default()),
+    )
+}
+
+/// Picks a corpse material by team from the standard `[defender, attacker, undead]` arrays.
+pub fn corpse_material_for_team(
+    defender: &[Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    attacker: &[Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    undead: &[Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    team: Team,
+    idx: usize,
+) -> Handle<StandardMaterial> {
+    match team {
+        Team::Defenders => defender[idx].clone(),
+        Team::Attackers => attacker[idx].clone(),
+        Team::Undead => undead[idx].clone(),
+    }
+}
+
+/// Returns the sprite tint color for a given team (infantry/generic).
 pub fn sprite_tint_for_team(team: Team) -> Color {
     use super::infantry::styles::{
         ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT,
@@ -619,6 +674,17 @@ pub fn sprite_tint_for_team(team: Team) -> Color {
     match team {
         Team::Defenders => DEFENDER_SPRITE_TINT,
         Team::Attackers => ATTACKER_SPRITE_TINT,
+        Team::Undead => UNDEAD_SPRITE_TINT,
+    }
+}
+
+/// Returns the sprite tint color for archers (lighter attacker tint).
+pub fn archer_sprite_tint_for_team(team: Team) -> Color {
+    use super::archer::styles::ATTACKER_SPRITE_TINT as ARCHER_ATTACKER_TINT;
+    use super::infantry::styles::{DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT};
+    match team {
+        Team::Defenders => DEFENDER_SPRITE_TINT,
+        Team::Attackers => ARCHER_ATTACKER_TINT,
         Team::Undead => UNDEAD_SPRITE_TINT,
     }
 }
@@ -650,9 +716,10 @@ pub fn resurrect_corpse_as_infantry(
     let spawn_y = hitbox.height / 2.0 + 1.0;
     let upright_transform = Transform::from_xyz(position.x, spawn_y, position.z);
 
-    let material = create_sprite_material(
+    let anim = WalkingAnimation::default();
+    let material = create_default_sprite_material(
         materials,
-        infantry_assets.sprite_textures[0].clone(),
+        infantry_assets.sprite_texture.clone(),
         tint,
     );
 
@@ -663,7 +730,7 @@ pub fn resurrect_corpse_as_infantry(
         .insert(upright_transform)
         .insert(Mesh3d(infantry_assets.sprite_mesh.clone()))
         .insert(MeshMaterial3d(material))
-        .insert(WalkingAnimation::new(infantry_assets.sprite_textures.clone()))
+        .insert(anim)
         .insert(FacingDirection::default())
         .insert(team)
         .insert(Health::new(health))
@@ -688,6 +755,7 @@ pub fn update_walking_animation(
             &mut WalkingAnimation,
             &MeshMaterial3d<StandardMaterial>,
             &Velocity,
+            &FacingDirection,
         ),
         Without<Corpse>,
     >,
@@ -695,7 +763,7 @@ pub fn update_walking_animation(
 ) {
     let delta = time.delta_secs();
 
-    for (mut anim, material_handle, velocity) in &mut anim_query {
+    for (mut anim, material_handle, velocity, facing) in &mut anim_query {
         let speed_sq = Vec3::new(velocity.x, 0.0, velocity.z).length_squared();
 
         // Stationary: reset to frame 0
@@ -704,11 +772,7 @@ pub fn update_walking_animation(
                 anim.current_frame = 0;
                 anim.elapsed = 0.0;
                 if let Some(mat) = materials.get_mut(material_handle) {
-                    mat.uv_transform = Affine2::from_scale_angle_translation(
-                        Vec2::new(0.5, 0.5),
-                        0.0,
-                        Vec2::ZERO,
-                    );
+                    mat.uv_transform = anim.uv_transform(*facing);
                 }
             }
             continue;
@@ -718,17 +782,12 @@ pub fn update_walking_animation(
         if anim.tick(delta)
             && let Some(mat) = materials.get_mut(material_handle)
         {
-            let (offset_x, offset_y) = anim.uv_offset();
-            mat.uv_transform = Affine2::from_scale_angle_translation(
-                Vec2::new(0.5, 0.5),
-                0.0,
-                Vec2::new(offset_x, offset_y),
-            );
+            mat.uv_transform = anim.uv_transform(*facing);
         }
     }
 }
 
-/// Updates facing direction based on velocity relative to camera, swapping textures.
+/// Updates facing direction based on velocity relative to camera, updating UV row.
 pub fn update_facing_direction(
     camera_query: Query<&Transform, With<Camera3d>>,
     mut unit_query: Query<
@@ -776,8 +835,7 @@ pub fn update_facing_direction(
         if *facing != new_facing {
             *facing = new_facing;
             if let Some(mat) = materials.get_mut(material_handle) {
-                mat.base_color_texture =
-                    Some(anim.textures[new_facing as usize].clone());
+                mat.uv_transform = anim.uv_transform(new_facing);
             }
         }
     }
