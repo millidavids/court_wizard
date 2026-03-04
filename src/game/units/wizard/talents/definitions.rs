@@ -21,6 +21,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Fireball => fireball_talents(),
         Spell::BattleHymn => battle_hymn_talents(),
         Spell::Disintegrate => disintegrate_talents(),
+        Spell::MeteorFall => meteor_fall_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -292,6 +293,74 @@ fn disintegrate_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Beam Fireballs",
                 description: "Periodically fires small fireballs along the beam.",
                 locked_text: "The beam hums with barely contained energy.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn meteor_fall_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Dense Barrage",
+                description: "Meteor spawn rate increased by 30%.",
+                locked_text: "More rocks from the sky. Simple but effective.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Scorching Impact",
+                description: "Explosion and ground fire damage increased by 30%.",
+                locked_text: "Hotter meteors. The ground remembers.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Wide Devastation",
+                description: "Storm radius increased by 30%.",
+                locked_text: "A wider rain of destruction. Cover more ground.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Molten Core",
+                description: "Ground fire lasts twice as long and deals 50% more damage.",
+                locked_text: "The ground burns longer. Much longer.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Tracking Meteors",
+                description: "Meteors steer toward nearby enemies as they fall.",
+                locked_text: "Smart rocks. What a time to be alive.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Aftershock",
+                description: "Each meteor impact knocks nearby enemies outward and deals bonus damage.",
+                locked_text: "The impact sends everything flying. Physics!",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Extinction Event",
+                description: "After 5 seconds of channeling, one massive meteor strikes the entire storm area for 100 damage.",
+                locked_text: "The big one. Dinosaurs hate this trick.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Volcanic Eruption",
+                description: "Meteors landing near existing ground fire trigger eruption bursts with escalating damage.",
+                locked_text: "Fire on fire on fire. It keeps getting worse.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Meteor Shower",
+                description: "Triple meteor spawn rate, but each meteor is smaller and weaker. Half mana cost.",
+                locked_text: "Quantity has a quality all its own.",
                 implemented: true,
             },
         ],

@@ -9,7 +9,7 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::boss::components::Boss;
-use crate::game::units::boss::ogre::components::OgreKnockback;
+use crate::game::units::components::Knockback;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
@@ -1205,7 +1205,7 @@ pub fn josephina_leap_knockback(
                     } else {
                         Vec3::X
                     };
-                    commands.entity(entity).insert(OgreKnockback::new(
+                    commands.entity(entity).insert(Knockback::new(
                         direction,
                         LEAP_KNOCKBACK_SPEED,
                         LEAP_KNOCKBACK_DURATION,

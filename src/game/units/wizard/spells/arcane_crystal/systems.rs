@@ -491,11 +491,11 @@ pub(super) fn cleanup_expired_crystal_beams(
 ) {
     let mut despawned = Vec::new();
     for (entity, beam, crystal_spawn) in &beams {
-        if let Some(lifetime) = crystal_spawn.lifetime {
-            if beam.time_alive > lifetime {
-                commands.entity(entity).try_despawn();
-                despawned.push(entity);
-            }
+        if let Some(lifetime) = crystal_spawn.lifetime
+            && beam.time_alive > lifetime
+        {
+            commands.entity(entity).try_despawn();
+            despawned.push(entity);
         }
     }
 

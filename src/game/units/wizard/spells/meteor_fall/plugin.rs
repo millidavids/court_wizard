@@ -3,7 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    MeteorExplosion, MeteorFallCircleIndicator, MeteorFallStorm, MeteorGroundFire, MeteorProjectile,
+    MeteorExplosion, MeteorFallCircleIndicator, MeteorFallStorm, MeteorGroundFire,
+    MeteorProjectile,
 };
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -29,9 +30,12 @@ impl Plugin for MeteorFallPlugin {
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
                 // Circle indicator updates
-                utils::update_circle_indicator::<MeteorFallCircleIndicator>.run_if(any_exist::<MeteorFallCircleIndicator>()),
-                // Storm systems (spawn projectiles, update physics, check collisions)
+                utils::update_circle_indicator::<MeteorFallCircleIndicator>
+                    .run_if(any_exist::<MeteorFallCircleIndicator>()),
+                // Storm systems (spawn projectiles, extinction event, transfer talents, update physics, check collisions)
                 spawn_meteor_projectiles.run_if(any_exist::<MeteorFallStorm>()),
+                process_extinction_event.run_if(any_exist::<MeteorFallStorm>()),
+                transfer_projectile_talents.run_if(any_exist::<MeteorProjectile>()),
                 update_meteor_projectiles.run_if(any_exist::<MeteorProjectile>()),
                 spawn_meteor_smoke_trail.run_if(any_exist::<MeteorProjectile>()),
                 check_meteor_collisions.run_if(any_exist::<MeteorProjectile>()),

@@ -367,28 +367,3 @@ pub fn update_enrage_state(
     }
 }
 
-/// Ticks all knockback effects, applying decaying position offsets each frame.
-/// Units tumble outward and gradually slow down. Removes the component when expired.
-pub fn apply_knockback_effects(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut units: Query<(Entity, &mut Transform, &mut OgreKnockback)>,
-) {
-    let delta = time.delta_secs();
-
-    for (entity, mut transform, mut knockback) in &mut units {
-        knockback.remaining -= delta;
-
-        if knockback.remaining <= 0.0 {
-            commands.entity(entity).remove::<OgreKnockback>();
-            continue;
-        }
-
-        // Linear decay: full speed at start, zero at end
-        let decay = knockback.remaining / knockback.duration;
-        let speed = knockback.speed * decay;
-
-        transform.translation.x += knockback.direction_x * speed * delta;
-        transform.translation.z += knockback.direction_z * speed * delta;
-    }
-}

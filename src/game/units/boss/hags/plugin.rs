@@ -5,8 +5,7 @@ use super::resources;
 use super::systems::*;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 use crate::game::run_conditions::is_gameplay_running;
-use crate::game::units::boss::ogre::components::OgreKnockback;
-use crate::game::units::{ApplyTransformsSet, MovementCalculationSet};
+use crate::game::units::MovementCalculationSet;
 
 pub struct HagsPlugin;
 
@@ -60,14 +59,6 @@ impl Plugin for HagsPlugin {
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Hag>),
-            )
-            // Josephina leap knockback application (reuses ogre knockback)
-            .add_systems(
-                Update,
-                crate::game::units::boss::ogre::systems::apply_knockback_effects
-                    .after(ApplyTransformsSet)
-                    .run_if(is_gameplay_running)
-                    .run_if(any_with_component::<OgreKnockback>),
             )
             // Martina abilities (teleport pull, mind control)
             .add_systems(

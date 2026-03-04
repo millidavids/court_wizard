@@ -354,6 +354,7 @@ pub(super) fn setup_game_over_screen(
         });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_button_actions(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,

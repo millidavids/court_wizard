@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.234] - 2026-03-04
+
+### Added
+- **Meteor Fall talents** — the Meteor Fall spell now has a full talent tree with 9 upgrades across 3 tiers:
+  - **Tier 1**: Dense Barrage (faster meteors), Scorching Impact (stronger explosions and ground fire), Wide Devastation (larger storm area and aiming circle)
+  - **Tier 2**: Molten Core (longer and stronger ground fires), Tracking Meteors (meteors steer toward enemies), Aftershock (meteors knock enemies back)
+  - **Tier 3**: Extinction Event (after channeling, one massive meteor strikes the entire area), Volcanic Eruption (meteors hitting near existing fires trigger escalating eruption bursts), Meteor Shower (triple the meteors at reduced size and cost)
+- **Extinction Event ground fire** — the massive extinction meteor leaves a huge burning zone covering the entire storm area, and enemies reroute around it
+
+### Changed
+- **Meteor Fall impacts now louder** — meteor explosions play at full volume instead of half
+
 ## [v0.3.228] - 2026-03-04
 
 ### Added

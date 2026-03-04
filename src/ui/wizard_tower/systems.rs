@@ -383,16 +383,16 @@ pub(super) fn handle_main_button_actions(
                     next_app_state.set(AppState::MainMenu);
                 }
                 WizardTowerButtonAction::StartTimeTravel => {
-                    if let Some(ref sel) = selected_tt_level {
-                        if let Some(level) = sel.0 {
-                            commands.insert_resource(TimeTravelState {
-                                real_level: current_level.0,
-                            });
-                            current_level.0 = level;
-                            channel_change.write(ChannelChangeMessage);
-                            kill_stats.reset();
-                            next_app_state.set(AppState::Loading);
-                        }
+                    if let Some(ref sel) = selected_tt_level
+                        && let Some(level) = sel.0
+                    {
+                        commands.insert_resource(TimeTravelState {
+                            real_level: current_level.0,
+                        });
+                        current_level.0 = level;
+                        channel_change.write(ChannelChangeMessage);
+                        kill_stats.reset();
+                        next_app_state.set(AppState::Loading);
                     }
                 }
                 #[cfg(debug_assertions)]

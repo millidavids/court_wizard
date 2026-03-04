@@ -31,17 +31,17 @@ fn strip_markdown_links(input: &str) -> String {
             // Look for closing ] followed by (
             if let Some(bracket_end) = chars[i + 1..].iter().position(|&c| c == ']') {
                 let bracket_end = i + 1 + bracket_end;
-                if bracket_end + 1 < chars.len() && chars[bracket_end + 1] == '(' {
-                    if let Some(paren_end) =
+                if bracket_end + 1 < chars.len()
+                    && chars[bracket_end + 1] == '('
+                    && let Some(paren_end) =
                         chars[bracket_end + 2..].iter().position(|&c| c == ')')
-                    {
-                        let paren_end = bracket_end + 2 + paren_end;
-                        // Extract link text only
-                        let link_text: String = chars[i + 1..bracket_end].iter().collect();
-                        result.push_str(&link_text);
-                        i = paren_end + 1;
-                        continue;
-                    }
+                {
+                    let paren_end = bracket_end + 2 + paren_end;
+                    // Extract link text only
+                    let link_text: String = chars[i + 1..bracket_end].iter().collect();
+                    result.push_str(&link_text);
+                    i = paren_end + 1;
+                    continue;
                 }
             }
         }
@@ -121,10 +121,10 @@ pub(super) fn handle_sprite_credits_button(
     button_query: Query<&SpriteCreditsButton>,
 ) {
     for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            if let Some(window) = web_sys::window() {
-                let _ = window.open_with_url_and_target("./SPRITE_CREDITS.csv", "_blank");
-            }
+        if button_query.get(event.button).is_ok()
+            && let Some(window) = web_sys::window()
+        {
+            let _ = window.open_with_url_and_target("./SPRITE_CREDITS.csv", "_blank");
         }
     }
 }

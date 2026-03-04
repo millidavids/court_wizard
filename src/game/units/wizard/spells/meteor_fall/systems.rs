@@ -14,9 +14,11 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::OBSTACLE_BUFFER;
-use crate::game::pathfinding::resources::PathfindingGrid;
+use crate::game::pathfinding::resources::{PathfindingGrid, RebuildTarget};
 use crate::game::units::DamageType;
-use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage,
+};
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
@@ -25,8 +27,116 @@ use crate::config::GameConfig;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
+use crate::game::units::wizard::spells::utils::{
+    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+};
+
+/// Talent configuration computed once from ActiveTalents.
+struct MeteorTalentConfig {
+    spawn_interval: f32,
+    damage_mult: f32,
+    explosion_radius_mult: f32,
+    ground_fire_duration_mult: f32,
+    ground_fire_damage_mult: f32,
+    ground_fire_radius_mult: f32,
+    storm_radius_mult: f32,
+    tracking: bool,
+    aftershock: bool,
+    extinction_event: bool,
+    volcanic_eruption: bool,
+    mana_cost_mult: f32,
+    mesh_radius_mult: f32,
+}
+
+impl Default for MeteorTalentConfig {
+    fn default() -> Self {
+        Self {
+            spawn_interval: METEOR_SPAWN_INTERVAL,
+            damage_mult: 1.0,
+            explosion_radius_mult: 1.0,
+            ground_fire_duration_mult: 1.0,
+            ground_fire_damage_mult: 1.0,
+            ground_fire_radius_mult: 1.0,
+            storm_radius_mult: 1.0,
+            tracking: false,
+            aftershock: false,
+            extinction_event: false,
+            volcanic_eruption: false,
+            mana_cost_mult: 1.0,
+            mesh_radius_mult: 1.0,
+        }
+    }
+}
+
+fn compute_meteor_talent_config(active_talents: Option<&ActiveTalents>) -> MeteorTalentConfig {
+    let t1 = active_talents.and_then(|t| t.get_selection(Spell::MeteorFall, 0));
+    let t2 = active_talents.and_then(|t| t.get_selection(Spell::MeteorFall, 1));
+    let t3 = active_talents.and_then(|t| t.get_selection(Spell::MeteorFall, 2));
+
+    let mut cfg = MeteorTalentConfig::default();
+
+    // Tier 1
+    match t1 {
+        Some(0) => {
+            // Dense Barrage: spawn rate +30%
+            cfg.spawn_interval = METEOR_SPAWN_INTERVAL / DENSE_BARRAGE_SPAWN_RATE_MULT;
+        }
+        Some(1) => {
+            // Scorching Impact: explosion + ground fire damage +30%
+            cfg.damage_mult *= SCORCHING_IMPACT_DAMAGE_MULT;
+            cfg.ground_fire_damage_mult *= SCORCHING_IMPACT_DAMAGE_MULT;
+        }
+        Some(2) => {
+            // Wide Devastation: storm radius +30%
+            cfg.storm_radius_mult *= WIDE_DEVASTATION_RADIUS_MULT;
+        }
+        _ => {}
+    }
+
+    // Tier 2
+    match t2 {
+        Some(0) => {
+            // Molten Core: ground fire duration 2x, damage +50%
+            cfg.ground_fire_duration_mult *= MOLTEN_CORE_DURATION_MULT;
+            cfg.ground_fire_damage_mult *= MOLTEN_CORE_DAMAGE_MULT;
+        }
+        Some(1) => {
+            // Tracking Meteors
+            cfg.tracking = true;
+        }
+        Some(2) => {
+            // Aftershock
+            cfg.aftershock = true;
+        }
+        _ => {}
+    }
+
+    // Tier 3
+    match t3 {
+        Some(0) => {
+            // Extinction Event
+            cfg.extinction_event = true;
+        }
+        Some(1) => {
+            // Volcanic Eruption
+            cfg.volcanic_eruption = true;
+        }
+        Some(2) => {
+            // Meteor Shower: 3x spawn rate, reduced damage/radius, half mana
+            cfg.spawn_interval /= METEOR_SHOWER_SPAWN_RATE_MULT;
+            cfg.damage_mult *= METEOR_SHOWER_DAMAGE_MULT;
+            cfg.explosion_radius_mult *= METEOR_SHOWER_RADIUS_MULT;
+            cfg.ground_fire_radius_mult *= METEOR_SHOWER_RADIUS_MULT;
+            cfg.mana_cost_mult *= METEOR_SHOWER_MANA_MULT;
+            cfg.mesh_radius_mult *= METEOR_SHOWER_MESH_MULT;
+        }
+        _ => {}
+    }
+
+    cfg
+}
 
 /// Local wizard meteor fall casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -51,6 +161,7 @@ pub(super) fn handle_meteor_fall_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut MeteorFallCircleIndicator>,
     existing_storms: Query<Entity, With<MeteorFallStorm>>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -70,6 +181,8 @@ pub(super) fn handle_meteor_fall_casting(
         return;
     }
 
+    let talent_cfg = compute_meteor_talent_config(active_talents.as_deref());
+
     let completed = meteor_fall_casting_logic(
         &input,
         &time,
@@ -83,6 +196,7 @@ pub(super) fn handle_meteor_fall_casting(
         &existing_storms,
         &mut commands,
         &visual_assets,
+        &talent_cfg,
     );
 
     if completed {
@@ -105,6 +219,7 @@ fn meteor_fall_casting_logic(
     existing_storms: &Query<Entity, With<MeteorFallStorm>>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    talent_cfg: &MeteorTalentConfig,
 ) -> bool {
     let mut completed = false;
 
@@ -127,7 +242,8 @@ fn meteor_fall_casting_logic(
 
     let wizard_pos = SPELL_ORIGIN;
     let scale = primed_spell.empowerment;
-    let storm_radius = STORM_RADIUS * scale;
+    let storm_radius = STORM_RADIUS * scale * talent_cfg.storm_radius_mult;
+    let effective_mana_cost = MANA_COST * talent_cfg.mana_cost_mult;
 
     cursor_world_pos = clamp_to_spell_range_ground(
         cursor_world_pos,
@@ -141,7 +257,7 @@ fn meteor_fall_casting_logic(
         CastingState::Resting => {
             if (input.just_pressed || input.pressed)
                 && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(MANA_COST)
+                && mana.can_afford(effective_mana_cost)
             {
                 // Start casting - spawn circle indicator
                 let circle_entity = spawn_circle_indicator(
@@ -149,10 +265,13 @@ fn meteor_fall_casting_logic(
                     assets,
                     assets.meteor_fall_indicator.clone(),
                     cursor_world_pos,
-                    STORM_RADIUS * primed_spell.empowerment,
+                    storm_radius,
                     CIRCLE_Y_POSITION,
                 )
-                .insert(MeteorFallCircleIndicator::new(cursor_world_pos, primed_spell.empowerment))
+                .insert(MeteorFallCircleIndicator::new(
+                    cursor_world_pos,
+                    storm_radius,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -177,7 +296,7 @@ fn meteor_fall_casting_logic(
             // Check if cast is complete
             if casting_state.is_complete(primed_spell.cast_time) {
                 // Cast complete - spawn storm entity
-                if mana.consume(MANA_COST) {
+                if mana.consume(effective_mana_cost) {
                     // Despawn any existing storms (only one storm at a time)
                     for existing_storm in existing_storms.iter() {
                         commands.entity(existing_storm).try_despawn();
@@ -188,17 +307,37 @@ fn meteor_fall_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            commands.spawn((
-                                MeteorFallStorm::new(
-                                    indicator.position,
-                                    storm_radius,
-                                    primed_spell.empowerment,
-                                ),
-                                ConcentrationSpell {
-                                    spell_name: "Meteor Fall",
-                                },
-                                OnGameplayScreen,
-                            ));
+                            let mut storm = MeteorFallStorm::new(
+                                indicator.position,
+                                storm_radius,
+                                primed_spell.empowerment,
+                            );
+                            // Apply talent config to storm
+                            storm.spawn_interval = talent_cfg.spawn_interval;
+                            storm.damage_mult = talent_cfg.damage_mult;
+                            storm.explosion_radius_mult = talent_cfg.explosion_radius_mult;
+                            storm.ground_fire_duration_mult = talent_cfg.ground_fire_duration_mult;
+                            storm.ground_fire_damage_mult = talent_cfg.ground_fire_damage_mult;
+                            storm.ground_fire_radius_mult = talent_cfg.ground_fire_radius_mult;
+                            storm.tracking = talent_cfg.tracking;
+                            storm.aftershock = talent_cfg.aftershock;
+                            storm.extinction_event = talent_cfg.extinction_event;
+                            storm.volcanic_eruption = talent_cfg.volcanic_eruption;
+                            storm.mesh_radius_mult = talent_cfg.mesh_radius_mult;
+
+                            // Extinction Event: fixed-duration cast, no concentration
+                            if talent_cfg.extinction_event {
+                                storm.duration = Some(EXTINCTION_STORM_DURATION);
+                                commands.spawn((storm, OnGameplayScreen));
+                            } else {
+                                commands.spawn((
+                                    storm,
+                                    ConcentrationSpell {
+                                        spell_name: "Meteor Fall",
+                                    },
+                                    OnGameplayScreen,
+                                ));
+                            }
                         }
 
                         // Despawn circle indicator
@@ -245,15 +384,24 @@ pub(super) fn spawn_meteor_projectiles(
     time: Res<Time>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut storms: Query<&mut MeteorFallStorm>,
+    mut storms: Query<(Entity, &mut MeteorFallStorm)>,
+    enemies: Query<&Transform, With<Team>>,
 ) {
     let mut rng = rand::thread_rng();
 
-    for mut storm in storms.iter_mut() {
+    for (storm_entity, mut storm) in storms.iter_mut() {
         storm.update_timers(time.delta_secs());
 
+        // Check if fixed-duration storm has expired (Extinction Event)
+        if let Some(duration) = storm.duration
+            && storm.time_alive >= duration
+        {
+            commands.entity(storm_entity).try_despawn();
+            continue;
+        }
+
         // Check if it's time to spawn another meteor
-        if storm.time_since_spawn >= METEOR_SPAWN_INTERVAL {
+        if storm.time_since_spawn >= storm.spawn_interval {
             storm.reset_spawn_timer();
 
             // Random position within storm circle (on XZ plane)
@@ -267,11 +415,13 @@ pub(super) fn spawn_meteor_projectiles(
                 storm.position.z + offset.z,
             );
 
-            // Spawn projectile
-            let damage = METEOR_DAMAGE * storm.empowerment;
-            let explosion_radius = EXPLOSION_RADIUS * storm.empowerment;
+            // Spawn projectile with talent-modified values
+            let damage = METEOR_DAMAGE * storm.empowerment * storm.damage_mult;
+            let explosion_radius =
+                EXPLOSION_RADIUS * storm.empowerment * storm.explosion_radius_mult;
+            let mesh_radius = METEOR_MESH_RADIUS * storm.mesh_radius_mult;
 
-            spawn_meteor_projectile_entity(
+            let entity = spawn_meteor_projectile_entity(
                 &mut commands,
                 &visual_assets,
                 spawn_pos,
@@ -279,9 +429,83 @@ pub(super) fn spawn_meteor_projectiles(
                 damage,
                 explosion_radius,
                 storm.empowerment,
-                METEOR_MESH_RADIUS,
+                mesh_radius,
             );
+
+            // Apply talent flags to projectile
+            commands.entity(entity).insert((
+                MeteorProjectileTalents {
+                    aftershock: storm.aftershock,
+                    volcanic_eruption: storm.volcanic_eruption,
+                    ground_fire_duration_mult: storm.ground_fire_duration_mult,
+                    ground_fire_damage_mult: storm.ground_fire_damage_mult,
+                    ground_fire_radius_mult: storm.ground_fire_radius_mult,
+                    tracking: storm.tracking,
+                    is_extinction: false,
+                },
+            ));
+
+            // For tracking meteors, bias spawn position toward nearest enemy
+            if storm.tracking {
+                let storm_center_xz = Vec2::new(storm.position.x, storm.position.z);
+                let mut nearest_dist = f32::MAX;
+                let mut nearest_pos = None;
+                for enemy_transform in enemies.iter() {
+                    let enemy_xz =
+                        Vec2::new(enemy_transform.translation.x, enemy_transform.translation.z);
+                    let dist = enemy_xz.distance(storm_center_xz);
+                    if dist < storm.radius && dist < nearest_dist {
+                        nearest_dist = dist;
+                        nearest_pos = Some(enemy_xz);
+                    }
+                }
+                if let Some(enemy_xz) = nearest_pos {
+                    // Bias 50% toward nearest enemy
+                    let biased_x = spawn_pos.x * 0.5 + enemy_xz.x * 0.5;
+                    let biased_z = spawn_pos.z * 0.5 + enemy_xz.y * 0.5;
+                    commands
+                        .entity(entity)
+                        .insert(Transform::from_translation(Vec3::new(
+                            biased_x,
+                            METEOR_SPAWN_HEIGHT,
+                            biased_z,
+                        ))
+                        .with_scale(Vec3::splat(mesh_radius)));
+                }
+            }
         }
+    }
+}
+
+/// Temporary bundle-like component to transfer talent flags to projectiles.
+/// Applied in spawn_meteor_projectiles, consumed when setting fields on MeteorProjectile.
+#[derive(Component)]
+pub(super) struct MeteorProjectileTalents {
+    aftershock: bool,
+    volcanic_eruption: bool,
+    ground_fire_duration_mult: f32,
+    ground_fire_damage_mult: f32,
+    ground_fire_radius_mult: f32,
+    tracking: bool,
+    is_extinction: bool,
+}
+
+/// Transfers talent data from the separate component onto the projectile fields.
+pub(super) fn transfer_projectile_talents(
+    mut commands: Commands,
+    mut projectiles: Query<(Entity, &mut MeteorProjectile, &MeteorProjectileTalents)>,
+) {
+    for (entity, mut projectile, talents) in projectiles.iter_mut() {
+        projectile.aftershock = talents.aftershock;
+        projectile.volcanic_eruption = talents.volcanic_eruption;
+        projectile.ground_fire_duration_mult = talents.ground_fire_duration_mult;
+        projectile.ground_fire_damage_mult = talents.ground_fire_damage_mult;
+        projectile.ground_fire_radius_mult = talents.ground_fire_radius_mult;
+        projectile.tracking = talents.tracking;
+        projectile.is_extinction = talents.is_extinction;
+        commands
+            .entity(entity)
+            .remove::<MeteorProjectileTalents>();
     }
 }
 
@@ -311,15 +535,37 @@ pub(crate) fn spawn_meteor_projectile_entity(
 }
 
 /// Updates meteor projectile physics - applies gravity and moves projectiles.
+/// Also applies tracking force for Tracking Meteors talent.
 pub(super) fn update_meteor_projectiles(
     time: Res<Time>,
     mut projectiles: Query<(&mut Transform, &mut MeteorProjectile)>,
+    enemies: Query<&Transform, (With<Team>, Without<MeteorProjectile>)>,
 ) {
     let delta = time.delta_secs();
 
     for (mut transform, mut projectile) in projectiles.iter_mut() {
         // Apply gravity
         projectile.velocity.y += METEOR_GRAVITY * delta;
+
+        // Apply tracking force toward nearest enemy (only when visible)
+        if projectile.tracking && transform.translation.y <= VFX_VISIBLE_HEIGHT {
+            let proj_xz = Vec2::new(transform.translation.x, transform.translation.z);
+            let mut nearest_dist = f32::MAX;
+            let mut nearest_dir = Vec2::ZERO;
+            for enemy_transform in enemies.iter() {
+                let enemy_xz =
+                    Vec2::new(enemy_transform.translation.x, enemy_transform.translation.z);
+                let dist = proj_xz.distance(enemy_xz);
+                if dist < nearest_dist && dist > 1.0 {
+                    nearest_dist = dist;
+                    nearest_dir = (enemy_xz - proj_xz).normalize_or_zero();
+                }
+            }
+            if nearest_dist < f32::MAX {
+                projectile.velocity.x += nearest_dir.x * TRACKING_FORCE * delta;
+                projectile.velocity.z += nearest_dir.y * TRACKING_FORCE * delta;
+            }
+        }
 
         // Move projectile
         transform.translation += projectile.velocity * delta;
@@ -388,6 +634,8 @@ pub(super) fn spawn_meteor_smoke_trail(
 }
 
 /// Checks for meteor collisions with the ground, spawns explosions and ground fires.
+/// Also handles Aftershock knockback and Volcanic Eruption.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn check_meteor_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
@@ -395,6 +643,17 @@ pub(super) fn check_meteor_collisions(
     mut pathfinding: ResMut<PathfindingGrid>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    mut ground_fires: Query<&mut MeteorGroundFire>,
+    mut units: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
+        Without<MeteorProjectile>,
+    >,
 ) {
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
@@ -444,20 +703,114 @@ pub(super) fn check_meteor_collisions(
                 t,
             );
 
-            // Impact sound at 50% volume
-            audio::play_sfx_scaled(
+            // Impact sound (fireball explosion)
+            audio::play_sfx(
                 &mut commands,
                 &sfx.fireball_impact,
                 pos,
                 &game_config,
-                0.5,
             );
+
+            // Aftershock: knockback + bonus damage to nearby enemies
+            if projectile.aftershock {
+                for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
+                    &mut units
+                {
+                    let dx = unit_transform.translation.x - pos.x;
+                    let dz = unit_transform.translation.z - pos.z;
+                    let dist = (dx * dx + dz * dz).sqrt();
+                    if dist <= AFTERSHOCK_RADIUS {
+                        // Apply bonus damage
+                        apply_spell_damage(
+                            &mut commands,
+                            unit_entity,
+                            &mut health,
+                            temp_hp.as_deref_mut(),
+                            AFTERSHOCK_DAMAGE * projectile.empowerment,
+                            DamageType::Fire,
+                            has_spell_shield,
+                        );
+                        // Apply knockback
+                        let direction = if dist > 0.1 {
+                            Vec3::new(dx, 0.0, dz)
+                        } else {
+                            Vec3::X
+                        };
+                        commands.entity(unit_entity).insert(Knockback::new(
+                            direction,
+                            AFTERSHOCK_KNOCKBACK_SPEED,
+                            AFTERSHOCK_KNOCKBACK_DURATION,
+                        ));
+                    }
+                }
+            }
+
+            // Volcanic Eruption: check nearby ground fires and trigger eruption
+            if projectile.volcanic_eruption {
+                for mut fire in ground_fires.iter_mut() {
+                    let fire_dx = fire.origin.x - pos.x;
+                    let fire_dz = fire.origin.z - pos.z;
+                    let fire_dist = (fire_dx * fire_dx + fire_dz * fire_dz).sqrt();
+                    if fire_dist <= VOLCANIC_ERUPTION_RADIUS {
+                        fire.eruption_charges += 1;
+                        let eruption_damage = (VOLCANIC_ERUPTION_BASE_DAMAGE
+                            + VOLCANIC_ERUPTION_STACK_BONUS * fire.eruption_charges as f32)
+                            * projectile.empowerment;
+
+                        // Spawn eruption VFX (reuse explosion visual, scaled)
+                        commands.spawn((
+                            Mesh3d(visual_assets.unit_circle.clone()),
+                            MeshMaterial3d(visual_assets.meteor_explosion.clone()),
+                            Transform::from_translation(Vec3::new(
+                                fire.origin.x,
+                                1.0,
+                                fire.origin.z,
+                            ))
+                            .with_rotation(Quat::from_rotation_x(
+                                -std::f32::consts::FRAC_PI_2,
+                            ))
+                            .with_scale(Vec3::splat(0.1)),
+                            MeteorExplosion::new(
+                                fire.origin,
+                                VOLCANIC_ERUPTION_RADIUS,
+                                eruption_damage,
+                            ),
+                            OnGameplayScreen,
+                        ));
+
+                        // Eruption smoke
+                        vfx::systems::spawn_explosion_smoke(
+                            &mut commands,
+                            &visual_assets,
+                            fire.origin,
+                            t,
+                        );
+
+                        // Only trigger eruption on the first matching fire zone
+                        break;
+                    }
+                }
+            }
 
             // Spawn ground fire hazard (only if empowered — boss meteors skip this)
             if projectile.empowerment > 0.0 {
-                let fire_radius = GROUND_FIRE_RADIUS * projectile.empowerment;
-                let fire_damage = GROUND_FIRE_DAMAGE * projectile.empowerment;
-                let fire_duration = GROUND_FIRE_DURATION;
+                let fire_radius = GROUND_FIRE_RADIUS
+                    * projectile.empowerment
+                    * projectile.ground_fire_radius_mult;
+                let fire_damage = GROUND_FIRE_DAMAGE
+                    * projectile.empowerment
+                    * projectile.ground_fire_damage_mult;
+                let fire_duration =
+                    GROUND_FIRE_DURATION * projectile.ground_fire_duration_mult;
+
+                let mut ground_fire = MeteorGroundFire::new(
+                    Vec3::new(pos.x, 0.0, pos.z),
+                    fire_radius,
+                    fire_damage,
+                    GROUND_FIRE_TICK,
+                    fire_duration,
+                );
+                ground_fire.is_extinction = projectile.is_extinction;
 
                 commands.spawn((
                     Mesh3d(visual_assets.unit_circle.clone()),
@@ -465,13 +818,7 @@ pub(super) fn check_meteor_collisions(
                     Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
                         .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                         .with_scale(Vec3::splat(fire_radius)),
-                    MeteorGroundFire::new(
-                        Vec3::new(pos.x, 0.0, pos.z),
-                        fire_radius,
-                        fire_damage,
-                        GROUND_FIRE_TICK,
-                        fire_duration,
-                    ),
+                    ground_fire,
                     NetworkedSpellEffect {
                         kind: SpellEffectKind::MeteorGroundFire,
                     },
@@ -485,6 +832,12 @@ pub(super) fn check_meteor_collisions(
                 let shape = crate::game::pathfinding::ObstacleShape::circle(origin_2d, buffered);
                 let cells = pathfinding.shape_filtered_cells(bounds, &shape);
                 pathfinding.set_terrain_cost(&cells, 8.0);
+
+                // Extinction fire is large enough to warrant a full flow field recalc
+                if projectile.is_extinction {
+                    pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
+                    pathfinding.enqueue_rebuild(RebuildTarget::Defender);
+                }
             }
 
             // Despawn the projectile
@@ -493,7 +846,55 @@ pub(super) fn check_meteor_collisions(
     }
 }
 
+/// Processes the Extinction Event: after 5s of channeling, spawns one massive meteor.
+pub(super) fn process_extinction_event(
+    mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
+    mut storms: Query<&mut MeteorFallStorm>,
+) {
+    for mut storm in storms.iter_mut() {
+        if storm.extinction_event
+            && !storm.extinction_fired
+            && storm.time_alive >= EXTINCTION_DELAY
+        {
+            storm.extinction_fired = true;
+
+            // Spawn massive meteor at storm center
+            let spawn_pos = Vec3::new(storm.position.x, METEOR_SPAWN_HEIGHT, storm.position.z);
+            let damage = EXTINCTION_DAMAGE * storm.empowerment * storm.damage_mult;
+            let explosion_radius = storm.radius; // Covers entire storm area
+
+            let entity = spawn_meteor_projectile_entity(
+                &mut commands,
+                &visual_assets,
+                spawn_pos,
+                Vec3::new(0.0, METEOR_INITIAL_VELOCITY, 0.0),
+                damage,
+                explosion_radius,
+                storm.empowerment,
+                EXTINCTION_MESH_RADIUS,
+            );
+
+            // Apply talent flags to the extinction meteor too
+            // Scale ground fire radius so the fire covers the entire storm area
+            // Fire formula: GROUND_FIRE_RADIUS * empowerment * mult → we want storm.radius
+            let extinction_fire_mult =
+                storm.radius / (GROUND_FIRE_RADIUS * storm.empowerment);
+            commands.entity(entity).insert(MeteorProjectileTalents {
+                aftershock: storm.aftershock,
+                volcanic_eruption: storm.volcanic_eruption,
+                ground_fire_duration_mult: storm.ground_fire_duration_mult,
+                ground_fire_damage_mult: storm.ground_fire_damage_mult,
+                ground_fire_radius_mult: extinction_fire_mult,
+                tracking: false, // Extinction meteor doesn't track
+                is_extinction: true,
+            });
+        }
+    }
+}
+
 /// Updates explosion visuals and applies one-time impact damage.
+/// Also tracks talent progress.
 pub(super) fn update_meteor_explosions(
     time: Res<Time>,
     mut commands: Commands,
@@ -508,6 +909,7 @@ pub(super) fn update_meteor_explosions(
         ),
         Without<MeteorExplosion>,
     >,
+    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     for (explosion_entity, mut explosion, mut transform) in explosions.iter_mut() {
         explosion.time_alive += time.delta_secs();
@@ -519,6 +921,8 @@ pub(super) fn update_meteor_explosions(
         // Apply damage once when explosion spawns
         if !explosion.damage_applied {
             explosion.damage_applied = true;
+
+            let mut hit_count = 0u32;
 
             for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
                 units.iter_mut()
@@ -535,7 +939,15 @@ pub(super) fn update_meteor_explosions(
                         DamageType::Fire,
                         has_spell_shield,
                     );
+                    hit_count += 1;
                 }
+            }
+
+            // Track talent progress
+            if hit_count > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(Spell::MeteorFall, hit_count);
             }
         }
 
@@ -678,6 +1090,12 @@ pub(super) fn cleanup_ground_fire(
             let shape = crate::game::pathfinding::ObstacleShape::circle(origin_2d, buffered);
             let cells = pathfinding.shape_filtered_cells(bounds, &shape);
             pathfinding.set_terrain_cost(&cells, 1.0);
+
+            // Extinction fire removal warrants a full flow field recalc
+            if fire.is_extinction {
+                pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
+                pathfinding.enqueue_rebuild(RebuildTarget::Defender);
+            }
 
             commands.entity(entity).try_despawn();
         }

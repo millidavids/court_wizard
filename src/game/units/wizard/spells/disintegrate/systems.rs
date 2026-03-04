@@ -334,7 +334,7 @@ pub fn handle_disintegrate_casting(
                     spawn_searing_finale(
                         &mut commands,
                         &visual_assets,
-                        &beam,
+                        beam,
                     );
                     // Play fireball impact sound at beam tip
                     let tip = beam.origin + beam.direction * beam.current_length();
@@ -567,10 +567,10 @@ pub fn apply_disintegrate_damage(
                 }
             }
 
-            if hit_count > 0 {
-                if let Some(ref mut progress) = talent_progress {
-                    progress.increment(Spell::Disintegrate, hit_count);
-                }
+            if hit_count > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(Spell::Disintegrate, hit_count);
             }
 
             beam.reset_damage_timer();
@@ -582,6 +582,7 @@ pub fn apply_disintegrate_damage(
 ///
 /// Checks CastingState directly to avoid deferred command timing issues.
 /// Excludes crystal-spawned beams (those with CrystalSpawn) — they're managed by the crystal.
+#[allow(clippy::too_many_arguments)]
 pub fn cleanup_beams_on_cancel(
     mut commands: Commands,
     wizard_query: Query<&CastingState, With<LocalWizard>>,

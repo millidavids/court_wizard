@@ -8,9 +8,8 @@ use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
-    FrostSlowModifier, GreaseSlipModifier, HasteModifier, MarkedForDeathModifier, RootedModifier,
-    SleepModifier, SpikeGrowthSlowModifier, TemporaryHitPoints,
-    WalkingAnimation,
+    FrostSlowModifier, GreaseSlipModifier, HasteModifier, Knockback, MarkedForDeathModifier,
+    RootedModifier, SleepModifier, SpikeGrowthSlowModifier, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -86,6 +85,13 @@ impl Plugin for UnitsPlugin {
                 systems::update_persistent_effect_visuals,
             )
                 .run_if(is_spell_effects_active),
+        )
+        .add_systems(
+            Update,
+            systems::apply_knockback_effects
+                .after(ApplyTransformsSet)
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<Knockback>),
         )
         .add_systems(
             Update,

@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 
-use super::components::*;
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::boss::components::Boss;
-use crate::game::units::{ApplyTransformsSet, MovementCalculationSet};
+use crate::game::units::MovementCalculationSet;
 
 pub struct OgrePlugin;
 
@@ -30,12 +29,6 @@ impl Plugin for OgrePlugin {
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Boss>),
             )
-            .add_systems(
-                Update,
-                apply_knockback_effects
-                    .after(ApplyTransformsSet)
-                    .run_if(is_gameplay_running)
-                    .run_if(any_with_component::<OgreKnockback>),
-            );
+            ;
     }
 }

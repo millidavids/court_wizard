@@ -47,31 +47,5 @@ impl OgreAttackCooldown {
     }
 }
 
-/// Knockback effect that moves a unit outward over time with decay.
-/// Applied by ogre melee attacks. Decays linearly
-/// for a "tumbling through dirt" feel.
-#[derive(Component)]
-pub struct OgreKnockback {
-    /// Direction of knockback (normalized XZ).
-    pub direction_x: f32,
-    pub direction_z: f32,
-    /// Initial knockback speed (units/s at full strength).
-    pub speed: f32,
-    /// Total duration of the effect.
-    pub duration: f32,
-    /// Time remaining before the effect expires.
-    pub remaining: f32,
-}
-
-impl OgreKnockback {
-    pub fn new(direction: Vec3, speed: f32, duration: f32) -> Self {
-        let normalized = direction.normalize_or_zero();
-        Self {
-            direction_x: normalized.x,
-            direction_z: normalized.z,
-            speed,
-            duration,
-            remaining: duration,
-        }
-    }
-}
+/// Re-export shared Knockback for backward compatibility.
+pub use crate::game::units::components::Knockback as OgreKnockback;

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::constants::{CIRCLE_Y_POSITION, STORM_RADIUS};
+use super::constants::CIRCLE_Y_POSITION;
 use crate::game::units::wizard::spells::utils::{CircleIndicator, indicator_pulse_scale};
 
 /// Meteor Fall storm component - invisible marker entity that spawns meteor projectiles.
@@ -21,17 +21,58 @@ pub(crate) struct MeteorFallStorm {
     pub time_since_spawn: f32,
     /// Empowerment multiplier for spell effectiveness.
     pub empowerment: f32,
+    // --- Talent fields ---
+    /// Pre-computed spawn interval (from talents).
+    pub spawn_interval: f32,
+    /// Damage multiplier from talents (Scorching Impact).
+    pub damage_mult: f32,
+    /// Explosion radius multiplier from talents.
+    pub explosion_radius_mult: f32,
+    /// Ground fire duration multiplier from talents.
+    pub ground_fire_duration_mult: f32,
+    /// Ground fire damage multiplier from talents.
+    pub ground_fire_damage_mult: f32,
+    /// Ground fire radius multiplier from talents.
+    pub ground_fire_radius_mult: f32,
+    /// Whether meteors track enemies.
+    pub tracking: bool,
+    /// Whether meteors apply aftershock knockback.
+    pub aftershock: bool,
+    /// Whether Extinction Event is enabled.
+    pub extinction_event: bool,
+    /// Whether the extinction meteor has already fired.
+    pub extinction_fired: bool,
+    /// Whether Volcanic Eruption is enabled.
+    pub volcanic_eruption: bool,
+    /// Visual mesh radius multiplier from talents.
+    pub mesh_radius_mult: f32,
+    /// Optional fixed duration (seconds). When set, storm self-destructs after this time
+    /// instead of requiring concentration. Used by Extinction Event.
+    pub duration: Option<f32>,
 }
 
 impl MeteorFallStorm {
     /// Creates a new meteor fall storm at the specified position.
-    pub const fn new(position: Vec3, radius: f32, empowerment: f32) -> Self {
+    pub fn new(position: Vec3, radius: f32, empowerment: f32) -> Self {
         Self {
             position,
             radius,
             time_alive: 0.0,
             time_since_spawn: 0.0,
             empowerment,
+            spawn_interval: super::constants::METEOR_SPAWN_INTERVAL,
+            damage_mult: 1.0,
+            explosion_radius_mult: 1.0,
+            ground_fire_duration_mult: 1.0,
+            ground_fire_damage_mult: 1.0,
+            ground_fire_radius_mult: 1.0,
+            tracking: false,
+            aftershock: false,
+            extinction_event: false,
+            extinction_fired: false,
+            volcanic_eruption: false,
+            mesh_radius_mult: 1.0,
+            duration: None,
         }
     }
 
@@ -54,18 +95,18 @@ impl MeteorFallStorm {
 pub(super) struct MeteorFallCircleIndicator {
     /// Position of the circle center.
     pub position: Vec3,
-    /// Empowerment scale factor.
-    pub empowerment: f32,
+    /// Pre-computed storm radius (includes empowerment and talent multipliers).
+    pub radius: f32,
     /// Time this indicator has been active (for animations).
     pub time_alive: f32,
 }
 
 impl MeteorFallCircleIndicator {
-    /// Creates a new circle indicator.
-    pub const fn new(position: Vec3, empowerment: f32) -> Self {
+    /// Creates a new circle indicator with the given pre-computed radius.
+    pub const fn new(position: Vec3, radius: f32) -> Self {
         Self {
             position,
-            empowerment,
+            radius,
             time_alive: 0.0,
         }
     }
@@ -89,7 +130,7 @@ impl CircleIndicator for MeteorFallCircleIndicator {
         self.time_alive = time;
     }
     fn base_radius(&self) -> f32 {
-        STORM_RADIUS * self.empowerment
+        self.radius
     }
     fn circle_y_position(&self) -> f32 {
         CIRCLE_Y_POSITION
@@ -114,6 +155,21 @@ pub(crate) struct MeteorProjectile {
     pub mesh_radius: f32,
     /// Whether the glow sibling has been spawned yet.
     pub has_glow: bool,
+    // --- Talent fields ---
+    /// Whether this projectile applies aftershock knockback.
+    pub aftershock: bool,
+    /// Whether this projectile triggers volcanic eruption.
+    pub volcanic_eruption: bool,
+    /// Ground fire duration multiplier.
+    pub ground_fire_duration_mult: f32,
+    /// Ground fire damage multiplier.
+    pub ground_fire_damage_mult: f32,
+    /// Ground fire radius multiplier.
+    pub ground_fire_radius_mult: f32,
+    /// Whether this projectile tracks enemies.
+    pub tracking: bool,
+    /// Whether this is the Extinction Event meteor (triggers flow field recalc on ground fire).
+    pub is_extinction: bool,
 }
 
 impl MeteorProjectile {
@@ -132,6 +188,13 @@ impl MeteorProjectile {
             empowerment,
             mesh_radius,
             has_glow: false,
+            aftershock: false,
+            volcanic_eruption: false,
+            ground_fire_duration_mult: 1.0,
+            ground_fire_damage_mult: 1.0,
+            ground_fire_radius_mult: 1.0,
+            tracking: false,
+            is_extinction: false,
         }
     }
 }
@@ -193,6 +256,10 @@ pub(crate) struct MeteorGroundFire {
     pub time_alive: f32,
     /// Time since last damage tick.
     pub time_since_last_tick: f32,
+    /// Volcanic Eruption: count of additional meteor hits on this fire zone.
+    pub eruption_charges: u32,
+    /// Whether this is the Extinction Event ground fire (triggers flow field recalc).
+    pub is_extinction: bool,
 }
 
 impl MeteorGroundFire {
@@ -206,6 +273,8 @@ impl MeteorGroundFire {
             duration,
             time_alive: 0.0,
             time_since_last_tick: 0.0,
+            eruption_charges: 0,
+            is_extinction: false,
         }
     }
 }
