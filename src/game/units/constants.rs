@@ -21,8 +21,6 @@ pub const FIRE_DOT_MAX_DPS: f32 = 30.0;
 pub const FROST_SLOW_PER_STACK: f32 = -0.05;
 /// Seconds before frost slow expires (resets on each frost hit).
 pub const FROST_SLOW_DURATION: f32 = 3.0;
-/// Maximum total frost slow (85% reduction).
-pub const FROST_SLOW_MAX: f32 = -0.85;
 
 // ===== Electric Arc =====
 

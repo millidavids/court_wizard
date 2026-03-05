@@ -182,7 +182,7 @@ pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 30.0 * UNIT_SCALE;
 // ===== Unit Stats =====
 
 /// Default health for all units.
-pub const UNIT_HEALTH: f32 = 50.0;
+pub const UNIT_HEALTH: f32 = 100.0;
 
 /// Default movement speed for all units (units per second).
 pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
@@ -221,7 +221,7 @@ pub const NEIGHBOR_DISTANCE: f32 = 100.0;
 
 /// Distance threshold for separation force to apply.
 /// Units only separate when they're very close to colliding (just beyond hitbox radius).
-pub const SEPARATION_DISTANCE: f32 = 5.0 * UNIT_SCALE;
+pub const SEPARATION_DISTANCE: f32 = 3.0 * UNIT_SCALE;
 
 /// Strength of the separation force (pushes units apart).
 /// Since we're using normalized directions, this should be small (0-1 range).
@@ -235,7 +235,7 @@ pub const ALIGNMENT_STRENGTH: f32 = 0.1;
 pub const COHESION_STRENGTH: f32 = 0.1;
 
 /// Maximum allowed overlap between hitboxes as a percentage. 0.0 = no overlap allowed.
-pub const MAX_OVERLAP_PERCENT: f32 = 0.0;
+pub const MAX_OVERLAP_PERCENT: f32 = 0.2;
 
 /// Minimum distance threshold for collision calculations (avoids division by zero).
 pub const MIN_DISTANCE_THRESHOLD: f32 = 0.01;

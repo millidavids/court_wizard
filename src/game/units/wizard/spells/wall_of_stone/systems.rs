@@ -15,7 +15,9 @@ use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::config::save_data::SavedWall;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::config::GameConfig;
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
@@ -25,6 +27,8 @@ struct CastResult {
     despawn_preview: bool,
     /// Obstacle bounds for network sync (set when completed=true).
     obstacle_bounds: Option<[f32; 4]>,
+    /// Center position of the placed wall (for sound effects).
+    wall_center: Option<Vec3>,
 }
 
 /// Local wizard Wall of Stone casting — reads mouse input, manages preview.
@@ -51,6 +55,8 @@ pub fn handle_wall_of_stone_casting(
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -167,6 +173,9 @@ pub fn handle_wall_of_stone_casting(
     }
 
     if cast_result.completed {
+        if let Some(center) = cast_result.wall_center {
+            audio::play_sfx(&mut commands, &sfx.wall_of_stone_cast, center, &game_config);
+        }
         mouse_state.left_consumed = true;
     }
 }
@@ -188,6 +197,7 @@ fn wall_of_stone_casting_logic(
         completed: false,
         despawn_preview: false,
         obstacle_bounds: None,
+        wall_center: None,
     };
 
     let Some(clamped_pos) = clamped_pos else {
@@ -258,6 +268,7 @@ fn wall_of_stone_casting_logic(
 
                 result.completed = true;
                 result.obstacle_bounds = Some(obs_bounds);
+                result.wall_center = Some(center);
             } else {
                 // Too short or can't afford — signal preview despawn
                 result.despawn_preview = true;

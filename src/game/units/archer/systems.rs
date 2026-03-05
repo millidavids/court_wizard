@@ -17,9 +17,9 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    RootedModifier, RoughTerrainModifier, SleepModifier, SpikeGrowthSlowModifier,
+    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
+    HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
+    RootedModifier, RoughTerrainModifier, SlowMovementModifier, SleepModifier,
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, WalkingAnimation,
     apply_damage_to_unit,
 };
@@ -498,7 +498,7 @@ pub fn archer_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
-            (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
+            Option<&SlowMovementModifier>,
             (
                 Option<&CauldronSpeedModifier>,
                 Option<&RootedModifier>,
@@ -508,7 +508,6 @@ pub fn archer_movement(
             (
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
-                Option<&GreaseSlipModifier>,
                 Option<&PolymorphedModifier>,
             ),
         ),
@@ -527,9 +526,9 @@ pub fn archer_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
-        (frost_modifier, spike_growth_modifier),
+        slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, grease, polymorphed),
+        (sleeping, banished, polymorphed),
     ) in &mut archer_units
     {
         // CC'd units cannot move
@@ -561,12 +560,10 @@ pub fn archer_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
-            frost_modifier.map(|m| m.modifier),
-            spike_growth_modifier.map(|m| m.modifier),
+            slow_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
-            grease.map(|g| g.modifier),
         );
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee)

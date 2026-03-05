@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use crate::game::units::DamageType;
@@ -7,7 +9,7 @@ use crate::game::units::DamageType;
 #[derive(Component)]
 pub struct ChainLightningGroup {
     /// All entities hit by any bolt in this group.
-    pub hit_entities: Vec<Entity>,
+    pub hit_entities: HashSet<Entity>,
 }
 
 /// Tracks a single chain lightning bolt through its lifecycle.
@@ -31,6 +33,19 @@ pub struct ChainLightningBolt {
     pub empowerment: f32,
     /// Current depth in the splitting tree (0 = first bounce after initial hit).
     pub split_depth: u32,
+    // --- Talent fields ---
+    /// Number of targets per bounce (default 2, Forked Lightning = 3, Overcharge = 1).
+    pub split_count: usize,
+    /// Damage multiplier per bounce (default 0.6, High Voltage = 0.4, Overcharge = 1.0).
+    pub damage_falloff: f32,
+    /// Whether hit enemies are slowed (Static Charge talent).
+    pub static_charge: bool,
+    /// Whether hit enemies are pulled toward bolt origin (Magnetic Pull talent).
+    pub magnetic_pull: bool,
+    /// Whether kills trigger AoE + sub-chains (Chain Reaction talent).
+    pub chain_reaction: bool,
+    /// Bounce range multiplier (Conducting Bolts = 1.5).
+    pub bounce_range_mult: f32,
 }
 
 /// Visual lightning arc between two points.

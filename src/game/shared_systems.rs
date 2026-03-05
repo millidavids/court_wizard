@@ -702,14 +702,14 @@ pub fn convert_dead_to_corpses(
                 .remove::<Hitbox>() // Remove collision
                 .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
                 .remove::<super::units::components::CommanderAuraSpeedModifier>()
-                .remove::<super::units::components::FrostSlowModifier>()
+                .remove::<super::units::components::SlowMovementModifier>()
+                .remove::<super::units::components::FrostEffectMarker>()
                 .remove::<super::units::components::RootedModifier>()
                 .remove::<super::units::components::HasteModifier>()
                 .remove::<super::units::components::FireDoT>()
                 .remove::<super::units::components::ElectricCharge>()
                 .remove::<super::units::components::PendingDamageEffect>()
                 .remove::<super::units::components::OriginalMaterial>()
-                .remove::<super::units::components::SpikeGrowthSlowModifier>()
                 .remove::<super::units::components::RoughTerrainModifier>()
                 // New spell modifiers
                 .remove::<super::units::components::MarkedForDeathModifier>()
@@ -717,7 +717,6 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::BattleHymnModifier>()
                 .remove::<super::units::components::BerserkerRageModifier>()
                 .remove::<super::units::components::FogEvasionModifier>()
-                .remove::<super::units::components::GreaseSlipModifier>()
                 .remove::<super::units::components::BanishedModifier>()
                 .remove::<super::units::components::PolymorphedModifier>()
                 .remove::<CauldronDamageBonus>()

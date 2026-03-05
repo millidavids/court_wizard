@@ -16,7 +16,9 @@ use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffe
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::config::GameConfig;
 
 // ===== Wizard Casting =====
 
@@ -39,6 +41,8 @@ pub fn handle_dispel_casting(
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
@@ -69,6 +73,7 @@ pub fn handle_dispel_casting(
     }
 
     let origin = SPELL_ORIGIN;
+    audio::play_sfx(&mut commands, &sfx.dispel_cast, origin, &game_config);
     spawn_dispel_projectile(
         &mut commands,
         &mut meshes,

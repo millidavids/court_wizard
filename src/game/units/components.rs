@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use super::constants::{
     ELECTRIC_ARC_CHANCE_PER_DAMAGE, ELECTRIC_ARC_CHANCE_PER_HIT, ELECTRIC_ARC_COOLDOWN,
     ELECTRIC_ARC_DURATION, ELECTRIC_ARC_MAX_CHANCE, FIRE_DOT_DAMAGE_RATIO, FIRE_DOT_DURATION,
-    FIRE_DOT_MAX_DPS, FIRE_DOT_TICK_INTERVAL, FROST_SLOW_MAX,
+    FIRE_DOT_MAX_DPS, FIRE_DOT_TICK_INTERVAL,
 };
 use super::damage::DamageType;
 
@@ -28,8 +28,8 @@ macro_rules! impl_timed_modifier {
 }
 
 impl_timed_modifier!(
-    FrostSlowModifier,
-    SpikeGrowthSlowModifier,
+    SlowMovementModifier,
+    FrostEffectMarker,
     TemporaryHitPoints,
     RootedModifier,
     HasteModifier,
@@ -38,7 +38,6 @@ impl_timed_modifier!(
     BattleHymnModifier,
     BerserkerRageModifier,
     FogEvasionModifier,
-    GreaseSlipModifier,
 );
 
 /// Team component for all units.
@@ -103,21 +102,21 @@ pub struct CommanderAuraSpeedModifier(pub f32);
 #[derive(Component)]
 pub struct RoughTerrainModifier(pub f32);
 
-/// Movement speed modifier from frost slow effect as a percentage.
+/// Unified movement speed slow modifier.
 ///
-/// Applied to units hit by ice explosions from the Squall spell.
-/// Examples: -0.4 = -40% speed (0.6x multiplier).
-/// Movement systems apply this as: speed * (1.0 + sum_of_all_modifiers).
+/// Replaces the separate FrostSlowModifier, SpikeGrowthSlowModifier, and
+/// GreaseSlipModifier. Uses strongest-wins semantics: when a new slow is
+/// applied, the stronger modifier and longer duration are kept.
 #[derive(Component)]
-pub struct FrostSlowModifier {
-    /// Speed reduction as a percentage (negative value).
+pub struct SlowMovementModifier {
+    /// Speed reduction as a percentage (negative value, e.g., -0.4 = 40% slower).
     pub modifier: f32,
     /// Time remaining before the slow effect expires (in seconds).
     pub time_remaining: f32,
 }
 
-impl FrostSlowModifier {
-    /// Creates a new frost slow modifier with the given strength and duration.
+impl SlowMovementModifier {
+    /// Creates a new slow modifier with the given strength and duration.
     pub const fn new(modifier: f32, duration: f32) -> Self {
         Self {
             modifier,
@@ -131,43 +130,44 @@ impl FrostSlowModifier {
         self.time_remaining <= 0.0
     }
 
-    /// Stacks additional slow and resets the duration.
-    pub fn stack(&mut self, amount: f32, duration: f32) {
-        self.modifier = (self.modifier + amount).max(FROST_SLOW_MAX);
-        self.time_remaining = duration;
+    /// Apply a new slow. Keeps the stronger modifier and longer duration.
+    pub fn apply(&mut self, modifier: f32, duration: f32) {
+        if modifier < self.modifier {
+            self.modifier = modifier;
+        }
+        if duration > self.time_remaining {
+            self.time_remaining = duration;
+        }
     }
 }
 
-/// Movement speed modifier from Spike Growth (nature-based slow).
+/// Marker component for the frost visual tint effect.
 ///
-/// Separate from FrostSlowModifier so it doesn't interact with the frost
-/// persistent effect stacking system. Applied as a flat slow that refreshes
-/// while units remain in the spike growth zone.
+/// Separate from SlowMovementModifier because the frost blue tint should only
+/// appear for frost-sourced slows, not for spike growth or grease slows.
 #[derive(Component)]
-pub struct SpikeGrowthSlowModifier {
-    /// Speed reduction as a percentage (negative value).
-    pub modifier: f32,
-    /// Time remaining before the slow effect expires (in seconds).
+pub struct FrostEffectMarker {
+    /// Time remaining before the visual effect expires (in seconds).
     pub time_remaining: f32,
 }
 
-impl SpikeGrowthSlowModifier {
-    pub const fn new(modifier: f32, duration: f32) -> Self {
+impl FrostEffectMarker {
+    pub const fn new(duration: f32) -> Self {
         Self {
-            modifier,
             time_remaining: duration,
         }
     }
 
-    /// Updates the timer, returning true if expired.
+    /// Refresh the marker, keeping the longer duration.
+    pub fn apply(&mut self, duration: f32) {
+        if duration > self.time_remaining {
+            self.time_remaining = duration;
+        }
+    }
+
     pub fn update(&mut self, delta: f32) -> bool {
         self.time_remaining -= delta;
         self.time_remaining <= 0.0
-    }
-
-    /// Refreshes the duration (used when reapplying the slow).
-    pub fn refresh(&mut self, duration: f32) {
-        self.time_remaining = duration;
     }
 }
 
@@ -391,7 +391,7 @@ pub struct ResidualFireDamaged;
 
 /// Stores the original shared material handle before persistent effect tinting.
 ///
-/// Inserted when a persistent damage effect (FireDoT, FrostSlowModifier, ElectricCharge)
+/// Inserted when a persistent damage effect (FireDoT, FrostEffectMarker, ElectricCharge)
 /// is first applied to a unit. The unit's MeshMaterial3d is replaced with a cloned
 /// per-entity material that can be safely tinted without affecting other units.
 /// When all effects expire, the original material is restored and this component is removed.
@@ -415,7 +415,7 @@ pub struct RemoteElectricEffect;
 /// Marker component inserted by `apply_spell_damage` to defer persistent effect stacking.
 ///
 /// A central system (`process_pending_damage_effects`) reads these each frame and
-/// creates/stacks the real `FireDoT`, `FrostSlowModifier`, or `ElectricCharge` components.
+/// creates/stacks the real `FireDoT`, `SlowMovementModifier`, or `ElectricCharge` components.
 #[derive(Component)]
 pub struct PendingDamageEffect {
     pub damage_type: DamageType,
@@ -1034,34 +1034,6 @@ impl FogEvasionModifier {
     }
 }
 
-/// Grease slip effect that reduces movement speed.
-///
-/// Applied to units inside a Grease zone.
-#[derive(Component)]
-pub struct GreaseSlipModifier {
-    /// Speed reduction as a percentage (negative value, e.g., -0.4 = 40% slower).
-    pub modifier: f32,
-    /// Time remaining before the slow expires (in seconds).
-    pub time_remaining: f32,
-}
-
-impl GreaseSlipModifier {
-    pub const fn new(modifier: f32, duration: f32) -> Self {
-        Self {
-            modifier,
-            time_remaining: duration,
-        }
-    }
-
-    pub fn update(&mut self, delta: f32) -> bool {
-        self.time_remaining -= delta;
-        self.time_remaining <= 0.0
-    }
-
-    pub fn refresh(&mut self, duration: f32) {
-        self.time_remaining = duration;
-    }
-}
 
 /// Banishment effect that removes a unit from the battlefield temporarily.
 ///

@@ -3,10 +3,10 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    Corpse, Effectiveness, ElectricCharge, FireDoT,
-    FlockingVelocity, FrostSlowModifier, Health, InMelee, MindControlled, OriginalMaterial,
+    Corpse, Effectiveness, ElectricCharge, FireDoT, FrostEffectMarker,
+    FlockingVelocity, Health, InMelee, MindControlled, OriginalMaterial,
     PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
+    SlowMovementModifier, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
     apply_damage_to_unit,
 };
 use super::constants::{
@@ -112,12 +112,10 @@ pub fn calculate_weighted_movement(
     in_melee: bool,
     commander_aura_modifier: Option<f32>,
     terrain_modifier: Option<f32>,
-    frost_modifier: Option<f32>,
-    spike_growth_modifier: Option<f32>,
+    slow_modifier: Option<f32>,
     cauldron_modifier: Option<f32>,
     haste_modifier: Option<f32>,
     elite_speed_modifier: Option<f32>,
-    grease_modifier: Option<f32>,
 ) {
     // If the unit has reached its flow field destination and has no target,
     // stop entirely so flocking doesn't push it around between waves.
@@ -183,20 +181,16 @@ pub fn calculate_weighted_movement(
     // Calculate speed modifiers
     let aura_percentage = commander_aura_modifier.unwrap_or(0.0);
     let terrain_percentage = terrain_modifier.unwrap_or(0.0);
-    let frost_percentage = frost_modifier.unwrap_or(0.0);
-    let spike_growth_percentage = spike_growth_modifier.unwrap_or(0.0);
+    let slow_percentage = slow_modifier.unwrap_or(0.0);
     let cauldron_percentage = cauldron_modifier.unwrap_or(0.0);
     let haste_percentage = haste_modifier.unwrap_or(0.0);
     let elite_speed_percentage = elite_speed_modifier.unwrap_or(0.0);
-    let grease_percentage = grease_modifier.unwrap_or(0.0);
     let total_percentage = aura_percentage
         + terrain_percentage
-        + frost_percentage
-        + spike_growth_percentage
+        + slow_percentage
         + cauldron_percentage
         + haste_percentage
-        + elite_speed_percentage
-        + grease_percentage;
+        + elite_speed_percentage;
     let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
     // Calculate max speed with effectiveness, modifiers, and melee slowdown
@@ -256,7 +250,8 @@ pub fn process_pending_damage_effects(
     mut commands: Commands,
     pending_query: Query<(Entity, &PendingDamageEffect, Has<SpellShield>)>,
     mut fire_query: Query<&mut FireDoT>,
-    mut frost_query: Query<&mut FrostSlowModifier>,
+    mut slow_query: Query<&mut SlowMovementModifier>,
+    mut frost_marker_query: Query<&mut FrostEffectMarker>,
     mut electric_query: Query<&mut ElectricCharge>,
 ) {
     for (entity, pending, has_shield) in pending_query.iter() {
@@ -273,13 +268,22 @@ pub fn process_pending_damage_effects(
                 }
             }
             DamageType::Frost => {
-                if let Ok(mut frost_slow) = frost_query.get_mut(entity) {
-                    frost_slow.stack(FROST_SLOW_PER_STACK, FROST_SLOW_DURATION);
+                // Apply slow via unified SlowMovementModifier
+                if let Ok(mut slow) = slow_query.get_mut(entity) {
+                    slow.apply(FROST_SLOW_PER_STACK, FROST_SLOW_DURATION);
                 } else {
-                    commands.entity(entity).insert(FrostSlowModifier::new(
+                    commands.entity(entity).insert(SlowMovementModifier::new(
                         FROST_SLOW_PER_STACK,
                         FROST_SLOW_DURATION,
                     ));
+                }
+                // Also apply frost visual marker
+                if let Ok(mut marker) = frost_marker_query.get_mut(entity) {
+                    marker.apply(FROST_SLOW_DURATION);
+                } else {
+                    commands
+                        .entity(entity)
+                        .insert(FrostEffectMarker::new(FROST_SLOW_DURATION));
                 }
             }
             DamageType::Electric => {
@@ -467,7 +471,7 @@ pub fn update_electric_arc_visuals(
 
 /// Updates visual tinting on units affected by persistent damage effects.
 ///
-/// Considers both local effects (FireDoT, FrostSlowModifier, ElectricCharge) and
+/// Considers both local effects (FireDoT, FrostEffectMarker, ElectricCharge) and
 /// remote effect markers (RemoteFireEffect, etc.) from the other multiplayer peer.
 ///
 /// Three-phase logic per entity:
@@ -484,7 +488,7 @@ pub fn update_persistent_effect_visuals(
             Entity,
             &MeshMaterial3d<StandardMaterial>,
             Option<&FireDoT>,
-            Option<&FrostSlowModifier>,
+            Option<&FrostEffectMarker>,
             Option<&ElectricCharge>,
             Has<RemoteFireEffect>,
             Has<RemoteFrostEffect>,
@@ -494,7 +498,7 @@ pub fn update_persistent_effect_visuals(
         ),
         Or<(
             With<FireDoT>,
-            With<FrostSlowModifier>,
+            With<FrostEffectMarker>,
             With<ElectricCharge>,
             With<RemoteFireEffect>,
             With<RemoteFrostEffect>,

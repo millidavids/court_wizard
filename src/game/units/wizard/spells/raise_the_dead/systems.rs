@@ -16,7 +16,9 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, PermanentCorpse, Team};
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::config::GameConfig;
 
 /// Local wizard Raise The Dead casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -33,6 +35,8 @@ pub fn handle_raise_the_dead_casting(
     >,
     infantry_assets: Res<InfantryAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -60,6 +64,8 @@ pub fn handle_raise_the_dead_casting(
         &corpse_query,
         &infantry_assets,
         &mut materials,
+        &sfx,
+        &game_config,
     );
 }
 
@@ -81,6 +87,8 @@ fn raise_the_dead_casting_logic(
     >,
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) {
     // Check for release event
     if input.just_released {
@@ -120,6 +128,7 @@ fn raise_the_dead_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST_PER_CORPSE) {
                     if let Some(cursor_pos) = input.cursor_pos {
+                        audio::play_sfx(commands, &sfx.raise_the_dead_cast, cursor_pos, game_config);
                         resurrect_nearest_corpse(
                             commands,
                             cursor_pos,

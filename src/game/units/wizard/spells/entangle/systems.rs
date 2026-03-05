@@ -14,7 +14,9 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{RootedModifier, Team};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard entangle casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -41,6 +43,8 @@ pub fn handle_entangle_casting(
     mut indicator_query: Query<&mut EntangleIndicator>,
     targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
     mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -121,6 +125,7 @@ pub fn handle_entangle_casting(
                             let cast_pos = indicator.position;
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
                             let root_duration = constants::ROOT_DURATION * indicator.empowerment;
+                            audio::play_sfx(&mut commands, &sfx.entangle_cast, cast_pos, &game_config);
                             apply_entangle(
                                 &mut commands,
                                 &visual_assets,

@@ -10,7 +10,9 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::HasteModifier;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard haste casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -35,6 +37,8 @@ pub fn handle_haste_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut HasteIndicator>,
     mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -115,6 +119,7 @@ pub fn handle_haste_casting(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            audio::play_sfx(&mut commands, &sfx.haste_cast, indicator.position, &game_config);
                             apply_haste_buff(
                                 &mut commands,
                                 indicator.position,

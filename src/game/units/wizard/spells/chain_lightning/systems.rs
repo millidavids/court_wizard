@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -15,9 +16,10 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, Knockback, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::config::GameConfig;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
@@ -25,6 +27,93 @@ use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+
+/// Computed talent configuration for chain lightning, derived from ActiveTalents.
+struct ChainLightningTalentConfig {
+    bounce_range_mult: f32,
+    initial_damage_mult: f32,
+    damage_falloff: f32,
+    static_charge: bool,
+    split_count: usize,
+    max_bounces: u32,
+    magnetic_pull: bool,
+    thunderstorm_count: u32,
+    mana_cost_mult: f32,
+    chain_reaction: bool,
+}
+
+fn compute_chain_lightning_talent_config(active_talents: Option<&ActiveTalents>) -> ChainLightningTalentConfig {
+    let t1 = active_talents.and_then(|t| t.get_selection(Spell::ChainLightning, 0));
+    let t2 = active_talents.and_then(|t| t.get_selection(Spell::ChainLightning, 1));
+    let t3 = active_talents.and_then(|t| t.get_selection(Spell::ChainLightning, 2));
+
+    // Tier 1 defaults
+    let mut bounce_range_mult = 1.0;
+    let mut initial_damage_mult = 1.0;
+    let mut damage_falloff = constants::DAMAGE_FALLOFF;
+    let mut static_charge = false;
+
+    match t1 {
+        Some(0) => {
+            bounce_range_mult = constants::CONDUCTING_BOLTS_RANGE_MULT;
+            initial_damage_mult = constants::CONDUCTING_BOLTS_DAMAGE_MULT;
+        }
+        Some(1) => {
+            initial_damage_mult = constants::HIGH_VOLTAGE_DAMAGE_MULT;
+            damage_falloff = constants::HIGH_VOLTAGE_FALLOFF;
+        }
+        Some(2) => static_charge = true,
+        _ => {}
+    }
+
+    // Tier 2 defaults
+    let mut split_count = constants::SPLIT_COUNT;
+    let mut max_bounces = constants::MAX_BOUNCES;
+    let mut magnetic_pull = false;
+
+    match t2 {
+        Some(0) => split_count = constants::FORKED_SPLIT_COUNT,
+        Some(1) => {
+            // Overcharge: no damage falloff, fewer splits, fewer bounces
+            damage_falloff = constants::OVERCHARGE_FALLOFF;
+            split_count = constants::OVERCHARGE_SPLIT_COUNT;
+            max_bounces = constants::OVERCHARGE_MAX_BOUNCES;
+        }
+        Some(2) => magnetic_pull = true,
+        _ => {}
+    }
+
+    // Tier 3 defaults
+    let mut thunderstorm_count = 1;
+    let mut mana_cost_mult = 1.0;
+    let mut chain_reaction = false;
+
+    match t3 {
+        Some(0) => {
+            thunderstorm_count = constants::THUNDERSTORM_CAST_COUNT;
+            mana_cost_mult = constants::THUNDERSTORM_MANA_MULT;
+        }
+        Some(1) => chain_reaction = true,
+        Some(2) => {
+            max_bounces = constants::LIVING_LIGHTNING_MAX_BOUNCES;
+            mana_cost_mult = constants::LIVING_LIGHTNING_MANA_MULT;
+        }
+        _ => {}
+    }
+
+    ChainLightningTalentConfig {
+        bounce_range_mult,
+        initial_damage_mult,
+        damage_falloff,
+        static_charge,
+        split_count,
+        max_bounces,
+        magnetic_pull,
+        thunderstorm_count,
+        mana_cost_mult,
+        chain_reaction,
+    }
+}
 
 /// Local wizard chain lightning casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -55,6 +144,8 @@ pub fn handle_chain_lightning_casting(
     )>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    active_talents: Option<Res<ActiveTalents>>,
+    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -74,6 +165,8 @@ pub fn handle_chain_lightning_casting(
         return;
     }
 
+    let talent_config = compute_chain_lightning_talent_config(active_talents.as_deref());
+
     let completed = chain_lightning_casting_logic(
         &input,
         &time,
@@ -87,6 +180,8 @@ pub fn handle_chain_lightning_casting(
         &rods_query,
         &crystals_query,
         &mut health_query,
+        &talent_config,
+        talent_progress.as_deref_mut(),
     );
 
     if completed {
@@ -114,6 +209,8 @@ fn chain_lightning_casting_logic(
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
     )>,
+    talent_config: &ChainLightningTalentConfig,
+    mut talent_progress: Option<&mut BattleTalentProgress>,
 ) -> bool {
     let mut completed = false;
 
@@ -123,6 +220,8 @@ fn chain_lightning_casting_logic(
         return false;
     }
 
+    let effective_mana_cost = constants::MANA_COST * talent_config.mana_cost_mult;
+
     match *casting_state {
         CastingState::Channeling { .. } => {
             casting_state.cancel();
@@ -131,71 +230,111 @@ fn chain_lightning_casting_logic(
             casting_state.advance(time.delta_secs());
 
             if casting_state.is_complete(primed_spell.cast_time) {
-                if mana.consume(constants::MANA_COST)
+                if mana.consume(effective_mana_cost)
                     && let Some(cursor_pos) = input.cursor_pos
                 {
-                    // Find enemy, rod, or crystal near cursor
-                    if let Some((target_entity, target_pos)) = find_target_near_position(
-                        cursor_pos,
-                        enemies_query,
-                        rods_query,
-                        crystals_query,
-                    ) {
-                        let wizard_pos = SPELL_ORIGIN
-                            + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    // Thunderstorm: cast multiple times at different targets
+                    let mut already_targeted: Vec<Entity> = Vec::new();
 
-                        // Scale damage by empowerment
-                        let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE);
-
-                        // Apply initial damage
-                        if let Ok((mut health, mut temp_hp, has_spell_shield)) =
-                            health_query.get_mut(target_entity)
-                        {
-                            apply_spell_damage(
-                                commands,
-                                target_entity,
-                                &mut health,
-                                temp_hp.as_deref_mut(),
-                                initial_damage,
-                                constants::DAMAGE_TYPE,
-                                has_spell_shield,
-                            );
-                        }
-
-                        // Spawn first arc from wizard to target (depth 0 for initial arc)
-                        spawn_arc(
-                            commands,
-                            assets,
-                            wizard_pos,
-                            target_pos,
-                            0,
-                            primed_spell.empowerment,
+                    for _ in 0..talent_config.thunderstorm_count {
+                        // Find enemy, rod, or crystal near cursor (skip already targeted)
+                        let target = find_target_near_position_excluding(
+                            cursor_pos,
+                            enemies_query,
+                            rods_query,
+                            crystals_query,
+                            &already_targeted,
                         );
 
-                        // Spawn shared hit tracking group
-                        let group_entity = commands
-                            .spawn((
-                                ChainLightningGroup {
-                                    hit_entities: vec![target_entity],
+                        if let Some((target_entity, target_pos)) = target {
+                            already_targeted.push(target_entity);
+
+                            let wizard_pos = SPELL_ORIGIN
+                                + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+
+                            // Scale damage by empowerment and talent multiplier
+                            let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE)
+                                * talent_config.initial_damage_mult;
+
+                            // Apply initial damage
+                            if let Ok((mut health, mut temp_hp, has_spell_shield)) =
+                                health_query.get_mut(target_entity)
+                            {
+                                apply_spell_damage(
+                                    commands,
+                                    target_entity,
+                                    &mut health,
+                                    temp_hp.as_deref_mut(),
+                                    initial_damage,
+                                    constants::DAMAGE_TYPE,
+                                    has_spell_shield,
+                                );
+                            }
+
+                            // Track talent progress
+                            if let Some(ref mut progress) = talent_progress {
+                                progress.increment(Spell::ChainLightning, 1);
+                            }
+
+                            // Static Charge: slow initial target
+                            if talent_config.static_charge {
+                                commands.entity(target_entity).insert(SlowMovementModifier::new(
+                                    constants::STATIC_CHARGE_SLOW,
+                                    constants::STATIC_CHARGE_DURATION,
+                                ));
+                            }
+
+                            // Magnetic Pull: pull initial target toward wizard
+                            if talent_config.magnetic_pull {
+                                let pull_dir = (SPELL_ORIGIN - target_pos).normalize_or_zero();
+                                commands.entity(target_entity).insert(Knockback::new(
+                                    pull_dir,
+                                    constants::MAGNETIC_PULL_SPEED,
+                                    constants::MAGNETIC_PULL_DURATION,
+                                ));
+                            }
+
+                            // Spawn first arc from wizard to target (depth 0 for initial arc)
+                            spawn_arc(
+                                commands,
+                                assets,
+                                wizard_pos,
+                                target_pos,
+                                0,
+                                primed_spell.empowerment,
+                            );
+
+                            // Spawn shared hit tracking group
+                            let group_entity = commands
+                                .spawn((
+                                    ChainLightningGroup {
+                                        hit_entities: HashSet::from([target_entity]),
+                                    },
+                                    OnGameplayScreen,
+                                ))
+                                .id();
+
+                            // Spawn chain lightning bolt to track splitting
+                            commands.spawn((
+                                ChainLightningBolt {
+                                    group_entity,
+                                    current_damage: initial_damage * talent_config.damage_falloff,
+                                    damage_type: constants::DAMAGE_TYPE,
+                                    bounces_remaining: talent_config.max_bounces,
+                                    last_hit_position: target_pos,
+                                    bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
+                                    empowerment: primed_spell.empowerment,
+                                    split_depth: 0,
+                                    split_count: talent_config.split_count,
+                                    damage_falloff: talent_config.damage_falloff,
+                                    static_charge: talent_config.static_charge,
+                                    magnetic_pull: talent_config.magnetic_pull,
+                                    chain_reaction: talent_config.chain_reaction,
+                                    bounce_range_mult: talent_config.bounce_range_mult,
                                 },
                                 OnGameplayScreen,
-                            ))
-                            .id();
-
-                        // Spawn chain lightning bolt to track splitting
-                        commands.spawn((
-                            ChainLightningBolt {
-                                group_entity,
-                                current_damage: initial_damage * constants::DAMAGE_FALLOFF,
-                                damage_type: constants::DAMAGE_TYPE,
-                                bounces_remaining: constants::MAX_BOUNCES,
-                                last_hit_position: target_pos,
-                                bounce_delay_timer: primed_spell.scale(constants::BOUNCE_DELAY),
-                                empowerment: primed_spell.empowerment,
-                                split_depth: 0,
-                            },
-                            OnGameplayScreen,
-                        ));
+                            ));
+                        }
                     }
                     completed = true;
                 }
@@ -204,7 +343,7 @@ fn chain_lightning_casting_logic(
             }
         }
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed) && mana.can_afford(constants::MANA_COST) {
+            if (input.just_pressed || input.pressed) && mana.can_afford(effective_mana_cost) {
                 casting_state.start_cast();
             }
         }
@@ -214,17 +353,15 @@ fn chain_lightning_casting_logic(
 }
 
 /// Finds the closest enemy, lightning rod, or arcane crystal near the given position
-/// within TARGETING_RADIUS.
+/// within TARGETING_RADIUS, excluding specified entities.
 /// Note: position should be at Y=0 (battlefield plane). Uses XZ distance for targeting.
-/// Targets all living units (defenders, attackers, and undead), lightning rods, and
-/// arcane crystals, but excludes corpses.
-fn find_target_near_position(
+fn find_target_near_position_excluding(
     position: Vec3,
     enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
     rods: &Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
+    exclude: &[Entity],
 ) -> Option<(Entity, Vec3)> {
-    // Use XZ distance only (ignore Y difference) for targeting
     let target_pos_2d = Vec3::new(position.x, 0.0, position.z);
 
     let unit_candidates = enemies
@@ -242,6 +379,7 @@ fn find_target_near_position(
     unit_candidates
         .chain(rod_candidates)
         .chain(crystal_candidates)
+        .filter(|(entity, _)| !exclude.contains(entity))
         .filter(|(_, pos)| {
             let pos_2d = Vec3::new(pos.x, 0.0, pos.z);
             target_pos_2d.distance(pos_2d) <= constants::TARGETING_RADIUS
@@ -323,7 +461,7 @@ fn arc_point(start: Vec3, end: Vec3, peak_height: f32, t: f32) -> Vec3 {
 }
 
 /// Processes chain lightning bounces with binary splitting.
-/// Each bolt finds up to SPLIT_COUNT targets and spawns child bolts for each.
+/// Each bolt finds up to split_count targets and spawns child bolts for each.
 /// All bolts from the same cast share a hit list via ChainLightningGroup.
 /// Lightning rods are valid targets — hitting one triggers an immediate strike pulse.
 #[allow(clippy::too_many_arguments)]
@@ -347,6 +485,8 @@ pub fn process_chain_lightning_bounces(
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     walls: Query<&WallOfStone>,
+    mut slow_query: Query<&mut SlowMovementModifier>,
+    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     // Collect bolt data to avoid borrow conflicts when spawning child bolts
     let mut bolts_to_process: Vec<(Entity, ChainLightningBoltSnapshot)> = Vec::new();
@@ -365,6 +505,12 @@ pub fn process_chain_lightning_bounces(
                     last_hit_position: bolt.last_hit_position,
                     empowerment: bolt.empowerment,
                     split_depth: bolt.split_depth,
+                    split_count: bolt.split_count,
+                    damage_falloff: bolt.damage_falloff,
+                    static_charge: bolt.static_charge,
+                    magnetic_pull: bolt.magnetic_pull,
+                    chain_reaction: bolt.chain_reaction,
+                    bounce_range_mult: bolt.bounce_range_mult,
                 },
             ));
             // Mark as done so it gets cleaned up
@@ -386,9 +532,9 @@ pub fn process_chain_lightning_bounces(
             continue;
         };
 
-        let bounce_range = constants::BOUNCE_RANGE * snapshot.empowerment;
+        let bounce_range = constants::BOUNCE_RANGE * snapshot.empowerment * snapshot.bounce_range_mult;
 
-        // Find up to SPLIT_COUNT targets (units + lightning rods + crystals)
+        // Find up to split_count targets (units + lightning rods + crystals)
         let targets = find_next_bounce_targets(
             snapshot.last_hit_position,
             &group.hit_entities,
@@ -396,7 +542,7 @@ pub fn process_chain_lightning_bounces(
             &rods,
             &crystals,
             bounce_range,
-            constants::SPLIT_COUNT,
+            snapshot.split_count,
             &walls,
         );
 
@@ -407,6 +553,7 @@ pub fn process_chain_lightning_bounces(
                 rod.time_since_strike = f32::MAX;
             } else {
                 // Apply damage to unit
+                let target_killed;
                 if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) =
                     enemies.get_mut(*target_entity)
                 {
@@ -419,11 +566,77 @@ pub fn process_chain_lightning_bounces(
                         snapshot.damage_type,
                         has_spell_shield,
                     );
+                    target_killed = health.current <= 0.0;
+                } else {
+                    target_killed = false;
+                }
+
+                // Track talent progress
+                if let Some(ref mut progress) = talent_progress {
+                    progress.increment(Spell::ChainLightning, 1);
+                }
+
+                // Static Charge: slow hit enemies
+                if snapshot.static_charge {
+                    if let Ok(mut slow) = slow_query.get_mut(*target_entity) {
+                        slow.apply(constants::STATIC_CHARGE_SLOW, constants::STATIC_CHARGE_DURATION);
+                    } else {
+                        commands.entity(*target_entity).insert(SlowMovementModifier::new(
+                            constants::STATIC_CHARGE_SLOW,
+                            constants::STATIC_CHARGE_DURATION,
+                        ));
+                    }
+                }
+
+                // Magnetic Pull: pull hit enemies toward bolt's previous position
+                if snapshot.magnetic_pull {
+                    let pull_dir = (snapshot.last_hit_position - *target_pos).normalize_or_zero();
+                    commands.entity(*target_entity).insert(Knockback::new(
+                        pull_dir,
+                        constants::MAGNETIC_PULL_SPEED,
+                        constants::MAGNETIC_PULL_DURATION,
+                    ));
+                }
+
+                // Chain Reaction: kills explode for AoE and spawn sub-chain
+                if snapshot.chain_reaction && target_killed && snapshot.bounces_remaining > 1 {
+                    // AoE damage to nearby enemies
+                    let aoe_damage = snapshot.current_damage * constants::CHAIN_REACTION_AOE_DAMAGE_MULT;
+                    let mut aoe_targets: Vec<(Entity, Vec3)> = Vec::new();
+                    for (e, t, _, _, _, _) in enemies.iter() {
+                        if e != *target_entity && !group.hit_entities.contains(&e) {
+                            let dist = target_pos.distance(t.translation);
+                            if dist <= constants::CHAIN_REACTION_AOE_RADIUS {
+                                aoe_targets.push((e, t.translation));
+                            }
+                        }
+                    }
+                    for (aoe_entity, _) in &aoe_targets {
+                        if let Ok((_, _, _, mut health, mut temp_hp, has_spell_shield)) =
+                            enemies.get_mut(*aoe_entity)
+                        {
+                            apply_spell_damage(
+                                &mut commands,
+                                *aoe_entity,
+                                &mut health,
+                                temp_hp.as_deref_mut(),
+                                aoe_damage,
+                                snapshot.damage_type,
+                                has_spell_shield,
+                            );
+                        }
+                    }
+
+                    // Spawn sub-chain from corpse position with half remaining bounces
+                    let sub_bounces = snapshot.bounces_remaining / constants::CHAIN_REACTION_BOUNCE_DIVISOR;
+                    if sub_bounces > 0 {
+                        spawn_child_bolt(&mut commands, &snapshot, sub_bounces, *target_pos);
+                    }
                 }
             }
 
             // Add to shared hit list
-            group.hit_entities.push(*target_entity);
+            group.hit_entities.insert(*target_entity);
 
             // Spawn arc visual
             spawn_arc(
@@ -437,19 +650,7 @@ pub fn process_chain_lightning_bounces(
 
             // Spawn child bolt if more bounces remain
             if snapshot.bounces_remaining > 1 {
-                commands.spawn((
-                    ChainLightningBolt {
-                        group_entity: snapshot.group_entity,
-                        current_damage: snapshot.current_damage * constants::DAMAGE_FALLOFF,
-                        damage_type: snapshot.damage_type,
-                        bounces_remaining: snapshot.bounces_remaining - 1,
-                        last_hit_position: *target_pos,
-                        bounce_delay_timer: constants::BOUNCE_DELAY * snapshot.empowerment,
-                        empowerment: snapshot.empowerment,
-                        split_depth: snapshot.split_depth + 1,
-                    },
-                    OnGameplayScreen,
-                ));
+                spawn_child_bolt(&mut commands, &snapshot, snapshot.bounces_remaining - 1, *target_pos);
             }
         }
     }
@@ -464,6 +665,40 @@ struct ChainLightningBoltSnapshot {
     last_hit_position: Vec3,
     empowerment: f32,
     split_depth: u32,
+    split_count: usize,
+    damage_falloff: f32,
+    static_charge: bool,
+    magnetic_pull: bool,
+    chain_reaction: bool,
+    bounce_range_mult: f32,
+}
+
+/// Spawns a child `ChainLightningBolt` from a snapshot, inheriting all talent fields.
+fn spawn_child_bolt(
+    commands: &mut Commands,
+    snapshot: &ChainLightningBoltSnapshot,
+    bounces_remaining: u32,
+    target_pos: Vec3,
+) {
+    commands.spawn((
+        ChainLightningBolt {
+            group_entity: snapshot.group_entity,
+            current_damage: snapshot.current_damage * snapshot.damage_falloff,
+            damage_type: snapshot.damage_type,
+            bounces_remaining,
+            last_hit_position: target_pos,
+            bounce_delay_timer: constants::BOUNCE_DELAY * snapshot.empowerment,
+            empowerment: snapshot.empowerment,
+            split_depth: snapshot.split_depth + 1,
+            split_count: snapshot.split_count,
+            damage_falloff: snapshot.damage_falloff,
+            static_charge: snapshot.static_charge,
+            magnetic_pull: snapshot.magnetic_pull,
+            chain_reaction: snapshot.chain_reaction,
+            bounce_range_mult: snapshot.bounce_range_mult,
+        },
+        OnGameplayScreen,
+    ));
 }
 
 /// Finds up to `max_targets` enemies, lightning rods, or arcane crystals within bounce range
@@ -473,7 +708,7 @@ struct ChainLightningBoltSnapshot {
 #[allow(clippy::too_many_arguments)]
 fn find_next_bounce_targets(
     origin: Vec3,
-    hit_entities: &[Entity],
+    hit_entities: &HashSet<Entity>,
     enemies: &Query<
         (
             Entity,

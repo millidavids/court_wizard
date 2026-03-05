@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.264] - 2026-03-05
+
+### Added
+- **Chain Lightning talents** — Chain Lightning now has a full talent tree with 9 upgrades across 3 tiers:
+  - **Tier 1**: Conducting Bolts (much longer bounce range, slightly less damage), High Voltage (harder-hitting initial strike but faster damage drop-off), Static Charge (hit enemies are slowed)
+  - **Tier 2**: Forked Lightning (bolts split into 3 targets instead of 2), Overcharge (no damage drop-off but only hits one target per bounce), Magnetic Pull (hit enemies are yanked toward the bolt's origin)
+  - **Tier 3**: Thunderstorm (fires 3 simultaneous chain lightning strikes at quadruple mana cost), Chain Reaction (killing an enemy causes an explosion and spawns a sub-chain from the corpse), Living Lightning (bounces up to 100 times at double mana cost)
+
+### Changed
+- **All units have more health** — every unit on the battlefield now has double the health, making battles last longer
+- **Units pack tighter together** — units no longer space themselves out as much, allowing them to overlap slightly for denser formations
+
 ## [v0.3.256] - 2026-03-04
 
 ### Changed

@@ -26,7 +26,7 @@ pub const HAG_SEPARATION_STRENGTH: f32 = 150.0;
 
 // ===== Combat =====
 
-pub const HAG_HEALTH: f32 = 6000.0;
+pub const HAG_HEALTH: f32 = 12000.0;
 pub const HAG_DAMAGE_MULTIPLIER: f32 = -0.3;
 pub const HAG_ATTACK_DAMAGE: f32 = 20.0;
 pub const HAG_ATTACK_COOLDOWN: f32 = 1.2;

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -12,10 +14,10 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity,
+    HasteModifier, Health, Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled,
     MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier,
-    SleepModifier, SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable,
+    SlowMovementModifier, SleepModifier, TargetingVelocity, Team, Teleportable,
     TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::king::components::King;
@@ -329,7 +331,7 @@ pub fn hag_movement(
             Option<&InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
-            (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
+            Option<&SlowMovementModifier>,
             (
                 Option<&CauldronSpeedModifier>,
                 Option<&RootedModifier>,
@@ -339,7 +341,6 @@ pub fn hag_movement(
             (
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
-                Option<&GreaseSlipModifier>,
                 Option<&PolymorphedModifier>,
             ),
         ),
@@ -361,9 +362,9 @@ pub fn hag_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
-        (frost_modifier, spike_growth_modifier),
+        slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, grease, polymorphed),
+        (sleeping, banished, polymorphed),
     ) in &mut hags
     {
         // CC'd units cannot move
@@ -395,12 +396,10 @@ pub fn hag_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
-            frost_modifier.map(|m| m.modifier),
-            spike_growth_modifier.map(|m| m.modifier),
+            slow_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
-            grease.map(|g| g.modifier),
         );
 
         // Blind hags deflect their movement direction with random noise (lazy drift)
@@ -951,7 +950,7 @@ pub fn justina_chain_lightning(
             let group_entity = commands
                 .spawn((
                     ChainLightningGroup {
-                        hit_entities: vec![first_target],
+                        hit_entities: HashSet::from([first_target]),
                     },
                     OnGameplayScreen,
                 ))
@@ -968,6 +967,12 @@ pub fn justina_chain_lightning(
                     bounce_delay_timer: cl_constants::BOUNCE_DELAY,
                     empowerment: 1.0,
                     split_depth: 1,
+                    split_count: cl_constants::SPLIT_COUNT,
+                    damage_falloff: cl_constants::DAMAGE_FALLOFF,
+                    static_charge: false,
+                    magnetic_pull: false,
+                    chain_reaction: false,
+                    bounce_range_mult: 1.0,
                 },
                 OnGameplayScreen,
             ));

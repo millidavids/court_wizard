@@ -14,7 +14,7 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, GreaseSlipModifier, Health, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
@@ -24,7 +24,9 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard grease casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -50,6 +52,8 @@ pub fn handle_grease_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut GreaseIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -83,6 +87,8 @@ pub fn handle_grease_casting(
         &visual_assets,
         &mut materials,
         &mut obstacle_events,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -106,6 +112,8 @@ fn grease_casting_logic(
     assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     let mut completed = false;
 
@@ -178,6 +186,7 @@ fn grease_casting_logic(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            audio::play_sfx(commands, &sfx.grease_cast, indicator.position, game_config);
                             spawn_grease_zone(
                                 commands,
                                 assets,
@@ -238,7 +247,7 @@ pub fn apply_grease_slow(
     mut commands: Commands,
     time: Res<Time>,
     mut zones: Query<&mut GreaseZone>,
-    mut targets: Query<(Entity, &Transform, Option<&mut GreaseSlipModifier>), Without<Corpse>>,
+    mut targets: Query<(Entity, &Transform, Option<&mut SlowMovementModifier>), Without<Corpse>>,
 ) {
     let delta = time.delta_secs();
     for mut zone in &mut zones {
@@ -260,10 +269,10 @@ pub fn apply_grease_slow(
                 .length();
                 if dist <= zone.radius {
                     if let Some(mut slow) = existing_slow {
-                        slow.refresh(zone.slow_duration);
+                        slow.apply(zone.slow_modifier, zone.slow_duration);
                     } else {
                         let modifier =
-                            GreaseSlipModifier::new(zone.slow_modifier, zone.slow_duration);
+                            SlowMovementModifier::new(zone.slow_modifier, zone.slow_duration);
                         commands
                             .entity(entity)
                             .queue_silenced(move |mut e: EntityWorldMut| {

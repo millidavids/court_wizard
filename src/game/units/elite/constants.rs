@@ -1,7 +1,7 @@
 /// Elite health bonus (raw HP value, not percentage).
 ///
-/// Base unit HP is typically 50, so this gives +50% health (75 total).
-pub const ELITE_HEALTH_BONUS: f32 = 25.0;
+/// Base unit HP is typically 100, so this gives +50% health (150 total).
+pub const ELITE_HEALTH_BONUS: f32 = 50.0;
 
 /// Elite damage bonus as percentage.
 ///

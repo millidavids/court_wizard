@@ -13,7 +13,7 @@ pub const BRUTE_HITBOX_HEIGHT: f32 = 60.0 * UNIT_SCALE; // Vertical height
 pub const BRUTE_MOVEMENT_SPEED: f32 = 75.0; // Slower than infantry (100.0) for tank-like feel
 
 // Combat
-pub const BRUTE_HEALTH: f32 = 500.0; // 4x normal unit health (50.0 * 4)
+pub const BRUTE_HEALTH: f32 = 1000.0; // 4x normal unit health doubled
 pub const BRUTE_AOE_DAMAGE: f32 = 200.0; // AOE splash damage
 pub const BRUTE_AOE_RADIUS: f32 = 30.0; // AOE effect radius
 

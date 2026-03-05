@@ -4,7 +4,7 @@ use bevy::window::PrimaryWindow;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
-use super::components::{WallOfFireCaster, WallOfFireEffect, WallOfFirePreview};
+use super::components::{WallOfFireCaster, WallOfFireEffect, WallOfFirePreview, WallOfFireSfx};
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
@@ -20,7 +20,9 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::config::GameConfig;
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
@@ -94,6 +96,8 @@ pub fn handle_wall_of_fire_casting(
     mut caster_query: Query<&mut WallOfFireCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfFirePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -228,6 +232,17 @@ pub fn handle_wall_of_fire_casting(
                 );
             }
 
+            // Spawn looping sound at wall midpoint
+            let midpoint = (info.wall_start + info.wall_end) / 2.0;
+            let sfx_entity = audio::play_looping_sfx_at(
+                &mut commands,
+                &sfx.wall_of_fire_persistent,
+                midpoint,
+                &game_config,
+            );
+            commands.entity(sfx_entity).insert(WallOfFireSfx {
+                wall_entity: preview_entity,
+            });
         }
         caster.preview_entity = None;
     }
@@ -505,6 +520,19 @@ pub fn spawn_wall_of_fire_smoke(
             t,
             vfx::constants::SURFACE_SHIMMER_SIZE,
         );
+    }
+}
+
+/// Despawns orphaned wall of fire sound effects whose parent no longer exists.
+pub(super) fn cleanup_wall_of_fire_sfx(
+    mut commands: Commands,
+    sfx_entities: Query<(Entity, &WallOfFireSfx)>,
+    walls: Query<&WallOfFireEffect>,
+) {
+    for (entity, sfx) in sfx_entities.iter() {
+        if walls.get(sfx.wall_entity).is_err() {
+            commands.entity(entity).try_despawn();
+        }
     }
 }
 

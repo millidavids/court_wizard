@@ -12,7 +12,9 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, MindControlled, Team};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::config::GameConfig;
 
 /// Tracked highlight target — stored as system-local state so we have a single
 /// source of truth that doesn't depend on deferred command timing.
@@ -57,6 +59,8 @@ pub(super) fn handle_mind_control_casting(
     >,
     existing_controlled: Query<&MindControlled>,
     mut highlight: Local<HighlightState>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -107,6 +111,10 @@ pub(super) fn handle_mind_control_casting(
                 if let Some(ref highlighted) = highlight.target
                     && mana.consume(constants::MANA_COST)
                 {
+                    // Play sound at target's position
+                    if let Ok((_, target_transform, _, _)) = enemies_query.get(highlighted.entity) {
+                        audio::play_sfx(&mut commands, &sfx.mind_control_cast, target_transform.translation, &game_config);
+                    }
                     commands.entity(highlighted.entity).insert(MindControlled {
                         time_elapsed: 0.0,
                         wear_off_duration: constants::EFFECT_WEAR_OFF_DURATION,

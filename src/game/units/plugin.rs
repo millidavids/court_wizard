@@ -8,8 +8,8 @@ use super::boss::BossPlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
-    FrostSlowModifier, GreaseSlipModifier, HasteModifier, Knockback, MarkedForDeathModifier,
-    RootedModifier, SleepModifier, SpikeGrowthSlowModifier, TemporaryHitPoints, WalkingAnimation,
+    FrostEffectMarker, HasteModifier, Knockback, MarkedForDeathModifier,
+    RootedModifier, SlowMovementModifier, SleepModifier, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -58,10 +58,10 @@ impl Plugin for UnitsPlugin {
             Update,
             (
                 systems::update_timed_modifier::<TemporaryHitPoints>,
-                systems::update_timed_modifier::<FrostSlowModifier>,
+                systems::update_timed_modifier::<SlowMovementModifier>,
+                systems::update_timed_modifier::<FrostEffectMarker>,
                 systems::update_timed_modifier::<RootedModifier>,
                 systems::update_timed_modifier::<HasteModifier>,
-                systems::update_timed_modifier::<SpikeGrowthSlowModifier>,
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
                 movement::clear_corpse_velocity.after(movement::apply_unit_movement),
                 systems::update_walking_animation
@@ -106,8 +106,6 @@ impl Plugin for UnitsPlugin {
                     .run_if(any_with_component::<BerserkerRageModifier>),
                 systems::update_timed_modifier::<FogEvasionModifier>
                     .run_if(any_with_component::<FogEvasionModifier>),
-                systems::update_timed_modifier::<GreaseSlipModifier>
-                    .run_if(any_with_component::<GreaseSlipModifier>),
             )
                 .run_if(is_gameplay_running),
         );

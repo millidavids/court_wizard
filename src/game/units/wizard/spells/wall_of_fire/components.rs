@@ -90,3 +90,10 @@ impl WallOfFireCaster {
 /// Marker component for the wall of fire preview mesh shown during drag.
 #[derive(Component)]
 pub struct WallOfFirePreview;
+
+/// Looping sound effect entity that follows a wall of fire.
+#[derive(Component)]
+pub(super) struct WallOfFireSfx {
+    /// The parent wall of fire entity this sound tracks.
+    pub wall_entity: Entity,
+}

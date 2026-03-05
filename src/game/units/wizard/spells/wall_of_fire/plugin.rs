@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::WallOfFireEffect;
+use super::components::{WallOfFireEffect, WallOfFireSfx};
 use super::systems;
 use crate::game::run_conditions::{any_exist, is_spell_effects_active};
 
@@ -28,6 +28,8 @@ impl Plugin for WallOfFirePlugin {
                     .run_if(any_exist::<WallOfFireEffect>()),
                 systems::cleanup_wall_of_fire
                     .run_if(any_exist::<WallOfFireEffect>()),
+                systems::cleanup_wall_of_fire_sfx
+                    .run_if(any_exist::<WallOfFireSfx>()),
             )
                 .run_if(is_spell_effects_active),
         );

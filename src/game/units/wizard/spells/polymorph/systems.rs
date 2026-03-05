@@ -10,7 +10,9 @@ use super::constants;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{AttackTiming, Corpse, Health, PolymorphedModifier};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::config::GameConfig;
 
 /// Local wizard polymorph casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -40,6 +42,8 @@ pub fn handle_polymorph_casting(
         ),
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -71,6 +75,9 @@ pub fn handle_polymorph_casting(
     );
 
     if completed {
+        if let Some(pos) = cursor_pos {
+            audio::play_sfx(&mut commands, &sfx.polymorph_cast, pos, &game_config);
+        }
         mouse_state.left_consumed = true;
     }
 }

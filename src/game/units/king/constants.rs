@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::game::constants::UNIT_SCALE;
 
 // King stats
-pub const KING_HEALTH: f32 = 100.0; // Double standard 50
+pub const KING_HEALTH: f32 = 200.0; // Double standard 100
 pub const KING_DAMAGE_PERCENTAGE: f32 = 1.0; // 100% bonus = double damage
 pub const KING_RADIUS: f32 = 14.0 * UNIT_SCALE; // Larger than UNIT_RADIUS (8.0)
 pub const KING_HITBOX_HEIGHT: f32 = 35.0 * UNIT_SCALE; // Taller than DEFENDER_HITBOX_HEIGHT (25.0)

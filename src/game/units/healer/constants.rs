@@ -10,7 +10,7 @@ pub const HEALER_RADIUS: f32 = 8.0 * UNIT_SCALE;
 pub const HEALER_MOVEMENT_SPEED: f32 = 110.0;
 
 // ===== Health =====
-pub const HEALER_HEALTH: f32 = 35.0;
+pub const HEALER_HEALTH: f32 = 70.0;
 
 // ===== Heal Bolt =====
 pub const HEAL_BOLT_SPEED: f32 = 300.0;

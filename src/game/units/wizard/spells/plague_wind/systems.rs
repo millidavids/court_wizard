@@ -17,7 +17,9 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard plague wind casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -43,6 +45,8 @@ pub fn handle_plague_wind_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -125,6 +129,8 @@ pub fn handle_plague_wind_casting(
         &visual_assets,
         &mut materials,
         &mut obstacle_events,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -146,6 +152,8 @@ fn plague_wind_casting_logic(
     assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     let wizard_pos = SPELL_ORIGIN;
     let scale = primed_spell.empowerment;
@@ -201,6 +209,8 @@ fn plague_wind_casting_logic(
                         obstacle_type: ObstacleType::Hazard(10.0),
                         shape: Some(ObstacleShape::circle(origin_2d, buffered)),
                     });
+
+                    audio::play_sfx(commands, &sfx.plague_wind_cast, pos, game_config);
 
                     let base_mat = materials
                         .get(&assets.plague_wind_zone)

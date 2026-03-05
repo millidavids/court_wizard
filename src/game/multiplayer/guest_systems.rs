@@ -15,7 +15,7 @@ use crate::game::resources::GameOutcome;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::OriginalMaterial;
 use crate::game::units::components::{
-    Corpse, ElectricCharge, FireDoT, FrostSlowModifier, Health, RemoteElectricEffect,
+    Corpse, ElectricCharge, FireDoT, FrostEffectMarker, Health, RemoteElectricEffect,
     RemoteFireEffect, RemoteFrostEffect,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -355,7 +355,7 @@ pub fn send_crdt_snapshot(
             &NetworkEntityId,
             &CrdtHealth,
             Has<FireDoT>,
-            Has<FrostSlowModifier>,
+            Has<FrostEffectMarker>,
             Has<ElectricCharge>,
         ),
         With<GhostEntity>,

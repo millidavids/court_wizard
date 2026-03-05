@@ -9,7 +9,7 @@ pub const HITBOX_RADIUS: f32 = WIZARD_SPRITE_WIDTH / 2.0;
 pub const HITBOX_HEIGHT: f32 = WIZARD_SPRITE_HEIGHT;
 
 /// Wizard starting health.
-pub const HEALTH: f32 = 100.0;
+pub const HEALTH: f32 = 200.0;
 
 /// Wizard starting mana.
 pub const MANA: f32 = 100.0;

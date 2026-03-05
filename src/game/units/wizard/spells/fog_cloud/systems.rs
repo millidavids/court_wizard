@@ -14,7 +14,9 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, FogEvasionModifier};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard fog cloud casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -39,6 +41,8 @@ pub fn handle_fog_cloud_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut FogCloudIndicator>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -71,6 +75,8 @@ pub fn handle_fog_cloud_casting(
         &mut commands,
         &visual_assets,
         &mut materials,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -93,6 +99,8 @@ fn fog_cloud_casting_logic(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     let mut completed = false;
 
@@ -165,6 +173,7 @@ fn fog_cloud_casting_logic(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            audio::play_sfx(commands, &sfx.fog_cloud_cast, indicator.position, game_config);
                             spawn_fog_cloud_zone(
                                 commands,
                                 assets,

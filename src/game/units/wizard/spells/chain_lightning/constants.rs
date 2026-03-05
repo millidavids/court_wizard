@@ -44,3 +44,30 @@ pub const ARC_WIDTH_FALLOFF: f32 = 0.8; // Width multiplier per depth level
 pub const MIN_ARC_WIDTH: f32 = 2.0;
 pub const ARC_BRIGHTNESS_FALLOFF: f32 = 0.92; // Brightness multiplier per depth level
 pub const MIN_ARC_BRIGHTNESS: f32 = 0.4;
+
+// ===== Talent Constants =====
+
+// Tier 1
+pub const CONDUCTING_BOLTS_RANGE_MULT: f32 = 2.0;
+pub const CONDUCTING_BOLTS_DAMAGE_MULT: f32 = 0.7;
+pub const HIGH_VOLTAGE_DAMAGE_MULT: f32 = 1.8;
+pub const HIGH_VOLTAGE_FALLOFF: f32 = 0.4;
+pub const STATIC_CHARGE_SLOW: f32 = -0.2;
+pub const STATIC_CHARGE_DURATION: f32 = 2.0;
+
+// Tier 2
+pub const FORKED_SPLIT_COUNT: usize = 3;
+pub const OVERCHARGE_SPLIT_COUNT: usize = 1;
+pub const OVERCHARGE_MAX_BOUNCES: u32 = 5;
+pub const OVERCHARGE_FALLOFF: f32 = 1.0;
+pub const MAGNETIC_PULL_SPEED: f32 = 200.0;
+pub const MAGNETIC_PULL_DURATION: f32 = 0.5;
+
+// Tier 3
+pub const THUNDERSTORM_CAST_COUNT: u32 = 3;
+pub const THUNDERSTORM_MANA_MULT: f32 = 4.0;
+pub const CHAIN_REACTION_AOE_RADIUS: f32 = 40.0;
+pub const CHAIN_REACTION_AOE_DAMAGE_MULT: f32 = 0.5;
+pub const CHAIN_REACTION_BOUNCE_DIVISOR: u32 = 2;
+pub const LIVING_LIGHTNING_MAX_BOUNCES: u32 = 100;
+pub const LIVING_LIGHTNING_MANA_MULT: f32 = 2.0;

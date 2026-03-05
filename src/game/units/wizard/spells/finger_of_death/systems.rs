@@ -16,7 +16,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::config::GameConfig;
 
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
@@ -345,6 +347,8 @@ pub fn apply_finger_of_death_damage(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut desaturate: MessageWriter<ScreenDesaturateMessage>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let mut any_fired = false;
     // Rotation to make a quad lie flat on the ground (XZ plane).
@@ -392,8 +396,10 @@ pub fn apply_finger_of_death_damage(
         }
     }
 
-    // Drain 50% mana and cancel casting state for whichever wizard(s) are actively casting
+    // Play sound effect and drain mana
     if any_fired {
+        audio::play_sfx(&mut commands, &sfx.finger_of_death_cast, SPELL_ORIGIN, &game_config);
+
         for (wizard_entity, mut mana, mut casting_state) in wizard_query.iter_mut() {
             if !matches!(*casting_state, CastingState::Resting) {
                 mana.current -= mana.max * constants::MANA_REQUIREMENT_PERCENT;

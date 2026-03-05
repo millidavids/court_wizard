@@ -11,7 +11,9 @@ use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::config::GameConfig;
 
 /// Local wizard Telekinesis casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -35,6 +37,8 @@ pub(super) fn handle_telekinesis_casting(
     caster_query: Query<&SpellCaster>,
     drops_query: Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: Query<&TelekinesisIndicator>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -85,6 +89,8 @@ pub(super) fn handle_telekinesis_casting(
         &drops_query,
         &indicator_query,
         &mut commands,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -105,6 +111,8 @@ fn telekinesis_casting_logic(
     drops_query: &Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: &Query<&TelekinesisIndicator>,
     commands: &mut Commands,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     // Check for release event
     if input.just_released {
@@ -151,6 +159,7 @@ fn telekinesis_casting_logic(
                     if let Ok((_entity, drop_transform, drop_component)) =
                         drops_query.get(drop_entity)
                     {
+                        audio::play_sfx(commands, &sfx.telekinesis_cast, drop_transform.translation, game_config);
                         let start_pos = drop_transform.translation;
                         let total_distance =
                             start_pos.distance(crate::game::constants::WIZARD_POSITION);

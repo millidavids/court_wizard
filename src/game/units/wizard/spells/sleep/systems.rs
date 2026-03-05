@@ -11,7 +11,9 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, SleepModifier};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard sleep casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -36,6 +38,8 @@ pub fn handle_sleep_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SleepIndicator>,
     targets_query: Query<(Entity, &Transform), Without<Corpse>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -68,6 +72,8 @@ pub fn handle_sleep_casting(
         &targets_query,
         &mut commands,
         &visual_assets,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -90,6 +96,8 @@ fn sleep_casting_logic(
     targets_query: &Query<(Entity, &Transform), Without<Corpse>>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     // Check for release event
     if input.just_released {
@@ -163,6 +171,7 @@ fn sleep_casting_logic(
                         && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
                         let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                        audio::play_sfx(commands, &sfx.sleep_cast, indicator.position, game_config);
                         apply_sleep(
                             commands,
                             indicator.position,

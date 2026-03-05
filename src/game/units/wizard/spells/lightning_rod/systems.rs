@@ -22,7 +22,9 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard Lightning Rod casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -46,6 +48,8 @@ pub(super) fn handle_lightning_rod_casting(
     window_query: Query<&Window, With<PrimaryWindow>>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut LightningRodCircleIndicator>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -126,6 +130,8 @@ pub(super) fn handle_lightning_rod_casting(
         &caster_query,
         &mut commands,
         &visual_assets,
+        &sfx,
+        &game_config,
     );
 
     if completed {
@@ -146,6 +152,8 @@ fn lightning_rod_casting_logic(
     caster_query: &Query<&SpellCaster>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    sfx: &SpellSfxAssets,
+    game_config: &GameConfig,
 ) -> bool {
     let wizard_pos = SPELL_ORIGIN;
 
@@ -182,6 +190,7 @@ fn lightning_rod_casting_logic(
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
 
                     spawn_lightning_rod(commands, assets, spawn_pos, primed_spell.empowerment);
+                    audio::play_sfx(commands, &sfx.lightning_rod_impact, spawn_pos, game_config);
                     completed = true;
                 }
 

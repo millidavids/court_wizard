@@ -12,12 +12,14 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{
-    Health, SpellDamaged, SpikeGrowthSlowModifier, TemporaryHitPoints, apply_damage_to_unit,
+    Health, SlowMovementModifier, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard spike growth casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -43,6 +45,8 @@ pub fn handle_spike_growth_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpikeGrowthIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -121,6 +125,7 @@ pub fn handle_spike_growth_casting(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            audio::play_sfx(&mut commands, &sfx.spike_growth_cast, indicator.position, &game_config);
                             spawn_spike_growth_zone(
                                 &mut commands,
                                 &visual_assets,
@@ -184,7 +189,7 @@ pub fn apply_spike_growth_damage(
         &Transform,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
-        Option<&mut SpikeGrowthSlowModifier>,
+        Option<&mut SlowMovementModifier>,
         Has<SpellShield>,
     )>,
 ) {
@@ -217,9 +222,9 @@ pub fn apply_spike_growth_damage(
 
                     // Apply or refresh spike growth slow
                     if let Some(mut slow) = existing_slow {
-                        slow.refresh(zone.slow_duration);
+                        slow.apply(zone.slow_modifier, zone.slow_duration);
                     } else {
-                        commands.entity(entity).insert(SpikeGrowthSlowModifier::new(
+                        commands.entity(entity).insert(SlowMovementModifier::new(
                             zone.slow_modifier,
                             zone.slow_duration,
                         ));

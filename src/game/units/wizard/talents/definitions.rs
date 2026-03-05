@@ -22,6 +22,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::BattleHymn => battle_hymn_talents(),
         Spell::Disintegrate => disintegrate_talents(),
         Spell::MeteorFall => meteor_fall_talents(),
+        Spell::ChainLightning => chain_lightning_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -361,6 +362,74 @@ fn meteor_fall_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Meteor Shower",
                 description: "Triple meteor spawn rate, but each meteor is smaller and weaker. Half mana cost.",
                 locked_text: "Quantity has a quality all its own.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn chain_lightning_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Conducting Bolts",
+                description: "Bounce range doubled, but damage reduced by 30%.",
+                locked_text: "Longer arms on the lightning. It can reach the back row now.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "High Voltage",
+                description: "Initial strike damage increased by 80%, but damage falls off faster between bounces.",
+                locked_text: "Hit harder up front. The rest is just sparks and crying.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Static Charge",
+                description: "Hit enemies are slowed by 20% for 2 seconds.",
+                locked_text: "Your hair stands up. Then you slow down. Then you regret your life choices.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Forked Lightning",
+                description: "Each bounce splits to 3 targets instead of 2.",
+                locked_text: "Why hit two when you can hit three? Basic math wizardry.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Overcharge",
+                description: "No damage falloff between bounces, but splits reduced to 1 target and max bounces reduced to 5.",
+                locked_text: "One bolt, full power, every time. Quality over quantity.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Magnetic Pull",
+                description: "Hit enemies are pulled toward the bolt's previous position.",
+                locked_text: "Come here. No really. The lightning insists.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Thunderstorm",
+                description: "Fires 3 simultaneous chain lightning strikes at different targets. Quadruple mana cost.",
+                locked_text: "Three bolts for the price of three. The wizard union approved this math.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Chain Reaction",
+                description: "Enemies killed by chain lightning explode, dealing AoE damage and starting a sub-chain from the corpse.",
+                locked_text: "Death is contagious. Very, very contagious.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Living Lightning",
+                description: "Max bounces increased to 100, bouncing until no unhit targets remain. Double mana cost.",
+                locked_text: "The lightning has a mind of its own. It won't stop until everyone's been introduced.",
                 implemented: true,
             },
         ],

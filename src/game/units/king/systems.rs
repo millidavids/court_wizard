@@ -12,9 +12,9 @@ use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, Te
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
-    FrostSlowModifier, GreaseSlipModifier, HasteModifier, Health, Hitbox, KingsGuard,
-    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
-    SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
+    HasteModifier, Health, Hitbox, KingsGuard,
+    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SlowMovementModifier, SleepModifier,
+    TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -181,7 +181,7 @@ pub fn king_movement(
             Option<&crate::game::units::components::InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
-            (Option<&FrostSlowModifier>, Option<&SpikeGrowthSlowModifier>),
+            Option<&SlowMovementModifier>,
             (
                 Option<&CauldronSpeedModifier>,
                 Option<&RootedModifier>,
@@ -191,7 +191,6 @@ pub fn king_movement(
             (
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
-                Option<&GreaseSlipModifier>,
                 Option<&PolymorphedModifier>,
             ),
         ),
@@ -210,9 +209,9 @@ pub fn king_movement(
         in_melee,
         aura_modifier,
         terrain_modifier,
-        (frost_modifier, spike_growth_modifier),
+        slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, grease, _polymorphed),
+        (sleeping, banished, _polymorphed),
     ) in &mut king_units
     {
         // CC'd units cannot move
@@ -235,12 +234,10 @@ pub fn king_movement(
             in_melee.is_some(),
             aura_modifier.map(|m| m.0),
             terrain_modifier.map(|m| m.0),
-            frost_modifier.map(|m| m.modifier),
-            spike_growth_modifier.map(|m| m.modifier),
+            slow_modifier.map(|m| m.modifier),
             cauldron_modifier.map(|m| m.0),
             haste_modifier.map(|m| m.modifier),
             elite_speed.map(|e| e.0),
-            grease.map(|g| g.modifier),
         );
     }
 }

@@ -10,7 +10,7 @@ pub const DISPELLER_RADIUS: f32 = 8.0 * UNIT_SCALE;
 pub const DISPELLER_MOVEMENT_SPEED: f32 = 120.0;
 
 // ===== Health =====
-pub const DISPELLER_HEALTH: f32 = 40.0;
+pub const DISPELLER_HEALTH: f32 = 80.0;
 
 // ===== Dispel =====
 pub const DISPEL_RANGE: f32 = 150.0;

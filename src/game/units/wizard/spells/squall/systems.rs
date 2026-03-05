@@ -20,7 +20,9 @@ use crate::game::units::wizard::components::{
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard squall casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -291,6 +293,8 @@ pub(super) fn check_ice_projectile_collisions(
     visual_assets: Res<SpellVisualAssets>,
     projectiles: Query<(Entity, &Transform, &IceProjectile)>,
     walls: Query<&WallOfStone>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
@@ -309,6 +313,7 @@ pub(super) fn check_ice_projectile_collisions(
                     projectile.damage,
                     projectile.empowerment,
                 );
+                audio::play_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config);
                 commands.entity(entity).try_despawn();
                 hit_wall = true;
                 break;
@@ -330,6 +335,7 @@ pub(super) fn check_ice_projectile_collisions(
                 projectile.damage,
                 projectile.empowerment,
             );
+            audio::play_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config);
             commands.entity(entity).try_despawn();
         }
     }

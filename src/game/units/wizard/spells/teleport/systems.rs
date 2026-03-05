@@ -16,7 +16,9 @@ use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::Teleportable;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::resources::NetworkConnection;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::config::GameConfig;
 
 /// Result from teleport casting logic, used to communicate state back to the wrapper.
 struct TeleportCastResult {
@@ -120,6 +122,8 @@ pub fn handle_teleport_casting(
         ),
     >,
     mut connection: Option<ResMut<NetworkConnection>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -250,6 +254,11 @@ pub fn handle_teleport_casting(
 
     // Cleanup circles on completion or first-phase release
     if cast_result.completed {
+        // Play sound at source position (where units teleport from)
+        if let Some((source_x, source_z, _, _, _)) = cast_result.teleport_params {
+            let source_pos = Vec3::new(source_x, 0.0, source_z);
+            audio::play_sfx(&mut commands, &sfx.teleport_cast, source_pos, &game_config);
+        }
         if let Some(dest_entity) = caster.destination_circle {
             commands.entity(dest_entity).try_despawn();
         }

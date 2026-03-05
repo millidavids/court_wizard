@@ -11,7 +11,9 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
+use crate::config::GameConfig;
 
 /// Local wizard Guardian Circle casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -37,6 +39,8 @@ pub fn handle_guardian_circle_casting(
     mut indicator_query: Query<&mut GuardianCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
     mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
@@ -129,6 +133,7 @@ pub fn handle_guardian_circle_casting(
                 let scale = indicator.empowerment;
                 let radius = constants::CIRCLE_RADIUS * scale;
 
+                audio::play_sfx(&mut commands, &sfx.guardian_circle_cast, indicator.position, &game_config);
                 apply_guardian_circle_buff(
                     &mut commands,
                     indicator.position,
