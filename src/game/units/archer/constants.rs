@@ -14,7 +14,8 @@ pub const ARCHER_ATTACK_COOLDOWN_MULTIPLIER: f32 = 2.0; // Archers attack half a
 // Arrow Projectile
 pub const ARROW_GRAVITY: f32 = 600.0; // Downward acceleration (lower = more arc)
 pub const ARROW_LAUNCH_ANGLE_DEGREES: f32 = 30.0; // Launch angle above horizontal
-pub const ARROW_WIDTH: f32 = 4.0; // Visual radius (circle)
+pub const ARROW_WIDTH: f32 = 3.0; // Visual width (rectangle)
+pub const ARROW_LENGTH: f32 = 16.0; // Visual length (rectangle)
 pub const ARROW_POWER_VARIATION: f32 = 0.05; // ±5% power variation
 pub const ARROW_ANGLE_VARIATION_DEGREES: f32 = 1.0; // ±1 degree angle variation
 

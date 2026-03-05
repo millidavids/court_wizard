@@ -575,7 +575,7 @@ pub const SPRITE_FRAME_SIZE: f32 = 64.0;
 pub const SPRITE_COLUMNS: usize = 8;
 /// Maps FacingDirection [Forward, Back, Left, Right] to sprite sheet rows.
 /// Sheet row order: Away(0), Left(1), Forward(2), Right(3).
-pub const SPRITE_DIRECTION_ROWS: [usize; 4] = [2, 0, 1, 3];
+pub const SPRITE_DIRECTION_ROWS: [usize; 4] = [0, 2, 1, 3];
 
 /// Number of pre-generated corpse material variants per unit type/team.
 pub const CORPSE_MATERIAL_VARIANTS: usize = 3;

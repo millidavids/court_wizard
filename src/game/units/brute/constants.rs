@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_PURPLE, tint};
+use crate::game::constants::{ATTACKER_BASE, TINT_PURPLE, UNIT_SCALE, tint};
 
 // Visual appearance
 pub const BRUTE_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.2); // Purple tint
-pub const BRUTE_ELLIPSE_WIDTH: f32 = 20.0; // Ellipse width (X axis)
-pub const BRUTE_ELLIPSE_DEPTH: f32 = 30.0; // Ellipse depth (Z axis) - longer oval
-pub const BRUTE_RADIUS: f32 = 20.0; // Horizontal radius for collision detection
-pub const BRUTE_HITBOX_HEIGHT: f32 = 60.0; // Vertical height
+pub const BRUTE_ELLIPSE_WIDTH: f32 = 20.0 * UNIT_SCALE; // Ellipse width (X axis)
+pub const BRUTE_ELLIPSE_DEPTH: f32 = 30.0 * UNIT_SCALE; // Ellipse depth (Z axis) - longer oval
+pub const BRUTE_RADIUS: f32 = 20.0 * UNIT_SCALE; // Horizontal radius for collision detection
+pub const BRUTE_HITBOX_HEIGHT: f32 = 60.0 * UNIT_SCALE; // Vertical height
 
 // Movement
 pub const BRUTE_MOVEMENT_SPEED: f32 = 75.0; // Slower than infantry (100.0) for tank-like feel

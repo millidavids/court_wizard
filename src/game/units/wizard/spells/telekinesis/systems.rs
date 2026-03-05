@@ -2,12 +2,11 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, WizardInput,
 };
 use super::components::TelekinesisIndicator;
 use super::constants;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -25,7 +24,6 @@ pub(super) fn handle_telekinesis_casting(
     mut wizard_query: Query<
         (
             Entity,
-            &Wizard,
             &mut CastingState,
             &mut Mana,
             &PrimedSpell,
@@ -47,7 +45,7 @@ pub(super) fn handle_telekinesis_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
     else {
         return;
@@ -64,36 +62,22 @@ pub(super) fn handle_telekinesis_casting(
         && let Some((drop_entity, drop_transform, _drop)) =
             find_nearest_drop(&cursor_world_pos, &drops_query)
     {
-        // Check if drop is within wizard's spell range
-        let wizard_pos = SPELL_ORIGIN;
-        let drop_pos = drop_transform.translation;
-        let wizard_height = wizard_pos.y;
-        let max_ground_radius = if wizard_height < wizard.spell_range {
-            (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-        } else {
-            0.0
-        };
-        let dx = drop_pos.x - wizard_pos.x;
-        let dz = drop_pos.z - wizard_pos.z;
-        let ground_distance = (dx * dx + dz * dz).sqrt();
-        if ground_distance <= max_ground_radius {
-            let indicator_entity = spawn_indicator(
-                &mut commands,
-                &visual_assets,
-                drop_transform.translation,
-                drop_entity,
-            );
-            commands
-                .entity(wizard_entity)
-                .insert(SpellCaster::with_indicator(indicator_entity));
-        }
+        // Telekinesis has infinite range — no distance check needed
+        let indicator_entity = spawn_indicator(
+            &mut commands,
+            &visual_assets,
+            drop_transform.translation,
+            drop_entity,
+        );
+        commands
+            .entity(wizard_entity)
+            .insert(SpellCaster::with_indicator(indicator_entity));
     }
 
     let completed = telekinesis_casting_logic(
         &input,
         &time,
         wizard_entity,
-        wizard,
         &mut casting_state,
         &mut mana,
         primed_spell,
@@ -114,7 +98,6 @@ fn telekinesis_casting_logic(
     input: &WizardInput,
     time: &Time,
     wizard_entity: Entity,
-    wizard: &Wizard,
     casting_state: &mut CastingState,
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
@@ -143,25 +126,11 @@ fn telekinesis_casting_logic(
                 && caster_query.get(wizard_entity).is_err()
                 && mana.can_afford(constants::MANA_COST)
                 && let Some(cursor_world_pos) = input.cursor_pos
-                && let Some((_drop_entity, drop_transform, _drop)) =
+                && let Some((_drop_entity, _drop_transform, _drop)) =
                     find_nearest_drop(&cursor_world_pos, drops_query)
             {
-                let wizard_pos = SPELL_ORIGIN;
-                let drop_pos = drop_transform.translation;
-                let wizard_height = wizard_pos.y;
-                let max_ground_radius = if wizard_height < wizard.spell_range {
-                    (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height)
-                        .sqrt()
-                } else {
-                    0.0
-                };
-                let dx = drop_pos.x - wizard_pos.x;
-                let dz = drop_pos.z - wizard_pos.z;
-                let ground_distance = (dx * dx + dz * dz).sqrt();
-                if ground_distance <= max_ground_radius {
-                    // SpellCaster insertion handled by the wrapper
-                    casting_state.start_cast();
-                }
+                // Telekinesis has infinite range — no distance check needed
+                casting_state.start_cast();
             }
         }
         CastingState::Casting { .. } => {

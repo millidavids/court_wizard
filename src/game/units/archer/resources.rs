@@ -6,7 +6,7 @@ use crate::game::constants::{
 use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
 use crate::game::units::systems::create_corpse_sprite_materials;
 
-use super::constants::ARROW_WIDTH;
+use super::constants::{ARROW_LENGTH, ARROW_WIDTH};
 use super::styles::*;
 
 /// Pre-loaded meshes and materials for archer units.
@@ -43,7 +43,7 @@ pub(super) fn preload_archer_assets(
     let assets = ArcherAssets {
         sprite_mesh: meshes.add(Rectangle::new(ARCHER_SPRITE_WIDTH, ARCHER_SPRITE_HEIGHT)),
         sprite_texture,
-        arrow_mesh: meshes.add(Circle::new(ARROW_WIDTH)),
+        arrow_mesh: meshes.add(Rectangle::new(ARROW_WIDTH, ARROW_LENGTH)),
         arrow_material: materials.add(StandardMaterial {
             base_color: ARROW_COLOR,
             unlit: true,

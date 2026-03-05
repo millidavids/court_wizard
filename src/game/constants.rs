@@ -5,6 +5,11 @@
 
 use bevy::prelude::*;
 
+// ===== Unit Scale =====
+
+/// Global scale factor for all unit sizes (sprite dimensions, hitbox radii, and size-dependent distances).
+pub const UNIT_SCALE: f32 = 4.0;
+
 // ===== Team Base Colors =====
 
 /// Base color for defender units (light gray).
@@ -172,7 +177,7 @@ pub const INITIAL_DEFENDER_COUNT: u32 = 100;
 pub const KINGS_GUARD_COUNT: u32 = 10;
 
 /// Radius of the orbit circle for King's Guard around the King.
-pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 30.0;
+pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 30.0 * UNIT_SCALE;
 
 // ===== Unit Stats =====
 
@@ -187,10 +192,10 @@ pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
 pub const GLOBAL_SPEED_MULTIPLIER: f32 = 0.5;
 
 /// Hitbox height for defender units.
-pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0;
+pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0 * UNIT_SCALE;
 
 /// Hitbox height for attacker units.
-pub const ATTACKER_HITBOX_HEIGHT: f32 = 20.0;
+pub const ATTACKER_HITBOX_HEIGHT: f32 = 20.0 * UNIT_SCALE;
 
 // ===== Movement Constants =====
 
@@ -204,7 +209,7 @@ pub const STEERING_FORCE: f32 = 500.0;
 pub const MELEE_SLOWDOWN_FACTOR: f32 = 0.3;
 
 /// Distance threshold to be considered "in melee" for slowdown purposes.
-pub const MELEE_SLOWDOWN_DISTANCE: f32 = 50.0;
+pub const MELEE_SLOWDOWN_DISTANCE: f32 = 50.0 * UNIT_SCALE;
 
 /// Approximate frame time for attack window detection (in seconds).
 pub const APPROX_FRAME_TIME: f32 = 0.016;
@@ -216,7 +221,7 @@ pub const NEIGHBOR_DISTANCE: f32 = 100.0;
 
 /// Distance threshold for separation force to apply.
 /// Units only separate when they're very close to colliding (just beyond hitbox radius).
-pub const SEPARATION_DISTANCE: f32 = 5.0;
+pub const SEPARATION_DISTANCE: f32 = 5.0 * UNIT_SCALE;
 
 /// Strength of the separation force (pushes units apart).
 /// Since we're using normalized directions, this should be small (0-1 range).

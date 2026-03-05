@@ -1,16 +1,16 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_ORANGE, TINT_RED, tint};
+use crate::game::constants::{ATTACKER_BASE, TINT_ORANGE, TINT_RED, UNIT_SCALE, tint};
 
 // Visual appearance
 pub const OGRE_COLOR: Color = tint(ATTACKER_BASE, TINT_ORANGE, 0.3);
 pub const OGRE_ENRAGE_1_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.3);
 pub const OGRE_ENRAGE_2_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.5);
 pub const OGRE_ENRAGE_3_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.8);
-pub const OGRE_ELLIPSE_WIDTH: f32 = 40.0;
-pub const OGRE_ELLIPSE_DEPTH: f32 = 60.0;
-pub const OGRE_RADIUS: f32 = 40.0;
-pub const OGRE_HITBOX_HEIGHT: f32 = 60.0;
+pub const OGRE_ELLIPSE_WIDTH: f32 = 40.0 * UNIT_SCALE;
+pub const OGRE_ELLIPSE_DEPTH: f32 = 60.0 * UNIT_SCALE;
+pub const OGRE_RADIUS: f32 = 40.0 * UNIT_SCALE;
+pub const OGRE_HITBOX_HEIGHT: f32 = 60.0 * UNIT_SCALE;
 
 // Movement
 pub const OGRE_MOVEMENT_SPEED: f32 = 110.0;

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.256] - 2026-03-04
+
+### Changed
+- **All units are much bigger** — every unit on the battlefield is now significantly larger, making them easier to see and the battles feel more epic
+- **Arrows look like arrows** — arrow projectiles are now dark brown rectangles instead of small circles
+- **Telekinesis works anywhere** — you can now pick up ingredient drops from any distance on the battlefield
+
+### Fixed
+- **Walk animations fixed** — units no longer play the wrong animation when walking forward or backward
+
 ## [v0.3.234] - 2026-03-04
 
 ### Added

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_ORANGE, TINT_PURPLE, tint};
+use crate::game::constants::{ATTACKER_BASE, TINT_ORANGE, TINT_PURPLE, UNIT_SCALE, tint};
 
 // ===== Visual Appearance =====
 
@@ -11,16 +11,16 @@ pub const MARTINA_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.5);
 /// Physical-brown for Josephina.
 pub const JOSEPHINA_COLOR: Color = tint(ATTACKER_BASE, Color::srgb(0.6, 0.35, 0.15), 0.5);
 
-pub const HAG_ELLIPSE_WIDTH: f32 = 25.0;
-pub const HAG_ELLIPSE_DEPTH: f32 = 35.0;
-pub const HAG_RADIUS: f32 = 25.0;
-pub const HAG_HITBOX_HEIGHT: f32 = 35.0;
+pub const HAG_ELLIPSE_WIDTH: f32 = 25.0 * UNIT_SCALE;
+pub const HAG_ELLIPSE_DEPTH: f32 = 35.0 * UNIT_SCALE;
+pub const HAG_RADIUS: f32 = 25.0 * UNIT_SCALE;
+pub const HAG_HITBOX_HEIGHT: f32 = 35.0 * UNIT_SCALE;
 
 // ===== Movement =====
 
 pub const HAG_MOVEMENT_SPEED: f32 = 100.0;
 /// Minimum distance hags try to maintain from each other (world units).
-pub const HAG_SEPARATION_DISTANCE: f32 = 300.0;
+pub const HAG_SEPARATION_DISTANCE: f32 = 300.0 * UNIT_SCALE;
 /// Strength of the inter-hag separation force.
 pub const HAG_SEPARATION_STRENGTH: f32 = 150.0;
 
@@ -39,11 +39,11 @@ pub const EYE_TRANSFER_BASE_INTERVAL: f32 = 9.0;
 pub const EYE_TRANSFER_VARIANCE: f32 = 1.0;
 
 /// Y offset for eye visuals above the hag sprite.
-pub const EYE_VISUAL_OFFSET_Y: f32 = 40.0;
+pub const EYE_VISUAL_OFFSET_Y: f32 = 40.0 * UNIT_SCALE;
 /// Radius of the eye visual sphere.
-pub const EYE_VISUAL_RADIUS: f32 = 16.0;
+pub const EYE_VISUAL_RADIUS: f32 = 16.0 * UNIT_SCALE;
 /// Spacing between the two eyes when a hag has both.
-pub const EYE_VISUAL_SPACING: f32 = 12.0;
+pub const EYE_VISUAL_SPACING: f32 = 12.0 * UNIT_SCALE;
 
 /// Gold color for the invulnerability eye.
 pub const INVULNERABILITY_EYE_COLOR: Color = Color::srgb(1.0, 0.85, 0.0);
