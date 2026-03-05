@@ -9,6 +9,9 @@ use bevy::render::alpha::AlphaMode;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 use super::black_hole::constants::TORUS_MINOR_RADIUS;
+use super::telekinesis::constants::{
+    HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKWAVE_TORUS_MINOR,
+};
 
 /// Pre-allocated meshes and materials for all spell visuals.
 ///
@@ -29,6 +32,8 @@ pub struct SpellVisualAssets {
     pub cross_plane_triangle: Handle<Mesh>,
     /// Low-resolution torus (unit-scale) for black hole rings.
     pub black_hole_torus: Handle<Mesh>,
+    /// Unit-scale torus for psychic shockwave ring.
+    pub shockwave_torus: Handle<Mesh>,
 
     // ── Zone materials (semi-transparent ground circles) ──────────────────
     pub spike_growth_zone: Handle<StandardMaterial>,
@@ -118,6 +123,10 @@ pub struct SpellVisualAssets {
     pub necrotic_vein: Handle<StandardMaterial>,
     pub finger_of_death_glow: Handle<StandardMaterial>,
     pub necrotic_pulse: Handle<StandardMaterial>,
+
+    // ── Telekinesis talent materials ────────────────────────────────────────
+    pub shockwave_material: Handle<StandardMaterial>,
+    pub harvest_flash_material: Handle<StandardMaterial>,
 
     // ── Crystal mini-spell materials ──────────────────────────────────────
     pub crystal_mini_missile: Handle<StandardMaterial>,
@@ -425,6 +434,18 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
+        // Shockwave material (light blue, emissive, alpha blend)
+        shockwave_material: materials.add(StandardMaterial {
+            base_color: SHOCKWAVE_COLOR,
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(1.0, 2.0, 3.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        // Harvest flash material (bright light blue circle overlay)
+        harvest_flash_material: materials.add(unlit_blend(HARVEST_FLASH_COLOR)),
+
         // Crystal mini-spell materials
         crystal_mini_missile: materials.add(unlit(Color::srgb(0.8, 0.3, 0.9))),
         crystal_range_indicator: materials.add(unlit_blend(Color::srgba(0.5, 0.2, 0.8, 0.15))),
@@ -440,6 +461,13 @@ pub fn init_spell_visual_assets(
             Torus::new(1.0 - TORUS_MINOR_RADIUS, 1.0 + TORUS_MINOR_RADIUS)
                 .mesh()
                 .major_resolution(16)
+                .minor_resolution(8),
+        ),
+        // Torus for psychic shockwave ring (thicker tube than black hole)
+        shockwave_torus: meshes.add(
+            Torus::new(1.0 - SHOCKWAVE_TORUS_MINOR, 1.0 + SHOCKWAVE_TORUS_MINOR)
+                .mesh()
+                .major_resolution(24)
                 .minor_resolution(8),
         ),
 

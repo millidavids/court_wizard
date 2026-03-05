@@ -10,6 +10,8 @@ use crate::game::input::messages::BlockSpellInput;
 use crate::game::messages::ComboDiscoveredMessage;
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
 use crate::game::units::wizard::components::{LocalWizard, Mana};
+use crate::game::units::wizard::spells::telekinesis::components::TransmutationStacks;
+use crate::game::units::wizard::spells::telekinesis::constants::TRANSMUTATION_POTENCY_PER_STACK;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Loads the cauldron sprite sheet texture.
@@ -97,6 +99,7 @@ pub fn handle_brew_complete(
     spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut combo_writer: MessageWriter<ComboDiscoveredMessage>,
+    mut transmutation_stacks: Option<ResMut<TransmutationStacks>>,
 ) {
     for message in messages.read() {
         // Check for hidden combos and notify
@@ -107,7 +110,23 @@ pub fn handle_brew_complete(
             });
         }
 
-        cauldron_buffs.apply_recipe(&message.recipe);
+        // T3: Transmutation — boost brew potency based on stacks
+        let potency_mult = transmutation_stacks
+            .as_ref()
+            .filter(|s| s.count > 0)
+            .map(|s| 1.0 + s.count as f32 * TRANSMUTATION_POTENCY_PER_STACK)
+            .unwrap_or(1.0);
+
+        if potency_mult > 1.0 {
+            cauldron_buffs.apply_recipe_with_potency(&message.recipe, potency_mult);
+        } else {
+            cauldron_buffs.apply_recipe(&message.recipe);
+        }
+
+        // Reset transmutation stacks after brewing
+        if let Some(ref mut stacks) = transmutation_stacks {
+            stacks.count = 0;
+        }
 
         // Spawn the expanding bubble visual effect
         let bubble_color = message.recipe.color();

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.277] - 2026-03-05
+
+### Added
+- **Telekinesis talents** — Telekinesis now has a full talent tree with 9 upgrades across 3 tiers:
+  - **Tier 1**: Auto-Target (no need to aim near a drop), Quick Grab (near-instant cast time), Mana Efficiency (half mana cost)
+  - **Tier 2**: Magnetic Pull (ingredients passively drift toward the wizard), Harvest (picking up ingredients damages nearby enemies with a light blue flash), Keen Senses (50% more ingredient drops)
+  - **Tier 3**: Telekinetic Storm (one cast grabs ALL ingredients on the field at 3x mana), Transmutation (each ingredient collected boosts your next brew by 10%), Psychic Shockwave (pickups create an expanding shockwave that knocks enemies back)
+
+### Changed
+- **Telekinesis mana cost increased** — base mana cost doubled to balance with new talents
+- **Telekinesis talents unlock faster** — talent tier thresholds significantly reduced
+
 ## [v0.3.264] - 2026-03-05
 
 ### Added

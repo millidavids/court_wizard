@@ -25,6 +25,20 @@ impl CauldronBuffs {
         });
     }
 
+    /// Applies a recipe's effects with a potency multiplier (from Transmutation talent).
+    /// Multiplier effects have their deviation from 1.0 scaled, flat effects are scaled directly.
+    pub fn apply_recipe_with_potency(&mut self, recipe: &Recipe, potency: f32) {
+        let effects: Vec<BrewEffect> = recipe
+            .effects()
+            .into_iter()
+            .map(|effect| amplify_brew_effect(effect, potency))
+            .collect();
+        self.active_buffs.push(ActiveBuff {
+            effects,
+            time_remaining: recipe.buff_duration(),
+        });
+    }
+
     /// Ticks all active buff timers and removes expired ones.
     pub fn tick(&mut self, delta: f32) {
         self.active_buffs.retain_mut(|buff| {
@@ -171,6 +185,44 @@ impl CauldronBuffs {
             }
         }
         total
+    }
+}
+
+/// Amplifies a brew effect by a potency multiplier.
+/// Multiplier effects (base 1.0) scale the deviation: 1.0 + (v - 1.0) * potency
+/// Flat effects (base 0.0) scale the value directly: v * potency
+fn amplify_brew_effect(effect: BrewEffect, potency: f32) -> BrewEffect {
+    match effect {
+        // Multiplier effects: amplify deviation from 1.0
+        BrewEffect::ManaRegenMultiplier(v) => {
+            BrewEffect::ManaRegenMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        BrewEffect::SpellPowerMultiplier(v) => {
+            BrewEffect::SpellPowerMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        BrewEffect::CastSpeedMultiplier(v) => {
+            BrewEffect::CastSpeedMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        BrewEffect::SpellRangeMultiplier(v) => {
+            BrewEffect::SpellRangeMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        BrewEffect::MaxManaMultiplier(v) => {
+            BrewEffect::MaxManaMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        BrewEffect::AttackSpeedMultiplier(v) => {
+            BrewEffect::AttackSpeedMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        BrewEffect::BuffDurationMultiplier(v) => {
+            BrewEffect::BuffDurationMultiplier(1.0 + (v - 1.0) * potency)
+        }
+        // Flat effects: scale directly
+        BrewEffect::DefenderHealPerSecond(v) => BrewEffect::DefenderHealPerSecond(v * potency),
+        BrewEffect::DefenderDamageBonus(v) => BrewEffect::DefenderDamageBonus(v * potency),
+        BrewEffect::DamageResistancePercent(v) => BrewEffect::DamageResistancePercent(v * potency),
+        BrewEffect::DefenderSpeedBonus(v) => BrewEffect::DefenderSpeedBonus(v * potency),
+        BrewEffect::AttackerSlowPercent(v) => BrewEffect::AttackerSlowPercent(v * potency),
+        BrewEffect::DefenderShieldPerSecond(v) => BrewEffect::DefenderShieldPerSecond(v * potency),
+        BrewEffect::EffectivenessBonus(v) => BrewEffect::EffectivenessBonus(v * potency),
     }
 }
 

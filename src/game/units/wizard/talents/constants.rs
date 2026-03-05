@@ -35,7 +35,7 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::FogCloud => [20, 70, 200],
         Spell::BerserkerRage => [15, 50, 150],
         // Utility spells
-        Spell::Telekinesis => [10, 35, 100],
+        Spell::Telekinesis => [1, 5, 10],
         Spell::Banishment => [10, 35, 100],
         Spell::ArcaneCrystal => [15, 50, 150],
         Spell::Dispel => [15, 50, 150],

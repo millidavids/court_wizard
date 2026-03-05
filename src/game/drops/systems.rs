@@ -8,6 +8,9 @@ use crate::game::cauldron::brews::Ingredient;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::messages::IngredientCollectedMessage;
+use crate::game::units::wizard::components::Spell;
+use crate::game::units::wizard::spells::telekinesis::constants::KEEN_SENSES_DROP_CHANCE_MULT;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 
 use super::components::{FlyingToWizard, IngredientDrop, LockedIngredients};
 use super::constants::*;
@@ -37,23 +40,36 @@ pub(super) fn spawn_ingredient_drops(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut drop_events: MessageReader<SpawnIngredientDropMessage>,
     locked: Res<LockedIngredients>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
-    if locked.locked.is_empty() {
-        // All ingredients unlocked, consume events and skip
-        for _ in drop_events.read() {}
-        return;
-    }
+    // T2: Keen Senses — increase drop chance when talent is selected
+    let drop_chance = if active_talents
+        .as_ref()
+        .and_then(|t| t.get_selection(Spell::Telekinesis, 1))
+        == Some(2)
+    {
+        DROP_CHANCE * KEEN_SENSES_DROP_CHANCE_MULT
+    } else {
+        DROP_CHANCE
+    };
+
+    // Pick from locked ingredients if any remain, otherwise from all
+    let ingredient_pool: &[Ingredient] = if locked.locked.is_empty() {
+        Ingredient::all()
+    } else {
+        &locked.locked
+    };
 
     let mut rng = rand::thread_rng();
 
     for event in drop_events.read() {
         // Roll for drop chance
-        if rng.r#gen::<f64>() > DROP_CHANCE {
+        if rng.r#gen::<f64>() > drop_chance {
             continue;
         }
 
-        // Pick a random locked ingredient
-        let Some(ingredient) = locked.locked.choose(&mut rng).copied() else {
+        // Pick a random ingredient from the pool
+        let Some(ingredient) = ingredient_pool.choose(&mut rng).copied() else {
             continue;
         };
 

@@ -23,6 +23,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Disintegrate => disintegrate_talents(),
         Spell::MeteorFall => meteor_fall_talents(),
         Spell::ChainLightning => chain_lightning_talents(),
+        Spell::Telekinesis => telekinesis_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -430,6 +431,74 @@ fn chain_lightning_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Living Lightning",
                 description: "Max bounces increased to 100, bouncing until no unhit targets remain. Double mana cost.",
                 locked_text: "The lightning has a mind of its own. It won't stop until everyone's been introduced.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn telekinesis_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Auto-Target",
+                description: "No need to aim near a drop. Casting anywhere auto-targets the nearest drop on the field.",
+                locked_text: "Point anywhere. The magic knows what you want.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Grab",
+                description: "Cast time is near-instant.",
+                locked_text: "Blink and you'll miss it. Literally.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Mana Efficiency",
+                description: "Mana cost reduced by 50%.",
+                locked_text: "Same spell, half the magical effort.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Magnetic Pull",
+                description: "Ingredients passively drift toward the wizard.",
+                locked_text: "The ingredients come to you. As it should be.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Harvest",
+                description: "Picking up an ingredient deals minor damage to nearby enemies.",
+                locked_text: "Every pickup is a tiny explosion. Convenient.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Keen Senses",
+                description: "Ingredient drop chance increased by 50% while Telekinesis is equipped.",
+                locked_text: "You see things others miss. Shiny things.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Telekinetic Storm",
+                description: "Single cast pulls ALL ingredients on the battlefield. Costs 3x mana per ingredient.",
+                locked_text: "Why pick up one when you can grab them all?",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Transmutation",
+                description: "Each ingredient collected grants +10% brew potency (stacking). Resets on brew.",
+                locked_text: "The ingredients whisper their secrets to you.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Psychic Shockwave",
+                description: "Each pickup creates a knockback shockwave pushing enemies away.",
+                locked_text: "BOOM. Ingredient collected. Enemies scattered.",
                 implemented: true,
             },
         ],
