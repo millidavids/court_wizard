@@ -8,16 +8,13 @@ pub struct Battlefield;
 #[derive(Component)]
 pub struct Castle;
 
-/// Pre-loaded castle wall texture for the castle top surface.
+/// Pre-loaded texture assets for the battlefield.
 #[derive(Resource)]
-pub struct CastleWallAssets {
-    pub texture: Handle<Image>,
-}
-
-/// Pre-loaded right wall backdrop texture.
-#[derive(Resource)]
-pub struct RightWallAssets {
-    pub texture: Handle<Image>,
+pub struct BattlefieldAssets {
+    /// Castle wall texture for the castle top surface.
+    pub castle_wall: Handle<Image>,
+    /// Right wall backdrop texture.
+    pub right_wall: Handle<Image>,
 }
 
 /// Marker component for the right wall backdrop.

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.290] - 2026-03-05
+
+### Added
+- **Cauldron menu redesign** — the cauldron menu now has a two-panel layout with a detail preview on the left and categorized ingredient grid on the right. Ingredients are organized into Offense, Control, Support, and Utility categories for easier browsing
+- **Brew preview** — selecting ingredients in the cauldron now shows a live preview of the brew's effects, combo bonuses, brew time, and buff duration before you commit
+- **Buff tracker** — active brew buffs now appear as small labeled boxes in the top-left corner of the HUD, showing what each buff does and how long it lasts. Hover over a box to see the full effect details
+- **Combo discovery is saved** — discovered ingredient combos are now remembered across sessions
+
+### Changed
+- **Archers hold position smarter** — archers now advance toward enemies until they're within effective range, then stop and fire instead of awkwardly standing at maximum distance
+- **King's Guard stay closer** — the King's Guard now orbit tighter around the King
+
 ## [v0.3.277] - 2026-03-05
 
 ### Added

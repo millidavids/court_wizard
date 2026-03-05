@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::config::save_data::load_unified_save;
-use crate::game::cauldron::brews::{BrewEffect, Ingredient, Recipe};
+use crate::game::cauldron::brews::{Ingredient, IngredientCategory, Recipe};
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::input::messages::MouseClicked;
@@ -39,112 +39,327 @@ pub(super) fn respawn_menu_on_toggle(
     }
 }
 
-/// Builds the cauldron menu UI tree.
+/// Builds the cauldron menu UI tree with a two-panel layout.
 fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientSelection) {
+    // Load save data once for unlocked ingredients and combos
+    let save = load_unified_save();
+    let unlocked_ingredients = save
+        .as_ref()
+        .map(|s| s.player.unlocked_content.ingredients.clone())
+        .unwrap_or_default();
+    let unlocked_combos = save
+        .as_ref()
+        .map(|s| s.player.unlocked_content.combos.clone())
+        .unwrap_or_default();
+
+    // Root container (full screen, column layout)
     commands
         .spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(MARGIN),
+                padding: UiRect::all(Val::Px(LAYOUT_PADDING)),
+                row_gap: Val::Px(16.0),
                 ..default()
             },
             BackgroundColor(BACKGROUND_COLOR),
             OnCauldronMenuScreen,
         ))
-        .with_children(|parent| {
+        .with_children(|root| {
             // Title
-            parent.spawn((
+            root.spawn((
                 Text::new("Cauldron"),
                 TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TEXT_COLOR),
+                TextColor(TITLE_COLOR),
+                Node {
+                    align_self: AlignSelf::Center,
+                    ..default()
+                },
             ));
 
-            if is_brewing {
-                // Show brewing status
-                parent.spawn((
-                    Text::new("Brewing in progress..."),
-                    TextFont::from_font_size(BREWING_STATUS_FONT_SIZE),
-                    TextColor(BREWING_STATUS_COLOR),
-                ));
+            // Content area: two-panel row
+            root.spawn(Node {
+                flex_grow: 1.0,
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(COLUMN_GAP),
+                ..default()
+            })
+            .with_children(|content| {
+                // === Left panel: detail/preview ===
+                spawn_detail_panel(content, is_brewing, selection, &unlocked_combos);
 
-                // Cancel button
+                // === Right panel: categorized ingredient grid ===
+                if !is_brewing {
+                    spawn_ingredient_list(content, selection, &unlocked_ingredients);
+                }
+            });
+
+            // Bottom button row
+            root.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(10.0),
+                justify_content: JustifyContent::Center,
+                ..default()
+            })
+            .with_children(|buttons| {
+                if is_brewing {
+                    spawn_button(
+                        buttons,
+                        "Cancel Brew",
+                        CauldronMenuButtonAction::CancelBrew,
+                        &CANCEL_BUTTON_STYLE,
+                    );
+                }
                 spawn_button(
-                    parent,
-                    "Cancel Brew",
-                    CauldronMenuButtonAction::CancelBrew,
-                    &CANCEL_BUTTON_STYLE,
+                    buttons,
+                    "Close",
+                    CauldronMenuButtonAction::Close,
+                    &CLOSE_BUTTON_STYLE,
                 );
-            } else {
-                // Ingredient selection frame
-                parent
-                    .spawn((
+            });
+        });
+}
+
+/// Spawns the left detail panel showing brew preview or brewing status.
+fn spawn_detail_panel(
+    parent: &mut ChildSpawnerCommands,
+    is_brewing: bool,
+    selection: &IngredientSelection,
+    unlocked_combos: &[String],
+) {
+    parent
+        .spawn(Node {
+            width: Val::Px(LEFT_PANEL_WIDTH),
+            flex_direction: FlexDirection::Column,
+            align_self: AlignSelf::Center,
+            row_gap: Val::Px(16.0),
+            flex_grow: 0.0,
+            flex_shrink: 0.0,
+            ..default()
+        })
+        .with_children(|left| {
+            // Detail panel with border
+            left.spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(DETAIL_PADDING)),
+                    row_gap: Val::Px(10.0),
+                    border: UiRect::all(Val::Px(DETAIL_BORDER_WIDTH)),
+                    ..default()
+                },
+                BackgroundColor(DETAIL_BG),
+                BorderColor::all(DETAIL_BORDER),
+                BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
+            ))
+            .with_children(|panel| {
+                if is_brewing {
+                    // Brewing in progress
+                    panel.spawn((
+                        Text::new("Brewing in progress..."),
+                        TextFont::from_font_size(BREWING_STATUS_FONT_SIZE),
+                        TextColor(BREWING_STATUS_COLOR),
+                    ));
+                } else if selection.is_empty() {
+                    // No selection placeholder
+                    panel.spawn((
+                        Text::new("Select ingredients to preview brew"),
+                        TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
+                        TextColor(PLACEHOLDER_TEXT_COLOR),
                         Node {
-                            border: UiRect::all(Val::Px(FRAME_BORDER_WIDTH)),
-                            padding: UiRect::all(Val::Px(FRAME_PADDING)),
-                            flex_direction: FlexDirection::Row,
-                            flex_wrap: FlexWrap::Wrap,
-                            column_gap: Val::Px(INGREDIENT_COLUMN_GAP),
-                            row_gap: Val::Px(INGREDIENT_COLUMN_GAP),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::FlexStart,
-                            max_width: Val::Vw(90.0),
+                            max_width: Val::Px(LEFT_PANEL_WIDTH - DETAIL_PADDING * 2.0),
                             ..default()
                         },
-                        BorderColor::all(FRAME_BORDER_COLOR),
-                        BorderRadius::all(Val::Px(8.0)),
-                        BackgroundColor(FRAME_BACKGROUND),
-                    ))
-                    .with_children(|container| {
-                        // Load save data to get unlocked ingredients
-                        let save = load_unified_save();
-                        let unlocked_ingredients = save
-                            .as_ref()
-                            .map(|s| s.player.unlocked_content.ingredients.clone())
-                            .unwrap_or_default();
+                    ));
+                } else {
+                    // Show brew preview
+                    let recipe = Recipe::new(selection.selected.clone());
 
-                        for ingredient in Ingredient::all() {
-                            let debug_name = format!("{:?}", ingredient);
-                            if unlocked_ingredients.contains(&debug_name) {
-                                spawn_ingredient_card(
-                                    container,
-                                    *ingredient,
-                                    selection.is_selected(ingredient),
-                                );
+                    // Ingredient count
+                    let count_color = if selection.at_limit() {
+                        INGREDIENT_COUNT_FULL_COLOR
+                    } else {
+                        INGREDIENT_COUNT_COLOR
+                    };
+                    panel.spawn((
+                        Text::new(format!(
+                            "{}/{} ingredients",
+                            selection.selected.len(),
+                            MAX_INGREDIENTS
+                        )),
+                        TextFont::from_font_size(DETAIL_LABEL_FONT_SIZE),
+                        TextColor(count_color),
+                    ));
+
+                    // Brew time + duration
+                    panel.spawn((
+                        Text::new(format!("Brew time: {:.0}s", recipe.brew_time())),
+                        TextFont::from_font_size(BREW_INFO_FONT_SIZE),
+                        TextColor(BREW_INFO_COLOR),
+                    ));
+                    panel.spawn((
+                        Text::new(format!("Duration: {:.0}s", recipe.buff_duration())),
+                        TextFont::from_font_size(BREW_INFO_FONT_SIZE),
+                        TextColor(BREW_INFO_COLOR),
+                    ));
+
+                    // Effects label
+                    panel.spawn((
+                        Text::new("Effects"),
+                        TextFont::from_font_size(DETAIL_LABEL_FONT_SIZE),
+                        TextColor(DETAIL_LABEL_COLOR),
+                    ));
+
+                    // Effect list
+                    for effect in &recipe.base_effects() {
+                        panel.spawn((
+                            Text::new(effect.display_text()),
+                            TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
+                            TextColor(EFFECT_PREVIEW_COLOR),
+                        ));
+                    }
+
+                    // Dilution warning
+                    if recipe.ingredients.len() > 1 {
+                        panel.spawn((
+                            Text::new(format!(
+                                "Dilution: {:.0}% strength",
+                                recipe.dilution_factor() * 100.0
+                            )),
+                            TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
+                            TextColor(DISABLED_TEXT_COLOR),
+                        ));
+                    }
+
+                    // Combo bonuses — only show previously unlocked combos
+                    let visible_combos: Vec<_> = recipe
+                        .matching_combos()
+                        .into_iter()
+                        .filter(|c| unlocked_combos.contains(&c.name.to_string()))
+                        .collect();
+                    if !visible_combos.is_empty() {
+                        panel.spawn((
+                            Text::new("Combos"),
+                            TextFont::from_font_size(DETAIL_LABEL_FONT_SIZE),
+                            TextColor(DETAIL_LABEL_COLOR),
+                        ));
+                        for combo in &visible_combos {
+                            // Combo name
+                            panel.spawn((
+                                Text::new(combo.name),
+                                TextFont::from_font_size(COMBO_FONT_SIZE),
+                                TextColor(COMBO_COLOR),
+                            ));
+                            // Combo description
+                            panel.spawn((
+                                Text::new(combo.description),
+                                TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
+                                TextColor(DISABLED_TEXT_COLOR),
+                            ));
+                            // Combo bonus effects
+                            for effect in combo.bonus_effects {
+                                panel.spawn((
+                                    Text::new(format!("  {}", effect.display_text())),
+                                    TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
+                                    TextColor(EFFECT_PREVIEW_COLOR),
+                                ));
                             }
                         }
-                    });
-
-                // Effect preview (only when something is selected)
-                if !selection.is_empty() {
-                    let recipe = Recipe::new(selection.selected.clone());
-                    spawn_effect_preview(parent, &recipe);
+                    }
                 }
+            });
 
-                // Brew button
-                let brew_style = if selection.is_empty() {
-                    &BREW_BUTTON_DISABLED_STYLE
-                } else {
-                    &BREW_BUTTON_STYLE
-                };
+            // Brew button below the detail panel (only when ingredients are selected)
+            if !is_brewing && !selection.is_empty() {
                 spawn_button(
-                    parent,
+                    left,
                     "Brew",
                     CauldronMenuButtonAction::StartBrew,
-                    brew_style,
+                    &BREW_BUTTON_STYLE,
                 );
             }
+        });
+}
 
-            // Close button
-            spawn_button(
-                parent,
-                "Close",
-                CauldronMenuButtonAction::Close,
-                &CLOSE_BUTTON_STYLE,
-            );
+/// Spawns the right panel with 4 category columns of ingredients.
+fn spawn_ingredient_list(
+    parent: &mut ChildSpawnerCommands,
+    selection: &IngredientSelection,
+    unlocked_ingredients: &[String],
+) {
+    parent
+        .spawn((
+            Node {
+                flex_grow: 1.0,
+                min_width: Val::Px(0.0),
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(CATEGORY_GAP),
+                overflow: Overflow::scroll_y(),
+                border: UiRect::all(Val::Px(LIST_BORDER_WIDTH)),
+                padding: UiRect::all(Val::Px(LIST_PADDING)),
+                ..default()
+            },
+            BackgroundColor(LIST_BG),
+            BorderColor::all(LIST_BORDER),
+            BorderRadius::all(Val::Px(LIST_BORDER_RADIUS)),
+            ScrollPosition::default(),
+        ))
+        .with_children(|list| {
+            let at_limit = selection.at_limit();
+
+            for category in IngredientCategory::all() {
+                // Collect unlocked ingredients in this category
+                let mut category_ingredients: Vec<Ingredient> = Ingredient::all()
+                    .iter()
+                    .copied()
+                    .filter(|i| {
+                        i.category() == *category && {
+                            let debug_name = format!("{:?}", i);
+                            unlocked_ingredients.contains(&debug_name)
+                        }
+                    })
+                    .collect();
+
+                if category_ingredients.is_empty() {
+                    continue;
+                }
+
+                // Sort alphabetically
+                category_ingredients.sort_by_key(|i| i.name());
+
+                // Category column
+                list.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(LIST_ITEM_GAP),
+                    flex_grow: 1.0,
+                    ..default()
+                })
+                .with_children(|column| {
+                    // Category header
+                    column.spawn((
+                        Text::new(category.display_name()),
+                        TextFont::from_font_size(CATEGORY_FONT_SIZE),
+                        TextColor(CATEGORY_COLOR),
+                        TextLayout::new_with_justify(Justify::Center),
+                        Node {
+                            width: Val::Percent(100.0),
+                            margin: UiRect::bottom(Val::Px(4.0)),
+                            ..default()
+                        },
+                    ));
+
+                    // Ingredient cards
+                    for ingredient in &category_ingredients {
+                        let is_selected = selection.is_selected(ingredient);
+                        spawn_ingredient_card(
+                            column,
+                            *ingredient,
+                            is_selected,
+                            at_limit && !is_selected,
+                        );
+                    }
+                });
+            }
         });
 }
 
@@ -153,14 +368,19 @@ fn spawn_ingredient_card(
     parent: &mut ChildSpawnerCommands,
     ingredient: Ingredient,
     selected: bool,
+    at_limit: bool,
 ) {
     let button_style = if selected {
         &INGREDIENT_SELECTED_STYLE
+    } else if at_limit {
+        &INGREDIENT_DISABLED_STYLE
     } else {
         &INGREDIENT_BUTTON_STYLE
     };
     let text_color = if selected {
         INGREDIENT_SELECTED_STYLE.text_color
+    } else if at_limit {
+        INGREDIENT_DISABLED_STYLE.text_color
     } else {
         TEXT_COLOR
     };
@@ -169,9 +389,7 @@ fn spawn_ingredient_card(
         .spawn(Node {
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
-            row_gap: Val::Px(8.0),
-            width: Val::Px(INGREDIENT_COLUMN_WIDTH),
-            padding: UiRect::horizontal(Val::Px(COLUMN_PADDING)),
+            row_gap: Val::Px(4.0),
             ..default()
         })
         .with_children(|card| {
@@ -187,95 +405,11 @@ fn spawn_ingredient_card(
                 TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
                 TextColor(text_color),
                 TextLayout::new_with_justify(Justify::Center),
+                Node {
+                    max_width: Val::Px(BUTTON_WIDTH),
+                    ..default()
+                },
             ));
-        });
-}
-
-/// Spawns the effect preview section showing computed effects.
-fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
-    parent
-        .spawn(Node {
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            row_gap: Val::Px(4.0),
-            ..default()
-        })
-        .with_children(|preview| {
-            // Brew time info
-            preview.spawn((
-                Text::new(format!(
-                    "Brew time: {:.0}s | Buff duration: {:.0}s",
-                    recipe.brew_time(),
-                    recipe.buff_duration()
-                )),
-                TextFont::from_font_size(BREW_INFO_FONT_SIZE),
-                TextColor(BREW_INFO_COLOR),
-            ));
-
-            // Effect list
-            for effect in &recipe.effects() {
-                let text = match effect {
-                    BrewEffect::ManaRegenMultiplier(v) => {
-                        format!("Mana regen: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::SpellPowerMultiplier(v) => {
-                        format!("Spell power: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::DefenderHealPerSecond(v) => {
-                        format!("Defender healing: {:.1} HP/s", v)
-                    }
-                    BrewEffect::CastSpeedMultiplier(v) => {
-                        format!("Cast speed: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::SpellRangeMultiplier(v) => {
-                        format!("Spell area: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::DefenderDamageBonus(v) => {
-                        format!("Defender damage: +{:.0}%", v * 100.0)
-                    }
-                    BrewEffect::DamageResistancePercent(v) => {
-                        format!("Damage resistance: {:.0}%", v * 100.0)
-                    }
-                    BrewEffect::DefenderSpeedBonus(v) => {
-                        format!("Defender speed: +{:.0}%", v * 100.0)
-                    }
-                    BrewEffect::AttackerSlowPercent(v) => {
-                        format!("Enemy slow: {:.0}%", v * 100.0)
-                    }
-                    BrewEffect::DefenderShieldPerSecond(v) => {
-                        format!("Defender shield: {:.1} HP/s", v)
-                    }
-                    BrewEffect::MaxManaMultiplier(v) => {
-                        format!("Max mana: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::AttackSpeedMultiplier(v) => {
-                        format!("Attack speed: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::BuffDurationMultiplier(v) => {
-                        format!("Buff duration: +{:.0}%", (v - 1.0) * 100.0)
-                    }
-                    BrewEffect::EffectivenessBonus(v) => {
-                        format!("Defender effectiveness: +{:.0}%", v * 100.0)
-                    }
-                };
-                preview.spawn((
-                    Text::new(text),
-                    TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
-                    TextColor(EFFECT_PREVIEW_COLOR),
-                ));
-            }
-
-            // Dilution warning if more than 1 ingredient
-            if recipe.ingredients.len() > 1 {
-                preview.spawn((
-                    Text::new(format!(
-                        "Dilution: {:.0}% strength per ingredient",
-                        recipe.dilution_factor() * 100.0
-                    )),
-                    TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
-                    TextColor(DISABLED_TEXT_COLOR),
-                ));
-            }
         });
 }
 
@@ -335,4 +469,3 @@ pub(super) fn despawn_cauldron_menu_ui(
         commands.entity(entity).try_despawn();
     }
 }
-

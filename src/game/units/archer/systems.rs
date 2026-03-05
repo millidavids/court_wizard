@@ -419,54 +419,68 @@ pub fn update_archer_targeting(
             commands.entity(entity).remove::<crate::game::units::components::InMelee>();
             continue;
         }
-        // Find nearest enemy
+
+        let pos = transform.translation;
+
+        // Find nearest enemy in seek zone [min_range, seek_range]
+        // Archers advance until enemies are within seek range, then stop.
+        // They can still shoot up to max_range, but won't stop that far out.
+        let ranged_target = unit_snapshot
+            .iter()
+            .filter(|(other_entity, _, other_team)| {
+                *other_entity != entity && team.is_enemy(other_team)
+            })
+            .filter_map(|&(_, target_pos, _)| {
+                let dx = pos.x - target_pos.x;
+                let dz = pos.z - target_pos.z;
+                let dist = (dx * dx + dz * dz).sqrt();
+                if dist >= attack_range.min_range && dist <= ARCHER_SEEK_RANGE {
+                    Some(dist)
+                } else {
+                    None
+                }
+            })
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Find nearest enemy overall (fallback for melee or advancing)
         let nearest_enemy = unit_snapshot
             .iter()
             .filter(|(other_entity, _, other_team)| {
-                *other_entity != entity
-                    && team.is_enemy(other_team)
+                *other_entity != entity && team.is_enemy(other_team)
             })
             .min_by(|a, b| {
-                let dist_a = (transform.translation.x - a.1.x).powi(2)
-                    + (transform.translation.z - a.1.z).powi(2);
-                let dist_b = (transform.translation.x - b.1.x).powi(2)
-                    + (transform.translation.z - b.1.z).powi(2);
-                dist_a
-                    .partial_cmp(&dist_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                let dist_a = (pos.x - a.1.x).powi(2) + (pos.z - a.1.z).powi(2);
+                let dist_b = (pos.x - b.1.x).powi(2) + (pos.z - b.1.z).powi(2);
+                dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
             });
 
-        // Set targeting velocity based on range to enemy
-        if let Some(&(_, target_pos, enemy_team)) = nearest_enemy {
-            let diff = target_pos - transform.translation;
+        // Prefer ranged targets — only fall back to melee/advance if none in range
+        if let Some(ranged_dist) = ranged_target {
+            // Ranged target available — stop and prepare to shoot
+            targeting_velocity.velocity = Vec3::ZERO;
+            targeting_velocity.distance_to_target = ranged_dist;
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::components::InMelee>();
+        } else if let Some(&(_, target_pos, enemy_team)) = nearest_enemy {
+            let diff = target_pos - pos;
             let distance = (diff.x.powi(2) + diff.z.powi(2)).sqrt();
-
-            // Store distance for formation weighting
             targeting_velocity.distance_to_target = distance;
 
-            // Set InMelee component if enemy is in melee range
             let in_melee_range = distance < MELEE_SLOWDOWN_DISTANCE;
             if in_melee_range {
                 commands
                     .entity(entity)
                     .insert(crate::game::units::components::InMelee(enemy_team));
+                let direction = diff.normalize_or_zero();
+                targeting_velocity.velocity = Vec3::new(direction.x, 0.0, direction.z);
             } else {
                 commands
                     .entity(entity)
                     .remove::<crate::game::units::components::InMelee>();
-            }
-
-            if in_melee_range {
-                // IN MELEE - move toward enemy for melee combat
+                // Beyond max range — advance toward enemy
                 let direction = diff.normalize_or_zero();
                 targeting_velocity.velocity = Vec3::new(direction.x, 0.0, direction.z);
-            } else if distance > attack_range.max_range {
-                // TOO FAR - advance toward enemy
-                let direction = diff.normalize_or_zero();
-                targeting_velocity.velocity = Vec3::new(direction.x, 0.0, direction.z);
-            } else {
-                // IN RANGE - stop moving and shoot
-                targeting_velocity.velocity = Vec3::ZERO;
             }
         } else {
             targeting_velocity.velocity = Vec3::ZERO;

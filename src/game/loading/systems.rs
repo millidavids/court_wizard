@@ -12,7 +12,7 @@ use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{Hitbox, Team};
-use crate::game::battlefield::components::CastleWallAssets;
+use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::units::dispeller::DispellerAssets;
 use crate::game::units::healer::HealerAssets;
 use crate::game::units::infantry::Infantry;
@@ -202,10 +202,9 @@ pub fn process_spawn_queue(
         Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
     ),
     shared_assets: (
-        Res<CastleWallAssets>,
+        Res<BattlefieldAssets>,
         Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
         Res<AssetServer>,
-        Res<crate::game::battlefield::components::RightWallAssets>,
     ),
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
@@ -306,7 +305,6 @@ pub fn process_spawn_queue(
                     meshes,
                     materials,
                     Res::clone(&shared_assets.0),
-                    Res::clone(&shared_assets.3),
                 );
             }
             SpawnTask::Castle => {

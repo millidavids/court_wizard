@@ -177,7 +177,7 @@ pub const INITIAL_DEFENDER_COUNT: u32 = 100;
 pub const KINGS_GUARD_COUNT: u32 = 10;
 
 /// Radius of the orbit circle for King's Guard around the King.
-pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 30.0 * UNIT_SCALE;
+pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 20.0 * UNIT_SCALE;
 
 // ===== Unit Stats =====
 

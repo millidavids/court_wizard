@@ -37,6 +37,133 @@ pub enum BrewEffect {
     EffectivenessBonus(f32),
 }
 
+impl BrewEffect {
+    /// Returns a human-readable description of this effect, e.g. "Mana Regen +100%".
+    pub fn display_text(&self) -> String {
+        match self {
+            BrewEffect::ManaRegenMultiplier(v) => format!("Mana regen: +{:.0}%", (v - 1.0) * 100.0),
+            BrewEffect::SpellPowerMultiplier(v) => {
+                format!("Spell power: +{:.0}%", (v - 1.0) * 100.0)
+            }
+            BrewEffect::DefenderHealPerSecond(v) => format!("Defender healing: {:.1} HP/s", v),
+            BrewEffect::CastSpeedMultiplier(v) => {
+                format!("Cast speed: +{:.0}%", (v - 1.0) * 100.0)
+            }
+            BrewEffect::SpellRangeMultiplier(v) => {
+                format!("Spell area: +{:.0}%", (v - 1.0) * 100.0)
+            }
+            BrewEffect::DefenderDamageBonus(v) => format!("Defender damage: +{:.0}%", v * 100.0),
+            BrewEffect::DamageResistancePercent(v) => {
+                format!("Damage resistance: {:.0}%", v * 100.0)
+            }
+            BrewEffect::DefenderSpeedBonus(v) => format!("Defender speed: +{:.0}%", v * 100.0),
+            BrewEffect::AttackerSlowPercent(v) => format!("Enemy slow: {:.0}%", v * 100.0),
+            BrewEffect::DefenderShieldPerSecond(v) => format!("Defender shield: {:.1} HP/s", v),
+            BrewEffect::MaxManaMultiplier(v) => format!("Max mana: +{:.0}%", (v - 1.0) * 100.0),
+            BrewEffect::AttackSpeedMultiplier(v) => {
+                format!("Attack speed: +{:.0}%", (v - 1.0) * 100.0)
+            }
+            BrewEffect::BuffDurationMultiplier(v) => {
+                format!("Buff duration: +{:.0}%", (v - 1.0) * 100.0)
+            }
+            BrewEffect::EffectivenessBonus(v) => {
+                format!("Defender effectiveness: +{:.0}%", v * 100.0)
+            }
+        }
+    }
+
+    /// Returns a short 1-2 character abbreviation for use in buff tracker boxes.
+    pub const fn abbreviation(&self) -> &'static str {
+        match self {
+            BrewEffect::ManaRegenMultiplier(_) => "MR",
+            BrewEffect::SpellPowerMultiplier(_) => "SP",
+            BrewEffect::DefenderHealPerSecond(_) => "HL",
+            BrewEffect::CastSpeedMultiplier(_) => "CS",
+            BrewEffect::SpellRangeMultiplier(_) => "AE",
+            BrewEffect::DefenderDamageBonus(_) => "DD",
+            BrewEffect::DamageResistancePercent(_) => "DR",
+            BrewEffect::DefenderSpeedBonus(_) => "DS",
+            BrewEffect::AttackerSlowPercent(_) => "SL",
+            BrewEffect::DefenderShieldPerSecond(_) => "SH",
+            BrewEffect::MaxManaMultiplier(_) => "MM",
+            BrewEffect::AttackSpeedMultiplier(_) => "AS",
+            BrewEffect::BuffDurationMultiplier(_) => "BD",
+            BrewEffect::EffectivenessBonus(_) => "EF",
+        }
+    }
+
+    /// Scales an effect's magnitude by a factor.
+    /// Multiplier effects (base 1.0): 1.0 + (value - 1.0) * factor
+    /// Flat effects (base 0.0): value * factor
+    pub fn scale(self, factor: f32) -> BrewEffect {
+        match self {
+            BrewEffect::ManaRegenMultiplier(v) => {
+                BrewEffect::ManaRegenMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::SpellPowerMultiplier(v) => {
+                BrewEffect::SpellPowerMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::CastSpeedMultiplier(v) => {
+                BrewEffect::CastSpeedMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::SpellRangeMultiplier(v) => {
+                BrewEffect::SpellRangeMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::MaxManaMultiplier(v) => {
+                BrewEffect::MaxManaMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::AttackSpeedMultiplier(v) => {
+                BrewEffect::AttackSpeedMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::BuffDurationMultiplier(v) => {
+                BrewEffect::BuffDurationMultiplier(1.0 + (v - 1.0) * factor)
+            }
+            BrewEffect::DefenderHealPerSecond(v) => BrewEffect::DefenderHealPerSecond(v * factor),
+            BrewEffect::DefenderDamageBonus(v) => BrewEffect::DefenderDamageBonus(v * factor),
+            BrewEffect::DamageResistancePercent(v) => {
+                BrewEffect::DamageResistancePercent(v * factor)
+            }
+            BrewEffect::DefenderSpeedBonus(v) => BrewEffect::DefenderSpeedBonus(v * factor),
+            BrewEffect::AttackerSlowPercent(v) => BrewEffect::AttackerSlowPercent(v * factor),
+            BrewEffect::DefenderShieldPerSecond(v) => {
+                BrewEffect::DefenderShieldPerSecond(v * factor)
+            }
+            BrewEffect::EffectivenessBonus(v) => BrewEffect::EffectivenessBonus(v * factor),
+        }
+    }
+}
+
+/// Category for grouping ingredients in the cauldron UI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IngredientCategory {
+    Offense,
+    Control,
+    Support,
+    Utility,
+}
+
+impl IngredientCategory {
+    /// Returns the display name for this category.
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            IngredientCategory::Offense => "Offense",
+            IngredientCategory::Control => "Control",
+            IngredientCategory::Support => "Support",
+            IngredientCategory::Utility => "Utility",
+        }
+    }
+
+    /// Returns all categories in display order.
+    pub const fn all() -> &'static [IngredientCategory] {
+        &[
+            IngredientCategory::Offense,
+            IngredientCategory::Control,
+            IngredientCategory::Support,
+            IngredientCategory::Utility,
+        ]
+    }
+}
+
 /// An ingredient that can be added to a brew.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Ingredient {
@@ -85,6 +212,34 @@ pub struct ComboBonus {
 }
 
 impl Ingredient {
+    /// Returns the category this ingredient belongs to.
+    pub const fn category(&self) -> IngredientCategory {
+        match self {
+            // Offense: damage/attack focused
+            Ingredient::Mugwort
+            | Ingredient::Mistletoe
+            | Ingredient::Henbane
+            | Ingredient::DragonsBlood
+            | Ingredient::Frankincense => IngredientCategory::Offense,
+            // Control: slows/CC/area
+            Ingredient::Valerian
+            | Ingredient::Meadowsweet
+            | Ingredient::BlueLotus
+            | Ingredient::RavenFeather => IngredientCategory::Control,
+            // Support: healing/defense
+            Ingredient::Yarrow
+            | Ingredient::Wormwood
+            | Ingredient::NatronSalt
+            | Ingredient::RowanBerry => IngredientCategory::Support,
+            // Utility: mana/duration/meta
+            Ingredient::Lavender
+            | Ingredient::Vervain
+            | Ingredient::LapisLazuli
+            | Ingredient::Amber
+            | Ingredient::MandrakeRoot => IngredientCategory::Utility,
+        }
+    }
+
     /// Returns the static configuration for this ingredient.
     pub fn config(&self) -> &'static IngredientConfig {
         match self {
@@ -216,16 +371,22 @@ impl Recipe {
         1.0 / (self.ingredients.len() as f32).sqrt()
     }
 
+    /// Returns only the base ingredient effects with dilution applied (no combo bonuses).
+    pub fn base_effects(&self) -> Vec<BrewEffect> {
+        let dilution = self.dilution_factor();
+        self.ingredients
+            .iter()
+            .map(|ingredient| ingredient.config().effect.scale(dilution))
+            .collect()
+    }
+
     /// Returns all effects with dilution applied, plus any combo bonuses (undiluted).
     pub fn effects(&self) -> Vec<BrewEffect> {
         let dilution = self.dilution_factor();
         let mut effects: Vec<BrewEffect> = self
             .ingredients
             .iter()
-            .map(|ingredient| {
-                let base_effect = ingredient.config().effect;
-                dilute_effect(base_effect, dilution)
-            })
+            .map(|ingredient| ingredient.config().effect.scale(dilution))
             .collect();
 
         // Append combo bonuses (undiluted)
@@ -267,41 +428,3 @@ impl Recipe {
     }
 }
 
-/// Applies dilution to an effect's magnitude.
-/// Formula: effective = 1.0 + (base - 1.0) * dilution
-fn dilute_effect(effect: BrewEffect, dilution: f32) -> BrewEffect {
-    match effect {
-        // Multiplier effects: neutral base is 1.0
-        BrewEffect::ManaRegenMultiplier(v) => {
-            BrewEffect::ManaRegenMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        BrewEffect::SpellPowerMultiplier(v) => {
-            BrewEffect::SpellPowerMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        BrewEffect::CastSpeedMultiplier(v) => {
-            BrewEffect::CastSpeedMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        BrewEffect::SpellRangeMultiplier(v) => {
-            BrewEffect::SpellRangeMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        // Flat effects: neutral base is 0.0
-        BrewEffect::DefenderHealPerSecond(v) => BrewEffect::DefenderHealPerSecond(v * dilution),
-        BrewEffect::DefenderDamageBonus(v) => BrewEffect::DefenderDamageBonus(v * dilution),
-        BrewEffect::DamageResistancePercent(v) => BrewEffect::DamageResistancePercent(v * dilution),
-        BrewEffect::DefenderSpeedBonus(v) => BrewEffect::DefenderSpeedBonus(v * dilution),
-        BrewEffect::AttackerSlowPercent(v) => BrewEffect::AttackerSlowPercent(v * dilution),
-        BrewEffect::DefenderShieldPerSecond(v) => BrewEffect::DefenderShieldPerSecond(v * dilution),
-        // New multiplier effects
-        BrewEffect::MaxManaMultiplier(v) => {
-            BrewEffect::MaxManaMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        BrewEffect::AttackSpeedMultiplier(v) => {
-            BrewEffect::AttackSpeedMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        BrewEffect::BuffDurationMultiplier(v) => {
-            BrewEffect::BuffDurationMultiplier(1.0 + (v - 1.0) * dilution)
-        }
-        // New flat effect
-        BrewEffect::EffectivenessBonus(v) => BrewEffect::EffectivenessBonus(v * dilution),
-    }
-}

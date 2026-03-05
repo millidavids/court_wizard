@@ -92,6 +92,41 @@ pub(super) const WAVE_FLASH_COLOR: Color = Color::srgb(1.0, 0.3, 0.3);
 /// Duration the "Wave incoming!" flash is displayed (seconds).
 pub(super) const WAVE_FLASH_DURATION: f32 = 3.0;
 
+// ===== Buff Tracker Constants =====
+
+/// Size of each buff tracker box.
+pub(super) const BUFF_BOX_SIZE: f32 = 40.0;
+
+/// Gap between buff tracker boxes.
+pub(super) const BUFF_BOX_GAP: f32 = 6.0;
+
+/// Border width for buff tracker boxes.
+pub(super) const BUFF_BOX_BORDER_WIDTH: f32 = 1.0;
+
+/// Font size for the abbreviation label in buff boxes.
+pub(super) const BUFF_LABEL_FONT_SIZE: f32 = 10.0;
+
+/// Font size for the timer text below the label.
+pub(super) const BUFF_TIMER_FONT_SIZE: f32 = 7.0;
+
+/// Border color for buff boxes.
+pub(super) const BUFF_BOX_BORDER_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.3);
+
+/// Buff tooltip background color.
+pub(super) const BUFF_TOOLTIP_BG: Color = Color::srgba(0.05, 0.05, 0.05, 0.95);
+
+/// Buff tooltip border color.
+pub(super) const BUFF_TOOLTIP_BORDER: Color = Color::srgba(0.4, 0.4, 0.4, 0.8);
+
+/// Buff tooltip font size.
+pub(super) const BUFF_TOOLTIP_FONT_SIZE: f32 = 7.0;
+
+/// Buff tooltip padding.
+pub(super) const BUFF_TOOLTIP_PADDING: f32 = 8.0;
+
+/// Buff tooltip max width.
+pub(super) const BUFF_TOOLTIP_MAX_WIDTH: f32 = 200.0;
+
 /// Button style configuration for the in-game HUD.
 pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: BUTTON_WIDTH,

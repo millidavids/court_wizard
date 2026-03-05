@@ -7,6 +7,7 @@ use super::messages::*;
 use super::resources::{CauldronAssets, CauldronBuffs};
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::input::messages::BlockSpellInput;
+use crate::config::save_data::{load_unified_save, new_unified_save, save_unified};
 use crate::game::messages::ComboDiscoveredMessage;
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
 use crate::game::units::wizard::components::{LocalWizard, Mana};
@@ -102,12 +103,25 @@ pub fn handle_brew_complete(
     mut transmutation_stacks: Option<ResMut<TransmutationStacks>>,
 ) {
     for message in messages.read() {
-        // Check for hidden combos and notify
-        for combo in message.recipe.matching_combos() {
-            combo_writer.write(ComboDiscoveredMessage {
-                name: combo.name,
-                description: combo.description,
-            });
+        // Check for hidden combos — batch unlock to avoid N load+save cycles
+        let matching_combos = message.recipe.matching_combos();
+        if !matching_combos.is_empty() {
+            let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+            let mut changed = false;
+            for combo in &matching_combos {
+                let name_str = combo.name.to_string();
+                if !save_file.player.unlocked_content.combos.contains(&name_str) {
+                    save_file.player.unlocked_content.combos.push(name_str);
+                    changed = true;
+                    combo_writer.write(ComboDiscoveredMessage {
+                        name: combo.name,
+                        description: combo.description,
+                    });
+                }
+            }
+            if changed {
+                save_unified(&save_file);
+            }
         }
 
         // T3: Transmutation — boost brew potency based on stacks
@@ -117,11 +131,7 @@ pub fn handle_brew_complete(
             .map(|s| 1.0 + s.count as f32 * TRANSMUTATION_POTENCY_PER_STACK)
             .unwrap_or(1.0);
 
-        if potency_mult > 1.0 {
-            cauldron_buffs.apply_recipe_with_potency(&message.recipe, potency_mult);
-        } else {
-            cauldron_buffs.apply_recipe(&message.recipe);
-        }
+        cauldron_buffs.apply_recipe_with_potency(&message.recipe, potency_mult);
 
         // Reset transmutation stacks after brewing
         if let Some(ref mut stacks) = transmutation_stacks {
@@ -546,9 +556,11 @@ pub fn apply_max_mana_buff(
     let base_max = crate::game::units::wizard::constants::MANA;
     let new_max = base_max * multiplier;
     for mut mana in &mut wizard {
-        mana.max = new_max;
-        if mana.current > mana.max {
-            mana.current = mana.max;
+        if (mana.max - new_max).abs() > f32::EPSILON {
+            mana.max = new_max;
+            if mana.current > mana.max {
+                mana.current = mana.max;
+            }
         }
     }
 }
@@ -560,7 +572,7 @@ pub fn buff_defender_effectiveness(
 ) {
     let bonus = cauldron_buffs.effectiveness_bonus();
     for (mut effectiveness, team) in &mut defenders {
-        if *team == Team::Defenders {
+        if *team == Team::Defenders && (effectiveness.spell_bonus - bonus).abs() > f32::EPSILON {
             effectiveness.spell_bonus = bonus;
         }
     }

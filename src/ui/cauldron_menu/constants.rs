@@ -2,25 +2,144 @@ use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
 
-pub const BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.8);
-pub const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
-pub const TITLE_FONT_SIZE: f32 = 20.0;
-pub const DESCRIPTION_FONT_SIZE: f32 = 7.0;
+// ---------------------------------------------------------------------------
+// Layout (matching spell book)
+// ---------------------------------------------------------------------------
 
-pub const BUTTON_FONT_SIZE: f32 = 8.0;
-pub const BUTTON_WIDTH: f32 = 220.0;
-pub const BUTTON_HEIGHT: f32 = 60.0;
-pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
-pub const BUTTON_BACKGROUND: Color = Color::srgb(0.15, 0.15, 0.15);
-pub const BUTTON_BORDER: Color = Color::srgb(0.4, 0.4, 0.4);
-pub const MARGIN: f32 = 20.0;
-pub const INGREDIENT_COLUMN_WIDTH: f32 = 220.0;
-pub const INGREDIENT_COLUMN_GAP: f32 = 16.0;
-pub const COLUMN_PADDING: f32 = 20.0;
-pub const FRAME_BORDER_WIDTH: f32 = 2.0;
-pub const FRAME_BORDER_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
-pub const FRAME_BACKGROUND: Color = Color::srgba(0.1, 0.1, 0.1, 0.6);
-pub const FRAME_PADDING: f32 = 12.0;
+/// Semi-transparent background for the full-screen overlay.
+pub const BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
+
+/// Padding around the entire layout.
+pub const LAYOUT_PADDING: f32 = 30.0;
+
+/// Gap between left panel and right list.
+pub const COLUMN_GAP: f32 = 30.0;
+
+/// Width of the left detail panel.
+pub const LEFT_PANEL_WIDTH: f32 = 300.0;
+
+/// Title font size.
+pub const TITLE_FONT_SIZE: f32 = 20.0;
+
+/// Title color — warm white.
+pub const TITLE_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
+
+// ---------------------------------------------------------------------------
+// Detail panel (left side)
+// ---------------------------------------------------------------------------
+
+/// Detail panel background color.
+pub const DETAIL_BG: Color = Color::hsla(220.0, 0.08, 0.10, 1.0);
+
+/// Detail panel border color — subtle gold.
+pub const DETAIL_BORDER: Color = Color::hsla(40.0, 0.35, 0.30, 1.0);
+
+/// Detail panel border width.
+pub const DETAIL_BORDER_WIDTH: f32 = 1.0;
+
+/// Detail panel border radius.
+pub const DETAIL_BORDER_RADIUS: f32 = 6.0;
+
+/// Detail panel internal padding.
+pub const DETAIL_PADDING: f32 = 18.0;
+
+/// Font size for section labels in the detail panel.
+pub const DETAIL_LABEL_FONT_SIZE: f32 = 12.0;
+
+/// Color for section labels — warm amber.
+pub const DETAIL_LABEL_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+
+/// Font size for effect preview text.
+pub const EFFECT_PREVIEW_FONT_SIZE: f32 = 11.0;
+
+/// Color for effect preview text.
+pub const EFFECT_PREVIEW_COLOR: Color = Color::srgb(0.6, 0.8, 0.6);
+
+/// Font size for brew info text (brew time, duration).
+pub const BREW_INFO_FONT_SIZE: f32 = 11.0;
+
+/// Color for brew info text.
+pub const BREW_INFO_COLOR: Color = Color::srgb(0.7, 0.7, 0.5);
+
+/// Color for ingredient count text when under limit.
+pub const INGREDIENT_COUNT_COLOR: Color = Color::hsla(0.0, 0.0, 0.50, 1.0);
+
+/// Color for ingredient count text when at limit.
+pub const INGREDIENT_COUNT_FULL_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+
+/// Brewing status font size.
+pub const BREWING_STATUS_FONT_SIZE: f32 = 13.0;
+
+/// Brewing status text color.
+pub const BREWING_STATUS_COLOR: Color = Color::srgb(0.9, 0.7, 0.3);
+
+/// Disabled/dimmed text color.
+pub const DISABLED_TEXT_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
+
+/// Placeholder text color for empty detail panel.
+pub const PLACEHOLDER_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.35, 1.0);
+
+/// Font size for combo bonus text.
+pub const COMBO_FONT_SIZE: f32 = 11.0;
+
+/// Color for combo bonus text — gold.
+pub const COMBO_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+
+// ---------------------------------------------------------------------------
+// Ingredient list (right side)
+// ---------------------------------------------------------------------------
+
+/// Background for the ingredient list area.
+pub const LIST_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+
+/// Border for the ingredient list area.
+pub const LIST_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 1.0);
+
+/// Border width for the list.
+pub const LIST_BORDER_WIDTH: f32 = 1.0;
+
+/// Border radius for the list.
+pub const LIST_BORDER_RADIUS: f32 = 6.0;
+
+/// Internal padding for the list.
+pub const LIST_PADDING: f32 = 12.0;
+
+/// Gap between items in each category column.
+pub const LIST_ITEM_GAP: f32 = 10.0;
+
+/// Gap between category columns.
+pub const CATEGORY_GAP: f32 = 16.0;
+
+/// Font size for category headers.
+pub const CATEGORY_FONT_SIZE: f32 = 13.0;
+
+/// Color for category header text.
+pub const CATEGORY_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+
+// ---------------------------------------------------------------------------
+// Ingredient buttons
+// ---------------------------------------------------------------------------
+
+/// Ingredient button width.
+pub const BUTTON_WIDTH: f32 = 160.0;
+
+/// Ingredient button height.
+pub const BUTTON_HEIGHT: f32 = 40.0;
+
+/// Ingredient button border width.
+pub const BUTTON_BORDER_WIDTH: f32 = 1.0;
+
+/// Ingredient button font size.
+pub const BUTTON_FONT_SIZE: f32 = 11.0;
+
+/// Ingredient description font size.
+pub const DESCRIPTION_FONT_SIZE: f32 = 9.0;
+
+/// General text color.
+pub const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
+
+/// Maximum number of ingredients allowed in a single brew.
+pub const MAX_INGREDIENTS: usize = 3;
 
 /// Button style for unselected ingredient toggle.
 pub const INGREDIENT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
@@ -28,9 +147,9 @@ pub const INGREDIENT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: BUTTON_BACKGROUND,
-    border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
+    background: Color::hsla(220.0, 0.08, 0.11, 1.0),
+    border: Color::hsla(0.0, 0.0, 0.20, 1.0),
+    text_color: Color::hsla(0.0, 0.0, 0.85, 1.0),
 };
 
 /// Button style for selected ingredient toggle.
@@ -44,55 +163,50 @@ pub const INGREDIENT_SELECTED_STYLE: ButtonStyle = ButtonStyle {
     text_color: Color::srgb(0.7, 1.0, 0.7),
 };
 
-/// Button style for the brew button (enabled).
-pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 300.0,
-    height: 70.0,
+/// Button style for disabled (at limit) ingredient toggle.
+pub const INGREDIENT_DISABLED_STYLE: ButtonStyle = ButtonStyle {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
-    font_size: 11.0,
-    background: Color::srgb(0.15, 0.2, 0.35),
-    border: Color::srgb(0.3, 0.4, 0.7),
-    text_color: Color::srgb(0.7, 0.8, 1.0),
+    font_size: BUTTON_FONT_SIZE,
+    background: Color::srgb(0.06, 0.06, 0.06),
+    border: Color::srgb(0.15, 0.15, 0.15),
+    text_color: Color::srgb(0.3, 0.3, 0.3),
 };
 
-/// Button style for the brew button (disabled — nothing selected).
-pub const BREW_BUTTON_DISABLED_STYLE: ButtonStyle = ButtonStyle {
-    width: 300.0,
-    height: 70.0,
-    border_width: BUTTON_BORDER_WIDTH,
-    font_size: 11.0,
-    background: Color::srgb(0.1, 0.1, 0.1),
-    border: Color::srgb(0.25, 0.25, 0.25),
-    text_color: Color::srgb(0.4, 0.4, 0.4),
+// ---------------------------------------------------------------------------
+// Action buttons (Brew / Cancel / Close)
+// ---------------------------------------------------------------------------
+
+/// Button style for the brew button (enabled).
+pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 160.0,
+    height: 40.0,
+    border_width: 1.0,
+    font_size: 13.0,
+    background: Color::hsla(40.0, 0.20, 0.18, 1.0),
+    border: Color::hsla(40.0, 0.40, 0.35, 1.0),
+    text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
 };
 
 /// Button style for the cancel brew button.
 pub const CANCEL_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 300.0,
-    height: 60.0,
-    border_width: BUTTON_BORDER_WIDTH,
-    font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.3, 0.1, 0.1),
-    border: Color::srgb(0.6, 0.2, 0.2),
+    width: 160.0,
+    height: 40.0,
+    border_width: 1.0,
+    font_size: 11.0,
+    background: Color::srgb(0.25, 0.08, 0.08),
+    border: Color::srgb(0.5, 0.15, 0.15),
     text_color: Color::srgb(0.9, 0.4, 0.4),
 };
 
-pub const BREWING_STATUS_FONT_SIZE: f32 = 7.0;
-pub const BREWING_STATUS_COLOR: Color = Color::srgb(0.9, 0.7, 0.3);
-pub const DISABLED_TEXT_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
-
-pub const EFFECT_PREVIEW_FONT_SIZE: f32 = 7.0;
-pub const EFFECT_PREVIEW_COLOR: Color = Color::srgb(0.6, 0.8, 0.6);
-pub const BREW_INFO_FONT_SIZE: f32 = 7.0;
-pub const BREW_INFO_COLOR: Color = Color::srgb(0.7, 0.7, 0.5);
-
 /// Button style for the close button.
 pub const CLOSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 300.0,
-    height: 70.0,
-    border_width: BUTTON_BORDER_WIDTH,
+    width: 120.0,
+    height: 40.0,
+    border_width: 1.0,
     font_size: 11.0,
-    background: BUTTON_BACKGROUND,
-    border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
+    background: Color::hsla(0.0, 0.0, 0.10, 1.0),
+    border: Color::hsla(0.0, 0.0, 0.22, 1.0),
+    text_color: Color::hsla(0.0, 0.0, 0.50, 1.0),
 };

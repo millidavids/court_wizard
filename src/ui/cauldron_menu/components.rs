@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::constants::MAX_INGREDIENTS;
 use crate::game::cauldron::brews::Ingredient;
 
 /// Actions that can be triggered by cauldron menu buttons.
@@ -25,7 +26,7 @@ impl IngredientSelection {
     pub fn toggle(&mut self, ingredient: Ingredient) {
         if let Some(pos) = self.selected.iter().position(|i| *i == ingredient) {
             self.selected.remove(pos);
-        } else {
+        } else if self.selected.len() < MAX_INGREDIENTS {
             self.selected.push(ingredient);
         }
     }
@@ -36,6 +37,10 @@ impl IngredientSelection {
 
     pub fn is_empty(&self) -> bool {
         self.selected.is_empty()
+    }
+
+    pub fn at_limit(&self) -> bool {
+        self.selected.len() >= MAX_INGREDIENTS
     }
 
     pub fn clear(&mut self) {

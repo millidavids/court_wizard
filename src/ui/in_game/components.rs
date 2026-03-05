@@ -69,3 +69,19 @@ pub(super) struct WaveIncomingFlash {
     /// Time remaining for the flash (seconds).
     pub timer: f32,
 }
+
+/// Marker component for the buff tracker container row.
+#[derive(Component)]
+pub(super) struct BuffTrackerContainer;
+
+/// Marker component for a single buff box, indexed into `CauldronBuffs::active_buffs`.
+#[derive(Component)]
+pub(super) struct BuffTrackerBox(pub usize);
+
+/// Marker component for a buff timer text, indexed into `CauldronBuffs::active_buffs`.
+#[derive(Component)]
+pub(super) struct BuffTimerText(pub usize);
+
+/// Marker component for a buff tooltip popup.
+#[derive(Component)]
+pub(super) struct BuffTooltip;

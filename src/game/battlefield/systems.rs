@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::*;
+use super::components::{Battlefield, BattlefieldAssets, Castle, RightWall};
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::*;
@@ -40,8 +40,7 @@ pub fn setup_battlefield(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    castle_wall_assets: Res<CastleWallAssets>,
-    right_wall_assets: Res<RightWallAssets>,
+    battlefield_assets: Res<BattlefieldAssets>,
 ) {
     // Add a light source so we can see 3D objects
     commands.spawn((
@@ -76,7 +75,7 @@ pub fn setup_battlefield(
         &mut commands,
         &mut meshes,
         &mut materials,
-        &castle_wall_assets,
+        &battlefield_assets,
         CASTLE_POSITION,
         CASTLE_ROTATION_DEGREES,
         OnGameplayScreen,
@@ -85,7 +84,7 @@ pub fn setup_battlefield(
     // Spawn right wall backdrop (vertical plane at the right edge)
     let right_wall_mesh = Rectangle::new(RIGHT_WALL_WIDTH, RIGHT_WALL_HEIGHT);
     let right_wall_material = materials.add(StandardMaterial {
-        base_color_texture: Some(right_wall_assets.texture.clone()),
+        base_color_texture: Some(battlefield_assets.right_wall.clone()),
         base_color: Color::WHITE,
         alpha_mode: AlphaMode::Blend,
         unlit: true,
@@ -111,7 +110,7 @@ pub fn spawn_castle_wall<M: Component + Clone>(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    castle_wall_assets: &CastleWallAssets,
+    battlefield_assets: &BattlefieldAssets,
     castle_position: Vec3,
     rotation_degrees: f32,
     screen_marker: M,
@@ -128,7 +127,7 @@ pub fn spawn_castle_wall<M: Component + Clone>(
         .size(plane_width, plane_depth);
 
     let wall_material = materials.add(StandardMaterial {
-        base_color_texture: Some(castle_wall_assets.texture.clone()),
+        base_color_texture: Some(battlefield_assets.castle_wall.clone()),
         base_color: Color::WHITE,
         alpha_mode: AlphaMode::Blend,
         unlit: true,

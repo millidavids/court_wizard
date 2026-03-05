@@ -34,6 +34,7 @@ use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
 use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile, TargetTeams};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
+use crate::game::units::wizard::spells::meteor_fall::systems::MeteorProjectileTalentFlags;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
@@ -888,6 +889,7 @@ pub(super) fn detect_meteor_hits(
                         explosion_radius,
                         meteor.empowerment,
                         mini_radius,
+                        MeteorProjectileTalentFlags::default(),
                     );
                     commands.entity(entity).insert(CrystalSpawn {
                         origin: crystal.position,
@@ -1494,6 +1496,7 @@ fn auto_cast_meteors(
             explosion_radius,
             empowerment,
             mini_radius,
+            MeteorProjectileTalentFlags::default(),
         );
         commands.entity(entity).insert(CrystalSpawn {
             origin: position,

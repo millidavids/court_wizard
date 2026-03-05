@@ -1,6 +1,5 @@
 /target
-.claude/
-
+/.claude/settings.local.json
 # Ignore web/ folder (debug builds for local testing)
 /web/*
 

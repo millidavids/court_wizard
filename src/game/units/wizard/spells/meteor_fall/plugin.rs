@@ -32,11 +32,10 @@ impl Plugin for MeteorFallPlugin {
                 // Circle indicator updates
                 utils::update_circle_indicator::<MeteorFallCircleIndicator>
                     .run_if(any_exist::<MeteorFallCircleIndicator>()),
-                // Storm → transfer → projectile pipeline (chained for correct ordering)
+                // Storm → projectile pipeline (chained for correct ordering)
                 (
                     spawn_meteor_projectiles.run_if(any_exist::<MeteorFallStorm>()),
                     process_extinction_event.run_if(any_exist::<MeteorFallStorm>()),
-                    transfer_projectile_talents.run_if(any_exist::<MeteorProjectile>()),
                     update_meteor_projectiles.run_if(any_exist::<MeteorProjectile>()),
                     spawn_meteor_smoke_trail.run_if(any_exist::<MeteorProjectile>()),
                     check_meteor_collisions.run_if(any_exist::<MeteorProjectile>()),

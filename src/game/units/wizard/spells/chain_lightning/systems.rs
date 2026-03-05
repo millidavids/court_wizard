@@ -276,23 +276,16 @@ fn chain_lightning_casting_logic(
                                 progress.increment(Spell::ChainLightning, 1);
                             }
 
-                            // Static Charge: slow initial target
-                            if talent_config.static_charge {
-                                commands.entity(target_entity).insert(SlowMovementModifier::new(
-                                    constants::STATIC_CHARGE_SLOW,
-                                    constants::STATIC_CHARGE_DURATION,
-                                ));
-                            }
-
-                            // Magnetic Pull: pull initial target toward wizard
-                            if talent_config.magnetic_pull {
-                                let pull_dir = (SPELL_ORIGIN - target_pos).normalize_or_zero();
-                                commands.entity(target_entity).insert(Knockback::new(
-                                    pull_dir,
-                                    constants::MAGNETIC_PULL_SPEED,
-                                    constants::MAGNETIC_PULL_DURATION,
-                                ));
-                            }
+                            // Apply on-hit talent effects
+                            apply_chain_lightning_on_hit(
+                                commands,
+                                target_entity,
+                                target_pos,
+                                SPELL_ORIGIN,
+                                talent_config.static_charge,
+                                talent_config.magnetic_pull,
+                                None,
+                            );
 
                             // Spawn first arc from wizard to target (depth 0 for initial arc)
                             spawn_arc(
@@ -576,27 +569,16 @@ pub fn process_chain_lightning_bounces(
                     progress.increment(Spell::ChainLightning, 1);
                 }
 
-                // Static Charge: slow hit enemies
-                if snapshot.static_charge {
-                    if let Ok(mut slow) = slow_query.get_mut(*target_entity) {
-                        slow.apply(constants::STATIC_CHARGE_SLOW, constants::STATIC_CHARGE_DURATION);
-                    } else {
-                        commands.entity(*target_entity).insert(SlowMovementModifier::new(
-                            constants::STATIC_CHARGE_SLOW,
-                            constants::STATIC_CHARGE_DURATION,
-                        ));
-                    }
-                }
-
-                // Magnetic Pull: pull hit enemies toward bolt's previous position
-                if snapshot.magnetic_pull {
-                    let pull_dir = (snapshot.last_hit_position - *target_pos).normalize_or_zero();
-                    commands.entity(*target_entity).insert(Knockback::new(
-                        pull_dir,
-                        constants::MAGNETIC_PULL_SPEED,
-                        constants::MAGNETIC_PULL_DURATION,
-                    ));
-                }
+                // Apply on-hit talent effects
+                apply_chain_lightning_on_hit(
+                    &mut commands,
+                    *target_entity,
+                    *target_pos,
+                    snapshot.last_hit_position,
+                    snapshot.static_charge,
+                    snapshot.magnetic_pull,
+                    Some(&mut slow_query),
+                );
 
                 // Chain Reaction: kills explode for AoE and spawn sub-chain
                 if snapshot.chain_reaction && target_killed && snapshot.bounces_remaining > 1 {
@@ -653,6 +635,45 @@ pub fn process_chain_lightning_bounces(
                 spawn_child_bolt(&mut commands, &snapshot, snapshot.bounces_remaining - 1, *target_pos);
             }
         }
+    }
+}
+
+/// Applies on-hit talent effects (Static Charge slow, Magnetic Pull knockback)
+/// to a chain lightning target. Used by both initial cast and bounce processing.
+/// When `slow_query` is provided, it updates existing slow modifiers; otherwise it
+/// always inserts a new one (used for the initial cast where the entity is fresh).
+fn apply_chain_lightning_on_hit(
+    commands: &mut Commands,
+    target_entity: Entity,
+    target_pos: Vec3,
+    pull_origin: Vec3,
+    static_charge: bool,
+    magnetic_pull: bool,
+    slow_query: Option<&mut Query<&mut SlowMovementModifier>>,
+) {
+    if static_charge {
+        let mut applied = false;
+        if let Some(slow_q) = slow_query
+            && let Ok(mut slow) = slow_q.get_mut(target_entity)
+        {
+            slow.apply(constants::STATIC_CHARGE_SLOW, constants::STATIC_CHARGE_DURATION);
+            applied = true;
+        }
+        if !applied {
+            commands.entity(target_entity).insert(SlowMovementModifier::new(
+                constants::STATIC_CHARGE_SLOW,
+                constants::STATIC_CHARGE_DURATION,
+            ));
+        }
+    }
+
+    if magnetic_pull {
+        let pull_dir = (pull_origin - target_pos).normalize_or_zero();
+        commands.entity(target_entity).insert(Knockback::new(
+            pull_dir,
+            constants::MAGNETIC_PULL_SPEED,
+            constants::MAGNETIC_PULL_DURATION,
+        ));
     }
 }
 

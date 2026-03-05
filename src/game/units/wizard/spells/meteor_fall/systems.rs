@@ -430,11 +430,7 @@ pub(super) fn spawn_meteor_projectiles(
                 explosion_radius,
                 storm.empowerment,
                 mesh_radius,
-            );
-
-            // Apply talent flags to projectile
-            commands.entity(entity).insert((
-                MeteorProjectileTalents {
+                MeteorProjectileTalentFlags {
                     aftershock: storm.aftershock,
                     volcanic_eruption: storm.volcanic_eruption,
                     ground_fire_duration_mult: storm.ground_fire_duration_mult,
@@ -443,26 +439,16 @@ pub(super) fn spawn_meteor_projectiles(
                     tracking: storm.tracking,
                     is_extinction: false,
                 },
-            ));
+            );
 
             // For tracking meteors, bias spawn position toward nearest enemy
             if storm.tracking {
                 let storm_center_xz = Vec2::new(storm.position.x, storm.position.z);
-                let mut nearest_dist = f32::MAX;
-                let mut nearest_pos = None;
-                for (enemy_transform, team) in enemies.iter() {
-                    if *team == Team::Defenders {
-                        continue;
-                    }
-                    let enemy_xz =
-                        Vec2::new(enemy_transform.translation.x, enemy_transform.translation.z);
-                    let dist = enemy_xz.distance(storm_center_xz);
-                    if dist < storm.radius && dist < nearest_dist {
-                        nearest_dist = dist;
-                        nearest_pos = Some(enemy_xz);
-                    }
-                }
-                if let Some(enemy_xz) = nearest_pos {
+                if let Some((enemy_xz, _)) = find_nearest_non_defender_xz(
+                    enemies.iter().map(|(t, team)| (Vec2::new(t.translation.x, t.translation.z), *team)),
+                    storm_center_xz,
+                    Some(storm.radius),
+                ) {
                     // Bias 50% toward nearest enemy
                     let biased_x = spawn_pos.x * 0.5 + enemy_xz.x * 0.5;
                     let biased_z = spawn_pos.z * 0.5 + enemy_xz.y * 0.5;
@@ -480,41 +466,35 @@ pub(super) fn spawn_meteor_projectiles(
     }
 }
 
-/// Temporary bundle-like component to transfer talent flags to projectiles.
-/// Applied in spawn_meteor_projectiles, consumed when setting fields on MeteorProjectile.
-#[derive(Component)]
-pub(super) struct MeteorProjectileTalents {
-    aftershock: bool,
-    volcanic_eruption: bool,
-    ground_fire_duration_mult: f32,
-    ground_fire_damage_mult: f32,
-    ground_fire_radius_mult: f32,
-    tracking: bool,
-    is_extinction: bool,
+/// Talent flags to apply to a meteor projectile at spawn time.
+pub(crate) struct MeteorProjectileTalentFlags {
+    pub aftershock: bool,
+    pub volcanic_eruption: bool,
+    pub ground_fire_duration_mult: f32,
+    pub ground_fire_damage_mult: f32,
+    pub ground_fire_radius_mult: f32,
+    pub tracking: bool,
+    pub is_extinction: bool,
 }
 
-/// Transfers talent data from the separate component onto the projectile fields.
-pub(super) fn transfer_projectile_talents(
-    mut commands: Commands,
-    mut projectiles: Query<(Entity, &mut MeteorProjectile, &MeteorProjectileTalents)>,
-) {
-    for (entity, mut projectile, talents) in projectiles.iter_mut() {
-        projectile.aftershock = talents.aftershock;
-        projectile.volcanic_eruption = talents.volcanic_eruption;
-        projectile.ground_fire_duration_mult = talents.ground_fire_duration_mult;
-        projectile.ground_fire_damage_mult = talents.ground_fire_damage_mult;
-        projectile.ground_fire_radius_mult = talents.ground_fire_radius_mult;
-        projectile.tracking = talents.tracking;
-        projectile.is_extinction = talents.is_extinction;
-        commands
-            .entity(entity)
-            .remove::<MeteorProjectileTalents>();
+impl Default for MeteorProjectileTalentFlags {
+    fn default() -> Self {
+        Self {
+            aftershock: false,
+            volcanic_eruption: false,
+            ground_fire_duration_mult: 1.0,
+            ground_fire_damage_mult: 1.0,
+            ground_fire_radius_mult: 1.0,
+            tracking: false,
+            is_extinction: false,
+        }
     }
 }
 
 /// Spawns a raw meteor projectile entity with explicit parameters.
 ///
 /// Used by both storm spawning and crystal absorption/auto-cast.
+/// Pass `MeteorProjectileTalentFlags::default()` for non-talented projectiles.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_meteor_projectile_entity(
     commands: &mut Commands,
@@ -525,10 +505,20 @@ pub(crate) fn spawn_meteor_projectile_entity(
     explosion_radius: f32,
     empowerment: f32,
     mesh_radius: f32,
+    talent_flags: MeteorProjectileTalentFlags,
 ) -> Entity {
+    let mut projectile = MeteorProjectile::new(velocity, damage, explosion_radius, empowerment, mesh_radius);
+    projectile.aftershock = talent_flags.aftershock;
+    projectile.volcanic_eruption = talent_flags.volcanic_eruption;
+    projectile.ground_fire_duration_mult = talent_flags.ground_fire_duration_mult;
+    projectile.ground_fire_damage_mult = talent_flags.ground_fire_damage_mult;
+    projectile.ground_fire_radius_mult = talent_flags.ground_fire_radius_mult;
+    projectile.tracking = talent_flags.tracking;
+    projectile.is_extinction = talent_flags.is_extinction;
+
     commands
         .spawn((
-            MeteorProjectile::new(velocity, damage, explosion_radius, empowerment, mesh_radius),
+            projectile,
             Mesh3d(assets.cross_plane_sphere.clone()),
             MeshMaterial3d(assets.meteor_projectile.clone()),
             Transform::from_translation(spawn_pos).with_scale(Vec3::splat(mesh_radius)),
@@ -578,29 +568,42 @@ pub(super) fn update_meteor_projectiles(
         // Apply tracking force toward nearest enemy (only when visible)
         if projectile.tracking && transform.translation.y <= VFX_VISIBLE_HEIGHT {
             let proj_xz = Vec2::new(transform.translation.x, transform.translation.z);
-            let mut nearest_dist = f32::MAX;
-            let mut nearest_dir = Vec2::ZERO;
-            for (enemy_transform, team) in enemies.iter() {
-                if *team == Team::Defenders {
-                    continue;
-                }
-                let enemy_xz =
-                    Vec2::new(enemy_transform.translation.x, enemy_transform.translation.z);
-                let dist = proj_xz.distance(enemy_xz);
-                if dist < nearest_dist && dist > 1.0 {
-                    nearest_dist = dist;
-                    nearest_dir = (enemy_xz - proj_xz).normalize_or_zero();
-                }
-            }
-            if nearest_dist < f32::MAX {
-                projectile.velocity.x += nearest_dir.x * TRACKING_FORCE * delta;
-                projectile.velocity.z += nearest_dir.y * TRACKING_FORCE * delta;
+            if let Some((enemy_xz, _)) = find_nearest_non_defender_xz(
+                enemies.iter().map(|(t, team)| (Vec2::new(t.translation.x, t.translation.z), *team)),
+                proj_xz,
+                None,
+            ) {
+                let dir = (enemy_xz - proj_xz).normalize_or_zero();
+                projectile.velocity.x += dir.x * TRACKING_FORCE * delta;
+                projectile.velocity.z += dir.y * TRACKING_FORCE * delta;
             }
         }
 
         // Move projectile
         transform.translation += projectile.velocity * delta;
     }
+}
+
+/// Finds the nearest non-defender enemy on the XZ plane within an optional max radius.
+/// Returns the enemy's XZ position and distance from origin.
+fn find_nearest_non_defender_xz(
+    enemies: impl Iterator<Item = (Vec2, Team)>,
+    origin: Vec2,
+    max_radius: Option<f32>,
+) -> Option<(Vec2, f32)> {
+    let mut nearest_dist = f32::MAX;
+    let mut nearest_pos = None;
+    for (enemy_xz, team) in enemies {
+        if team == Team::Defenders {
+            continue;
+        }
+        let dist = enemy_xz.distance(origin);
+        if dist < nearest_dist && max_radius.is_none_or(|r| dist < r) && dist > 1.0 {
+            nearest_dist = dist;
+            nearest_pos = Some(enemy_xz);
+        }
+    }
+    nearest_pos.map(|pos| (pos, nearest_dist))
 }
 
 /// Maximum height at which to spawn VFX (above this is off-screen).
@@ -880,7 +883,11 @@ pub(super) fn process_extinction_event(
             let damage = EXTINCTION_DAMAGE * storm.empowerment * storm.damage_mult;
             let explosion_radius = storm.radius; // Covers entire storm area
 
-            let entity = spawn_meteor_projectile_entity(
+            // Scale ground fire radius so the fire covers the entire storm area
+            // Fire formula: GROUND_FIRE_RADIUS * empowerment * mult → we want storm.radius
+            let extinction_fire_mult =
+                storm.radius / (GROUND_FIRE_RADIUS * storm.empowerment);
+            spawn_meteor_projectile_entity(
                 &mut commands,
                 &visual_assets,
                 spawn_pos,
@@ -889,22 +896,16 @@ pub(super) fn process_extinction_event(
                 explosion_radius,
                 storm.empowerment,
                 EXTINCTION_MESH_RADIUS,
+                MeteorProjectileTalentFlags {
+                    aftershock: storm.aftershock,
+                    volcanic_eruption: storm.volcanic_eruption,
+                    ground_fire_duration_mult: storm.ground_fire_duration_mult,
+                    ground_fire_damage_mult: storm.ground_fire_damage_mult,
+                    ground_fire_radius_mult: extinction_fire_mult,
+                    tracking: false,
+                    is_extinction: true,
+                },
             );
-
-            // Apply talent flags to the extinction meteor too
-            // Scale ground fire radius so the fire covers the entire storm area
-            // Fire formula: GROUND_FIRE_RADIUS * empowerment * mult → we want storm.radius
-            let extinction_fire_mult =
-                storm.radius / (GROUND_FIRE_RADIUS * storm.empowerment);
-            commands.entity(entity).insert(MeteorProjectileTalents {
-                aftershock: storm.aftershock,
-                volcanic_eruption: storm.volcanic_eruption,
-                ground_fire_duration_mult: storm.ground_fire_duration_mult,
-                ground_fire_damage_mult: storm.ground_fire_damage_mult,
-                ground_fire_radius_mult: extinction_fire_mult,
-                tracking: false, // Extinction meteor doesn't track
-                is_extinction: true,
-            });
         }
     }
 }

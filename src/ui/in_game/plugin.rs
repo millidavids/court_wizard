@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
-use crate::state::AppState;
+use crate::state::{AppState, InGameState};
 use crate::ui::plugin::ButtonActionSet;
 
 use super::systems;
@@ -66,6 +66,16 @@ impl Plugin for InGamePlugin {
                     systems::update_boss_health_bar,
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Buff tracker: SP only (CauldronBuffs only exists in SP)
+            .add_systems(
+                Update,
+                (
+                    systems::update_buff_tracker,
+                    systems::update_buff_timers,
+                    systems::show_buff_tooltip,
+                )
+                    .run_if(in_state(InGameState::Running)),
             );
     }
 }

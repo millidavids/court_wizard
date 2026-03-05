@@ -7,7 +7,7 @@
 
 use bevy::prelude::*;
 
-use crate::game::battlefield::components::{Battlefield, CastleWallAssets};
+use crate::game::battlefield::components::{Battlefield, BattlefieldAssets};
 use crate::game::battlefield::styles::BATTLEFIELD_COLOR;
 use crate::game::components::Billboard;
 use crate::game::constants::*;
@@ -179,7 +179,7 @@ pub fn process_mp_spawn_queue(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut next_state: ResMut<NextState<AppState>>,
-    castle_wall_assets: Res<CastleWallAssets>,
+    battlefield_assets: Res<BattlefieldAssets>,
     asset_server: Res<AssetServer>,
     wizard_assets: Option<Res<WizardAssets>>,
 ) {
@@ -194,7 +194,7 @@ pub fn process_mp_spawn_queue(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
-                    &castle_wall_assets,
+                    &battlefield_assets,
                     CASTLE_POSITION,
                     CASTLE_ROTATION_DEGREES,
                 );
@@ -204,7 +204,7 @@ pub fn process_mp_spawn_queue(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
-                    &castle_wall_assets,
+                    &battlefield_assets,
                     CASTLE_2_POSITION,
                     CASTLE_2_ROTATION_DEGREES,
                 );
@@ -440,7 +440,7 @@ fn spawn_castle(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    castle_wall_assets: &CastleWallAssets,
+    battlefield_assets: &BattlefieldAssets,
     position: Vec3,
     rotation_degrees: f32,
 ) {
@@ -448,7 +448,7 @@ fn spawn_castle(
         commands,
         meshes,
         materials,
-        castle_wall_assets,
+        battlefield_assets,
         position,
         rotation_degrees,
         OnMultiplayerGameScreen,

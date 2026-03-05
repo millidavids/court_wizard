@@ -73,6 +73,8 @@ pub(crate) struct UnlockedContent {
     pub(crate) ingredients: Vec<String>,
     #[serde(default = "UnlockedContent::default_wizard_types")]
     pub(crate) wizard_types: Vec<String>,
+    #[serde(default)]
+    pub(crate) combos: Vec<String>,
 }
 
 impl UnlockedContent {
@@ -113,6 +115,7 @@ impl Default for UnlockedContent {
             spells: Self::default_spells(),
             ingredients: Self::default_ingredients(),
             wizard_types: Self::default_wizard_types(),
+            combos: Vec::new(),
         }
     }
 }
@@ -590,7 +593,7 @@ fn current_timestamp() -> u64 {
 // ---------------------------------------------------------------------------
 
 /// Creates a new empty unified save file.
-fn new_unified_save() -> UnifiedSaveFile {
+pub(crate) fn new_unified_save() -> UnifiedSaveFile {
     UnifiedSaveFile {
         metadata: SaveMetadata {
             version: 2,
@@ -626,7 +629,7 @@ pub(crate) fn load_unified_save() -> Option<UnifiedSaveFile> {
 }
 
 /// Save the unified save file to localStorage.
-fn save_unified(save_file: &UnifiedSaveFile) {
+pub(crate) fn save_unified(save_file: &UnifiedSaveFile) {
     match toml::to_string_pretty(save_file) {
         Ok(toml_string) => {
             let obfuscated = obfuscate(toml_string.as_bytes());

@@ -4,6 +4,7 @@ pub const ARCHER_MOVEMENT_SPEED: f32 = 100.0; // Significantly slower than infan
 // Attack Range
 pub const ARCHER_MIN_RANGE: f32 = 150.0; // Optimal minimum distance
 pub const ARCHER_MAX_RANGE: f32 = 700.0; // Maximum attack range
+pub const ARCHER_SEEK_RANGE: f32 = 500.0; // Archers advance until enemies are this close, then stop
 
 // Combat
 pub const ARCHER_ATTACK_DAMAGE: f32 = 30.0; // Arrow damage (high damage but slow fire rate)

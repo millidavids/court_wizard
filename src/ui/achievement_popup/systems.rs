@@ -61,7 +61,19 @@ pub(super) fn spawn_next_popup(
     }
 }
 
-fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
+/// Shared popup spawning with configurable colors and text content.
+#[allow(clippy::too_many_arguments)]
+fn spawn_popup(
+    commands: &mut Commands,
+    background: Color,
+    border: Color,
+    header: &str,
+    header_color: Color,
+    title: impl Into<String>,
+    title_color: Color,
+    description: impl Into<String>,
+    extra_child: Option<(String, f32, Color)>,
+) {
     commands
         .spawn((
             Node {
@@ -76,8 +88,8 @@ fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
                 border: UiRect::all(Val::Px(2.0)),
                 ..default()
             },
-            BorderColor::all(BORDER_COLOR),
-            BackgroundColor(BACKGROUND_COLOR),
+            BorderColor::all(border),
+            BackgroundColor(background),
             Pickable::IGNORE,
             GlobalZIndex(999),
             AchievementPopup,
@@ -85,163 +97,16 @@ fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
         ))
         .with_children(|parent| {
             parent.spawn((
-                Text::new("Achievement Unlocked"),
+                Text::new(header),
                 TextFont::from_font_size(12.0),
-                TextColor(HEADER_COLOR),
+                TextColor(header_color),
                 Pickable::IGNORE,
             ));
 
             parent.spawn((
-                Text::new(id.display_name()),
+                Text::new(title),
                 TextFont::from_font_size(18.0),
-                TextColor(TITLE_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            parent.spawn((
-                Text::new(id.description()),
-                TextFont::from_font_size(13.0),
-                TextColor(DESCRIPTION_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            if let Some(reward) = id.unlock_reward() {
-                parent.spawn((
-                    Text::new(reward),
-                    TextFont::from_font_size(14.0),
-                    TextColor(Color::srgb(0.4, 0.9, 0.4)),
-                    Pickable::IGNORE,
-                ));
-            }
-        });
-}
-
-fn spawn_ingredient_popup(commands: &mut Commands, ingredient: Ingredient) {
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                top: Val::Px(30.0),
-                right: Val::Px(20.0),
-                width: Val::Px(300.0),
-                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(4.0),
-                border: UiRect::all(Val::Px(2.0)),
-                ..default()
-            },
-            BorderColor::all(INGREDIENT_BORDER_COLOR),
-            BackgroundColor(INGREDIENT_BACKGROUND_COLOR),
-            Pickable::IGNORE,
-            GlobalZIndex(999),
-            AchievementPopup,
-            AchievementPopupTimer::new(DISPLAY_DURATION, FADE_DURATION),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Ingredient Discovered!"),
-                TextFont::from_font_size(12.0),
-                TextColor(INGREDIENT_HEADER_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            parent.spawn((
-                Text::new(ingredient.name()),
-                TextFont::from_font_size(18.0),
-                TextColor(INGREDIENT_TITLE_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            parent.spawn((
-                Text::new(ingredient.description()),
-                TextFont::from_font_size(13.0),
-                TextColor(DESCRIPTION_COLOR),
-                Pickable::IGNORE,
-            ));
-        });
-}
-
-fn spawn_spell_researched_popup(commands: &mut Commands, spell: Spell) {
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                top: Val::Px(30.0),
-                right: Val::Px(20.0),
-                width: Val::Px(300.0),
-                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(4.0),
-                border: UiRect::all(Val::Px(2.0)),
-                ..default()
-            },
-            BorderColor::all(SPELL_BORDER_COLOR),
-            BackgroundColor(SPELL_BACKGROUND_COLOR),
-            Pickable::IGNORE,
-            GlobalZIndex(999),
-            AchievementPopup,
-            AchievementPopupTimer::new(DISPLAY_DURATION, FADE_DURATION),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Spell Researched!"),
-                TextFont::from_font_size(12.0),
-                TextColor(SPELL_HEADER_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            parent.spawn((
-                Text::new(spell.display_name()),
-                TextFont::from_font_size(18.0),
-                TextColor(SPELL_TITLE_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            parent.spawn((
-                Text::new(spell.description()),
-                TextFont::from_font_size(13.0),
-                TextColor(DESCRIPTION_COLOR),
-                Pickable::IGNORE,
-            ));
-        });
-}
-
-fn spawn_combo_popup(commands: &mut Commands, name: &str, description: &str) {
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                top: Val::Px(30.0),
-                right: Val::Px(20.0),
-                width: Val::Px(300.0),
-                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(4.0),
-                border: UiRect::all(Val::Px(2.0)),
-                ..default()
-            },
-            BorderColor::all(COMBO_BORDER_COLOR),
-            BackgroundColor(COMBO_BACKGROUND_COLOR),
-            Pickable::IGNORE,
-            GlobalZIndex(999),
-            AchievementPopup,
-            AchievementPopupTimer::new(DISPLAY_DURATION, FADE_DURATION),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Combo Discovered!"),
-                TextFont::from_font_size(12.0),
-                TextColor(COMBO_HEADER_COLOR),
-                Pickable::IGNORE,
-            ));
-
-            parent.spawn((
-                Text::new(name),
-                TextFont::from_font_size(18.0),
-                TextColor(COMBO_TITLE_COLOR),
+                TextColor(title_color),
                 Pickable::IGNORE,
             ));
 
@@ -251,7 +116,75 @@ fn spawn_combo_popup(commands: &mut Commands, name: &str, description: &str) {
                 TextColor(DESCRIPTION_COLOR),
                 Pickable::IGNORE,
             ));
+
+            if let Some((text, font_size, color)) = extra_child {
+                parent.spawn((
+                    Text::new(text),
+                    TextFont::from_font_size(font_size),
+                    TextColor(color),
+                    Pickable::IGNORE,
+                ));
+            }
         });
+}
+
+fn spawn_achievement_popup(commands: &mut Commands, id: AchievementId) {
+    let extra = id
+        .unlock_reward()
+        .map(|reward| (reward.to_string(), 14.0, Color::srgb(0.4, 0.9, 0.4)));
+    spawn_popup(
+        commands,
+        BACKGROUND_COLOR,
+        BORDER_COLOR,
+        "Achievement Unlocked",
+        HEADER_COLOR,
+        id.display_name(),
+        TITLE_COLOR,
+        id.description(),
+        extra,
+    );
+}
+
+fn spawn_ingredient_popup(commands: &mut Commands, ingredient: Ingredient) {
+    spawn_popup(
+        commands,
+        INGREDIENT_BACKGROUND_COLOR,
+        INGREDIENT_BORDER_COLOR,
+        "Ingredient Discovered!",
+        INGREDIENT_HEADER_COLOR,
+        ingredient.name(),
+        INGREDIENT_TITLE_COLOR,
+        ingredient.description(),
+        None,
+    );
+}
+
+fn spawn_spell_researched_popup(commands: &mut Commands, spell: Spell) {
+    spawn_popup(
+        commands,
+        SPELL_BACKGROUND_COLOR,
+        SPELL_BORDER_COLOR,
+        "Spell Researched!",
+        SPELL_HEADER_COLOR,
+        spell.display_name(),
+        SPELL_TITLE_COLOR,
+        spell.description(),
+        None,
+    );
+}
+
+fn spawn_combo_popup(commands: &mut Commands, name: &str, description: &str) {
+    spawn_popup(
+        commands,
+        COMBO_BACKGROUND_COLOR,
+        COMBO_BORDER_COLOR,
+        "Combo Discovered!",
+        COMBO_HEADER_COLOR,
+        name,
+        COMBO_TITLE_COLOR,
+        description,
+        None,
+    );
 }
 
 /// Ticks popup timers, applies fade, and despawns expired popups.

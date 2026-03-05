@@ -366,11 +366,7 @@ fn apply_harvest_damage(
     >,
 ) {
     let radius_sq = constants::HARVEST_RADIUS * constants::HARVEST_RADIUS;
-    for (entity, transform, team, mut health, temp_hp) in enemies_query.iter_mut() {
-        // Only damage attackers and undead
-        if *team == Team::Defenders {
-            continue;
-        }
+    for (entity, transform, _team, mut health, temp_hp) in enemies_query.iter_mut() {
         let dx = transform.translation.x - pickup_pos.x;
         let dz = transform.translation.z - pickup_pos.z;
         if dx * dx + dz * dz <= radius_sq {
@@ -499,6 +495,24 @@ fn find_nearest_drop<'a>(
     nearest.map(|(e, t, d, _)| (e, t, d))
 }
 
+/// Clones a shared material asset into a per-entity copy for independent alpha fade.
+/// Returns true if the clone was performed (first call), false otherwise.
+fn clone_material_if_needed(
+    commands: &mut Commands,
+    entity: Entity,
+    materials: &mut Assets<StandardMaterial>,
+    source_handle: &Handle<StandardMaterial>,
+    already_cloned: &mut bool,
+) {
+    if !*already_cloned {
+        *already_cloned = true;
+        if let Some(base_mat) = materials.get(source_handle).cloned() {
+            let cloned = materials.add(base_mat);
+            commands.entity(entity).insert(MeshMaterial3d(cloned));
+        }
+    }
+}
+
 /// Updates harvest flash overlay entities — clones material on first frame, fades alpha, despawns.
 pub(super) fn update_harvest_flash(
     time: Res<Time>,
@@ -514,14 +528,13 @@ pub(super) fn update_harvest_flash(
     let delta = time.delta_secs();
 
     for (entity, mut flash, material_handle) in &mut query {
-        // Clone material on first frame for per-entity alpha fade
-        if !flash.material_cloned {
-            flash.material_cloned = true;
-            if let Some(base_mat) = materials.get(&visual_assets.harvest_flash_material).cloned() {
-                let cloned = materials.add(base_mat);
-                commands.entity(entity).insert(MeshMaterial3d(cloned));
-            }
-        }
+        clone_material_if_needed(
+            &mut commands,
+            entity,
+            &mut materials,
+            &visual_assets.harvest_flash_material,
+            &mut flash.material_cloned,
+        );
 
         flash.time_remaining -= delta;
 
@@ -558,14 +571,13 @@ pub(super) fn update_psychic_shockwave(
     let delta = time.delta_secs();
 
     for (entity, mut shockwave, mut transform, material_handle) in &mut shockwaves {
-        // Clone material on first frame for per-entity alpha fade
-        if !shockwave.material_cloned {
-            shockwave.material_cloned = true;
-            if let Some(base_mat) = materials.get(&visual_assets.shockwave_material).cloned() {
-                let cloned = materials.add(base_mat);
-                commands.entity(entity).insert(MeshMaterial3d(cloned));
-            }
-        }
+        clone_material_if_needed(
+            &mut commands,
+            entity,
+            &mut materials,
+            &visual_assets.shockwave_material,
+            &mut shockwave.material_cloned,
+        );
 
         shockwave.time_alive += delta;
 
@@ -585,10 +597,7 @@ pub(super) fn update_psychic_shockwave(
         let curr_r_sq = current_radius * current_radius;
         let origin = shockwave.origin;
 
-        for (enemy_entity, enemy_transform, team) in &enemies {
-            if *team == Team::Defenders {
-                continue;
-            }
+        for (enemy_entity, enemy_transform, _team) in &enemies {
             let diff = enemy_transform.translation - origin;
             let dist_sq = diff.x * diff.x + diff.z * diff.z;
 
