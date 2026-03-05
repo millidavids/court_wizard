@@ -5,6 +5,34 @@ use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::*;
 
+// ===== Right Wall Constants =====
+
+/// The right wall image is 320x180 (16:9 aspect ratio).
+const RIGHT_WALL_IMAGE_WIDTH: f32 = 320.0;
+const RIGHT_WALL_IMAGE_HEIGHT: f32 = 180.0;
+
+/// Width of the right wall backdrop in world units.
+const RIGHT_WALL_WIDTH: f32 = 4000.0;
+
+/// Height derived from aspect ratio.
+const RIGHT_WALL_HEIGHT: f32 = RIGHT_WALL_WIDTH * (RIGHT_WALL_IMAGE_HEIGHT / RIGHT_WALL_IMAGE_WIDTH);
+
+/// Position of the right wall (along the +X edge of the battlefield, facing inward).
+/// Centered along the Z axis, raised so it fills the background.
+/// Positioned so the bottom-left corner of the image meets the top corner of the battlefield.
+/// Bottom edge at Y=0 (center Y = half height), far end at Z = -BATTLEFIELD_HALF
+/// (center Z = -BATTLEFIELD_HALF + half width).
+const BATTLEFIELD_HALF: f32 = BATTLEFIELD_SIZE / 2.0;
+const RIGHT_WALL_POSITION: Vec3 = Vec3::new(
+    BATTLEFIELD_HALF,
+    RIGHT_WALL_HEIGHT / 2.0,
+    -BATTLEFIELD_HALF + RIGHT_WALL_WIDTH / 2.0,
+);
+
+/// Rotation so the wall faces inward (toward -X).
+/// A Rectangle mesh faces +Z by default, so rotate 90° to face -X.
+const RIGHT_WALL_ROTATION_DEGREES: f32 = 90.0;
+
 /// Sets up the battlefield and castle when entering the InGame state.
 ///
 /// Spawns the battlefield ground plane, castle wall image, and point light in 3D space.
@@ -13,6 +41,7 @@ pub fn setup_battlefield(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     castle_wall_assets: Res<CastleWallAssets>,
+    right_wall_assets: Res<RightWallAssets>,
 ) {
     // Add a light source so we can see 3D objects
     commands.spawn((
@@ -52,6 +81,26 @@ pub fn setup_battlefield(
         CASTLE_ROTATION_DEGREES,
         OnGameplayScreen,
     );
+
+    // Spawn right wall backdrop (vertical plane at the right edge)
+    let right_wall_mesh = Rectangle::new(RIGHT_WALL_WIDTH, RIGHT_WALL_HEIGHT);
+    let right_wall_material = materials.add(StandardMaterial {
+        base_color_texture: Some(right_wall_assets.texture.clone()),
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(meshes.add(right_wall_mesh)),
+        MeshMaterial3d(right_wall_material),
+        Transform::from_translation(RIGHT_WALL_POSITION)
+            .with_rotation(Quat::from_rotation_y(RIGHT_WALL_ROTATION_DEGREES.to_radians())),
+        RightWall,
+        OnGameplayScreen,
+    ));
 }
 
 /// Spawns the castle wall as a textured plane at the given position.

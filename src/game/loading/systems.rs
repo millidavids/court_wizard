@@ -205,6 +205,7 @@ pub fn process_spawn_queue(
         Res<CastleWallAssets>,
         Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
         Res<AssetServer>,
+        Res<crate::game::battlefield::components::RightWallAssets>,
     ),
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
@@ -305,6 +306,7 @@ pub fn process_spawn_queue(
                     meshes,
                     materials,
                     Res::clone(&shared_assets.0),
+                    Res::clone(&shared_assets.3),
                 );
             }
             SpawnTask::Castle => {

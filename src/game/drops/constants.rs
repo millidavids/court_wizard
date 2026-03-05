@@ -3,8 +3,8 @@ use bevy::prelude::*;
 /// Chance per enemy kill to spawn an ingredient drop (0.0 to 1.0).
 pub(super) const DROP_CHANCE: f64 = 0.005;
 
-/// Size of the drop cube mesh.
-pub(super) const DROP_CUBE_SIZE: f32 = 16.0;
+/// Size of the drop billboard sprite (width and height).
+pub(super) const DROP_SPRITE_SIZE: f32 = 32.0;
 
 /// Y position of the drop (slightly above ground).
 pub(super) const DROP_BASE_Y: f32 = 12.0;

@@ -340,6 +340,7 @@ pub fn apply_rough_terrain_slowdown(
 #[allow(clippy::type_complexity)]
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
+    cauldron_buffs: Res<CauldronBuffs>,
     mut commands: Commands,
     mut all_units: Query<
         (
@@ -445,8 +446,14 @@ pub fn combat(
             })
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
-            // Calculate effective attack speed (BattleHymn makes attacks come faster)
-            let attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed);
+            // Calculate effective attack speed (BattleHymn + cauldron buff for defenders)
+            let mut attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed);
+            if *attacker_team == Team::Defenders {
+                let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
+                if cauldron_speed > 1.0 {
+                    attack_speed_bonus += cauldron_speed - 1.0;
+                }
+            }
             let effective_last_time = if attack_speed_bonus > 0.0 {
                 // Shrink the window between last_time and current_time to simulate faster attacks
                 current_time - (current_time - last_time) * (1.0 + attack_speed_bonus)

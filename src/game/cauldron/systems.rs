@@ -7,7 +7,9 @@ use super::messages::*;
 use super::resources::{CauldronAssets, CauldronBuffs};
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::input::messages::BlockSpellInput;
-use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints};
+use crate::game::messages::ComboDiscoveredMessage;
+use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
+use crate::game::units::wizard::components::{LocalWizard, Mana};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Loads the cauldron sprite sheet texture.
@@ -94,8 +96,17 @@ pub fn handle_brew_complete(
     mut cauldron_buffs: ResMut<CauldronBuffs>,
     spell_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut combo_writer: MessageWriter<ComboDiscoveredMessage>,
 ) {
     for message in messages.read() {
+        // Check for hidden combos and notify
+        for combo in message.recipe.matching_combos() {
+            combo_writer.write(ComboDiscoveredMessage {
+                name: combo.name,
+                description: combo.description,
+            });
+        }
+
         cauldron_buffs.apply_recipe(&message.recipe);
 
         // Spawn the expanding bubble visual effect
@@ -443,6 +454,8 @@ pub fn cleanup_cauldron_buff_components(
         ),
         Without<Corpse>,
     >,
+    mut defenders: Query<(&mut Effectiveness, &Team), Without<Corpse>>,
+    mut wizard: Query<&mut Mana, With<LocalWizard>>,
 ) {
     for (entity, damage_bonus, resistance, speed_mod) in &units {
         if damage_bonus.is_some() {
@@ -453,6 +466,22 @@ pub fn cleanup_cauldron_buff_components(
         }
         if speed_mod.is_some() {
             commands.entity(entity).remove::<CauldronSpeedModifier>();
+        }
+    }
+    // Reset defender effectiveness bonus
+    for (mut effectiveness, team) in &mut defenders {
+        if *team == Team::Defenders && effectiveness.spell_bonus != 0.0 {
+            effectiveness.spell_bonus = 0.0;
+        }
+    }
+    // Reset wizard mana max to base
+    let base_max = crate::game::units::wizard::constants::MANA;
+    for mut mana in &mut wizard {
+        if mana.max != base_max {
+            mana.max = base_max;
+            if mana.current > mana.max {
+                mana.current = mana.max;
+            }
         }
     }
 }
@@ -482,6 +511,38 @@ pub fn shield_defenders(
             commands
                 .entity(entity)
                 .insert(TemporaryHitPoints::new(shield_amount, 5.0));
+        }
+    }
+}
+
+/// Applies max mana multiplier to the wizard's mana pool based on active cauldron buffs.
+pub fn apply_max_mana_buff(
+    cauldron_buffs: Res<CauldronBuffs>,
+    mut wizard: Query<&mut Mana, With<LocalWizard>>,
+) {
+    let multiplier = cauldron_buffs.max_mana_multiplier();
+    if multiplier <= 1.0 {
+        return;
+    }
+    let base_max = crate::game::units::wizard::constants::MANA;
+    let new_max = base_max * multiplier;
+    for mut mana in &mut wizard {
+        mana.max = new_max;
+        if mana.current > mana.max {
+            mana.current = mana.max;
+        }
+    }
+}
+
+/// Applies effectiveness bonus to all defenders based on active cauldron buffs.
+pub fn buff_defender_effectiveness(
+    cauldron_buffs: Res<CauldronBuffs>,
+    mut defenders: Query<(&mut Effectiveness, &Team), Without<Corpse>>,
+) {
+    let bonus = cauldron_buffs.effectiveness_bonus();
+    for (mut effectiveness, team) in &mut defenders {
+        if *team == Team::Defenders {
+            effectiveness.spell_bonus = bonus;
         }
     }
 }

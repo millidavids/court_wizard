@@ -13,3 +13,13 @@ pub struct Castle;
 pub struct CastleWallAssets {
     pub texture: Handle<Image>,
 }
+
+/// Pre-loaded right wall backdrop texture.
+#[derive(Resource)]
+pub struct RightWallAssets {
+    pub texture: Handle<Image>,
+}
+
+/// Marker component for the right wall backdrop.
+#[derive(Component)]
+pub struct RightWall;

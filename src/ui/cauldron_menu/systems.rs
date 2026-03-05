@@ -245,6 +245,18 @@ fn spawn_effect_preview(parent: &mut ChildSpawnerCommands, recipe: &Recipe) {
                     BrewEffect::DefenderShieldPerSecond(v) => {
                         format!("Defender shield: {:.1} HP/s", v)
                     }
+                    BrewEffect::MaxManaMultiplier(v) => {
+                        format!("Max mana: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                    BrewEffect::AttackSpeedMultiplier(v) => {
+                        format!("Attack speed: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                    BrewEffect::BuffDurationMultiplier(v) => {
+                        format!("Buff duration: +{:.0}%", (v - 1.0) * 100.0)
+                    }
+                    BrewEffect::EffectivenessBonus(v) => {
+                        format!("Defender effectiveness: +{:.0}%", v * 100.0)
+                    }
                 };
                 preview.spawn((
                     Text::new(text),

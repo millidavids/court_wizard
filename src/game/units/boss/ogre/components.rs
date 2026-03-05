@@ -46,6 +46,3 @@ impl OgreAttackCooldown {
         self.time_remaining = cooldown;
     }
 }
-
-/// Re-export shared Knockback for backward compatibility.
-pub use crate::game::units::components::Knockback as OgreKnockback;

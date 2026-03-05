@@ -28,7 +28,6 @@ impl Plugin for OgrePlugin {
                     .after(PostCombatSet)
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Boss>),
-            )
-            ;
+            );
     }
 }

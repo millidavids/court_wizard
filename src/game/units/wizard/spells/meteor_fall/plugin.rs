@@ -32,13 +32,16 @@ impl Plugin for MeteorFallPlugin {
                 // Circle indicator updates
                 utils::update_circle_indicator::<MeteorFallCircleIndicator>
                     .run_if(any_exist::<MeteorFallCircleIndicator>()),
-                // Storm systems (spawn projectiles, extinction event, transfer talents, update physics, check collisions)
-                spawn_meteor_projectiles.run_if(any_exist::<MeteorFallStorm>()),
-                process_extinction_event.run_if(any_exist::<MeteorFallStorm>()),
-                transfer_projectile_talents.run_if(any_exist::<MeteorProjectile>()),
-                update_meteor_projectiles.run_if(any_exist::<MeteorProjectile>()),
-                spawn_meteor_smoke_trail.run_if(any_exist::<MeteorProjectile>()),
-                check_meteor_collisions.run_if(any_exist::<MeteorProjectile>()),
+                // Storm → transfer → projectile pipeline (chained for correct ordering)
+                (
+                    spawn_meteor_projectiles.run_if(any_exist::<MeteorFallStorm>()),
+                    process_extinction_event.run_if(any_exist::<MeteorFallStorm>()),
+                    transfer_projectile_talents.run_if(any_exist::<MeteorProjectile>()),
+                    update_meteor_projectiles.run_if(any_exist::<MeteorProjectile>()),
+                    spawn_meteor_smoke_trail.run_if(any_exist::<MeteorProjectile>()),
+                    check_meteor_collisions.run_if(any_exist::<MeteorProjectile>()),
+                )
+                    .chain(),
                 // Explosion updates
                 update_meteor_explosions.run_if(any_exist::<MeteorExplosion>()),
                 // Ground fire systems (chained for correct ordering)

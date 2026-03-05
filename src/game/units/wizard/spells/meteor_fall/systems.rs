@@ -385,7 +385,7 @@ pub(super) fn spawn_meteor_projectiles(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut storms: Query<(Entity, &mut MeteorFallStorm)>,
-    enemies: Query<&Transform, With<Team>>,
+    enemies: Query<(&Transform, &Team)>,
 ) {
     let mut rng = rand::thread_rng();
 
@@ -450,7 +450,10 @@ pub(super) fn spawn_meteor_projectiles(
                 let storm_center_xz = Vec2::new(storm.position.x, storm.position.z);
                 let mut nearest_dist = f32::MAX;
                 let mut nearest_pos = None;
-                for enemy_transform in enemies.iter() {
+                for (enemy_transform, team) in enemies.iter() {
+                    if *team == Team::Defenders {
+                        continue;
+                    }
                     let enemy_xz =
                         Vec2::new(enemy_transform.translation.x, enemy_transform.translation.z);
                     let dist = enemy_xz.distance(storm_center_xz);
@@ -534,12 +537,37 @@ pub(crate) fn spawn_meteor_projectile_entity(
         .id()
 }
 
+/// Spawns a meteor explosion visual entity.
+fn spawn_explosion_entity(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    pos: Vec3,
+    radius: f32,
+    damage: f32,
+    networked: bool,
+) {
+    let mut entity = commands.spawn((
+        Mesh3d(assets.unit_circle.clone()),
+        MeshMaterial3d(assets.meteor_explosion.clone()),
+        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(0.1)),
+        MeteorExplosion::new(pos, radius, damage),
+        OnGameplayScreen,
+    ));
+    if networked {
+        entity.insert(NetworkedSpellEffect {
+            kind: SpellEffectKind::MeteorExplosion,
+        });
+    }
+}
+
 /// Updates meteor projectile physics - applies gravity and moves projectiles.
 /// Also applies tracking force for Tracking Meteors talent.
 pub(super) fn update_meteor_projectiles(
     time: Res<Time>,
     mut projectiles: Query<(&mut Transform, &mut MeteorProjectile)>,
-    enemies: Query<&Transform, (With<Team>, Without<MeteorProjectile>)>,
+    enemies: Query<(&Transform, &Team), Without<MeteorProjectile>>,
 ) {
     let delta = time.delta_secs();
 
@@ -552,7 +580,10 @@ pub(super) fn update_meteor_projectiles(
             let proj_xz = Vec2::new(transform.translation.x, transform.translation.z);
             let mut nearest_dist = f32::MAX;
             let mut nearest_dir = Vec2::ZERO;
-            for enemy_transform in enemies.iter() {
+            for (enemy_transform, team) in enemies.iter() {
+                if *team == Team::Defenders {
+                    continue;
+                }
                 let enemy_xz =
                     Vec2::new(enemy_transform.translation.x, enemy_transform.translation.z);
                 let dist = proj_xz.distance(enemy_xz);
@@ -664,18 +695,14 @@ pub(super) fn check_meteor_collisions(
             let t = pos.x * 0.01 + pos.z * 0.01; // deterministic pseudo-time per position
 
             // Spawn explosion visual and damage
-            commands.spawn((
-                Mesh3d(visual_assets.unit_circle.clone()),
-                MeshMaterial3d(visual_assets.meteor_explosion.clone()),
-                Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                    .with_scale(Vec3::splat(0.1)),
-                MeteorExplosion::new(pos, projectile.explosion_radius, projectile.damage),
-                NetworkedSpellEffect {
-                    kind: SpellEffectKind::MeteorExplosion,
-                },
-                OnGameplayScreen,
-            ));
+            spawn_explosion_entity(
+                &mut commands,
+                &visual_assets,
+                pos,
+                projectile.explosion_radius,
+                projectile.damage,
+                true,
+            );
 
             // Impact sparks
             vfx::systems::spawn_fire_sparks(
@@ -758,25 +785,14 @@ pub(super) fn check_meteor_collisions(
                             * projectile.empowerment;
 
                         // Spawn eruption VFX (reuse explosion visual, scaled)
-                        commands.spawn((
-                            Mesh3d(visual_assets.unit_circle.clone()),
-                            MeshMaterial3d(visual_assets.meteor_explosion.clone()),
-                            Transform::from_translation(Vec3::new(
-                                fire.origin.x,
-                                1.0,
-                                fire.origin.z,
-                            ))
-                            .with_rotation(Quat::from_rotation_x(
-                                -std::f32::consts::FRAC_PI_2,
-                            ))
-                            .with_scale(Vec3::splat(0.1)),
-                            MeteorExplosion::new(
-                                fire.origin,
-                                VOLCANIC_ERUPTION_RADIUS,
-                                eruption_damage,
-                            ),
-                            OnGameplayScreen,
-                        ));
+                        spawn_explosion_entity(
+                            &mut commands,
+                            &visual_assets,
+                            fire.origin,
+                            VOLCANIC_ERUPTION_RADIUS,
+                            eruption_damage,
+                            false,
+                        );
 
                         // Eruption smoke
                         vfx::systems::spawn_explosion_smoke(

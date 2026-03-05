@@ -5,10 +5,9 @@ use rand::seq::SliceRandom;
 
 use crate::config::save_data::{load_unified_save, unlock_ingredient};
 use crate::game::cauldron::brews::Ingredient;
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::messages::IngredientCollectedMessage;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 use super::components::{FlyingToWizard, IngredientDrop, LockedIngredients};
 use super::constants::*;
@@ -34,7 +33,7 @@ pub(super) fn init_locked_ingredients(mut locked: ResMut<LockedIngredients>) {
 /// Listens for enemy death messages and randomly spawns ingredient drops.
 pub(super) fn spawn_ingredient_drops(
     mut commands: Commands,
-    spell_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut drop_events: MessageReader<SpawnIngredientDropMessage>,
     locked: Res<LockedIngredients>,
@@ -62,14 +61,17 @@ pub(super) fn spawn_ingredient_drops(
             base_color: DROP_COLOR,
             emissive: DROP_EMISSIVE.into(),
             unlit: true,
+            cull_mode: None,
             ..default()
         });
 
+        let quad = Rectangle::new(DROP_SPRITE_SIZE, DROP_SPRITE_SIZE);
+
         commands.spawn((
-            Mesh3d(spell_assets.cross_plane_sphere.clone()),
+            Mesh3d(meshes.add(quad)),
             MeshMaterial3d(drop_material),
-            Transform::from_xyz(event.position.x, DROP_BASE_Y, event.position.z)
-                .with_scale(Vec3::splat(DROP_CUBE_SIZE / 2.0)),
+            Transform::from_xyz(event.position.x, DROP_BASE_Y, event.position.z),
+            Billboard,
             IngredientDrop {
                 ingredient,
                 time_alive: 0.0,

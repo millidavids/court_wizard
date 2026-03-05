@@ -1,4 +1,4 @@
-mod constants;
+pub(crate) mod constants;
 
 use bevy::prelude::*;
 
@@ -27,6 +27,14 @@ pub enum BrewEffect {
     AttackerSlowPercent(f32),
     /// Grants temporary hit points to defenders per second.
     DefenderShieldPerSecond(f32),
+    /// Multiplies wizard maximum mana capacity.
+    MaxManaMultiplier(f32),
+    /// Multiplies defender attack speed (higher = faster).
+    AttackSpeedMultiplier(f32),
+    /// Multiplies buff duration from brews.
+    BuffDurationMultiplier(f32),
+    /// Flat bonus to defender effectiveness.
+    EffectivenessBonus(f32),
 }
 
 /// An ingredient that can be added to a brew.
@@ -42,6 +50,14 @@ pub enum Ingredient {
     Meadowsweet,
     Valerian,
     NatronSalt,
+    LapisLazuli,
+    Henbane,
+    Frankincense,
+    Amber,
+    RavenFeather,
+    MandrakeRoot,
+    RowanBerry,
+    DragonsBlood,
 }
 
 /// Static configuration for an ingredient.
@@ -54,6 +70,18 @@ pub struct IngredientConfig {
     pub effect: BrewEffect,
     /// Visual color based on the real-life ingredient.
     pub color: Color,
+}
+
+/// A hidden combo bonus triggered when specific ingredients are combined.
+pub struct ComboBonus {
+    /// Display name of the combo.
+    pub name: &'static str,
+    /// Required ingredients (all must be present in the recipe).
+    pub required: &'static [Ingredient],
+    /// Bonus effects granted (undiluted).
+    pub bonus_effects: &'static [BrewEffect],
+    /// Flavor text description.
+    pub description: &'static str,
 }
 
 impl Ingredient {
@@ -70,6 +98,14 @@ impl Ingredient {
             Ingredient::Meadowsweet => &MEADOWSWEET_CONFIG,
             Ingredient::Valerian => &VALERIAN_CONFIG,
             Ingredient::NatronSalt => &NATRON_SALT_CONFIG,
+            Ingredient::LapisLazuli => &LAPIS_LAZULI_CONFIG,
+            Ingredient::Henbane => &HENBANE_CONFIG,
+            Ingredient::Frankincense => &FRANKINCENSE_CONFIG,
+            Ingredient::Amber => &AMBER_CONFIG,
+            Ingredient::RavenFeather => &RAVEN_FEATHER_CONFIG,
+            Ingredient::MandrakeRoot => &MANDRAKE_ROOT_CONFIG,
+            Ingredient::RowanBerry => &ROWAN_BERRY_CONFIG,
+            Ingredient::DragonsBlood => &DRAGONS_BLOOD_CONFIG,
         }
     }
 
@@ -86,6 +122,14 @@ impl Ingredient {
             Ingredient::Meadowsweet,
             Ingredient::Valerian,
             Ingredient::NatronSalt,
+            Ingredient::LapisLazuli,
+            Ingredient::Henbane,
+            Ingredient::Frankincense,
+            Ingredient::Amber,
+            Ingredient::RavenFeather,
+            Ingredient::MandrakeRoot,
+            Ingredient::RowanBerry,
+            Ingredient::DragonsBlood,
         ]
     }
 
@@ -114,6 +158,20 @@ impl Ingredient {
             Ingredient::NatronSalt => {
                 "Preserved archmages for millennia. Should work for soldiers."
             }
+            Ingredient::LapisLazuli => "Mages carved it into wands. The mana practically leaks out.",
+            Ingredient::Henbane => "Berserkers ate it before battle. Side effects include victory.",
+            Ingredient::Frankincense => {
+                "Temple smoke that makes spells hit harder. Gods not included."
+            }
+            Ingredient::Amber => "Traps time itself. Your buffs will thank you.",
+            Ingredient::RavenFeather => {
+                "Plucked from Odin's messenger. Everything hits differently."
+            }
+            Ingredient::MandrakeRoot => "Screams when pulled. Screams louder in a cauldron.",
+            Ingredient::RowanBerry => "Witches feared this tree. Now it works for you.",
+            Ingredient::DragonsBlood => {
+                "Not actual dragon blood. Probably. The merchant was unclear."
+            }
         }
     }
 }
@@ -136,8 +194,17 @@ impl Recipe {
     }
 
     /// Duration of the buff after brewing (seconds).
+    ///
+    /// BuffDurationMultiplier ingredients extend the duration.
     pub fn buff_duration(&self) -> f32 {
-        BUFF_DURATION
+        let dilution = self.dilution_factor();
+        let mut multiplier = 1.0;
+        for ingredient in &self.ingredients {
+            if let BrewEffect::BuffDurationMultiplier(v) = ingredient.config().effect {
+                multiplier *= 1.0 + (v - 1.0) * dilution;
+            }
+        }
+        BUFF_DURATION * multiplier
     }
 
     /// Dilution factor — more ingredients means each effect is weaker.
@@ -149,14 +216,34 @@ impl Recipe {
         1.0 / (self.ingredients.len() as f32).sqrt()
     }
 
-    /// Returns all effects with dilution applied.
+    /// Returns all effects with dilution applied, plus any combo bonuses (undiluted).
     pub fn effects(&self) -> Vec<BrewEffect> {
         let dilution = self.dilution_factor();
-        self.ingredients
+        let mut effects: Vec<BrewEffect> = self
+            .ingredients
             .iter()
             .map(|ingredient| {
                 let base_effect = ingredient.config().effect;
                 dilute_effect(base_effect, dilution)
+            })
+            .collect();
+
+        // Append combo bonuses (undiluted)
+        for combo in self.matching_combos() {
+            effects.extend_from_slice(combo.bonus_effects);
+        }
+        effects
+    }
+
+    /// Returns all combos whose required ingredients are all present in this recipe.
+    pub fn matching_combos(&self) -> Vec<&'static ComboBonus> {
+        COMBOS
+            .iter()
+            .filter(|combo| {
+                combo
+                    .required
+                    .iter()
+                    .all(|req| self.ingredients.contains(req))
             })
             .collect()
     }
@@ -204,5 +291,17 @@ fn dilute_effect(effect: BrewEffect, dilution: f32) -> BrewEffect {
         BrewEffect::DefenderSpeedBonus(v) => BrewEffect::DefenderSpeedBonus(v * dilution),
         BrewEffect::AttackerSlowPercent(v) => BrewEffect::AttackerSlowPercent(v * dilution),
         BrewEffect::DefenderShieldPerSecond(v) => BrewEffect::DefenderShieldPerSecond(v * dilution),
+        // New multiplier effects
+        BrewEffect::MaxManaMultiplier(v) => {
+            BrewEffect::MaxManaMultiplier(1.0 + (v - 1.0) * dilution)
+        }
+        BrewEffect::AttackSpeedMultiplier(v) => {
+            BrewEffect::AttackSpeedMultiplier(1.0 + (v - 1.0) * dilution)
+        }
+        BrewEffect::BuffDurationMultiplier(v) => {
+            BrewEffect::BuffDurationMultiplier(1.0 + (v - 1.0) * dilution)
+        }
+        // New flat effect
+        BrewEffect::EffectivenessBonus(v) => BrewEffect::EffectivenessBonus(v * dilution),
     }
 }

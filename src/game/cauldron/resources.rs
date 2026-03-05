@@ -123,6 +123,30 @@ impl CauldronBuffs {
         })
     }
 
+    /// Combined max mana multiplier from all active buffs.
+    pub fn max_mana_multiplier(&self) -> f32 {
+        self.compute_multiplier(|effect| match effect {
+            BrewEffect::MaxManaMultiplier(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Combined attack speed multiplier from all active buffs.
+    pub fn attack_speed_multiplier(&self) -> f32 {
+        self.compute_multiplier(|effect| match effect {
+            BrewEffect::AttackSpeedMultiplier(v) => Some(*v),
+            _ => None,
+        })
+    }
+
+    /// Total effectiveness bonus from all active buffs.
+    pub fn effectiveness_bonus(&self) -> f32 {
+        self.sum_flat_effect(|effect| match effect {
+            BrewEffect::EffectivenessBonus(v) => Some(*v),
+            _ => None,
+        })
+    }
+
     /// Computes a combined multiplier by scanning all active buff effects.
     fn compute_multiplier(&self, extract: impl Fn(&BrewEffect) -> Option<f32>) -> f32 {
         let mut result = 1.0;

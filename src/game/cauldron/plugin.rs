@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use crate::game::run_conditions::is_gameplay_running;
 use crate::state::AppState;
 
+use crate::game::messages::ComboDiscoveredMessage;
+
 use super::messages::*;
 use super::resources::CauldronBuffs;
 use super::run_conditions::{
@@ -21,6 +23,7 @@ impl Plugin for CauldronPlugin {
             .add_message::<StartBrewMessage>()
             .add_message::<BrewCompleteMessage>()
             .add_message::<CancelBrewMessage>()
+            .add_message::<ComboDiscoveredMessage>()
             // Message handlers run across all InGame states so messages sent
             // from CauldronMenu aren't lost during the state transition.
             .add_systems(
@@ -47,6 +50,8 @@ impl Plugin for CauldronPlugin {
                     systems::buff_defender_resistance.run_if(has_active_buffs),
                     systems::apply_cauldron_speed_modifiers.run_if(has_active_buffs),
                     systems::shield_defenders.run_if(has_active_buffs),
+                    systems::apply_max_mana_buff.run_if(has_active_buffs),
+                    systems::buff_defender_effectiveness.run_if(has_active_buffs),
                     systems::cleanup_cauldron_buff_components.run_if(needs_buff_cleanup),
                     systems::block_spells_during_brewing.run_if(cauldron_is_brewing),
                     systems::update_brew_bubble.run_if(has_brew_bubbles),

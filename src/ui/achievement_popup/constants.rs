@@ -48,3 +48,17 @@ pub(super) const SPELL_HEADER_COLOR: Color = Color::srgb(0.5, 0.7, 1.0);
 
 /// Spell name text color.
 pub(super) const SPELL_TITLE_COLOR: Color = Color::srgb(0.85, 0.9, 1.0);
+
+// ===== Combo Discovered Popup Colors =====
+
+/// Background color of the combo discovered popup.
+pub(super) const COMBO_BACKGROUND_COLOR: Color = Color::srgba(0.12, 0.10, 0.04, 0.92);
+
+/// Border color for combo popups (gold).
+pub(super) const COMBO_BORDER_COLOR: Color = Color::srgb(0.95, 0.82, 0.30);
+
+/// "Combo Discovered!" header color.
+pub(super) const COMBO_HEADER_COLOR: Color = Color::srgb(0.85, 0.65, 0.13);
+
+/// Combo name text color (gold).
+pub(super) const COMBO_TITLE_COLOR: Color = Color::srgb(0.95, 0.82, 0.30);

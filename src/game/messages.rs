@@ -28,3 +28,12 @@ pub(crate) struct WaveSpawnedMessage {
     /// The wave number (1-indexed for display).
     pub(crate) wave_number: u32,
 }
+
+/// Message sent when a hidden ingredient combo is discovered during brewing.
+#[derive(Message)]
+pub(crate) struct ComboDiscoveredMessage {
+    /// Display name of the combo.
+    pub(crate) name: &'static str,
+    /// Flavor text description.
+    pub(crate) description: &'static str,
+}

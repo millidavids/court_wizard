@@ -11,7 +11,7 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrostSlowModifier,
-    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, MovementSpeed,
+    GreaseSlipModifier, HasteModifier, Health, Hitbox, InMelee, Knockback, MovementSpeed,
     OriginalMaterial, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SleepModifier,
     SpikeGrowthSlowModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
     apply_damage_to_unit,
@@ -190,7 +190,7 @@ pub fn ogre_combat(
             } else {
                 Vec3::X
             };
-            commands.entity(entity).insert(OgreKnockback::new(
+            commands.entity(entity).insert(Knockback::new(
                 direction,
                 OGRE_MELEE_KNOCKBACK_SPEED,
                 OGRE_MELEE_KNOCKBACK_DURATION,

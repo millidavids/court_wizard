@@ -3,7 +3,8 @@ use bevy::prelude::*;
 use crate::config::save_data::AchievementId;
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::messages::{
-    AchievementUnlockedMessage, IngredientCollectedMessage, SpellResearchedMessage,
+    AchievementUnlockedMessage, ComboDiscoveredMessage, IngredientCollectedMessage,
+    SpellResearchedMessage,
 };
 use crate::game::units::wizard::components::Spell;
 
@@ -15,6 +16,7 @@ pub(super) fn queue_popups(
     mut achievement_events: MessageReader<AchievementUnlockedMessage>,
     mut ingredient_events: MessageReader<IngredientCollectedMessage>,
     mut spell_events: MessageReader<SpellResearchedMessage>,
+    mut combo_events: MessageReader<ComboDiscoveredMessage>,
     mut queue: ResMut<PopupQueue>,
 ) {
     for event in achievement_events.read() {
@@ -25,6 +27,12 @@ pub(super) fn queue_popups(
     }
     for event in spell_events.read() {
         queue.push(PopupEntry::SpellResearched(event.spell));
+    }
+    for event in combo_events.read() {
+        queue.push(PopupEntry::ComboDiscovered {
+            name: event.name,
+            description: event.description,
+        });
     }
 }
 
@@ -45,6 +53,9 @@ pub(super) fn spawn_next_popup(
             }
             PopupEntry::SpellResearched(spell) => {
                 spawn_spell_researched_popup(&mut commands, spell)
+            }
+            PopupEntry::ComboDiscovered { name, description } => {
+                spawn_combo_popup(&mut commands, name, description)
             }
         }
     }
@@ -190,6 +201,52 @@ fn spawn_spell_researched_popup(commands: &mut Commands, spell: Spell) {
 
             parent.spawn((
                 Text::new(spell.description()),
+                TextFont::from_font_size(13.0),
+                TextColor(DESCRIPTION_COLOR),
+                Pickable::IGNORE,
+            ));
+        });
+}
+
+fn spawn_combo_popup(commands: &mut Commands, name: &str, description: &str) {
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(30.0),
+                right: Val::Px(20.0),
+                width: Val::Px(300.0),
+                padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(4.0),
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BorderColor::all(COMBO_BORDER_COLOR),
+            BackgroundColor(COMBO_BACKGROUND_COLOR),
+            Pickable::IGNORE,
+            GlobalZIndex(999),
+            AchievementPopup,
+            AchievementPopupTimer::new(DISPLAY_DURATION, FADE_DURATION),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Combo Discovered!"),
+                TextFont::from_font_size(12.0),
+                TextColor(COMBO_HEADER_COLOR),
+                Pickable::IGNORE,
+            ));
+
+            parent.spawn((
+                Text::new(name),
+                TextFont::from_font_size(18.0),
+                TextColor(COMBO_TITLE_COLOR),
+                Pickable::IGNORE,
+            ));
+
+            parent.spawn((
+                Text::new(description),
                 TextFont::from_font_size(13.0),
                 TextColor(DESCRIPTION_COLOR),
                 Pickable::IGNORE,
