@@ -69,11 +69,11 @@ pub fn setup(mut commands: Commands) {
                 &BUTTON_STYLE,
             );
 
-            // Progress button
+            // Compendium button
             spawn_button(
                 parent,
-                "Progress",
-                PauseMenuButtonAction::Progress,
+                "Compendium",
+                PauseMenuButtonAction::Compendium,
                 &BUTTON_STYLE,
             );
 
@@ -111,8 +111,8 @@ pub fn button_action(
                 PauseMenuButtonAction::Instructions => {
                     next_pause_menu_state.set(PauseMenuState::Instructions);
                 }
-                PauseMenuButtonAction::Progress => {
-                    next_pause_menu_state.set(PauseMenuState::Progress);
+                PauseMenuButtonAction::Compendium => {
+                    next_pause_menu_state.set(PauseMenuState::Compendium);
                 }
                 PauseMenuButtonAction::Exit => {
                     channel_change.write(ChannelChangeMessage);

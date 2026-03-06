@@ -17,9 +17,9 @@ use super::components::{
 };
 use super::constants::{
     BACK_BUTTON_HEIGHT, BACK_BUTTON_WIDTH, BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
-    BUTTON_FONT_SIZE, LABEL_FONT_SIZE, MARGIN, MARGIN_SMALL, OPTION_BUTTON_HEIGHT,
-    OPTION_BUTTON_WIDTH, SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR,
-    TITLE_FONT_SIZE, VOLUME_BUTTON_SIZE,
+    BUTTON_FONT_SIZE, DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, LABEL_FONT_SIZE, MARGIN,
+    MARGIN_SMALL, OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, SECTION_FONT_SIZE,
+    SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE, VOLUME_BUTTON_SIZE,
 };
 
 /// Sets up the settings menu UI.
@@ -207,6 +207,53 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
                                 .with_children(|button| {
                                     button.spawn((
                                         Text::new("Reset"),
+                                        TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                        TextColor(TEXT_COLOR),
+                                    ));
+                                });
+                            });
+
+                        // Clear Progress button
+                        section
+                            .spawn(Node {
+                                width: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(MARGIN),
+                                ..default()
+                            })
+                            .with_children(|row| {
+                                row.spawn((
+                                    Text::new("Clear Progress:"),
+                                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                                    TextColor(TEXT_COLOR),
+                                    Node {
+                                        width: Val::Px(200.0),
+                                        ..default()
+                                    },
+                                ));
+
+                                row.spawn((
+                                    Button,
+                                    Node {
+                                        width: Val::Px(OPTION_BUTTON_WIDTH),
+                                        height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    BorderColor::all(DANGER_BUTTON_BORDER),
+                                    BorderRadius::all(Val::Px(4.0)),
+                                    BackgroundColor(DANGER_BUTTON_BACKGROUND),
+                                    ButtonColors {
+                                        background: DANGER_BUTTON_BACKGROUND,
+                                    },
+                                    SettingsButtonAction::ClearProgress,
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Clear"),
                                         TextFont::from_font_size(BUTTON_FONT_SIZE),
                                         TextColor(TEXT_COLOR),
                                     ));
@@ -672,6 +719,12 @@ pub fn settings_button_action(
                         message: "Tutorials have been reset.",
                     });
                 }
+                SettingsButtonAction::ClearProgress => {
+                    crate::config::save_data::clear_progress();
+                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                        message: "All progress has been cleared.",
+                    });
+                }
             }
         }
     }
@@ -696,6 +749,12 @@ pub fn pause_settings_button_action(
                     crate::ui::tutorial::systems::reset_tutorial_progress();
                     popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
                         message: "Tutorials have been reset.",
+                    });
+                }
+                SettingsButtonAction::ClearProgress => {
+                    crate::config::save_data::clear_progress();
+                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                        message: "All progress has been cleared.",
                     });
                 }
             }

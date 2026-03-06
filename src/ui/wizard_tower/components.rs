@@ -24,6 +24,7 @@ pub(super) struct OnMainScreen;
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WizardTowerButtonAction {
     StudySpells,
+    Compendium,
     StartNextBattle,
     ReturnToMenu,
     StartTimeTravel,

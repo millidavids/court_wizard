@@ -207,6 +207,13 @@ pub(super) fn setup_wizard_tower_main(
 
                     spawn_button(
                         buttons,
+                        "Compendium",
+                        WizardTowerButtonAction::Compendium,
+                        &BUTTON_STYLE,
+                    );
+
+                    spawn_button(
+                        buttons,
                         "Return to Menu",
                         WizardTowerButtonAction::ReturnToMenu,
                         &BUTTON_STYLE,
@@ -363,6 +370,9 @@ pub(super) fn handle_main_button_actions(
             match action {
                 WizardTowerButtonAction::StudySpells => {
                     next_wt_state.set(MetaGameState::Study);
+                }
+                WizardTowerButtonAction::Compendium => {
+                    next_wt_state.set(MetaGameState::Compendium);
                 }
                 WizardTowerButtonAction::StartNextBattle => {
                     channel_change.write(ChannelChangeMessage);

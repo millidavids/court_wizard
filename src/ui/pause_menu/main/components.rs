@@ -23,8 +23,8 @@ pub(super) enum PauseMenuButtonAction {
     /// Open the instructions screen, transitioning to `PauseMenuState::Instructions`.
     Instructions,
 
-    /// Open the progress screen, transitioning to `PauseMenuState::Progress`.
-    Progress,
+    /// Open the compendium screen, transitioning to `PauseMenuState::Compendium`.
+    Compendium,
 
     /// Exit to main menu, transitioning to `AppState::MainMenu`.
     Exit,

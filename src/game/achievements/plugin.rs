@@ -177,6 +177,27 @@ impl Plugin for AchievementsPlugin {
                     .run_if(on_message::<SpellCastMessage>)
                     .run_if(achievement_locked::<RandomMagicSurgeAchievement>),
             )
+            // Unit encounter achievements (run during gameplay, once per type)
+            .add_systems(
+                Update,
+                (
+                    systems::check_brute_encounter
+                        .run_if(achievement_locked::<MeetTheBruteAchievement>),
+                    systems::check_elite_encounter
+                        .run_if(achievement_locked::<EliteForcesAchievement>),
+                    systems::check_commander_encounter
+                        .run_if(achievement_locked::<CommanderOnTheFieldAchievement>),
+                    systems::check_healer_encounter
+                        .run_if(achievement_locked::<EnemyMedicAchievement>),
+                    systems::check_dispeller_encounter
+                        .run_if(achievement_locked::<MagicNullifierAchievement>),
+                    systems::check_hag_encounter
+                        .run_if(achievement_locked::<TheThreeHagsAchievement>),
+                    systems::check_ogre_encounter
+                        .run_if(achievement_locked::<OgreWarlordAchievement>),
+                )
+                    .run_if(is_gameplay_active),
+            )
             // Reset all achievements when progress is cleared
             .add_systems(
                 Update,

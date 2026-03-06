@@ -83,6 +83,18 @@ achievement_resource!(SliderFiddlerAchievement, AchievementId::SliderFiddler);
 achievement_resource!(RandomMagicSurgeAchievement, AchievementId::RandomMagicSurge);
 achievement_resource!(QwerAchievement, AchievementId::Qwer);
 
+// Unit Encounters
+achievement_resource!(MeetTheBruteAchievement, AchievementId::MeetTheBrute);
+achievement_resource!(EliteForcesAchievement, AchievementId::EliteForces);
+achievement_resource!(
+    CommanderOnTheFieldAchievement,
+    AchievementId::CommanderOnTheField
+);
+achievement_resource!(EnemyMedicAchievement, AchievementId::EnemyMedic);
+achievement_resource!(MagicNullifierAchievement, AchievementId::MagicNullifier);
+achievement_resource!(TheThreeHagsAchievement, AchievementId::TheThreeHags);
+achievement_resource!(OgreWarlordAchievement, AchievementId::OgreWarlord);
+
 // Spell Unlocks
 achievement_resource!(OutOfRangeAchievement, AchievementId::OutOfRange);
 achievement_resource!(ScorchedEarthAchievement, AchievementId::ScorchedEarth);
@@ -168,6 +180,13 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(SliderFiddlerAchievement(false));
     commands.insert_resource(RandomMagicSurgeAchievement(false));
     commands.insert_resource(QwerAchievement(false));
+    commands.insert_resource(MeetTheBruteAchievement(false));
+    commands.insert_resource(EliteForcesAchievement(false));
+    commands.insert_resource(CommanderOnTheFieldAchievement(false));
+    commands.insert_resource(EnemyMedicAchievement(false));
+    commands.insert_resource(MagicNullifierAchievement(false));
+    commands.insert_resource(TheThreeHagsAchievement(false));
+    commands.insert_resource(OgreWarlordAchievement(false));
     commands.insert_resource(OutOfRangeAchievement(false));
     commands.insert_resource(ScorchedEarthAchievement(false));
     commands.insert_resource(ProtectiveInstinctsAchievement(false));
@@ -215,6 +234,13 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(SliderFiddlerAchievement);
     init!(RandomMagicSurgeAchievement);
     init!(QwerAchievement);
+    init!(MeetTheBruteAchievement);
+    init!(EliteForcesAchievement);
+    init!(CommanderOnTheFieldAchievement);
+    init!(EnemyMedicAchievement);
+    init!(MagicNullifierAchievement);
+    init!(TheThreeHagsAchievement);
+    init!(OgreWarlordAchievement);
     init!(OutOfRangeAchievement);
     init!(ScorchedEarthAchievement);
     init!(ProtectiveInstinctsAchievement);

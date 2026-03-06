@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.318] - 2026-03-06
+
+### Added
+- **Compendium** — a brand new encyclopedia replaces the old Progress screen, with six browsable tabs: Spells, Ingredients, Units, Wizards, Achievements, and Stats. Select any item to see its full details in the left panel
+- **Unit tracking** — enemy and defender unit types are now tracked as you encounter them, unlocking their Compendium entries
+- **Unit encounter achievements** — earn a new achievement the first time you encounter each enemy unit type on the battlefield
+- **Ingredient descriptions** — all ingredients now have detailed descriptions of their appearance and where they're found in the wild
+- **Flavor text** — unlocked Compendium items now show witty flavor text at the bottom of their detail panel
+- **Level history** — the Stats tab shows a scrollable list of every level you've completed with color-coded efficiency ratings (gold for perfect, red-to-green gradient for everything else)
+- **Expanded stats** — the Stats tab now shows Battle Stats, Kill Stats, Collection progress (including Talents Unlocked), and Economy info in a two-column layout
+- **Compendium everywhere** — accessible from the Main Menu, Wizard Tower, and Pause Menu
+
+### Changed
+- **Clear Progress moved to Settings** — the Clear Progress button now lives in the Settings page with a simple confirmation toast instead of a popup dialog
+
 ## [v0.3.310] - 2026-03-05
 
 ### Added

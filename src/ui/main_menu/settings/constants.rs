@@ -52,3 +52,9 @@ pub const BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.4, 1.0);
 
 /// Selected option button border color.
 pub const SELECTED_BORDER: Color = Color::hsla(210.0, 0.8, 0.6, 1.0);
+
+/// Danger button background color (red).
+pub const DANGER_BUTTON_BACKGROUND: Color = Color::hsla(0.0, 0.7, 0.3, 1.0);
+
+/// Danger button border color (red).
+pub const DANGER_BUTTON_BORDER: Color = Color::hsla(0.0, 0.8, 0.5, 1.0);

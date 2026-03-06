@@ -8,6 +8,135 @@ use super::constants::{
 };
 use super::damage::DamageType;
 
+/// All trackable unit types in the game.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UnitType {
+    // Defenders (default unlocked)
+    Infantry,
+    Archer,
+    King,
+    KingsGuard,
+    // Attackers (unlocked on encounter)
+    Brute,
+    Elite,
+    Commander,
+    Healer,
+    Dispeller,
+    // Bosses
+    Hag,
+    Ogre,
+}
+
+impl UnitType {
+    /// Returns all unit type variants.
+    pub fn all() -> &'static [UnitType] {
+        &[
+            UnitType::Infantry,
+            UnitType::Archer,
+            UnitType::King,
+            UnitType::KingsGuard,
+            UnitType::Brute,
+            UnitType::Elite,
+            UnitType::Commander,
+            UnitType::Healer,
+            UnitType::Dispeller,
+            UnitType::Hag,
+            UnitType::Ogre,
+        ]
+    }
+
+    /// Display name for the UI.
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            UnitType::Infantry => "Infantry",
+            UnitType::Archer => "Archer",
+            UnitType::King => "King",
+            UnitType::KingsGuard => "King's Guard",
+            UnitType::Brute => "Brute",
+            UnitType::Elite => "Elite",
+            UnitType::Commander => "Commander",
+            UnitType::Healer => "Healer",
+            UnitType::Dispeller => "Dispeller",
+            UnitType::Hag => "Hag",
+            UnitType::Ogre => "Ogre",
+        }
+    }
+
+    /// Short description of the unit.
+    pub const fn description(&self) -> &'static str {
+        match self {
+            UnitType::Infantry => "Melee fighters forming the front line of defense.",
+            UnitType::Archer => "Ranged soldiers picking off targets from afar.",
+            UnitType::King => "The leader you must protect at all costs.",
+            UnitType::KingsGuard => "Elite warriors sworn to defend the King.",
+            UnitType::Brute => "Heavy-hitting melee fighters that hit like a truck.",
+            UnitType::Elite => "Enhanced soldiers with bonus health, damage, and speed.",
+            UnitType::Commander => "Officers that buff nearby allies with damage and speed auras.",
+            UnitType::Healer => "Support units that restore health to wounded allies.",
+            UnitType::Dispeller => "Anti-magic units that remove your spell effects.",
+            UnitType::Hag => "Ancient witches with devastating magical abilities.",
+            UnitType::Ogre => "A massive beast that grows stronger as the fight goes on.",
+        }
+    }
+
+    /// Flavor text shown in the compendium.
+    pub const fn flavor_text(&self) -> &'static str {
+        match self {
+            UnitType::Infantry => "They signed up for this. Probably.",
+            UnitType::Archer => "They never miss. Except when they do.",
+            UnitType::King => "Heavy is the head that wears the crown. Heavier when fireballs are involved.",
+            UnitType::KingsGuard => "Sworn to protect, trained to intimidate, paid to stand very still.",
+            UnitType::Brute => "What they lack in strategy, they make up for in sheer mass.",
+            UnitType::Elite => "Better than regular soldiers in every measurable way. They won't let you forget it.",
+            UnitType::Commander => "Barking orders from behind the front line, as tradition demands.",
+            UnitType::Healer => "The only unit the enemy army actually values. Unfortunately.",
+            UnitType::Dispeller => "Your spells mean nothing to them. Take it personally.",
+            UnitType::Hag => "Three sisters who share one terrible disposition.",
+            UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
+        }
+    }
+
+    /// Whether this unit is unlocked by default (defenders).
+    pub const fn is_default_unlocked(&self) -> bool {
+        matches!(
+            self,
+            UnitType::Infantry | UnitType::Archer | UnitType::King | UnitType::KingsGuard
+        )
+    }
+
+    /// Team label for display.
+    pub const fn team_label(&self) -> &'static str {
+        match self {
+            UnitType::Infantry | UnitType::Archer | UnitType::King | UnitType::KingsGuard => {
+                "Defender"
+            }
+            UnitType::Brute
+            | UnitType::Elite
+            | UnitType::Commander
+            | UnitType::Healer
+            | UnitType::Dispeller => "Attacker",
+            UnitType::Hag | UnitType::Ogre => "Boss",
+        }
+    }
+
+    /// Locked description hint shown when the unit hasn't been encountered.
+    pub const fn locked_description(&self) -> &'static str {
+        match self {
+            UnitType::Infantry => "A common defender.",
+            UnitType::Archer => "A ranged defender.",
+            UnitType::King => "The one you protect.",
+            UnitType::KingsGuard => "Royal bodyguards.",
+            UnitType::Brute => "Something big is coming...",
+            UnitType::Elite => "The enemy is adapting.",
+            UnitType::Commander => "Someone is giving orders out there.",
+            UnitType::Healer => "The wounded keep getting back up.",
+            UnitType::Dispeller => "Your magic feels weaker somehow.",
+            UnitType::Hag => "Dark magic stirs in the distance.",
+            UnitType::Ogre => "The ground trembles.",
+        }
+    }
+}
+
 /// Trait for modifier components with a timed duration that can expire.
 ///
 /// Implementing this trait allows use of the generic `update_timed_modifier::<T>` system

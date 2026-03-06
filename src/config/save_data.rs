@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::game::cauldron::brews::Ingredient;
+use crate::game::units::UnitType;
 use crate::game::units::wizard::components::Spell;
 
 use super::progress::{keyed_hash, load_verified_progress};
@@ -78,6 +79,8 @@ pub(crate) struct UnlockedContent {
     pub(crate) wizard_types: Vec<String>,
     #[serde(default)]
     pub(crate) combos: Vec<String>,
+    #[serde(default = "UnlockedContent::default_units")]
+    pub(crate) units: Vec<String>,
 }
 
 impl UnlockedContent {
@@ -103,6 +106,14 @@ impl UnlockedContent {
         vec![format!("{:?}", Ingredient::Lavender)]
     }
 
+    fn default_units() -> Vec<String> {
+        UnitType::all()
+            .iter()
+            .filter(|u| u.is_default_unlocked())
+            .map(|u| format!("{:?}", u))
+            .collect()
+    }
+
     fn default_wizard_types() -> Vec<String> {
         WizardType::all()
             .iter()
@@ -119,6 +130,7 @@ impl Default for UnlockedContent {
             ingredients: Self::default_ingredients(),
             wizard_types: Self::default_wizard_types(),
             combos: Vec::new(),
+            units: Self::default_units(),
         }
     }
 }
@@ -164,6 +176,14 @@ pub(crate) enum AchievementId {
     ScorchedEarth,
     ProtectiveInstincts,
     FriendlyThorns,
+    // Unit Encounters
+    MeetTheBrute,
+    EliteForces,
+    CommanderOnTheField,
+    EnemyMedic,
+    MagicNullifier,
+    TheThreeHags,
+    OgreWarlord,
 }
 
 impl AchievementId {
@@ -200,6 +220,13 @@ impl AchievementId {
             AchievementId::ScorchedEarth,
             AchievementId::ProtectiveInstincts,
             AchievementId::FriendlyThorns,
+            AchievementId::MeetTheBrute,
+            AchievementId::EliteForces,
+            AchievementId::CommanderOnTheField,
+            AchievementId::EnemyMedic,
+            AchievementId::MagicNullifier,
+            AchievementId::TheThreeHags,
+            AchievementId::OgreWarlord,
         ]
     }
 
@@ -236,6 +263,13 @@ impl AchievementId {
             AchievementId::ScorchedEarth => "scorched_earth",
             AchievementId::ProtectiveInstincts => "protective_instincts",
             AchievementId::FriendlyThorns => "friendly_thorns",
+            AchievementId::MeetTheBrute => "meet_the_brute",
+            AchievementId::EliteForces => "elite_forces",
+            AchievementId::CommanderOnTheField => "commander_on_the_field",
+            AchievementId::EnemyMedic => "enemy_medic",
+            AchievementId::MagicNullifier => "magic_nullifier",
+            AchievementId::TheThreeHags => "the_three_hags",
+            AchievementId::OgreWarlord => "ogre_warlord",
         }
     }
 
@@ -272,6 +306,13 @@ impl AchievementId {
             AchievementId::ScorchedEarth => "Scorched Earth",
             AchievementId::ProtectiveInstincts => "Protective Instincts",
             AchievementId::FriendlyThorns => "Friendly Thorns",
+            AchievementId::MeetTheBrute => "Meet the Brute",
+            AchievementId::EliteForces => "Elite Forces",
+            AchievementId::CommanderOnTheField => "Commander on the Field",
+            AchievementId::EnemyMedic => "Enemy Medic!",
+            AchievementId::MagicNullifier => "Magic Nullifier",
+            AchievementId::TheThreeHags => "The Three Hags",
+            AchievementId::OgreWarlord => "Ogre Warlord",
         }
     }
 
@@ -361,6 +402,13 @@ impl AchievementId {
             AchievementId::ScorchedEarth => "Your own fire claimed a life.",
             AchievementId::ProtectiveInstincts => "You shielded the enemy. On purpose?",
             AchievementId::FriendlyThorns => "Your vines don't discriminate.",
+            AchievementId::MeetTheBrute => "They're bigger than expected.",
+            AchievementId::EliteForces => "The enemy brought their best.",
+            AchievementId::CommanderOnTheField => "Someone out there is giving orders.",
+            AchievementId::EnemyMedic => "They have healers now. Great.",
+            AchievementId::MagicNullifier => "Your spells are being countered.",
+            AchievementId::TheThreeHags => "Three sisters. One shared grudge.",
+            AchievementId::OgreWarlord => "The biggest one yet. And it's angry.",
         }
     }
 }
@@ -410,6 +458,19 @@ pub(crate) fn unlock_ingredient(ingredient: crate::game::cauldron::brews::Ingred
         return false;
     }
     save_file.player.unlocked_content.ingredients.push(name);
+    save_unified(&save_file);
+    true
+}
+
+/// Unlock a unit type and persist immediately.
+/// Returns true if the unit was newly unlocked.
+pub(crate) fn unlock_unit(unit_type: UnitType) -> bool {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+    let name = format!("{:?}", unit_type);
+    if save_file.player.unlocked_content.units.contains(&name) {
+        return false;
+    }
+    save_file.player.unlocked_content.units.push(name);
     save_unified(&save_file);
     true
 }

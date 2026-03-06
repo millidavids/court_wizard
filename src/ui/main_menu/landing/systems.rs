@@ -52,11 +52,11 @@ pub fn setup(mut commands: Commands) {
                 &BUTTON_STYLE,
             );
 
-            // Progress button
+            // Compendium button
             spawn_button(
                 parent,
-                "Progress",
-                MenuButtonAction::Progress,
+                "Compendium",
+                MenuButtonAction::Compendium,
                 &BUTTON_STYLE,
             );
 
@@ -119,8 +119,8 @@ pub fn button_action(
                 MenuButtonAction::Instructions => {
                     next_menu_state.set(MenuState::Instructions);
                 }
-                MenuButtonAction::Progress => {
-                    next_menu_state.set(MenuState::Progress);
+                MenuButtonAction::Compendium => {
+                    next_menu_state.set(MenuState::Compendium);
                 }
                 MenuButtonAction::Credits => {
                     next_menu_state.set(MenuState::Credits);

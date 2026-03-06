@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::config::save_data::{
     accumulate_kill_stats, get_total_levels_completed, grant_achievement_insight, grant_insight,
-    increment_games_played, increment_levels_completed, unlock_achievement,
+    increment_games_played, increment_levels_completed, unlock_achievement, unlock_unit,
 };
 use crate::config::{GameConfig, WizardType};
 use crate::game::messages::AchievementUnlockedMessage;
@@ -579,3 +579,39 @@ pub(crate) fn check_friendly_thorns(
         grant_achievement_insight(FriendlyThornsAchievement::achievement_id());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Unit encounter achievements
+// ---------------------------------------------------------------------------
+
+use crate::game::units::UnitType;
+use crate::game::units::brute::components::Brute;
+use crate::game::units::{Commander, EliteHealthBonus};
+use crate::game::units::healer::components::Healer;
+use crate::game::units::dispeller::components::Dispeller;
+use crate::game::units::boss::hags::components::Hag;
+use crate::game::units::boss::ogre::components::OgreEnrageState;
+
+/// Macro to generate an encounter-detection system for a unit type.
+macro_rules! encounter_system {
+    ($fn_name:ident, $marker:ty, $res:ty, $unit_type:expr) => {
+        pub(crate) fn $fn_name(
+            query: Query<(), With<$marker>>,
+            mut res: ResMut<$res>,
+            mut events: MessageWriter<AchievementUnlockedMessage>,
+        ) {
+            if !query.is_empty() {
+                unlock_unit($unit_type);
+                do_unlock(&mut res, &mut events);
+            }
+        }
+    };
+}
+
+encounter_system!(check_brute_encounter, Brute, MeetTheBruteAchievement, UnitType::Brute);
+encounter_system!(check_elite_encounter, EliteHealthBonus, EliteForcesAchievement, UnitType::Elite);
+encounter_system!(check_commander_encounter, Commander, CommanderOnTheFieldAchievement, UnitType::Commander);
+encounter_system!(check_healer_encounter, Healer, EnemyMedicAchievement, UnitType::Healer);
+encounter_system!(check_dispeller_encounter, Dispeller, MagicNullifierAchievement, UnitType::Dispeller);
+encounter_system!(check_hag_encounter, Hag, TheThreeHagsAchievement, UnitType::Hag);
+encounter_system!(check_ogre_encounter, OgreEnrageState, OgreWarlordAchievement, UnitType::Ogre);

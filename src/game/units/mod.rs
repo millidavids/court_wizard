@@ -23,6 +23,7 @@ pub(crate) mod wizard;
 
 mod plugin;
 
+pub use components::UnitType;
 pub use damage::DamageType;
 pub use plugin::UnitsPlugin;
 

@@ -10,8 +10,8 @@ use super::landing::plugin::LandingPlugin;
 use super::multiplayer::plugin::MultiplayerPlugin;
 use super::settings::plugin::SettingsPlugin;
 use super::wizard_select::plugin::WizardSelectPlugin;
+use crate::ui::compendium::MainMenuCompendiumPlugin;
 use crate::ui::instructions::MainMenuInstructionsPlugin;
-use crate::ui::progress::MainMenuProgressPlugin;
 
 /// Main menu plugin that aggregates all main menu sub-screens.
 ///
@@ -31,7 +31,7 @@ impl Plugin for MainMenuPlugin {
             ChangelogPlugin,
             CreditsPlugin,
             MainMenuInstructionsPlugin,
-            MainMenuProgressPlugin,
+            MainMenuCompendiumPlugin,
             WizardSelectPlugin,
             MultiplayerPlugin,
         ));

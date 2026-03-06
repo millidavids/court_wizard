@@ -200,6 +200,11 @@ static IN_GAME_STEPS: &[TutorialStep] = &[
         text: "Need a different spell? Open your spell book here to swap hotkeys.",
         anchor: PanelAnchor::CenterRight,
     },
+    TutorialStep {
+        target: HighlightTarget::CauldronButton,
+        text: "Open the cauldron here to brew powerful buffs from ingredients dropped by enemies.",
+        anchor: PanelAnchor::CenterRight,
+    },
 ];
 
 // SpellBook: List on left, detail on right, hotkey slots at bottom.

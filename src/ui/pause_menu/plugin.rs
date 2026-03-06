@@ -4,8 +4,8 @@ use bevy::prelude::*;
 
 use super::main::plugin::PauseMainPlugin;
 use super::settings::plugin::PauseSettingsPlugin;
+use crate::ui::compendium::PauseMenuCompendiumPlugin;
 use crate::ui::instructions::PauseMenuInstructionsPlugin;
-use crate::ui::progress::PauseMenuProgressPlugin;
 
 /// Plugin that manages all pause menu UI.
 ///
@@ -20,7 +20,7 @@ impl Plugin for PauseMenuPlugin {
             PauseMainPlugin,
             PauseSettingsPlugin,
             PauseMenuInstructionsPlugin,
-            PauseMenuProgressPlugin,
+            PauseMenuCompendiumPlugin,
         ));
     }
 }

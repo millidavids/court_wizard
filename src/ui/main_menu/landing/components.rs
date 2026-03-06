@@ -29,8 +29,8 @@ pub(super) enum MenuButtonAction {
     /// Open the credits screen, transitioning to `MenuState::Credits`.
     Credits,
 
-    /// Open the progress screen, transitioning to `MenuState::Progress`.
-    Progress,
+    /// Open the compendium screen, transitioning to `MenuState::Compendium`.
+    Compendium,
 
     /// Open the multiplayer lobby, transitioning to `MenuState::Multiplayer`.
     Multiplayer,

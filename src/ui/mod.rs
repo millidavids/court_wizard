@@ -16,7 +16,7 @@ mod loading;
 pub(crate) mod main_menu;
 mod pause_menu;
 pub(crate) mod plugin;
-pub(crate) mod progress;
+mod compendium;
 mod roulette_display;
 mod rune_display;
 mod splash_screen;

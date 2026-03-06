@@ -74,8 +74,8 @@ pub enum MenuState {
     /// Wizard type selection screen for picking or creating a wizard.
     WizardSelect,
 
-    /// Progress screen showing achievements and unlockables.
-    Progress,
+    /// Compendium screen showing achievements, unlockables, and unit tracking.
+    Compendium,
 
     /// Multiplayer lobby for P2P WebRTC connection setup.
     Multiplayer,
@@ -131,6 +131,9 @@ pub enum MetaGameState {
 
     /// Spell research screen with allocation sliders and commit.
     Study,
+
+    /// Compendium screen accessible from wizard tower.
+    Compendium,
 }
 
 /// Pause menu navigation state.
@@ -156,8 +159,8 @@ pub enum PauseMenuState {
     /// Instructions screen explaining gameplay mechanics.
     Instructions,
 
-    /// Progress screen showing achievements and unlockables.
-    Progress,
+    /// Compendium screen showing achievements, unlockables, and unit tracking.
+    Compendium,
 }
 
 /// Splash screen sub-state.

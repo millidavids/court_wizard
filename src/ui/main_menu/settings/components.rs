@@ -57,6 +57,8 @@ pub enum SettingsButtonAction {
     Back,
     /// Button to reset tutorial progress
     ResetTutorials,
+    /// Button to clear all game progress
+    ClearProgress,
 }
 
 /// Colors for different button states.
