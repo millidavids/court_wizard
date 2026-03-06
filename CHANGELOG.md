@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.339] - 2026-03-06
+
+### Added
+- **Level clock** — a timer now appears in the upper right corner of the screen during battles, showing how long you've been fighting. Can be toggled on or off in Settings
+- **Urgent Mode** — when enabled (on by default), the battle keeps going even while you're browsing the Spell Book or Cauldron menu. Units keep fighting, spells keep flying, and time keeps ticking. Toggle it off in Settings if you prefer the classic pause-while-browsing behavior
+
 ## [v0.3.337] - 2026-03-06
 
 ### Added

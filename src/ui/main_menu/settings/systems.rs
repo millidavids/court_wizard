@@ -166,6 +166,36 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
                             );
                         });
 
+                        spawn_option_row(section, "Level Clock:", |buttons| {
+                            spawn_option_button(
+                                buttons,
+                                "On",
+                                OptionButtonValue::ShowLevelClock(true),
+                                game_config.show_level_clock,
+                            );
+                            spawn_option_button(
+                                buttons,
+                                "Off",
+                                OptionButtonValue::ShowLevelClock(false),
+                                !game_config.show_level_clock,
+                            );
+                        });
+
+                        spawn_option_row(section, "Urgent Mode:", |buttons| {
+                            spawn_option_button(
+                                buttons,
+                                "On",
+                                OptionButtonValue::UrgentMode(true),
+                                game_config.urgent_mode,
+                            );
+                            spawn_option_button(
+                                buttons,
+                                "Off",
+                                OptionButtonValue::UrgentMode(false),
+                                !game_config.urgent_mode,
+                            );
+                        });
+
                         // Reset Tutorials button
                         section
                             .spawn(Node {

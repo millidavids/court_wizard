@@ -75,6 +75,14 @@ pub(super) const KING_HEALTH_BAR_BORDER_COLOR: Color = Color::srgba(0.3, 0.6, 0.
 /// King health bar label font size.
 pub(super) const KING_HEALTH_BAR_LABEL_FONT_SIZE: f32 = 7.0;
 
+// ===== Level Clock Constants =====
+
+/// Font size for the level clock display.
+pub(super) const LEVEL_CLOCK_FONT_SIZE: f32 = 20.0;
+
+/// Color for the level clock text.
+pub(super) const LEVEL_CLOCK_COLOR: Color = Color::srgba(0.7, 0.8, 0.9, 0.9);
+
 // ===== Wave Display Constants =====
 
 /// Font size for the wave counter text.

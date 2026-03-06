@@ -73,6 +73,8 @@ pub(super) fn load_and_apply_config(
         wizard_type: config_file.game.wizard_type,
         skip_splash: config_file.game.skip_splash,
         tutorials_enabled: config_file.game.tutorials_enabled,
+        show_level_clock: config_file.game.show_level_clock,
+        urgent_mode: config_file.game.urgent_mode,
         saved_walls: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed

@@ -196,8 +196,8 @@ fn default_highest_level() -> u32 {
     1
 }
 
-/// Default tutorials enabled.
-fn default_tutorials_enabled() -> bool {
+/// Default true for boolean settings.
+fn default_true() -> bool {
     true
 }
 
@@ -309,8 +309,14 @@ pub struct GameConfig {
     #[serde(default)]
     pub skip_splash: bool,
     /// Whether tutorials are enabled for new players
-    #[serde(default = "default_tutorials_enabled")]
+    #[serde(default = "default_true")]
     pub tutorials_enabled: bool,
+    /// Whether to show the level clock in the HUD
+    #[serde(default = "default_true")]
+    pub show_level_clock: bool,
+    /// Whether gameplay continues while Spellbook/Cauldron menus are open
+    #[serde(default = "default_true")]
+    pub urgent_mode: bool,
     /// Permanent walls saved from previous victories
     #[serde(skip)]
     pub saved_walls: Vec<SavedWall>,
@@ -332,6 +338,8 @@ impl Default for GameConfig {
             wizard_type: WizardType::default(),
             skip_splash: false,
             tutorials_enabled: true,
+            show_level_clock: true,
+            urgent_mode: true,
             saved_walls: Vec::new(),
         }
     }

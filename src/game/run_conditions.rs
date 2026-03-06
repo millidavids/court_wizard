@@ -15,11 +15,24 @@ pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
     |query: Query<(), With<T>>| !query.is_empty()
 }
 
+/// Returns true if single-player simulation should be active.
+///
+/// True when `InGameState::Running`, or when urgent mode is enabled and the
+/// player is browsing the SpellBook or CauldronMenu.
+fn is_sp_simulation_active(state: &InGameState, config: &Option<Res<GameConfig>>) -> bool {
+    if *state == InGameState::Running {
+        return true;
+    }
+    matches!(state, InGameState::SpellBook | InGameState::CauldronMenu)
+        && config.as_ref().is_some_and(|c| c.urgent_mode)
+}
+
 /// Returns true when gameplay simulation should be running.
 ///
 /// This is the primary run condition for all gameplay systems (movement, combat,
 /// spells, etc.). It returns true in two scenarios:
-/// - Single-player: `InGameState::Running` is active
+/// - Single-player: `InGameState::Running` is active, OR urgent mode is enabled
+///   and the player is in SpellBook/CauldronMenu
 /// - Multiplayer host: `MultiplayerGameState::Running` is active AND this peer is the host
 ///
 /// This allows all gameplay plugins to share a single set of system registrations
@@ -28,10 +41,13 @@ pub fn is_gameplay_running(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     session: Option<Res<MultiplayerSession>>,
+    config: Option<Res<GameConfig>>,
 ) -> bool {
-    // Single-player: InGameState::Running
-    if sp_state.is_some_and(|s| *s.get() == InGameState::Running) {
-        return true;
+    // Single-player
+    if let Some(ref state) = sp_state {
+        if is_sp_simulation_active(state.get(), &config) {
+            return true;
+        }
     }
     // Multiplayer host: Running, Paused, or SpellBook (overlays don't pause gameplay)
     if mp_state.is_some_and(|s| {
@@ -104,10 +120,13 @@ pub fn is_local_wizard_active(
 pub fn is_spell_effects_active(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
+    config: Option<Res<GameConfig>>,
 ) -> bool {
-    // Single-player: InGameState::Running
-    if sp_state.is_some_and(|s| *s.get() == InGameState::Running) {
-        return true;
+    // Single-player
+    if let Some(ref state) = sp_state {
+        if is_sp_simulation_active(state.get(), &config) {
+            return true;
+        }
     }
     // Multiplayer: Running, Paused, or SpellBook — both host AND guest
     mp_state.is_some_and(|s| {

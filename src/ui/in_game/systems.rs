@@ -12,7 +12,7 @@ use crate::game::cauldron::resources::CauldronBuffs;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::messages::WaveSpawnedMessage;
-use crate::game::resources::{CurrentLevel, WaveState};
+use crate::game::resources::{CurrentLevel, KillStats, WaveState};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::hags::components::{Hag, HagIdentity, PermanentlyDead};
 use crate::game::units::components::{Corpse, Health, Team};
@@ -45,10 +45,15 @@ pub(super) fn block_spell_input_on_button_interaction(
 pub(super) fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
+    current_state: Res<State<InGameState>>,
     mut next_in_game_state: ResMut<NextState<InGameState>>,
 ) {
     // Don't handle Escape in multiplayer — mp_escape_key_handler does it
     if mp_state.is_some() {
+        return;
+    }
+    // Only handle escape when actually running (not in menus with urgent mode)
+    if *current_state.get() != InGameState::Running {
         return;
     }
     if keyboard.just_pressed(KeyCode::Escape) {
@@ -225,6 +230,20 @@ pub(super) fn spawn_hud(
                                 WaveDisplay,
                             ));
                         }
+
+                        // Level clock display
+                        let clock_visibility = if config.show_level_clock {
+                            Visibility::Inherited
+                        } else {
+                            Visibility::Hidden
+                        };
+                        level_container.spawn((
+                            Text::new("0:00"),
+                            TextFont::from_font_size(LEVEL_CLOCK_FONT_SIZE),
+                            TextColor(LEVEL_CLOCK_COLOR),
+                            clock_visibility,
+                            LevelClockDisplay,
+                        ));
                     });
                 });
 
@@ -533,6 +552,36 @@ pub(super) fn update_past_victory_display(
             **text = format!("Best: {:.1}%", past_efficiency * 100.0);
         } else {
             **text = String::new();
+        }
+    }
+}
+
+/// Updates the level clock display text with elapsed time.
+///
+/// Only updates text when the displayed second changes to avoid per-frame allocations.
+/// Only updates visibility when the config setting changes.
+pub(super) fn update_level_clock(
+    kill_stats: Res<KillStats>,
+    config: Res<GameConfig>,
+    mut clock_query: Query<(&mut Text, &mut Visibility), With<LevelClockDisplay>>,
+) {
+    for (mut text, mut visibility) in &mut clock_query {
+        if config.is_changed() {
+            let target = if config.show_level_clock {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
+            *visibility = target;
+        }
+        if config.show_level_clock && kill_stats.is_changed() {
+            let total_secs = kill_stats.elapsed_time as u32;
+            let mins = total_secs / 60;
+            let secs = total_secs % 60;
+            let new_text = format!("{mins}:{secs:02}");
+            if text.0 != new_text {
+                text.0 = new_text;
+            }
         }
     }
 }

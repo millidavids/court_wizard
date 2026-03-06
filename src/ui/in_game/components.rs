@@ -31,6 +31,10 @@ pub(super) struct LevelDisplay;
 #[derive(Component)]
 pub(super) struct PastVictoryDisplay;
 
+/// Marker component for the level clock display text.
+#[derive(Component)]
+pub(super) struct LevelClockDisplay;
+
 /// Marker component for the boss health bar root container.
 #[derive(Component)]
 pub(super) struct BossHealthBarRoot;

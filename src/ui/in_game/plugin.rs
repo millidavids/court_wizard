@@ -42,6 +42,7 @@ impl Plugin for InGamePlugin {
                     systems::keyboard_input,
                     systems::update_level_display,
                     systems::update_past_victory_display,
+                    systems::update_level_clock,
                     systems::update_wave_display,
                     systems::spawn_wave_incoming_flash,
                     systems::update_wave_incoming_flash,
