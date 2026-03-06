@@ -6,7 +6,7 @@ pub(super) struct HudRoot;
 
 /// Marker component for the mana bar fill element.
 #[derive(Component)]
-pub(super) struct ManaBarFill;
+pub(crate) struct ManaBarFill;
 
 /// Marker component for the cast bar fill element.
 #[derive(Component)]
@@ -18,7 +18,7 @@ pub(super) struct BrewingOverlay;
 
 /// Actions that can be triggered by HUD buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum HudButtonAction {
+pub(crate) enum HudButtonAction {
     OpenSpellBook,
     OpenCauldronMenu,
 }
@@ -45,7 +45,7 @@ pub(super) struct BossHealthBarText;
 
 /// Marker component for the king health bar fill element.
 #[derive(Component)]
-pub(super) struct KingHealthBarFill;
+pub(crate) struct KingHealthBarFill;
 
 /// Marker component for a hag health bar section fill.
 #[derive(Component)]
@@ -61,7 +61,7 @@ pub(super) struct HagHealthBarText {
 
 /// Marker component for the wave counter display text.
 #[derive(Component)]
-pub(super) struct WaveDisplay;
+pub(crate) struct WaveDisplay;
 
 /// Marker component for the "Wave incoming!" flash notification.
 #[derive(Component)]

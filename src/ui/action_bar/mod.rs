@@ -6,3 +6,6 @@ pub(crate) mod systems;
 
 pub use components::InfiniteMana;
 pub use plugin::ActionBarPlugin;
+
+// Re-exports for tutorial system
+pub(crate) use components::ActionBarRoot;

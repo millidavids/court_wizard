@@ -24,6 +24,8 @@ pub enum OptionButtonValue {
     Difficulty(Difficulty),
     /// Skip splash screen toggle
     SkipSplash(bool),
+    /// Tutorials enabled toggle
+    TutorialsEnabled(bool),
 }
 
 impl OptionButtonValue {
@@ -33,6 +35,7 @@ impl OptionButtonValue {
             OptionButtonValue::VsyncMode(mode) => config.vsync == *mode,
             OptionButtonValue::Difficulty(difficulty) => config.difficulty == *difficulty,
             OptionButtonValue::SkipSplash(skip) => config.skip_splash == *skip,
+            OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled == *enabled,
         }
     }
 
@@ -42,6 +45,7 @@ impl OptionButtonValue {
             OptionButtonValue::VsyncMode(mode) => config.vsync = *mode,
             OptionButtonValue::Difficulty(difficulty) => config.difficulty = *difficulty,
             OptionButtonValue::SkipSplash(skip) => config.skip_splash = *skip,
+            OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled = *enabled,
         }
     }
 }
@@ -51,6 +55,8 @@ impl OptionButtonValue {
 pub enum SettingsButtonAction {
     /// Button to return to the landing screen
     Back,
+    /// Button to reset tutorial progress
+    ResetTutorials,
 }
 
 /// Colors for different button states.

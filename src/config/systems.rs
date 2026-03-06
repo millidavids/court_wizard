@@ -72,6 +72,7 @@ pub(super) fn load_and_apply_config(
         action_bar_slots: config_file.game.action_bar_slots,
         wizard_type: config_file.game.wizard_type,
         skip_splash: config_file.game.skip_splash,
+        tutorials_enabled: config_file.game.tutorials_enabled,
         saved_walls: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed

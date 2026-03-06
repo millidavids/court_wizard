@@ -8,3 +8,6 @@ mod plugin;
 mod systems;
 
 pub use plugin::SpellBookPlugin;
+
+// Re-exports for tutorial system
+pub(crate) use components::{DetailName, HotkeySlotButton, ScrollableSpellList};

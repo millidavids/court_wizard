@@ -113,6 +113,9 @@ pub enum InGameState {
 
     /// Score screen shown after battle ends (win or lose).
     ScoreScreen,
+
+    /// Tutorial overlay — gameplay is frozen, tutorial panel is shown.
+    Tutorial,
 }
 
 /// MetaGame sub-state for wizard tower progression screens.

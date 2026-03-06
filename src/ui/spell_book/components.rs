@@ -27,7 +27,7 @@ pub(super) struct SelectedSpellPreview(pub Spell);
 
 /// Marker for the spell name text in the detail panel.
 #[derive(Component)]
-pub(super) struct DetailName;
+pub(crate) struct DetailName;
 
 /// Marker for the damage type text in the detail panel.
 #[derive(Component)]
@@ -43,7 +43,7 @@ pub(super) struct DetailInstructions;
 
 /// Marks a hotkey slot button (0-4 corresponding to keys 1-5).
 #[derive(Component)]
-pub(super) struct HotkeySlotButton(pub u8);
+pub(crate) struct HotkeySlotButton(pub u8);
 
 /// Marks a spell button in the right list for border highlighting.
 #[derive(Component)]

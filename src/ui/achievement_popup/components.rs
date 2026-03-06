@@ -4,14 +4,17 @@ use crate::config::save_data::AchievementId;
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::wizard::components::Spell;
 
-/// A queued popup entry — achievement, ingredient, spell research, or combo discovery.
-pub(super) enum PopupEntry {
+/// A queued popup entry — achievement, ingredient, spell research, combo discovery, or toast.
+pub(crate) enum PopupEntry {
     Achievement(AchievementId),
     IngredientCollected(Ingredient),
     SpellResearched(Spell),
     ComboDiscovered {
         name: &'static str,
         description: &'static str,
+    },
+    Toast {
+        message: &'static str,
     },
 }
 
@@ -21,7 +24,7 @@ pub(super) struct AchievementPopup;
 
 /// Queue of popups waiting to be displayed.
 #[derive(Resource, Default)]
-pub(super) struct PopupQueue {
+pub(crate) struct PopupQueue {
     pub queue: Vec<PopupEntry>,
 }
 

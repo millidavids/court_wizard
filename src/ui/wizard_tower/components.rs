@@ -22,7 +22,7 @@ pub(super) struct OnMainScreen;
 
 /// Actions from hub buttons.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
-pub(super) enum WizardTowerButtonAction {
+pub(crate) enum WizardTowerButtonAction {
     StudySpells,
     StartNextBattle,
     ReturnToMenu,
@@ -39,7 +39,7 @@ pub(super) enum WizardTowerButtonAction {
 
 /// Marker for the outer collapsible time travel container (toggled visible/hidden).
 #[derive(Component)]
-pub(super) struct TimeTravelContainer;
+pub(crate) struct TimeTravelContainer;
 
 /// Marker for the scrollable time travel level list (used by handle_scroll).
 #[derive(Component)]
@@ -57,14 +57,13 @@ pub(super) struct TimeTravelSelectedDisplay;
 #[derive(Resource, Default)]
 pub(super) struct SelectedTimeTravelLevel(pub Option<u32>);
 
-/// Marker for the level display text on the hub screen (for reactive updates).
-#[cfg(debug_assertions)]
+/// Marker for the level display text on the hub screen.
 #[derive(Component)]
-pub(super) struct LevelDisplay;
+pub(crate) struct LevelDisplay;
 
 /// Insight balance text on the hub.
 #[derive(Component)]
-pub(super) struct InsightDisplay;
+pub(crate) struct InsightDisplay;
 
 // ---------------------------------------------------------------------------
 // Study screen
@@ -76,7 +75,7 @@ pub(super) struct OnStudyScreen;
 
 /// Actions from study screen buttons.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
-pub(super) enum StudyButtonAction {
+pub(crate) enum StudyButtonAction {
     Commit,
     Back,
     #[cfg(debug_assertions)]
@@ -141,7 +140,7 @@ pub(super) struct GraphBounds {
 
 /// Marks the graph container for hit-testing and as the pan/zoom area.
 #[derive(Component)]
-pub(super) struct SpellGraphArea;
+pub(crate) struct SpellGraphArea;
 
 /// Marks a spell node in the graph with its graph-space position.
 #[derive(Component)]
@@ -167,7 +166,7 @@ pub(super) struct SelectedStudySpell(pub Option<Spell>);
 
 /// Marks the floating detail panel entity.
 #[derive(Component)]
-pub(super) struct StudyDetailPanel;
+pub(crate) struct StudyDetailPanel;
 
 /// Marks a detail panel's allocation slider track.
 #[derive(Component)]

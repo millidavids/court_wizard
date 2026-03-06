@@ -167,18 +167,11 @@ pub(super) fn setup_wizard_tower_main(
                 ));
 
                 // Level display
-                #[cfg(debug_assertions)]
                 left.spawn((
                     Text::new(format!("Level {}", current_level.0)),
                     TextFont::from_font_size(LEVEL_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     LevelDisplay,
-                ));
-                #[cfg(not(debug_assertions))]
-                left.spawn((
-                    Text::new(format!("Level {}", current_level.0)),
-                    TextFont::from_font_size(LEVEL_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
                 ));
 
                 // Insight balance

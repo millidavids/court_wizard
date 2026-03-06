@@ -187,6 +187,11 @@ fn default_highest_level() -> u32 {
     1
 }
 
+/// Default tutorials enabled.
+fn default_tutorials_enabled() -> bool {
+    true
+}
+
 /// Default empty efficiency ratios map for serde deserialization.
 fn default_efficiency_ratios() -> HashMap<String, f32> {
     HashMap::new()
@@ -294,6 +299,9 @@ pub struct GameConfig {
     /// Whether to skip the splash screen sequence on startup
     #[serde(default)]
     pub skip_splash: bool,
+    /// Whether tutorials are enabled for new players
+    #[serde(default = "default_tutorials_enabled")]
+    pub tutorials_enabled: bool,
     /// Permanent walls saved from previous victories
     #[serde(skip)]
     pub saved_walls: Vec<SavedWall>,
@@ -314,6 +322,7 @@ impl Default for GameConfig {
             action_bar_slots: [None; 5],
             wizard_type: WizardType::default(),
             skip_splash: false,
+            tutorials_enabled: true,
             saved_walls: Vec::new(),
         }
     }

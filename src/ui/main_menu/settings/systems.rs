@@ -150,6 +150,68 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
                                 !game_config.skip_splash,
                             );
                         });
+
+                        spawn_option_row(section, "Tutorials:", |buttons| {
+                            spawn_option_button(
+                                buttons,
+                                "On",
+                                OptionButtonValue::TutorialsEnabled(true),
+                                game_config.tutorials_enabled,
+                            );
+                            spawn_option_button(
+                                buttons,
+                                "Off",
+                                OptionButtonValue::TutorialsEnabled(false),
+                                !game_config.tutorials_enabled,
+                            );
+                        });
+
+                        // Reset Tutorials button
+                        section
+                            .spawn(Node {
+                                width: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(MARGIN),
+                                ..default()
+                            })
+                            .with_children(|row| {
+                                row.spawn((
+                                    Text::new("Reset Tutorials:"),
+                                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                                    TextColor(TEXT_COLOR),
+                                    Node {
+                                        width: Val::Px(200.0),
+                                        ..default()
+                                    },
+                                ));
+
+                                row.spawn((
+                                    Button,
+                                    Node {
+                                        width: Val::Px(OPTION_BUTTON_WIDTH),
+                                        height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    BorderColor::all(BUTTON_BORDER),
+                                    BorderRadius::all(Val::Px(4.0)),
+                                    BackgroundColor(BUTTON_BACKGROUND),
+                                    ButtonColors {
+                                        background: BUTTON_BACKGROUND,
+                                    },
+                                    SettingsButtonAction::ResetTutorials,
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Reset"),
+                                        TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                        TextColor(TEXT_COLOR),
+                                    ));
+                                });
+                            });
                     });
 
                     // Back button
@@ -593,6 +655,8 @@ pub fn settings_button_action(
     button_query: Query<&SettingsButtonAction>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
+    mut tutorial_progress: ResMut<crate::ui::tutorial::resources::TutorialProgress>,
+    mut popup_queue: ResMut<crate::ui::achievement_popup::PopupQueue>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
@@ -600,6 +664,13 @@ pub fn settings_button_action(
                 SettingsButtonAction::Back => {
                     channel_change.write(ChannelChangeMessage);
                     next_menu_state.set(MenuState::Landing);
+                }
+                SettingsButtonAction::ResetTutorials => {
+                    tutorial_progress.reset();
+                    crate::ui::tutorial::systems::reset_tutorial_progress();
+                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                        message: "Tutorials have been reset.",
+                    });
                 }
             }
         }
@@ -611,12 +682,21 @@ pub fn pause_settings_button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&SettingsButtonAction>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
+    mut tutorial_progress: ResMut<crate::ui::tutorial::resources::TutorialProgress>,
+    mut popup_queue: ResMut<crate::ui::achievement_popup::PopupQueue>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 SettingsButtonAction::Back => {
                     next_pause_menu_state.set(PauseMenuState::Main);
+                }
+                SettingsButtonAction::ResetTutorials => {
+                    tutorial_progress.reset();
+                    crate::ui::tutorial::systems::reset_tutorial_progress();
+                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                        message: "Tutorials have been reset.",
+                    });
                 }
             }
         }

@@ -5,7 +5,7 @@ use crate::game::cauldron::brews::Ingredient;
 
 /// Actions that can be triggered by cauldron menu buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum CauldronMenuButtonAction {
+pub(crate) enum CauldronMenuButtonAction {
     ToggleIngredient(Ingredient),
     StartBrew,
     CancelBrew,

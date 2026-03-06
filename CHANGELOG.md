@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.310] - 2026-03-05
+
+### Added
+- **Tutorial system** — new players are now guided through the game with step-by-step tutorials that appear when visiting each screen for the first time. Tutorials cover the Wizard Tower hub, Study screen, in-game battles, spell book, cauldron menu, and time travel
+- **Highlighted UI elements** — during tutorials, the element being explained gets a pulsing golden border so you know exactly what to look at
+- **Tutorial settings** — tutorials can be toggled on/off and reset from the Settings menu
+- **Time Travel tutorial** — a dedicated tutorial walks you through replaying past levels once you unlock Time Travel
+
+### Changed
+- **In-game tutorial pauses gameplay** — the battle tutorial now freezes the game while active so you can read at your own pace
+
 ## [v0.3.290] - 2026-03-05
 
 ### Added

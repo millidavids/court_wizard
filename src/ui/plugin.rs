@@ -23,6 +23,7 @@ use super::splash_screen::SplashScreenPlugin;
 use super::spell_book::SpellBookPlugin;
 use super::systems;
 use super::version::VersionPlugin;
+use super::tutorial::TutorialPlugin;
 use super::wizard_tower::WizardTowerPlugin;
 use crate::game::input::messages::MouseClicked;
 
@@ -59,6 +60,7 @@ impl Plugin for UiPlugin {
         .add_plugins((
             WizardTowerPlugin,
             VersionPlugin,
+            TutorialPlugin,
         ))
         .configure_sets(
             Update,

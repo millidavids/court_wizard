@@ -57,6 +57,9 @@ pub(super) fn spawn_next_popup(
             PopupEntry::ComboDiscovered { name, description } => {
                 spawn_combo_popup(&mut commands, name, description)
             }
+            PopupEntry::Toast { message } => {
+                spawn_toast_popup(&mut commands, message)
+            }
         }
     }
 }
@@ -169,6 +172,20 @@ fn spawn_spell_researched_popup(commands: &mut Commands, spell: Spell) {
         spell.display_name(),
         SPELL_TITLE_COLOR,
         spell.description(),
+        None,
+    );
+}
+
+fn spawn_toast_popup(commands: &mut Commands, message: &str) {
+    spawn_popup(
+        commands,
+        BACKGROUND_COLOR,
+        BORDER_COLOR,
+        "",
+        Color::NONE,
+        message,
+        DESCRIPTION_COLOR,
+        "",
         None,
     );
 }

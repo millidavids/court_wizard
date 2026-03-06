@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 /// Marker component for the action bar root container.
 #[derive(Component)]
-pub(super) struct ActionBarRoot;
+pub(crate) struct ActionBarRoot;
 
 /// Component that marks an action bar slot button and stores its slot index.
 #[derive(Component, Debug, Clone, Copy)]

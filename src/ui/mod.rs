@@ -23,6 +23,7 @@ mod splash_screen;
 mod spell_book;
 mod styles;
 pub(crate) mod systems;
+pub(crate) mod tutorial;
 mod version;
 mod wizard_tower;
 

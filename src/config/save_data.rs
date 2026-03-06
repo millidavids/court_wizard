@@ -61,6 +61,9 @@ pub(crate) struct PlayerMetaProgress {
     /// where -1 = no selection, 0-2 = choice index.
     #[serde(default)]
     pub(crate) spell_talent_selections: HashMap<String, Vec<i8>>,
+    /// Tutorial IDs that have been completed.
+    #[serde(default)]
+    pub(crate) completed_tutorials: Vec<String>,
 }
 
 /// Tracks which content the player has unlocked (spells, ingredients, wizard types).
@@ -425,6 +428,7 @@ pub(crate) fn clear_progress() {
     save_file.player.spell_research_progress.clear();
     save_file.player.spell_talent_progress.clear();
     save_file.player.spell_talent_selections.clear();
+    save_file.player.completed_tutorials.clear();
 
     // Reset all wizard saves to level 1
     for wizard in &mut save_file.wizards {
