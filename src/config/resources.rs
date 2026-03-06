@@ -108,6 +108,8 @@ pub enum WizardType {
     Randomancer,
     /// Arcanorouter - allocates resources between range, mana, power, and speed.
     Arcanorouter,
+    /// Excremage - converts all spells to Poop damage with brown visuals.
+    Excremage,
 }
 
 impl WizardType {
@@ -118,6 +120,7 @@ impl WizardType {
             WizardType::RuneCaster => "Rune Caster",
             WizardType::Randomancer => "Randomancer",
             WizardType::Arcanorouter => "Arcanorouter",
+            WizardType::Excremage => "Excremage",
         }
     }
 
@@ -130,6 +133,7 @@ impl WizardType {
             WizardType::RuneCaster => "Master rune sequences to empower your spells.",
             WizardType::Randomancer => "Spin the wheel of fate for powerful random spells.",
             WizardType::Arcanorouter => "Route arcane power between range, mana, power, and speed.",
+            WizardType::Excremage => "Turn all spells into poop.",
         }
     }
 
@@ -148,6 +152,9 @@ impl WizardType {
             WizardType::Arcanorouter => {
                 "Dynamically allocate a shared pool of arcane energy between four stats: Range, Mana Efficiency, Power, and Speed. Use Q/A, W/S, E/D, and R/F to increase or decrease each slider. Pump everything into Power for devastating spells, or balance your build for versatility. Adjust mid-battle to adapt to the situation."
             }
+            WizardType::Excremage => {
+                "All your spells deal Poop damage and turn units into smelly messes. Your spells may lack elemental finesse, but nothing clears a battlefield like the smell of fear... and other things."
+            }
         }
     }
 
@@ -158,6 +165,7 @@ impl WizardType {
             WizardType::RuneCaster => "Mysterious symbols. Mysterious results.",
             WizardType::Randomancer => "You don't choose the spell. The spell chooses you.",
             WizardType::Arcanorouter => "Geordi would be proud of your power routing.",
+            WizardType::Excremage => "Something smells off...",
         }
     }
 
@@ -168,6 +176,7 @@ impl WizardType {
             WizardType::RuneCaster,
             WizardType::Randomancer,
             WizardType::Arcanorouter,
+            WizardType::Excremage,
         ]
     }
 }

@@ -185,7 +185,7 @@ pub fn handle_chain_lightning_casting(
     );
 
     if completed {
-        audio::play_sfx(&mut commands, &sfx.chain_lightning_cast, SPELL_ORIGIN, &game_config);
+        audio::play_sfx(&mut commands, &sfx.chain_lightning_cast, SPELL_ORIGIN, &game_config, &sfx);
         mouse_state.left_consumed = true;
     }
 }
@@ -823,7 +823,9 @@ pub fn update_chain_lightning_arcs(
         &mut MeshMaterial3d<StandardMaterial>,
     )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<crate::config::GameConfig>,
 ) {
+    let is_excremage = config.wizard_type == crate::config::WizardType::Excremage;
     for (mut arc, material_handle) in &mut arcs {
         // Update timers
         arc.time_alive += time.delta_secs();
@@ -834,7 +836,7 @@ pub fn update_chain_lightning_arcs(
 
         // Update material color with pulsing effect (using depth-scaled base color)
         if let Some(material) = materials.get_mut(&material_handle.0) {
-            let base = arc_color_at_depth(arc.depth);
+            let base = arc_color_at_depth(arc.depth, is_excremage);
             let base_srgba = base.to_srgba();
             material.base_color = Color::srgba(
                 base_srgba.red * intensity,

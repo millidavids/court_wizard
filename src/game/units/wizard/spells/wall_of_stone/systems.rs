@@ -174,7 +174,7 @@ pub fn handle_wall_of_stone_casting(
 
     if cast_result.completed {
         if let Some(center) = cast_result.wall_center {
-            audio::play_sfx(&mut commands, &sfx.wall_of_stone_cast, center, &game_config);
+            audio::play_sfx(&mut commands, &sfx.wall_of_stone_cast, center, &game_config, &sfx);
         }
         mouse_state.left_consumed = true;
     }

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.337] - 2026-03-06
+
+### Added
+- **Poison damage type** — certain spells now deal Poison damage, which stacks an effectiveness penalty on hit units. Enough poison buildup causes the target to become Sickened (briefly stunned) and then Smelly
+- **Smelly debuff** — smelly units get a brown tint and cause nearby allies to flee in disgust, breaking their formation
+- **Excremage wizard** — a new unlockable wizard type that converts all spells into Poop damage with brown visuals, gross sound effects, and smelly results
+- **Cauldron bubbling sound** — brewing now plays a satisfying bubbling sound when a brew finishes
+
+### Changed
+- **Plague Wind and Spike Growth** now deal Poison damage instead of their previous types
+- **Ingredient descriptions split** — the cauldron menu now shows only what each ingredient does, while the Compendium shows the full lore and flavor text
+- **Spell sound effects** — improved cast and impact sounds with distinct audio for different spell phases
+
 ## [v0.3.318] - 2026-03-06
 
 ### Added

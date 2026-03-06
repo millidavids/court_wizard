@@ -142,6 +142,7 @@ pub fn handle_berserker_rage_casting(
                     &sfx.berserker_rage_cast,
                     indicator.position,
                     &game_config,
+                    &sfx,
                 );
             }
             commands.entity(indicator_entity).try_despawn();

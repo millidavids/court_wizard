@@ -103,6 +103,7 @@ achievement_resource!(
     AchievementId::ProtectiveInstincts
 );
 achievement_resource!(FriendlyThornsAchievement, AchievementId::FriendlyThorns);
+achievement_resource!(SoiledSurpriseAchievement, AchievementId::SoiledSurprise);
 
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
@@ -191,6 +192,7 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(ScorchedEarthAchievement(false));
     commands.insert_resource(ProtectiveInstinctsAchievement(false));
     commands.insert_resource(FriendlyThornsAchievement(false));
+    commands.insert_resource(SoiledSurpriseAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -245,4 +247,5 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(ScorchedEarthAchievement);
     init!(ProtectiveInstinctsAchievement);
     init!(FriendlyThornsAchievement);
+    init!(SoiledSurpriseAchievement);
 }

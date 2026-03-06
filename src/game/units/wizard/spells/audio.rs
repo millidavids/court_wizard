@@ -1,7 +1,7 @@
 use bevy::audio::Volume;
 use bevy::prelude::*;
 
-use crate::config::GameConfig;
+use crate::config::{GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 
@@ -27,6 +27,9 @@ pub(crate) struct SpellSfxAssets {
     pub entangle_cast: Handle<AudioSource>,
     pub finger_of_death_cast: Handle<AudioSource>,
     pub fog_cloud_cast: Handle<AudioSource>,
+    pub fart_cast: Handle<AudioSource>,
+    pub fart_channeling: Handle<AudioSource>,
+    pub cauldron_bubbling: Handle<AudioSource>,
     pub grease_cast: Handle<AudioSource>,
     pub guardian_circle_cast: Handle<AudioSource>,
     pub haste_cast: Handle<AudioSource>,
@@ -63,6 +66,9 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
         entangle_cast: asset_server.load("audio/sound_effects/entangle_cast.ogg"),
         finger_of_death_cast: asset_server.load("audio/sound_effects/finger_of_death_cast.ogg"),
         fog_cloud_cast: asset_server.load("audio/sound_effects/fog_cloud_cast.ogg"),
+        fart_cast: asset_server.load("audio/sound_effects/fart_cast.ogg"),
+        cauldron_bubbling: asset_server.load("audio/sound_effects/cauldron_bubbling.ogg"),
+        fart_channeling: asset_server.load("audio/sound_effects/fart_channeling.ogg"),
         grease_cast: asset_server.load("audio/sound_effects/grease_cast.ogg"),
         guardian_circle_cast: asset_server.load("audio/sound_effects/guardian_circle_cast.ogg"),
         haste_cast: asset_server.load("audio/sound_effects/haste_cast.ogg"),
@@ -82,14 +88,57 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
     });
 }
 
-/// Plays a one-shot sound effect with distance-based volume attenuation from the wizard.
+/// Resolves the effective audio handle, applying Excremage overrides by sound category.
+fn resolve_excremage_handle<'a>(
+    handle: &'a Handle<AudioSource>,
+    kind: SfxKind,
+    config: &GameConfig,
+    sfx: &'a SpellSfxAssets,
+) -> &'a Handle<AudioSource> {
+    if config.wizard_type != WizardType::Excremage {
+        return handle;
+    }
+    match kind {
+        SfxKind::Cast => &sfx.fart_cast,
+        SfxKind::Impact => &sfx.grease_cast,
+        SfxKind::Channel => &sfx.fart_channeling,
+    }
+}
+
+/// Sound effect category for Excremage override selection.
+pub(crate) enum SfxKind {
+    /// Spell cast sounds (e.g. fireball launch, chain lightning cast).
+    Cast,
+    /// Impact/explosion sounds (e.g. fireball impact, squall explosion).
+    Impact,
+    /// Looping channeled sounds (e.g. disintegrate beam, black hole).
+    Channel,
+}
+
+/// Plays a one-shot cast sound effect with distance-based volume attenuation from the wizard.
+/// Excremage overrides cast sounds with fart_cast.
 pub(crate) fn play_sfx(
     commands: &mut Commands,
     handle: &Handle<AudioSource>,
     effect_pos: Vec3,
     game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
 ) {
-    play_sfx_scaled(commands, handle, effect_pos, game_config, 1.0);
+    let effective = resolve_excremage_handle(handle, SfxKind::Cast, game_config, sfx_assets);
+    play_sfx_scaled(commands, effective, effect_pos, game_config, 1.0);
+}
+
+/// Plays a one-shot impact/explosion sound effect with distance-based volume attenuation.
+/// Excremage overrides impact sounds with grease_cast.
+pub(crate) fn play_impact_sfx(
+    commands: &mut Commands,
+    handle: &Handle<AudioSource>,
+    effect_pos: Vec3,
+    game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
+) {
+    let effective = resolve_excremage_handle(handle, SfxKind::Impact, game_config, sfx_assets);
+    play_sfx_scaled(commands, effective, effect_pos, game_config, 1.0);
 }
 
 /// Plays a one-shot sound effect with distance-based attenuation and an additional volume scale.
@@ -121,11 +170,14 @@ pub(crate) fn play_sfx_scaled(
 pub(crate) struct ChannelingSfx;
 
 /// Spawns a looping sound effect that plays until the entity is despawned.
+/// Excremage overrides all channeling sounds with fart_channeling.
 pub(crate) fn play_looping_sfx(
     commands: &mut Commands,
     handle: &Handle<AudioSource>,
     game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
 ) -> Entity {
+    let handle = resolve_excremage_handle(handle, SfxKind::Channel, game_config, sfx_assets);
     let volume = game_config.effective_sfx_volume();
 
     if volume <= 0.0 {
@@ -145,12 +197,15 @@ pub(crate) fn play_looping_sfx(
 }
 
 /// Spawns a looping sound effect with distance-based volume attenuation.
+/// Excremage overrides all channeling sounds with fart_channeling.
 pub(crate) fn play_looping_sfx_at(
     commands: &mut Commands,
     handle: &Handle<AudioSource>,
     effect_pos: Vec3,
     game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
 ) -> Entity {
+    let handle = resolve_excremage_handle(handle, SfxKind::Channel, game_config, sfx_assets);
     let distance = effect_pos.distance(SPELL_ORIGIN);
     let linear = (1.0 - distance / MAX_SFX_DISTANCE).clamp(0.0, 1.0);
     let attenuation = linear * linear * linear * linear * linear * linear;

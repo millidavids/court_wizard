@@ -3,10 +3,12 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    Corpse, Effectiveness, ElectricCharge, FireDoT, FrostEffectMarker,
+    BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FrostEffectMarker,
     FlockingVelocity, Health, InMelee, MindControlled, OriginalMaterial,
-    PendingDamageEffect, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect,
-    SlowMovementModifier, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
+    PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
+    RemoteFrostEffect, RootedModifier, SickenedModifier, SleepModifier,
+    SlowMovementModifier, SmellyModifier,
+    TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
     apply_damage_to_unit,
 };
 use super::constants::{
@@ -16,6 +18,10 @@ use super::constants::{
     FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_PULSE_SPEED,
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
     MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
+    POISON_EFFECT_COLOR, POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP,
+    POISON_EFFECTIVENESS_PER_STACK, POISON_DURATION, SICKENED_DURATION, SICKENED_THRESHOLD,
+    SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SMELLY_DURATION, SMELLY_EFFECT_COLOR,
+    SMELLY_EFFECT_INTENSITY,
 };
 use super::components::{
     ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, FacingDirection, SPRITE_FRAME_SIZE,
@@ -28,7 +34,21 @@ use crate::game::constants::{
     DEFENDER_HITBOX_HEIGHT, GLOBAL_SPEED_MULTIPLIER, MELEE_SLOWDOWN_DISTANCE,
     MELEE_SLOWDOWN_FACTOR, STEERING_FORCE, VELOCITY_DAMPING,
 };
+use crate::config::GameConfig;
+use crate::config::WizardType;
 use crate::game::pathfinding::FlowFieldVelocity;
+
+/// Returns true if the unit is immobilized by any crowd control effect.
+/// Centralizes CC checks so new CC types only need updating here.
+#[inline]
+pub fn is_cc_immobilized(
+    rooted: Option<&RootedModifier>,
+    sleeping: Option<&SleepModifier>,
+    banished: Option<&BanishedModifier>,
+    sickened: Option<&SickenedModifier>,
+) -> bool {
+    rooted.is_some() || sleeping.is_some() || banished.is_some() || sickened.is_some()
+}
 
 /// Generic targeting system for melee units.
 ///
@@ -221,6 +241,12 @@ pub fn calculate_weighted_movement(
 
     acceleration.add_force(final_steering);
 
+    // Apply smelly repulsion directly as a strong force, bypassing normal movement weighting
+    if flocking_velocity.smelly_repulsion.length_squared() > 0.001 {
+        let smelly_force = flocking_velocity.smelly_repulsion * max_speed;
+        acceleration.add_force(smelly_force);
+    }
+
     // Apply damping to current velocity (allows external forces like black hole gravity)
     // Frame-rate independent: normalize to 60 FPS reference rate
     let damping = VELOCITY_DAMPING.powf(time.delta_secs() * 60.0);
@@ -246,20 +272,29 @@ pub fn update_timed_modifier<T: Component<Mutability = bevy::ecs::component::Mut
 ///
 /// Each frame, reads all PendingDamageEffect components, determines the damage type,
 /// and either creates a new persistent effect component or stacks onto an existing one.
+#[allow(clippy::too_many_arguments)]
 pub fn process_pending_damage_effects(
     mut commands: Commands,
+    config: Res<GameConfig>,
     pending_query: Query<(Entity, &PendingDamageEffect, Has<SpellShield>)>,
     mut fire_query: Query<&mut FireDoT>,
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut frost_marker_query: Query<&mut FrostEffectMarker>,
     mut electric_query: Query<&mut ElectricCharge>,
+    mut poison_query: Query<&mut PoisonedModifier>,
 ) {
     for (entity, pending, has_shield) in pending_query.iter() {
         if has_shield {
             commands.entity(entity).remove::<PendingDamageEffect>();
             continue;
         }
-        match pending.damage_type {
+        // Excremage converts all damage types to Poop
+        let effective_type = if config.wizard_type == WizardType::Excremage {
+            DamageType::Poop
+        } else {
+            pending.damage_type
+        };
+        match effective_type {
             DamageType::Fire => {
                 if let Ok(mut fire_dot) = fire_query.get_mut(entity) {
                     fire_dot.stack(pending.damage);
@@ -294,6 +329,23 @@ pub fn process_pending_damage_effects(
                         .entity(entity)
                         .insert(ElectricCharge::new(pending.damage));
                 }
+            }
+            DamageType::Poison => {
+                if let Ok(mut poison) = poison_query.get_mut(entity) {
+                    poison.stack(
+                        POISON_EFFECTIVENESS_PER_STACK,
+                        POISON_DURATION,
+                        POISON_EFFECTIVENESS_CAP,
+                    );
+                } else {
+                    commands.entity(entity).insert(PoisonedModifier::new(
+                        POISON_EFFECTIVENESS_PER_STACK,
+                        POISON_DURATION,
+                    ));
+                }
+            }
+            DamageType::Poop => {
+                commands.entity(entity).insert(SmellyModifier::new(SMELLY_DURATION));
             }
             // Force, Necrotic, Nature — no persistent effect
             _ => {}
@@ -453,6 +505,65 @@ pub fn update_electric_charge(
     }
 }
 
+/// Ticks poison timer on affected units and checks for sickened threshold.
+///
+/// When poison expires naturally, the modifier is removed and effectiveness restored.
+/// When accumulated poison reaches the threshold, poison is removed and replaced
+/// with sickened (stun), and a UnitSickenedMessage is sent for achievement tracking.
+pub fn update_poisoned(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut PoisonedModifier, &mut Effectiveness)>,
+    mut sickened_events: MessageWriter<crate::game::achievements::messages::UnitSickenedMessage>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut poison, mut effectiveness) in query.iter_mut() {
+        // Check sickened threshold first
+        if poison.is_sickened(SICKENED_THRESHOLD) {
+            // Remove poison penalty from effectiveness (recalculate happens naturally)
+            effectiveness.spell_bonus -= poison.effectiveness_penalty;
+            commands.entity(entity).remove::<PoisonedModifier>();
+            commands
+                .entity(entity)
+                .insert(SickenedModifier::new(SICKENED_DURATION));
+            sickened_events.write(crate::game::achievements::messages::UnitSickenedMessage);
+            continue;
+        }
+
+        let expired = poison.update(delta);
+
+        if expired {
+            // Remove poison penalty from effectiveness
+            effectiveness.spell_bonus -= poison.effectiveness_penalty;
+            commands.entity(entity).remove::<PoisonedModifier>();
+        } else {
+            // Apply effectiveness penalty via tick timer
+            poison.tick_timer += delta;
+            if poison.tick_timer >= super::constants::POISON_TICK_INTERVAL {
+                poison.tick_timer = 0.0;
+                effectiveness.spell_bonus += poison.effectiveness_penalty;
+            }
+        }
+    }
+}
+
+/// Ticks sickened timer and replaces with smelly when expired.
+pub fn update_sickened(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut SickenedModifier)>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut sickened) in query.iter_mut() {
+        if sickened.update(delta) {
+            commands.entity(entity).remove::<SickenedModifier>();
+            commands.entity(entity).insert(SmellyModifier::new(SMELLY_DURATION));
+        }
+    }
+}
+
 /// Updates and despawns electric arc visuals after their lifetime expires.
 pub fn update_electric_arc_visuals(
     mut commands: Commands,
@@ -495,6 +606,9 @@ pub fn update_persistent_effect_visuals(
             Has<RemoteElectricEffect>,
             Has<MindControlled>,
             Option<&OriginalMaterial>,
+            Has<PoisonedModifier>,
+            Has<SickenedModifier>,
+            Has<SmellyModifier>,
         ),
         Or<(
             With<FireDoT>,
@@ -505,10 +619,22 @@ pub fn update_persistent_effect_visuals(
             With<RemoteElectricEffect>,
             With<MindControlled>,
             With<OriginalMaterial>,
+            With<PoisonedModifier>,
+            With<SickenedModifier>,
+            With<SmellyModifier>,
         )>,
     >,
 ) {
     let elapsed = time.elapsed_secs();
+
+    // Pre-compute linear versions of constant effect colors (avoid per-entity conversion)
+    let fire_linear = FIRE_EFFECT_COLOR.to_linear();
+    let frost_linear = FROST_EFFECT_COLOR.to_linear();
+    let electric_linear = ELECTRIC_EFFECT_COLOR.to_linear();
+    let mc_linear = MIND_CONTROL_EFFECT_COLOR.to_linear();
+    let poison_linear = POISON_EFFECT_COLOR.to_linear();
+    let sickened_linear = SICKENED_EFFECT_COLOR.to_linear();
+    let smelly_linear = SMELLY_EFFECT_COLOR.to_linear();
 
     for (
         entity,
@@ -521,12 +647,16 @@ pub fn update_persistent_effect_visuals(
         remote_electric,
         has_mind_control,
         original_mat,
+        has_poisoned,
+        has_sickened,
+        has_smelly,
     ) in &query
     {
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;
-        let has_any_effect = has_fire || has_frost || has_electric || has_mind_control;
+        let has_any_effect = has_fire || has_frost || has_electric || has_mind_control
+            || has_poisoned || has_sickened || has_smelly;
 
         if has_any_effect && original_mat.is_none() {
             // Phase 1: First effect applied — clone the material and store original
@@ -558,12 +688,10 @@ pub fn update_persistent_effect_visuals(
                 let pulse = (elapsed * FIRE_EFFECT_PULSE_SPEED).sin() * 0.5 + 0.5;
                 let intensity = FIRE_EFFECT_MIN_INTENSITY
                     + pulse * (FIRE_EFFECT_MAX_INTENSITY - FIRE_EFFECT_MIN_INTENSITY);
-                let fire_linear = FIRE_EFFECT_COLOR.to_linear();
                 result_linear = result_linear.mix(&fire_linear, intensity);
             }
 
             if has_frost {
-                let frost_linear = FROST_EFFECT_COLOR.to_linear();
                 result_linear = result_linear.mix(&frost_linear, FROST_EFFECT_INTENSITY);
             }
 
@@ -571,13 +699,23 @@ pub fn update_persistent_effect_visuals(
                 let flicker = (elapsed * ELECTRIC_EFFECT_FLICKER_SPEED).sin() * 0.5 + 0.5;
                 let intensity = ELECTRIC_EFFECT_MIN_INTENSITY
                     + flicker * (ELECTRIC_EFFECT_MAX_INTENSITY - ELECTRIC_EFFECT_MIN_INTENSITY);
-                let electric_linear = ELECTRIC_EFFECT_COLOR.to_linear();
                 result_linear = result_linear.mix(&electric_linear, intensity);
             }
 
             if has_mind_control {
-                let mc_linear = MIND_CONTROL_EFFECT_COLOR.to_linear();
                 result_linear = result_linear.mix(&mc_linear, MIND_CONTROL_EFFECT_INTENSITY);
+            }
+
+            if has_poisoned {
+                result_linear = result_linear.mix(&poison_linear, POISON_EFFECT_INTENSITY);
+            }
+
+            if has_sickened {
+                result_linear = result_linear.mix(&sickened_linear, SICKENED_EFFECT_INTENSITY);
+            }
+
+            if has_smelly {
+                result_linear = result_linear.mix(&smelly_linear, SMELLY_EFFECT_INTENSITY);
             }
 
             if let Some(cloned_material) = materials.get_mut(material_handle) {

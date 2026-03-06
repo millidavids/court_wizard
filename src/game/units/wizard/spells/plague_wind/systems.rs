@@ -210,7 +210,7 @@ fn plague_wind_casting_logic(
                         shape: Some(ObstacleShape::circle(origin_2d, buffered)),
                     });
 
-                    audio::play_sfx(commands, &sfx.plague_wind_cast, pos, game_config);
+                    audio::play_sfx(commands, &sfx.plague_wind_cast, pos, game_config, sfx);
 
                     let base_mat = materials
                         .get(&assets.plague_wind_zone)
@@ -359,7 +359,7 @@ pub fn apply_plague_wind_damage(
                         &mut health,
                         temp_hp.as_deref_mut(),
                         cloud.damage_per_tick,
-                        DamageType::Necrotic,
+                        DamageType::Poison,
                         has_spell_shield,
                     );
                 }

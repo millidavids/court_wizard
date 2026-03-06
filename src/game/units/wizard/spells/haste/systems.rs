@@ -119,7 +119,7 @@ pub fn handle_haste_casting(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(&mut commands, &sfx.haste_cast, indicator.position, &game_config);
+                            audio::play_sfx(&mut commands, &sfx.haste_cast, indicator.position, &game_config, &sfx);
                             apply_haste_buff(
                                 &mut commands,
                                 indicator.position,

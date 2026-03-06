@@ -239,6 +239,7 @@ pub fn handle_wall_of_fire_casting(
                 &sfx.wall_of_fire_persistent,
                 midpoint,
                 &game_config,
+                &sfx,
             );
             commands.entity(sfx_entity).insert(WallOfFireSfx {
                 wall_entity: preview_entity,
@@ -426,7 +427,9 @@ pub fn apply_wall_of_fire_damage(
 pub fn fade_wall_of_fire(
     effects: Query<(&WallOfFireEffect, &MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<crate::config::GameConfig>,
 ) {
+    let is_excremage = config.wizard_type == crate::config::WizardType::Excremage;
     for (effect, material_handle) in &effects {
         let Some(material) = materials.get_mut(material_handle) else {
             continue;
@@ -440,7 +443,7 @@ pub fn fade_wall_of_fire(
             1.0
         };
 
-        let (base_color, emissive) = vfx::systems::fire_color_at(effect.time_alive, fade);
+        let (base_color, emissive) = vfx::systems::effect_color_at(effect.time_alive, fade, is_excremage);
         material.base_color = base_color;
         material.emissive = emissive;
     }

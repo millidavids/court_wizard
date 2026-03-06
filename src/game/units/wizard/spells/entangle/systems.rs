@@ -125,7 +125,7 @@ pub fn handle_entangle_casting(
                             let cast_pos = indicator.position;
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
                             let root_duration = constants::ROOT_DURATION * indicator.empowerment;
-                            audio::play_sfx(&mut commands, &sfx.entangle_cast, cast_pos, &game_config);
+                            audio::play_sfx(&mut commands, &sfx.entangle_cast, cast_pos, &game_config, &sfx);
                             apply_entangle(
                                 &mut commands,
                                 &visual_assets,

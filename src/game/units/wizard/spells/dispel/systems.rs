@@ -73,7 +73,7 @@ pub fn handle_dispel_casting(
     }
 
     let origin = SPELL_ORIGIN;
-    audio::play_sfx(&mut commands, &sfx.dispel_cast, origin, &game_config);
+    audio::play_sfx(&mut commands, &sfx.dispel_cast, origin, &game_config, &sfx);
     spawn_dispel_projectile(
         &mut commands,
         &mut meshes,

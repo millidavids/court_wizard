@@ -19,7 +19,7 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
     EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
     HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    RootedModifier, RoughTerrainModifier, SlowMovementModifier, SleepModifier,
+    RootedModifier, RoughTerrainModifier, SickenedModifier, SlowMovementModifier, SleepModifier,
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, WalkingAnimation,
     apply_damage_to_unit,
 };
@@ -523,6 +523,7 @@ pub fn archer_movement(
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
+                Option<&SickenedModifier>,
             ),
         ),
         With<Archer>,
@@ -542,11 +543,11 @@ pub fn archer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed),
+        (sleeping, banished, polymorphed, sickened),
     ) in &mut archer_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

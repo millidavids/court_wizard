@@ -7,7 +7,7 @@ use crate::ui::main_menu::settings::components::SliderAdjusted;
 use super::messages::{
     BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
     EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
-    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
+    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage, UnitSickenedMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -26,6 +26,7 @@ impl Plugin for AchievementsPlugin {
             .add_message::<ScorchedEarthMessage>()
             .add_message::<GuardianCircleHitAttackerMessage>()
             .add_message::<EntangleHitDefenderMessage>()
+            .add_message::<UnitSickenedMessage>()
             .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
@@ -197,6 +198,13 @@ impl Plugin for AchievementsPlugin {
                         .run_if(achievement_locked::<OgreWarlordAchievement>),
                 )
                     .run_if(is_gameplay_active),
+            )
+            // Soiled Surprise — triggered by first sickened event (unlocks Excremage)
+            .add_systems(
+                Update,
+                systems::check_soiled_surprise
+                    .run_if(on_message::<UnitSickenedMessage>)
+                    .run_if(achievement_locked::<SoiledSurpriseAchievement>),
             )
             // Reset all achievements when progress is cleared
             .add_systems(

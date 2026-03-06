@@ -12,13 +12,15 @@ use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
-    Health, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
+    Health, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::config::GameConfig;
+use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
 
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
@@ -388,8 +390,7 @@ pub fn apply_finger_of_death_damage(
             if beam.contains_point(transform.translation, beam_width) {
                 let proj = (transform.translation - beam.origin).dot(beam.direction);
                 if proj <= effective_length {
-                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
-                    commands.entity(entity).insert(SpellDamaged);
+                    apply_spell_damage(&mut commands, entity, &mut health, temp_hp.as_deref_mut(), damage, DamageType::Necrotic, false);
                     hit_positions.push(transform.translation);
                 }
             }
@@ -398,7 +399,7 @@ pub fn apply_finger_of_death_damage(
 
     // Play sound effect and drain mana
     if any_fired {
-        audio::play_sfx(&mut commands, &sfx.finger_of_death_cast, SPELL_ORIGIN, &game_config);
+        audio::play_sfx(&mut commands, &sfx.finger_of_death_cast, SPELL_ORIGIN, &game_config, &sfx);
 
         for (wizard_entity, mut mana, mut casting_state) in wizard_query.iter_mut() {
             if !matches!(*casting_state, CastingState::Resting) {
@@ -487,7 +488,9 @@ pub fn update_finger_of_death_beam_visuals(
         &MeshMaterial3d<StandardMaterial>,
     )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<crate::config::GameConfig>,
 ) {
+    let is_excremage = config.wizard_type == crate::config::WizardType::Excremage;
     for (mut beam, mut transform, material_handle) in beam_query.iter_mut() {
         // Update time_since_fired if beam has fired
         if beam.has_fired {
@@ -519,21 +522,23 @@ pub fn update_finger_of_death_beam_visuals(
                 let fade_progress = beam.time_since_fired / constants::POST_FIRE_DURATION;
                 let alpha = (1.0 - fade_progress).max(0.0); // 1.0 -> 0.0
 
-                material.base_color = Color::srgba(
-                    constants::BEAM_COLOR_FIRED.to_srgba().red,
-                    constants::BEAM_COLOR_FIRED.to_srgba().green,
-                    constants::BEAM_COLOR_FIRED.to_srgba().blue,
-                    alpha,
-                );
+                let color = if is_excremage {
+                    EXCREMAGE_BROWN
+                } else {
+                    constants::BEAM_COLOR_FIRED
+                };
+                let srgba = color.to_srgba();
+                material.base_color = Color::srgba(srgba.red, srgba.green, srgba.blue, alpha);
             } else {
                 // During cast: fade in alpha from 0 to ALPHA_CASTING based on cast_progress
                 let alpha = constants::ALPHA_CASTING * beam.cast_progress;
-                material.base_color = Color::srgba(
-                    constants::BEAM_COLOR_CASTING.to_srgba().red,
-                    constants::BEAM_COLOR_CASTING.to_srgba().green,
-                    constants::BEAM_COLOR_CASTING.to_srgba().blue,
-                    alpha,
-                );
+                let color = if is_excremage {
+                    EXCREMAGE_BROWN_DARK
+                } else {
+                    constants::BEAM_COLOR_CASTING
+                };
+                let srgba = color.to_srgba();
+                material.base_color = Color::srgba(srgba.red, srgba.green, srgba.blue, alpha);
             }
         }
     }

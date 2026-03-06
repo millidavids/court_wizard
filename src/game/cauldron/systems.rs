@@ -11,6 +11,7 @@ use crate::config::save_data::{load_unified_save, new_unified_save, save_unified
 use crate::game::messages::ComboDiscoveredMessage;
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
 use crate::game::units::wizard::components::{LocalWizard, Mana};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::telekinesis::components::TransmutationStacks;
 use crate::game::units::wizard::spells::telekinesis::constants::TRANSMUTATION_POTENCY_PER_STACK;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -93,6 +94,7 @@ pub fn update_brew_timer(
 }
 
 /// Handles BrewCompleteMessage to apply the recipe's buff and spawn visual bubble.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_brew_complete(
     mut commands: Commands,
     mut messages: MessageReader<BrewCompleteMessage>,
@@ -101,6 +103,8 @@ pub fn handle_brew_complete(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut combo_writer: MessageWriter<ComboDiscoveredMessage>,
     mut transmutation_stacks: Option<ResMut<TransmutationStacks>>,
+    sfx: Res<SpellSfxAssets>,
+    game_config: Res<crate::config::GameConfig>,
 ) {
     for message in messages.read() {
         // Check for hidden combos — batch unlock to avoid N load+save cycles
@@ -163,6 +167,15 @@ pub fn handle_brew_complete(
             },
             OnGameplayScreen,
         ));
+
+        // Play cauldron bubbling sound (not affected by Excremage override)
+        audio::play_sfx_scaled(
+            &mut commands,
+            &sfx.cauldron_bubbling,
+            spawn_pos,
+            &game_config,
+            1.0,
+        );
     }
 }
 

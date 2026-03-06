@@ -73,3 +73,46 @@ pub const ELECTRIC_EFFECT_MIN_INTENSITY: f32 = 0.05;
 pub const MIND_CONTROL_EFFECT_COLOR: Color = Color::srgb(1.0, 0.2, 0.7);
 /// Blend strength for mind control tint (constant, no pulsing).
 pub const MIND_CONTROL_EFFECT_INTENSITY: f32 = 0.45;
+
+// ===== Poison =====
+
+/// Effectiveness penalty per poison stack.
+pub const POISON_EFFECTIVENESS_PER_STACK: f32 = -0.05;
+/// Maximum accumulated effectiveness penalty from poison.
+pub const POISON_EFFECTIVENESS_CAP: f32 = -0.5;
+/// Seconds before poison expires (resets on each poison hit).
+pub const POISON_DURATION: f32 = 5.0;
+/// Seconds between poison effectiveness penalty applications.
+pub const POISON_TICK_INTERVAL: f32 = 0.5;
+/// Total accumulated poison needed to trigger sickened.
+pub const SICKENED_THRESHOLD: f32 = 0.3;
+/// Seconds the sickened stun lasts.
+pub const SICKENED_DURATION: f32 = 2.0;
+/// Seconds the smelly debuff lasts.
+pub const SMELLY_DURATION: f32 = 8.0;
+/// How much more allied units avoid smelly units.
+pub const SMELLY_SEPARATION_MULTIPLIER: f32 = 5.0;
+/// Larger avoidance radius for smelly units.
+pub const SMELLY_SEPARATION_DISTANCE: f32 = 80.0;
+
+// ===== Excremage / Poop Visual Color =====
+
+/// Base brown color used for all Excremage visuals, poop effects, and smelly tinting.
+pub const EXCREMAGE_BROWN: Color = Color::srgb(0.45, 0.3, 0.1);
+/// Darker brown variant for Excremage casting/charging visuals.
+pub const EXCREMAGE_BROWN_DARK: Color = Color::srgb(0.35, 0.2, 0.08);
+
+// ===== Persistent Effect Visual Tinting (Poison/Smelly) =====
+
+/// Color overlay for poison effect (sickly green).
+pub const POISON_EFFECT_COLOR: Color = Color::srgb(0.2, 0.8, 0.1);
+/// Blend strength for poison tint (constant, no pulsing).
+pub const POISON_EFFECT_INTENSITY: f32 = 0.35;
+/// Color overlay for smelly/poop effect (muddy brown-green).
+pub const SMELLY_EFFECT_COLOR: Color = EXCREMAGE_BROWN;
+/// Blend strength for smelly tint (constant, no pulsing).
+pub const SMELLY_EFFECT_INTENSITY: f32 = 0.6;
+/// Color overlay for sickened effect (bright green).
+pub const SICKENED_EFFECT_COLOR: Color = Color::srgb(0.1, 0.9, 0.1);
+/// Blend strength for sickened tint.
+pub const SICKENED_EFFECT_INTENSITY: f32 = 0.5;

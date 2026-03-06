@@ -136,7 +136,7 @@ fn fireball_casting_logic(
                     let spawn_origin = SPELL_ORIGIN
                         + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
                     spawn_fireball_with_talents(commands, assets, spawn_origin, target_pos, primed_spell, active_talents);
-                    audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config);
+                    audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config, sfx);
                     completed = true;
                 }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
@@ -460,7 +460,7 @@ fn spawn_explosion_with_talents(
     vfx::systems::spawn_heat_shimmer(commands, assets, position, 3, time_secs);
 
     // Impact sound effect
-    audio::play_sfx(commands, &sfx.fireball_impact, position, game_config);
+    audio::play_impact_sfx(commands, &sfx.fireball_impact, position, game_config, sfx);
 
     // Cluster Bomb: spawn 3 mini-fireballs in random directions
     if fireball.cluster_bomb {

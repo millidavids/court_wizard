@@ -313,7 +313,7 @@ pub(super) fn check_ice_projectile_collisions(
                     projectile.damage,
                     projectile.empowerment,
                 );
-                audio::play_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config);
+                audio::play_impact_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config, &sfx);
                 commands.entity(entity).try_despawn();
                 hit_wall = true;
                 break;
@@ -335,7 +335,7 @@ pub(super) fn check_ice_projectile_collisions(
                 projectile.damage,
                 projectile.empowerment,
             );
-            audio::play_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config);
+            audio::play_impact_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config, &sfx);
             commands.entity(entity).try_despawn();
         }
     }

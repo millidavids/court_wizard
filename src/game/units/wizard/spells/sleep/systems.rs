@@ -171,7 +171,7 @@ fn sleep_casting_logic(
                         && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
                         let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                        audio::play_sfx(commands, &sfx.sleep_cast, indicator.position, game_config);
+                        audio::play_sfx(commands, &sfx.sleep_cast, indicator.position, game_config, sfx);
                         apply_sleep(
                             commands,
                             indicator.position,

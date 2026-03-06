@@ -190,7 +190,7 @@ fn lightning_rod_casting_logic(
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
 
                     spawn_lightning_rod(commands, assets, spawn_pos, primed_spell.empowerment);
-                    audio::play_sfx(commands, &sfx.lightning_rod_impact, spawn_pos, game_config);
+                    audio::play_impact_sfx(commands, &sfx.lightning_rod_impact, spawn_pos, game_config, sfx);
                     completed = true;
                 }
 

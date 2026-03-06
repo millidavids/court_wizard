@@ -12,7 +12,8 @@ use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::messages::IngredientCollectedMessage;
-use crate::game::units::components::{Health, Knockback, Team, TemporaryHitPoints};
+use crate::game::units::components::{Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -244,7 +245,7 @@ fn telekinesis_casting_logic(
                         {
                             let pickup_pos = drop_transform.translation;
                             convert_drop_to_flying(commands, drop_entity, drop_component.ingredient, pickup_pos);
-                            audio::play_sfx(commands, &sfx.telekinesis_cast, pickup_pos, game_config);
+                            audio::play_sfx(commands, &sfx.telekinesis_cast, pickup_pos, game_config, sfx);
 
                             // T2: Harvest — damage nearby enemies
                             if config.has_harvest {
@@ -322,7 +323,7 @@ fn execute_storm_pickup(
 
         // Play SFX once
         if !played_sfx {
-            audio::play_sfx(commands, &sfx.telekinesis_cast, start_pos, game_config);
+            audio::play_sfx(commands, &sfx.telekinesis_cast, start_pos, game_config, sfx);
             played_sfx = true;
         }
 
@@ -370,12 +371,15 @@ fn apply_harvest_damage(
         let dx = transform.translation.x - pickup_pos.x;
         let dz = transform.translation.z - pickup_pos.z;
         if dx * dx + dz * dz <= radius_sq {
-            crate::game::units::components::apply_damage_to_unit(
+            apply_spell_damage(
+                commands,
+                entity,
                 &mut health,
                 temp_hp.map(|t| t.into_inner()),
                 constants::HARVEST_DAMAGE,
+                DamageType::Force,
+                false,
             );
-            commands.entity(entity).insert(crate::game::units::components::SpellDamaged);
             // Spawn a light blue circle flash at the enemy's position
             commands.spawn((
                 Mesh3d(visual_assets.unit_circle.clone()),

@@ -1086,7 +1086,7 @@ fn update_detail_panel(
                 }
                 if let Ok(mut t) = desc_q.single_mut() {
                     **t = if is_unlocked {
-                        ingredient.description().to_string()
+                        ingredient.description()
                     } else {
                         String::new()
                     };

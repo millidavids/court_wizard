@@ -173,7 +173,7 @@ fn fog_cloud_casting_logic(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(commands, &sfx.fog_cloud_cast, indicator.position, game_config);
+                            audio::play_sfx(commands, &sfx.fog_cloud_cast, indicator.position, game_config, sfx);
                             spawn_fog_cloud_zone(
                                 commands,
                                 assets,

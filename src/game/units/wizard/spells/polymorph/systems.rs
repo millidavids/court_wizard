@@ -76,7 +76,7 @@ pub fn handle_polymorph_casting(
 
     if completed {
         if let Some(pos) = cursor_pos {
-            audio::play_sfx(&mut commands, &sfx.polymorph_cast, pos, &game_config);
+            audio::play_sfx(&mut commands, &sfx.polymorph_cast, pos, &game_config, &sfx);
         }
         mouse_state.left_consumed = true;
     }

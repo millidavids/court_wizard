@@ -138,6 +138,7 @@ pub fn handle_healing_plume_casting(
                     &sfx.healing_plume_cast,
                     indicator.position,
                     &game_config,
+                    &sfx,
                 );
             }
             commands.entity(indicator_entity).try_despawn();

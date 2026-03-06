@@ -113,7 +113,7 @@ pub(super) fn handle_mind_control_casting(
                 {
                     // Play sound at target's position
                     if let Ok((_, target_transform, _, _)) = enemies_query.get(highlighted.entity) {
-                        audio::play_sfx(&mut commands, &sfx.mind_control_cast, target_transform.translation, &game_config);
+                        audio::play_sfx(&mut commands, &sfx.mind_control_cast, target_transform.translation, &game_config, &sfx);
                     }
                     commands.entity(highlighted.entity).insert(MindControlled {
                         time_elapsed: 0.0,

@@ -128,7 +128,7 @@ fn raise_the_dead_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST_PER_CORPSE) {
                     if let Some(cursor_pos) = input.cursor_pos {
-                        audio::play_sfx(commands, &sfx.raise_the_dead_cast, cursor_pos, game_config);
+                        audio::play_sfx(commands, &sfx.raise_the_dead_cast, cursor_pos, game_config, sfx);
                         resurrect_nearest_corpse(
                             commands,
                             cursor_pos,

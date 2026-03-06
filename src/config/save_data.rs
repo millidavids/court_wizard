@@ -184,6 +184,7 @@ pub(crate) enum AchievementId {
     MagicNullifier,
     TheThreeHags,
     OgreWarlord,
+    SoiledSurprise,
 }
 
 impl AchievementId {
@@ -227,6 +228,7 @@ impl AchievementId {
             AchievementId::MagicNullifier,
             AchievementId::TheThreeHags,
             AchievementId::OgreWarlord,
+            AchievementId::SoiledSurprise,
         ]
     }
 
@@ -270,6 +272,7 @@ impl AchievementId {
             AchievementId::MagicNullifier => "magic_nullifier",
             AchievementId::TheThreeHags => "the_three_hags",
             AchievementId::OgreWarlord => "ogre_warlord",
+            AchievementId::SoiledSurprise => "soiled_surprise",
         }
     }
 
@@ -313,6 +316,7 @@ impl AchievementId {
             AchievementId::MagicNullifier => "Magic Nullifier",
             AchievementId::TheThreeHags => "The Three Hags",
             AchievementId::OgreWarlord => "Ogre Warlord",
+            AchievementId::SoiledSurprise => "Soiled Surprise",
         }
     }
 
@@ -334,6 +338,7 @@ impl AchievementId {
             AchievementId::ScorchedEarth => Some("Grants: 15 Arcane Insight"),
             AchievementId::ProtectiveInstincts => Some("Grants: 15 Arcane Insight"),
             AchievementId::FriendlyThorns => Some("Grants: 15 Arcane Insight"),
+            AchievementId::SoiledSurprise => Some("Unlocks: Excremage wizard"),
             _ => None,
         }
     }
@@ -409,6 +414,7 @@ impl AchievementId {
             AchievementId::MagicNullifier => "Your spells are being countered.",
             AchievementId::TheThreeHags => "Three sisters. One shared grudge.",
             AchievementId::OgreWarlord => "The biggest one yet. And it's angry.",
+            AchievementId::SoiledSurprise => "Something terrible happened. And it unlocked a wizard type.",
         }
     }
 }

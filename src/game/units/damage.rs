@@ -28,6 +28,14 @@ pub enum DamageType {
     ///
     /// Dealt by: Entangle, Spike Growth
     Nature,
+    /// Poison damage
+    ///
+    /// Dealt by: Plague Wind, Spike Growth
+    Poison,
+    /// Poop damage
+    ///
+    /// Dealt by: Excremage wizard type
+    Poop,
 }
 
 impl DamageType {
@@ -40,6 +48,8 @@ impl DamageType {
             DamageType::Frost => "Frost",
             DamageType::Necrotic => "Necrotic",
             DamageType::Nature => "Nature",
+            DamageType::Poison => "Poison",
+            DamageType::Poop => "Poop",
         }
     }
 }

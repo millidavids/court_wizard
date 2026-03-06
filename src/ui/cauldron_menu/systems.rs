@@ -401,7 +401,7 @@ fn spawn_ingredient_card(
             );
 
             card.spawn((
-                Text::new(ingredient.description()),
+                Text::new(ingredient.functional_description()),
                 TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
                 TextColor(text_color),
                 TextLayout::new_with_justify(Justify::Center),

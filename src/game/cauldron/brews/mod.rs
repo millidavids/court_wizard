@@ -191,8 +191,10 @@ pub enum Ingredient {
 pub struct IngredientConfig {
     /// Display name shown in the UI.
     pub name: &'static str,
-    /// Short description of the ingredient's effect.
-    pub description: &'static str,
+    /// Flavor text describing the ingredient's appearance and lore.
+    pub flavor_text: &'static str,
+    /// Short functional description of the gameplay effect.
+    pub functional_description: &'static str,
     /// The effect this ingredient contributes at full strength.
     pub effect: BrewEffect,
     /// Visual color based on the real-life ingredient.
@@ -293,9 +295,15 @@ impl Ingredient {
         self.config().name
     }
 
-    /// Returns the description for this ingredient.
-    pub fn description(&self) -> &'static str {
-        self.config().description
+    /// Returns the full description (flavor text + functional) for this ingredient.
+    pub fn description(&self) -> String {
+        let config = self.config();
+        format!("{}\n\n{}", config.flavor_text, config.functional_description)
+    }
+
+    /// Returns only the functional gameplay description.
+    pub fn functional_description(&self) -> &'static str {
+        self.config().functional_description
     }
 
     /// Returns flavor text shown on the progress screen when the ingredient is locked.

@@ -20,6 +20,7 @@ use super::units::components::{
     RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
     apply_damage_to_unit,
 };
+use super::units::constants::{SMELLY_SEPARATION_DISTANCE, SMELLY_SEPARATION_MULTIPLIER};
 use super::units::systems::corpse_material_for_team;
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
@@ -120,6 +121,7 @@ pub fn apply_separation(
             &Team,
             Option<&super::units::components::FlockingModifier>,
             Has<super::units::boss::components::Boss>,
+            Has<super::units::components::SmellyModifier>,
         ),
         Without<Corpse>,
     >,
@@ -129,27 +131,32 @@ pub fn apply_separation(
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
         .iter()
-        .map(|(entity, transform, velocity, _, hitbox, _, _, _)| {
+        .map(|(entity, transform, velocity, _, hitbox, team, _, _, has_smelly)| {
             (
                 entity,
                 transform.translation,
                 Vec3::new(velocity.x, 0.0, velocity.z),
                 *hitbox,
+                *team,
+                has_smelly,
             )
         })
         .collect();
+
+    // Pre-check: are there any smelly units on the field?
+    let any_smelly = unit_data.iter().any(|(_, _, _, _, _, smelly)| *smelly);
 
     // First pass: enforce hard collision constraint (no overlap allowed)
     // Use multiple iterations to resolve stacked collisions
     for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
-            .map(|(entity, transform, _, _, hitbox, _, _, _)| {
+            .map(|(entity, transform, _, _, hitbox, _, _, _, _)| {
                 (entity, transform.translation, *hitbox)
             })
             .collect();
 
-        for (entity, mut transform, _, _, hitbox, _, _, is_boss) in units.iter_mut() {
+        for (entity, mut transform, _, _, hitbox, _, _, is_boss, _) in units.iter_mut() {
             // Boss is immovable — other units get pushed away from it, not the other way around
             if is_boss {
                 continue;
@@ -195,20 +202,22 @@ pub fn apply_separation(
     }
 
     // Second pass: calculate flocking velocity (separation, alignment, cohesion)
-    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _) in
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _, _) in
         units.iter_mut()
     {
         // Defenders have alignment/cohesion disabled when not activated
         let is_defender = *team == Team::Defenders;
         let disable_flocking = is_defender && !defenders_activated.active;
         let mut separation = Vec3::ZERO;
+        let mut smelly_separation = Vec3::ZERO;
         let mut alignment = Vec3::ZERO;
         let mut cohesion = Vec3::ZERO;
         let mut separation_count = 0;
+        let mut smelly_separation_count = 0;
         let mut neighbor_count = 0;
 
         // Calculate forces from all neighbors
-        for (other_entity, other_pos, other_velocity, other_hitbox) in &unit_data {
+        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly) in &unit_data {
             if entity == *other_entity {
                 continue;
             }
@@ -220,6 +229,15 @@ pub fn apply_separation(
                 transform.translation.z - other_pos.z,
             );
             let distance = (diff.x * diff.x + diff.z * diff.z).sqrt();
+
+            // Smelly separation: same-team units flee from smelly allies at larger range
+            // Tracked separately so it doesn't get diluted by normal separation averaging
+            if any_smelly && *other_smelly && !team.is_enemy(other_team) && distance < SMELLY_SEPARATION_DISTANCE && distance > MIN_DISTANCE_THRESHOLD {
+                let normalized_diff = diff / distance;
+                let force = normalized_diff / distance;
+                smelly_separation += force;
+                smelly_separation_count += 1;
+            }
 
             // Check if within neighbor distance
             if distance < NEIGHBOR_DISTANCE && distance > MIN_DISTANCE_THRESHOLD {
@@ -261,6 +279,18 @@ pub fn apply_separation(
         if separation_count > 0 {
             separation /= separation_count as f32;
             combined_direction += separation.normalize_or_zero() * SEPARATION_STRENGTH * sep_mult;
+        }
+
+        // Smelly repulsion: stored as a raw force on FlockingVelocity so it can be
+        // applied directly as acceleration, bypassing the weighted direction normalization.
+        if any_smelly {
+            if smelly_separation_count > 0 {
+                smelly_separation /= smelly_separation_count as f32;
+                flocking_velocity.smelly_repulsion =
+                    smelly_separation.normalize_or_zero() * SMELLY_SEPARATION_MULTIPLIER;
+            } else {
+                flocking_velocity.smelly_repulsion = Vec3::ZERO;
+            }
         }
 
         if neighbor_count > 0 {
@@ -719,6 +749,9 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::FogEvasionModifier>()
                 .remove::<super::units::components::BanishedModifier>()
                 .remove::<super::units::components::PolymorphedModifier>()
+                .remove::<super::units::components::PoisonedModifier>()
+                .remove::<super::units::components::SickenedModifier>()
+                .remove::<super::units::components::SmellyModifier>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>()

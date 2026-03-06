@@ -167,6 +167,7 @@ pub fn handle_battle_hymn_casting(
                 &sfx.battle_hymn_cast,
                 SPELL_ORIGIN,
                 &game_config,
+                &sfx,
             );
         } else if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity
@@ -187,6 +188,7 @@ pub fn handle_battle_hymn_casting(
                     &sfx.battle_hymn_cast,
                     indicator.position,
                     &game_config,
+                    &sfx,
                 );
             }
             commands.entity(indicator_entity).try_despawn();

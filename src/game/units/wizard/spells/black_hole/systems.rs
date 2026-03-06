@@ -14,8 +14,9 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{
-    Corpse, Health, SpellDamaged, Team, TemporaryHitPoints, apply_damage_to_unit,
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
@@ -98,6 +99,7 @@ pub(crate) fn spawn_black_hole(
         &sfx.black_hole_persistent,
         spawn_pos,
         game_config,
+        sfx,
     );
     commands.entity(sfx_entity).insert(BlackHoleSfx {
         black_hole_entity,
@@ -355,8 +357,7 @@ pub(super) fn apply_black_hole_damage(
 
                 // Apply scaled damage
                 let total_damage = black_hole.damage_per_tick() * damage_multiplier;
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), total_damage);
-                commands.entity(entity).insert(SpellDamaged);
+                apply_spell_damage(&mut commands, entity, &mut health, temp_hp.as_deref_mut(), total_damage, DamageType::Force, false);
             }
         }
 

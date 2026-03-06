@@ -10,34 +10,69 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 /// Rotation to make a circle mesh (XY plane) lie flat facing upward (XZ plane).
 const UPWARD_ROTATION: Quat = Quat::from_xyzw(-std::f32::consts::FRAC_1_SQRT_2, 0.0, 0.0, std::f32::consts::FRAC_1_SQRT_2);
 
-/// Computes an organic, time-varying fire color with layered sine-wave cycling.
+/// Color palette for animated fire/effect visuals.
+struct EffectPalette {
+    /// Base RGB channels: (center, amplitude) for each of R, G, B
+    r: (f32, f32),
+    g_base: f32,
+    g_amp1: f32,
+    g_amp2: f32,
+    b: (f32, f32),
+    /// Emissive: (base_strength, green_factor, blue_mult)
+    emissive_base: f32,
+    emissive_green_factor: f32,
+    emissive_blue_mult: f32,
+}
+
+const FIRE_PALETTE: EffectPalette = EffectPalette {
+    r: (0.9, 0.1),
+    g_base: 0.35, g_amp1: 0.2, g_amp2: 0.1,
+    b: (0.0, 0.05),  // special: uses sin*0.5+0.5 pattern
+    emissive_base: 2.0, emissive_green_factor: 1.5, emissive_blue_mult: 0.5,
+};
+
+const POOP_PALETTE: EffectPalette = EffectPalette {
+    r: (0.40, 0.05),
+    g_base: 0.25, g_amp1: 0.05, g_amp2: 0.0,
+    b: (0.08, 0.02),
+    emissive_base: 0.8, emissive_green_factor: 0.4, emissive_blue_mult: 0.3,
+};
+
+/// Computes an organic, time-varying color with layered sine-wave cycling.
 ///
-/// Returns `(base_color, emissive)` where `base_color` shifts between orange,
-/// yellow, and red, and `emissive` brightens proportionally when the color is
-/// yellower.
+/// Returns `(base_color, emissive)` using the given palette for color ranges.
 ///
 /// * `time` — elapsed seconds (drives the oscillation)
 /// * `fade` — 0.0–1.0 multiplier for overall alpha (e.g. expiry fade-out)
-pub fn fire_color_at(time: f32, fade: f32) -> (Color, LinearRgba) {
+fn animated_color_at(time: f32, fade: f32, p: &EffectPalette) -> (Color, LinearRgba) {
     let t = time;
 
-    // Flicker envelope (same 3-layer sine approach used elsewhere)
+    // Flicker envelope (3-layer sine)
     let flicker =
         0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
 
-    // Color channels — shift between orange, yellow, and red
-    let r = 0.9 + 0.1 * (t * 5.3).sin();
-    let g = 0.35 + 0.2 * (t * 11.0).sin() + 0.1 * (t * 7.3).sin();
-    let b = 0.05 * ((t * 17.1).sin() * 0.5 + 0.5);
+    let r = p.r.0 + p.r.1 * (t * 5.3).sin();
+    let g = p.g_base + p.g_amp1 * (t * 11.0).sin() + p.g_amp2 * (t * 7.3).sin();
+    let b = (p.b.0 + p.b.1 * (t * 7.3).sin()).max(0.0);
 
     let alpha = 0.45 * fade * flicker;
     let base_color = Color::srgba(r, g, b, alpha);
 
-    // Emissive — brighter when yellower (higher green), dimmer when redder
-    let emissive_strength = 2.0 + 1.5 * g;
-    let emissive = LinearRgba::new(r * emissive_strength, g * emissive_strength, b * 0.5, 0.0);
+    let emissive_strength = p.emissive_base + p.emissive_green_factor * g;
+    let emissive = LinearRgba::new(
+        r * emissive_strength,
+        g * emissive_strength,
+        b * p.emissive_blue_mult,
+        0.0,
+    );
 
     (base_color, emissive)
+}
+
+/// Returns fire or poop color based on wizard type.
+pub fn effect_color_at(time: f32, fade: f32, is_excremage: bool) -> (Color, LinearRgba) {
+    let palette = if is_excremage { &POOP_PALETTE } else { &FIRE_PALETTE };
+    animated_color_at(time, fade, palette)
 }
 
 /// Updates glow halo position and pulsing scale to follow its source entity.

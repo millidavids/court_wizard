@@ -257,7 +257,7 @@ pub fn handle_teleport_casting(
         // Play sound at source position (where units teleport from)
         if let Some((source_x, source_z, _, _, _)) = cast_result.teleport_params {
             let source_pos = Vec3::new(source_x, 0.0, source_z);
-            audio::play_sfx(&mut commands, &sfx.teleport_cast, source_pos, &game_config);
+            audio::play_sfx(&mut commands, &sfx.teleport_cast, source_pos, &game_config, &sfx);
         }
         if let Some(dest_entity) = caster.destination_circle {
             commands.entity(dest_entity).try_despawn();

@@ -1191,6 +1191,97 @@ impl BanishedModifier {
 #[derive(Component)]
 pub struct WasBanished;
 
+/// Sickened effect that prevents a unit from moving or acting.
+///
+/// Applied by certain spells. The unit is incapacitated for the duration.
+/// When the effect expires, the component is removed.
+#[derive(Component)]
+pub struct SickenedModifier {
+    /// Time remaining before the effect expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl SickenedModifier {
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+/// Poison debuff that reduces unit effectiveness over time.
+///
+/// Stacks up to a cap. If total accumulated poison reaches the sickened threshold,
+/// the unit becomes sickened (stops moving) and then smelly (allies flee).
+#[derive(Component)]
+pub struct PoisonedModifier {
+    /// Accumulated effectiveness penalty (negative, grows with stacking).
+    pub effectiveness_penalty: f32,
+    /// Time remaining before poison expires (resets on each stack).
+    pub time_remaining: f32,
+    /// Timer for periodic effectiveness penalty ticks.
+    pub tick_timer: f32,
+    /// Total accumulated penalty for sickened threshold check.
+    pub total_accumulated: f32,
+}
+
+impl PoisonedModifier {
+    pub fn new(penalty_per_stack: f32, duration: f32) -> Self {
+        Self {
+            effectiveness_penalty: penalty_per_stack,
+            time_remaining: duration,
+            tick_timer: 0.0,
+            total_accumulated: penalty_per_stack.abs(),
+        }
+    }
+
+    pub fn stack(&mut self, penalty_per_stack: f32, duration: f32, cap: f32) {
+        self.effectiveness_penalty =
+            (self.effectiveness_penalty + penalty_per_stack).max(cap);
+        self.time_remaining = duration;
+        self.total_accumulated += penalty_per_stack.abs();
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+
+    pub fn is_sickened(&self, threshold: f32) -> bool {
+        self.total_accumulated >= threshold
+    }
+}
+
+/// Smelly debuff that causes allied units to flee.
+///
+/// Applied after sickened expires or directly by Poop damage.
+/// Other units on the same team avoid the smelly unit.
+#[derive(Component)]
+pub struct SmellyModifier {
+    /// Time remaining before the smell fades.
+    pub time_remaining: f32,
+}
+
+impl SmellyModifier {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
+    }
+}
+
+impl_timed_modifier!(SmellyModifier);
+
 /// Polymorph effect that transforms a unit into a sheep.
 ///
 /// Stores the original unit state for restoration when the effect expires.
@@ -1278,6 +1369,9 @@ pub struct KingsGuard(pub u32);
 #[derive(Component, Default)]
 pub struct FlockingVelocity {
     pub velocity: Vec3,
+    /// Direct repulsion force from smelly units, applied as raw acceleration
+    /// (bypasses the weighted flocking normalization).
+    pub smelly_repulsion: Vec3,
 }
 
 /// Mind control effect — unit targets allies instead of enemies.

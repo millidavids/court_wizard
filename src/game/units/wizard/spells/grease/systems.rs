@@ -186,7 +186,7 @@ fn grease_casting_logic(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(commands, &sfx.grease_cast, indicator.position, game_config);
+                            audio::play_sfx(commands, &sfx.grease_cast, indicator.position, game_config, sfx);
                             spawn_grease_zone(
                                 commands,
                                 assets,
@@ -679,7 +679,9 @@ pub fn fade_grease_zone(
         Without<GreaseZone>,
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<crate::config::GameConfig>,
 ) {
+    let is_excremage = config.wizard_type == crate::config::WizardType::Excremage;
     for (zone_entity, zone, material_handle) in &zones {
         let remaining = zone.duration - zone.time_alive;
         let fade = if remaining < constants::FADE_DURATION {
@@ -696,7 +698,7 @@ pub fn fade_grease_zone(
         // Fade the fire overlay mesh if this zone is ignited
         if zone.ignited {
             let (fire_base, fire_emissive) =
-                vfx::systems::fire_color_at(zone.time_alive, fade);
+                vfx::systems::effect_color_at(zone.time_alive, fade, is_excremage);
             for (overlay, overlay_handle) in &mut overlays {
                 if overlay.zone_entity == zone_entity
                     && let Some(overlay_mat) = materials.get_mut(overlay_handle)

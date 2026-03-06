@@ -133,7 +133,7 @@ pub fn handle_guardian_circle_casting(
                 let scale = indicator.empowerment;
                 let radius = constants::CIRCLE_RADIUS * scale;
 
-                audio::play_sfx(&mut commands, &sfx.guardian_circle_cast, indicator.position, &game_config);
+                audio::play_sfx(&mut commands, &sfx.guardian_circle_cast, indicator.position, &game_config, &sfx);
                 apply_guardian_circle_buff(
                     &mut commands,
                     indicator.position,

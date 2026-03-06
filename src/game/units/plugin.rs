@@ -9,6 +9,7 @@ use super::commander::CommanderPlugin;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
     FrostEffectMarker, HasteModifier, Knockback, MarkedForDeathModifier,
+    PoisonedModifier, SickenedModifier, SmellyModifier,
     RootedModifier, SlowMovementModifier, SleepModifier, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
@@ -82,6 +83,12 @@ impl Plugin for UnitsPlugin {
                 systems::update_fire_dot,
                 systems::update_electric_charge,
                 systems::update_electric_arc_visuals,
+                systems::update_poisoned
+                    .run_if(any_with_component::<PoisonedModifier>),
+                systems::update_sickened
+                    .run_if(any_with_component::<SickenedModifier>),
+                systems::update_timed_modifier::<SmellyModifier>
+                    .run_if(any_with_component::<SmellyModifier>),
                 systems::update_persistent_effect_visuals,
             )
                 .run_if(is_spell_effects_active),

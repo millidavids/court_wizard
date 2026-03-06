@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::wall_of_stone::components::WallOfStone;
-use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_damage_to_unit};
+use crate::game::units::components::{Health, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::damage::DamageType;
 use crate::game::units::infantry::components::Infantry;
 use crate::game::units::king::components::SpellShield;
 
@@ -26,6 +27,7 @@ pub fn check_projectile_collisions(
     projectiles: Query<(Entity, &Transform, &Projectile), With<Projectile>>,
     mut enemies: Query<
         (
+            Entity,
             &Transform,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
@@ -52,7 +54,7 @@ pub fn check_projectile_collisions(
             continue;
         }
 
-        for (enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
+        for (entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
             // Only damage attackers (projectiles are from defenders/wizard)
             if *team != Team::Attackers {
                 continue;
@@ -64,10 +66,10 @@ pub fn check_projectile_collisions(
 
             // Check if projectile hit the enemy
             if distance < projectile.radius {
+                apply_spell_damage(&mut commands, entity, &mut health, temp_hp.as_deref_mut(), projectile.damage, DamageType::Force, has_spell_shield);
                 if has_spell_shield {
                     continue;
                 }
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), projectile.damage);
                 commands.entity(projectile_entity).try_despawn();
                 break; // Projectile is destroyed, stop checking
             }

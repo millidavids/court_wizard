@@ -325,6 +325,7 @@ pub fn handle_disintegrate_casting(
                 &mut commands,
                 &sfx.disintegrate_channel,
                 &game_config,
+                &sfx,
             );
         }
         BeamAction::DespawnAll => {
@@ -338,11 +339,12 @@ pub fn handle_disintegrate_casting(
                     );
                     // Play fireball impact sound at beam tip
                     let tip = beam.origin + beam.direction * beam.current_length();
-                    audio::play_sfx(
+                    audio::play_impact_sfx(
                         &mut commands,
                         &sfx.fireball_impact,
                         tip,
                         &game_config,
+                        &sfx,
                     );
                 }
             }

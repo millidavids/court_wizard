@@ -4,9 +4,14 @@
 //! Both local spell spawning and ghost/remote rendering use these handles,
 //! ensuring a single source of truth for spell visuals.
 
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
+
+use crate::config::{GameConfig, WizardType};
+use crate::game::units::constants::EXCREMAGE_BROWN;
 
 use super::black_hole::constants::TORUS_MINOR_RADIUS;
 use super::telekinesis::constants::{
@@ -497,6 +502,175 @@ pub fn init_spell_visual_assets(
             mesh
         }),
     });
+}
+
+impl SpellVisualAssets {
+    /// Returns references to all material handles for batch operations.
+    fn all_material_handles(&self) -> Vec<&Handle<StandardMaterial>> {
+        vec![
+            // Zones
+            &self.spike_growth_zone,
+            &self.healing_plume_zone,
+            &self.entangle_zone,
+            &self.fog_cloud_zone,
+            &self.grease_zone,
+            &self.grease_fire,
+            &self.plague_wind_zone,
+            &self.meteor_ground_fire,
+            // Indicators
+            &self.haste_indicator,
+            &self.battle_hymn_indicator,
+            &self.berserker_rage_indicator,
+            &self.sleep_indicator,
+            &self.guardian_circle_indicator,
+            &self.spike_growth_indicator,
+            &self.healing_plume_indicator,
+            &self.entangle_indicator,
+            &self.fog_cloud_indicator,
+            &self.grease_indicator,
+            &self.plague_wind_indicator,
+            &self.arcane_crystal_indicator,
+            &self.lightning_rod_indicator,
+            &self.meteor_fall_indicator,
+            &self.squall_indicator,
+            &self.teleport_destination,
+            &self.teleport_source,
+            &self.telekinesis_indicator,
+            // Objects
+            &self.black_hole,
+            &self.black_hole_billboard,
+            &self.black_hole_ring,
+            &self.black_hole_accretion,
+            &self.black_hole_accretion_ring,
+            &self.arcane_crystal,
+            &self.lightning_rod,
+            // Walls
+            &self.wall_of_stone,
+            &self.wall_of_fire,
+            // Explosions
+            &self.fireball_explosion,
+            &self.meteor_explosion,
+            &self.ice_explosion,
+            // Projectiles
+            &self.fireball_projectile,
+            &self.ice_projectile,
+            &self.meteor_projectile,
+            &self.magic_missile,
+            // Arcs/Beams
+            &self.chain_lightning_arc,
+            &self.lightning_strike,
+            &self.lightning_rod_arc,
+            &self.crystal_beam,
+            &self.crystal_arc,
+            &self.finger_of_death_beam,
+            &self.disintegrate_beam,
+            &self.disintegrate_glow,
+            &self.disintegrate_flare,
+            &self.disintegrate_particle,
+            // Fire VFX
+            &self.fire_glow,
+            &self.fire_spark,
+            &self.fire_smoke,
+            // Disintegrate VFX
+            &self.disintegrate_smoke,
+            &self.searing_finale,
+            &self.disintegrate_eclipse,
+            // Finger of Death VFX
+            &self.necrotic_vein,
+            &self.finger_of_death_glow,
+            &self.necrotic_pulse,
+            // Magic Missile VFX
+            &self.missile_glow,
+            &self.missile_sparkle,
+            // Telekinesis VFX
+            &self.shockwave_material,
+            &self.harvest_flash_material,
+            // Crystal VFX
+            &self.crystal_mini_missile,
+            &self.crystal_range_indicator,
+            // Heat shimmer
+            &self.heat_shimmer,
+        ]
+    }
+}
+
+/// Stores original material colors so they can be restored when switching wizard types.
+#[derive(Resource)]
+pub struct OriginalSpellColors {
+    entries: HashMap<AssetId<StandardMaterial>, (Color, bevy::color::LinearRgba)>,
+    /// Whether materials are currently overridden (e.g. brown for Excremage).
+    currently_overridden: bool,
+}
+
+/// Captures original material colors at startup for later restoration.
+pub fn capture_original_spell_colors(
+    assets: Res<SpellVisualAssets>,
+    materials: Res<Assets<StandardMaterial>>,
+    mut commands: Commands,
+) {
+    let mut entries = HashMap::new();
+    for handle in assets.all_material_handles() {
+        if let Some(mat) = materials.get(handle) {
+            entries.insert(handle.id(), (mat.base_color, mat.emissive));
+        }
+    }
+    commands.insert_resource(OriginalSpellColors { entries, currently_overridden: false });
+}
+
+/// Recolors all spell materials to brown for Excremage, or restores originals.
+pub fn refresh_spell_visuals_for_wizard(
+    assets: Res<SpellVisualAssets>,
+    mut originals: ResMut<OriginalSpellColors>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    config: Res<GameConfig>,
+) {
+    let is_excremage = config.wizard_type == WizardType::Excremage;
+
+    // Skip if materials are already in the correct state
+    if is_excremage == originals.currently_overridden {
+        return;
+    }
+    originals.currently_overridden = is_excremage;
+
+    for handle in assets.all_material_handles() {
+        let Some((orig_color, orig_emissive)) = originals.entries.get(&handle.id()) else {
+            continue;
+        };
+        let Some(mat) = materials.get_mut(handle) else {
+            continue;
+        };
+
+        if is_excremage {
+            mat.base_color = excremage_color(*orig_color);
+            mat.emissive = excremage_emissive(*orig_emissive);
+        } else {
+            mat.base_color = *orig_color;
+            mat.emissive = *orig_emissive;
+        }
+    }
+}
+
+/// Converts a color to a brown Excremage variant, preserving alpha.
+fn excremage_color(original: Color) -> Color {
+    let alpha = original.to_srgba().alpha;
+    let brown = EXCREMAGE_BROWN.to_srgba();
+    Color::srgba(brown.red, brown.green, brown.blue, alpha)
+}
+
+/// Converts emissive to a brown glow, scaling intensity from the original.
+/// Derives ratios from `EXCREMAGE_BROWN` so the tint stays consistent.
+fn excremage_emissive(original: bevy::color::LinearRgba) -> bevy::color::LinearRgba {
+    let brown = EXCREMAGE_BROWN.to_linear();
+    let intensity = (original.red + original.green + original.blue) / 3.0;
+    // Normalize brown channels so the brightest channel maps to 1.0,
+    // then scale by original intensity to preserve brightness.
+    let max_c = brown.red.max(brown.green).max(brown.blue).max(0.001);
+    bevy::color::LinearRgba::new(
+        intensity * brown.red / max_c,
+        intensity * brown.green / max_c,
+        intensity * brown.blue / max_c,
+        original.alpha,
+    )
 }
 
 /// Builds a cross-plane sphere mesh: 3 intersecting circles (XY, XZ, YZ planes).

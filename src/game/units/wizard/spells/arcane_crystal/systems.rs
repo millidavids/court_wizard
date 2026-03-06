@@ -249,6 +249,7 @@ pub(super) fn handle_arcane_crystal_casting(
                     &sfx.arcane_crystal_cast,
                     indicator.position,
                     &game_config,
+                    &sfx,
                 );
             }
             commands.entity(indicator_entity).try_despawn();

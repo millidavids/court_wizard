@@ -615,3 +615,18 @@ encounter_system!(check_healer_encounter, Healer, EnemyMedicAchievement, UnitTyp
 encounter_system!(check_dispeller_encounter, Dispeller, MagicNullifierAchievement, UnitType::Dispeller);
 encounter_system!(check_hag_encounter, Hag, TheThreeHagsAchievement, UnitType::Hag);
 encounter_system!(check_ogre_encounter, OgreEnrageState, OgreWarlordAchievement, UnitType::Ogre);
+
+// ---------------------------------------------------------------------------
+// Soiled Surprise — triggered by UnitSickenedMessage (first sickened event)
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_soiled_surprise(
+    mut msg: MessageReader<super::messages::UnitSickenedMessage>,
+    mut res: ResMut<SoiledSurpriseAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        crate::config::save_data::unlock_wizard_type(WizardType::Excremage);
+    }
+}

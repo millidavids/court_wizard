@@ -69,7 +69,7 @@ pub fn handle_mark_of_death_casting(
 
     if completed {
         if let Some(pos) = cursor_pos {
-            audio::play_sfx(&mut commands, &sfx.mark_of_death_cast, pos, &game_config);
+            audio::play_sfx(&mut commands, &sfx.mark_of_death_cast, pos, &game_config, &sfx);
         }
         mouse_state.left_consumed = true;
     }

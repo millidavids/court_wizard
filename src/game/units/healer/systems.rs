@@ -12,7 +12,7 @@ use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, HasteModifier, Health, Hitbox,
     MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
-    SlowMovementModifier, SleepModifier, TargetingVelocity, Team,
+    SickenedModifier, SlowMovementModifier, SleepModifier, TargetingVelocity, Team,
 };
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::infantry::components::DefendersActivated;
@@ -176,6 +176,7 @@ pub fn healer_movement(
                 Option<&SleepModifier>,
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
+                Option<&SickenedModifier>,
             ),
         ),
         With<Healer>,
@@ -194,11 +195,11 @@ pub fn healer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed),
+        (sleeping, banished, polymorphed, sickened),
     ) in &mut healer_units
     {
         // CC'd units cannot move
-        if rooted.is_some() || sleeping.is_some() || banished.is_some() {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

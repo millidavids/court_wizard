@@ -73,7 +73,7 @@ pub fn handle_banishment_casting(
     );
 
     if completed {
-        audio::play_sfx(&mut commands, &sfx.banishment_cast, SPELL_ORIGIN, &game_config);
+        audio::play_sfx(&mut commands, &sfx.banishment_cast, SPELL_ORIGIN, &game_config, &sfx);
         mouse_state.left_consumed = true;
     }
 }

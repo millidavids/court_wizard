@@ -734,11 +734,12 @@ pub(super) fn check_meteor_collisions(
             );
 
             // Impact sound (fireball explosion)
-            audio::play_sfx(
+            audio::play_impact_sfx(
                 &mut commands,
                 &sfx.fireball_impact,
                 pos,
                 &game_config,
+                &sfx,
             );
 
             // Aftershock: knockback + bonus damage to nearby enemies

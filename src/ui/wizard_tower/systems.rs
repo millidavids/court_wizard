@@ -95,6 +95,8 @@ fn element_color(damage_type: DamageType) -> Color {
         DamageType::Necrotic => NECROTIC_COLOR,
         DamageType::Force => FORCE_COLOR,
         DamageType::Frost => FROST_COLOR,
+        DamageType::Poison => POISON_COLOR,
+        DamageType::Poop => POOP_COLOR,
     }
 }
 

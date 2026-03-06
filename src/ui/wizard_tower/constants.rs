@@ -30,6 +30,8 @@ pub(super) const ELECTRIC_COLOR: Color = Color::srgb(0.5, 0.7, 1.0);
 pub(super) const NECROTIC_COLOR: Color = Color::srgb(0.7, 0.3, 0.8);
 pub(super) const FORCE_COLOR: Color = Color::srgb(0.7, 0.7, 0.9);
 pub(super) const FROST_COLOR: Color = Color::srgb(0.6, 0.85, 0.95);
+pub(super) const POISON_COLOR: Color = crate::game::units::constants::POISON_EFFECT_COLOR;
+pub(super) const POOP_COLOR: Color = crate::game::units::constants::EXCREMAGE_BROWN;
 
 // ---------------------------------------------------------------------------
 // Graph layout

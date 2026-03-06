@@ -12,8 +12,9 @@ use super::constants;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_damage_to_unit,
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
+use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::vfx;
@@ -203,7 +204,7 @@ pub fn handle_magic_missile_casting(
         );
     }
 
-    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config);
+    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config, &sfx);
 
     // Set cooldown (modified by talents)
     commands.entity(wizard_entity).insert(MagicMissileCooldown {
@@ -268,7 +269,7 @@ pub fn update_arcane_barrage(
         );
     }
 
-    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config);
+    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config, &sfx);
 }
 
 /// Spawns a magic missile with talent modifications applied.
@@ -681,7 +682,7 @@ pub fn check_magic_missile_collisions(
 
         let mut should_despawn = false;
         let mut target_killed = false;
-        for (_enemy_entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
+        for (enemy_entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
             if !missile.target_teams.matches(team) {
                 continue;
             }
@@ -695,7 +696,7 @@ pub fn check_magic_missile_collisions(
                 if has_spell_shield {
                     continue;
                 }
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), missile.damage);
+                apply_spell_damage(&mut commands, enemy_entity, &mut health, temp_hp.as_deref_mut(), missile.damage, DamageType::Force, false);
                 target_killed = health.current <= 0.0;
                 if let Some(ref mut progress) = talent_progress {
                     progress.increment(Spell::MagicMissile, 1);

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::state::AppState;
 
 use super::arcane_crystal::ArcaneCrystalPlugin;
 use super::banishment::BanishmentPlugin;
@@ -45,9 +46,15 @@ impl Plugin for SpellsPlugin {
             Startup,
             (
                 super::visual_assets::init_spell_visual_assets,
+                super::visual_assets::capture_original_spell_colors
+                    .after(super::visual_assets::init_spell_visual_assets),
                 super::audio::load_spell_sfx_assets,
             ),
         )
+            .add_systems(
+                OnEnter(AppState::Loading),
+                super::visual_assets::refresh_spell_visuals_for_wizard,
+            )
             .add_plugins((
                 MagicMissilePlugin,
                 DisintegratePlugin,

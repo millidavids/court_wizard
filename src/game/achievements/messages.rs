@@ -54,3 +54,7 @@ pub(crate) struct EntangleHitDefenderMessage;
 /// Triggers resetting all in-memory achievement resources back to locked.
 #[derive(Message)]
 pub(crate) struct ClearProgressMessage;
+
+/// Message sent when a unit becomes sickened (poison threshold reached).
+#[derive(Message)]
+pub(crate) struct UnitSickenedMessage;

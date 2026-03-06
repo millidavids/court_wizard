@@ -11,8 +11,9 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
+use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Health, SlowMovementModifier, SpellDamaged, TemporaryHitPoints, apply_damage_to_unit,
+    Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -125,7 +126,7 @@ pub fn handle_spike_growth_casting(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(&mut commands, &sfx.spike_growth_cast, indicator.position, &game_config);
+                            audio::play_sfx(&mut commands, &sfx.spike_growth_cast, indicator.position, &game_config, &sfx);
                             spawn_spike_growth_zone(
                                 &mut commands,
                                 &visual_assets,
@@ -213,12 +214,19 @@ pub fn apply_spike_growth_damage(
                 .length();
 
                 if distance <= zone.radius {
+                    // Apply damage with Poison type (triggers PoisonedModifier stacking)
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        zone.damage_per_tick,
+                        DamageType::Poison,
+                        has_spell_shield,
+                    );
                     if has_spell_shield {
                         continue;
                     }
-                    // Apply damage
-                    apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), zone.damage_per_tick);
-                    commands.entity(entity).insert(SpellDamaged);
 
                     // Apply or refresh spike growth slow
                     if let Some(mut slow) = existing_slow {
