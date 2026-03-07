@@ -148,11 +148,26 @@ pub(super) const DRAGONS_BLOOD_CONFIG: IngredientConfig = IngredientConfig {
     color: Color::srgb(0.65, 0.15, 0.12),
 };
 
+pub(super) const PHILOSOPHERS_STONE_CONFIG: IngredientConfig = IngredientConfig {
+    name: "Philosopher's Stone",
+    flavor_text: "A legendary transmutation catalyst sought by alchemists for millennia. Its golden glow hums with perfected harmony, purifying everything it touches.",
+    functional_description: "Removes dilution — all ingredients brew at full strength.",
+    effect: BrewEffect::BuffDurationMultiplier(1.0),
+    color: Color::srgb(0.85, 0.75, 0.2),
+};
+
 // ===== Brew Timing =====
 
 pub(super) const BASE_BREW_TIME: f32 = 6.0;
 pub(super) const PER_INGREDIENT_BREW_TIME: f32 = 2.0;
 pub(super) const BUFF_DURATION: f32 = 30.0;
+
+// ===== Alchemist Bonuses =====
+
+/// Alchemist brews 20% faster (multiply brew time by this).
+pub const ALCHEMIST_BREW_TIME_MULTIPLIER: f32 = 0.8;
+/// Alchemist buffs last 25% longer (multiply duration by this).
+pub const ALCHEMIST_DURATION_MULTIPLIER: f32 = 1.25;
 
 // ===== Hidden Combos =====
 

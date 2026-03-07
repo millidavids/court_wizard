@@ -38,6 +38,26 @@ pub enum BrewEffect {
 }
 
 impl BrewEffect {
+    /// Returns true if this effect does nothing (multiplier is 1.0 or flat value is 0.0).
+    pub fn is_noop(&self) -> bool {
+        match self {
+            BrewEffect::ManaRegenMultiplier(v)
+            | BrewEffect::SpellPowerMultiplier(v)
+            | BrewEffect::CastSpeedMultiplier(v)
+            | BrewEffect::SpellRangeMultiplier(v)
+            | BrewEffect::MaxManaMultiplier(v)
+            | BrewEffect::AttackSpeedMultiplier(v)
+            | BrewEffect::BuffDurationMultiplier(v) => (*v - 1.0).abs() < f32::EPSILON,
+            BrewEffect::DefenderHealPerSecond(v)
+            | BrewEffect::DefenderDamageBonus(v)
+            | BrewEffect::DamageResistancePercent(v)
+            | BrewEffect::DefenderSpeedBonus(v)
+            | BrewEffect::AttackerSlowPercent(v)
+            | BrewEffect::DefenderShieldPerSecond(v)
+            | BrewEffect::EffectivenessBonus(v) => v.abs() < f32::EPSILON,
+        }
+    }
+
     /// Returns a human-readable description of this effect, e.g. "Mana Regen +100%".
     pub fn display_text(&self) -> String {
         match self {
@@ -185,6 +205,7 @@ pub enum Ingredient {
     MandrakeRoot,
     RowanBerry,
     DragonsBlood,
+    PhilosophersStone,
 }
 
 /// Static configuration for an ingredient.
@@ -238,7 +259,8 @@ impl Ingredient {
             | Ingredient::Vervain
             | Ingredient::LapisLazuli
             | Ingredient::Amber
-            | Ingredient::MandrakeRoot => IngredientCategory::Utility,
+            | Ingredient::MandrakeRoot
+            | Ingredient::PhilosophersStone => IngredientCategory::Utility,
         }
     }
 
@@ -263,6 +285,7 @@ impl Ingredient {
             Ingredient::MandrakeRoot => &MANDRAKE_ROOT_CONFIG,
             Ingredient::RowanBerry => &ROWAN_BERRY_CONFIG,
             Ingredient::DragonsBlood => &DRAGONS_BLOOD_CONFIG,
+            Ingredient::PhilosophersStone => &PHILOSOPHERS_STONE_CONFIG,
         }
     }
 
@@ -335,7 +358,15 @@ impl Ingredient {
             Ingredient::DragonsBlood => {
                 "Not actual dragon blood. Probably. The merchant was unclear."
             }
+            Ingredient::PhilosophersStone => {
+                "The ultimate prize. Legends say it perfects any brew."
+            }
         }
+    }
+
+    /// Returns true if this ingredient is the Philosopher's Stone.
+    pub const fn is_philosophers_stone(&self) -> bool {
+        matches!(self, Ingredient::PhilosophersStone)
     }
 }
 
@@ -372,9 +403,17 @@ impl Recipe {
 
     /// Dilution factor — more ingredients means each effect is weaker.
     /// 1 ingredient = 1.0, 2 = ~0.71, 3 = ~0.58, 4 = 0.5
+    /// If Philosopher's Stone is present, dilution is removed (returns 1.0).
     pub fn dilution_factor(&self) -> f32 {
         if self.ingredients.is_empty() {
             return 0.0;
+        }
+        if self
+            .ingredients
+            .iter()
+            .any(|i| i.is_philosophers_stone())
+        {
+            return 1.0;
         }
         1.0 / (self.ingredients.len() as f32).sqrt()
     }

@@ -3,9 +3,14 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::config::save_data::load_unified_save;
+use crate::config::{GameConfig, WizardType};
+use crate::game::cauldron::brews::constants::{
+    ALCHEMIST_BREW_TIME_MULTIPLIER, ALCHEMIST_DURATION_MULTIPLIER,
+};
 use crate::game::cauldron::brews::{Ingredient, IngredientCategory, Recipe};
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
+use crate::game::cauldron::resources::PhilosophersStoneUsed;
 use crate::game::input::messages::MouseClicked;
 use crate::state::InGameState;
 use crate::ui::systems::spawn_button;
@@ -15,12 +20,14 @@ pub(super) fn spawn_cauldron_menu_ui(
     mut commands: Commands,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     selection: Res<IngredientSelection>,
+    config: Res<GameConfig>,
+    stone_used: Res<PhilosophersStoneUsed>,
 ) {
     let is_brewing = cauldron_query
         .single()
         .is_ok_and(|state| state.is_brewing());
 
-    build_menu(&mut commands, is_brewing, &selection);
+    build_menu(&mut commands, is_brewing, &selection, &config, &stone_used);
 }
 
 /// Re-spawns the menu UI if it was despawned by a toggle action.
@@ -29,18 +36,26 @@ pub(super) fn respawn_menu_on_toggle(
     menu_query: Query<Entity, With<OnCauldronMenuScreen>>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     selection: Res<IngredientSelection>,
+    config: Res<GameConfig>,
+    stone_used: Res<PhilosophersStoneUsed>,
 ) {
     if menu_query.iter().next().is_none() {
         let is_brewing = cauldron_query
             .single()
             .is_ok_and(|state| state.is_brewing());
 
-        build_menu(&mut commands, is_brewing, &selection);
+        build_menu(&mut commands, is_brewing, &selection, &config, &stone_used);
     }
 }
 
 /// Builds the cauldron menu UI tree with a two-panel layout.
-fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientSelection) {
+fn build_menu(
+    commands: &mut Commands,
+    is_brewing: bool,
+    selection: &IngredientSelection,
+    config: &GameConfig,
+    stone_used: &PhilosophersStoneUsed,
+) {
     // Load save data once for unlocked ingredients and combos
     let save = load_unified_save();
     let unlocked_ingredients = save
@@ -87,11 +102,17 @@ fn build_menu(commands: &mut Commands, is_brewing: bool, selection: &IngredientS
             })
             .with_children(|content| {
                 // === Left panel: detail/preview ===
-                spawn_detail_panel(content, is_brewing, selection, &unlocked_combos);
+                spawn_detail_panel(content, is_brewing, selection, &unlocked_combos, config);
 
                 // === Right panel: categorized ingredient grid ===
                 if !is_brewing {
-                    spawn_ingredient_list(content, selection, &unlocked_ingredients);
+                    spawn_ingredient_list(
+                        content,
+                        selection,
+                        &unlocked_ingredients,
+                        config,
+                        stone_used,
+                    );
                 }
             });
 
@@ -127,6 +148,7 @@ fn spawn_detail_panel(
     is_brewing: bool,
     selection: &IngredientSelection,
     unlocked_combos: &[String],
+    config: &GameConfig,
 ) {
     parent
         .spawn(Node {
@@ -173,32 +195,58 @@ fn spawn_detail_panel(
                     ));
                 } else {
                     // Show brew preview
-                    let recipe = Recipe::new(selection.selected.clone());
+                    let recipe = Recipe::new(selection.build_ingredients());
+                    let is_alchemist = config.wizard_type == WizardType::Alchemist;
 
-                    // Ingredient count
+                    // Ingredient count (don't count Stone toward limit)
                     let count_color = if selection.at_limit() {
                         INGREDIENT_COUNT_FULL_COLOR
                     } else {
                         INGREDIENT_COUNT_COLOR
                     };
+                    let mut count_text = format!(
+                        "{}/{} ingredients",
+                        selection.selected.len(),
+                        MAX_INGREDIENTS
+                    );
+                    if selection.has_stone() {
+                        count_text.push_str(" + Stone");
+                    }
                     panel.spawn((
-                        Text::new(format!(
-                            "{}/{} ingredients",
-                            selection.selected.len(),
-                            MAX_INGREDIENTS
-                        )),
+                        Text::new(count_text),
                         TextFont::from_font_size(DETAIL_LABEL_FONT_SIZE),
                         TextColor(count_color),
                     ));
 
-                    // Brew time + duration
+                    // Brew time + duration (with Alchemist bonuses)
+                    let brew_time = if is_alchemist {
+                        recipe.brew_time() * ALCHEMIST_BREW_TIME_MULTIPLIER
+                    } else {
+                        recipe.brew_time()
+                    };
+                    let brew_time_text = if is_alchemist {
+                        format!("Brew time: {:.0}s (20% faster)", brew_time)
+                    } else {
+                        format!("Brew time: {:.0}s", brew_time)
+                    };
                     panel.spawn((
-                        Text::new(format!("Brew time: {:.0}s", recipe.brew_time())),
+                        Text::new(brew_time_text),
                         TextFont::from_font_size(BREW_INFO_FONT_SIZE),
                         TextColor(BREW_INFO_COLOR),
                     ));
+
+                    let duration = if is_alchemist {
+                        recipe.buff_duration() * ALCHEMIST_DURATION_MULTIPLIER
+                    } else {
+                        recipe.buff_duration()
+                    };
+                    let duration_text = if is_alchemist {
+                        format!("Duration: {:.0}s (25% longer)", duration)
+                    } else {
+                        format!("Duration: {:.0}s", duration)
+                    };
                     panel.spawn((
-                        Text::new(format!("Duration: {:.0}s", recipe.buff_duration())),
+                        Text::new(duration_text),
                         TextFont::from_font_size(BREW_INFO_FONT_SIZE),
                         TextColor(BREW_INFO_COLOR),
                     ));
@@ -210,8 +258,11 @@ fn spawn_detail_panel(
                         TextColor(DETAIL_LABEL_COLOR),
                     ));
 
-                    // Effect list
+                    // Effect list (skip no-op effects like Stone's BuffDurationMultiplier(1.0))
                     for effect in &recipe.base_effects() {
+                        if effect.is_noop() {
+                            continue;
+                        }
                         panel.spawn((
                             Text::new(effect.display_text()),
                             TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
@@ -221,13 +272,21 @@ fn spawn_detail_panel(
 
                     // Dilution warning
                     if recipe.ingredients.len() > 1 {
+                        let dilution = recipe.dilution_factor();
+                        let dilution_text = if selection.has_stone() {
+                            "No dilution (Philosopher's Stone)".to_string()
+                        } else {
+                            format!("Dilution: {:.0}% strength", dilution * 100.0)
+                        };
+                        let dilution_color = if selection.has_stone() {
+                            STONE_SELECTED_STYLE.text_color
+                        } else {
+                            DISABLED_TEXT_COLOR
+                        };
                         panel.spawn((
-                            Text::new(format!(
-                                "Dilution: {:.0}% strength",
-                                recipe.dilution_factor() * 100.0
-                            )),
+                            Text::new(dilution_text),
                             TextFont::from_font_size(EFFECT_PREVIEW_FONT_SIZE),
-                            TextColor(DISABLED_TEXT_COLOR),
+                            TextColor(dilution_color),
                         ));
                     }
 
@@ -286,6 +345,8 @@ fn spawn_ingredient_list(
     parent: &mut ChildSpawnerCommands,
     selection: &IngredientSelection,
     unlocked_ingredients: &[String],
+    config: &GameConfig,
+    stone_used: &PhilosophersStoneUsed,
 ) {
     parent
         .spawn((
@@ -306,6 +367,62 @@ fn spawn_ingredient_list(
         ))
         .with_children(|list| {
             let at_limit = selection.at_limit();
+
+            // Philosopher's Stone button (Alchemist only, once per battle)
+            if config.wizard_type == WizardType::Alchemist && !stone_used.0 {
+                list.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(LIST_ITEM_GAP),
+                    flex_grow: 0.0,
+                    flex_shrink: 0.0,
+                    ..default()
+                })
+                .with_children(|column| {
+                    column.spawn((
+                        Text::new("Special"),
+                        TextFont::from_font_size(CATEGORY_FONT_SIZE),
+                        TextColor(STONE_BUTTON_STYLE.text_color),
+                        TextLayout::new_with_justify(Justify::Center),
+                        Node {
+                            width: Val::Percent(100.0),
+                            margin: UiRect::bottom(Val::Px(4.0)),
+                            ..default()
+                        },
+                    ));
+
+                    let stone_style = if selection.has_stone() {
+                        &STONE_SELECTED_STYLE
+                    } else {
+                        &STONE_BUTTON_STYLE
+                    };
+
+                    column.spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(4.0),
+                        ..default()
+                    })
+                    .with_children(|card| {
+                        spawn_button(
+                            card,
+                            "Philosopher's Stone",
+                            CauldronMenuButtonAction::TogglePhilosophersStone,
+                            stone_style,
+                        );
+
+                        card.spawn((
+                            Text::new("Removes dilution (once per battle)"),
+                            TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                            TextColor(stone_style.text_color),
+                            TextLayout::new_with_justify(Justify::Center),
+                            Node {
+                                max_width: Val::Px(BUTTON_WIDTH),
+                                ..default()
+                            },
+                        ));
+                    });
+                });
+            }
 
             for category in IngredientCategory::all() {
                 // Collect unlocked ingredients in this category
@@ -440,9 +557,16 @@ pub(super) fn button_action(
                         commands.entity(entity).try_despawn();
                     }
                 }
+                CauldronMenuButtonAction::TogglePhilosophersStone => {
+                    selection.toggle_stone();
+                    // Reuse same despawn-and-rebuild pattern as ingredient toggle
+                    for entity in &menu_query {
+                        commands.entity(entity).try_despawn();
+                    }
+                }
                 CauldronMenuButtonAction::StartBrew => {
                     if !is_brewing && !selection.is_empty() {
-                        let recipe = Recipe::new(selection.selected.clone());
+                        let recipe = Recipe::new(selection.build_ingredients());
                         start_brew.write(StartBrewMessage { recipe });
                         selection.clear();
                         next_in_game_state.set(InGameState::Running);

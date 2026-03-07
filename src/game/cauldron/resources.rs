@@ -19,7 +19,13 @@ pub struct CauldronBuffs {
 impl CauldronBuffs {
     /// Applies a recipe's effects as a new active buff, optionally amplified by a potency multiplier.
     /// A potency of 1.0 applies effects at their base strength.
-    pub fn apply_recipe_with_potency(&mut self, recipe: &Recipe, potency: f32) {
+    /// `duration_multiplier` scales the buff duration (e.g., 1.25 for Alchemist).
+    pub fn apply_recipe_with_potency(
+        &mut self,
+        recipe: &Recipe,
+        potency: f32,
+        duration_multiplier: f32,
+    ) {
         let effects: Vec<BrewEffect> = recipe
             .effects()
             .into_iter()
@@ -27,7 +33,7 @@ impl CauldronBuffs {
             .collect();
         self.active_buffs.push(ActiveBuff {
             effects,
-            time_remaining: recipe.buff_duration(),
+            time_remaining: recipe.buff_duration() * duration_multiplier,
         });
     }
 
@@ -179,6 +185,11 @@ impl CauldronBuffs {
         total
     }
 }
+
+/// Tracks whether the Philosopher's Stone has been used this battle.
+/// Only relevant for the Alchemist wizard type (once per battle).
+#[derive(Resource, Default)]
+pub struct PhilosophersStoneUsed(pub bool);
 
 /// Stores the cauldron sprite sheet texture handle.
 #[derive(Resource)]

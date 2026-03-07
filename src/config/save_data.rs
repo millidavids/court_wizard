@@ -185,6 +185,7 @@ pub(crate) enum AchievementId {
     TheThreeHags,
     OgreWarlord,
     SoiledSurprise,
+    MasterBrewer,
 }
 
 impl AchievementId {
@@ -229,6 +230,7 @@ impl AchievementId {
             AchievementId::TheThreeHags,
             AchievementId::OgreWarlord,
             AchievementId::SoiledSurprise,
+            AchievementId::MasterBrewer,
         ]
     }
 
@@ -273,6 +275,7 @@ impl AchievementId {
             AchievementId::TheThreeHags => "the_three_hags",
             AchievementId::OgreWarlord => "ogre_warlord",
             AchievementId::SoiledSurprise => "soiled_surprise",
+            AchievementId::MasterBrewer => "master_brewer",
         }
     }
 
@@ -317,6 +320,7 @@ impl AchievementId {
             AchievementId::TheThreeHags => "The Three Hags",
             AchievementId::OgreWarlord => "Ogre Warlord",
             AchievementId::SoiledSurprise => "Soiled Surprise",
+            AchievementId::MasterBrewer => "Master Brewer",
         }
     }
 
@@ -339,6 +343,7 @@ impl AchievementId {
             AchievementId::ProtectiveInstincts => Some("Grants: 15 Arcane Insight"),
             AchievementId::FriendlyThorns => Some("Grants: 15 Arcane Insight"),
             AchievementId::SoiledSurprise => Some("Unlocks: Excremage wizard"),
+            AchievementId::MasterBrewer => Some("Unlocks: The Alchemist wizard"),
             _ => None,
         }
     }
@@ -415,6 +420,7 @@ impl AchievementId {
             AchievementId::TheThreeHags => "Three sisters. One shared grudge.",
             AchievementId::OgreWarlord => "The biggest one yet. And it's angry.",
             AchievementId::SoiledSurprise => "Something terrible happened. And it unlocked a wizard type.",
+            AchievementId::MasterBrewer => "You've collected every ingredient. The cauldron recognizes a true master.",
         }
     }
 }

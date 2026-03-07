@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.342] - 2026-03-06
+
+### Added
+- **New wizard type** — a 6th unlockable wizard specializing in brewing, with faster brew times, longer-lasting buffs, and a powerful once-per-battle special ingredient that removes dilution from your brews
+- **New achievement** — a hidden achievement tied to collecting every ingredient, which unlocks the new wizard type
+
+### Changed
+- **Sound effects quieter** — all sound effects are now 30% quieter to better balance with the music
+
 ## [v0.3.339] - 2026-03-06
 
 ### Added

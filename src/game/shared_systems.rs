@@ -996,11 +996,13 @@ pub fn reset_resources_for_replay(
     mut king_spawned: ResMut<KingSpawned>,
     mut cauldron_buffs: ResMut<CauldronBuffs>,
     mut battle_insight: ResMut<super::resources::BattleInsightData>,
+    mut stone_used: ResMut<super::cauldron::resources::PhilosophersStoneUsed>,
 ) {
     attack_cycle.current_time = 0.0;
     defenders_activated.active = false;
     king_spawned.0 = false;
     cauldron_buffs.reset();
+    stone_used.0 = false;
     *battle_insight = Default::default();
     // WaveState is NOT reset here — it's freshly set by init_loading_progress
     // during each level load, so resetting here would overwrite the correct values.

@@ -110,6 +110,8 @@ pub enum WizardType {
     Arcanorouter,
     /// Excremage - converts all spells to Poop damage with brown visuals.
     Excremage,
+    /// Alchemist - brewing specialist with faster brews, longer buffs, and Philosopher's Stone.
+    Alchemist,
 }
 
 impl WizardType {
@@ -121,6 +123,7 @@ impl WizardType {
             WizardType::Randomancer => "Randomancer",
             WizardType::Arcanorouter => "Arcanorouter",
             WizardType::Excremage => "Excremage",
+            WizardType::Alchemist => "The Alchemist",
         }
     }
 
@@ -134,6 +137,7 @@ impl WizardType {
             WizardType::Randomancer => "Spin the wheel of fate for powerful random spells.",
             WizardType::Arcanorouter => "Route arcane power between range, mana, power, and speed.",
             WizardType::Excremage => "Turn all spells into poop.",
+            WizardType::Alchemist => "Master the cauldron with faster brews and stronger potions.",
         }
     }
 
@@ -155,6 +159,9 @@ impl WizardType {
             WizardType::Excremage => {
                 "All your spells deal Poop damage and turn units into smelly messes. Your spells may lack elemental finesse, but nothing clears a battlefield like the smell of fear... and other things."
             }
+            WizardType::Alchemist => {
+                "Your brews take 20% less time and your buffs last 25% longer. Once per battle, you can add the Philosopher's Stone to a brew — it removes all dilution, so every ingredient brews at full strength. The Stone doesn't count toward the 3-ingredient limit."
+            }
         }
     }
 
@@ -166,6 +173,7 @@ impl WizardType {
             WizardType::Randomancer => "You don't choose the spell. The spell chooses you.",
             WizardType::Arcanorouter => "Geordi would be proud of your power routing.",
             WizardType::Excremage => "Something smells off...",
+            WizardType::Alchemist => "The cauldron whispers to those who listen.",
         }
     }
 
@@ -177,6 +185,7 @@ impl WizardType {
             WizardType::Randomancer,
             WizardType::Arcanorouter,
             WizardType::Excremage,
+            WizardType::Alchemist,
         ]
     }
 }
@@ -351,9 +360,9 @@ impl GameConfig {
         self.master_volume * self.music_volume
     }
 
-    /// Effective SFX volume (master × sfx slider).
+    /// Effective SFX volume (master × sfx slider × global SFX scaling).
     pub fn effective_sfx_volume(&self) -> f32 {
-        self.master_volume * self.sfx_volume
+        self.master_volume * self.sfx_volume * 0.7
     }
 }
 

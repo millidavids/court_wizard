@@ -67,12 +67,16 @@ pub fn spawn_cauldron(
 pub fn handle_start_brew(
     mut messages: MessageReader<StartBrewMessage>,
     mut cauldron_query: Query<&mut CauldronState, With<Cauldron>>,
+    config: Res<crate::config::GameConfig>,
 ) {
     for message in messages.read() {
         if let Ok(mut state) = cauldron_query.single_mut()
             && state.is_idle()
         {
-            let duration = message.recipe.brew_time();
+            let mut duration = message.recipe.brew_time();
+            if config.wizard_type == crate::config::WizardType::Alchemist {
+                duration *= crate::game::cauldron::brews::constants::ALCHEMIST_BREW_TIME_MULTIPLIER;
+            }
             state.start_brewing(message.recipe.clone(), duration);
         }
     }
@@ -105,6 +109,7 @@ pub fn handle_brew_complete(
     mut transmutation_stacks: Option<ResMut<TransmutationStacks>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<crate::config::GameConfig>,
+    mut stone_used: ResMut<super::resources::PhilosophersStoneUsed>,
 ) {
     for message in messages.read() {
         // Check for hidden combos — batch unlock to avoid N load+save cycles
@@ -135,7 +140,27 @@ pub fn handle_brew_complete(
             .map(|s| 1.0 + s.count as f32 * TRANSMUTATION_POTENCY_PER_STACK)
             .unwrap_or(1.0);
 
-        cauldron_buffs.apply_recipe_with_potency(&message.recipe, potency_mult);
+        let duration_multiplier =
+            if game_config.wizard_type == crate::config::WizardType::Alchemist {
+                crate::game::cauldron::brews::constants::ALCHEMIST_DURATION_MULTIPLIER
+            } else {
+                1.0
+            };
+        cauldron_buffs.apply_recipe_with_potency(
+            &message.recipe,
+            potency_mult,
+            duration_multiplier,
+        );
+
+        // Mark Philosopher's Stone as used if it was in the recipe
+        if message
+            .recipe
+            .ingredients
+            .iter()
+            .any(|i| i.is_philosophers_stone())
+        {
+            stone_used.0 = true;
+        }
 
         // Reset transmutation stacks after brewing
         if let Some(ref mut stacks) = transmutation_stacks {

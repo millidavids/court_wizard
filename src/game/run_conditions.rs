@@ -153,3 +153,8 @@ pub fn is_randomancer(config: Res<GameConfig>) -> bool {
 pub fn is_arcanorouter(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Arcanorouter
 }
+
+/// Returns true if the active wizard type is Alchemist.
+pub fn is_alchemist(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::Alchemist
+}

@@ -104,6 +104,7 @@ achievement_resource!(
 );
 achievement_resource!(FriendlyThornsAchievement, AchievementId::FriendlyThorns);
 achievement_resource!(SoiledSurpriseAchievement, AchievementId::SoiledSurprise);
+achievement_resource!(MasterBrewerAchievement, AchievementId::MasterBrewer);
 
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
@@ -193,6 +194,7 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(ProtectiveInstinctsAchievement(false));
     commands.insert_resource(FriendlyThornsAchievement(false));
     commands.insert_resource(SoiledSurpriseAchievement(false));
+    commands.insert_resource(MasterBrewerAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -248,4 +250,5 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(ProtectiveInstinctsAchievement);
     init!(FriendlyThornsAchievement);
     init!(SoiledSurpriseAchievement);
+    init!(MasterBrewerAchievement);
 }

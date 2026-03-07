@@ -620,6 +620,34 @@ encounter_system!(check_ogre_encounter, OgreEnrageState, OgreWarlordAchievement,
 // Soiled Surprise — triggered by UnitSickenedMessage (first sickened event)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Master Brewer — triggered by IngredientCollectedMessage (all 18 ingredients)
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_master_brewer(
+    mut msg: MessageReader<crate::game::messages::IngredientCollectedMessage>,
+    mut res: ResMut<MasterBrewerAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    use crate::game::cauldron::brews::Ingredient;
+
+    if msg.read().next().is_some() {
+        let save = crate::config::save_data::load_unified_save();
+        let unlocked = save
+            .map(|s| s.player.unlocked_content.ingredients)
+            .unwrap_or_default();
+
+        let all_collected = Ingredient::all()
+            .iter()
+            .all(|i| unlocked.contains(&format!("{:?}", i)));
+
+        if all_collected {
+            do_unlock(&mut res, &mut events);
+            crate::config::save_data::unlock_wizard_type(WizardType::Alchemist);
+        }
+    }
+}
+
 pub(crate) fn check_soiled_surprise(
     mut msg: MessageReader<super::messages::UnitSickenedMessage>,
     mut res: ResMut<SoiledSurpriseAchievement>,

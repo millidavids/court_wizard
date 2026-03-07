@@ -175,6 +175,32 @@ pub const INGREDIENT_DISABLED_STYLE: ButtonStyle = ButtonStyle {
 };
 
 // ---------------------------------------------------------------------------
+// Philosopher's Stone button
+// ---------------------------------------------------------------------------
+
+/// Button style for the Philosopher's Stone (unselected).
+pub const STONE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
+    font_size: BUTTON_FONT_SIZE,
+    background: Color::srgb(0.18, 0.15, 0.05),
+    border: Color::srgb(0.55, 0.45, 0.12),
+    text_color: Color::srgb(0.85, 0.75, 0.2),
+};
+
+/// Button style for the Philosopher's Stone (selected).
+pub const STONE_SELECTED_STYLE: ButtonStyle = ButtonStyle {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
+    border_width: BUTTON_BORDER_WIDTH,
+    font_size: BUTTON_FONT_SIZE,
+    background: Color::srgb(0.25, 0.20, 0.05),
+    border: Color::srgb(0.85, 0.75, 0.2),
+    text_color: Color::srgb(1.0, 0.9, 0.3),
+};
+
+// ---------------------------------------------------------------------------
 // Action buttons (Brew / Cancel / Close)
 // ---------------------------------------------------------------------------
 

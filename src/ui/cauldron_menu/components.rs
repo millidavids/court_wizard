@@ -7,6 +7,7 @@ use crate::game::cauldron::brews::Ingredient;
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CauldronMenuButtonAction {
     ToggleIngredient(Ingredient),
+    TogglePhilosophersStone,
     StartBrew,
     CancelBrew,
     Close,
@@ -20,6 +21,7 @@ pub(super) struct OnCauldronMenuScreen;
 #[derive(Resource, Default)]
 pub(super) struct IngredientSelection {
     pub selected: Vec<Ingredient>,
+    pub philosophers_stone: bool,
 }
 
 impl IngredientSelection {
@@ -45,5 +47,23 @@ impl IngredientSelection {
 
     pub fn clear(&mut self) {
         self.selected.clear();
+        self.philosophers_stone = false;
+    }
+
+    pub fn toggle_stone(&mut self) {
+        self.philosophers_stone = !self.philosophers_stone;
+    }
+
+    pub fn has_stone(&self) -> bool {
+        self.philosophers_stone
+    }
+
+    /// Builds the full ingredient list including the Stone if selected.
+    pub fn build_ingredients(&self) -> Vec<Ingredient> {
+        let mut ingredients = self.selected.clone();
+        if self.philosophers_stone {
+            ingredients.push(Ingredient::PhilosophersStone);
+        }
+        ingredients
     }
 }

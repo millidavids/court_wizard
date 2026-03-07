@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use crate::game::run_conditions::is_gameplay_active;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
+use crate::game::messages::IngredientCollectedMessage;
+
 use super::messages::{
     BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
     EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
@@ -205,6 +207,13 @@ impl Plugin for AchievementsPlugin {
                 systems::check_soiled_surprise
                     .run_if(on_message::<UnitSickenedMessage>)
                     .run_if(achievement_locked::<SoiledSurpriseAchievement>),
+            )
+            // Master Brewer — triggered by collecting all 18 ingredients
+            .add_systems(
+                Update,
+                systems::check_master_brewer
+                    .run_if(on_message::<IngredientCollectedMessage>)
+                    .run_if(achievement_locked::<MasterBrewerAchievement>),
             )
             // Reset all achievements when progress is cleared
             .add_systems(

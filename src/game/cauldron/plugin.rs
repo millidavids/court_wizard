@@ -20,6 +20,7 @@ pub struct CauldronPlugin;
 impl Plugin for CauldronPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CauldronBuffs>()
+            .init_resource::<super::resources::PhilosophersStoneUsed>()
             .add_message::<StartBrewMessage>()
             .add_message::<BrewCompleteMessage>()
             .add_message::<CancelBrewMessage>()
