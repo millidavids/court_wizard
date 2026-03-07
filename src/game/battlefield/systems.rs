@@ -15,7 +15,8 @@ const RIGHT_WALL_IMAGE_HEIGHT: f32 = 180.0;
 const RIGHT_WALL_WIDTH: f32 = 4000.0;
 
 /// Height derived from aspect ratio.
-const RIGHT_WALL_HEIGHT: f32 = RIGHT_WALL_WIDTH * (RIGHT_WALL_IMAGE_HEIGHT / RIGHT_WALL_IMAGE_WIDTH);
+const RIGHT_WALL_HEIGHT: f32 =
+    RIGHT_WALL_WIDTH * (RIGHT_WALL_IMAGE_HEIGHT / RIGHT_WALL_IMAGE_WIDTH);
 
 /// Position of the right wall (along the +X edge of the battlefield, facing inward).
 /// Centered along the Z axis, raised so it fills the background.
@@ -95,8 +96,9 @@ pub fn setup_battlefield(
     commands.spawn((
         Mesh3d(meshes.add(right_wall_mesh)),
         MeshMaterial3d(right_wall_material),
-        Transform::from_translation(RIGHT_WALL_POSITION)
-            .with_rotation(Quat::from_rotation_y(RIGHT_WALL_ROTATION_DEGREES.to_radians())),
+        Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(Quat::from_rotation_y(
+            RIGHT_WALL_ROTATION_DEGREES.to_radians(),
+        )),
         RightWall,
         OnGameplayScreen,
     ));
@@ -122,9 +124,7 @@ pub fn spawn_castle_wall<M: Component + Clone>(
     let plane_width = CASTLE_WIDTH * 3.0;
     let plane_depth = plane_width * (IMAGE_HEIGHT / IMAGE_WIDTH);
 
-    let wall_mesh = Plane3d::default()
-        .mesh()
-        .size(plane_width, plane_depth);
+    let wall_mesh = Plane3d::default().mesh().size(plane_width, plane_depth);
 
     let wall_material = materials.add(StandardMaterial {
         base_color_texture: Some(battlefield_assets.castle_wall.clone()),

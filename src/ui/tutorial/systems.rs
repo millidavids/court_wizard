@@ -328,7 +328,12 @@ pub(super) fn apply_highlight(
     mut commands: Commands,
     active: Res<ActiveTutorial>,
     mut highlightables: Query<
-        (Entity, &TutorialHighlightable, Option<&BorderColor>, &mut Node),
+        (
+            Entity,
+            &TutorialHighlightable,
+            Option<&BorderColor>,
+            &mut Node,
+        ),
         Without<OriginalBorder>,
     >,
 ) {

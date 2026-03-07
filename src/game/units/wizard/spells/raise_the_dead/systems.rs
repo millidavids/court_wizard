@@ -11,6 +11,7 @@ use super::constants::{
     CHANNEL_RAMP_TIME, INITIAL_CHANNEL_INTERVAL, MANA_COST_PER_CORPSE, MIN_CHANNEL_INTERVAL,
     RESURRECTION_RADIUS,
 };
+use crate::config::GameConfig;
 use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, PermanentCorpse, Team};
@@ -18,7 +19,6 @@ use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::config::GameConfig;
 
 /// Local wizard Raise The Dead casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -29,10 +29,7 @@ pub fn handle_raise_the_dead_casting(
     mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    corpse_query: Query<
-        (Entity, &Transform),
-        (With<Corpse>, Without<PermanentCorpse>),
-    >,
+    corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     infantry_assets: Res<InfantryAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     sfx: Res<SpellSfxAssets>,
@@ -81,10 +78,7 @@ fn raise_the_dead_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     commands: &mut Commands,
-    corpse_query: &Query<
-        (Entity, &Transform),
-        (With<Corpse>, Without<PermanentCorpse>),
-    >,
+    corpse_query: &Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
     sfx: &SpellSfxAssets,
@@ -128,7 +122,13 @@ fn raise_the_dead_casting_logic(
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(MANA_COST_PER_CORPSE) {
                     if let Some(cursor_pos) = input.cursor_pos {
-                        audio::play_sfx(commands, &sfx.raise_the_dead_cast, cursor_pos, game_config, sfx);
+                        audio::play_sfx(
+                            commands,
+                            &sfx.raise_the_dead_cast,
+                            cursor_pos,
+                            game_config,
+                            sfx,
+                        );
                         resurrect_nearest_corpse(
                             commands,
                             cursor_pos,
@@ -159,10 +159,7 @@ fn raise_the_dead_casting_logic(
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
-    corpse_query: &Query<
-        (Entity, &Transform),
-        (With<Corpse>, Without<PermanentCorpse>),
-    >,
+    corpse_query: &Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
     empowerment: f32,
@@ -170,9 +167,7 @@ fn resurrect_nearest_corpse(
     // Find nearest corpse within radius
     if let Some((corpse_entity, corpse_transform)) = corpse_query
         .iter()
-        .filter(|(_, transform)| {
-            target_pos.distance(transform.translation) <= RESURRECTION_RADIUS
-        })
+        .filter(|(_, transform)| target_pos.distance(transform.translation) <= RESURRECTION_RADIUS)
         .min_by(|a, b| {
             let dist_a = target_pos.distance(a.1.translation);
             let dist_b = target_pos.distance(b.1.translation);

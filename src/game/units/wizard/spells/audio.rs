@@ -88,7 +88,8 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
         squall_impact: asset_server.load("audio/sound_effects/squall_impact.ogg"),
         telekinesis_cast: asset_server.load("audio/sound_effects/telekinesis_cast.ogg"),
         teleport_cast: asset_server.load("audio/sound_effects/teleport_cast.ogg"),
-        wall_of_fire_persistent: asset_server.load("audio/sound_effects/wall_of_fire_persistent.ogg"),
+        wall_of_fire_persistent: asset_server
+            .load("audio/sound_effects/wall_of_fire_persistent.ogg"),
         wall_of_stone_cast: asset_server.load("audio/sound_effects/wall_of_stone_cast.ogg"),
         // Gun sound effects (Warglock)
         machine_gun_shot: asset_server.load("audio/sound_effects/machine_gun_shot.ogg"),
@@ -191,9 +192,7 @@ pub(crate) fn play_looping_sfx(
     let volume = game_config.effective_sfx_volume();
 
     if volume <= 0.0 {
-        return commands
-            .spawn((ChannelingSfx, OnGameplayScreen))
-            .id();
+        return commands.spawn((ChannelingSfx, OnGameplayScreen)).id();
     }
 
     commands

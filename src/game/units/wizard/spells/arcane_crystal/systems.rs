@@ -20,6 +20,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::chain_lightning::constants as cl_constants;
 use crate::game::units::wizard::spells::chain_lightning::systems as chain_lightning_systems;
@@ -27,7 +28,6 @@ use crate::game::units::wizard::spells::disintegrate::components::{
     BeamEclipse, BeamGlow, BeamOriginFlare, DisintegrateBeam,
 };
 use crate::game::units::wizard::spells::disintegrate::systems as disintegrate_systems;
-use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::wizard::spells::finger_of_death::components::FingerOfDeathBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems as fireball_systems;
@@ -35,14 +35,16 @@ use crate::game::units::wizard::spells::magic_missile::components::{MagicMissile
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectile;
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
 use crate::game::units::wizard::spells::meteor_fall::systems::MeteorProjectileTalentFlags;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
     meteor_fall_constants,
 };
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
 
 // ===== Helper Functions =====
 
@@ -138,13 +140,7 @@ pub(super) fn handle_arcane_crystal_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -192,7 +188,8 @@ pub(super) fn handle_arcane_crystal_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(MANA_COST)
+            if caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(MANA_COST)
                 && let Some(pos) = clamped_cursor
             {
                 let circle_entity = spawn_circle_indicator(
@@ -203,7 +200,10 @@ pub(super) fn handle_arcane_crystal_casting(
                     CRYSTAL_RANGE * primed_spell.empowerment,
                     CIRCLE_Y_POSITION,
                 )
-                .insert(ArcaneCrystalCircleIndicator::new(pos, primed_spell.empowerment))
+                .insert(ArcaneCrystalCircleIndicator::new(
+                    pos,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -648,17 +648,18 @@ pub(super) fn detect_beam_hits(
                     if dist <= crystal.range {
                         // Target still valid — update all beams in group to track it
                         let (base_direction, length) = crystal_beam_geometry(
-                            crystal.position, target_transform.translation, crystal.range,
+                            crystal.position,
+                            target_transform.translation,
+                            crystal.range,
                         );
                         for beam_entity in beam_entities {
                             if let Ok(mut beam) =
                                 crystal_beams.get_mut(*beam_entity).map(|(_, beam)| beam)
                             {
                                 beam.origin = crystal.position;
-                                beam.direction = Quat::from_axis_angle(
-                                    Vec3::Y,
-                                    beam.fan_offset_angle,
-                                ) * base_direction;
+                                beam.direction =
+                                    Quat::from_axis_angle(Vec3::Y, beam.fan_offset_angle)
+                                        * base_direction;
                                 beam.length = length;
                             }
                         }
@@ -806,9 +807,8 @@ pub(super) fn detect_beam_hits(
                     &[0.0]
                 };
                 for (_, target_pos) in &enemies {
-                    let (base_direction, length) = crystal_beam_geometry(
-                        crystal.position, *target_pos, crystal.range,
-                    );
+                    let (base_direction, length) =
+                        crystal_beam_geometry(crystal.position, *target_pos, crystal.range);
                     for &offset in offsets {
                         let direction = if offset.abs() > 0.001 {
                             Quat::from_axis_angle(Vec3::Y, offset) * base_direction
@@ -1249,16 +1249,13 @@ fn handle_auto_disintegrate(
             .length();
             if dist <= range {
                 // Target still valid — update all beams to track it in-place
-                let (base_direction, length) = crystal_beam_geometry(
-                    position, target_transform.translation, range,
-                );
+                let (base_direction, length) =
+                    crystal_beam_geometry(position, target_transform.translation, range);
                 for beam_entity in &beam_entities {
                     if let Ok((_, mut beam)) = crystal_beams.get_mut(*beam_entity) {
                         beam.origin = position;
-                        beam.direction = Quat::from_axis_angle(
-                            Vec3::Y,
-                            beam.fan_offset_angle,
-                        ) * base_direction;
+                        beam.direction =
+                            Quat::from_axis_angle(Vec3::Y, beam.fan_offset_angle) * base_direction;
                         beam.length = length;
                     }
                 }
@@ -1269,7 +1266,13 @@ fn handle_auto_disintegrate(
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
                 let new_beams = spawn_crystal_disintegrate_beam(
-                    commands, assets, position, *new_pos, range, empowerment, Some(talent_cfg),
+                    commands,
+                    assets,
+                    position,
+                    *new_pos,
+                    range,
+                    empowerment,
+                    Some(talent_cfg),
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beams, *new_target));
@@ -1284,7 +1287,13 @@ fn handle_auto_disintegrate(
             let new_targets = find_random_targets_in_range(position, range, 1, targets);
             if let Some((new_target, new_pos)) = new_targets.first() {
                 let new_beams = spawn_crystal_disintegrate_beam(
-                    commands, assets, position, *new_pos, range, empowerment, Some(talent_cfg),
+                    commands,
+                    assets,
+                    position,
+                    *new_pos,
+                    range,
+                    empowerment,
+                    Some(talent_cfg),
                 );
                 if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
                     crystal.auto_disintegrate_beam = Some((new_beams, *new_target));
@@ -1300,7 +1309,13 @@ fn handle_auto_disintegrate(
     let new_targets = find_random_targets_in_range(position, range, 1, targets);
     if let Some((target_entity, target_pos)) = new_targets.first() {
         let beam_entities = spawn_crystal_disintegrate_beam(
-            commands, assets, position, *target_pos, range, empowerment, Some(talent_cfg),
+            commands,
+            assets,
+            position,
+            *target_pos,
+            range,
+            empowerment,
+            Some(talent_cfg),
         );
         if let Some(mut crystal) = crystals.iter_mut().nth(crystal_idx) {
             crystal.auto_disintegrate_beam = Some((beam_entities, *target_entity));
@@ -1355,9 +1370,11 @@ fn spawn_crystal_disintegrate_beam(
             BEAM_DAMAGE_SCALE,
             offset,
         );
-        commands
-            .entity(beam_entity)
-            .insert(CrystalSpawn { origin, max_range, lifetime: None });
+        commands.entity(beam_entity).insert(CrystalSpawn {
+            origin,
+            max_range,
+            lifetime: None,
+        });
         entities.push(beam_entity);
     }
     entities

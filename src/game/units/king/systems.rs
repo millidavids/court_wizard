@@ -12,9 +12,9 @@ use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, Te
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
-    HasteModifier, Health, Hitbox, KingsGuard,
-    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SlowMovementModifier, SleepModifier,
-    TargetingVelocity, Team, Teleportable, WalkingAnimation,
+    HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier, RootedModifier,
+    RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier, TargetingVelocity,
+    Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -127,7 +127,13 @@ pub fn update_king_targeting(
     defenders_activated: Res<crate::game::units::infantry::components::DefendersActivated>,
     mut commands: Commands,
     mut king: Query<
-        (Entity, &Transform, &Team, &mut TargetingVelocity, Option<&crate::game::units::components::RetaliationTarget>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut TargetingVelocity,
+            Option<&crate::game::units::components::RetaliationTarget>,
+        ),
         (With<King>, Without<Corpse>),
     >,
     all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
@@ -144,7 +150,9 @@ pub fn update_king_targeting(
         if !defenders_activated.active {
             targeting_velocity.velocity = Vec3::ZERO;
             targeting_velocity.distance_to_target = f32::MAX;
-            commands.entity(entity).remove::<crate::game::units::components::InMelee>();
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::components::InMelee>();
             continue;
         }
 

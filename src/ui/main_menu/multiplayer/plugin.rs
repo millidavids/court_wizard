@@ -6,7 +6,9 @@ use crate::game::multiplayer::components::PendingRematch;
 use crate::state::MenuState;
 use crate::ui::plugin::ButtonActionSet;
 
-use super::systems::{button_action, cleanup_multiplayer_resources, process_lobby_messages, setup, update_ui_state};
+use super::systems::{
+    button_action, cleanup_multiplayer_resources, process_lobby_messages, setup, update_ui_state,
+};
 
 /// Plugin that manages the multiplayer lobby screen UI.
 #[derive(Default)]
@@ -15,7 +17,13 @@ pub struct MultiplayerPlugin;
 impl Plugin for MultiplayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::Multiplayer), setup)
-            .add_systems(OnExit(MenuState::Multiplayer), (crate::ui::systems::cleanup_screen::<super::components::OnMultiplayerScreen>, cleanup_multiplayer_resources))
+            .add_systems(
+                OnExit(MenuState::Multiplayer),
+                (
+                    crate::ui::systems::cleanup_screen::<super::components::OnMultiplayerScreen>,
+                    cleanup_multiplayer_resources,
+                ),
+            )
             .add_systems(
                 Update,
                 (

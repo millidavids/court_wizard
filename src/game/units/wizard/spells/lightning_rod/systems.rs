@@ -9,6 +9,7 @@ use super::components::{
     LightningRod, LightningRodArc, LightningRodCircleIndicator, LightningStrike,
 };
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -20,11 +21,12 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
 
 /// Local wizard Lightning Rod casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -35,13 +37,7 @@ pub(super) fn handle_lightning_rod_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -79,17 +75,19 @@ pub(super) fn handle_lightning_rod_casting(
         && mana.can_afford(MANA_COST)
         && let Some(pos) = clamped_pos
     {
-        let circle_entity =
-            spawn_circle_indicator(
-                &mut commands,
-                &visual_assets,
-                visual_assets.lightning_rod_indicator.clone(),
-                pos,
-                ARC_RADIUS * primed_spell.empowerment,
-                CIRCLE_Y_POSITION,
-            )
-            .insert(LightningRodCircleIndicator::new(pos, primed_spell.empowerment))
-            .id();
+        let circle_entity = spawn_circle_indicator(
+            &mut commands,
+            &visual_assets,
+            visual_assets.lightning_rod_indicator.clone(),
+            pos,
+            ARC_RADIUS * primed_spell.empowerment,
+            CIRCLE_Y_POSITION,
+        )
+        .insert(LightningRodCircleIndicator::new(
+            pos,
+            primed_spell.empowerment,
+        ))
+        .id();
         commands
             .entity(wizard_entity)
             .insert(SpellCaster::with_indicator(circle_entity));
@@ -190,7 +188,13 @@ fn lightning_rod_casting_logic(
                     let spawn_pos = input.cursor_pos.unwrap_or(wizard_pos);
 
                     spawn_lightning_rod(commands, assets, spawn_pos, primed_spell.empowerment);
-                    audio::play_impact_sfx(commands, &sfx.lightning_rod_impact, spawn_pos, game_config, sfx);
+                    audio::play_impact_sfx(
+                        commands,
+                        &sfx.lightning_rod_impact,
+                        spawn_pos,
+                        game_config,
+                        sfx,
+                    );
                     completed = true;
                 }
 

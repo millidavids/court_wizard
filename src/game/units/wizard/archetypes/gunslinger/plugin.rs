@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::{any_exist, is_gameplay_running, is_warglock, is_spell_effects_active};
+use crate::game::run_conditions::{
+    any_exist, is_gameplay_running, is_spell_effects_active, is_warglock,
+};
 use crate::state::InGameState;
 
 use super::components::*;
@@ -75,10 +77,7 @@ impl Plugin for GunslingerPlugin {
             .add_systems(
                 Update,
                 (update_bullet_hit_flashes, update_bullet_hit_flash_vfx)
-                    .run_if(
-                        any_exist::<BulletHitFlash>()
-                            .or(any_exist::<BulletHitFlashVfx>()),
-                    )
+                    .run_if(any_exist::<BulletHitFlash>().or(any_exist::<BulletHitFlashVfx>()))
                     .run_if(is_spell_effects_active),
             )
             // Flame particle systems

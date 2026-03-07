@@ -14,16 +14,18 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
-use crate::game::units::components::{Health, MarkedForDeathModifier, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Health, MarkedForDeathModifier, Team, TemporaryHitPoints, apply_spell_damage,
+};
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
-use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-use crate::networking::snapshot::SpellEffectKind;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Local wizard fireball casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -34,12 +36,7 @@ pub fn handle_fireball_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     caster_query: Query<&SpellCaster>,
@@ -58,8 +55,7 @@ pub fn handle_fireball_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -133,9 +129,16 @@ fn fireball_casting_logic(
                 if mana.consume(constants::MANA_COST)
                     && let Some(target_pos) = input.cursor_pos
                 {
-                    let spawn_origin = SPELL_ORIGIN
-                        + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
-                    spawn_fireball_with_talents(commands, assets, spawn_origin, target_pos, primed_spell, active_talents);
+                    let spawn_origin =
+                        SPELL_ORIGIN + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                    spawn_fireball_with_talents(
+                        commands,
+                        assets,
+                        spawn_origin,
+                        target_pos,
+                        primed_spell,
+                        active_talents,
+                    );
                     audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config, sfx);
                     completed = true;
                 }
@@ -173,16 +176,16 @@ fn spawn_fireball_with_talents(
 
     // Tier 1 modifications
     let radius_mult = match t1 {
-        Some(0) => 1.5,  // Wider Blast
-        Some(2) => 0.5,  // Focused Blast: half radius
+        Some(0) => 1.5, // Wider Blast
+        Some(2) => 0.5, // Focused Blast: half radius
         _ => 1.0,
     };
     let duration_mult = match t1 {
-        Some(1) => 1.8,  // Lingering Flames: +80% duration
+        Some(1) => 1.8, // Lingering Flames: +80% duration
         _ => 1.0,
     };
     let damage_mult = match t1 {
-        Some(2) => 2.0,  // Focused Blast: double damage
+        Some(2) => 2.0, // Focused Blast: double damage
         _ => 1.0,
     };
 
@@ -194,7 +197,11 @@ fn spawn_fireball_with_talents(
     let scorched_earth = t3 == Some(1);
     let chain_ignition = t3 == Some(2);
     let is_meteor = t3 == Some(0);
-    let radius_mult = if is_meteor { radius_mult * 1.3 } else { radius_mult };
+    let radius_mult = if is_meteor {
+        radius_mult * 1.3
+    } else {
+        radius_mult
+    };
 
     // Calculate spawn position and velocity
     let (spawn_origin, velocity) = if is_meteor {
@@ -509,7 +516,11 @@ fn spawn_cluster_bombs(
         let flight_time = 0.4;
         let horizontal_speed = distance / flight_time;
         let vy = -(origin.y.max(5.0)) / flight_time;
-        let velocity = Vec3::new(angle.cos() * horizontal_speed, vy, angle.sin() * horizontal_speed);
+        let velocity = Vec3::new(
+            angle.cos() * horizontal_speed,
+            vy,
+            angle.sin() * horizontal_speed,
+        );
 
         let mut mini = Fireball::new(
             velocity,
@@ -566,7 +577,8 @@ pub fn update_napalm_trails(
             commands.spawn((
                 Mesh3d(visual_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(visual_assets.fireball_explosion.clone()),
-                Transform::from_translation(pos).with_scale(Vec3::splat(30.0 * fireball.empowerment)),
+                Transform::from_translation(pos)
+                    .with_scale(Vec3::splat(30.0 * fireball.empowerment)),
                 trail_explosion,
                 OnGameplayScreen,
             ));
@@ -600,7 +612,9 @@ pub fn apply_explosion_damage(
         Has<SpellShield>,
         Option<&MarkedForDeathModifier>,
     )>,
-    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
+    mut talent_progress: Option<
+        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
 ) {
     for mut explosion in &mut explosions {
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
@@ -609,7 +623,9 @@ pub fn apply_explosion_damage(
             let current_radius = explosion.current_radius();
             let mut hit_count = 0u32;
 
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield, existing_mark) in &mut targets {
+            for (entity, transform, mut health, mut temp_hp, has_spell_shield, existing_mark) in
+                &mut targets
+            {
                 let distance = explosion.origin.distance(transform.translation);
 
                 if distance <= current_radius {
@@ -626,7 +642,9 @@ pub fn apply_explosion_damage(
 
                     // Chain Ignition: apply damage amplification debuff
                     if explosion.chain_ignition && existing_mark.is_none() {
-                        commands.entity(entity).insert(MarkedForDeathModifier::new(0.5, 3.0));
+                        commands
+                            .entity(entity)
+                            .insert(MarkedForDeathModifier::new(0.5, 3.0));
                     }
                 }
             }

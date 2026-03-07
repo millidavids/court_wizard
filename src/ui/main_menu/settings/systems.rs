@@ -44,282 +44,280 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
         pause_menu,
         Overflow::scroll_y(),
     );
-    commands.entity(content).insert(ScrollableContainer).with_children(|parent| {
-                    // Title
-                    parent.spawn((
-                        Text::new("Settings"),
-                        TextFont::from_font_size(TITLE_FONT_SIZE),
-                        TextColor(TEXT_COLOR),
-                        Node {
-                            margin: UiRect::bottom(Val::Px(MARGIN)),
-                            ..default()
-                        },
-                    ));
+    commands
+        .entity(content)
+        .insert(ScrollableContainer)
+        .with_children(|parent| {
+            // Title
+            parent.spawn((
+                Text::new("Settings"),
+                TextFont::from_font_size(TITLE_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                Node {
+                    margin: UiRect::bottom(Val::Px(MARGIN)),
+                    ..default()
+                },
+            ));
 
-                    // Graphics Settings Section
-                    spawn_section(parent, "Graphics", |section| {
-                        // VSync Mode
-                        spawn_option_row(section, "VSync:", |buttons| {
-                            spawn_option_button(
-                                buttons,
-                                "On",
-                                OptionButtonValue::VsyncMode(VsyncMode::On),
-                                game_config.vsync == VsyncMode::On,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Off",
-                                OptionButtonValue::VsyncMode(VsyncMode::Off),
-                                game_config.vsync == VsyncMode::Off,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Adaptive",
-                                OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
-                                game_config.vsync == VsyncMode::Adaptive,
-                            );
-                        });
-                    });
+            // Graphics Settings Section
+            spawn_section(parent, "Graphics", |section| {
+                // VSync Mode
+                spawn_option_row(section, "VSync:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "On",
+                        OptionButtonValue::VsyncMode(VsyncMode::On),
+                        game_config.vsync == VsyncMode::On,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Off",
+                        OptionButtonValue::VsyncMode(VsyncMode::Off),
+                        game_config.vsync == VsyncMode::Off,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Adaptive",
+                        OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
+                        game_config.vsync == VsyncMode::Adaptive,
+                    );
+                });
+            });
 
-                    // Audio Settings Section
-                    spawn_section(parent, "Audio", |section| {
-                        spawn_slider_control(
-                            section,
-                            "Master Volume:",
-                            SliderValue::MasterVolume,
-                            &game_config,
-                        );
-                        spawn_slider_control(
-                            section,
-                            "Music Volume:",
-                            SliderValue::MusicVolume,
-                            &game_config,
-                        );
-                        spawn_slider_control(
-                            section,
-                            "SFX Volume:",
-                            SliderValue::SfxVolume,
-                            &game_config,
-                        );
-                    });
+            // Audio Settings Section
+            spawn_section(parent, "Audio", |section| {
+                spawn_slider_control(
+                    section,
+                    "Master Volume:",
+                    SliderValue::MasterVolume,
+                    &game_config,
+                );
+                spawn_slider_control(
+                    section,
+                    "Music Volume:",
+                    SliderValue::MusicVolume,
+                    &game_config,
+                );
+                spawn_slider_control(section, "SFX Volume:", SliderValue::SfxVolume, &game_config);
+            });
 
-                    // Display Settings Section
-                    spawn_section(parent, "Display", |section| {
-                        spawn_slider_control(
-                            section,
-                            "Brightness:",
-                            SliderValue::UiBrightness,
-                            &game_config,
-                        );
-                    });
+            // Display Settings Section
+            spawn_section(parent, "Display", |section| {
+                spawn_slider_control(
+                    section,
+                    "Brightness:",
+                    SliderValue::UiBrightness,
+                    &game_config,
+                );
+            });
 
-                    // Game Settings Section
-                    spawn_section(parent, "Game", |section| {
-                        spawn_option_row(section, "Difficulty:", |buttons| {
-                            spawn_option_button(
-                                buttons,
-                                "Easy",
-                                OptionButtonValue::Difficulty(Difficulty::Easy),
-                                game_config.difficulty == Difficulty::Easy,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Normal",
-                                OptionButtonValue::Difficulty(Difficulty::Normal),
-                                game_config.difficulty == Difficulty::Normal,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Hard",
-                                OptionButtonValue::Difficulty(Difficulty::Hard),
-                                game_config.difficulty == Difficulty::Hard,
-                            );
-                        });
+            // Game Settings Section
+            spawn_section(parent, "Game", |section| {
+                spawn_option_row(section, "Difficulty:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "Easy",
+                        OptionButtonValue::Difficulty(Difficulty::Easy),
+                        game_config.difficulty == Difficulty::Easy,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Normal",
+                        OptionButtonValue::Difficulty(Difficulty::Normal),
+                        game_config.difficulty == Difficulty::Normal,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Hard",
+                        OptionButtonValue::Difficulty(Difficulty::Hard),
+                        game_config.difficulty == Difficulty::Hard,
+                    );
+                });
 
-                        spawn_option_row(section, "Skip Splash:", |buttons| {
-                            spawn_option_button(
-                                buttons,
-                                "On",
-                                OptionButtonValue::SkipSplash(true),
-                                game_config.skip_splash,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Off",
-                                OptionButtonValue::SkipSplash(false),
-                                !game_config.skip_splash,
-                            );
-                        });
+                spawn_option_row(section, "Skip Splash:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "On",
+                        OptionButtonValue::SkipSplash(true),
+                        game_config.skip_splash,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Off",
+                        OptionButtonValue::SkipSplash(false),
+                        !game_config.skip_splash,
+                    );
+                });
 
-                        spawn_option_row(section, "Tutorials:", |buttons| {
-                            spawn_option_button(
-                                buttons,
-                                "On",
-                                OptionButtonValue::TutorialsEnabled(true),
-                                game_config.tutorials_enabled,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Off",
-                                OptionButtonValue::TutorialsEnabled(false),
-                                !game_config.tutorials_enabled,
-                            );
-                        });
+                spawn_option_row(section, "Tutorials:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "On",
+                        OptionButtonValue::TutorialsEnabled(true),
+                        game_config.tutorials_enabled,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Off",
+                        OptionButtonValue::TutorialsEnabled(false),
+                        !game_config.tutorials_enabled,
+                    );
+                });
 
-                        spawn_option_row(section, "Level Clock:", |buttons| {
-                            spawn_option_button(
-                                buttons,
-                                "On",
-                                OptionButtonValue::ShowLevelClock(true),
-                                game_config.show_level_clock,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Off",
-                                OptionButtonValue::ShowLevelClock(false),
-                                !game_config.show_level_clock,
-                            );
-                        });
+                spawn_option_row(section, "Level Clock:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "On",
+                        OptionButtonValue::ShowLevelClock(true),
+                        game_config.show_level_clock,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Off",
+                        OptionButtonValue::ShowLevelClock(false),
+                        !game_config.show_level_clock,
+                    );
+                });
 
-                        spawn_option_row(section, "Urgent Mode:", |buttons| {
-                            spawn_option_button(
-                                buttons,
-                                "On",
-                                OptionButtonValue::UrgentMode(true),
-                                game_config.urgent_mode,
-                            );
-                            spawn_option_button(
-                                buttons,
-                                "Off",
-                                OptionButtonValue::UrgentMode(false),
-                                !game_config.urgent_mode,
-                            );
-                        });
+                spawn_option_row(section, "Urgent Mode:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "On",
+                        OptionButtonValue::UrgentMode(true),
+                        game_config.urgent_mode,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Off",
+                        OptionButtonValue::UrgentMode(false),
+                        !game_config.urgent_mode,
+                    );
+                });
 
-                        // Reset Tutorials button
-                        section
-                            .spawn(Node {
-                                width: Val::Percent(100.0),
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                column_gap: Val::Px(MARGIN),
+                // Reset Tutorials button
+                section
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(MARGIN),
+                        ..default()
+                    })
+                    .with_children(|row| {
+                        row.spawn((
+                            Text::new("Reset Tutorials:"),
+                            TextFont::from_font_size(LABEL_FONT_SIZE),
+                            TextColor(TEXT_COLOR),
+                            Node {
+                                width: Val::Px(200.0),
                                 ..default()
-                            })
-                            .with_children(|row| {
-                                row.spawn((
-                                    Text::new("Reset Tutorials:"),
-                                    TextFont::from_font_size(LABEL_FONT_SIZE),
-                                    TextColor(TEXT_COLOR),
-                                    Node {
-                                        width: Val::Px(200.0),
-                                        ..default()
-                                    },
-                                ));
+                            },
+                        ));
 
-                                row.spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(OPTION_BUTTON_WIDTH),
-                                        height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BorderColor::all(BUTTON_BORDER),
-                                    BorderRadius::all(Val::Px(4.0)),
-                                    BackgroundColor(BUTTON_BACKGROUND),
-                                    ButtonColors {
-                                        background: BUTTON_BACKGROUND,
-                                    },
-                                    SettingsButtonAction::ResetTutorials,
-                                ))
-                                .with_children(|button| {
-                                    button.spawn((
-                                        Text::new("Reset"),
-                                        TextFont::from_font_size(BUTTON_FONT_SIZE),
-                                        TextColor(TEXT_COLOR),
-                                    ));
-                                });
-                            });
-
-                        // Clear Progress button
-                        section
-                            .spawn(Node {
-                                width: Val::Percent(100.0),
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                column_gap: Val::Px(MARGIN),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                row.spawn((
-                                    Text::new("Clear Progress:"),
-                                    TextFont::from_font_size(LABEL_FONT_SIZE),
-                                    TextColor(TEXT_COLOR),
-                                    Node {
-                                        width: Val::Px(200.0),
-                                        ..default()
-                                    },
-                                ));
-
-                                row.spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(OPTION_BUTTON_WIDTH),
-                                        height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BorderColor::all(DANGER_BUTTON_BORDER),
-                                    BorderRadius::all(Val::Px(4.0)),
-                                    BackgroundColor(DANGER_BUTTON_BACKGROUND),
-                                    ButtonColors {
-                                        background: DANGER_BUTTON_BACKGROUND,
-                                    },
-                                    SettingsButtonAction::ClearProgress,
-                                ))
-                                .with_children(|button| {
-                                    button.spawn((
-                                        Text::new("Clear"),
-                                        TextFont::from_font_size(BUTTON_FONT_SIZE),
-                                        TextColor(TEXT_COLOR),
-                                    ));
-                                });
-                            });
-                    });
-
-                    // Back button
-                    parent
-                        .spawn((
+                        row.spawn((
                             Button,
                             Node {
-                                width: Val::Px(BACK_BUTTON_WIDTH),
-                                height: Val::Px(BACK_BUTTON_HEIGHT),
+                                width: Val::Px(OPTION_BUTTON_WIDTH),
+                                height: Val::Px(OPTION_BUTTON_HEIGHT),
                                 border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
-                                margin: UiRect::top(Val::Px(MARGIN)),
                                 ..default()
                             },
                             BorderColor::all(BUTTON_BORDER),
-                            BorderRadius::all(Val::Px(8.0)),
+                            BorderRadius::all(Val::Px(4.0)),
                             BackgroundColor(BUTTON_BACKGROUND),
                             ButtonColors {
                                 background: BUTTON_BACKGROUND,
                             },
-                            SettingsButtonAction::Back,
+                            SettingsButtonAction::ResetTutorials,
                         ))
                         .with_children(|button| {
                             button.spawn((
-                                Text::new("Back"),
+                                Text::new("Reset"),
                                 TextFont::from_font_size(BUTTON_FONT_SIZE),
                                 TextColor(TEXT_COLOR),
                             ));
                         });
-    });
+                    });
+
+                // Clear Progress button
+                section
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(MARGIN),
+                        ..default()
+                    })
+                    .with_children(|row| {
+                        row.spawn((
+                            Text::new("Clear Progress:"),
+                            TextFont::from_font_size(LABEL_FONT_SIZE),
+                            TextColor(TEXT_COLOR),
+                            Node {
+                                width: Val::Px(200.0),
+                                ..default()
+                            },
+                        ));
+
+                        row.spawn((
+                            Button,
+                            Node {
+                                width: Val::Px(OPTION_BUTTON_WIDTH),
+                                height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BorderColor::all(DANGER_BUTTON_BORDER),
+                            BorderRadius::all(Val::Px(4.0)),
+                            BackgroundColor(DANGER_BUTTON_BACKGROUND),
+                            ButtonColors {
+                                background: DANGER_BUTTON_BACKGROUND,
+                            },
+                            SettingsButtonAction::ClearProgress,
+                        ))
+                        .with_children(|button| {
+                            button.spawn((
+                                Text::new("Clear"),
+                                TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                TextColor(TEXT_COLOR),
+                            ));
+                        });
+                    });
+            });
+
+            // Back button
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        width: Val::Px(BACK_BUTTON_WIDTH),
+                        height: Val::Px(BACK_BUTTON_HEIGHT),
+                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::top(Val::Px(MARGIN)),
+                        ..default()
+                    },
+                    BorderColor::all(BUTTON_BORDER),
+                    BorderRadius::all(Val::Px(8.0)),
+                    BackgroundColor(BUTTON_BACKGROUND),
+                    ButtonColors {
+                        background: BUTTON_BACKGROUND,
+                    },
+                    SettingsButtonAction::Back,
+                ))
+                .with_children(|button| {
+                    button.spawn((
+                        Text::new("Back"),
+                        TextFont::from_font_size(BUTTON_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                    ));
+                });
+        });
 }
 
 /// Spawns settings with opaque background (for main menu).

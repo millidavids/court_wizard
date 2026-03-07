@@ -10,6 +10,7 @@ use super::super::super::components::{
 use super::components::*;
 use super::constants;
 use super::styles::{arc_color_at_depth, arc_width_at_depth};
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -19,14 +20,13 @@ use crate::game::units::components::{
     Corpse, Health, Knockback, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::config::GameConfig;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 
 /// Computed talent configuration for chain lightning, derived from ActiveTalents.
 struct ChainLightningTalentConfig {
@@ -42,7 +42,9 @@ struct ChainLightningTalentConfig {
     chain_reaction: bool,
 }
 
-fn compute_chain_lightning_talent_config(active_talents: Option<&ActiveTalents>) -> ChainLightningTalentConfig {
+fn compute_chain_lightning_talent_config(
+    active_talents: Option<&ActiveTalents>,
+) -> ChainLightningTalentConfig {
     let t1 = active_talents.and_then(|t| t.get_selection(Spell::ChainLightning, 0));
     let t2 = active_talents.and_then(|t| t.get_selection(Spell::ChainLightning, 1));
     let t3 = active_talents.and_then(|t| t.get_selection(Spell::ChainLightning, 2));
@@ -124,12 +126,7 @@ pub fn handle_chain_lightning_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -156,8 +153,7 @@ pub fn handle_chain_lightning_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -185,7 +181,13 @@ pub fn handle_chain_lightning_casting(
     );
 
     if completed {
-        audio::play_sfx(&mut commands, &sfx.chain_lightning_cast, SPELL_ORIGIN, &game_config, &sfx);
+        audio::play_sfx(
+            &mut commands,
+            &sfx.chain_lightning_cast,
+            SPELL_ORIGIN,
+            &game_config,
+            &sfx,
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -249,8 +251,8 @@ fn chain_lightning_casting_logic(
                         if let Some((target_entity, target_pos)) = target {
                             already_targeted.push(target_entity);
 
-                            let wizard_pos = SPELL_ORIGIN
-                                + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
+                            let wizard_pos =
+                                SPELL_ORIGIN + Vec3::new(0.0, constants::SPAWN_HEIGHT_OFFSET, 0.0);
 
                             // Scale damage by empowerment and talent multiplier
                             let initial_damage = primed_spell.scale(constants::INITIAL_DAMAGE)
@@ -525,7 +527,8 @@ pub fn process_chain_lightning_bounces(
             continue;
         };
 
-        let bounce_range = constants::BOUNCE_RANGE * snapshot.empowerment * snapshot.bounce_range_mult;
+        let bounce_range =
+            constants::BOUNCE_RANGE * snapshot.empowerment * snapshot.bounce_range_mult;
 
         // Find up to split_count targets (units + lightning rods + crystals)
         let targets = find_next_bounce_targets(
@@ -583,7 +586,8 @@ pub fn process_chain_lightning_bounces(
                 // Chain Reaction: kills explode for AoE and spawn sub-chain
                 if snapshot.chain_reaction && target_killed && snapshot.bounces_remaining > 1 {
                     // AoE damage to nearby enemies
-                    let aoe_damage = snapshot.current_damage * constants::CHAIN_REACTION_AOE_DAMAGE_MULT;
+                    let aoe_damage =
+                        snapshot.current_damage * constants::CHAIN_REACTION_AOE_DAMAGE_MULT;
                     let mut aoe_targets: Vec<(Entity, Vec3)> = Vec::new();
                     for (e, t, _, _, _, _) in enemies.iter() {
                         if e != *target_entity && !group.hit_entities.contains(&e) {
@@ -610,7 +614,8 @@ pub fn process_chain_lightning_bounces(
                     }
 
                     // Spawn sub-chain from corpse position with half remaining bounces
-                    let sub_bounces = snapshot.bounces_remaining / constants::CHAIN_REACTION_BOUNCE_DIVISOR;
+                    let sub_bounces =
+                        snapshot.bounces_remaining / constants::CHAIN_REACTION_BOUNCE_DIVISOR;
                     if sub_bounces > 0 {
                         spawn_child_bolt(&mut commands, &snapshot, sub_bounces, *target_pos);
                     }
@@ -632,7 +637,12 @@ pub fn process_chain_lightning_bounces(
 
             // Spawn child bolt if more bounces remain
             if snapshot.bounces_remaining > 1 {
-                spawn_child_bolt(&mut commands, &snapshot, snapshot.bounces_remaining - 1, *target_pos);
+                spawn_child_bolt(
+                    &mut commands,
+                    &snapshot,
+                    snapshot.bounces_remaining - 1,
+                    *target_pos,
+                );
             }
         }
     }
@@ -656,14 +666,19 @@ fn apply_chain_lightning_on_hit(
         if let Some(slow_q) = slow_query
             && let Ok(mut slow) = slow_q.get_mut(target_entity)
         {
-            slow.apply(constants::STATIC_CHARGE_SLOW, constants::STATIC_CHARGE_DURATION);
+            slow.apply(
+                constants::STATIC_CHARGE_SLOW,
+                constants::STATIC_CHARGE_DURATION,
+            );
             applied = true;
         }
         if !applied {
-            commands.entity(target_entity).insert(SlowMovementModifier::new(
-                constants::STATIC_CHARGE_SLOW,
-                constants::STATIC_CHARGE_DURATION,
-            ));
+            commands
+                .entity(target_entity)
+                .insert(SlowMovementModifier::new(
+                    constants::STATIC_CHARGE_SLOW,
+                    constants::STATIC_CHARGE_DURATION,
+                ));
         }
     }
 

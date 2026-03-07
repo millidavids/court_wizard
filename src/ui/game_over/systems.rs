@@ -5,7 +5,9 @@ use crate::config::{ActiveSave, ConfigChanged, GameConfig};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
-use crate::game::resources::{BattleInsightData, CurrentLevel, GameOutcome, KillStats, TimeTravelState};
+use crate::game::resources::{
+    BattleInsightData, CurrentLevel, GameOutcome, KillStats, TimeTravelState,
+};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
@@ -418,4 +420,3 @@ pub(super) fn handle_button_actions(
         }
     }
 }
-

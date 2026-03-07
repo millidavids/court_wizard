@@ -321,7 +321,10 @@ impl Ingredient {
     /// Returns the full description (flavor text + functional) for this ingredient.
     pub fn description(&self) -> String {
         let config = self.config();
-        format!("{}\n\n{}", config.flavor_text, config.functional_description)
+        format!(
+            "{}\n\n{}",
+            config.flavor_text, config.functional_description
+        )
     }
 
     /// Returns only the functional gameplay description.
@@ -344,7 +347,9 @@ impl Ingredient {
             Ingredient::NatronSalt => {
                 "Preserved archmages for millennia. Should work for soldiers."
             }
-            Ingredient::LapisLazuli => "Mages carved it into wands. The mana practically leaks out.",
+            Ingredient::LapisLazuli => {
+                "Mages carved it into wands. The mana practically leaks out."
+            }
             Ingredient::Henbane => "Berserkers ate it before battle. Side effects include victory.",
             Ingredient::Frankincense => {
                 "Temple smoke that makes spells hit harder. Gods not included."
@@ -408,11 +413,7 @@ impl Recipe {
         if self.ingredients.is_empty() {
             return 0.0;
         }
-        if self
-            .ingredients
-            .iter()
-            .any(|i| i.is_philosophers_stone())
-        {
+        if self.ingredients.iter().any(|i| i.is_philosophers_stone()) {
             return 1.0;
         }
         1.0 / (self.ingredients.len() as f32).sqrt()
@@ -474,4 +475,3 @@ impl Recipe {
         Color::srgb(r / count, g / count, b / count)
     }
 }
-

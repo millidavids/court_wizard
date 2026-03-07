@@ -287,7 +287,8 @@ pub(super) fn spawn_hud(
                             ));
 
                             // Individual ammo pieces (will be spawned/updated dynamically)
-                            let initial_pieces = GunType::MachineGun.max_ammo() / GunType::MachineGun.ammo_per_ui_piece();
+                            let initial_pieces = GunType::MachineGun.max_ammo()
+                                / GunType::MachineGun.ammo_per_ui_piece();
                             for i in 0..initial_pieces {
                                 ammo_row.spawn((
                                     Node {
@@ -634,7 +635,9 @@ pub(super) fn update_overlay_text(
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
     mut text_query: Query<&mut Text, With<BrewingOverlayText>>,
 ) {
-    let is_reloading = gun_state.as_ref().is_some_and(|gs| gs.current_ammo().reloading);
+    let is_reloading = gun_state
+        .as_ref()
+        .is_some_and(|gs| gs.current_ammo().reloading);
     let is_brewing = cauldron_query.single().is_ok_and(|s| s.is_brewing());
 
     if let Ok(mut text) = text_query.single_mut() {
@@ -822,14 +825,12 @@ fn spawn_hag_bar_section(
     fill_color: Color,
 ) {
     parent
-        .spawn((
-            Node {
-                flex_direction: FlexDirection::Column,
-                flex_grow: 1.0,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-        ))
+        .spawn((Node {
+            flex_direction: FlexDirection::Column,
+            flex_grow: 1.0,
+            align_items: AlignItems::Center,
+            ..default()
+        },))
         .with_children(|section| {
             // Name label
             section.spawn((
@@ -890,11 +891,17 @@ fn spawn_hag_bar_section(
 pub(super) fn update_boss_health_bar(
     mut commands: Commands,
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
-    hag_query: Query<(&HagIdentity, &Health), (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
+    hag_query: Query<
+        (&HagIdentity, &Health),
+        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+    >,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
     mut fill_query: Query<&mut Node, With<BossHealthBarFill>>,
     mut text_query: Query<&mut Text, With<BossHealthBarText>>,
-    mut hag_fill_query: Query<(&mut Node, &mut BackgroundColor, &HagHealthBarFill), Without<BossHealthBarFill>>,
+    mut hag_fill_query: Query<
+        (&mut Node, &mut BackgroundColor, &HagHealthBarFill),
+        Without<BossHealthBarFill>,
+    >,
     mut hag_text_query: Query<(&mut Text, &HagHealthBarText), Without<BossHealthBarText>>,
 ) {
     // Build a fixed-size lookup of living hag health (no heap allocation)
@@ -1023,10 +1030,7 @@ pub(super) fn spawn_wave_incoming_flash(
                 justify_content: JustifyContent::Center,
                 ..default()
             },
-            Text::new(format!(
-                "Wave {} incoming!",
-                event.wave_number
-            )),
+            Text::new(format!("Wave {} incoming!", event.wave_number)),
             TextFont::from_font_size(WAVE_FLASH_FONT_SIZE),
             TextColor(WAVE_FLASH_COLOR),
             WaveIncomingFlash {
@@ -1063,10 +1067,7 @@ pub(super) fn update_wave_incoming_flash(
 
 /// Returns the primary abbreviation for a buff (from its first effect).
 fn buff_abbreviation(effects: &[BrewEffect]) -> &'static str {
-    effects
-        .first()
-        .map(|e| e.abbreviation())
-        .unwrap_or("??")
+    effects.first().map(|e| e.abbreviation()).unwrap_or("??")
 }
 
 /// Returns the background color for a buff box based on the brew's averaged color.
@@ -1207,31 +1208,32 @@ pub(super) fn show_buff_tooltip(
                 let tooltip_text = tooltip_lines.join("\n");
 
                 // Spawn tooltip as absolute-positioned node
-                commands.spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(BUFF_BOX_SIZE + BUFF_BOX_GAP + 20.0 + 10.0),
-                        left: Val::Px(20.0),
-                        max_width: Val::Px(BUFF_TOOLTIP_MAX_WIDTH),
-                        padding: UiRect::all(Val::Px(BUFF_TOOLTIP_PADDING)),
-                        border: UiRect::all(Val::Px(1.0)),
-                        ..default()
-                    },
-                    BackgroundColor(BUFF_TOOLTIP_BG),
-                    BorderColor::all(BUFF_TOOLTIP_BORDER),
-                    BorderRadius::all(Val::Px(4.0)),
-                    GlobalZIndex(999),
-                    BuffTooltip,
-                    Pickable::IGNORE,
-                    OnGameplayScreen,
-                ))
-                .with_children(|tooltip| {
-                    tooltip.spawn((
-                        Text::new(tooltip_text),
-                        TextFont::from_font_size(BUFF_TOOLTIP_FONT_SIZE),
-                        TextColor(Color::WHITE),
-                    ));
-                });
+                commands
+                    .spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(BUFF_BOX_SIZE + BUFF_BOX_GAP + 20.0 + 10.0),
+                            left: Val::Px(20.0),
+                            max_width: Val::Px(BUFF_TOOLTIP_MAX_WIDTH),
+                            padding: UiRect::all(Val::Px(BUFF_TOOLTIP_PADDING)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        BackgroundColor(BUFF_TOOLTIP_BG),
+                        BorderColor::all(BUFF_TOOLTIP_BORDER),
+                        BorderRadius::all(Val::Px(4.0)),
+                        GlobalZIndex(999),
+                        BuffTooltip,
+                        Pickable::IGNORE,
+                        OnGameplayScreen,
+                    ))
+                    .with_children(|tooltip| {
+                        tooltip.spawn((
+                            Text::new(tooltip_text),
+                            TextFont::from_font_size(BUFF_TOOLTIP_FONT_SIZE),
+                            TextColor(Color::WHITE),
+                        ));
+                    });
             }
             Interaction::None => {
                 // Despawn tooltip when hover ends

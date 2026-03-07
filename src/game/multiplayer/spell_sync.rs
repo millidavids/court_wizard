@@ -496,8 +496,14 @@ pub fn apply_remote_spell_snapshot(
                 assets.cross_plane_sphere.clone(),
                 assets.fireball_projectile.clone(),
             ),
-            1 => (assets.cross_plane_sphere.clone(), assets.ice_projectile.clone()),
-            2 => (assets.cross_plane_sphere.clone(), assets.meteor_projectile.clone()),
+            1 => (
+                assets.cross_plane_sphere.clone(),
+                assets.ice_projectile.clone(),
+            ),
+            2 => (
+                assets.cross_plane_sphere.clone(),
+                assets.meteor_projectile.clone(),
+            ),
             _ => continue,
         };
 

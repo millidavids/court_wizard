@@ -43,9 +43,7 @@ pub fn apply_unit_movement(
 /// frame they're active, which gets integrated into velocity and applied to position
 /// by `apply_unit_movement`. This system then clears that velocity so corpses only
 /// move while actively being pushed.
-pub fn clear_corpse_velocity(
-    mut corpses: Query<&mut Velocity, With<Corpse>>,
-) {
+pub fn clear_corpse_velocity(mut corpses: Query<&mut Velocity, With<Corpse>>) {
     for mut velocity in corpses.iter_mut() {
         velocity.x = 0.0;
         velocity.z = 0.0;

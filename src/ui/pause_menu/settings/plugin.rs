@@ -25,7 +25,12 @@ pub struct PauseSettingsPlugin;
 impl Plugin for PauseSettingsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(PauseMenuState::Settings), setup_pause_menu)
-            .add_systems(OnExit(PauseMenuState::Settings), crate::ui::systems::cleanup_screen::<crate::ui::main_menu::settings::components::OnSettingsScreen>)
+            .add_systems(
+                OnExit(PauseMenuState::Settings),
+                crate::ui::systems::cleanup_screen::<
+                    crate::ui::main_menu::settings::components::OnSettingsScreen,
+                >,
+            )
             .add_systems(
                 Update,
                 (

@@ -64,8 +64,7 @@ impl Plugin for PathfindingPlugin {
                 Update,
                 (
                     debug::toggle_flow_field_debug,
-                    debug::update_debug_visualization
-                        .run_if(resource_exists::<PathfindingGrid>),
+                    debug::update_debug_visualization.run_if(resource_exists::<PathfindingGrid>),
                 )
                     .run_if(is_gameplay_running),
             );

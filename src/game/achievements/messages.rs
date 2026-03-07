@@ -62,3 +62,7 @@ pub(crate) struct UnitSickenedMessage;
 /// Message sent when an enemy marked with Finger of Death's mark is killed.
 #[derive(Message)]
 pub(crate) struct MarkedForDeathKillMessage;
+
+/// Message sent when an enemy dies within close range of the wizard.
+#[derive(Message)]
+pub(crate) struct CloseCallMessage;

@@ -5,9 +5,9 @@ use super::components::*;
 use super::constants;
 use super::messages::*;
 use super::resources::{CauldronAssets, CauldronBuffs};
+use crate::config::save_data::{load_unified_save, new_unified_save, save_unified};
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::input::messages::BlockSpellInput;
-use crate::config::save_data::{load_unified_save, new_unified_save, save_unified};
 use crate::game::messages::ComboDiscoveredMessage;
 use crate::game::units::components::{Corpse, Effectiveness, Health, Team, TemporaryHitPoints};
 use crate::game::units::wizard::components::{LocalWizard, Mana};
@@ -140,12 +140,12 @@ pub fn handle_brew_complete(
             .map(|s| 1.0 + s.count as f32 * TRANSMUTATION_POTENCY_PER_STACK)
             .unwrap_or(1.0);
 
-        let duration_multiplier =
-            if game_config.wizard_type == crate::config::WizardType::Alchemist {
-                crate::game::cauldron::brews::constants::ALCHEMIST_DURATION_MULTIPLIER
-            } else {
-                1.0
-            };
+        let duration_multiplier = if game_config.wizard_type == crate::config::WizardType::Alchemist
+        {
+            crate::game::cauldron::brews::constants::ALCHEMIST_DURATION_MULTIPLIER
+        } else {
+            1.0
+        };
         cauldron_buffs.apply_recipe_with_potency(
             &message.recipe,
             potency_mult,

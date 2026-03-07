@@ -9,16 +9,16 @@ use super::super::super::components::{
 };
 use super::components::{TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle};
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::{BATTLEFIELD_SIZE, SPELL_ORIGIN};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::Teleportable;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::networking::resources::NetworkConnection;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
-use crate::config::GameConfig;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::resources::NetworkConnection;
 
 /// Result from teleport casting logic, used to communicate state back to the wrapper.
 struct TeleportCastResult {
@@ -83,13 +83,7 @@ pub fn handle_teleport_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         (
             With<LocalWizard>,
             Without<TeleportDestinationCircle>,
@@ -224,9 +218,7 @@ pub fn handle_teleport_casting(
                             Mesh3d(visual_assets.unit_circle.clone()),
                             MeshMaterial3d(visual_assets.teleport_source.clone()),
                             Transform::from_xyz(pos.x, 1.0, pos.z)
-                                .with_rotation(Quat::from_rotation_x(
-                                    -std::f32::consts::FRAC_PI_2,
-                                ))
+                                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                                 .with_scale(Vec3::ZERO),
                             TeleportSourceCircle::new(pos, primed_spell.empowerment),
                             OnGameplayScreen,
@@ -257,7 +249,13 @@ pub fn handle_teleport_casting(
         // Play sound at source position (where units teleport from)
         if let Some((source_x, source_z, _, _, _)) = cast_result.teleport_params {
             let source_pos = Vec3::new(source_x, 0.0, source_z);
-            audio::play_sfx(&mut commands, &sfx.teleport_cast, source_pos, &game_config, &sfx);
+            audio::play_sfx(
+                &mut commands,
+                &sfx.teleport_cast,
+                source_pos,
+                &game_config,
+                &sfx,
+            );
         }
         if let Some(dest_entity) = caster.destination_circle {
             commands.entity(dest_entity).try_despawn();
@@ -341,7 +339,9 @@ fn teleport_casting_logic(
     }
 
     // Handle release during second cast — completes teleport early
-    if input.just_released && caster.has_destination() && caster.source_circle.is_some()
+    if input.just_released
+        && caster.has_destination()
+        && caster.source_circle.is_some()
         && let CastingState::Casting { elapsed } = *casting_state
     {
         if let Some(source_entity) = caster.source_circle

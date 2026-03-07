@@ -66,7 +66,6 @@ impl Plugin for HagsPlugin {
                 (martina_teleport_pull, martina_mind_control)
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Hag>),
-            )
-;
+            );
     }
 }

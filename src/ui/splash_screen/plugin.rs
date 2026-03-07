@@ -15,8 +15,7 @@ impl Plugin for SplashScreenPlugin {
             // Black substate: wait for shader to load, then skip or proceed
             .add_systems(
                 Update,
-                systems::tick_black
-                    .run_if(in_state(SplashState::Black)),
+                systems::tick_black.run_if(in_state(SplashState::Black)),
             )
             // Language/Engine/Studio substates: timer-driven transitions
             .add_systems(
@@ -25,12 +24,24 @@ impl Plugin for SplashScreenPlugin {
                     .run_if(in_state(AppState::Splash))
                     .run_if(not(in_state(SplashState::Black))),
             )
-            .add_systems(OnExit(SplashState::Black), crate::ui::systems::cleanup_screen::<super::components::SplashEntity>)
-            .add_systems(OnExit(SplashState::Language), crate::ui::systems::cleanup_screen::<super::components::SplashEntity>)
-            .add_systems(OnExit(SplashState::Engine), crate::ui::systems::cleanup_screen::<super::components::SplashEntity>)
+            .add_systems(
+                OnExit(SplashState::Black),
+                crate::ui::systems::cleanup_screen::<super::components::SplashEntity>,
+            )
+            .add_systems(
+                OnExit(SplashState::Language),
+                crate::ui::systems::cleanup_screen::<super::components::SplashEntity>,
+            )
+            .add_systems(
+                OnExit(SplashState::Engine),
+                crate::ui::systems::cleanup_screen::<super::components::SplashEntity>,
+            )
             .add_systems(
                 OnExit(AppState::Splash),
-                (crate::ui::systems::cleanup_screen::<super::components::SplashEntity>, systems::cleanup_assets),
+                (
+                    crate::ui::systems::cleanup_screen::<super::components::SplashEntity>,
+                    systems::cleanup_assets,
+                ),
             );
     }
 }

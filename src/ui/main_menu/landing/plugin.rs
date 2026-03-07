@@ -19,7 +19,10 @@ pub struct LandingPlugin;
 impl Plugin for LandingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::Landing), setup)
-            .add_systems(OnExit(MenuState::Landing), crate::ui::systems::cleanup_screen::<super::components::OnLandingScreen>)
+            .add_systems(
+                OnExit(MenuState::Landing),
+                crate::ui::systems::cleanup_screen::<super::components::OnLandingScreen>,
+            )
             .add_systems(
                 Update,
                 button_action

@@ -5,6 +5,6 @@ mod plugin;
 mod resources;
 mod systems;
 
-pub(in crate::game) use plugin::GunslingerPlugin;
 pub use components::GunType;
+pub(in crate::game) use plugin::GunslingerPlugin;
 pub use resources::GunState;

@@ -187,6 +187,7 @@ pub(crate) enum AchievementId {
     SoiledSurprise,
     MasterBrewer,
     RightToBearArms,
+    CloseCall,
 }
 
 impl AchievementId {
@@ -233,6 +234,7 @@ impl AchievementId {
             AchievementId::SoiledSurprise,
             AchievementId::MasterBrewer,
             AchievementId::RightToBearArms,
+            AchievementId::CloseCall,
         ]
     }
 
@@ -279,6 +281,7 @@ impl AchievementId {
             AchievementId::SoiledSurprise => "soiled_surprise",
             AchievementId::MasterBrewer => "master_brewer",
             AchievementId::RightToBearArms => "right_to_bear_arms",
+            AchievementId::CloseCall => "close_call",
         }
     }
 
@@ -325,6 +328,7 @@ impl AchievementId {
             AchievementId::SoiledSurprise => "Soiled Surprise",
             AchievementId::MasterBrewer => "Master Brewer",
             AchievementId::RightToBearArms => "The Right to Bear Arms",
+            AchievementId::CloseCall => "Close Call",
         }
     }
 
@@ -349,6 +353,7 @@ impl AchievementId {
             AchievementId::SoiledSurprise => Some("Unlocks: Excremage wizard"),
             AchievementId::MasterBrewer => Some("Unlocks: The Alchemist wizard"),
             AchievementId::RightToBearArms => Some("Unlocks: Warglock wizard"),
+            AchievementId::CloseCall => Some("Unlocks: Battlemage wizard"),
             _ => None,
         }
     }
@@ -424,9 +429,18 @@ impl AchievementId {
             AchievementId::MagicNullifier => "Your spells are being countered.",
             AchievementId::TheThreeHags => "Three sisters. One shared grudge.",
             AchievementId::OgreWarlord => "The biggest one yet. And it's angry.",
-            AchievementId::SoiledSurprise => "Something terrible happened. And it unlocked a wizard type.",
-            AchievementId::MasterBrewer => "You've collected every ingredient. The cauldron recognizes a true master.",
-            AchievementId::RightToBearArms => "Killed an enemy marked by Finger of Death. Guns are now an option.",
+            AchievementId::SoiledSurprise => {
+                "Something terrible happened. And it unlocked a wizard type."
+            }
+            AchievementId::MasterBrewer => {
+                "You've collected every ingredient. The cauldron recognizes a true master."
+            }
+            AchievementId::RightToBearArms => {
+                "Killed an enemy marked by Finger of Death. Guns are now an option."
+            }
+            AchievementId::CloseCall => {
+                "An enemy got dangerously close to the tower. Maybe it's time to get your hands dirty."
+            }
         }
     }
 }
@@ -961,8 +975,8 @@ pub(crate) fn add_spell_talent_progress(spell: Spell, amount: u32) {
 /// Returns the talent selections for a spell as [Option<u8>; 3].
 pub(crate) fn get_spell_talent_selections(spell: Spell) -> [Option<u8>; 3] {
     let name = format!("{:?}", spell);
-    let raw = load_unified_save()
-        .and_then(|s| s.player.spell_talent_selections.get(&name).cloned());
+    let raw =
+        load_unified_save().and_then(|s| s.player.spell_talent_selections.get(&name).cloned());
 
     match raw {
         Some(vec) => {

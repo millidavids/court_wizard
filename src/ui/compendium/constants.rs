@@ -59,4 +59,3 @@ pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     border: BUTTON_BORDER,
     text_color: TEXT_COLOR,
 };
-

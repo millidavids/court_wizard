@@ -77,12 +77,7 @@ pub fn setup(mut commands: Commands) {
             );
 
             // Credits button
-            spawn_button(
-                parent,
-                "Credits",
-                MenuButtonAction::Credits,
-                &BUTTON_STYLE,
-            );
+            spawn_button(parent, "Credits", MenuButtonAction::Credits, &BUTTON_STYLE);
 
             // Multiplayer button
             spawn_button(
@@ -132,4 +127,3 @@ pub fn button_action(
         }
     }
 }
-

@@ -17,11 +17,10 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
-    HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    RootedModifier, RoughTerrainModifier, SickenedModifier, SlowMovementModifier, SleepModifier,
-    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, WalkingAnimation,
-    apply_damage_to_unit,
+    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity, HasteModifier, Health,
+    Hitbox, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
+    SickenedModifier, SleepModifier, SlowMovementModifier, TargetingVelocity, Team, Teleportable,
+    TemporaryHitPoints, WalkingAnimation, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::random_position_in_cell;
@@ -416,7 +415,9 @@ pub fn update_archer_targeting(
         if *team == Team::Defenders && !defenders_activated.active {
             targeting_velocity.velocity = Vec3::ZERO;
             targeting_velocity.distance_to_target = f32::MAX;
-            commands.entity(entity).remove::<crate::game::units::components::InMelee>();
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::components::InMelee>();
             continue;
         }
 
@@ -451,7 +452,9 @@ pub fn update_archer_targeting(
             .min_by(|a, b| {
                 let dist_a = (pos.x - a.1.x).powi(2) + (pos.z - a.1.z).powi(2);
                 let dist_b = (pos.x - b.1.x).powi(2) + (pos.z - b.1.z).powi(2);
-                dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+                dist_a
+                    .partial_cmp(&dist_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
 
         // Prefer ranged targets — only fall back to melee/advance if none in range

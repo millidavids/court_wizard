@@ -13,9 +13,11 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, Health};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
 
 /// Local wizard healing plume casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -27,13 +29,7 @@ pub fn handle_healing_plume_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -61,7 +57,11 @@ pub fn handle_healing_plume_casting(
         return;
     }
 
-    let clamped_cursor = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, constants::CIRCLE_RADIUS * primed_spell.empowerment);
+    let clamped_cursor = clamp_cursor_to_spell_range(
+        input.cursor_pos,
+        wizard.spell_range,
+        constants::CIRCLE_RADIUS * primed_spell.empowerment,
+    );
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -78,7 +78,8 @@ pub fn handle_healing_plume_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(constants::MANA_COST)
+            if caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(constants::MANA_COST)
                 && let Some(pos) = clamped_cursor
             {
                 let circle_entity = spawn_circle_indicator(

@@ -5,7 +5,9 @@
 
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_ORANGE, TINT_RED, get_tier, get_tier_level, tint};
+use crate::game::constants::{
+    ATTACKER_BASE, TINT_ORANGE, TINT_RED, get_tier, get_tier_level, tint,
+};
 
 // ============================================================================
 // Elite Upgrade Probability

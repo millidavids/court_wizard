@@ -11,12 +11,7 @@ const CHANGELOG_TEXT: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Spawns the changelog screen UI.
 pub(super) fn setup(mut commands: Commands) {
-    let content = spawn_page_container(
-        &mut commands,
-        OnChangelogScreen,
-        false,
-        Overflow::clip(),
-    );
+    let content = spawn_page_container(&mut commands, OnChangelogScreen, false, Overflow::clip());
 
     commands.entity(content).with_children(|parent| {
         // Title

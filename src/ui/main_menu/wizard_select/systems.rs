@@ -258,4 +258,3 @@ pub(super) fn button_action(
         }
     }
 }
-

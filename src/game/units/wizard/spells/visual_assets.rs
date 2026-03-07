@@ -6,17 +6,15 @@
 
 use std::collections::HashMap;
 
+use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
-use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
 use crate::config::{GameConfig, WizardType};
 use crate::game::units::constants::EXCREMAGE_BROWN;
 
 use super::black_hole::constants::TORUS_MINOR_RADIUS;
-use super::telekinesis::constants::{
-    HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKWAVE_TORUS_MINOR,
-};
+use super::telekinesis::constants::{HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKWAVE_TORUS_MINOR};
 
 /// Pre-allocated meshes and materials for all spell visuals.
 ///
@@ -493,20 +491,50 @@ pub fn init_spell_visual_assets(
         // Unit square in XY plane (2 tris, double-sided) for pixel-art particle effects.
         particle_quad: meshes.add({
             let h = 0.5_f32; // half-extent → 1x1 quad, scaled via Transform
-            let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, bevy::asset::RenderAssetUsages::default());
+            let mut mesh = Mesh::new(
+                PrimitiveTopology::TriangleList,
+                bevy::asset::RenderAssetUsages::default(),
+            );
             // Front face (4 verts) + back face (4 verts)
-            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vec![
-                [-h, -h, 0.0], [ h, -h, 0.0], [ h,  h, 0.0], [-h,  h, 0.0], // front
-                [-h, -h, 0.0], [-h,  h, 0.0], [ h,  h, 0.0], [ h, -h, 0.0], // back
-            ]);
-            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![
-                [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0],
-                [0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0],
-            ]);
-            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, vec![
-                [0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0],
-                [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
-            ]);
+            mesh.insert_attribute(
+                Mesh::ATTRIBUTE_POSITION,
+                vec![
+                    [-h, -h, 0.0],
+                    [h, -h, 0.0],
+                    [h, h, 0.0],
+                    [-h, h, 0.0], // front
+                    [-h, -h, 0.0],
+                    [-h, h, 0.0],
+                    [h, h, 0.0],
+                    [h, -h, 0.0], // back
+                ],
+            );
+            mesh.insert_attribute(
+                Mesh::ATTRIBUTE_NORMAL,
+                vec![
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, -1.0],
+                    [0.0, 0.0, -1.0],
+                    [0.0, 0.0, -1.0],
+                    [0.0, 0.0, -1.0],
+                ],
+            );
+            mesh.insert_attribute(
+                Mesh::ATTRIBUTE_UV_0,
+                vec![
+                    [0.0, 1.0],
+                    [1.0, 1.0],
+                    [1.0, 0.0],
+                    [0.0, 0.0],
+                    [0.0, 1.0],
+                    [0.0, 0.0],
+                    [1.0, 0.0],
+                    [1.0, 1.0],
+                ],
+            );
             mesh.insert_indices(Indices::U16(vec![
                 0, 1, 2, 0, 2, 3, // front
                 4, 5, 6, 4, 6, 7, // back
@@ -626,7 +654,10 @@ pub fn capture_original_spell_colors(
             entries.insert(handle.id(), (mat.base_color, mat.emissive));
         }
     }
-    commands.insert_resource(OriginalSpellColors { entries, currently_overridden: false });
+    commands.insert_resource(OriginalSpellColors {
+        entries,
+        currently_overridden: false,
+    });
 }
 
 /// Recolors all spell materials to brown for Excremage, or restores originals.
@@ -699,11 +730,11 @@ fn build_cross_plane_sphere(radius: f32) -> Mesh {
     // Generate a filled circle fan on each plane
     let planes: [(
         fn(f32, f32, f32) -> [f32; 3], // vertex position from (cos, sin, radius)
-        [f32; 3],                        // normal
+        [f32; 3],                      // normal
     ); 3] = [
-        (|c, s, r| [c * r, s * r, 0.0], [0.0, 0.0, 1.0]),  // XY plane
-        (|c, s, r| [c * r, 0.0, s * r], [0.0, 1.0, 0.0]),  // XZ plane
-        (|c, s, r| [0.0, c * r, s * r], [1.0, 0.0, 0.0]),  // YZ plane
+        (|c, s, r| [c * r, s * r, 0.0], [0.0, 0.0, 1.0]), // XY plane
+        (|c, s, r| [c * r, 0.0, s * r], [0.0, 1.0, 0.0]), // XZ plane
+        (|c, s, r| [0.0, c * r, s * r], [1.0, 0.0, 0.0]), // YZ plane
     ];
 
     for (pos_fn, normal) in &planes {
@@ -728,8 +759,8 @@ fn build_cross_plane_sphere(radius: f32) -> Mesh {
         // Front-face triangles (fan from center)
         for i in 0..segments {
             let next = (i + 1) % segments;
-            indices.push(base);            // center
-            indices.push(base + 1 + i);    // current rim
+            indices.push(base); // center
+            indices.push(base + 1 + i); // current rim
             indices.push(base + 1 + next); // next rim
         }
 
@@ -765,38 +796,62 @@ fn build_cross_plane_triangle(base_radius: f32, height: f32) -> Mesh {
     // Each triangle is doubled for back-face rendering
     let positions: Vec<[f32; 3]> = vec![
         // XY plane front (3 verts)
-        [0.0, 0.0, 0.0], [-r, h, 0.0], [r, h, 0.0],
+        [0.0, 0.0, 0.0],
+        [-r, h, 0.0],
+        [r, h, 0.0],
         // XY plane back (3 verts, reversed winding)
-        [0.0, 0.0, 0.0], [r, h, 0.0], [-r, h, 0.0],
+        [0.0, 0.0, 0.0],
+        [r, h, 0.0],
+        [-r, h, 0.0],
         // ZY plane front (3 verts)
-        [0.0, 0.0, 0.0], [0.0, h, -r], [0.0, h, r],
+        [0.0, 0.0, 0.0],
+        [0.0, h, -r],
+        [0.0, h, r],
         // ZY plane back (3 verts, reversed winding)
-        [0.0, 0.0, 0.0], [0.0, h, r], [0.0, h, -r],
+        [0.0, 0.0, 0.0],
+        [0.0, h, r],
+        [0.0, h, -r],
     ];
 
     let normals: Vec<[f32; 3]> = vec![
         // XY plane front
-        [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
         // XY plane back
-        [0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, -1.0],
+        [0.0, 0.0, -1.0],
+        [0.0, 0.0, -1.0],
+        [0.0, 0.0, -1.0],
         // ZY plane front
-        [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
         // ZY plane back
-        [-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0],
+        [-1.0, 0.0, 0.0],
+        [-1.0, 0.0, 0.0],
+        [-1.0, 0.0, 0.0],
     ];
 
     let uvs: Vec<[f32; 2]> = vec![
-        [0.5, 0.0], [0.0, 1.0], [1.0, 1.0],
-        [0.5, 0.0], [1.0, 1.0], [0.0, 1.0],
-        [0.5, 0.0], [0.0, 1.0], [1.0, 1.0],
-        [0.5, 0.0], [1.0, 1.0], [0.0, 1.0],
+        [0.5, 0.0],
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [0.5, 0.0],
+        [1.0, 1.0],
+        [0.0, 1.0],
+        [0.5, 0.0],
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [0.5, 0.0],
+        [1.0, 1.0],
+        [0.0, 1.0],
     ];
 
     let indices: Vec<u16> = vec![
-        0, 1, 2,     // XY front
-        3, 4, 5,     // XY back
-        6, 7, 8,     // ZY front
-        9, 10, 11,   // ZY back
+        0, 1, 2, // XY front
+        3, 4, 5, // XY back
+        6, 7, 8, // ZY front
+        9, 10, 11, // ZY back
     ];
 
     let mut mesh = Mesh::new(
@@ -822,32 +877,47 @@ fn build_cross_plane_cylinder(radius: f32, height: f32) -> Mesh {
     // Plane 2: ZY plane (extends along Z)
     let positions: Vec<[f32; 3]> = vec![
         // XY plane (4 verts)
-        [-r, -h, 0.0], [r, -h, 0.0], [r, h, 0.0], [-r, h, 0.0],
+        [-r, -h, 0.0],
+        [r, -h, 0.0],
+        [r, h, 0.0],
+        [-r, h, 0.0],
         // ZY plane (4 verts)
-        [0.0, -h, -r], [0.0, -h, r], [0.0, h, r], [0.0, h, -r],
+        [0.0, -h, -r],
+        [0.0, -h, r],
+        [0.0, h, r],
+        [0.0, h, -r],
     ];
 
     let normals: Vec<[f32; 3]> = vec![
         // XY plane normal
-        [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
         // ZY plane normal
-        [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
     ];
 
     let uvs: Vec<[f32; 2]> = vec![
-        [0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0],
-        [0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0],
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 0.0],
+        [0.0, 0.0],
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 0.0],
+        [0.0, 0.0],
     ];
 
     // Front + back faces for each plane
     let indices: Vec<u16> = vec![
         // XY plane front
-        0, 1, 2, 0, 2, 3,
-        // XY plane back
-        0, 2, 1, 0, 3, 2,
-        // ZY plane front
-        4, 5, 6, 4, 6, 7,
-        // ZY plane back
+        0, 1, 2, 0, 2, 3, // XY plane back
+        0, 2, 1, 0, 3, 2, // ZY plane front
+        4, 5, 6, 4, 6, 7, // ZY plane back
         4, 6, 5, 4, 7, 6,
     ];
 

@@ -84,11 +84,19 @@ impl UnitType {
         match self {
             UnitType::Infantry => "They signed up for this. Probably.",
             UnitType::Archer => "They never miss. Except when they do.",
-            UnitType::King => "Heavy is the head that wears the crown. Heavier when fireballs are involved.",
-            UnitType::KingsGuard => "Sworn to protect, trained to intimidate, paid to stand very still.",
+            UnitType::King => {
+                "Heavy is the head that wears the crown. Heavier when fireballs are involved."
+            }
+            UnitType::KingsGuard => {
+                "Sworn to protect, trained to intimidate, paid to stand very still."
+            }
             UnitType::Brute => "What they lack in strategy, they make up for in sheer mass.",
-            UnitType::Elite => "Better than regular soldiers in every measurable way. They won't let you forget it.",
-            UnitType::Commander => "Barking orders from behind the front line, as tradition demands.",
+            UnitType::Elite => {
+                "Better than regular soldiers in every measurable way. They won't let you forget it."
+            }
+            UnitType::Commander => {
+                "Barking orders from behind the front line, as tradition demands."
+            }
             UnitType::Healer => "The only unit the enemy army actually values. Unfortunately.",
             UnitType::Dispeller => "Your spells mean nothing to them. Take it personally.",
             UnitType::Hag => "Three sisters who share one terrible disposition.",
@@ -1163,7 +1171,6 @@ impl FogEvasionModifier {
     }
 }
 
-
 /// Banishment effect that removes a unit from the battlefield temporarily.
 ///
 /// Banished units are hidden, untargetable, and cannot act.
@@ -1241,8 +1248,7 @@ impl PoisonedModifier {
     }
 
     pub fn stack(&mut self, penalty_per_stack: f32, duration: f32, cap: f32) {
-        self.effectiveness_penalty =
-            (self.effectiveness_penalty + penalty_per_stack).max(cap);
+        self.effectiveness_penalty = (self.effectiveness_penalty + penalty_per_stack).max(cap);
         self.time_remaining = duration;
         self.total_accumulated += penalty_per_stack.abs();
     }
@@ -1317,7 +1323,6 @@ impl PolymorphedModifier {
         self.time_remaining <= 0.0
     }
 }
-
 
 /// Component indicating a unit is currently engaged in melee combat with a specific team.
 ///

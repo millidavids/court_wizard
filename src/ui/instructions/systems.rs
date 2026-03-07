@@ -23,79 +23,77 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
     );
 
     commands.entity(content).with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Instructions"),
-                TextFont::from_font_size(48.0),
-                TextColor(TEXT_COLOR),
+        // Title
+        parent.spawn((
+            Text::new("Instructions"),
+            TextFont::from_font_size(48.0),
+            TextColor(TEXT_COLOR),
+            Node {
+                margin: UiRect::bottom(Val::Px(20.0)),
+                ..default()
+            },
+        ));
+
+        // Scrollable instructions content
+        parent
+            .spawn((
                 Node {
-                    margin: UiRect::bottom(Val::Px(20.0)),
+                    width: Val::Percent(90.0),
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Column,
+                    overflow: Overflow::scroll_y(),
                     ..default()
                 },
-            ));
-
-            // Scrollable instructions content
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Percent(90.0),
-                        flex_grow: 1.0,
+                ScrollPosition::default(),
+                ScrollableInstructionsContainer,
+            ))
+            .with_children(|scroll| {
+                scroll
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
                         flex_direction: FlexDirection::Column,
-                        overflow: Overflow::scroll_y(),
+                        padding: UiRect::all(Val::Px(20.0)),
                         ..default()
-                    },
-                    ScrollPosition::default(),
-                    ScrollableInstructionsContainer,
-                ))
-                .with_children(|scroll| {
-                    scroll
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            padding: UiRect::all(Val::Px(20.0)),
-                            ..default()
-                        })
-                        .with_children(|content| {
-                            content.spawn((
-                                Text::new(INSTRUCTIONS_TEXT),
-                                TextFont::from_font_size(16.0),
-                                TextColor(TEXT_COLOR),
-                                TextLayout::new_with_linebreak(
-                                    bevy::text::LineBreak::WordBoundary,
-                                ),
-                            ));
-                        });
-                });
+                    })
+                    .with_children(|content| {
+                        content.spawn((
+                            Text::new(INSTRUCTIONS_TEXT),
+                            TextFont::from_font_size(16.0),
+                            TextColor(TEXT_COLOR),
+                            TextLayout::new_with_linebreak(bevy::text::LineBreak::WordBoundary),
+                        ));
+                    });
+            });
 
-            // Back button
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(200.0),
-                        height: Val::Px(60.0),
-                        border: UiRect::all(Val::Px(3.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        margin: UiRect::top(Val::Px(20.0)),
-                        ..default()
-                    },
-                    BorderColor::all(BUTTON_BORDER_COLOR),
-                    BorderRadius::all(Val::Px(8.0)),
-                    BackgroundColor(BUTTON_COLOR),
-                    ButtonColors {
-                        background: BUTTON_COLOR,
-                        border: BUTTON_BORDER_COLOR,
-                    },
-                    BackButton,
-                ))
-                .with_children(|btn| {
-                    btn.spawn((
-                        Text::new("Back"),
-                        TextFont::from_font_size(32.0),
-                        TextColor(TEXT_COLOR),
-                    ));
-                });
+        // Back button
+        parent
+            .spawn((
+                Button,
+                Node {
+                    width: Val::Px(200.0),
+                    height: Val::Px(60.0),
+                    border: UiRect::all(Val::Px(3.0)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect::top(Val::Px(20.0)),
+                    ..default()
+                },
+                BorderColor::all(BUTTON_BORDER_COLOR),
+                BorderRadius::all(Val::Px(8.0)),
+                BackgroundColor(BUTTON_COLOR),
+                ButtonColors {
+                    background: BUTTON_COLOR,
+                    border: BUTTON_BORDER_COLOR,
+                },
+                BackButton,
+            ))
+            .with_children(|btn| {
+                btn.spawn((
+                    Text::new("Back"),
+                    TextFont::from_font_size(32.0),
+                    TextColor(TEXT_COLOR),
+                ));
+            });
     });
 }
 
@@ -108,5 +106,3 @@ pub(super) fn setup_main_menu(commands: Commands) {
 pub(super) fn setup_pause_menu(commands: Commands) {
     setup(commands, true);
 }
-
-

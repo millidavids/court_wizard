@@ -485,9 +485,8 @@ impl Spell {
             guardian_circle_constants, haste_constants, healing_plume_constants,
             lightning_rod_constants, magic_missile_constants, mark_of_death_constants,
             meteor_fall_constants, mind_control_constants, plague_wind_constants,
-            polymorph_constants,
-            raise_the_dead_constants, sleep_constants, spike_growth_constants, squall_constants,
-            telekinesis_constants, teleport_constants, wall_of_fire_constants,
+            polymorph_constants, raise_the_dead_constants, sleep_constants, spike_growth_constants,
+            squall_constants, telekinesis_constants, teleport_constants, wall_of_fire_constants,
             wall_of_stone_constants,
         };
 

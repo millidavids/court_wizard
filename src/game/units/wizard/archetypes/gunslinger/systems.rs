@@ -9,20 +9,18 @@ use super::resources::{FlamethrowerSfx, GunState};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
-use crate::game::units::components::{Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems::spawn_fireball_entity;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 
-const GUN_SPAWN_POS: Vec3 = Vec3::new(
-    SPELL_ORIGIN.x,
-    SPELL_ORIGIN.y + 30.0,
-    SPELL_ORIGIN.z,
-);
+const GUN_SPAWN_POS: Vec3 = Vec3::new(SPELL_ORIGIN.x, SPELL_ORIGIN.y + 30.0, SPELL_ORIGIN.z);
 
 /// Initialize gun state when entering gameplay.
 pub fn init_gun_state(mut commands: Commands) {
@@ -71,10 +69,7 @@ pub fn process_manual_reload(
 }
 
 /// Tick reload timers and fire cooldowns for all guns.
-pub fn tick_gun_timers(
-    time: Res<Time>,
-    mut gun_state: ResMut<GunState>,
-) {
+pub fn tick_gun_timers(time: Res<Time>, mut gun_state: ResMut<GunState>) {
     let dt = time.delta_secs();
     for ammo in &mut gun_state.ammo {
         if ammo.fire_cooldown > 0.0 {
@@ -157,23 +152,43 @@ pub fn fire_machine_gun(
     }
 
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
-    let Some((dir, range)) = aim_at_cursor(cursor_pos) else { return };
+    let Some((dir, range)) = aim_at_cursor(cursor_pos) else {
+        return;
+    };
 
     let mut rng = rand::thread_rng();
     let spread = rng.gen_range(-constants::MACHINE_GUN_SPREAD..constants::MACHINE_GUN_SPREAD);
     let shot_dir = apply_spread(dir, spread);
 
     // Spawn hitscan ray for instant damage (from origin to cursor ground position)
-    spawn_hitscan_ray(&mut commands, GUN_SPAWN_POS, shot_dir, range, constants::MACHINE_GUN_DAMAGE);
+    spawn_hitscan_ray(
+        &mut commands,
+        GUN_SPAWN_POS,
+        shot_dir,
+        range,
+        constants::MACHINE_GUN_DAMAGE,
+    );
 
     // Spawn visual tracer bullet
-    spawn_tracer(&mut commands, &visual_assets, GUN_SPAWN_POS, shot_dir * constants::MACHINE_GUN_BULLET_SPEED, range);
+    spawn_tracer(
+        &mut commands,
+        &visual_assets,
+        GUN_SPAWN_POS,
+        shot_dir * constants::MACHINE_GUN_BULLET_SPEED,
+        range,
+    );
     spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::MACHINE_GUN_FIRE_INTERVAL;
 
-    audio::play_sfx(&mut commands, &sfx.machine_gun_shot, GUN_SPAWN_POS, &config, &sfx);
+    audio::play_sfx(
+        &mut commands,
+        &sfx.machine_gun_shot,
+        GUN_SPAWN_POS,
+        &config,
+        &sfx,
+    );
 }
 
 /// Fire magnum — click to fire single high-damage hitscan bullet.
@@ -198,17 +213,37 @@ pub fn fire_magnum(
     }
 
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
-    let Some((dir, range)) = aim_at_cursor(cursor_pos) else { return };
+    let Some((dir, range)) = aim_at_cursor(cursor_pos) else {
+        return;
+    };
 
-    spawn_hitscan_ray(&mut commands, GUN_SPAWN_POS, dir, range, constants::MAGNUM_DAMAGE);
+    spawn_hitscan_ray(
+        &mut commands,
+        GUN_SPAWN_POS,
+        dir,
+        range,
+        constants::MAGNUM_DAMAGE,
+    );
 
-    spawn_tracer(&mut commands, &visual_assets, GUN_SPAWN_POS, dir * constants::MAGNUM_BULLET_SPEED, range);
+    spawn_tracer(
+        &mut commands,
+        &visual_assets,
+        GUN_SPAWN_POS,
+        dir * constants::MAGNUM_BULLET_SPEED,
+        range,
+    );
     spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
 
     ammo.current -= 1;
     ammo.fire_cooldown = constants::MAGNUM_FIRE_INTERVAL;
 
-    audio::play_sfx(&mut commands, &sfx.magnum_shot, GUN_SPAWN_POS, &config, &sfx);
+    audio::play_sfx(
+        &mut commands,
+        &sfx.magnum_shot,
+        GUN_SPAWN_POS,
+        &config,
+        &sfx,
+    );
 }
 
 /// Fire rocket launcher — click to fire a fireball projectile that explodes on impact.
@@ -256,7 +291,13 @@ pub fn fire_rocket(
     ammo.current -= 1;
     ammo.fire_cooldown = constants::ROCKET_FIRE_INTERVAL;
 
-    audio::play_sfx(&mut commands, &sfx.rocket_launcher_shot, GUN_SPAWN_POS, &config, &sfx);
+    audio::play_sfx(
+        &mut commands,
+        &sfx.rocket_launcher_shot,
+        GUN_SPAWN_POS,
+        &config,
+        &sfx,
+    );
 }
 
 /// Fire shotgun — click to fire 30 hitscan pellets in a cone.
@@ -281,16 +322,30 @@ pub fn fire_shotgun(
     }
 
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
-    let Some((dir, range)) = aim_at_cursor(cursor_pos) else { return };
+    let Some((dir, range)) = aim_at_cursor(cursor_pos) else {
+        return;
+    };
 
     let mut rng = rand::thread_rng();
 
     for _ in 0..constants::SHOTGUN_PELLET_COUNT {
         let pellet_dir = apply_cone_spread(dir, constants::SHOTGUN_SPREAD, &mut rng);
 
-        spawn_hitscan_ray(&mut commands, GUN_SPAWN_POS, pellet_dir, range, constants::SHOTGUN_PELLET_DAMAGE);
+        spawn_hitscan_ray(
+            &mut commands,
+            GUN_SPAWN_POS,
+            pellet_dir,
+            range,
+            constants::SHOTGUN_PELLET_DAMAGE,
+        );
 
-        spawn_tracer(&mut commands, &visual_assets, GUN_SPAWN_POS, pellet_dir * constants::SHOTGUN_BULLET_SPEED, range);
+        spawn_tracer(
+            &mut commands,
+            &visual_assets,
+            GUN_SPAWN_POS,
+            pellet_dir * constants::SHOTGUN_BULLET_SPEED,
+            range,
+        );
     }
 
     spawn_muzzle_flash(&mut commands, &visual_assets, GUN_SPAWN_POS);
@@ -298,7 +353,13 @@ pub fn fire_shotgun(
     ammo.current -= 1;
     ammo.fire_cooldown = constants::SHOTGUN_FIRE_INTERVAL;
 
-    audio::play_sfx(&mut commands, &sfx.shotgun_shot, GUN_SPAWN_POS, &config, &sfx);
+    audio::play_sfx(
+        &mut commands,
+        &sfx.shotgun_shot,
+        GUN_SPAWN_POS,
+        &config,
+        &sfx,
+    );
 }
 
 /// Fire flamethrower — hold mouse to spray flame projectiles toward cursor with gravity arc.
@@ -322,16 +383,16 @@ pub fn fire_flamethrower(
     // Manage looping flamethrower sound (spawn directly to avoid ChannelingSfx cleanup by disintegrate)
     if is_firing && flamethrower_sfx.entity.is_none() {
         let volume = config.effective_sfx_volume();
-        let entity = commands.spawn((
-            AudioPlayer::new(sfx.disintegrate_channel.clone()),
-            PlaybackSettings::LOOP.with_volume(bevy::audio::Volume::Linear(volume)),
-            OnGameplayScreen,
-        )).id();
+        let entity = commands
+            .spawn((
+                AudioPlayer::new(sfx.disintegrate_channel.clone()),
+                PlaybackSettings::LOOP.with_volume(bevy::audio::Volume::Linear(volume)),
+                OnGameplayScreen,
+            ))
+            .id();
         flamethrower_sfx.entity = Some(entity);
-    } else if !is_firing {
-        if let Some(entity) = flamethrower_sfx.entity.take() {
-            commands.entity(entity).try_despawn();
-        }
+    } else if !is_firing && let Some(entity) = flamethrower_sfx.entity.take() {
+        commands.entity(entity).try_despawn();
     }
 
     if !is_firing {
@@ -344,7 +405,9 @@ pub fn fire_flamethrower(
     }
 
     let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
-    let Some((dir, _range)) = aim_at_cursor(cursor_pos) else { return };
+    let Some((dir, _range)) = aim_at_cursor(cursor_pos) else {
+        return;
+    };
 
     // Aim toward cursor with cone spread, gravity will arc it down
     let mut rng = rand::thread_rng();
@@ -354,7 +417,8 @@ pub fn fire_flamethrower(
     commands.spawn((
         Mesh3d(visual_assets.cross_plane_sphere.clone()),
         MeshMaterial3d(visual_assets.fireball_projectile.clone()),
-        Transform::from_translation(GUN_SPAWN_POS).with_scale(Vec3::splat(constants::FLAME_PARTICLE_START_SIZE)),
+        Transform::from_translation(GUN_SPAWN_POS)
+            .with_scale(Vec3::splat(constants::FLAME_PARTICLE_START_SIZE)),
         FlameParticle {
             velocity,
             damage: constants::FLAMETHROWER_DAMAGE,
@@ -391,7 +455,8 @@ pub fn check_hitscan_collisions(
     for (ray_entity, ray) in &rays {
         let mut closest_hit: Option<(Entity, f32)> = None;
 
-        for (enemy_entity, enemy_transform, _health, _temp_hp, _team, has_spell_shield) in &enemies {
+        for (enemy_entity, enemy_transform, _health, _temp_hp, _team, has_spell_shield) in &enemies
+        {
             if has_spell_shield {
                 continue;
             }
@@ -404,28 +469,29 @@ pub fn check_hitscan_collisions(
 
             if distance < ray.cylinder_radius {
                 // Track closest hit along the ray
-                if closest_hit.map_or(true, |(_, prev_t)| t < prev_t) {
+                if closest_hit.is_none_or(|(_, prev_t)| t < prev_t) {
                     closest_hit = Some((enemy_entity, t));
                 }
             }
         }
 
         // Apply damage to the closest hit
-        if let Some((hit_entity, _)) = closest_hit {
-            if let Ok((_entity, _transform, mut health, mut temp_hp, _team, _shield)) =
+        if let Some((hit_entity, _)) = closest_hit
+            && let Ok((_entity, _transform, mut health, mut temp_hp, _team, _shield)) =
                 enemies.get_mut(hit_entity)
-            {
-                apply_spell_damage(
-                    &mut commands,
-                    hit_entity,
-                    &mut health,
-                    temp_hp.as_deref_mut(),
-                    ray.damage,
-                    DamageType::Force,
-                    false,
-                );
-                commands.entity(hit_entity).insert(BulletHitFlash { timer: constants::BULLET_HIT_FLASH_DURATION });
-            }
+        {
+            apply_spell_damage(
+                &mut commands,
+                hit_entity,
+                &mut health,
+                temp_hp.as_deref_mut(),
+                ray.damage,
+                DamageType::Force,
+                false,
+            );
+            commands.entity(hit_entity).insert(BulletHitFlash {
+                timer: constants::BULLET_HIT_FLASH_DURATION,
+            });
         }
 
         // Always despawn the ray after processing
@@ -436,10 +502,7 @@ pub fn check_hitscan_collisions(
 // ===== Tracer movement and cleanup =====
 
 /// Move bullet tracers in a straight line.
-pub fn move_tracers(
-    time: Res<Time>,
-    mut tracers: Query<(&mut Transform, &BulletTracer)>,
-) {
+pub fn move_tracers(time: Res<Time>, mut tracers: Query<(&mut Transform, &BulletTracer)>) {
     for (mut transform, tracer) in &mut tracers {
         transform.translation += tracer.velocity * time.delta_secs();
     }
@@ -472,7 +535,8 @@ pub fn update_flame_particles(
         transform.translation += flame.velocity * dt;
         // Grow from start size to max size over lifetime
         let t = (flame.time_alive / flame.lifetime).min(1.0);
-        let scale = constants::FLAME_PARTICLE_START_SIZE + t * (constants::FLAME_PARTICLE_SIZE - constants::FLAME_PARTICLE_START_SIZE);
+        let scale = constants::FLAME_PARTICLE_START_SIZE
+            + t * (constants::FLAME_PARTICLE_SIZE - constants::FLAME_PARTICLE_START_SIZE);
         transform.scale = Vec3::splat(scale);
     }
 }
@@ -503,13 +567,25 @@ pub fn check_flame_collisions(
     *damage_timer -= 0.1;
 
     for (flame_transform, flame) in &flames {
-        for (enemy_entity, enemy_transform, mut health, mut temp_hp, _team, has_spell_shield) in &mut enemies {
-            let distance = flame_transform.translation.distance(enemy_transform.translation);
+        for (enemy_entity, enemy_transform, mut health, mut temp_hp, _team, has_spell_shield) in
+            &mut enemies
+        {
+            let distance = flame_transform
+                .translation
+                .distance(enemy_transform.translation);
             if distance < flame.radius + 20.0 {
                 if has_spell_shield {
                     continue;
                 }
-                apply_spell_damage(&mut commands, enemy_entity, &mut health, temp_hp.as_deref_mut(), flame.damage, DamageType::Fire, false);
+                apply_spell_damage(
+                    &mut commands,
+                    enemy_entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    flame.damage,
+                    DamageType::Fire,
+                    false,
+                );
             }
         }
     }
@@ -568,7 +644,8 @@ pub fn update_muzzle_flashes(
         if flash.timer <= 0.0 {
             commands.entity(entity).try_despawn();
         } else {
-            let scale = (flash.timer / constants::MUZZLE_FLASH_DURATION) * constants::MUZZLE_FLASH_SIZE;
+            let scale =
+                (flash.timer / constants::MUZZLE_FLASH_DURATION) * constants::MUZZLE_FLASH_SIZE;
             transform.scale = Vec3::splat(scale);
         }
     }
@@ -587,9 +664,10 @@ pub fn update_bullet_hit_flashes(
             commands.spawn((
                 Mesh3d(visual_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(visual_assets.bullet_hit_flash.clone()),
-                Transform::from_translation(transform.translation)
-                    .with_scale(Vec3::splat(30.0)),
-                BulletHitFlashVfx { timer: constants::BULLET_HIT_FLASH_DURATION },
+                Transform::from_translation(transform.translation).with_scale(Vec3::splat(30.0)),
+                BulletHitFlashVfx {
+                    timer: constants::BULLET_HIT_FLASH_DURATION,
+                },
                 OnGameplayScreen,
             ));
         }
@@ -653,7 +731,11 @@ fn spawn_tracer(
         MeshMaterial3d(assets.bullet_tracer.clone()),
         Transform::from_translation(position)
             .with_rotation(rotation)
-            .with_scale(Vec3::new(constants::BULLET_RADIUS, constants::BULLET_LENGTH, constants::BULLET_RADIUS)),
+            .with_scale(Vec3::new(
+                constants::BULLET_RADIUS,
+                constants::BULLET_LENGTH,
+                constants::BULLET_RADIUS,
+            )),
         BulletTracer {
             velocity,
             max_range,
@@ -663,11 +745,7 @@ fn spawn_tracer(
     ));
 }
 
-fn spawn_muzzle_flash(
-    commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    position: Vec3,
-) {
+fn spawn_muzzle_flash(commands: &mut Commands, assets: &SpellVisualAssets, position: Vec3) {
     commands.spawn((
         Mesh3d(assets.cross_plane_sphere.clone()),
         MeshMaterial3d(assets.fireball_projectile.clone()),

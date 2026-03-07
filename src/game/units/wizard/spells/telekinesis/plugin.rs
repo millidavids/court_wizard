@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{HarvestFlash, PsychicShockwave, TelekinesisIndicator, TransmutationStacks};
+use super::components::{
+    HarvestFlash, PsychicShockwave, TelekinesisIndicator, TransmutationStacks,
+};
 use super::systems;
 use crate::game::drops::components::IngredientDrop;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -28,20 +30,20 @@ impl Plugin for TelekinesisPlugin {
                     .run_if(has_telekinesis_talent(1, 0))
                     .run_if(any_exist::<IngredientDrop>()),
                 // T3: Transmutation — track stacks on ingredient collection
-                systems::track_transmutation_stacks
-                    .run_if(has_telekinesis_talent(2, 1)),
+                systems::track_transmutation_stacks.run_if(has_telekinesis_talent(2, 1)),
                 // T2: Harvest flash visual effect
-                systems::update_harvest_flash
-                    .run_if(any_exist::<HarvestFlash>()),
+                systems::update_harvest_flash.run_if(any_exist::<HarvestFlash>()),
                 // T3: Psychic Shockwave expanding ring
-                systems::update_psychic_shockwave
-                    .run_if(any_exist::<PsychicShockwave>()),
+                systems::update_psychic_shockwave.run_if(any_exist::<PsychicShockwave>()),
             )
                 .run_if(is_spell_effects_active),
         )
         .add_systems(OnEnter(AppState::InGame), init_transmutation_stacks)
         .add_systems(OnExit(AppState::InGame), cleanup_transmutation_stacks)
-        .add_systems(OnExit(AppState::MultiplayerGame), cleanup_transmutation_stacks);
+        .add_systems(
+            OnExit(AppState::MultiplayerGame),
+            cleanup_transmutation_stacks,
+        );
     }
 }
 

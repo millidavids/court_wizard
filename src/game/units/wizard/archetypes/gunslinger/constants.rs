@@ -58,5 +58,3 @@ pub const FLAME_PARTICLE_SIZE: f32 = 15.0;
 // ===== Muzzle Flash =====
 pub const MUZZLE_FLASH_DURATION: f32 = 0.06;
 pub const MUZZLE_FLASH_SIZE: f32 = 20.0;
-
-

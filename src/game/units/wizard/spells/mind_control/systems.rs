@@ -8,13 +8,13 @@ use super::super::super::components::{
 };
 use super::components::*;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, MindControlled, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::config::GameConfig;
 
 /// Tracked highlight target — stored as system-local state so we have a single
 /// source of truth that doesn't depend on deferred command timing.
@@ -104,7 +104,13 @@ pub(super) fn handle_mind_control_casting(
 
             // Find nearest enemy to cursor each frame and update highlight
             let nearest = find_nearest_enemy(&enemies_query, cursor_pos);
-            update_highlight(&mut commands, &mut materials, &enemies_query, &mut highlight, nearest);
+            update_highlight(
+                &mut commands,
+                &mut materials,
+                &enemies_query,
+                &mut highlight,
+                nearest,
+            );
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 // Apply mind control to the currently highlighted target
@@ -113,7 +119,13 @@ pub(super) fn handle_mind_control_casting(
                 {
                     // Play sound at target's position
                     if let Ok((_, target_transform, _, _)) = enemies_query.get(highlighted.entity) {
-                        audio::play_sfx(&mut commands, &sfx.mind_control_cast, target_transform.translation, &game_config, &sfx);
+                        audio::play_sfx(
+                            &mut commands,
+                            &sfx.mind_control_cast,
+                            target_transform.translation,
+                            &game_config,
+                            &sfx,
+                        );
                     }
                     commands.entity(highlighted.entity).insert(MindControlled {
                         time_elapsed: 0.0,
@@ -121,9 +133,9 @@ pub(super) fn handle_mind_control_casting(
                         original_spawn_pos: None,
                     });
 
-                    commands
-                        .entity(wizard_entity)
-                        .insert(MindControlCooldown { remaining: constants::COOLDOWN });
+                    commands.entity(wizard_entity).insert(MindControlCooldown {
+                        remaining: constants::COOLDOWN,
+                    });
 
                     mouse_state.left_consumed = true;
                 }

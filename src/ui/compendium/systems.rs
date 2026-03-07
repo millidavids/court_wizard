@@ -298,15 +298,62 @@ pub(super) fn rebuild_on_state_change(
     items_container: Query<Entity, With<ItemsContainer>>,
     tab_buttons: Query<(&TabButton, Entity, &Children)>,
     mut tab_bg: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
-    mut detail_title: Query<&mut Text, (With<DetailTitle>, Without<DetailCategory>, Without<DetailDescription>, Without<DetailFlavor>)>,
-    mut detail_category: Query<&mut Text, (With<DetailCategory>, Without<DetailTitle>, Without<DetailDescription>, Without<DetailFlavor>)>,
-    mut detail_desc: Query<&mut Text, (With<DetailDescription>, Without<DetailTitle>, Without<DetailCategory>, Without<DetailFlavor>)>,
-    mut detail_flavor: Query<&mut Text, (With<DetailFlavor>, Without<DetailTitle>, Without<DetailCategory>, Without<DetailDescription>)>,
+    mut detail_title: Query<
+        &mut Text,
+        (
+            With<DetailTitle>,
+            Without<DetailCategory>,
+            Without<DetailDescription>,
+            Without<DetailFlavor>,
+        ),
+    >,
+    mut detail_category: Query<
+        &mut Text,
+        (
+            With<DetailCategory>,
+            Without<DetailTitle>,
+            Without<DetailDescription>,
+            Without<DetailFlavor>,
+        ),
+    >,
+    mut detail_desc: Query<
+        &mut Text,
+        (
+            With<DetailDescription>,
+            Without<DetailTitle>,
+            Without<DetailCategory>,
+            Without<DetailFlavor>,
+        ),
+    >,
+    mut detail_flavor: Query<
+        &mut Text,
+        (
+            With<DetailFlavor>,
+            Without<DetailTitle>,
+            Without<DetailCategory>,
+            Without<DetailDescription>,
+        ),
+    >,
     mut detail_cat_color: Query<&mut TextColor, (With<DetailCategory>, Without<DetailTitle>)>,
     mut detail_icon: Query<(&mut ImageNode, &mut Node), With<DetailIcon>>,
     level_history: Query<Entity, With<LevelHistoryContainer>>,
-    mut detail_desc_node: Query<&mut Node, (With<DetailDescription>, Without<DetailIcon>, Without<LevelHistoryContainer>)>,
-    mut detail_flavor_node: Query<&mut Node, (With<DetailFlavor>, Without<DetailIcon>, Without<DetailDescription>, Without<LevelHistoryContainer>)>,
+    mut detail_desc_node: Query<
+        &mut Node,
+        (
+            With<DetailDescription>,
+            Without<DetailIcon>,
+            Without<LevelHistoryContainer>,
+        ),
+    >,
+    mut detail_flavor_node: Query<
+        &mut Node,
+        (
+            With<DetailFlavor>,
+            Without<DetailIcon>,
+            Without<DetailDescription>,
+            Without<LevelHistoryContainer>,
+        ),
+    >,
 ) {
     if !state.is_changed() {
         return;
@@ -346,16 +393,24 @@ pub(super) fn rebuild_on_state_change(
     // Rebuild items list
     if let Ok(container) = items_container.single() {
         commands.entity(container).despawn_related::<Children>();
-        commands.entity(container).with_children(|parent| {
-            match state.active_tab {
-                CompendiumTab::Spells => spawn_spell_items(parent, &unlocked_content.spells, &research_progress),
-                CompendiumTab::Ingredients => spawn_ingredient_items(parent, &unlocked_content.ingredients),
+        commands
+            .entity(container)
+            .with_children(|parent| match state.active_tab {
+                CompendiumTab::Spells => {
+                    spawn_spell_items(parent, &unlocked_content.spells, &research_progress)
+                }
+                CompendiumTab::Ingredients => {
+                    spawn_ingredient_items(parent, &unlocked_content.ingredients)
+                }
                 CompendiumTab::Units => spawn_unit_items(parent, &unlocked_content.units),
-                CompendiumTab::Wizards => spawn_wizard_items(parent, &unlocked_content.wizard_types),
-                CompendiumTab::Achievements => spawn_achievement_items(parent, &unlocked_achievements),
+                CompendiumTab::Wizards => {
+                    spawn_wizard_items(parent, &unlocked_content.wizard_types)
+                }
+                CompendiumTab::Achievements => {
+                    spawn_achievement_items(parent, &unlocked_achievements)
+                }
                 CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
-            }
-        });
+            });
     }
 
     // Update detail panel (including icon)
@@ -404,10 +459,18 @@ pub(super) fn rebuild_on_state_change(
 
     // Hide/show description and flavor text based on stats tab
     if let Ok(mut node) = detail_desc_node.single_mut() {
-        node.display = if is_stats_tab { Display::None } else { Display::Flex };
+        node.display = if is_stats_tab {
+            Display::None
+        } else {
+            Display::Flex
+        };
     }
     if let Ok(mut node) = detail_flavor_node.single_mut() {
-        node.display = if is_stats_tab { Display::None } else { Display::Flex };
+        node.display = if is_stats_tab {
+            Display::None
+        } else {
+            Display::Flex
+        };
     }
 }
 
@@ -569,10 +632,7 @@ fn spawn_wizard_items(parent: &mut ChildSpawnerCommands, unlocked_wizard_types: 
     }
 }
 
-fn spawn_achievement_items(
-    parent: &mut ChildSpawnerCommands,
-    unlocked_achievements: &[String],
-) {
+fn spawn_achievement_items(parent: &mut ChildSpawnerCommands, unlocked_achievements: &[String]) {
     let mut achievements: Vec<_> = AchievementId::all()
         .iter()
         .map(|a| {
@@ -611,15 +671,9 @@ fn spawn_stats_items(
     save: Option<&crate::config::save_data::UnifiedSaveFile>,
 ) {
     let total_games = save.map(|s| s.player.total_games_played).unwrap_or(0);
-    let total_victories = save
-        .map(|s| s.player.total_levels_completed)
-        .unwrap_or(0);
-    let total_attackers = save
-        .map(|s| s.player.total_attackers_killed)
-        .unwrap_or(0);
-    let total_defenders = save
-        .map(|s| s.player.total_defenders_killed)
-        .unwrap_or(0);
+    let total_victories = save.map(|s| s.player.total_levels_completed).unwrap_or(0);
+    let total_attackers = save.map(|s| s.player.total_attackers_killed).unwrap_or(0);
+    let total_defenders = save.map(|s| s.player.total_defenders_killed).unwrap_or(0);
     let total_undead = save.map(|s| s.player.total_undead_killed).unwrap_or(0);
     let insight_balance = save.map(|s| s.player.arcane_insight).unwrap_or(0);
 
@@ -767,12 +821,7 @@ fn spawn_item_button(
             Button,
             Node {
                 width: Val::Percent(100.0),
-                padding: UiRect::new(
-                    Val::Px(10.0),
-                    Val::Px(10.0),
-                    Val::Px(6.0),
-                    Val::Px(6.0),
-                ),
+                padding: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(6.0), Val::Px(6.0)),
                 border: UiRect::all(Val::Px(1.0)),
                 ..default()
             },
@@ -967,10 +1016,42 @@ fn update_detail_panel(
     unlocked_units: &[String],
     unlocked_wizard_types: &[String],
     unlocked_achievements: &[String],
-    title_q: &mut Query<&mut Text, (With<DetailTitle>, Without<DetailCategory>, Without<DetailDescription>, Without<DetailFlavor>)>,
-    category_q: &mut Query<&mut Text, (With<DetailCategory>, Without<DetailTitle>, Without<DetailDescription>, Without<DetailFlavor>)>,
-    desc_q: &mut Query<&mut Text, (With<DetailDescription>, Without<DetailTitle>, Without<DetailCategory>, Without<DetailFlavor>)>,
-    flavor_q: &mut Query<&mut Text, (With<DetailFlavor>, Without<DetailTitle>, Without<DetailCategory>, Without<DetailDescription>)>,
+    title_q: &mut Query<
+        &mut Text,
+        (
+            With<DetailTitle>,
+            Without<DetailCategory>,
+            Without<DetailDescription>,
+            Without<DetailFlavor>,
+        ),
+    >,
+    category_q: &mut Query<
+        &mut Text,
+        (
+            With<DetailCategory>,
+            Without<DetailTitle>,
+            Without<DetailDescription>,
+            Without<DetailFlavor>,
+        ),
+    >,
+    desc_q: &mut Query<
+        &mut Text,
+        (
+            With<DetailDescription>,
+            Without<DetailTitle>,
+            Without<DetailCategory>,
+            Without<DetailFlavor>,
+        ),
+    >,
+    flavor_q: &mut Query<
+        &mut Text,
+        (
+            With<DetailFlavor>,
+            Without<DetailTitle>,
+            Without<DetailCategory>,
+            Without<DetailDescription>,
+        ),
+    >,
     cat_color_q: &mut Query<&mut TextColor, (With<DetailCategory>, Without<DetailTitle>)>,
     detail_icon: &mut Query<(&mut ImageNode, &mut Node), With<DetailIcon>>,
 ) {
@@ -1019,9 +1100,12 @@ fn update_detail_panel(
 
     match item {
         CompendiumItemId::Spell(debug_name) => {
-            let spell = Spell::all().iter().find(|s| format!("{:?}", s) == *debug_name);
+            let spell = Spell::all()
+                .iter()
+                .find(|s| format!("{:?}", s) == *debug_name);
             if let Some(spell) = spell {
-                let is_unlocked = spell.research_cost() == 0 || unlocked_spells.contains(debug_name);
+                let is_unlocked =
+                    spell.research_cost() == 0 || unlocked_spells.contains(debug_name);
 
                 // Show spell icon if unlocked and icon exists
                 if let Ok((mut img, mut node)) = detail_icon.single_mut() {
@@ -1046,7 +1130,11 @@ fn update_detail_panel(
                 }
                 if let Ok(mut t) = category_q.single_mut() {
                     **t = if is_unlocked {
-                        format!("{} - {}", spell.category().display_name(), spell.damage_type().display_name())
+                        format!(
+                            "{} - {}",
+                            spell.category().display_name(),
+                            spell.damage_type().display_name()
+                        )
                     } else {
                         String::new()
                     };
@@ -1161,7 +1249,11 @@ fn update_detail_panel(
                 }
                 if let Ok(mut t) = desc_q.single_mut() {
                     **t = if is_unlocked {
-                        format!("{}\n\n{}", wizard_type.description(), wizard_type.long_description())
+                        format!(
+                            "{}\n\n{}",
+                            wizard_type.description(),
+                            wizard_type.long_description()
+                        )
                     } else {
                         String::new()
                     };
@@ -1193,10 +1285,7 @@ fn update_detail_panel(
                 }
                 if let Ok(mut t) = flavor_q.single_mut() {
                     **t = if is_unlocked {
-                        achievement
-                            .unlock_reward()
-                            .unwrap_or("")
-                            .to_string()
+                        achievement.unlock_reward().unwrap_or("").to_string()
                     } else {
                         String::new()
                     };
@@ -1212,4 +1301,3 @@ fn update_detail_panel(
         c.0 = DESCRIPTION_COLOR;
     }
 }
-

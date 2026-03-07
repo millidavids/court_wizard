@@ -45,8 +45,7 @@ impl Plugin for BlackHolePlugin {
                     systems::cleanup_black_hole_accretion_disk,
                 )
                     .run_if(any_exist::<BlackHoleAccretionDisk>()),
-                systems::cleanup_black_hole_sfx
-                    .run_if(any_exist::<BlackHoleSfx>()),
+                systems::cleanup_black_hole_sfx.run_if(any_exist::<BlackHoleSfx>()),
             )
                 .run_if(is_spell_effects_active),
         );

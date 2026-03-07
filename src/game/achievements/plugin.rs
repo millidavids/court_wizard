@@ -7,10 +7,10 @@ use crate::ui::main_menu::settings::components::SliderAdjusted;
 use crate::game::messages::IngredientCollectedMessage;
 
 use super::messages::{
-    BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
-    EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, MarkedForDeathKillMessage,
-    OutOfRangeMessage, QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
-    UnitSickenedMessage,
+    BattleEndedMessage, ClearProgressMessage, CloseCallMessage, DefenderKilledBySpellMessage,
+    EnemyKilledMessage, EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage,
+    MarkedForDeathKillMessage, OutOfRangeMessage, QwerKeyPressedMessage, ScorchedEarthMessage,
+    SpellCastMessage, UnitSickenedMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -31,6 +31,7 @@ impl Plugin for AchievementsPlugin {
             .add_message::<EntangleHitDefenderMessage>()
             .add_message::<UnitSickenedMessage>()
             .add_message::<MarkedForDeathKillMessage>()
+            .add_message::<CloseCallMessage>()
             .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
@@ -223,6 +224,13 @@ impl Plugin for AchievementsPlugin {
                 systems::check_right_to_bear_arms
                     .run_if(on_message::<MarkedForDeathKillMessage>)
                     .run_if(achievement_locked::<RightToBearArmsAchievement>),
+            )
+            // Close Call — enemy killed near the wizard (unlocks Battlemage)
+            .add_systems(
+                Update,
+                systems::check_close_call
+                    .run_if(on_message::<CloseCallMessage>)
+                    .run_if(achievement_locked::<CloseCallAchievement>),
             )
             // Reset all achievements when progress is cleared
             .add_systems(

@@ -21,4 +21,3 @@ pub(super) fn setup(mut commands: Commands) {
         VersionText,
     ));
 }
-

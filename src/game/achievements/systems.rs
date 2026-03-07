@@ -14,7 +14,7 @@ use crate::game::units::wizard::components::{CastingState, PrimedSpell, Wizard};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
 
 use super::messages::{
-    BattleEndedMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
+    BattleEndedMessage, CloseCallMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
     EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
     QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
 };
@@ -46,7 +46,9 @@ pub(crate) fn send_battle_ended(
     mut retry_tracker: ResMut<RetryTracker>,
     mut message: MessageWriter<BattleEndedMessage>,
     mut battle_insight: ResMut<BattleInsightData>,
-    talent_progress: Option<Res<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
+    talent_progress: Option<
+        Res<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
 ) {
     let is_victory = *game_outcome == GameOutcome::Victory;
 
@@ -585,12 +587,12 @@ pub(crate) fn check_friendly_thorns(
 // ---------------------------------------------------------------------------
 
 use crate::game::units::UnitType;
-use crate::game::units::brute::components::Brute;
-use crate::game::units::{Commander, EliteHealthBonus};
-use crate::game::units::healer::components::Healer;
-use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::boss::hags::components::Hag;
 use crate::game::units::boss::ogre::components::OgreEnrageState;
+use crate::game::units::brute::components::Brute;
+use crate::game::units::dispeller::components::Dispeller;
+use crate::game::units::healer::components::Healer;
+use crate::game::units::{Commander, EliteHealthBonus};
 
 /// Macro to generate an encounter-detection system for a unit type.
 macro_rules! encounter_system {
@@ -608,13 +610,48 @@ macro_rules! encounter_system {
     };
 }
 
-encounter_system!(check_brute_encounter, Brute, MeetTheBruteAchievement, UnitType::Brute);
-encounter_system!(check_elite_encounter, EliteHealthBonus, EliteForcesAchievement, UnitType::Elite);
-encounter_system!(check_commander_encounter, Commander, CommanderOnTheFieldAchievement, UnitType::Commander);
-encounter_system!(check_healer_encounter, Healer, EnemyMedicAchievement, UnitType::Healer);
-encounter_system!(check_dispeller_encounter, Dispeller, MagicNullifierAchievement, UnitType::Dispeller);
-encounter_system!(check_hag_encounter, Hag, TheThreeHagsAchievement, UnitType::Hag);
-encounter_system!(check_ogre_encounter, OgreEnrageState, OgreWarlordAchievement, UnitType::Ogre);
+encounter_system!(
+    check_brute_encounter,
+    Brute,
+    MeetTheBruteAchievement,
+    UnitType::Brute
+);
+encounter_system!(
+    check_elite_encounter,
+    EliteHealthBonus,
+    EliteForcesAchievement,
+    UnitType::Elite
+);
+encounter_system!(
+    check_commander_encounter,
+    Commander,
+    CommanderOnTheFieldAchievement,
+    UnitType::Commander
+);
+encounter_system!(
+    check_healer_encounter,
+    Healer,
+    EnemyMedicAchievement,
+    UnitType::Healer
+);
+encounter_system!(
+    check_dispeller_encounter,
+    Dispeller,
+    MagicNullifierAchievement,
+    UnitType::Dispeller
+);
+encounter_system!(
+    check_hag_encounter,
+    Hag,
+    TheThreeHagsAchievement,
+    UnitType::Hag
+);
+encounter_system!(
+    check_ogre_encounter,
+    OgreEnrageState,
+    OgreWarlordAchievement,
+    UnitType::Ogre
+);
 
 // ---------------------------------------------------------------------------
 // Soiled Surprise — triggered by UnitSickenedMessage (first sickened event)
@@ -667,5 +704,20 @@ pub(crate) fn check_right_to_bear_arms(
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
         crate::config::save_data::unlock_wizard_type(WizardType::Warglock);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Close Call — enemy killed within 300 units of the wizard (unlocks Battlemage)
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_close_call(
+    mut msg: MessageReader<CloseCallMessage>,
+    mut res: ResMut<CloseCallAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        crate::config::save_data::unlock_wizard_type(WizardType::Battlemage);
     }
 }

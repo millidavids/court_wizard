@@ -7,12 +7,12 @@ use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
 };
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{AttackTiming, Corpse, Health, PolymorphedModifier};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::config::GameConfig;
 
 /// Local wizard polymorph casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -23,12 +23,7 @@ pub fn handle_polymorph_casting(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -54,8 +49,7 @@ pub fn handle_polymorph_casting(
         cursor_pos,
     };
 
-    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };

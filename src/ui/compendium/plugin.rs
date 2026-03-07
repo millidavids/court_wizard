@@ -91,36 +91,33 @@ pub struct MetaGameCompendiumPlugin;
 
 impl Plugin for MetaGameCompendiumPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(MetaGameState::Compendium),
-            systems::setup_meta_game,
-        )
-        .add_systems(
-            OnExit(MetaGameState::Compendium),
-            (
-                crate::ui::systems::cleanup_screen::<super::components::OnCompendiumScreen>,
-                cleanup_compendium_state,
-            ),
-        )
-        .add_systems(
-            Update,
-            (
-                handle_meta_game_back_button,
-                systems::handle_tab_click,
-                systems::handle_item_click,
+        app.add_systems(OnEnter(MetaGameState::Compendium), systems::setup_meta_game)
+            .add_systems(
+                OnExit(MetaGameState::Compendium),
+                (
+                    crate::ui::systems::cleanup_screen::<super::components::OnCompendiumScreen>,
+                    cleanup_compendium_state,
+                ),
             )
-                .in_set(ButtonActionSet)
-                .run_if(in_state(MetaGameState::Compendium)),
-        )
-        .add_systems(
-            Update,
-            (
-                handle_scroll::<ScrollableCompendiumContainer>,
-                escape_to_wizard_tower,
-                systems::rebuild_on_state_change,
+            .add_systems(
+                Update,
+                (
+                    handle_meta_game_back_button,
+                    systems::handle_tab_click,
+                    systems::handle_item_click,
+                )
+                    .in_set(ButtonActionSet)
+                    .run_if(in_state(MetaGameState::Compendium)),
             )
-                .run_if(in_state(MetaGameState::Compendium)),
-        );
+            .add_systems(
+                Update,
+                (
+                    handle_scroll::<ScrollableCompendiumContainer>,
+                    escape_to_wizard_tower,
+                    systems::rebuild_on_state_change,
+                )
+                    .run_if(in_state(MetaGameState::Compendium)),
+            );
     }
 }
 

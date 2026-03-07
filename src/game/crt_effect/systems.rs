@@ -66,7 +66,10 @@ pub(super) fn correct_cursor_for_barrel_distortion(
     }
 
     // Normalize to UV (0-1)
-    let uv = Vec2::new(raw_logical.x / logical_width, raw_logical.y / logical_height);
+    let uv = Vec2::new(
+        raw_logical.x / logical_width,
+        raw_logical.y / logical_height,
+    );
 
     // Apply forward barrel distortion (same formula as the shader)
     let centered = uv - Vec2::new(0.5, 0.5);

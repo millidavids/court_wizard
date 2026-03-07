@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::{is_local_wizard_active, is_not_warglock, is_spell_effects_active};
+use crate::game::run_conditions::{
+    is_local_wizard_active, is_not_warglock, is_spell_effects_active,
+};
 use crate::state::InGameState;
 
 use super::archetypes::ArchetypesPlugin;

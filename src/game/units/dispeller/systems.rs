@@ -11,10 +11,9 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
-    FlockingVelocity, HasteModifier, Health, Hitbox,
-    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
-    SickenedModifier, SlowMovementModifier, SleepModifier, TargetingVelocity, Team, TemporaryHitPoints,
-    apply_damage_to_unit,
+    FlockingVelocity, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
+    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
+    TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::wizard::spells::dispel::systems::{
@@ -62,7 +61,9 @@ pub fn update_dispeller_targeting(
         if *team == Team::Defenders && !defenders_activated.active {
             targeting_velocity.velocity = Vec3::ZERO;
             targeting_velocity.distance_to_target = f32::MAX;
-            commands.entity(entity).remove::<crate::game::units::components::InMelee>();
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::components::InMelee>();
             continue;
         }
 
@@ -129,8 +130,7 @@ pub fn update_dispeller_targeting(
         let nearest_enemy = unit_snapshot
             .iter()
             .filter(|(other_entity, _, other_team)| {
-                *other_entity != entity
-                    && team.is_enemy(other_team)
+                *other_entity != entity && team.is_enemy(other_team)
             })
             .min_by(|a, b| {
                 let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -271,11 +271,7 @@ pub fn dispeller_cast_dispel(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut dispellers: Query<
-        (
-            Entity,
-            &Transform,
-            Option<&mut DispellerDispelCooldown>,
-        ),
+        (Entity, &Transform, Option<&mut DispellerDispelCooldown>),
         (With<Dispeller>, Without<Corpse>),
     >,
     spell_effects: Query<(Entity, &Transform, &NetworkedSpellEffect)>,
@@ -403,8 +399,7 @@ pub fn dispeller_ranged_combat(
         let nearest_enemy = targets
             .iter()
             .filter(|(entity, _, team)| {
-                *entity != dispeller_entity
-                    && dispeller_team.is_enemy(team)
+                *entity != dispeller_entity && dispeller_team.is_enemy(team)
             })
             .filter(|(_, transform, _)| {
                 let distance = dispeller_transform

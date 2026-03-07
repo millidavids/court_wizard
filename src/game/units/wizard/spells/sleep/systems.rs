@@ -6,14 +6,16 @@ use super::super::super::components::{
 };
 use super::components::SleepIndicator;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, SleepModifier};
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
+use crate::game::units::wizard::spells::utils::{
+    get_cursor_world_position, spawn_circle_indicator,
+};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard sleep casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -24,13 +26,7 @@ pub fn handle_sleep_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -148,7 +144,10 @@ fn sleep_casting_logic(
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
                     constants::CIRCLE_Y_POSITION,
                 )
-                .insert(SleepIndicator::new(cursor_world_pos, primed_spell.empowerment))
+                .insert(SleepIndicator::new(
+                    cursor_world_pos,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -171,7 +170,13 @@ fn sleep_casting_logic(
                         && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
                         let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                        audio::play_sfx(commands, &sfx.sleep_cast, indicator.position, game_config, sfx);
+                        audio::play_sfx(
+                            commands,
+                            &sfx.sleep_cast,
+                            indicator.position,
+                            game_config,
+                            sfx,
+                        );
                         apply_sleep(
                             commands,
                             indicator.position,
@@ -204,7 +209,6 @@ fn sleep_casting_logic(
 
     completed
 }
-
 
 pub(crate) fn apply_sleep(
     commands: &mut Commands,

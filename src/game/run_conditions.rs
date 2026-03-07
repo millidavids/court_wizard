@@ -44,10 +44,10 @@ pub fn is_gameplay_running(
     config: Option<Res<GameConfig>>,
 ) -> bool {
     // Single-player
-    if let Some(ref state) = sp_state {
-        if is_sp_simulation_active(state.get(), &config) {
-            return true;
-        }
+    if let Some(ref state) = sp_state
+        && is_sp_simulation_active(state.get(), &config)
+    {
+        return true;
     }
     // Multiplayer host: Running, Paused, or SpellBook (overlays don't pause gameplay)
     if mp_state.is_some_and(|s| {
@@ -123,10 +123,10 @@ pub fn is_spell_effects_active(
     config: Option<Res<GameConfig>>,
 ) -> bool {
     // Single-player
-    if let Some(ref state) = sp_state {
-        if is_sp_simulation_active(state.get(), &config) {
-            return true;
-        }
+    if let Some(ref state) = sp_state
+        && is_sp_simulation_active(state.get(), &config)
+    {
+        return true;
     }
     // Multiplayer: Running, Paused, or SpellBook — both host AND guest
     mp_state.is_some_and(|s| {
@@ -155,6 +155,7 @@ pub fn is_arcanorouter(config: Res<GameConfig>) -> bool {
 }
 
 /// Returns true if the active wizard type is Alchemist.
+#[allow(dead_code)]
 pub fn is_alchemist(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Alchemist
 }
@@ -167,4 +168,9 @@ pub fn is_warglock(config: Res<GameConfig>) -> bool {
 /// Returns true if the active wizard type is NOT Warglock.
 pub fn is_not_warglock(config: Res<GameConfig>) -> bool {
     config.wizard_type != WizardType::Warglock
+}
+
+/// Returns true if the active wizard type is Battlemage.
+pub fn is_battlemage(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::Battlemage
 }

@@ -135,27 +135,30 @@ impl FlowField {
             // Cardinal neighbors (always checked)
             let cardinals = [
                 (x.wrapping_sub(1), z, 1.0), // West
-                (x + 1, z, 1.0),              // East
-                (x, z.wrapping_sub(1), 1.0),  // South
-                (x, z + 1, 1.0),              // North
+                (x + 1, z, 1.0),             // East
+                (x, z.wrapping_sub(1), 1.0), // South
+                (x, z + 1, 1.0),             // North
             ];
 
             // Track which cardinals are passable for diagonal gating
             let w_pass = x.wrapping_sub(1) < self.width
                 && !self.costs[self.index(x.wrapping_sub(1), z)].is_infinite();
-            let e_pass =
-                x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
+            let e_pass = x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
             let s_pass = z.wrapping_sub(1) < self.height
                 && !self.costs[self.index(x, z.wrapping_sub(1))].is_infinite();
-            let n_pass =
-                z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
+            let n_pass = z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
 
             // Diagonal neighbors: only expand if both adjacent cardinals are passable
             let diagonals: [(usize, usize, f32, bool); 4] = [
-                (x.wrapping_sub(1), z.wrapping_sub(1), 1.414, w_pass && s_pass), // SW
-                (x + 1, z.wrapping_sub(1), 1.414, e_pass && s_pass),             // SE
-                (x.wrapping_sub(1), z + 1, 1.414, w_pass && n_pass),             // NW
-                (x + 1, z + 1, 1.414, e_pass && n_pass),                         // NE
+                (
+                    x.wrapping_sub(1),
+                    z.wrapping_sub(1),
+                    1.414,
+                    w_pass && s_pass,
+                ), // SW
+                (x + 1, z.wrapping_sub(1), 1.414, e_pass && s_pass), // SE
+                (x.wrapping_sub(1), z + 1, 1.414, w_pass && n_pass), // NW
+                (x + 1, z + 1, 1.414, e_pass && n_pass),             // NE
             ];
 
             // Process cardinal neighbors
@@ -274,19 +277,32 @@ impl FlowField {
                 // Track which cardinals are passable for diagonal gating
                 let w_pass = x.wrapping_sub(1) < self.width
                     && !self.costs[self.index(x.wrapping_sub(1), z)].is_infinite();
-                let e_pass =
-                    x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
+                let e_pass = x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
                 let s_pass = z.wrapping_sub(1) < self.height
                     && !self.costs[self.index(x, z.wrapping_sub(1))].is_infinite();
-                let n_pass =
-                    z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
+                let n_pass = z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
 
                 // Diagonal neighbors: only consider if both adjacent cardinals are passable
                 let diag_neighbors = [
-                    (x.wrapping_sub(1), z.wrapping_sub(1), Vec3::new(-1.0, 0.0, -1.0), w_pass && s_pass), // SW
-                    (x + 1, z.wrapping_sub(1), Vec3::new(1.0, 0.0, -1.0), e_pass && s_pass),              // SE
-                    (x.wrapping_sub(1), z + 1, Vec3::new(-1.0, 0.0, 1.0), w_pass && n_pass),              // NW
-                    (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0), e_pass && n_pass),                           // NE
+                    (
+                        x.wrapping_sub(1),
+                        z.wrapping_sub(1),
+                        Vec3::new(-1.0, 0.0, -1.0),
+                        w_pass && s_pass,
+                    ), // SW
+                    (
+                        x + 1,
+                        z.wrapping_sub(1),
+                        Vec3::new(1.0, 0.0, -1.0),
+                        e_pass && s_pass,
+                    ), // SE
+                    (
+                        x.wrapping_sub(1),
+                        z + 1,
+                        Vec3::new(-1.0, 0.0, 1.0),
+                        w_pass && n_pass,
+                    ), // NW
+                    (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0), e_pass && n_pass), // NE
                 ];
 
                 for (nx, nz, direction, passable) in diag_neighbors {

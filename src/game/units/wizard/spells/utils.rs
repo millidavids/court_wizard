@@ -146,7 +146,9 @@ pub(crate) fn spawn_circle_indicator<'a>(
 ///
 /// Implement this trait on spell-specific indicator components to use
 /// [`update_circle_indicator`] as a shared system helper.
-pub(crate) trait CircleIndicator: Component<Mutability = bevy::ecs::component::Mutable> {
+pub(crate) trait CircleIndicator:
+    Component<Mutability = bevy::ecs::component::Mutable>
+{
     /// Returns a mutable reference to the position field.
     fn position(&self) -> Vec3;
     /// Returns the current time alive.

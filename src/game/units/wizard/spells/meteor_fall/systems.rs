@@ -8,6 +8,7 @@ use super::components::{
     MeteorExplosion, MeteorFallCircleIndicator, MeteorFallStorm, MeteorGroundFire, MeteorProjectile,
 };
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -23,15 +24,14 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use crate::config::GameConfig;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::utils::{
-    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
-};
 
 /// Talent configuration computed once from ActiveTalents.
 struct MeteorTalentConfig {
@@ -147,13 +147,7 @@ pub(super) fn handle_meteor_fall_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -445,21 +439,23 @@ pub(super) fn spawn_meteor_projectiles(
             if storm.tracking {
                 let storm_center_xz = Vec2::new(storm.position.x, storm.position.z);
                 if let Some((enemy_xz, _)) = find_nearest_non_defender_xz(
-                    enemies.iter().map(|(t, team)| (Vec2::new(t.translation.x, t.translation.z), *team)),
+                    enemies
+                        .iter()
+                        .map(|(t, team)| (Vec2::new(t.translation.x, t.translation.z), *team)),
                     storm_center_xz,
                     Some(storm.radius),
                 ) {
                     // Bias 50% toward nearest enemy
                     let biased_x = spawn_pos.x * 0.5 + enemy_xz.x * 0.5;
                     let biased_z = spawn_pos.z * 0.5 + enemy_xz.y * 0.5;
-                    commands
-                        .entity(entity)
-                        .insert(Transform::from_translation(Vec3::new(
+                    commands.entity(entity).insert(
+                        Transform::from_translation(Vec3::new(
                             biased_x,
                             METEOR_SPAWN_HEIGHT,
                             biased_z,
                         ))
-                        .with_scale(Vec3::splat(mesh_radius)));
+                        .with_scale(Vec3::splat(mesh_radius)),
+                    );
                 }
             }
         }
@@ -507,7 +503,8 @@ pub(crate) fn spawn_meteor_projectile_entity(
     mesh_radius: f32,
     talent_flags: MeteorProjectileTalentFlags,
 ) -> Entity {
-    let mut projectile = MeteorProjectile::new(velocity, damage, explosion_radius, empowerment, mesh_radius);
+    let mut projectile =
+        MeteorProjectile::new(velocity, damage, explosion_radius, empowerment, mesh_radius);
     projectile.aftershock = talent_flags.aftershock;
     projectile.volcanic_eruption = talent_flags.volcanic_eruption;
     projectile.ground_fire_duration_mult = talent_flags.ground_fire_duration_mult;
@@ -569,7 +566,9 @@ pub(super) fn update_meteor_projectiles(
         if projectile.tracking && transform.translation.y <= VFX_VISIBLE_HEIGHT {
             let proj_xz = Vec2::new(transform.translation.x, transform.translation.z);
             if let Some((enemy_xz, _)) = find_nearest_non_defender_xz(
-                enemies.iter().map(|(t, team)| (Vec2::new(t.translation.x, t.translation.z), *team)),
+                enemies
+                    .iter()
+                    .map(|(t, team)| (Vec2::new(t.translation.x, t.translation.z), *team)),
                 proj_xz,
                 None,
             ) {
@@ -717,30 +716,13 @@ pub(super) fn check_meteor_collisions(
             );
 
             // Explosion smoke burst
-            vfx::systems::spawn_explosion_smoke(
-                &mut commands,
-                &visual_assets,
-                pos,
-                t,
-            );
+            vfx::systems::spawn_explosion_smoke(&mut commands, &visual_assets, pos, t);
 
             // Heat shimmer burst at impact
-            vfx::systems::spawn_heat_shimmer(
-                &mut commands,
-                &visual_assets,
-                pos,
-                3,
-                t,
-            );
+            vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, pos, 3, t);
 
             // Impact sound (fireball explosion)
-            audio::play_impact_sfx(
-                &mut commands,
-                &sfx.fireball_impact,
-                pos,
-                &game_config,
-                &sfx,
-            );
+            audio::play_impact_sfx(&mut commands, &sfx.fireball_impact, pos, &game_config, &sfx);
 
             // Aftershock: knockback + bonus damage to nearby enemies
             if projectile.aftershock {
@@ -820,8 +802,7 @@ pub(super) fn check_meteor_collisions(
                 let fire_damage = GROUND_FIRE_DAMAGE
                     * projectile.empowerment
                     * projectile.ground_fire_damage_mult;
-                let fire_duration =
-                    GROUND_FIRE_DURATION * projectile.ground_fire_duration_mult;
+                let fire_duration = GROUND_FIRE_DURATION * projectile.ground_fire_duration_mult;
 
                 let mut ground_fire = MeteorGroundFire::new(
                     Vec3::new(pos.x, 0.0, pos.z),
@@ -873,9 +854,7 @@ pub(super) fn process_extinction_event(
     mut storms: Query<&mut MeteorFallStorm>,
 ) {
     for mut storm in storms.iter_mut() {
-        if storm.extinction_event
-            && !storm.extinction_fired
-            && storm.time_alive >= EXTINCTION_DELAY
+        if storm.extinction_event && !storm.extinction_fired && storm.time_alive >= EXTINCTION_DELAY
         {
             storm.extinction_fired = true;
 
@@ -886,8 +865,7 @@ pub(super) fn process_extinction_event(
 
             // Scale ground fire radius so the fire covers the entire storm area
             // Fire formula: GROUND_FIRE_RADIUS * empowerment * mult → we want storm.radius
-            let extinction_fire_mult =
-                storm.radius / (GROUND_FIRE_RADIUS * storm.empowerment);
+            let extinction_fire_mult = storm.radius / (GROUND_FIRE_RADIUS * storm.empowerment);
             spawn_meteor_projectile_entity(
                 &mut commands,
                 &visual_assets,
@@ -1080,9 +1058,7 @@ pub(super) fn apply_ground_fire_damage(
 }
 
 /// Fades ground fire by scaling down as it approaches expiration.
-pub(super) fn fade_ground_fire(
-    mut fires: Query<(&MeteorGroundFire, &mut Transform)>,
-) {
+pub(super) fn fade_ground_fire(mut fires: Query<(&MeteorGroundFire, &mut Transform)>) {
     for (fire, mut transform) in &mut fires {
         let remaining = fire.duration - fire.time_alive;
         if remaining < GROUND_FIRE_FADE_DURATION {

@@ -3,6 +3,7 @@ use bevy::window::PrimaryWindow;
 
 use super::components::{PlagueWindCloud, PlagueWindIndicator};
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::{ATTACKER_GRID_CENTER_ANGLE, SPELL_ORIGIN};
 use crate::game::input::MouseButtonState;
@@ -15,11 +16,12 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
 
 /// Local wizard plague wind casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -31,13 +33,7 @@ pub fn handle_plague_wind_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -79,7 +75,7 @@ pub fn handle_plague_wind_casting(
         && mana.can_afford(constants::MANA_COST)
         && let Some(pos) = clamped_pos
     {
-        let circle_entity =spawn_circle_indicator(
+        let circle_entity = spawn_circle_indicator(
             &mut commands,
             &visual_assets,
             visual_assets.plague_wind_indicator.clone(),
@@ -87,7 +83,10 @@ pub fn handle_plague_wind_casting(
             constants::CLOUD_RADIUS * scale,
             constants::CIRCLE_Y_POSITION,
         )
-        .insert(PlagueWindIndicator::new(pos, constants::CLOUD_RADIUS * scale))
+        .insert(PlagueWindIndicator::new(
+            pos,
+            constants::CLOUD_RADIUS * scale,
+        ))
         .id();
         commands
             .entity(wizard_entity)

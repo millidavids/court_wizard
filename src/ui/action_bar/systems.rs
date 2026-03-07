@@ -6,8 +6,8 @@ use super::messages::AssignSpellToSlot;
 use crate::config::{ConfigChanged, GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
-use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::GunState;
+use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
@@ -59,7 +59,11 @@ pub(super) fn spawn_action_bar(
                         let hotkey_label = &(slot + 1).to_string();
 
                         // For gunslinger, show gun names instead of spells
-                        let (slot_name, has_icon, icon_handle): (&str, bool, Option<Handle<Image>>) = if is_gunslinger {
+                        let (slot_name, has_icon, icon_handle): (
+                            &str,
+                            bool,
+                            Option<Handle<Image>>,
+                        ) = if is_gunslinger {
                             (guns[slot as usize].display_name(), false, None)
                         } else {
                             let spell = config.action_bar_slots[slot as usize];
@@ -139,11 +143,10 @@ pub(super) fn spawn_action_bar(
                     }
 
                     // Debug: infinite mana toggle button
-                    parent
-                        .spawn(Node {
-                            width: Val::Px(DEBUG_BUTTON_GAP),
-                            ..default()
-                        });
+                    parent.spawn(Node {
+                        width: Val::Px(DEBUG_BUTTON_GAP),
+                        ..default()
+                    });
                     parent
                         .spawn((
                             Button,
@@ -189,7 +192,9 @@ pub(super) fn handle_slot_click(
             let slot_idx = slot.slot as usize;
             if is_gunslinger {
                 if slot_idx < 5 {
-                    select_gun.write(SelectGunMessage { gun: guns[slot_idx] });
+                    select_gun.write(SelectGunMessage {
+                        gun: guns[slot_idx],
+                    });
                 }
             } else if let Some(spell) = config.action_bar_slots[slot_idx] {
                 prime_spell.write(PrimeSpellMessage {
@@ -214,7 +219,9 @@ pub(super) fn handle_keyboard_input(
         let slot_idx = event.slot as usize;
         if is_gunslinger {
             if slot_idx < 5 {
-                select_gun.write(SelectGunMessage { gun: guns[slot_idx] });
+                select_gun.write(SelectGunMessage {
+                    gun: guns[slot_idx],
+                });
             }
         } else if let Some(spell) = config.action_bar_slots[slot_idx] {
             prime_spell.write(PrimeSpellMessage {
@@ -237,22 +244,28 @@ pub(super) fn update_action_bar_slots(
         &mut Node,
         &ActionBarSlotText,
     )>,
-    mut slot_icon_query: Query<(&mut ImageNode, &mut Visibility, &mut Node, &ActionBarSlotIcon), Without<ActionBarSlotText>>,
+    mut slot_icon_query: Query<
+        (
+            &mut ImageNode,
+            &mut Visibility,
+            &mut Node,
+            &ActionBarSlotIcon,
+        ),
+        Without<ActionBarSlotText>,
+    >,
     mut slot_button_query: Query<(&ActionBarSlot, &mut BorderColor, &ButtonColors)>,
 ) {
     let is_gunslinger = config.wizard_type == WizardType::Warglock;
 
     // Update slot highlighting for gunslinger
-    if is_gunslinger {
-        if let Some(ref gs) = gun_state {
-            let guns = GunType::all();
-            for (slot, mut border_color, colors) in &mut slot_button_query {
-                let slot_idx = slot.slot as usize;
-                if slot_idx < 5 && guns[slot_idx] == gs.selected_gun {
-                    *border_color = BorderColor::all(Color::srgb(1.0, 0.8, 0.2));
-                } else {
-                    *border_color = BorderColor::all(colors.border);
-                }
+    if is_gunslinger && let Some(ref gs) = gun_state {
+        let guns = GunType::all();
+        for (slot, mut border_color, colors) in &mut slot_button_query {
+            let slot_idx = slot.slot as usize;
+            if slot_idx < 5 && guns[slot_idx] == gs.selected_gun {
+                *border_color = BorderColor::all(Color::srgb(1.0, 0.8, 0.2));
+            } else {
+                *border_color = BorderColor::all(colors.border);
             }
         }
     }

@@ -19,10 +19,7 @@ impl Plugin for CauldronMenuPlugin {
             )
             .add_systems(
                 OnExit(InGameState::CauldronMenu),
-                (
-                    systems::despawn_cauldron_menu_ui,
-                    consume_mouse_on_exit,
-                ),
+                (systems::despawn_cauldron_menu_ui, consume_mouse_on_exit),
             )
             .add_systems(
                 Update,

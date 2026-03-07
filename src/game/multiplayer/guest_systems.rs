@@ -434,13 +434,21 @@ fn pick_material(
         }
     } else if is_king {
         use crate::game::units::king::constants::KING_SPRITE_TINT;
-        create_default_sprite_material(materials, king_assets.sprite_texture.clone(), KING_SPRITE_TINT)
+        create_default_sprite_material(
+            materials,
+            king_assets.sprite_texture.clone(),
+            KING_SPRITE_TINT,
+        )
     } else if is_archer {
         let tint = crate::game::units::systems::archer_sprite_tint_for_team(team);
         create_default_sprite_material(materials, archer_assets.sprite_texture.clone(), tint)
     } else if is_guard {
         use crate::game::units::infantry::styles::KINGS_GUARD_SPRITE_TINT;
-        create_default_sprite_material(materials, infantry_assets.sprite_texture.clone(), KINGS_GUARD_SPRITE_TINT)
+        create_default_sprite_material(
+            materials,
+            infantry_assets.sprite_texture.clone(),
+            KINGS_GUARD_SPRITE_TINT,
+        )
     } else {
         let tint = crate::game::units::systems::sprite_tint_for_team(team);
         create_default_sprite_material(materials, infantry_assets.sprite_texture.clone(), tint)

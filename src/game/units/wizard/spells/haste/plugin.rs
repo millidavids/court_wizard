@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::HasteIndicator;
 use super::super::utils::update_circle_indicator;
+use super::components::HasteIndicator;
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 

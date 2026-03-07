@@ -3,16 +3,16 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
 use crate::config::ActiveSave;
+#[cfg(debug_assertions)]
+use crate::config::save_data::grant_insight;
 use crate::config::save_data::{
     add_spell_research_progress, get_insight, get_spell_research_progress,
     get_spell_talent_progress, get_spell_talent_selections, load_unified_save, spend_insight,
 };
-#[cfg(debug_assertions)]
-use crate::config::save_data::grant_insight;
+use crate::game::constants::boss_name_for_level;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
-use crate::game::constants::boss_name_for_level;
 use crate::game::resources::{BattleInsightData, CurrentLevel, KillStats, TimeTravelState};
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
@@ -428,11 +428,7 @@ pub(super) fn handle_time_travel_level_clicks(
     mut button_clicked: MessageReader<MouseClicked>,
     level_buttons: Query<&TimeTravelLevelButton>,
     mut selected: ResMut<SelectedTimeTravelLevel>,
-    mut level_button_nodes: Query<(
-        &TimeTravelLevelButton,
-        &mut BackgroundColor,
-        &Children,
-    )>,
+    mut level_button_nodes: Query<(&TimeTravelLevelButton, &mut BackgroundColor, &Children)>,
     mut text_queries: ParamSet<(
         Query<(&mut Text, &mut TextColor), With<TimeTravelSelectedDisplay>>,
         Query<&mut TextColor>,
@@ -601,18 +597,28 @@ pub(super) fn handle_study_button_actions(
                 }
 
                 rebuild_study_ui(
-                    &mut commands, &screen_query, &mut selected,
-                    &battle_insight, &asset_server, &mut progress_materials,
-                    &mut star_sky_materials, true,
+                    &mut commands,
+                    &screen_query,
+                    &mut selected,
+                    &battle_insight,
+                    &asset_server,
+                    &mut progress_materials,
+                    &mut star_sky_materials,
+                    true,
                 );
             }
             #[cfg(debug_assertions)]
             StudyButtonAction::DebugGrantInsight => {
                 grant_insight(10000);
                 rebuild_study_ui(
-                    &mut commands, &screen_query, &mut selected,
-                    &battle_insight, &asset_server, &mut progress_materials,
-                    &mut star_sky_materials, false,
+                    &mut commands,
+                    &screen_query,
+                    &mut selected,
+                    &battle_insight,
+                    &asset_server,
+                    &mut progress_materials,
+                    &mut star_sky_materials,
+                    false,
                 );
             }
         }
@@ -646,7 +652,13 @@ fn rebuild_study_ui(
             speed: GRAPH_ANIMATION_SPEED,
         });
     }
-    spawn_study_screen(commands, battle_insight, asset_server, progress_materials, star_sky_materials);
+    spawn_study_screen(
+        commands,
+        battle_insight,
+        asset_server,
+        progress_materials,
+        star_sky_materials,
+    );
 }
 
 /// Spawns the study screen graph UI.
@@ -738,34 +750,35 @@ fn spawn_study_screen(
                 }
 
                 // Central "Free" anchor node
-                graph_area.spawn((
-                    Node {
-                        width: Val::Px(GRAPH_FREE_NODE_SIZE),
-                        height: Val::Px(GRAPH_FREE_NODE_SIZE),
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        border: UiRect::all(Val::Px(2.0)),
-                        ..default()
-                    },
-                    BackgroundColor(GRAPH_NODE_BG),
-                    BorderColor::all(GRAPH_NODE_FREE_BORDER),
-                    BorderRadius::all(Val::Percent(50.0)),
-                    ZIndex(1),
-                    FreeNode,
-                ))
-                .with_children(|node| {
-                    node.spawn((
-                        ImageNode::new(asset_server.load("images/logo.png")),
+                graph_area
+                    .spawn((
                         Node {
-                            width: Val::Percent(80.0),
-                            height: Val::Percent(80.0),
+                            width: Val::Px(GRAPH_FREE_NODE_SIZE),
+                            height: Val::Px(GRAPH_FREE_NODE_SIZE),
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            border: UiRect::all(Val::Px(2.0)),
                             ..default()
                         },
-                    ));
-                });
+                        BackgroundColor(GRAPH_NODE_BG),
+                        BorderColor::all(GRAPH_NODE_FREE_BORDER),
+                        BorderRadius::all(Val::Percent(50.0)),
+                        ZIndex(1),
+                        FreeNode,
+                    ))
+                    .with_children(|node| {
+                        node.spawn((
+                            ImageNode::new(asset_server.load("images/logo.png")),
+                            Node {
+                                width: Val::Percent(80.0),
+                                height: Val::Percent(80.0),
+                                ..default()
+                            },
+                        ));
+                    });
 
                 // Spell nodes
                 for node_def in &node_defs {
@@ -978,12 +991,7 @@ fn spawn_study_screen(
                             &COMMIT_BUTTON_STYLE,
                         );
 
-                        spawn_button(
-                            footer,
-                            "Back",
-                            StudyButtonAction::Back,
-                            &BACK_BUTTON_STYLE,
-                        );
+                        spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
 
                         #[cfg(debug_assertions)]
                         spawn_button(
@@ -1031,8 +1039,7 @@ pub(super) fn handle_graph_node_clicks(
                 if let Ok(computed) = graph_area_query.single() {
                     let size = computed.size() * computed.inverse_scale_factor();
                     let container_center = size / 2.0;
-                    let target_x = DETAIL_PANEL_WIDTH
-                        + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
+                    let target_x = DETAIL_PANEL_WIDTH + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
                     let target_y = size.y / 2.0;
                     let target = Vec2::new(target_x, target_y);
                     let target_scale = GRAPH_ZOOM_MAX;
@@ -1105,12 +1112,8 @@ pub(super) fn handle_graph_pan(
 
     if buttons.just_pressed(MouseButton::Left) {
         // Don't start dragging if a node, the detail panel, or a slider is being pressed
-        let any_node_pressed = node_interactions
-            .iter()
-            .any(|i| *i == Interaction::Pressed);
-        let slider_pressed = slider_interactions
-            .iter()
-            .any(|i| *i != Interaction::None);
+        let any_node_pressed = node_interactions.iter().any(|i| *i == Interaction::Pressed);
+        let slider_pressed = slider_interactions.iter().any(|i| *i != Interaction::None);
         if !any_node_pressed && !cursor_over_panel && !slider_pressed {
             drag.dragging = true;
             drag.last_cursor = cursor_ui;
@@ -1176,8 +1179,8 @@ pub(super) fn handle_graph_zoom(
         };
 
         let old_scale = view.scale;
-        let new_scale =
-            (old_scale * (1.0 + scroll_delta * GRAPH_ZOOM_SPEED)).clamp(GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX);
+        let new_scale = (old_scale * (1.0 + scroll_delta * GRAPH_ZOOM_SPEED))
+            .clamp(GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX);
 
         if (new_scale - old_scale).abs() > f32::EPSILON {
             // Cancel any running animation
@@ -1452,10 +1455,7 @@ pub(super) fn update_study_detail_panel(
             spawn_talent_section(panel, spell);
         } else if prereq_met {
             // Unified progress + allocation slider
-            let current_alloc = allocation
-                .as_ref()
-                .map(|a| a.get(&spell))
-                .unwrap_or(0);
+            let current_alloc = allocation.as_ref().map(|a| a.get(&spell)).unwrap_or(0);
             spawn_detail_unified_slider(panel, spell, progress, cost, current_alloc);
 
             // Allocation text
@@ -1611,7 +1611,12 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                     let tier_label = if tier_unlocked {
                         format!("Tier {}", tier + 1)
                     } else {
-                        format!("Tier {} ({}/{})", tier + 1, talent_progress.min(thresholds[tier as usize]), thresholds[tier as usize])
+                        format!(
+                            "Tier {} ({}/{})",
+                            tier + 1,
+                            talent_progress.min(thresholds[tier as usize]),
+                            thresholds[tier as usize]
+                        )
                     };
                     tiers_col.spawn((
                         Text::new(tier_label),
@@ -1648,11 +1653,7 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                                     TALENT_LOCKED_BORDER
                                 };
 
-                                let display_name = if tier_unlocked {
-                                    def.name
-                                } else {
-                                    "???"
-                                };
+                                let display_name = if tier_unlocked { def.name } else { "???" };
 
                                 card_row
                                     .spawn((
@@ -1683,9 +1684,9 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                                     .with_children(|card| {
                                         card.spawn((
                                             Text::new(display_name),
-                                            TextFont::from_font_size(
-                                                calculate_talent_font_size(display_name),
-                                            ),
+                                            TextFont::from_font_size(calculate_talent_font_size(
+                                                display_name,
+                                            )),
                                             TextColor(if tier_unlocked {
                                                 TEXT_COLOR
                                             } else {
@@ -1788,9 +1789,7 @@ fn spawn_detail_unified_slider(
                     width: Val::Px(SLIDER_HANDLE_WIDTH),
                     height: Val::Px(SLIDER_HANDLE_HEIGHT),
                     position_type: PositionType::Absolute,
-                    left: Val::Px(
-                        handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0,
-                    ),
+                    left: Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0),
                     top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
                     ..default()
                 },
@@ -1943,8 +1942,7 @@ pub(super) fn update_detail_sliders(
         let spell = handle.spell;
         let progress = get_spell_research_progress(spell);
         let alloc = allocation.get(&spell);
-        let (_, _, handle_pos) =
-            compute_slider_fracs(progress, alloc, spell.research_cost());
+        let (_, _, handle_pos) = compute_slider_fracs(progress, alloc, spell.research_cost());
 
         node.left = Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0);
     }

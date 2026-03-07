@@ -577,11 +577,7 @@ fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
 fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'static str; 3]) {
     match spell {
         // Disintegrate has real talent definitions — skip placeholder names
-        Spell::Disintegrate => (
-            ["", "", ""],
-            ["", "", ""],
-            ["", "", ""],
-        ),
+        Spell::Disintegrate => (["", "", ""], ["", "", ""], ["", "", ""]),
         Spell::ChainLightning => (
             ["Extra Arc", "Charged Strike", "Quick Bolt"],
             ["Storm Surge", "Forked Lightning", "Magnetic Pull"],

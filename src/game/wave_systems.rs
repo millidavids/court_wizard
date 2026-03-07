@@ -51,13 +51,25 @@ pub fn tick_wave_timer(
     // Spawn infantry for this wave
     let total_infantry = calculate_total_infantry(level);
     for i in 0..total_infantry {
-        infantry::systems::spawn_single_attacker(&mut commands, &infantry_assets, &mut materials, i, level);
+        infantry::systems::spawn_single_attacker(
+            &mut commands,
+            &infantry_assets,
+            &mut materials,
+            i,
+            level,
+        );
     }
 
     // Spawn archers for this wave
     let total_archers = calculate_total_archers(level);
     for i in 0..total_archers {
-        archer::systems::spawn_single_attacker_archer(&mut commands, &archer_assets, &mut materials, i, level);
+        archer::systems::spawn_single_attacker_archer(
+            &mut commands,
+            &archer_assets,
+            &mut materials,
+            i,
+            level,
+        );
     }
 
     // Spawn brute if tier qualifies

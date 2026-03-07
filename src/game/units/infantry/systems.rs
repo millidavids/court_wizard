@@ -11,10 +11,9 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FacingDirection, FlockingVelocity,
-    HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier,
-    RootedModifier, RoughTerrainModifier, SickenedModifier, SlowMovementModifier, SleepModifier,
-    TargetingVelocity, Team, Teleportable, WalkingAnimation,
+    EliteSpeedBonus, FacingDirection, FlockingVelocity, HasteModifier, Health, Hitbox, KingsGuard,
+    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier,
+    SleepModifier, SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
@@ -34,9 +33,9 @@ pub fn check_defender_activation(
     // If already activated, check whether any enemies remain on the battlefield.
     // If not, deactivate so defenders hold position until the next wave arrives.
     if defenders_activated.active {
-        let enemies_exist = attacker_query.iter().any(|(_, team)| {
-            *team == Team::Attackers || *team == Team::Undead
-        });
+        let enemies_exist = attacker_query
+            .iter()
+            .any(|(_, team)| *team == Team::Attackers || *team == Team::Undead);
         if !enemies_exist {
             defenders_activated.active = false;
             info!("Defenders deactivated — no enemies on battlefield");
@@ -110,7 +109,9 @@ pub fn update_infantry_targeting(
         if *team == Team::Defenders && !defenders_activated.active {
             targeting_velocity.velocity = Vec3::ZERO;
             targeting_velocity.distance_to_target = f32::MAX;
-            commands.entity(entity).remove::<crate::game::units::components::InMelee>();
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::components::InMelee>();
             continue;
         }
 

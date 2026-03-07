@@ -3,22 +3,22 @@ use bevy::window::PrimaryWindow;
 
 use super::components::*;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType, OBSTACLE_BUFFER};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::MindControlled;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::grease::components::GreaseZone;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
-use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::config::GameConfig;
 
 // ===== Wizard Casting =====
 
@@ -53,8 +53,7 @@ pub fn handle_dispel_casting(
         return;
     };
 
-    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) =
-        wizard_query.single_mut()
+    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -161,17 +160,13 @@ pub fn move_dispel_projectiles(
         let hit_ground = transform.translation.y <= 0.0;
         if hit_ground || projectile.lifetime <= 0.0 {
             // Impact position slightly above ground so cross-plane sphere is visible
-            let impact_pos = Vec3::new(
-                transform.translation.x,
-                5.0,
-                transform.translation.z,
-            );
+            let impact_pos = Vec3::new(transform.translation.x, 5.0, transform.translation.z);
 
             commands.spawn((
                 Mesh3d(visual_assets.cross_plane_sphere.clone()),
                 MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: constants::PROJECTILE_COLOR
-                        .with_alpha(constants::IMPACT_INITIAL_ALPHA),
+                    base_color:
+                        constants::PROJECTILE_COLOR.with_alpha(constants::IMPACT_INITIAL_ALPHA),
                     alpha_mode: AlphaMode::Blend,
                     unlit: true,
                     cull_mode: None,
@@ -208,7 +203,10 @@ pub fn update_dispel_impacts(
     grease_query: Query<&GreaseZone>,
     meteor_fire_query: Query<&MeteorGroundFire>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    mind_controlled_query: Query<(Entity, &Transform), (With<MindControlled>, Without<DispelImpact>)>,
+    mind_controlled_query: Query<
+        (Entity, &Transform),
+        (With<MindControlled>, Without<DispelImpact>),
+    >,
 ) {
     for (entity, mut impact, mut transform, material_handle) in &mut impacts {
         impact.time_alive += time.delta_secs();
@@ -317,8 +315,12 @@ pub(crate) fn spell_edge_distance(
             return 0.0;
         }
         let diff = Vec3::new(point.x - wall.center.x, 0.0, point.z - wall.center.z);
-        let forward_proj = diff.dot(wall.forward).clamp(-wall.half_length, wall.half_length);
-        let right_proj = diff.dot(wall.right).clamp(-wall.half_width, wall.half_width);
+        let forward_proj = diff
+            .dot(wall.forward)
+            .clamp(-wall.half_length, wall.half_length);
+        let right_proj = diff
+            .dot(wall.right)
+            .clamp(-wall.half_width, wall.half_width);
         let closest = wall.center + wall.forward * forward_proj + wall.right * right_proj;
         return ((point.x - closest.x).powi(2) + (point.z - closest.z).powi(2)).sqrt();
     }

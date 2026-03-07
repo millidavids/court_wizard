@@ -106,6 +106,7 @@ achievement_resource!(FriendlyThornsAchievement, AchievementId::FriendlyThorns);
 achievement_resource!(SoiledSurpriseAchievement, AchievementId::SoiledSurprise);
 achievement_resource!(MasterBrewerAchievement, AchievementId::MasterBrewer);
 achievement_resource!(RightToBearArmsAchievement, AchievementId::RightToBearArms);
+achievement_resource!(CloseCallAchievement, AchievementId::CloseCall);
 
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
@@ -197,6 +198,7 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(SoiledSurpriseAchievement(false));
     commands.insert_resource(MasterBrewerAchievement(false));
     commands.insert_resource(RightToBearArmsAchievement(false));
+    commands.insert_resource(CloseCallAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -254,4 +256,5 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(SoiledSurpriseAchievement);
     init!(MasterBrewerAchievement);
     init!(RightToBearArmsAchievement);
+    init!(CloseCallAchievement);
 }

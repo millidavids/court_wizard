@@ -10,11 +10,10 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity,
-    HasteModifier, Health, Hitbox, InMelee, Knockback, MovementSpeed,
-    OriginalMaterial, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SlowMovementModifier, SleepModifier,
-    TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
-    apply_damage_to_unit,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
+    Hitbox, InMelee, Knockback, MovementSpeed, OriginalMaterial, PolymorphedModifier,
+    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
+    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -364,4 +363,3 @@ pub fn update_enrage_state(
         }
     }
 }
-

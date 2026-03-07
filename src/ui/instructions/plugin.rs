@@ -19,7 +19,10 @@ pub struct MainMenuInstructionsPlugin;
 impl Plugin for MainMenuInstructionsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MenuState::Instructions), setup_main_menu)
-            .add_systems(OnExit(MenuState::Instructions), crate::ui::systems::cleanup_screen::<super::components::OnInstructionsScreen>)
+            .add_systems(
+                OnExit(MenuState::Instructions),
+                crate::ui::systems::cleanup_screen::<super::components::OnInstructionsScreen>,
+            )
             .add_systems(
                 Update,
                 handle_main_menu_back_button
@@ -28,7 +31,10 @@ impl Plugin for MainMenuInstructionsPlugin {
             )
             .add_systems(
                 Update,
-                (handle_scroll::<ScrollableInstructionsContainer>, escape_to_landing)
+                (
+                    handle_scroll::<ScrollableInstructionsContainer>,
+                    escape_to_landing,
+                )
                     .run_if(in_state(MenuState::Instructions)),
             );
     }
@@ -41,7 +47,10 @@ pub struct PauseMenuInstructionsPlugin;
 impl Plugin for PauseMenuInstructionsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(PauseMenuState::Instructions), setup_pause_menu)
-            .add_systems(OnExit(PauseMenuState::Instructions), crate::ui::systems::cleanup_screen::<super::components::OnInstructionsScreen>)
+            .add_systems(
+                OnExit(PauseMenuState::Instructions),
+                crate::ui::systems::cleanup_screen::<super::components::OnInstructionsScreen>,
+            )
             .add_systems(
                 Update,
                 handle_pause_menu_back_button
@@ -50,7 +59,10 @@ impl Plugin for PauseMenuInstructionsPlugin {
             )
             .add_systems(
                 Update,
-                (handle_scroll::<ScrollableInstructionsContainer>, escape_to_pause_main)
+                (
+                    handle_scroll::<ScrollableInstructionsContainer>,
+                    escape_to_pause_main,
+                )
                     .run_if(in_state(PauseMenuState::Instructions)),
             );
     }

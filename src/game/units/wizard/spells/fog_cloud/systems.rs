@@ -6,17 +6,19 @@ use super::super::super::components::{
 };
 use super::components::{FogCloudIndicator, FogCloudZone};
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, FogEvasionModifier};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
 
 /// Local wizard fog cloud casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -28,13 +30,7 @@ pub fn handle_fog_cloud_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -150,7 +146,10 @@ fn fog_cloud_casting_logic(
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
                     constants::CIRCLE_Y_POSITION,
                 )
-                .insert(FogCloudIndicator::new(cursor_world_pos, primed_spell.empowerment))
+                .insert(FogCloudIndicator::new(
+                    cursor_world_pos,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -173,7 +172,13 @@ fn fog_cloud_casting_logic(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(commands, &sfx.fog_cloud_cast, indicator.position, game_config, sfx);
+                            audio::play_sfx(
+                                commands,
+                                &sfx.fog_cloud_cast,
+                                indicator.position,
+                                game_config,
+                                sfx,
+                            );
                             spawn_fog_cloud_zone(
                                 commands,
                                 assets,

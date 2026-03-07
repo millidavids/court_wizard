@@ -22,9 +22,9 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
@@ -101,9 +101,9 @@ pub(crate) fn spawn_black_hole(
         game_config,
         sfx,
     );
-    commands.entity(sfx_entity).insert(BlackHoleSfx {
-        black_hole_entity,
-    });
+    commands
+        .entity(sfx_entity)
+        .insert(BlackHoleSfx { black_hole_entity });
 }
 
 /// Local wizard Black Hole casting -- reads mouse input.
@@ -114,12 +114,7 @@ pub(super) fn handle_black_hole_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-            &Wizard,
-        ),
+        (&mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -137,9 +132,7 @@ pub(super) fn handle_black_hole_casting(
         cursor_pos,
     };
 
-    let Ok((mut casting_state, mut mana, primed_spell, wizard)) =
-        wizard_query.single_mut()
-    else {
+    let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
         return;
     };
     if primed_spell.spell != Spell::BlackHole {
@@ -357,7 +350,15 @@ pub(super) fn apply_black_hole_damage(
 
                 // Apply scaled damage
                 let total_damage = black_hole.damage_per_tick() * damage_multiplier;
-                apply_spell_damage(&mut commands, entity, &mut health, temp_hp.as_deref_mut(), total_damage, DamageType::Force, false);
+                apply_spell_damage(
+                    &mut commands,
+                    entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    total_damage,
+                    DamageType::Force,
+                    false,
+                );
             }
         }
 
@@ -406,8 +407,8 @@ pub(super) fn update_black_hole_visuals(
         );
 
         // Pulsing scale in sync with torus rings
-        let pulse =
-            1.0 + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
+        let pulse = 1.0
+            + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
                 * RING_PULSE_AMPLITUDE;
 
         let position = black_hole.position + vibration;
@@ -450,8 +451,8 @@ pub(super) fn update_black_hole_rings(
         let bh_scale = bh_transform.scale.x; // uniform scale
 
         // Pulsing scale via sine wave
-        let pulse =
-            1.0 + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
+        let pulse = 1.0
+            + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
                 * RING_PULSE_AMPLITUDE;
 
         ring_transform.translation = bh_pos;
@@ -489,17 +490,16 @@ pub(super) fn update_black_hole_accretion_disk(
         let bh_scale = bh_transform.scale.x; // uniform scale
 
         // Pulsing scale in sync with torus rings
-        let pulse =
-            1.0 + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
+        let pulse = 1.0
+            + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
                 * RING_PULSE_AMPLITUDE;
 
         disk_transform.translation = bh_pos;
         disk_transform.scale = Vec3::splat(bh_scale * pulse);
         // Circle face normal is +Z (vertical). Rotate -90° around X to lay flat,
         // then add the accretion tilt to match the accretion torus.
-        disk_transform.rotation = Quat::from_rotation_x(
-            -std::f32::consts::FRAC_PI_2 + ACCRETION_TILT,
-        );
+        disk_transform.rotation =
+            Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2 + ACCRETION_TILT);
     }
 }
 

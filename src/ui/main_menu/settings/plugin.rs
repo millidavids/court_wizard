@@ -9,9 +9,9 @@ use super::components::{ScrollableContainer, SliderAdjusted};
 use crate::ui::systems::{escape_to_landing, handle_scroll};
 
 use super::systems::{
-    button_hover, button_press, option_button_action, settings_button_action,
-    setup_main_menu, slider_button_action, slider_interaction, update_selected_options,
-    update_slider_text, update_sliders,
+    button_hover, button_press, option_button_action, settings_button_action, setup_main_menu,
+    slider_button_action, slider_interaction, update_selected_options, update_slider_text,
+    update_sliders,
 };
 
 /// Plugin that manages the settings menu UI.
@@ -29,7 +29,10 @@ impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SliderAdjusted>()
             .add_systems(OnEnter(MenuState::Settings), setup_main_menu)
-            .add_systems(OnExit(MenuState::Settings), crate::ui::systems::cleanup_screen::<super::components::OnSettingsScreen>)
+            .add_systems(
+                OnExit(MenuState::Settings),
+                crate::ui::systems::cleanup_screen::<super::components::OnSettingsScreen>,
+            )
             .add_systems(
                 Update,
                 (

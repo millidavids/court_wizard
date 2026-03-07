@@ -8,12 +8,12 @@ use super::super::super::components::{
 };
 use super::components::ActiveMarkOfDeath;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, MarkedForDeathModifier, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::config::GameConfig;
 
 /// Local wizard mark of death casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -23,12 +23,7 @@ pub fn handle_mark_of_death_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -47,8 +42,7 @@ pub fn handle_mark_of_death_casting(
         cursor_pos,
     };
 
-    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -69,7 +63,13 @@ pub fn handle_mark_of_death_casting(
 
     if completed {
         if let Some(pos) = cursor_pos {
-            audio::play_sfx(&mut commands, &sfx.mark_of_death_cast, pos, &game_config, &sfx);
+            audio::play_sfx(
+                &mut commands,
+                &sfx.mark_of_death_cast,
+                pos,
+                &game_config,
+                &sfx,
+            );
         }
         mouse_state.left_consumed = true;
     }

@@ -21,13 +21,14 @@ use super::units::components::{
     apply_damage_to_unit,
 };
 use super::units::constants::{SMELLY_SEPARATION_DISTANCE, SMELLY_SEPARATION_MULTIPLIER};
-use super::units::systems::corpse_material_for_team;
 use super::units::infantry::components::Infantry;
 use super::units::king::components::KingSpawned;
+use super::units::systems::corpse_material_for_team;
 
 use crate::game::achievements::messages::{
-    DefenderKilledBySpellMessage, EnemyKilledMessage, ScorchedEarthMessage,
+    CloseCallMessage, DefenderKilledBySpellMessage, EnemyKilledMessage, ScorchedEarthMessage,
 };
+use crate::game::achievements::resources::AchievementResource;
 
 /// Advances the global attack cycle timer each game frame.
 ///
@@ -60,7 +61,10 @@ pub fn init_level_from_config(mut current_level: ResMut<CurrentLevel>, config: R
 /// in their respective systems. This encourages tactical positioning and rewards
 /// units that fight together while penalizing isolated units.
 pub fn calculate_effectiveness(
-    mut units: Query<(Entity, &Transform, &Hitbox, &Team, &mut Effectiveness), (Without<Corpse>, Without<Boss>)>,
+    mut units: Query<
+        (Entity, &Transform, &Hitbox, &Team, &mut Effectiveness),
+        (Without<Corpse>, Without<Boss>),
+    >,
 ) {
     // Collect snapshot for symmetric calculations
     let unit_data: Vec<_> = units
@@ -131,16 +135,18 @@ pub fn apply_separation(
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
         .iter()
-        .map(|(entity, transform, velocity, _, hitbox, team, _, _, has_smelly)| {
-            (
-                entity,
-                transform.translation,
-                Vec3::new(velocity.x, 0.0, velocity.z),
-                *hitbox,
-                *team,
-                has_smelly,
-            )
-        })
+        .map(
+            |(entity, transform, velocity, _, hitbox, team, _, _, has_smelly)| {
+                (
+                    entity,
+                    transform.translation,
+                    Vec3::new(velocity.x, 0.0, velocity.z),
+                    *hitbox,
+                    *team,
+                    has_smelly,
+                )
+            },
+        )
         .collect();
 
     // Pre-check: are there any smelly units on the field?
@@ -217,7 +223,9 @@ pub fn apply_separation(
         let mut neighbor_count = 0;
 
         // Calculate forces from all neighbors
-        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly) in &unit_data {
+        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly) in
+            &unit_data
+        {
             if entity == *other_entity {
                 continue;
             }
@@ -232,7 +240,12 @@ pub fn apply_separation(
 
             // Smelly separation: same-team units flee from smelly allies at larger range
             // Tracked separately so it doesn't get diluted by normal separation averaging
-            if any_smelly && *other_smelly && !team.is_enemy(other_team) && distance < SMELLY_SEPARATION_DISTANCE && distance > MIN_DISTANCE_THRESHOLD {
+            if any_smelly
+                && *other_smelly
+                && !team.is_enemy(other_team)
+                && distance < SMELLY_SEPARATION_DISTANCE
+                && distance > MIN_DISTANCE_THRESHOLD
+            {
                 let normalized_diff = diff / distance;
                 let force = normalized_diff / distance;
                 smelly_separation += force;
@@ -392,10 +405,7 @@ pub fn combat(
         ),
         (Without<Corpse>, Without<Boss>),
     >,
-    boss_units: Query<
-        (Entity, &Transform, &Hitbox, &Team),
-        (With<Boss>, Without<Corpse>),
-    >,
+    boss_units: Query<(Entity, &Transform, &Hitbox, &Team), (With<Boss>, Without<Corpse>)>,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
@@ -459,8 +469,7 @@ pub fn combat(
             .iter()
             .filter(|(entity, _, _, team)| {
                 *entity != attacker_entity
-                    && (retaliation_entity == Some(*entity)
-                        || attacker_team.is_enemy(team))
+                    && (retaliation_entity == Some(*entity) || attacker_team.is_enemy(team))
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
                 let dx = attacker_transform.translation.x - target_pos.x;
@@ -601,6 +610,9 @@ pub fn convert_dead_to_corpses(
     mut scorched_earth_events: MessageWriter<ScorchedEarthMessage>,
     mut marked_kill_events: MessageWriter<super::achievements::messages::MarkedForDeathKillMessage>,
     mut drop_events: MessageWriter<super::drops::messages::SpawnIngredientDropMessage>,
+    mut close_call_events: MessageWriter<CloseCallMessage>,
+    close_call_achievement: Res<super::achievements::resources::CloseCallAchievement>,
+    wizard_query: Query<&Transform, With<super::units::wizard::components::Wizard>>,
     query: Query<
         (
             Entity,
@@ -647,6 +659,17 @@ pub fn convert_dead_to_corpses(
                 drop_events.write(super::drops::messages::SpawnIngredientDropMessage {
                     position: transform.translation,
                 });
+                // Close Call: enemy died within CLOSE_CALL_DISTANCE of wizard
+                if close_call_achievement.is_locked()
+                    && let Ok(wiz_transform) = wizard_query.single()
+                {
+                    use super::units::wizard::archetypes::battlemage::CLOSE_CALL_DISTANCE;
+                    let diff = transform.translation - wiz_transform.translation;
+                    let xz_dist = (diff.x * diff.x + diff.z * diff.z).sqrt();
+                    if xz_dist <= CLOSE_CALL_DISTANCE {
+                        close_call_events.write(CloseCallMessage);
+                    }
+                }
             }
 
             // Track spell kills on defenders and king
@@ -667,24 +690,25 @@ pub fn convert_dead_to_corpses(
             }
 
             // Marked for Death kill: enemy died while marked by Finger of Death
-            if marked_for_death.is_some()
-                && (*team == Team::Attackers || *team == Team::Undead)
-            {
-                marked_kill_events
-                    .write(super::achievements::messages::MarkedForDeathKillMessage);
+            if marked_for_death.is_some() && (*team == Team::Attackers || *team == Team::Undead) {
+                marked_kill_events.write(super::achievements::messages::MarkedForDeathKillMessage);
             }
 
             // Pick a random corpse material variant and appropriate mesh
             let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
 
             let (mat, mesh) = if is_king.is_some() {
-                (king_assets.corpse_materials[idx].clone(), king_assets.sprite_mesh.clone())
+                (
+                    king_assets.corpse_materials[idx].clone(),
+                    king_assets.sprite_mesh.clone(),
+                )
             } else if is_infantry.is_some() {
                 let mat = corpse_material_for_team(
                     &infantry_assets.defender_corpse_materials,
                     &infantry_assets.attacker_corpse_materials,
                     &infantry_assets.undead_corpse_materials,
-                    *team, idx,
+                    *team,
+                    idx,
                 );
                 (mat, infantry_assets.sprite_mesh.clone())
             } else if is_archer.is_some() {
@@ -692,7 +716,8 @@ pub fn convert_dead_to_corpses(
                     &archer_assets.defender_corpse_materials,
                     &archer_assets.attacker_corpse_materials,
                     &archer_assets.undead_corpse_materials,
-                    *team, idx,
+                    *team,
+                    idx,
                 );
                 (mat, archer_assets.sprite_mesh.clone())
             } else {
@@ -701,12 +726,14 @@ pub fn convert_dead_to_corpses(
                     &infantry_assets.defender_corpse_materials,
                     &infantry_assets.attacker_corpse_materials,
                     &infantry_assets.undead_corpse_materials,
-                    *team, idx,
+                    *team,
+                    idx,
                 );
                 (mat, infantry_assets.mesh.clone())
             };
 
-            commands.entity(entity)
+            commands
+                .entity(entity)
                 .insert(MeshMaterial3d(mat))
                 .insert(Mesh3d(mesh));
 
@@ -805,10 +832,7 @@ pub fn cleanup_for_replay(
 pub fn suppress_targeting_through_walls(
     walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     mut units: Query<
-        (
-            &Transform,
-            &mut super::units::components::TargetingVelocity,
-        ),
+        (&Transform, &mut super::units::components::TargetingVelocity),
         Without<Corpse>,
     >,
 ) {
@@ -896,9 +920,17 @@ pub fn apply_wall_avoidance(
             if fwd_pen > 0.0 && right_pen > 0.0 {
                 // Inside repulsion zone — push along the axis of least penetration
                 let (push_dir, penetration, margin) = if fwd_pen < right_pen {
-                    (wall.forward * forward_proj.signum(), fwd_pen, expanded_half_fwd)
+                    (
+                        wall.forward * forward_proj.signum(),
+                        fwd_pen,
+                        expanded_half_fwd,
+                    )
                 } else {
-                    (wall.right * right_proj.signum(), right_pen, expanded_half_right)
+                    (
+                        wall.right * right_proj.signum(),
+                        right_pen,
+                        expanded_half_right,
+                    )
                 };
 
                 // Linear falloff: strongest at wall surface, zero at margin edge
@@ -970,9 +1002,7 @@ pub fn enforce_wall_collision(
         }
 
         // Adjust velocity once based on accumulated correction
-        if had_collision
-            && let Some(ref mut velocity) = velocity_opt
-        {
+        if had_collision && let Some(ref mut velocity) = velocity_opt {
             let correction_normal = total_correction.normalize_or_zero();
             let velocity_vec = Vec3::new(velocity.x, 0.0, velocity.z);
             let velocity_magnitude = velocity_vec.length();
@@ -980,8 +1010,7 @@ pub fn enforce_wall_collision(
             // Remove velocity component going into walls, keep tangential
             let perpendicular_component = velocity_vec.dot(correction_normal);
             if perpendicular_component < 0.0 {
-                let tangent_velocity =
-                    velocity_vec - correction_normal * perpendicular_component;
+                let tangent_velocity = velocity_vec - correction_normal * perpendicular_component;
 
                 let correction_magnitude = total_correction.length();
                 let repulsion_strength = (correction_magnitude / hitbox.radius).min(1.0);

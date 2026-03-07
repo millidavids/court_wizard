@@ -119,20 +119,76 @@ pub(super) fn build_spell_graph() -> (Vec<SpellNodeDef>, Vec<SpellEdgeDef>) {
     add(&mut nodes, &mut edges, Spell::MagicMissile, -45.0, r1, None);
 
     // MagicMissile → 4 children fanning from -70° to -15°
-    add(&mut nodes, &mut edges, Spell::PlagueWind,      -68.0, r2, Some(Spell::MagicMissile));
-    add(&mut nodes, &mut edges, Spell::Disintegrate,     -53.0, r2, Some(Spell::MagicMissile));
-    add(&mut nodes, &mut edges, Spell::ChainLightning,   -35.0, r2, Some(Spell::MagicMissile));
-    add(&mut nodes, &mut edges, Spell::FingerOfDeath,    -15.0, r2, Some(Spell::MagicMissile));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::PlagueWind,
+        -68.0,
+        r2,
+        Some(Spell::MagicMissile),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Disintegrate,
+        -53.0,
+        r2,
+        Some(Spell::MagicMissile),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::ChainLightning,
+        -35.0,
+        r2,
+        Some(Spell::MagicMissile),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::FingerOfDeath,
+        -15.0,
+        r2,
+        Some(Spell::MagicMissile),
+    );
 
     // Disintegrate → Fireball → MeteorFall
-    add(&mut nodes, &mut edges, Spell::Fireball,   -56.0, r3, Some(Spell::Disintegrate));
-    add(&mut nodes, &mut edges, Spell::MeteorFall,  -58.0, r4, Some(Spell::Fireball));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Fireball,
+        -56.0,
+        r3,
+        Some(Spell::Disintegrate),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::MeteorFall,
+        -58.0,
+        r4,
+        Some(Spell::Fireball),
+    );
 
     // ChainLightning → LightningRod
-    add(&mut nodes, &mut edges, Spell::LightningRod, -32.0, r3, Some(Spell::ChainLightning));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::LightningRod,
+        -32.0,
+        r3,
+        Some(Spell::ChainLightning),
+    );
 
     // FingerOfDeath → MarkOfDeath
-    add(&mut nodes, &mut edges, Spell::MarkOfDeath, -12.0, r3, Some(Spell::FingerOfDeath));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::MarkOfDeath,
+        -12.0,
+        r3,
+        Some(Spell::FingerOfDeath),
+    );
 
     // -----------------------------------------------------------------------
     // Control (upper-left quadrant, centered around -135°)
@@ -140,41 +196,160 @@ pub(super) fn build_spell_graph() -> (Vec<SpellNodeDef>, Vec<SpellEdgeDef>) {
     add(&mut nodes, &mut edges, Spell::Entangle, -135.0, r1, None);
 
     // Entangle → 3 children fanning from -158° to -115°
-    add(&mut nodes, &mut edges, Spell::Grease,       -157.0, r2, Some(Spell::Entangle));
-    add(&mut nodes, &mut edges, Spell::SpikeGrowth,  -135.0, r2, Some(Spell::Entangle));
-    add(&mut nodes, &mut edges, Spell::Sleep,         -116.0, r2, Some(Spell::Entangle));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Grease,
+        -157.0,
+        r2,
+        Some(Spell::Entangle),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::SpikeGrowth,
+        -135.0,
+        r2,
+        Some(Spell::Entangle),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Sleep,
+        -116.0,
+        r2,
+        Some(Spell::Entangle),
+    );
 
     // Grease → WallOfFire
-    add(&mut nodes, &mut edges, Spell::WallOfFire, -160.0, r3, Some(Spell::Grease));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::WallOfFire,
+        -160.0,
+        r3,
+        Some(Spell::Grease),
+    );
 
     // SpikeGrowth → WallOfStone, Squall
-    add(&mut nodes, &mut edges, Spell::WallOfStone, -141.0, r3, Some(Spell::SpikeGrowth));
-    add(&mut nodes, &mut edges, Spell::Squall,       -129.0, r3, Some(Spell::SpikeGrowth));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::WallOfStone,
+        -141.0,
+        r3,
+        Some(Spell::SpikeGrowth),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Squall,
+        -129.0,
+        r3,
+        Some(Spell::SpikeGrowth),
+    );
 
     // Sleep → MindControl, Polymorph → BlackHole
-    add(&mut nodes, &mut edges, Spell::MindControl, -122.0, r3, Some(Spell::Sleep));
-    add(&mut nodes, &mut edges, Spell::Polymorph,    -110.0, r3, Some(Spell::Sleep));
-    add(&mut nodes, &mut edges, Spell::BlackHole,    -108.0, r4, Some(Spell::Polymorph));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::MindControl,
+        -122.0,
+        r3,
+        Some(Spell::Sleep),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Polymorph,
+        -110.0,
+        r3,
+        Some(Spell::Sleep),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::BlackHole,
+        -108.0,
+        r4,
+        Some(Spell::Polymorph),
+    );
 
     // -----------------------------------------------------------------------
     // Support (lower-left quadrant, centered around 135°)
     // -----------------------------------------------------------------------
-    add(&mut nodes, &mut edges, Spell::GuardianCircle, 135.0, r1, None);
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::GuardianCircle,
+        135.0,
+        r1,
+        None,
+    );
 
     // GuardianCircle → 3 children fanning from 115° to 158°
-    add(&mut nodes, &mut edges, Spell::BattleHymn,     118.0, r2, Some(Spell::GuardianCircle));
-    add(&mut nodes, &mut edges, Spell::FogCloud,        140.0, r2, Some(Spell::GuardianCircle));
-    add(&mut nodes, &mut edges, Spell::BerserkerRage,   158.0, r2, Some(Spell::GuardianCircle));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::BattleHymn,
+        118.0,
+        r2,
+        Some(Spell::GuardianCircle),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::FogCloud,
+        140.0,
+        r2,
+        Some(Spell::GuardianCircle),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::BerserkerRage,
+        158.0,
+        r2,
+        Some(Spell::GuardianCircle),
+    );
 
     // BattleHymn → HealingPlume, Haste
-    add(&mut nodes, &mut edges, Spell::HealingPlume, 110.0, r3, Some(Spell::BattleHymn));
-    add(&mut nodes, &mut edges, Spell::Haste,         125.0, r3, Some(Spell::BattleHymn));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::HealingPlume,
+        110.0,
+        r3,
+        Some(Spell::BattleHymn),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Haste,
+        125.0,
+        r3,
+        Some(Spell::BattleHymn),
+    );
 
     // FogCloud → Teleport
-    add(&mut nodes, &mut edges, Spell::Teleport, 143.0, r3, Some(Spell::FogCloud));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Teleport,
+        143.0,
+        r3,
+        Some(Spell::FogCloud),
+    );
 
     // BerserkerRage → RaiseTheDead
-    add(&mut nodes, &mut edges, Spell::RaiseTheDead, 162.0, r3, Some(Spell::BerserkerRage));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::RaiseTheDead,
+        162.0,
+        r3,
+        Some(Spell::BerserkerRage),
+    );
 
     // -----------------------------------------------------------------------
     // Utility (lower-right quadrant, centered around 45°)
@@ -182,9 +357,30 @@ pub(super) fn build_spell_graph() -> (Vec<SpellNodeDef>, Vec<SpellEdgeDef>) {
     add(&mut nodes, &mut edges, Spell::Telekinesis, 45.0, r1, None);
 
     // Telekinesis → 3 children fanning from 28° to 62°
-    add(&mut nodes, &mut edges, Spell::Dispel,        28.0, r2, Some(Spell::Telekinesis));
-    add(&mut nodes, &mut edges, Spell::Banishment,     45.0, r2, Some(Spell::Telekinesis));
-    add(&mut nodes, &mut edges, Spell::ArcaneCrystal,  62.0, r2, Some(Spell::Telekinesis));
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Dispel,
+        28.0,
+        r2,
+        Some(Spell::Telekinesis),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::Banishment,
+        45.0,
+        r2,
+        Some(Spell::Telekinesis),
+    );
+    add(
+        &mut nodes,
+        &mut edges,
+        Spell::ArcaneCrystal,
+        62.0,
+        r2,
+        Some(Spell::Telekinesis),
+    );
 
     // Push apart any nodes that overlap
     separate_overlapping_nodes(&mut nodes);
@@ -261,11 +457,7 @@ fn compute_edge_waypoints(nodes: &[SpellNodeDef], edges: &mut [SpellEdgeDef]) {
                 let perp = Vec2::new(-dir.y, dir.x);
                 // Choose the side that moves away from the node center
                 let to_node = node.position - closest;
-                let side = if to_node.dot(perp) > 0.0 {
-                    -1.0
-                } else {
-                    1.0
-                };
+                let side = if to_node.dot(perp) > 0.0 { -1.0 } else { 1.0 };
                 let waypoint = node.position + perp * side * (r + 4.0);
 
                 // Track parameter along edge for ordering

@@ -7,8 +7,8 @@ use super::run_conditions::is_gameplay_running;
 use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
-use super::crt_effect::CrtEffectPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
+use super::crt_effect::CrtEffectPlugin;
 use super::drops::DropsPlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
@@ -17,7 +17,6 @@ use super::messages::{
     WaveSpawnedMessage,
 };
 use super::pathfinding::PathfindingPlugin;
-use super::units::wizard::talents::TalentsPlugin;
 use super::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
 };
@@ -25,6 +24,7 @@ use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
 use super::units::boss::hags::systems as hags_systems;
+use super::units::wizard::talents::TalentsPlugin;
 use super::wave_systems;
 use super::win_lose_systems;
 

@@ -153,17 +153,13 @@ pub fn update_king_target(
 
             // Only rebuild if the new target position is significantly different
             if let Ok((_, new_transform, _)) = enemy_query.get(new_entity) {
-                let new_pos =
-                    Vec2::new(new_transform.translation.x, new_transform.translation.z);
+                let new_pos = Vec2::new(new_transform.translation.x, new_transform.translation.z);
                 let distance = new_pos.distance(pathfinding.last_defender_target_pos);
                 if distance > DEFENDER_TARGET_MOVEMENT_THRESHOLD {
                     pathfinding.last_defender_target_pos = new_pos;
                     if pathfinding.pending_defender_rebuild.is_none() {
                         pathfinding.enqueue_rebuild(RebuildTarget::Defender);
-                        debug!(
-                            "Defender target moved {} units, queuing rebuild",
-                            distance
-                        );
+                        debug!("Defender target moved {} units, queuing rebuild", distance);
                     }
                 }
             }
@@ -328,10 +324,7 @@ pub fn handle_obstacle_events(
 
 /// Ticks the defender rally delay timer. When it expires (no new enemies appeared),
 /// enqueues a defender field rebuild toward the spawn center.
-pub fn tick_defender_rally_delay(
-    mut pathfinding: ResMut<PathfindingGrid>,
-    time: Res<Time>,
-) {
+pub fn tick_defender_rally_delay(mut pathfinding: ResMut<PathfindingGrid>, time: Res<Time>) {
     if pathfinding.defender_rally_delay <= 0.0 {
         return;
     }
@@ -593,8 +586,7 @@ pub fn detect_and_recover_stuck_units(
                 let perp = Vec3::new(-flow_dir.z, 0.0, flow_dir.x);
 
                 // Use position to determine nudge direction consistently
-                let sign = if (transform.translation.x + transform.translation.z) as i32 % 2 == 0
-                {
+                let sign = if (transform.translation.x + transform.translation.z) as i32 % 2 == 0 {
                     1.0
                 } else {
                     -1.0

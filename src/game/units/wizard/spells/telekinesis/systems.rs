@@ -4,7 +4,9 @@ use bevy::window::PrimaryWindow;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, WizardInput,
 };
-use super::components::{HarvestFlash, PsychicShockwave, TelekinesisIndicator, TransmutationStacks};
+use super::components::{
+    HarvestFlash, PsychicShockwave, TelekinesisIndicator, TransmutationStacks,
+};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -12,7 +14,9 @@ use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::messages::IngredientCollectedMessage;
-use crate::game::units::components::{Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::components::{
+    Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage,
+};
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
@@ -75,12 +79,7 @@ pub(super) fn handle_telekinesis_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -93,7 +92,13 @@ pub(super) fn handle_telekinesis_casting(
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
     mut enemies_query: Query<
-        (Entity, &Transform, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<IngredientDrop>,
     >,
 ) {
@@ -106,8 +111,7 @@ pub(super) fn handle_telekinesis_casting(
         cursor_pos,
     };
 
-    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -180,7 +184,13 @@ fn telekinesis_casting_logic(
     game_config: &GameConfig,
     config: &TelekinesisConfig,
     enemies_query: &mut Query<
-        (Entity, &Transform, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<IngredientDrop>,
     >,
     visual_assets: &SpellVisualAssets,
@@ -244,12 +254,28 @@ fn telekinesis_casting_logic(
                             drops_query.get(drop_entity)
                         {
                             let pickup_pos = drop_transform.translation;
-                            convert_drop_to_flying(commands, drop_entity, drop_component.ingredient, pickup_pos);
-                            audio::play_sfx(commands, &sfx.telekinesis_cast, pickup_pos, game_config, sfx);
+                            convert_drop_to_flying(
+                                commands,
+                                drop_entity,
+                                drop_component.ingredient,
+                                pickup_pos,
+                            );
+                            audio::play_sfx(
+                                commands,
+                                &sfx.telekinesis_cast,
+                                pickup_pos,
+                                game_config,
+                                sfx,
+                            );
 
                             // T2: Harvest — damage nearby enemies
                             if config.has_harvest {
-                                apply_harvest_damage(commands, pickup_pos, visual_assets, enemies_query);
+                                apply_harvest_damage(
+                                    commands,
+                                    pickup_pos,
+                                    visual_assets,
+                                    enemies_query,
+                                );
                             }
 
                             // T3: Psychic Shockwave — spawn expanding ring from pickup
@@ -297,7 +323,13 @@ fn execute_storm_pickup(
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     enemies_query: &mut Query<
-        (Entity, &Transform, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<IngredientDrop>,
     >,
     visual_assets: &SpellVisualAssets,
@@ -362,7 +394,13 @@ fn apply_harvest_damage(
     pickup_pos: Vec3,
     visual_assets: &SpellVisualAssets,
     enemies_query: &mut Query<
-        (Entity, &Transform, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<IngredientDrop>,
     >,
 ) {
@@ -403,11 +441,7 @@ fn apply_harvest_damage(
 
 /// T3: Psychic Shockwave — spawns an expanding torus ring from the ingredient pickup position.
 /// Material is cloned per-entity on the first update frame for independent alpha fade.
-fn spawn_shockwave(
-    commands: &mut Commands,
-    visual_assets: &SpellVisualAssets,
-    pickup_pos: Vec3,
-) {
+fn spawn_shockwave(commands: &mut Commands, visual_assets: &SpellVisualAssets, pickup_pos: Vec3) {
     commands.spawn((
         Mesh3d(visual_assets.shockwave_torus.clone()),
         MeshMaterial3d(visual_assets.shockwave_material.clone()),
@@ -523,11 +557,7 @@ pub(super) fn update_harvest_flash(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     visual_assets: Res<SpellVisualAssets>,
-    mut query: Query<(
-        Entity,
-        &mut HarvestFlash,
-        &MeshMaterial3d<StandardMaterial>,
-    )>,
+    mut query: Query<(Entity, &mut HarvestFlash, &MeshMaterial3d<StandardMaterial>)>,
 ) {
     let delta = time.delta_secs();
 
@@ -548,7 +578,8 @@ pub(super) fn update_harvest_flash(
         }
 
         // Fade alpha over the flash duration
-        let alpha = (flash.time_remaining / constants::HARVEST_FLASH_DURATION).clamp(0.0, 1.0) * 0.7;
+        let alpha =
+            (flash.time_remaining / constants::HARVEST_FLASH_DURATION).clamp(0.0, 1.0) * 0.7;
         if let Some(mat) = materials.get_mut(material_handle) {
             mat.base_color = constants::HARVEST_FLASH_COLOR.with_alpha(alpha);
         }
@@ -570,7 +601,10 @@ pub(super) fn update_psychic_shockwave(
         &mut Transform,
         &MeshMaterial3d<StandardMaterial>,
     )>,
-    enemies: Query<(Entity, &Transform, &Team), (Without<PsychicShockwave>, Without<IngredientDrop>)>,
+    enemies: Query<
+        (Entity, &Transform, &Team),
+        (Without<PsychicShockwave>, Without<IngredientDrop>),
+    >,
 ) {
     let delta = time.delta_secs();
 

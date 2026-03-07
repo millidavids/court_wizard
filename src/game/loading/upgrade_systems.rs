@@ -8,25 +8,23 @@ use bevy::prelude::*;
 use super::constants::*;
 use super::spawn_queue::UnitType;
 use crate::game::components::OnGameplayScreen;
+use crate::game::units::archer::Archer;
+use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::Hitbox;
-use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
-use crate::game::units::archer::Archer;
+use crate::game::units::components::{Health, MovementSpeed};
 use crate::game::units::dispeller::DispellerAssets;
 use crate::game::units::dispeller::components::{Dispeller, DispellerAttackTimer};
 use crate::game::units::dispeller::constants::{
     DISPELLER_HEALTH, DISPELLER_MOVEMENT_SPEED, DISPELLER_RADIUS,
 };
-use crate::game::units::healer::HealerAssets;
-use crate::game::units::healer::components::{Healer, HealerAttackTimer};
-use crate::game::units::healer::constants::{
-    HEALER_HEALTH, HEALER_MOVEMENT_SPEED, HEALER_RADIUS,
-};
 use crate::game::units::elite::{
     ELITE_DAMAGE_BONUS, ELITE_HEALTH_BONUS, ELITE_SPEED_BONUS, EliteDamageBonus, EliteHealthBonus,
     EliteSpeedBonus,
 };
-use crate::game::units::components::{Health, MovementSpeed};
+use crate::game::units::healer::HealerAssets;
+use crate::game::units::healer::components::{Healer, HealerAttackTimer};
+use crate::game::units::healer::constants::{HEALER_HEALTH, HEALER_MOVEMENT_SPEED, HEALER_RADIUS};
 
 /// Applies elite upgrade to a unit entity.
 ///
@@ -191,10 +189,9 @@ pub(super) fn apply_dispeller_upgrade(
         .remove::<(Archer, AttackRange, ArcherMovementTimer)>();
 
     // Add dispeller components
-    commands.entity(entity).insert((
-        Dispeller,
-        DispellerAttackTimer::new(),
-    ));
+    commands
+        .entity(entity)
+        .insert((Dispeller, DispellerAttackTimer::new()));
 
     // Swap mesh and material to dispeller visuals
     commands.entity(entity).insert((
@@ -206,7 +203,10 @@ pub(super) fn apply_dispeller_upgrade(
     commands.entity(entity).insert((
         Health::new(DISPELLER_HEALTH),
         MovementSpeed(DISPELLER_MOVEMENT_SPEED),
-        Hitbox::new(DISPELLER_RADIUS, crate::game::constants::ATTACKER_HITBOX_HEIGHT),
+        Hitbox::new(
+            DISPELLER_RADIUS,
+            crate::game::constants::ATTACKER_HITBOX_HEIGHT,
+        ),
     ));
 }
 
@@ -226,10 +226,9 @@ pub(super) fn apply_healer_upgrade(
         .remove::<(Archer, AttackRange, ArcherMovementTimer)>();
 
     // Add healer components
-    commands.entity(entity).insert((
-        Healer,
-        HealerAttackTimer::new(),
-    ));
+    commands
+        .entity(entity)
+        .insert((Healer, HealerAttackTimer::new()));
 
     // Swap mesh and material to healer visuals
     commands.entity(entity).insert((
@@ -241,6 +240,9 @@ pub(super) fn apply_healer_upgrade(
     commands.entity(entity).insert((
         Health::new(HEALER_HEALTH),
         MovementSpeed(HEALER_MOVEMENT_SPEED),
-        Hitbox::new(HEALER_RADIUS, crate::game::constants::ATTACKER_HITBOX_HEIGHT),
+        Hitbox::new(
+            HEALER_RADIUS,
+            crate::game::constants::ATTACKER_HITBOX_HEIGHT,
+        ),
     ));
 }

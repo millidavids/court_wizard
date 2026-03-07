@@ -54,7 +54,9 @@ pub fn check_projectile_collisions(
             continue;
         }
 
-        for (entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
+        for (entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in
+            &mut enemies
+        {
             // Only damage attackers (projectiles are from defenders/wizard)
             if *team != Team::Attackers {
                 continue;
@@ -66,7 +68,15 @@ pub fn check_projectile_collisions(
 
             // Check if projectile hit the enemy
             if distance < projectile.radius {
-                apply_spell_damage(&mut commands, entity, &mut health, temp_hp.as_deref_mut(), projectile.damage, DamageType::Force, has_spell_shield);
+                apply_spell_damage(
+                    &mut commands,
+                    entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    projectile.damage,
+                    DamageType::Force,
+                    has_spell_shield,
+                );
                 if has_spell_shield {
                     continue;
                 }

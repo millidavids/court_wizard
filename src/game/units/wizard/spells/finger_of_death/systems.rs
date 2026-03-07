@@ -6,21 +6,19 @@ use super::super::super::components::{
 };
 use super::components::*;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{
-    Health, TemporaryHitPoints, apply_spell_damage,
-};
+use crate::game::units::components::{Health, TemporaryHitPoints, apply_spell_damage};
+use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::config::GameConfig;
-use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Action the shared logic requests the wrapper to perform on beams.
 enum BeamAction {
@@ -62,13 +60,7 @@ pub fn handle_finger_of_death_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &Mana,
-            &PrimedSpell,
-            &Wizard,
-        ),
+        (Entity, &mut CastingState, &Mana, &PrimedSpell, &Wizard),
         With<LocalWizard>,
     >,
     awaiting_release_query: Query<(), With<AwaitingFingerOfDeathRelease>>,
@@ -312,9 +304,7 @@ pub(crate) fn spawn_beam(
     let glow_instance = materials.add(glow_material);
 
     commands.spawn((
-        FingerOfDeathGlow {
-            beam_entity,
-        },
+        FingerOfDeathGlow { beam_entity },
         Mesh3d(assets.cross_plane_cylinder.clone()),
         MeshMaterial3d(glow_instance),
         Transform::from_translation(midpoint),
@@ -354,7 +344,12 @@ pub fn apply_finger_of_death_damage(
 ) {
     let mut any_fired = false;
     // Rotation to make a quad lie flat on the ground (XZ plane).
-    const UPWARD_ROTATION: Quat = Quat::from_xyzw(-std::f32::consts::FRAC_1_SQRT_2, 0.0, 0.0, std::f32::consts::FRAC_1_SQRT_2);
+    const UPWARD_ROTATION: Quat = Quat::from_xyzw(
+        -std::f32::consts::FRAC_1_SQRT_2,
+        0.0,
+        0.0,
+        std::f32::consts::FRAC_1_SQRT_2,
+    );
 
     let mut hit_positions: Vec<Vec3> = Vec::new();
     let mut beam_origin = Vec3::ZERO;
@@ -390,7 +385,15 @@ pub fn apply_finger_of_death_damage(
             if beam.contains_point(transform.translation, beam_width) {
                 let proj = (transform.translation - beam.origin).dot(beam.direction);
                 if proj <= effective_length {
-                    apply_spell_damage(&mut commands, entity, &mut health, temp_hp.as_deref_mut(), damage, DamageType::Necrotic, false);
+                    apply_spell_damage(
+                        &mut commands,
+                        entity,
+                        &mut health,
+                        temp_hp.as_deref_mut(),
+                        damage,
+                        DamageType::Necrotic,
+                        false,
+                    );
                     hit_positions.push(transform.translation);
                 }
             }
@@ -399,7 +402,13 @@ pub fn apply_finger_of_death_damage(
 
     // Play sound effect and drain mana
     if any_fired {
-        audio::play_sfx(&mut commands, &sfx.finger_of_death_cast, SPELL_ORIGIN, &game_config, &sfx);
+        audio::play_sfx(
+            &mut commands,
+            &sfx.finger_of_death_cast,
+            SPELL_ORIGIN,
+            &game_config,
+            &sfx,
+        );
 
         for (wizard_entity, mut mana, mut casting_state) in wizard_query.iter_mut() {
             if !matches!(*casting_state, CastingState::Resting) {
@@ -548,7 +557,12 @@ pub fn update_finger_of_death_beam_visuals(
 pub fn update_necrotic_veins(
     mut commands: Commands,
     time: Res<Time>,
-    mut veins: Query<(Entity, &mut NecroticVein, &mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut veins: Query<(
+        Entity,
+        &mut NecroticVein,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+    )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let dt = time.delta_secs();

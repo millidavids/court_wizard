@@ -20,7 +20,10 @@ pub struct PauseMainPlugin;
 impl Plugin for PauseMainPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(PauseMenuState::Main), setup)
-            .add_systems(OnExit(PauseMenuState::Main), crate::ui::systems::cleanup_screen::<super::components::OnPauseMainScreen>)
+            .add_systems(
+                OnExit(PauseMenuState::Main),
+                crate::ui::systems::cleanup_screen::<super::components::OnPauseMainScreen>,
+            )
             .add_systems(
                 Update,
                 button_action

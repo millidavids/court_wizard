@@ -8,7 +8,12 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Rotation to make a circle mesh (XY plane) lie flat facing upward (XZ plane).
-const UPWARD_ROTATION: Quat = Quat::from_xyzw(-std::f32::consts::FRAC_1_SQRT_2, 0.0, 0.0, std::f32::consts::FRAC_1_SQRT_2);
+const UPWARD_ROTATION: Quat = Quat::from_xyzw(
+    -std::f32::consts::FRAC_1_SQRT_2,
+    0.0,
+    0.0,
+    std::f32::consts::FRAC_1_SQRT_2,
+);
 
 /// Color palette for animated fire/effect visuals.
 struct EffectPalette {
@@ -26,16 +31,24 @@ struct EffectPalette {
 
 const FIRE_PALETTE: EffectPalette = EffectPalette {
     r: (0.9, 0.1),
-    g_base: 0.35, g_amp1: 0.2, g_amp2: 0.1,
-    b: (0.0, 0.05),  // special: uses sin*0.5+0.5 pattern
-    emissive_base: 2.0, emissive_green_factor: 1.5, emissive_blue_mult: 0.5,
+    g_base: 0.35,
+    g_amp1: 0.2,
+    g_amp2: 0.1,
+    b: (0.0, 0.05), // special: uses sin*0.5+0.5 pattern
+    emissive_base: 2.0,
+    emissive_green_factor: 1.5,
+    emissive_blue_mult: 0.5,
 };
 
 const POOP_PALETTE: EffectPalette = EffectPalette {
     r: (0.40, 0.05),
-    g_base: 0.25, g_amp1: 0.05, g_amp2: 0.0,
+    g_base: 0.25,
+    g_amp1: 0.05,
+    g_amp2: 0.0,
     b: (0.08, 0.02),
-    emissive_base: 0.8, emissive_green_factor: 0.4, emissive_blue_mult: 0.3,
+    emissive_base: 0.8,
+    emissive_green_factor: 0.4,
+    emissive_blue_mult: 0.3,
 };
 
 /// Computes an organic, time-varying color with layered sine-wave cycling.
@@ -48,8 +61,7 @@ fn animated_color_at(time: f32, fade: f32, p: &EffectPalette) -> (Color, LinearR
     let t = time;
 
     // Flicker envelope (3-layer sine)
-    let flicker =
-        0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
+    let flicker = 0.7 + 0.15 * (t * 8.3).sin() + 0.10 * (t * 13.7).sin() + 0.05 * (t * 23.1).sin();
 
     let r = p.r.0 + p.r.1 * (t * 5.3).sin();
     let g = p.g_base + p.g_amp1 * (t * 11.0).sin() + p.g_amp2 * (t * 7.3).sin();
@@ -71,7 +83,11 @@ fn animated_color_at(time: f32, fade: f32, p: &EffectPalette) -> (Color, LinearR
 
 /// Returns fire or poop color based on wizard type.
 pub fn effect_color_at(time: f32, fade: f32, is_excremage: bool) -> (Color, LinearRgba) {
-    let palette = if is_excremage { &POOP_PALETTE } else { &FIRE_PALETTE };
+    let palette = if is_excremage {
+        &POOP_PALETTE
+    } else {
+        &FIRE_PALETTE
+    };
     animated_color_at(time, fade, palette)
 }
 

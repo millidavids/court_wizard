@@ -10,9 +10,9 @@ use crate::game::units::brute::components::Brute;
 use crate::game::units::commander::components::Commander;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
-    FlockingVelocity, HasteModifier, Health, Hitbox,
-    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
-    SickenedModifier, SlowMovementModifier, SleepModifier, TargetingVelocity, Team,
+    FlockingVelocity, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
+    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
+    TargetingVelocity, Team,
 };
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::infantry::components::DefendersActivated;
@@ -77,17 +77,15 @@ pub fn update_healer_targeting(
         if *team == Team::Defenders && !defenders_activated.active {
             targeting_velocity.velocity = Vec3::ZERO;
             targeting_velocity.distance_to_target = f32::MAX;
-            commands.entity(entity).remove::<crate::game::units::components::InMelee>();
+            commands
+                .entity(entity)
+                .remove::<crate::game::units::components::InMelee>();
             continue;
         }
 
         // Priority 1: Find hurt allies to heal / move toward
-        let best_hurt_ally = find_best_heal_target(
-            &ally_snapshot,
-            entity,
-            transform.translation,
-            *team,
-        );
+        let best_hurt_ally =
+            find_best_heal_target(&ally_snapshot, entity, transform.translation, *team);
 
         if let Some((_, ally_pos, _)) = best_hurt_ally {
             let diff = ally_pos - transform.translation;
@@ -113,8 +111,7 @@ pub fn update_healer_targeting(
         let nearest_enemy = unit_snapshot
             .iter()
             .filter(|(other_entity, _, other_team)| {
-                *other_entity != entity
-                    && team.is_enemy(other_team)
+                *other_entity != entity && team.is_enemy(other_team)
             })
             .min_by(|a, b| {
                 let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -449,9 +446,7 @@ fn find_best_heal_target(
     ally_snapshot
         .iter()
         .filter(|(entity, _, team, current, max, _)| {
-            *entity != self_entity
-                && *team == self_team
-                && *current < *max
+            *entity != self_entity && *team == self_team && *current < *max
         })
         .max_by(|a, b| {
             // Higher priority first

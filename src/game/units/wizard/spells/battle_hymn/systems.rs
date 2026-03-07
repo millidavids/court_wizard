@@ -10,11 +10,13 @@ use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::units::components::{BattleHymnModifier, HasteModifier, Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 
 /// Local wizard battle hymn casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -25,13 +27,7 @@ pub fn handle_battle_hymn_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -39,12 +35,21 @@ pub fn handle_battle_hymn_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut BattleHymnIndicator>,
     mut targets_query: Query<
-        (Entity, &Transform, &Team, Option<&mut BattleHymnModifier>, Option<&mut TemporaryHitPoints>, Option<&mut HasteModifier>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&mut BattleHymnModifier>,
+            Option<&mut TemporaryHitPoints>,
+            Option<&mut HasteModifier>,
+        ),
         Without<Wizard>,
     >,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
+    mut talent_progress: Option<
+        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
@@ -70,14 +75,22 @@ pub fn handle_battle_hymn_casting(
     let t1 = talents.and_then(|t| t.get_selection(Spell::BattleHymn, 0));
     let t3 = talents.and_then(|t| t.get_selection(Spell::BattleHymn, 2));
     let radius_mult = match t1 {
-        Some(2) => 1.4,  // Wide Anthem: +40% radius
+        Some(2) => 1.4, // Wide Anthem: +40% radius
         _ => 1.0,
     };
     let chorus_of_valor = t3 == Some(2);
-    let mana_cost = if chorus_of_valor { constants::MANA_COST * 2.0 } else { constants::MANA_COST };
+    let mana_cost = if chorus_of_valor {
+        constants::MANA_COST * 2.0
+    } else {
+        constants::MANA_COST
+    };
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, constants::CIRCLE_RADIUS * primed_spell.empowerment);
+    let clamped_cursor = clamp_cursor_to_spell_range(
+        input.cursor_pos,
+        wizard.spell_range,
+        constants::CIRCLE_RADIUS * primed_spell.empowerment,
+    );
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
@@ -94,14 +107,13 @@ pub fn handle_battle_hymn_casting(
     // Manage indicator based on casting state
     match *casting_state {
         CastingState::Resting => {
-            if caster_query.get(wizard_entity).is_err() && mana.can_afford(mana_cost)
+            if caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(mana_cost)
                 && let Some(pos) = clamped_cursor
             {
                 if chorus_of_valor {
                     // No indicator for Chorus of Valor (affects all defenders)
-                    commands
-                        .entity(wizard_entity)
-                        .insert(SpellCaster::new());
+                    commands.entity(wizard_entity).insert(SpellCaster::new());
                 } else {
                     let mut indicator = BattleHymnIndicator::new(pos, primed_spell.empowerment);
                     indicator.talent_radius_mult = radius_mult;
@@ -173,7 +185,8 @@ pub fn handle_battle_hymn_casting(
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                let radius = constants::CIRCLE_RADIUS * indicator.empowerment * indicator.talent_radius_mult;
+                let radius =
+                    constants::CIRCLE_RADIUS * indicator.empowerment * indicator.talent_radius_mult;
                 apply_battle_hymn_buff(
                     &mut commands,
                     indicator.position,
@@ -248,7 +261,8 @@ pub fn update_battle_hymn_indicator(
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
         indicator.time_alive += time.delta_secs();
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment * indicator.talent_radius_mult;
+        let radius =
+            constants::CIRCLE_RADIUS * indicator.empowerment * indicator.talent_radius_mult;
         let pulse = indicator.pulse_scale();
         transform.scale = Vec3::splat(radius * pulse);
         transform.translation.x = indicator.position.x;
@@ -262,8 +276,20 @@ pub(crate) fn apply_battle_hymn_buff(
     circle_pos: Vec3,
     radius: f32,
     empowerment: f32,
-    targets: &mut Query<(Entity, &Transform, &Team, Option<&mut BattleHymnModifier>, Option<&mut TemporaryHitPoints>, Option<&mut HasteModifier>), Without<Wizard>>,
-    talent_progress: &mut Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
+    targets: &mut Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&mut BattleHymnModifier>,
+            Option<&mut TemporaryHitPoints>,
+            Option<&mut HasteModifier>,
+        ),
+        Without<Wizard>,
+    >,
+    talent_progress: &mut Option<
+        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
     active_talents: Option<&ActiveTalents>,
 ) {
     let t1 = active_talents.and_then(|t| t.get_selection(Spell::BattleHymn, 0));
@@ -277,8 +303,8 @@ pub(crate) fn apply_battle_hymn_buff(
 
     // Tier 1 modifications
     match t1 {
-        Some(0) => duration *= 1.5,           // Inspiring Words: +50% duration
-        Some(1) => damage_bonus *= 1.5,       // War Drums: +50% damage bonus
+        Some(0) => duration *= 1.5,     // Inspiring Words: +50% duration
+        Some(1) => damage_bonus *= 1.5, // War Drums: +50% damage bonus
         // Wide Anthem radius is already applied via indicator.talent_radius_mult
         _ => {}
     }
@@ -299,7 +325,8 @@ pub(crate) fn apply_battle_hymn_buff(
     let ignore_radius = t3 == Some(2);
 
     let mut buffed_count = 0u32;
-    for (entity, transform, team, existing, existing_temp_hp, existing_haste) in targets.iter_mut() {
+    for (entity, transform, team, existing, existing_temp_hp, existing_haste) in targets.iter_mut()
+    {
         let in_range = if ignore_radius {
             // Chorus of Valor: only buff defenders, but ignore radius
             *team == Team::Defenders
@@ -331,7 +358,9 @@ pub(crate) fn apply_battle_hymn_buff(
                         temp_hp.time_remaining = duration;
                     }
                 } else {
-                    commands.entity(entity).insert(TemporaryHitPoints::new(temp_hp_amount, duration));
+                    commands
+                        .entity(entity)
+                        .insert(TemporaryHitPoints::new(temp_hp_amount, duration));
                 }
             }
 
@@ -342,7 +371,9 @@ pub(crate) fn apply_battle_hymn_buff(
                     haste.modifier = haste.modifier.max(speed_bonus);
                     haste.time_remaining = haste.time_remaining.max(duration);
                 } else {
-                    commands.entity(entity).insert(HasteModifier::new(speed_bonus, duration));
+                    commands
+                        .entity(entity)
+                        .insert(HasteModifier::new(speed_bonus, duration));
                 }
             }
 

@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{ATTACKER_BASE, TINT_BLUE, UNIT_SCALE, get_tier, get_tier_level, tint};
+use crate::game::constants::{
+    ATTACKER_BASE, TINT_BLUE, UNIT_SCALE, get_tier, get_tier_level, tint,
+};
 
 // ===== Visual =====
 pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.6);

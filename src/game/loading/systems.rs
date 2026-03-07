@@ -5,14 +5,16 @@ use super::spawn_queue::{SpawnQueue, SpawnTask};
 use super::upgrade_selection;
 use super::upgrade_systems;
 use crate::config::GameConfig;
+use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::constants::*;
 use crate::game::crt_effect::ChannelChangeMessage;
-use crate::game::resources::{CurrentLevel, InitialDefenderCount, KillStats, TimeTravelState, WaveState};
+use crate::game::resources::{
+    CurrentLevel, InitialDefenderCount, KillStats, TimeTravelState, WaveState,
+};
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{Hitbox, Team};
-use crate::game::battlefield::components::BattlefieldAssets;
 use crate::game::units::dispeller::DispellerAssets;
 use crate::game::units::healer::HealerAssets;
 use crate::game::units::infantry::Infantry;
@@ -73,8 +75,8 @@ pub fn init_loading_progress(
     }
 
     // Check if this is a boss level (every 5th level starting at 5)
-    use crate::game::constants::is_boss_level;
     use crate::game::constants::get_tier;
+    use crate::game::constants::is_boss_level;
     use crate::game::units::brute::constants::BRUTE_START_TIER;
 
     if is_boss_level(level) {
@@ -186,7 +188,12 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<DispellerAssets>, Res<HealerAssets>),
+    unit_assets: (
+        Res<InfantryAssets>,
+        Res<ArcherAssets>,
+        Res<DispellerAssets>,
+        Res<HealerAssets>,
+    ),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     attacker_assets: (
         Res<crate::game::units::brute::resources::BruteAssets>,
@@ -221,7 +228,12 @@ pub fn process_spawn_queue(
     if let Some(task) = batch.into_iter().next() {
         match task {
             SpawnTask::DefenderInfantry { unit_index } => {
-                infantry_systems::spawn_single_defender(&mut commands, &unit_assets.0, &mut materials, unit_index);
+                infantry_systems::spawn_single_defender(
+                    &mut commands,
+                    &unit_assets.0,
+                    &mut materials,
+                    unit_index,
+                );
             }
             SpawnTask::AttackerInfantry { unit_index, level } => {
                 infantry_systems::spawn_single_attacker(
@@ -250,18 +262,10 @@ pub fn process_spawn_queue(
                 );
             }
             SpawnTask::UpgradeToDispeller { entity } => {
-                upgrade_systems::apply_dispeller_upgrade(
-                    &mut commands,
-                    entity,
-                    &unit_assets.2,
-                );
+                upgrade_systems::apply_dispeller_upgrade(&mut commands, entity, &unit_assets.2);
             }
             SpawnTask::UpgradeToHealer { entity } => {
-                upgrade_systems::apply_healer_upgrade(
-                    &mut commands,
-                    entity,
-                    &unit_assets.3,
-                );
+                upgrade_systems::apply_healer_upgrade(&mut commands, entity, &unit_assets.3);
             }
             SpawnTask::King => {
                 crate::game::units::king::systems::spawn_king(

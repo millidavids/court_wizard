@@ -396,31 +396,32 @@ fn spawn_ingredient_list(
                         &STONE_BUTTON_STYLE
                     };
 
-                    column.spawn(Node {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        row_gap: Val::Px(4.0),
-                        ..default()
-                    })
-                    .with_children(|card| {
-                        spawn_button(
-                            card,
-                            "Philosopher's Stone",
-                            CauldronMenuButtonAction::TogglePhilosophersStone,
-                            stone_style,
-                        );
+                    column
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center,
+                            row_gap: Val::Px(4.0),
+                            ..default()
+                        })
+                        .with_children(|card| {
+                            spawn_button(
+                                card,
+                                "Philosopher's Stone",
+                                CauldronMenuButtonAction::TogglePhilosophersStone,
+                                stone_style,
+                            );
 
-                        card.spawn((
-                            Text::new("Removes dilution (once per battle)"),
-                            TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
-                            TextColor(stone_style.text_color),
-                            TextLayout::new_with_justify(Justify::Center),
-                            Node {
-                                max_width: Val::Px(BUTTON_WIDTH),
-                                ..default()
-                            },
-                        ));
-                    });
+                            card.spawn((
+                                Text::new("Removes dilution (once per battle)"),
+                                TextFont::from_font_size(DESCRIPTION_FONT_SIZE),
+                                TextColor(stone_style.text_color),
+                                TextLayout::new_with_justify(Justify::Center),
+                                Node {
+                                    max_width: Val::Px(BUTTON_WIDTH),
+                                    ..default()
+                                },
+                            ));
+                        });
                 });
             }
 

@@ -14,11 +14,11 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity,
-    HasteModifier, Health, Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled,
-    MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier,
-    SickenedModifier, SlowMovementModifier, SleepModifier, TargetingVelocity, Team, Teleportable,
-    TemporaryHitPoints, apply_damage_to_unit,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
+    Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled, MovementSpeed, PolymorphedModifier,
+    RetaliationTarget, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    SlowMovementModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
@@ -28,9 +28,21 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 /// Spawns all 3 hags at their designated grid positions.
 pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
     let hags = [
-        (HagIdentity::Justina, JUSTINA_COL, &hag_assets.justina_material),
-        (HagIdentity::Martina, MARTINA_COL, &hag_assets.martina_material),
-        (HagIdentity::Josephina, JOSEPHINA_COL, &hag_assets.josephina_material),
+        (
+            HagIdentity::Justina,
+            JUSTINA_COL,
+            &hag_assets.justina_material,
+        ),
+        (
+            HagIdentity::Martina,
+            MARTINA_COL,
+            &hag_assets.martina_material,
+        ),
+        (
+            HagIdentity::Josephina,
+            JOSEPHINA_COL,
+            &hag_assets.josephina_material,
+        ),
     ];
 
     let mut spawned_entities = Vec::new();
@@ -95,15 +107,12 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
         // Add identity-specific ability components
         match identity {
             HagIdentity::Justina => {
-                commands.entity(entity).insert((
-                    ChainLightningCooldown::new(),
-                    FireballCooldown::new(),
-                ));
+                commands
+                    .entity(entity)
+                    .insert((ChainLightningCooldown::new(), FireballCooldown::new()));
             }
             HagIdentity::Martina => {
-                commands.entity(entity).insert(
-                    TeleportPullCooldown::new(),
-                );
+                commands.entity(entity).insert(TeleportPullCooldown::new());
                 // Spawn mind control aura circle on the ground beneath Martina
                 let aura_y = 2.0 - spawn_y;
                 let aura_entity = commands
@@ -118,10 +127,9 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
                 commands.entity(entity).add_child(aura_entity);
             }
             HagIdentity::Josephina => {
-                commands.entity(entity).insert((
-                    LeapState::new(),
-                    MaulingState::new(),
-                ));
+                commands
+                    .entity(entity)
+                    .insert((LeapState::new(), MaulingState::new()));
             }
         }
 
@@ -153,15 +161,29 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
                 has_invulnerability_eye: true,
                 has_ability_eye: false,
             },
-            Invulnerable { health_snapshot: HAG_HEALTH },
+            Invulnerable {
+                health_snapshot: HAG_HEALTH,
+            },
         ));
-        spawn_eye_visual(&mut commands, invuln_entity, EyeType::Invulnerability, &hag_assets, false);
+        spawn_eye_visual(
+            &mut commands,
+            invuln_entity,
+            EyeType::Invulnerability,
+            &hag_assets,
+            false,
+        );
 
         commands.entity(ability_entity).insert(HagEyeState {
             has_invulnerability_eye: false,
             has_ability_eye: true,
         });
-        spawn_eye_visual(&mut commands, ability_entity, EyeType::Ability, &hag_assets, false);
+        spawn_eye_visual(
+            &mut commands,
+            ability_entity,
+            EyeType::Ability,
+            &hag_assets,
+            false,
+        );
     }
 }
 
@@ -170,7 +192,13 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
 pub fn update_hag_targeting(
     mut commands: Commands,
     mut hags: Query<
-        (Entity, &Transform, &Team, &mut TargetingVelocity, &HagEyeState),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut TargetingVelocity,
+            &HagEyeState,
+        ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
     all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>)>,
@@ -221,12 +249,27 @@ pub fn hag_combat(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Hag>, Without<Corpse>, Without<MindControlled>, Without<Wizard>),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Wizard>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
 
-    for (hag_entity, hag_transform, hag_hitbox, hag_team, eye_state, mut cooldown, mauling, consuming) in &mut hags {
+    for (
+        hag_entity,
+        hag_transform,
+        hag_hitbox,
+        hag_team,
+        eye_state,
+        mut cooldown,
+        mauling,
+        consuming,
+    ) in &mut hags
+    {
         // Only hags with invulnerability eye do basic attacks
         if !eye_state.has_invulnerability_eye {
             continue;
@@ -257,8 +300,7 @@ pub fn hag_combat(
             let dx = hag_pos.x - target_transform.translation.x;
             let dz = hag_pos.z - target_transform.translation.z;
             let distance = (dx * dx + dz * dz).sqrt();
-            let attack_range =
-                (hag_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+            let attack_range = (hag_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
             if distance <= attack_range {
                 has_target = true;
                 break;
@@ -439,13 +481,13 @@ pub fn hag_separation(
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
 ) {
-    let positions: Vec<(Entity, Vec3)> = hags
-        .iter()
-        .map(|(e, t, _)| (e, t.translation))
-        .collect();
+    let positions: Vec<(Entity, Vec3)> = hags.iter().map(|(e, t, _)| (e, t.translation)).collect();
 
     for (entity, _transform, mut velocity) in &mut hags {
-        let my_pos = positions.iter().find(|(e, _)| *e == entity).map(|(_, p)| *p);
+        let my_pos = positions
+            .iter()
+            .find(|(e, _)| *e == entity)
+            .map(|(_, p)| *p);
         let Some(my_pos) = my_pos else { continue };
 
         for (other_entity, other_pos) in &positions {
@@ -598,16 +640,14 @@ pub fn tick_eye_transfer(
             commands.entity(source).remove::<Invulnerable>();
             // Despawn eye visual from source
             for (eye_entity, child_of, eye_visual) in &eye_visuals {
-                if child_of.parent() == source
-                    && eye_visual.eye_type == EyeType::Invulnerability
-                {
+                if child_of.parent() == source && eye_visual.eye_type == EyeType::Invulnerability {
                     commands.entity(eye_entity).try_despawn();
                 }
             }
             // Get source position and spawn flying eye
             if let Ok((_, source_transform, _)) = hags.get(source) {
-                let start_pos = source_transform.translation
-                    + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0);
+                let start_pos =
+                    source_transform.translation + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0);
                 commands.spawn((
                     Mesh3d(hag_assets.eye_mesh.clone()),
                     MeshMaterial3d(hag_assets.invulnerability_eye_material.clone()),
@@ -627,7 +667,13 @@ pub fn tick_eye_transfer(
             if let Ok((_, _, mut eye_state)) = hags.get_mut(new_holder) {
                 eye_state.has_invulnerability_eye = true;
                 let both = new_ability_holder == Some(new_holder);
-                spawn_eye_visual(&mut commands, new_holder, EyeType::Invulnerability, &hag_assets, both);
+                spawn_eye_visual(
+                    &mut commands,
+                    new_holder,
+                    EyeType::Invulnerability,
+                    &hag_assets,
+                    both,
+                );
             }
         }
         // If staying on same hag, do nothing
@@ -651,8 +697,8 @@ pub fn tick_eye_transfer(
             }
             // Get source position and spawn flying eye
             if let Ok((_, source_transform, _)) = hags.get(source) {
-                let start_pos = source_transform.translation
-                    + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0);
+                let start_pos =
+                    source_transform.translation + Vec3::new(0.0, EYE_VISUAL_OFFSET_Y, 0.0);
                 commands.spawn((
                     Mesh3d(hag_assets.eye_mesh.clone()),
                     MeshMaterial3d(hag_assets.ability_eye_material.clone()),
@@ -672,7 +718,13 @@ pub fn tick_eye_transfer(
         {
             eye_state.has_ability_eye = true;
             let both = new_invuln_holder == Some(new_holder);
-            spawn_eye_visual(&mut commands, new_holder, EyeType::Ability, &hag_assets, both);
+            spawn_eye_visual(
+                &mut commands,
+                new_holder,
+                EyeType::Ability,
+                &hag_assets,
+                both,
+            );
         }
         // If staying on same hag, do nothing
     }
@@ -697,10 +749,22 @@ pub fn tick_eye_transfer(
             }
             // Re-spawn with correct offset
             if has_invuln {
-                spawn_eye_visual(&mut commands, entity, EyeType::Invulnerability, &hag_assets, new_both);
+                spawn_eye_visual(
+                    &mut commands,
+                    entity,
+                    EyeType::Invulnerability,
+                    &hag_assets,
+                    new_both,
+                );
             }
             if has_ability {
-                spawn_eye_visual(&mut commands, entity, EyeType::Ability, &hag_assets, new_both);
+                spawn_eye_visual(
+                    &mut commands,
+                    entity,
+                    EyeType::Ability,
+                    &hag_assets,
+                    new_both,
+                );
             }
         }
     }
@@ -747,8 +811,7 @@ pub fn update_eye_flight(
                     EyeType::Ability => eye_state.has_ability_eye = true,
                 }
 
-                let has_both =
-                    eye_state.has_invulnerability_eye && eye_state.has_ability_eye;
+                let has_both = eye_state.has_invulnerability_eye && eye_state.has_ability_eye;
 
                 // If gaining a second eye, re-spawn existing eye with correct offset
                 if has_both {
@@ -762,13 +825,7 @@ pub fn update_eye_flight(
                         EyeType::Invulnerability => EyeType::Ability,
                         EyeType::Ability => EyeType::Invulnerability,
                     };
-                    spawn_eye_visual(
-                        &mut commands,
-                        flight.target,
-                        other_type,
-                        &hag_assets,
-                        true,
-                    );
+                    spawn_eye_visual(&mut commands, flight.target, other_type, &hag_assets, true);
                 }
 
                 spawn_eye_visual(
@@ -810,7 +867,10 @@ pub fn resurrect_eyed_hags(
 pub fn intercept_blind_hag_death(
     mut commands: Commands,
     hag_corpses: Query<Entity, (With<Hag>, With<Corpse>, Without<PermanentlyDead>)>,
-    mut living_eye_states: Query<(Entity, &mut HagEyeState), (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
+    mut living_eye_states: Query<
+        (Entity, &mut HagEyeState),
+        (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
+    >,
     mut death_tracker: ResMut<HagDeathTracker>,
     eye_visuals: Query<(Entity, &ChildOf, &EyeVisual)>,
     eyes_in_flight: Query<(Entity, &EyeInFlight)>,
@@ -898,15 +958,19 @@ pub fn justina_chain_lightning(
     >,
     targets: Query<
         (Entity, &Transform, &Team),
-        (Without<Hag>, Without<Corpse>, Without<MindControlled>, Without<Wizard>),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Wizard>,
+        ),
     >,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
     visual_assets: Res<SpellVisualAssets>,
 ) {
     use crate::game::units::wizard::spells::chain_lightning::{
         components::{ChainLightningBolt, ChainLightningGroup},
-        constants as cl_constants,
-        systems as cl_systems,
+        constants as cl_constants, systems as cl_systems,
     };
 
     let delta = time.delta_secs();
@@ -934,9 +998,7 @@ pub fn justina_chain_lightning(
             let dx = target_transform.translation.x - hag_pos.x;
             let dz = target_transform.translation.z - hag_pos.z;
             let dist = (dx * dx + dz * dz).sqrt();
-            if dist <= CHAIN_LIGHTNING_RANGE
-                && (nearest.is_none() || dist < nearest.unwrap().2)
-            {
+            if dist <= CHAIN_LIGHTNING_RANGE && (nearest.is_none() || dist < nearest.unwrap().2) {
                 nearest = Some((entity, target_transform.translation, dist));
             }
         }
@@ -979,14 +1041,7 @@ pub fn justina_chain_lightning(
             ));
 
             // Spawn the visual arc from Justina to the first target
-            cl_systems::spawn_arc(
-                &mut commands,
-                &visual_assets,
-                hag_pos,
-                target_pos,
-                0,
-                1.0,
-            );
+            cl_systems::spawn_arc(&mut commands, &visual_assets, hag_pos, target_pos, 0, 1.0);
         }
     }
 }
@@ -1005,7 +1060,15 @@ pub fn justina_fireball(
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    defender_teams: Query<(&Transform, &Team), (Without<Hag>, Without<Corpse>, Without<MindControlled>, Without<Wizard>)>,
+    defender_teams: Query<
+        (&Transform, &Team),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Wizard>,
+        ),
+    >,
     visual_assets: Res<SpellVisualAssets>,
 ) {
     let delta = time.delta_secs();
@@ -1081,7 +1144,15 @@ pub fn josephina_leap(
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    defenders: Query<(&Transform, &Team), (Without<Hag>, Without<Corpse>, Without<MindControlled>, Without<Wizard>)>,
+    defenders: Query<
+        (&Transform, &Team),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Wizard>,
+        ),
+    >,
 ) {
     let delta = time.delta_secs();
 
@@ -1094,7 +1165,9 @@ pub fn josephina_leap(
             if let LeapState::InAir { target, .. } = &*leap {
                 transform.translation.x = target.x;
                 transform.translation.z = target.z;
-                *leap = LeapState::Idle { cooldown: LEAP_COOLDOWN };
+                *leap = LeapState::Idle {
+                    cooldown: LEAP_COOLDOWN,
+                };
             }
             continue;
         }
@@ -1150,7 +1223,10 @@ pub fn josephina_leap(
                     transform.translation.y = start_pos.y;
                     transform.translation.z = target.z;
                     // Knockback is applied by josephina_leap_knockback system
-                    *leap = LeapState::Landing { timer: 0.3, knockback_applied: false };
+                    *leap = LeapState::Landing {
+                        timer: 0.3,
+                        knockback_applied: false,
+                    };
                 } else {
                     // Parabolic arc interpolation
                     let t = *progress;
@@ -1167,7 +1243,9 @@ pub fn josephina_leap(
                 *timer -= delta;
                 if *timer <= 0.0 {
                     // After landing, transition to mauling (handled by mauling system)
-                    *leap = LeapState::Idle { cooldown: LEAP_COOLDOWN };
+                    *leap = LeapState::Idle {
+                        cooldown: LEAP_COOLDOWN,
+                    };
                 }
             }
         }
@@ -1189,7 +1267,10 @@ pub fn josephina_leap_knockback(
         }
 
         // Only apply knockback once at landing moment
-        if let LeapState::Landing { knockback_applied, .. } = leap.as_mut() {
+        if let LeapState::Landing {
+            knockback_applied, ..
+        } = leap.as_mut()
+        {
             if *knockback_applied {
                 continue;
             }
@@ -1227,12 +1308,7 @@ pub fn josephina_vicious_mauling(
     time: Res<Time>,
     death_tracker: Res<HagDeathTracker>,
     mut josephina_query: Query<
-        (
-            &HagIdentity,
-            &HagEyeState,
-            &LeapState,
-            &mut MaulingState,
-        ),
+        (&HagIdentity, &HagEyeState, &LeapState, &mut MaulingState),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
 ) {
@@ -1278,8 +1354,7 @@ pub fn josephina_corpse_consume(
     let delta = time.delta_secs();
     let enraged = death_tracker.permanent_deaths >= 2;
 
-    for (entity, transform, identity, eye_state, mut health, consume_state) in
-        &mut josephina_query
+    for (entity, transform, identity, eye_state, mut health, consume_state) in &mut josephina_query
     {
         if *identity != HagIdentity::Josephina || (!eye_state.has_ability_eye && !enraged) {
             // Cancel consume if eye lost
@@ -1353,8 +1428,19 @@ pub fn martina_teleport_pull(
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
     mut defenders: Query<
-        (Entity, &mut Transform, &Team, Option<&King>, Option<&KingsGuard>),
-        (Without<Hag>, Without<Corpse>, Without<MindControlled>, Without<Wizard>),
+        (
+            Entity,
+            &mut Transform,
+            &Team,
+            Option<&King>,
+            Option<&KingsGuard>,
+        ),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Wizard>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -1423,15 +1509,17 @@ pub fn martina_teleport_pull(
 pub fn martina_mind_control(
     mut commands: Commands,
     martina_query: Query<
-        (
-            &Transform,
-            &HagIdentity,
-        ),
+        (&Transform, &HagIdentity),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
     defenders: Query<
         (Entity, &Transform, &Team, &FlowFieldInfluence),
-        (Without<Hag>, Without<Corpse>, Without<MindControlled>, Without<Wizard>),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Wizard>,
+        ),
     >,
     existing_controlled: Query<&MindControlled, Without<Corpse>>,
 ) {
@@ -1477,7 +1565,13 @@ pub fn martina_mind_control(
 
 /// Updates mind-controlled units — they target non-MC same-team allies.
 pub fn update_mind_controlled_targeting(
-    mut controlled: Query<(Entity, &Transform, &Team, &mut TargetingVelocity, &MindControlled)>,
+    mut controlled: Query<(
+        Entity,
+        &Transform,
+        &Team,
+        &mut TargetingVelocity,
+        &MindControlled,
+    )>,
     all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<MindControlled>)>,
 ) {
     for (entity, transform, team, mut targeting, _mc) in &mut controlled {
@@ -1508,7 +1602,8 @@ pub fn update_mind_controlled_targeting(
         }
 
         if let Some((_, target_pos)) = nearest {
-            let dir = Vec3::new(target_pos.x - pos.x, 0.0, target_pos.z - pos.z).normalize_or_zero();
+            let dir =
+                Vec3::new(target_pos.x - pos.x, 0.0, target_pos.z - pos.z).normalize_or_zero();
             targeting.velocity = dir;
         } else {
             targeting.velocity = Vec3::ZERO;
@@ -1557,7 +1652,14 @@ pub fn mind_controlled_combat(
     attack_cycle: Res<crate::game::plugin::GlobalAttackCycle>,
     mut commands: Commands,
     mut controlled: Query<
-        (Entity, &Transform, &Hitbox, &Team, &mut AttackTiming, &MindControlled),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &Team,
+            &mut AttackTiming,
+            &MindControlled,
+        ),
         Without<Corpse>,
     >,
     mut potential_targets: Query<
@@ -1597,17 +1699,18 @@ pub fn mind_controlled_combat(
             let dx = target_transform.translation.x - mc_pos.x;
             let dz = target_transform.translation.z - mc_pos.z;
             let dist = (dx * dx + dz * dz).sqrt();
-            let attack_range =
-                (mc_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+            let attack_range = (mc_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
 
             if dist <= attack_range {
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), MIND_CONTROL_COMBAT_DAMAGE);
+                apply_damage_to_unit(
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    MIND_CONTROL_COMBAT_DAMAGE,
+                );
                 timing.last_attack_time = Some(current_time);
 
                 // Victim retaliates — consider the MC attacker a valid target
-                commands
-                    .entity(entity)
-                    .insert(RetaliationTarget(mc_entity));
+                commands.entity(entity).insert(RetaliationTarget(mc_entity));
 
                 break; // One attack per cycle
             }

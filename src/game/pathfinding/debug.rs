@@ -113,16 +113,18 @@ pub(super) fn update_debug_visualization(
         // Triangle in XZ plane: 10 long (+Z), 4 wide (X), normal up (+Y).
         // Tip points along +Z; rotated around Y at spawn time.
         let mut tri = Mesh::new(PrimitiveTopology::TriangleList, default());
-        tri.insert_attribute(Mesh::ATTRIBUTE_POSITION, vec![
-            [0.0, 0.0, 12.5],   // tip (forward)
-            [-2.0, 0.0, -12.5], // base left
-            [2.0, 0.0, -12.5],  // base right
-        ]);
-        tri.insert_attribute(Mesh::ATTRIBUTE_NORMAL, vec![
-            [0.0, 1.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 1.0, 0.0],
-        ]);
+        tri.insert_attribute(
+            Mesh::ATTRIBUTE_POSITION,
+            vec![
+                [0.0, 0.0, 12.5],   // tip (forward)
+                [-2.0, 0.0, -12.5], // base left
+                [2.0, 0.0, -12.5],  // base right
+            ],
+        );
+        tri.insert_attribute(
+            Mesh::ATTRIBUTE_NORMAL,
+            vec![[0.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]],
+        );
         tri.insert_indices(Indices::U32(vec![0, 1, 2]));
         let mesh = meshes.add(tri);
         let material = materials.add(StandardMaterial {

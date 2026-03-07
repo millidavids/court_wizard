@@ -3,13 +3,15 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FrostEffectMarker,
-    FlockingVelocity, Health, InMelee, MindControlled, OriginalMaterial,
-    PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, RootedModifier, SickenedModifier, SleepModifier,
-    SlowMovementModifier, SmellyModifier,
-    TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
-    apply_damage_to_unit,
+    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, FacingDirection, SPRITE_FRAME_SIZE,
+    SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
+};
+use super::components::{
+    BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
+    FrostEffectMarker, Health, InMelee, MindControlled, OriginalMaterial, PendingDamageEffect,
+    PoisonedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
+    SickenedModifier, SleepModifier, SlowMovementModifier, SmellyModifier, TargetingVelocity, Team,
+    TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
 };
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
@@ -17,25 +19,20 @@ use super::constants::{
     ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, FIRE_EFFECT_COLOR,
     FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_PULSE_SPEED,
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
-    MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
-    POISON_EFFECT_COLOR, POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP,
-    POISON_EFFECTIVENESS_PER_STACK, POISON_DURATION, SICKENED_DURATION, SICKENED_THRESHOLD,
-    SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SMELLY_DURATION, SMELLY_EFFECT_COLOR,
-    SMELLY_EFFECT_INTENSITY,
-};
-use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, FacingDirection, SPRITE_FRAME_SIZE,
-    SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
+    MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY, POISON_DURATION, POISON_EFFECT_COLOR,
+    POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
+    SICKENED_DURATION, SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD,
+    SMELLY_DURATION, SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY,
 };
 use super::damage::DamageType;
 use super::king::components::SpellShield;
+use crate::config::GameConfig;
+use crate::config::WizardType;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
     DEFENDER_HITBOX_HEIGHT, GLOBAL_SPEED_MULTIPLIER, MELEE_SLOWDOWN_DISTANCE,
     MELEE_SLOWDOWN_FACTOR, STEERING_FORCE, VELOCITY_DAMPING,
 };
-use crate::config::GameConfig;
-use crate::config::WizardType;
 use crate::game::pathfinding::FlowFieldVelocity;
 
 /// Returns true if the unit is immobilized by any crowd control effect.
@@ -72,8 +69,7 @@ pub fn update_melee_unit_targeting(
         .iter()
         .filter(|(other_entity, _, other_team)| {
             *other_entity != entity
-                && (retaliation_target == Some(*other_entity)
-                    || team.is_enemy(other_team))
+                && (retaliation_target == Some(*other_entity) || team.is_enemy(other_team))
         })
         .min_by(|a, b| {
             let dist_a = (transform.translation.x - a.1.x).powi(2)
@@ -255,7 +251,9 @@ pub fn calculate_weighted_movement(
 }
 
 /// Generic system that ticks all instances of a `TimedModifier` component and removes expired ones.
-pub fn update_timed_modifier<T: Component<Mutability = bevy::ecs::component::Mutable> + TimedModifier>(
+pub fn update_timed_modifier<
+    T: Component<Mutability = bevy::ecs::component::Mutable> + TimedModifier,
+>(
     mut commands: Commands,
     time: Res<Time>,
     mut query: Query<(Entity, &mut T)>,
@@ -345,7 +343,9 @@ pub fn process_pending_damage_effects(
                 }
             }
             DamageType::Poop => {
-                commands.entity(entity).insert(SmellyModifier::new(SMELLY_DURATION));
+                commands
+                    .entity(entity)
+                    .insert(SmellyModifier::new(SMELLY_DURATION));
             }
             // Force, Necrotic, Nature — no persistent effect
             _ => {}
@@ -559,7 +559,9 @@ pub fn update_sickened(
     for (entity, mut sickened) in query.iter_mut() {
         if sickened.update(delta) {
             commands.entity(entity).remove::<SickenedModifier>();
-            commands.entity(entity).insert(SmellyModifier::new(SMELLY_DURATION));
+            commands
+                .entity(entity)
+                .insert(SmellyModifier::new(SMELLY_DURATION));
         }
     }
 }
@@ -655,8 +657,13 @@ pub fn update_persistent_effect_visuals(
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;
-        let has_any_effect = has_fire || has_frost || has_electric || has_mind_control
-            || has_poisoned || has_sickened || has_smelly;
+        let has_any_effect = has_fire
+            || has_frost
+            || has_electric
+            || has_mind_control
+            || has_poisoned
+            || has_sickened
+            || has_smelly;
 
         if has_any_effect && original_mat.is_none() {
             // Phase 1: First effect applied — clone the material and store original
@@ -810,9 +817,7 @@ pub fn corpse_material_for_team(
 
 /// Returns the sprite tint color for a given team (infantry/generic).
 pub fn sprite_tint_for_team(team: Team) -> Color {
-    use super::infantry::styles::{
-        ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT,
-    };
+    use super::infantry::styles::{ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT};
     match team {
         Team::Defenders => DEFENDER_SPRITE_TINT,
         Team::Attackers => ATTACKER_SPRITE_TINT,
@@ -859,11 +864,8 @@ pub fn resurrect_corpse_as_infantry(
     let upright_transform = Transform::from_xyz(position.x, spawn_y, position.z);
 
     let anim = WalkingAnimation::default();
-    let material = create_default_sprite_material(
-        materials,
-        infantry_assets.sprite_texture.clone(),
-        tint,
-    );
+    let material =
+        create_default_sprite_material(materials, infantry_assets.sprite_texture.clone(), tint);
 
     commands
         .entity(entity)

@@ -14,10 +14,10 @@ use super::resources::BruteAssets;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity,
-    HasteModifier, Health, Hitbox, InMelee, MovementSpeed,
-    PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier, SickenedModifier, SlowMovementModifier, SleepModifier,
-    TargetingVelocity, Team, Teleportable,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
+    Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier,
+    RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier, TargetingVelocity,
+    Team, Teleportable,
 };
 use crate::game::units::random_position_in_cell;
 
@@ -113,7 +113,16 @@ pub fn spawn_brute(
 /// Updates brute targeting velocity toward nearest enemy.
 pub fn update_brute_targeting(
     mut commands: Commands,
-    mut brutes: Query<(Entity, &Transform, &Team, &mut TargetingVelocity, Option<&RetaliationTarget>), With<Brute>>,
+    mut brutes: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut TargetingVelocity,
+            Option<&RetaliationTarget>,
+        ),
+        With<Brute>,
+    >,
     all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
@@ -238,16 +247,12 @@ pub fn track_brute_attack_target(
         .map(|(entity, transform, hitbox, team)| (entity, transform.translation, *hitbox, *team))
         .collect();
 
-    for (brute_entity, brute_transform, brute_hitbox, brute_team, mut attack_timing) in
-        &mut brutes
+    for (brute_entity, brute_transform, brute_hitbox, brute_team, mut attack_timing) in &mut brutes
     {
         if attack_timing.can_attack(current_time, last_time)
             && let Some((_, target_pos, _)) = units_snapshot
                 .iter()
-                .filter(|(entity, _, _, team)| {
-                    *entity != brute_entity
-                        && brute_team.is_enemy(team)
-                })
+                .filter(|(entity, _, _, team)| *entity != brute_entity && brute_team.is_enemy(team))
                 .filter_map(|(entity, target_pos, target_hitbox, _)| {
                     let dx = brute_transform.translation.x - target_pos.x;
                     let dz = brute_transform.translation.z - target_pos.z;

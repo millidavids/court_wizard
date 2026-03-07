@@ -57,7 +57,6 @@ pub const EYE_TOSS_ARC_HEIGHT: f32 = 80.0;
 /// Duration for blind hag random wandering direction change (seconds).
 pub const BLIND_WANDER_DIRECTION_INTERVAL: f32 = 2.0;
 
-
 // ===== Death & Resurrection =====
 
 /// Percentage of max HP healed on resurrection.

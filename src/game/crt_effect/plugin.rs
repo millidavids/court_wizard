@@ -1,15 +1,14 @@
 use bevy::{
     core_pipeline::{
-        core_3d::graph::{Core3d, Node3d},
         FullscreenShader,
+        core_3d::graph::{Core3d, Node3d},
     },
-    ui_render::graph::NodeUi,
     ecs::query::QueryItem,
     prelude::*,
     render::{
+        RenderApp, RenderStartup,
         extract_component::{
-            ComponentUniforms, DynamicUniformIndex, ExtractComponentPlugin,
-            UniformComponentPlugin,
+            ComponentUniforms, DynamicUniformIndex, ExtractComponentPlugin, UniformComponentPlugin,
         },
         render_graph::{
             NodeRunError, RenderGraphContext, RenderGraphExt, RenderLabel, ViewNode, ViewNodeRunner,
@@ -20,15 +19,16 @@ use bevy::{
         },
         renderer::{RenderContext, RenderDevice},
         view::ViewTarget,
-        RenderApp, RenderStartup,
     },
+    ui_render::graph::NodeUi,
 };
 
 use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use super::systems::{
-    animate_channel_change, animate_desaturation, correct_cursor_for_barrel_distortion,
-    handle_channel_change_message, handle_desaturation_message, RawCursorPosition,
+    RawCursorPosition, animate_channel_change, animate_desaturation,
+    correct_cursor_for_barrel_distortion, handle_channel_change_message,
+    handle_desaturation_message,
 };
 
 const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
@@ -70,18 +70,8 @@ impl Plugin for CrtEffectPlugin {
         render_app.add_systems(RenderStartup, init_crt_pipeline);
 
         render_app
-            .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(
-                Core3d,
-                CrtEffectLabel,
-            )
-            .add_render_graph_edges(
-                Core3d,
-                (
-                    NodeUi::UiPass,
-                    CrtEffectLabel,
-                    Node3d::Upscaling,
-                ),
-            );
+            .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(Core3d, CrtEffectLabel)
+            .add_render_graph_edges(Core3d, (NodeUi::UiPass, CrtEffectLabel, Node3d::Upscaling));
     }
 }
 

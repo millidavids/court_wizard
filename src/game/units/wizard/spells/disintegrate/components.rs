@@ -298,9 +298,14 @@ impl DisintegrateBeam {
             return None;
         }
 
-        Some((eclipse_center, major_axis, minor_axis, clipped_major, minor_radius))
+        Some((
+            eclipse_center,
+            major_axis,
+            minor_axis,
+            clipped_major,
+            minor_radius,
+        ))
     }
-
 }
 
 /// Detonation line spawned by Searing Finale when channeling ends.
@@ -321,4 +326,3 @@ pub struct SearingFinaleDetonation {
     /// Whether damage has already been applied (one-shot).
     pub damage_applied: bool,
 }
-

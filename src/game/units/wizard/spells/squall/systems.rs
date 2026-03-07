@@ -6,6 +6,7 @@ use rand::Rng;
 
 use super::components::{IceExplosion, IceProjectile, SquallCircleIndicator, SquallStorm};
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -17,12 +18,13 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
 
 /// Local wizard squall casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -33,13 +35,7 @@ pub(super) fn handle_squall_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -147,7 +143,10 @@ fn squall_casting_logic(
                     STORM_RADIUS * primed_spell.empowerment,
                     CIRCLE_Y_POSITION,
                 )
-                .insert(SquallCircleIndicator::new(cursor_world_pos, primed_spell.empowerment))
+                .insert(SquallCircleIndicator::new(
+                    cursor_world_pos,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -313,7 +312,13 @@ pub(super) fn check_ice_projectile_collisions(
                     projectile.damage,
                     projectile.empowerment,
                 );
-                audio::play_impact_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config, &sfx);
+                audio::play_impact_sfx(
+                    &mut commands,
+                    &sfx.squall_impact,
+                    explosion_pos,
+                    &game_config,
+                    &sfx,
+                );
                 commands.entity(entity).try_despawn();
                 hit_wall = true;
                 break;
@@ -335,7 +340,13 @@ pub(super) fn check_ice_projectile_collisions(
                 projectile.damage,
                 projectile.empowerment,
             );
-            audio::play_impact_sfx(&mut commands, &sfx.squall_impact, explosion_pos, &game_config, &sfx);
+            audio::play_impact_sfx(
+                &mut commands,
+                &sfx.squall_impact,
+                explosion_pos,
+                &game_config,
+                &sfx,
+            );
             commands.entity(entity).try_despawn();
         }
     }

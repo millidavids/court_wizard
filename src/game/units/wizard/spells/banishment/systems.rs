@@ -23,12 +23,7 @@ pub fn handle_banishment_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (
-            Entity,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -53,8 +48,7 @@ pub fn handle_banishment_casting(
         cursor_pos,
     };
 
-    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -73,7 +67,13 @@ pub fn handle_banishment_casting(
     );
 
     if completed {
-        audio::play_sfx(&mut commands, &sfx.banishment_cast, SPELL_ORIGIN, &game_config, &sfx);
+        audio::play_sfx(
+            &mut commands,
+            &sfx.banishment_cast,
+            SPELL_ORIGIN,
+            &game_config,
+            &sfx,
+        );
         mouse_state.left_consumed = true;
     }
 }

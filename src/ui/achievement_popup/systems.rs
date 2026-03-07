@@ -57,9 +57,7 @@ pub(super) fn spawn_next_popup(
             PopupEntry::ComboDiscovered { name, description } => {
                 spawn_combo_popup(&mut commands, name, description)
             }
-            PopupEntry::Toast { message } => {
-                spawn_toast_popup(&mut commands, message)
-            }
+            PopupEntry::Toast { message } => spawn_toast_popup(&mut commands, message),
         }
     }
 }

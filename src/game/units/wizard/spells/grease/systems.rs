@@ -6,6 +6,7 @@ use super::super::super::components::{
 };
 use super::components::{GreaseFireOverlay, GreaseIndicator, GreaseZone};
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -17,16 +18,17 @@ use crate::game::units::components::{
     Corpse, Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
+use crate::game::units::wizard::spells::utils::{
+    get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
 
 /// Local wizard grease casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -38,13 +40,7 @@ pub fn handle_grease_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -163,7 +159,10 @@ fn grease_casting_logic(
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
                     constants::CIRCLE_Y_POSITION,
                 )
-                .insert(GreaseIndicator::new(cursor_world_pos, primed_spell.empowerment))
+                .insert(GreaseIndicator::new(
+                    cursor_world_pos,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -186,7 +185,13 @@ fn grease_casting_logic(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(commands, &sfx.grease_cast, indicator.position, game_config, sfx);
+                            audio::play_sfx(
+                                commands,
+                                &sfx.grease_cast,
+                                indicator.position,
+                                game_config,
+                                sfx,
+                            );
                             spawn_grease_zone(
                                 commands,
                                 assets,

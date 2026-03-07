@@ -6,13 +6,15 @@ use super::super::super::components::{
 };
 use super::components::HasteIndicator;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::HasteModifier;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
+use crate::game::units::wizard::spells::utils::{
+    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Local wizard haste casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -23,13 +25,7 @@ pub fn handle_haste_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -59,7 +55,11 @@ pub fn handle_haste_casting(
     }
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, constants::CIRCLE_RADIUS * primed_spell.empowerment);
+    let clamped_cursor = clamp_cursor_to_spell_range(
+        input.cursor_pos,
+        wizard.spell_range,
+        constants::CIRCLE_RADIUS * primed_spell.empowerment,
+    );
 
     // Handle release -- clean up indicator
     if input.just_released {
@@ -93,7 +93,10 @@ pub fn handle_haste_casting(
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
                     constants::CIRCLE_Y_POSITION,
                 )
-                .insert(HasteIndicator::new(clamped_cursor, primed_spell.empowerment))
+                .insert(HasteIndicator::new(
+                    clamped_cursor,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -119,7 +122,13 @@ pub fn handle_haste_casting(
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-                            audio::play_sfx(&mut commands, &sfx.haste_cast, indicator.position, &game_config, &sfx);
+                            audio::play_sfx(
+                                &mut commands,
+                                &sfx.haste_cast,
+                                indicator.position,
+                                &game_config,
+                                &sfx,
+                            );
                             apply_haste_buff(
                                 &mut commands,
                                 indicator.position,
@@ -159,7 +168,6 @@ pub fn handle_haste_casting(
         mouse_state.left_consumed = true;
     }
 }
-
 
 /// Applies haste buff to ALL units in radius (magic is indiscriminate).
 pub(crate) fn apply_haste_buff(

@@ -22,9 +22,15 @@ impl Plugin for ChangelogPlugin {
             )
             .add_systems(
                 Update,
-                (handle_scroll::<ScrollableChangelogContainer>, escape_to_landing)
+                (
+                    handle_scroll::<ScrollableChangelogContainer>,
+                    escape_to_landing,
+                )
                     .run_if(in_state(MenuState::Changelog)),
             )
-            .add_systems(OnExit(MenuState::Changelog), crate::ui::systems::cleanup_screen::<super::components::OnChangelogScreen>);
+            .add_systems(
+                OnExit(MenuState::Changelog),
+                crate::ui::systems::cleanup_screen::<super::components::OnChangelogScreen>,
+            );
     }
 }

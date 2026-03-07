@@ -4,27 +4,25 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use rand::Rng;
 
-use super::super::super::components::{
-    LocalWizard, Mana, PrimedSpell, Spell, Wizard,
-};
+use super::super::super::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use super::components::*;
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
-use crate::game::units::wizard::talents::resources::ActiveTalents;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::config::GameConfig;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::crdt::PeerId;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 
 /// Talent-modified missile parameters.
 struct MissileParams {
@@ -41,25 +39,22 @@ struct MissileParams {
 }
 
 /// Computes talent-modified parameters for magic missile casting.
-fn compute_missile_params(
-    talents: Option<&ActiveTalents>,
-    wizard: &Wizard,
-) -> MissileParams {
+fn compute_missile_params(talents: Option<&ActiveTalents>, wizard: &Wizard) -> MissileParams {
     let t1 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 0));
     let t2 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 1));
     let t3 = talents.and_then(|t| t.get_selection(Spell::MagicMissile, 2));
 
     // Tier 1: all roughly equivalent at ~4.0 effective damage (base 3.0)
     let (missile_count, damage_mult, mana_mult, cooldown_mult) = match t1 {
-        Some(0) => (5, 0.8, 1.0, 1.0),        // Volley: 5 missiles at 80% = 4.0 effective
-        Some(1) => (1, 4.0, 1.0, 1.0),        // Heavy Ordnance: 1 missile at 4x = 4.0 effective
-        Some(2) => (3, 1.0, 1.5, 0.75),       // Swift Salvo: 75% cooldown, +50% mana
+        Some(0) => (5, 0.8, 1.0, 1.0), // Volley: 5 missiles at 80% = 4.0 effective
+        Some(1) => (1, 4.0, 1.0, 1.0), // Heavy Ordnance: 1 missile at 4x = 4.0 effective
+        Some(2) => (3, 1.0, 1.5, 0.75), // Swift Salvo: 75% cooldown, +50% mana
         _ => (constants::MISSILES_PER_CAST, 1.0, 1.0, 1.0),
     };
 
     // Tier 3 talent effects on missile count and damage
     let (missile_count, damage_mult) = match t3 {
-        Some(0) => (missile_count * 4, 0.25),  // Missile Storm: 4x missiles at 25% damage
+        Some(0) => (missile_count * 4, 0.25), // Missile Storm: 4x missiles at 25% damage
         Some(2) => (missile_count, damage_mult * 1.5), // Guided Devastation: 1.5x damage
         _ => (missile_count, damage_mult),
     };
@@ -117,8 +112,7 @@ pub fn handle_magic_missile_casting(
 
     let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
 
-    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) =
-        wizard_query.single_mut()
+    let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -204,7 +198,13 @@ pub fn handle_magic_missile_casting(
         );
     }
 
-    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config, &sfx);
+    audio::play_sfx(
+        &mut commands,
+        &sfx.magic_missile_cast,
+        spawn_origin,
+        &config,
+        &sfx,
+    );
 
     // Set cooldown (modified by talents)
     commands.entity(wizard_entity).insert(MagicMissileCooldown {
@@ -269,7 +269,13 @@ pub fn update_arcane_barrage(
         );
     }
 
-    audio::play_sfx(&mut commands, &sfx.magic_missile_cast, spawn_origin, &config, &sfx);
+    audio::play_sfx(
+        &mut commands,
+        &sfx.magic_missile_cast,
+        spawn_origin,
+        &config,
+        &sfx,
+    );
 }
 
 /// Spawns a magic missile with talent modifications applied.
@@ -501,7 +507,8 @@ pub fn move_magic_missiles(
                 let steer_strength = 8.0;
                 let desired_velocity = direction * max_speed;
                 let current_velocity = missile.velocity;
-                missile.velocity += (desired_velocity - current_velocity) * (steer_strength * time.delta_secs()).min(1.0);
+                missile.velocity += (desired_velocity - current_velocity)
+                    * (steer_strength * time.delta_secs()).min(1.0);
 
                 let current_speed = missile.velocity.length();
                 if current_speed > max_speed {
@@ -658,7 +665,9 @@ pub fn check_magic_missile_collisions(
         (Without<MagicMissile>, Without<Corpse>),
     >,
     walls: Query<&WallOfStone>,
-    mut talent_progress: Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
+    mut talent_progress: Option<
+        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
     visual_assets: Res<SpellVisualAssets>,
 ) {
     // Collect split spawns to avoid borrow conflicts
@@ -682,7 +691,9 @@ pub fn check_magic_missile_collisions(
 
         let mut should_despawn = false;
         let mut target_killed = false;
-        for (enemy_entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in &mut enemies {
+        for (enemy_entity, enemy_transform, mut health, mut temp_hp, team, has_spell_shield) in
+            &mut enemies
+        {
             if !missile.target_teams.matches(team) {
                 continue;
             }
@@ -696,7 +707,15 @@ pub fn check_magic_missile_collisions(
                 if has_spell_shield {
                     continue;
                 }
-                apply_spell_damage(&mut commands, enemy_entity, &mut health, temp_hp.as_deref_mut(), missile.damage, DamageType::Force, false);
+                apply_spell_damage(
+                    &mut commands,
+                    enemy_entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    missile.damage,
+                    DamageType::Force,
+                    false,
+                );
                 target_killed = health.current <= 0.0;
                 if let Some(ref mut progress) = talent_progress {
                     progress.increment(Spell::MagicMissile, 1);
@@ -760,7 +779,8 @@ pub fn check_magic_missile_collisions(
 
     // Spawn split missiles outside the query loop
     for (pos, split_missile) in splits {
-        let radius_mult = split_missile.radius / (constants::COLLISION_RADIUS * split_missile.empowerment);
+        let radius_mult =
+            split_missile.radius / (constants::COLLISION_RADIUS * split_missile.empowerment);
         let entity = commands
             .spawn((
                 Mesh3d(visual_assets.magic_missile_mesh.clone()),
@@ -789,8 +809,8 @@ fn spawn_missile_detonation(
     position: Vec3,
     damage: f32,
 ) {
-    use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
     use crate::game::units::DamageType;
+    use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 
     let mut explosion = FireballExplosion::new(
         position,

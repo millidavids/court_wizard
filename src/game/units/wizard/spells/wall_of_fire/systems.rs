@@ -6,6 +6,7 @@ use super::super::super::components::{
 };
 use super::components::{WallOfFireCaster, WallOfFireEffect, WallOfFirePreview, WallOfFireSfx};
 use super::constants::*;
+use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
@@ -17,12 +18,11 @@ use crate::game::units::components::{
     Health, ResidualFireDamaged, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
-use crate::config::GameConfig;
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
@@ -82,13 +82,7 @@ pub fn handle_wall_of_fire_casting(
     mut materials: ResMut<Assets<StandardMaterial>>,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -141,27 +135,27 @@ pub fn handle_wall_of_fire_casting(
     );
 
     // Handle preview spawning on cast start (anchor set, no preview yet)
-    if caster.anchor.is_some() && caster.preview_entity.is_none()
+    if caster.anchor.is_some()
+        && caster.preview_entity.is_none()
         && let Some(pos) = clamped_pos
     {
         let preview_height = 10.0;
-        let preview_entity =
-            commands
-                .spawn((
-                    Mesh3d(visual_assets.unit_cuboid.clone()),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: PREVIEW_COLOR,
-                        alpha_mode: AlphaMode::Blend,
-                        unlit: true,
-                        cull_mode: None,
-                        ..default()
-                    })),
-                    Transform::from_xyz(pos.x, preview_height / 2.0 + 1.0, pos.z)
-                        .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
-                    WallOfFirePreview,
-                    OnGameplayScreen,
-                ))
-                .id();
+        let preview_entity = commands
+            .spawn((
+                Mesh3d(visual_assets.unit_cuboid.clone()),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: PREVIEW_COLOR,
+                    alpha_mode: AlphaMode::Blend,
+                    unlit: true,
+                    cull_mode: None,
+                    ..default()
+                })),
+                Transform::from_xyz(pos.x, preview_height / 2.0 + 1.0, pos.z)
+                    .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH)),
+                WallOfFirePreview,
+                OnGameplayScreen,
+            ))
+            .id();
 
         caster.preview_entity = Some(preview_entity);
     }
@@ -182,7 +176,8 @@ pub fn handle_wall_of_fire_casting(
             let rotation = Quat::from_rotation_arc(Vec3::X, forward);
             let preview_height = 10.0;
 
-            preview_transform.translation = Vec3::new(center.x, preview_height / 2.0 + 1.0, center.z);
+            preview_transform.translation =
+                Vec3::new(center.x, preview_height / 2.0 + 1.0, center.z);
             preview_transform.rotation = rotation;
             preview_transform.scale = Vec3::new(length, preview_height, WALL_WIDTH);
         }
@@ -443,7 +438,8 @@ pub fn fade_wall_of_fire(
             1.0
         };
 
-        let (base_color, emissive) = vfx::systems::effect_color_at(effect.time_alive, fade, is_excremage);
+        let (base_color, emissive) =
+            vfx::systems::effect_color_at(effect.time_alive, fade, is_excremage);
         material.base_color = base_color;
         material.emissive = emissive;
     }

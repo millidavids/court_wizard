@@ -6,17 +6,19 @@ use super::super::super::components::{
 };
 use super::components::{EntangleGroundEffect, EntangleIndicator};
 use super::constants;
+use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{RootedModifier, Team};
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator};
-use crate::config::GameConfig;
 
 /// Local wizard entangle casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -28,13 +30,7 @@ pub fn handle_entangle_casting(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -65,7 +61,11 @@ pub fn handle_entangle_casting(
     }
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, constants::CIRCLE_RADIUS * primed_spell.empowerment);
+    let clamped_cursor = clamp_cursor_to_spell_range(
+        input.cursor_pos,
+        wizard.spell_range,
+        constants::CIRCLE_RADIUS * primed_spell.empowerment,
+    );
 
     // Handle release — clean up indicator
     if input.just_released {
@@ -97,7 +97,10 @@ pub fn handle_entangle_casting(
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
                     constants::CIRCLE_Y_POSITION,
                 )
-                .insert(EntangleIndicator::new(clamped_cursor, primed_spell.empowerment))
+                .insert(EntangleIndicator::new(
+                    clamped_cursor,
+                    primed_spell.empowerment,
+                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -125,7 +128,13 @@ pub fn handle_entangle_casting(
                             let cast_pos = indicator.position;
                             let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
                             let root_duration = constants::ROOT_DURATION * indicator.empowerment;
-                            audio::play_sfx(&mut commands, &sfx.entangle_cast, cast_pos, &game_config, &sfx);
+                            audio::play_sfx(
+                                &mut commands,
+                                &sfx.entangle_cast,
+                                cast_pos,
+                                &game_config,
+                                &sfx,
+                            );
                             apply_entangle(
                                 &mut commands,
                                 &visual_assets,
@@ -164,7 +173,6 @@ pub fn handle_entangle_casting(
         }
     }
 }
-
 
 /// Fades entangle ground effect over time.
 pub fn fade_entangle_ground_effect(

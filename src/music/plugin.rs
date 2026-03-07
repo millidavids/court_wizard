@@ -22,8 +22,7 @@ impl Plugin for MusicPlugin {
                         resource_changed::<State<crate::state::AppState>>
                             .or(resource_added::<super::resources::MusicAssets>),
                     ),
-                    systems::process_music_fade
-                        .run_if(any_with_component::<MusicFade>),
+                    systems::process_music_fade.run_if(any_with_component::<MusicFade>),
                     systems::sync_music_volume
                         .run_if(resource_changed::<crate::config::GameConfig>),
                 ),

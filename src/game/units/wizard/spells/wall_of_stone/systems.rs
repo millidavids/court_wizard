@@ -6,18 +6,18 @@ use super::super::super::components::{
 };
 use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
+use crate::config::GameConfig;
+use crate::config::save_data::SavedWall;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType};
-use crate::config::save_data::SavedWall;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::networking::snapshot::SpellEffectKind;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
-use crate::config::GameConfig;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::networking::snapshot::SpellEffectKind;
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
@@ -40,13 +40,7 @@ pub fn handle_wall_of_stone_casting(
     mut materials: ResMut<Assets<StandardMaterial>>,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
-        (
-            Entity,
-            &Wizard,
-            &mut CastingState,
-            &mut Mana,
-            &PrimedSpell,
-        ),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -106,18 +100,18 @@ pub fn handle_wall_of_stone_casting(
         && let Some(bounds) = cast_result.obstacle_bounds
         && let Some(ref mut conn) = connection
     {
-        conn.outgoing_messages.push(
-            crate::networking::protocol::NetworkMessage::WallPlaced {
+        conn.outgoing_messages
+            .push(crate::networking::protocol::NetworkMessage::WallPlaced {
                 bounds,
                 placed: true,
-            },
-        );
+            });
     }
 
     // Local-only: manage preview
 
     // Handle preview spawning on cast start
-    if caster.anchor.is_some() && caster.preview_entity.is_none()
+    if caster.anchor.is_some()
+        && caster.preview_entity.is_none()
         && let Some(pos) = clamped_pos
     {
         let preview_entity = commands
@@ -174,7 +168,13 @@ pub fn handle_wall_of_stone_casting(
 
     if cast_result.completed {
         if let Some(center) = cast_result.wall_center {
-            audio::play_sfx(&mut commands, &sfx.wall_of_stone_cast, center, &game_config, &sfx);
+            audio::play_sfx(
+                &mut commands,
+                &sfx.wall_of_stone_cast,
+                center,
+                &game_config,
+                &sfx,
+            );
         }
         mouse_state.left_consumed = true;
     }

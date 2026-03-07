@@ -72,12 +72,7 @@ impl ObstacleShape {
     }
 
     /// Creates an OBB shape from a `WallOfStone`-style component (center, forward, half-extents).
-    pub fn obb_from_center(
-        center: Vec3,
-        forward: Vec3,
-        half_length: f32,
-        half_width: f32,
-    ) -> Self {
+    pub fn obb_from_center(center: Vec3, forward: Vec3, half_length: f32, half_width: f32) -> Self {
         Self::Obb {
             center: Vec2::new(center.x, center.z),
             half_length,
@@ -115,17 +110,12 @@ impl ObstacleShape {
                 let diff = cell_center - center;
 
                 // Test 4 axes: cell's X, cell's Y, OBB forward, OBB right
-                let axes = [
-                    Vec2::X,
-                    Vec2::Y,
-                    forward,
-                    right,
-                ];
+                let axes = [Vec2::X, Vec2::Y, forward, right];
 
                 for axis in axes {
                     let cell_proj = cell_half_size * axis.x.abs() + cell_half_size * axis.y.abs();
-                    let obb_proj = half_length * forward.dot(axis).abs()
-                        + half_width * right.dot(axis).abs();
+                    let obb_proj =
+                        half_length * forward.dot(axis).abs() + half_width * right.dot(axis).abs();
                     let dist = diff.dot(axis).abs();
 
                     if dist > cell_proj + obb_proj {

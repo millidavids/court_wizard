@@ -5,7 +5,9 @@ use bevy::prelude::*;
 use super::components::{OnCreditsScreen, ScrollableCreditsContainer, SpriteCreditsButton};
 use crate::game::input::messages::MouseClicked;
 use crate::ui::components::{BackButton, ButtonStyle};
-use crate::ui::main_menu::landing::constants::{BACK_BUTTON_STYLE, BUTTON_BACKGROUND, BUTTON_BORDER, TEXT_COLOR};
+use crate::ui::main_menu::landing::constants::{
+    BACK_BUTTON_STYLE, BUTTON_BACKGROUND, BUTTON_BORDER, TEXT_COLOR,
+};
 use crate::ui::systems::{spawn_button, spawn_page_container};
 
 const CREDITS_TEXT: &str = include_str!("../../../../CREDITS.md");
@@ -33,8 +35,7 @@ fn strip_markdown_links(input: &str) -> String {
                 let bracket_end = i + 1 + bracket_end;
                 if bracket_end + 1 < chars.len()
                     && chars[bracket_end + 1] == '('
-                    && let Some(paren_end) =
-                        chars[bracket_end + 2..].iter().position(|&c| c == ')')
+                    && let Some(paren_end) = chars[bracket_end + 2..].iter().position(|&c| c == ')')
                 {
                     let paren_end = bracket_end + 2 + paren_end;
                     // Extract link text only

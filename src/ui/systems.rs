@@ -8,9 +8,9 @@ use bevy::ui::ComputedNode;
 
 use super::components::{ButtonColors, ButtonStyle};
 use super::styles::{item_hovered, item_pressed};
-use crate::game::input::messages::MouseClicked;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::MouseButtonState;
+use crate::game::input::messages::MouseClicked;
 use crate::state::{InGameState, MenuState, MultiplayerGameState, PauseMenuState};
 
 /// Scales a font size down based on text width to fit within a constrained area.
