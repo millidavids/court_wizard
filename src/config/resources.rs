@@ -129,7 +129,7 @@ impl WizardType {
             WizardType::Excremage => "Excremage",
             WizardType::Alchemist => "The Alchemist",
             WizardType::Warglock => "Warglock",
-            WizardType::Battlemage => "Battlemage",
+            WizardType::Battlemage => "Swordcerer",
         }
     }
 

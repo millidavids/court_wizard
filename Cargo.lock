@@ -1805,7 +1805,7 @@ dependencies = [
 
 [[package]]
 name = "court_wizard"
-version = "0.3.383"
+version = "0.3.384"
 dependencies = [
  "anyhow",
  "bevy",

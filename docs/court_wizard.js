@@ -1,4 +1,4 @@
-import { copy_to_clipboard } from './snippets/court_wizard-87d701c0b159b63d/inline0.js';
+import { copy_to_clipboard } from './snippets/court_wizard-ae32d8d7619450be/inline0.js';
 
 const lAudioContext = (typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : undefined));
 let wasm;
@@ -258,6 +258,10 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
+function __wasm_bindgen_func_elem_134149(arg0, arg1, arg2) {
+    wasm.__wasm_bindgen_func_elem_134149(arg0, arg1, addHeapObject(arg2));
+}
+
 function __wasm_bindgen_func_elem_135807(arg0, arg1) {
     wasm.__wasm_bindgen_func_elem_135807(arg0, arg1);
 }
@@ -266,16 +270,12 @@ function __wasm_bindgen_func_elem_135808(arg0, arg1, arg2) {
     wasm.__wasm_bindgen_func_elem_135808(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wasm_bindgen_func_elem_134149(arg0, arg1, arg2) {
-    wasm.__wasm_bindgen_func_elem_134149(arg0, arg1, addHeapObject(arg2));
+function __wasm_bindgen_func_elem_135809(arg0, arg1, arg2, arg3) {
+    wasm.__wasm_bindgen_func_elem_135809(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 function __wasm_bindgen_func_elem_131121(arg0, arg1) {
     wasm.__wasm_bindgen_func_elem_131121(arg0, arg1);
-}
-
-function __wasm_bindgen_func_elem_135809(arg0, arg1, arg2, arg3) {
-    wasm.__wasm_bindgen_func_elem_135809(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
 const __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
@@ -604,7 +604,7 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_copyToChannel_30d90303302ec449 = function() { return handleError(function (arg0, arg1, arg2, arg3) {
         getObject(arg0).copyToChannel(getArrayF32FromWasm0(arg1, arg2), arg3);
     }, arguments) };
-    imports.wbg.__wbg_copy_to_clipboard_48861ed1e16e5e48 = function(arg0, arg1) {
+    imports.wbg.__wbg_copy_to_clipboard_90fd3152f9c89aec = function(arg0, arg1) {
         copy_to_clipboard(getStringFromWasm0(arg0, arg1));
     };
     imports.wbg.__wbg_createAnswer_57fa5e0880a7b92a = function(arg0) {

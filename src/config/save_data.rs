@@ -353,7 +353,7 @@ impl AchievementId {
             AchievementId::SoiledSurprise => Some("Unlocks: Excremage wizard"),
             AchievementId::MasterBrewer => Some("Unlocks: The Alchemist wizard"),
             AchievementId::RightToBearArms => Some("Unlocks: Warglock wizard"),
-            AchievementId::CloseCall => Some("Unlocks: Battlemage wizard"),
+            AchievementId::CloseCall => Some("Unlocks: Swordcerer wizard"),
             _ => None,
         }
     }

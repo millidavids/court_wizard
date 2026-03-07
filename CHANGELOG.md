@@ -2,13 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.3.383] - 2026-03-07
+## [v0.3.384] - 2026-03-07
 
 ### Added
-- **Battlemage wizard type** — a new unlockable wizard that can jump down from the tower and fight on the battlefield in person. Click "Enter the Fray" to choose where to spawn, then use WASD to move, left-click to shoot magic missiles, and right-click to swing a sword arc that lunges you forward
-- **Battlemage health bar** — a health bar appears at the bottom of the screen while fighting on the field. If your health runs out, you teleport back to the tower and can't re-enter the fray for the rest of the battle
-- **Battlemage mana usage** — magic missiles fired while on the field still cost mana, so you'll need to manage your mana pool even in close combat
-- **New achievement** — a hidden achievement that unlocks the Battlemage wizard type
+- **Swordcerer wizard type** — a new unlockable wizard that can jump down from the tower and fight on the battlefield in person. Click "Enter the Fray" to choose where to spawn, then use WASD to move, left-click to shoot magic missiles, and right-click to swing a sword arc that lunges you forward
+- **Swordcerer health bar** — a health bar appears at the bottom of the screen while fighting on the field. If your health runs out, you teleport back to the tower and can't re-enter the fray for the rest of the battle
+- **Swordcerer mana usage** — magic missiles fired while on the field still cost mana, so you'll need to manage your mana pool even in close combat
+- **New achievement** — a hidden achievement that unlocks the Swordcerer wizard type
 
 ## [v0.3.370] - 2026-03-07
 
