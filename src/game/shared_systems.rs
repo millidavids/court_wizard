@@ -599,6 +599,7 @@ pub fn convert_dead_to_corpses(
     mut spell_kill_events: MessageWriter<DefenderKilledBySpellMessage>,
     mut enemy_kill_events: MessageWriter<EnemyKilledMessage>,
     mut scorched_earth_events: MessageWriter<ScorchedEarthMessage>,
+    mut marked_kill_events: MessageWriter<super::achievements::messages::MarkedForDeathKillMessage>,
     mut drop_events: MessageWriter<super::drops::messages::SpawnIngredientDropMessage>,
     query: Query<
         (
@@ -612,6 +613,7 @@ pub fn convert_dead_to_corpses(
             Option<&Boss>,
             Option<&SpellDamaged>,
             Option<&ResidualFireDamaged>,
+            Option<&super::units::components::MarkedForDeathModifier>,
         ),
         Without<Corpse>,
     >,
@@ -631,6 +633,7 @@ pub fn convert_dead_to_corpses(
         _is_boss,
         spell_damaged,
         residual_fire_damaged,
+        marked_for_death,
     ) in &query
     {
         if health.is_dead() {
@@ -661,6 +664,14 @@ pub fn convert_dead_to_corpses(
             // Scorched Earth: unit died from residual fire damage
             if residual_fire_damaged.is_some() {
                 scorched_earth_events.write(ScorchedEarthMessage);
+            }
+
+            // Marked for Death kill: enemy died while marked by Finger of Death
+            if marked_for_death.is_some()
+                && (*team == Team::Attackers || *team == Team::Undead)
+            {
+                marked_kill_events
+                    .write(super::achievements::messages::MarkedForDeathKillMessage);
             }
 
             // Pick a random corpse material variant and appropriate mesh

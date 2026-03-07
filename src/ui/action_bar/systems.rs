@@ -3,9 +3,12 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use super::messages::AssignSpellToSlot;
-use crate::config::{ConfigChanged, GameConfig};
+use crate::config::{ConfigChanged, GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
+use crate::game::units::wizard::archetypes::gunslinger::GunType;
+use crate::game::units::wizard::archetypes::gunslinger::GunState;
+use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
 use crate::ui::systems::scale_font_by_text_width;
@@ -49,9 +52,21 @@ pub(super) fn spawn_action_bar(
                     ..default()
                 })
                 .with_children(|parent| {
+                    let is_gunslinger = config.wizard_type == WizardType::Warglock;
+                    let guns = GunType::all();
+
                     for slot in 0..5 {
                         let hotkey_label = &(slot + 1).to_string();
-                        let spell = config.action_bar_slots[slot as usize];
+
+                        // For gunslinger, show gun names instead of spells
+                        let (slot_name, has_icon, icon_handle): (&str, bool, Option<Handle<Image>>) = if is_gunslinger {
+                            (guns[slot as usize].display_name(), false, None)
+                        } else {
+                            let spell = config.action_bar_slots[slot as usize];
+                            let icon = spell.and_then(|s| icon_assets.get(&s).cloned());
+                            let name = spell.map(|s| s.name()).unwrap_or("");
+                            (name, icon.is_some(), icon)
+                        };
 
                         parent
                             .spawn((
@@ -85,9 +100,6 @@ pub(super) fn spawn_action_bar(
                                 ));
 
                                 // Spell icon or name in center
-                                let icon_handle = spell
-                                    .and_then(|s| icon_assets.get(&s).cloned());
-                                let has_icon = icon_handle.is_some();
                                 if let Some(handle) = icon_handle {
                                     button.spawn((
                                         ImageNode::new(handle),
@@ -103,11 +115,10 @@ pub(super) fn spawn_action_bar(
                                     ));
                                 }
 
-                                let spell_name = spell.map(|s| s.name()).unwrap_or("");
-                                let font_size = calculate_action_bar_font_size(spell_name);
+                                let font_size = calculate_action_bar_font_size(slot_name);
                                 button
                                     .spawn((
-                                        Text::new(spell_name),
+                                        Text::new(slot_name),
                                         TextFont::from_font_size(font_size),
                                         TextColor(SLOT_BUTTON_STYLE.text_color),
                                         TextLayout::new_with_justify(Justify::Center),
@@ -162,32 +173,50 @@ pub(super) fn spawn_action_bar(
         });
 }
 
-/// Handles action bar slot clicks by priming the assigned spell.
+/// Handles action bar slot clicks by priming the assigned spell (or selecting a gun for gunslinger).
 pub(super) fn handle_slot_click(
     mut button_clicked: MessageReader<MouseClicked>,
     slot_query: Query<&ActionBarSlot>,
     config: Res<GameConfig>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
+    mut select_gun: MessageWriter<SelectGunMessage>,
 ) {
+    let is_gunslinger = config.wizard_type == WizardType::Warglock;
+    let guns = GunType::all();
+
     for event in button_clicked.read() {
-        if let Ok(slot) = slot_query.get(event.button)
-            && let Some(spell) = config.action_bar_slots[slot.slot as usize]
-        {
-            prime_spell.write(PrimeSpellMessage {
-                spell: spell.primed_config(),
-            });
+        if let Ok(slot) = slot_query.get(event.button) {
+            let slot_idx = slot.slot as usize;
+            if is_gunslinger {
+                if slot_idx < 5 {
+                    select_gun.write(SelectGunMessage { gun: guns[slot_idx] });
+                }
+            } else if let Some(spell) = config.action_bar_slots[slot_idx] {
+                prime_spell.write(PrimeSpellMessage {
+                    spell: spell.primed_config(),
+                });
+            }
         }
     }
 }
 
-/// Handles keyboard input for action bar slots by priming the assigned spell.
+/// Handles keyboard input for action bar slots by priming the assigned spell (or selecting a gun).
 pub(super) fn handle_keyboard_input(
     mut action_bar_key: MessageReader<ActionBarKeyPressed>,
     config: Res<GameConfig>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
+    mut select_gun: MessageWriter<SelectGunMessage>,
 ) {
+    let is_gunslinger = config.wizard_type == WizardType::Warglock;
+    let guns = GunType::all();
+
     for event in action_bar_key.read() {
-        if let Some(spell) = config.action_bar_slots[event.slot as usize] {
+        let slot_idx = event.slot as usize;
+        if is_gunslinger {
+            if slot_idx < 5 {
+                select_gun.write(SelectGunMessage { gun: guns[slot_idx] });
+            }
+        } else if let Some(spell) = config.action_bar_slots[slot_idx] {
             prime_spell.write(PrimeSpellMessage {
                 spell: spell.primed_config(),
             });
@@ -196,9 +225,11 @@ pub(super) fn handle_keyboard_input(
 }
 
 /// Updates action bar slot text and icons when config changes.
+/// For the gunslinger, highlights the currently selected gun slot.
 pub(super) fn update_action_bar_slots(
     config: Res<GameConfig>,
     icon_assets: Res<SpellIconAssets>,
+    gun_state: Option<Res<GunState>>,
     mut slot_text_query: Query<(
         &mut Text,
         &mut TextFont,
@@ -207,8 +238,31 @@ pub(super) fn update_action_bar_slots(
         &ActionBarSlotText,
     )>,
     mut slot_icon_query: Query<(&mut ImageNode, &mut Visibility, &mut Node, &ActionBarSlotIcon), Without<ActionBarSlotText>>,
+    mut slot_button_query: Query<(&ActionBarSlot, &mut BorderColor, &ButtonColors)>,
 ) {
+    let is_gunslinger = config.wizard_type == WizardType::Warglock;
+
+    // Update slot highlighting for gunslinger
+    if is_gunslinger {
+        if let Some(ref gs) = gun_state {
+            let guns = GunType::all();
+            for (slot, mut border_color, colors) in &mut slot_button_query {
+                let slot_idx = slot.slot as usize;
+                if slot_idx < 5 && guns[slot_idx] == gs.selected_gun {
+                    *border_color = BorderColor::all(Color::srgb(1.0, 0.8, 0.2));
+                } else {
+                    *border_color = BorderColor::all(colors.border);
+                }
+            }
+        }
+    }
+
     if config.is_changed() {
+        if is_gunslinger {
+            // Gunslinger: gun names are static, set during spawn
+            return;
+        }
+
         for (mut text, mut text_font, mut visibility, mut node, slot_text) in &mut slot_text_query {
             let spell = config.action_bar_slots[slot_text.slot as usize];
             let spell_name = spell.map(|s| s.name()).unwrap_or("");

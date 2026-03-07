@@ -112,6 +112,8 @@ pub enum WizardType {
     Excremage,
     /// Alchemist - brewing specialist with faster brews, longer buffs, and Philosopher's Stone.
     Alchemist,
+    /// Warglock - replaces spells with 5 guns.
+    Warglock,
 }
 
 impl WizardType {
@@ -124,6 +126,7 @@ impl WizardType {
             WizardType::Arcanorouter => "Arcanorouter",
             WizardType::Excremage => "Excremage",
             WizardType::Alchemist => "The Alchemist",
+            WizardType::Warglock => "Warglock",
         }
     }
 
@@ -138,6 +141,7 @@ impl WizardType {
             WizardType::Arcanorouter => "Route arcane power between range, mana, power, and speed.",
             WizardType::Excremage => "Turn all spells into poop.",
             WizardType::Alchemist => "Master the cauldron with faster brews and stronger potions.",
+            WizardType::Warglock => "Who needs spells when you have guns?",
         }
     }
 
@@ -162,6 +166,9 @@ impl WizardType {
             WizardType::Alchemist => {
                 "Your brews take 20% less time and your buffs last 25% longer. Once per battle, you can add the Philosopher's Stone to a brew — it removes all dilution, so every ingredient brews at full strength. The Stone doesn't count toward the 3-ingredient limit."
             }
+            WizardType::Warglock => {
+                "Spells? Where you're going, you don't need spells. Your 5 action bar slots become 5 different guns, each with its own ammo pool. Machine gun sprays bullets, magnum hits hard, rocket launcher explodes, shotgun blasts in a cone, and flamethrower burns everything. Reload with R or let it auto-reload when empty."
+            }
         }
     }
 
@@ -174,6 +181,7 @@ impl WizardType {
             WizardType::Arcanorouter => "Geordi would be proud of your power routing.",
             WizardType::Excremage => "Something smells off...",
             WizardType::Alchemist => "The cauldron whispers to those who listen.",
+            WizardType::Warglock => "War and sorcery, forged into one.",
         }
     }
 
@@ -186,6 +194,7 @@ impl WizardType {
             WizardType::Arcanorouter,
             WizardType::Excremage,
             WizardType::Alchemist,
+            WizardType::Warglock,
         ]
     }
 }

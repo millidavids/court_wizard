@@ -97,6 +97,10 @@ pub struct SpellVisualAssets {
     pub ice_projectile: Handle<StandardMaterial>,
     pub meteor_projectile: Handle<StandardMaterial>,
     pub magic_missile: Handle<StandardMaterial>,
+    /// Light gray bullet tracer material (speed-line look).
+    pub bullet_tracer: Handle<StandardMaterial>,
+    /// Bright white material for bullet hit flash overlay.
+    pub bullet_hit_flash: Handle<StandardMaterial>,
 
     // ── Arc/Beam materials ───────────────────────────────────────────────
     pub chain_lightning_arc: Handle<StandardMaterial>,
@@ -298,6 +302,14 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
         magic_missile: materials.add(unlit(Color::srgb(1.0, 0.4, 0.8))),
+        bullet_tracer: materials.add(unlit(Color::srgb(0.75, 0.75, 0.75))),
+        bullet_hit_flash: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 1.0, 1.0, 0.8),
+            emissive: LinearRgba::new(5.0, 5.0, 5.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            ..default()
+        }),
 
         // Arc/Beam materials
         chain_lightning_arc: materials.add(unlit(Color::srgb(0.7, 0.85, 1.0))),

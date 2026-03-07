@@ -72,12 +72,16 @@ pub fn setup_wizard(
         ManaRegen::new(constants::MANA_REGEN),
         CastingState::new(),
         wizard,
-        magic_missile_constants::PRIMED_MAGIC_MISSILE,
         LocalWizard,
         WizardAnimation::new(),
         Billboard,
         OnGameplayScreen,
     ));
+
+    // Warglock doesn't use spells — skip priming the default spell
+    if config.wizard_type != WizardType::Warglock {
+        entity_commands.insert(magic_missile_constants::PRIMED_MAGIC_MISSILE);
+    }
 
     entity_commands.insert(Team::Defenders);
 

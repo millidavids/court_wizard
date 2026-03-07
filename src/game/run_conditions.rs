@@ -158,3 +158,13 @@ pub fn is_arcanorouter(config: Res<GameConfig>) -> bool {
 pub fn is_alchemist(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Alchemist
 }
+
+/// Returns true if the active wizard type is Warglock (gunslinger).
+pub fn is_warglock(config: Res<GameConfig>) -> bool {
+    config.wizard_type == WizardType::Warglock
+}
+
+/// Returns true if the active wizard type is NOT Warglock.
+pub fn is_not_warglock(config: Res<GameConfig>) -> bool {
+    config.wizard_type != WizardType::Warglock
+}

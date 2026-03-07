@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::{is_local_wizard_active, is_spell_effects_active};
+use crate::game::run_conditions::{is_local_wizard_active, is_not_warglock, is_spell_effects_active};
 use crate::state::InGameState;
 
 use super::archetypes::ArchetypesPlugin;
@@ -28,7 +28,7 @@ impl Plugin for WizardPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::regenerate_mana,
+                    systems::regenerate_mana.run_if(is_not_warglock),
                     systems::reset_empowerment_after_cast,
                     systems::apply_wizard_stats_to_primed_spell,
                 )

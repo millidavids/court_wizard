@@ -46,6 +46,11 @@ pub(crate) struct SpellSfxAssets {
     pub teleport_cast: Handle<AudioSource>,
     pub wall_of_fire_persistent: Handle<AudioSource>,
     pub wall_of_stone_cast: Handle<AudioSource>,
+    // Gun sound effects (Warglock)
+    pub machine_gun_shot: Handle<AudioSource>,
+    pub magnum_shot: Handle<AudioSource>,
+    pub rocket_launcher_shot: Handle<AudioSource>,
+    pub shotgun_shot: Handle<AudioSource>,
 }
 
 /// Loads all spell sound effect assets at startup.
@@ -85,6 +90,11 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
         teleport_cast: asset_server.load("audio/sound_effects/teleport_cast.ogg"),
         wall_of_fire_persistent: asset_server.load("audio/sound_effects/wall_of_fire_persistent.ogg"),
         wall_of_stone_cast: asset_server.load("audio/sound_effects/wall_of_stone_cast.ogg"),
+        // Gun sound effects (Warglock)
+        machine_gun_shot: asset_server.load("audio/sound_effects/machine_gun_shot.ogg"),
+        magnum_shot: asset_server.load("audio/sound_effects/magnum_shot.ogg"),
+        rocket_launcher_shot: asset_server.load("audio/sound_effects/rocket_launcher_shot.ogg"),
+        shotgun_shot: asset_server.load("audio/sound_effects/shotgun_shot.ogg"),
     });
 }
 

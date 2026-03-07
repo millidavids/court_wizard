@@ -55,7 +55,9 @@ impl Plugin for InGamePlugin {
                 (
                     systems::update_mana_bar,
                     systems::update_cast_bar,
+                    systems::update_overlay_text,
                     systems::update_king_health_bar,
+                    systems::update_ammo_display,
                 )
                     .run_if(is_local_wizard_active),
             )

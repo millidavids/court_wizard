@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use crate::config::GameConfig;
+use crate::config::{GameConfig, WizardType};
 use crate::game::cauldron::brews::BrewEffect;
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::resources::CauldronBuffs;
@@ -17,6 +17,7 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::hags::components::{Hag, HagIdentity, PermanentlyDead};
 use crate::game::units::components::{Corpse, Health, Team};
 use crate::game::units::king::components::King;
+use crate::game::units::wizard::archetypes::gunslinger::{GunState, GunType};
 use crate::game::units::wizard::components::{CastingState, LocalWizard, Mana, PrimedSpell};
 use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::systems::spawn_button;
@@ -157,12 +158,15 @@ pub(super) fn spawn_hud(
                         ..default()
                     })
                     .with_children(|buttons| {
-                        spawn_button(
-                            buttons,
-                            "Spells",
-                            HudButtonAction::OpenSpellBook,
-                            &BUTTON_STYLE,
-                        );
+                        // Hide Spells button for gunslinger (no spells to manage)
+                        if config.wizard_type != WizardType::Warglock {
+                            spawn_button(
+                                buttons,
+                                "Spells",
+                                HudButtonAction::OpenSpellBook,
+                                &BUTTON_STYLE,
+                            );
+                        }
                         spawn_button(
                             buttons,
                             "Cauldron",
@@ -250,6 +254,8 @@ pub(super) fn spawn_hud(
             // King health bar (middle, between top row and bottom bars)
             spawn_king_health_bar(parent);
 
+            let is_gunslinger = config.wizard_type == WizardType::Warglock;
+
             // Bottom-right bars container
             parent
                 .spawn(Node {
@@ -259,29 +265,65 @@ pub(super) fn spawn_hud(
                     ..default()
                 })
                 .with_children(|bars| {
-                    // Mana bar container (background)
-                    bars.spawn((
-                        Node {
-                            width: MANA_BAR_WIDTH,
-                            height: MANA_BAR_HEIGHT,
-                            border: UiRect::all(Val::Px(2.0)),
-                            justify_content: JustifyContent::FlexEnd, // Fill from right, empties from left
-                            ..default()
-                        },
-                        BackgroundColor(MANA_BAR_BG_COLOR),
-                    ))
-                    .with_children(|parent| {
-                        // Mana bar fill (starts at 100%, reduces from left)
-                        parent.spawn((
+                    if is_gunslinger {
+                        // Ammo display (replaces mana bar)
+                        bars.spawn((
                             Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(3.0),
+                                align_items: AlignItems::Center,
+                                height: MANA_BAR_HEIGHT,
                                 ..default()
                             },
-                            BackgroundColor(MANA_BAR_FILL_COLOR),
-                            ManaBarFill,
-                        ));
-                    });
+                            AmmoDisplayContainer,
+                        ))
+                        .with_children(|ammo_row| {
+                            // Ammo counter text
+                            ammo_row.spawn((
+                                Text::new("60 / 60"),
+                                TextFont::from_font_size(14.0),
+                                TextColor(Color::WHITE),
+                                AmmoCounterText,
+                            ));
+
+                            // Individual ammo pieces (will be spawned/updated dynamically)
+                            let initial_pieces = GunType::MachineGun.max_ammo() / GunType::MachineGun.ammo_per_ui_piece();
+                            for i in 0..initial_pieces {
+                                ammo_row.spawn((
+                                    Node {
+                                        width: Val::Px(4.0),
+                                        height: Val::Px(14.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgba(1.0, 0.8, 0.2, 0.9)),
+                                    AmmoPiece { index: i },
+                                ));
+                            }
+                        });
+                    } else {
+                        // Standard mana bar container (background)
+                        bars.spawn((
+                            Node {
+                                width: MANA_BAR_WIDTH,
+                                height: MANA_BAR_HEIGHT,
+                                border: UiRect::all(Val::Px(2.0)),
+                                justify_content: JustifyContent::FlexEnd,
+                                ..default()
+                            },
+                            BackgroundColor(MANA_BAR_BG_COLOR),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                BackgroundColor(MANA_BAR_FILL_COLOR),
+                                ManaBarFill,
+                            ));
+                        });
+                    }
 
                     // Cast bar container (background)
                     bars.spawn((
@@ -325,6 +367,7 @@ pub(super) fn spawn_hud(
                                     Text::new("Brewing..."),
                                     TextFont::from_font_size(12.0),
                                     TextColor(Color::WHITE),
+                                    BrewingOverlayText,
                                 ));
                             });
                     });
@@ -482,16 +525,63 @@ pub(super) fn update_mana_bar(
     }
 }
 
-/// Updates the cast bar width based on current wizard casting progress or brewing progress.
-///
-/// When the cauldron is brewing:
-/// - Shows brewing progress with a grayed-out fill
-/// - Displays "Brewing..." text overlay
-///
-/// Otherwise shows normal cast progress with gold fill.
+/// Updates the ammo display for the gunslinger archetype.
+pub(super) fn update_ammo_display(
+    gun_state: Option<Res<GunState>>,
+    mut ammo_pieces: Query<(&AmmoPiece, &mut BackgroundColor)>,
+    mut counter_text: Query<&mut Text, With<AmmoCounterText>>,
+) {
+    let Some(gs) = gun_state else {
+        return;
+    };
+
+    let gun = gs.selected_gun;
+    let ammo = gs.current_ammo();
+    let per_piece = gun.ammo_per_ui_piece();
+    let max_pieces = ammo.max / per_piece;
+
+    // Update counter text
+    if let Ok(mut text) = counter_text.single_mut() {
+        **text = format!("{} / {}", ammo.current, ammo.max);
+    }
+
+    // Update ammo piece colors
+    let lit_color = Color::srgba(1.0, 0.8, 0.2, 0.9);
+    let dim_color = Color::srgba(0.3, 0.3, 0.3, 0.4);
+    let reload_color = Color::srgba(0.5, 0.7, 1.0, 0.7);
+
+    for (piece, mut bg) in &mut ammo_pieces {
+        if piece.index >= max_pieces {
+            bg.0 = Color::NONE;
+            continue;
+        }
+
+        let ammo_at_piece = (piece.index + 1) * per_piece;
+
+        if ammo.reloading {
+            // During reload, progressively light up pieces
+            let reloaded_ammo = (ammo.reload_progress() * ammo.max as f32) as u32;
+            bg.0 = if ammo_at_piece <= reloaded_ammo {
+                reload_color
+            } else {
+                dim_color
+            };
+        } else {
+            bg.0 = if ammo_at_piece <= ammo.current {
+                lit_color
+            } else {
+                dim_color
+            };
+        }
+    }
+}
+
+/// Updates the cast bar width based on current wizard casting progress, brewing progress,
+/// or reload progress for the gunslinger.
 pub(super) fn update_cast_bar(
     wizard_query: Query<(&CastingState, &PrimedSpell), With<LocalWizard>>,
     cauldron_query: Query<&CauldronState, With<Cauldron>>,
+    gun_state: Option<Res<GunState>>,
     mut cast_bar_query: Query<(&mut Node, &mut BackgroundColor), With<CastBarFill>>,
     mut overlay_query: Query<&mut Visibility, With<BrewingOverlay>>,
 ) {
@@ -499,16 +589,27 @@ pub(super) fn update_cast_bar(
         .single()
         .is_ok_and(|state| state.is_brewing());
 
+    // Check if gunslinger is reloading
+    let reload_progress = gun_state.as_ref().and_then(|gs| {
+        let ammo = gs.current_ammo();
+        if ammo.reloading {
+            Some(ammo.reload_progress())
+        } else {
+            None
+        }
+    });
+
     if let Ok((mut node, mut bg_color)) = cast_bar_query.single_mut() {
-        if is_brewing {
-            // Show brewing progress with gray fill
+        if let Some(progress) = reload_progress {
+            node.width = Val::Percent(progress * 100.0);
+            bg_color.0 = RELOAD_BAR_COLOR;
+        } else if is_brewing {
             if let Ok(state) = cauldron_query.single() {
                 let progress_percent = state.progress() * 100.0;
                 node.width = Val::Percent(progress_percent);
             }
             bg_color.0 = CAST_BAR_BREWING_FILL_COLOR;
         } else {
-            // Show normal cast progress with gold fill
             if let Ok((casting_state, primed_spell)) = wizard_query.single() {
                 let progress_percent = casting_state.progress(primed_spell.cast_time) * 100.0;
                 node.width = Val::Percent(progress_percent);
@@ -517,13 +618,31 @@ pub(super) fn update_cast_bar(
         }
     }
 
-    // Toggle brewing overlay visibility
+    // Toggle brewing/reload overlay visibility and text
     if let Ok(mut visibility) = overlay_query.single_mut() {
-        *visibility = if is_brewing {
+        *visibility = if reload_progress.is_some() || is_brewing {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
+    }
+}
+
+/// Updates the overlay text to show "Reloading..." or "Brewing..." as appropriate.
+pub(super) fn update_overlay_text(
+    gun_state: Option<Res<GunState>>,
+    cauldron_query: Query<&CauldronState, With<Cauldron>>,
+    mut text_query: Query<&mut Text, With<BrewingOverlayText>>,
+) {
+    let is_reloading = gun_state.as_ref().is_some_and(|gs| gs.current_ammo().reloading);
+    let is_brewing = cauldron_query.single().is_ok_and(|s| s.is_brewing());
+
+    if let Ok(mut text) = text_query.single_mut() {
+        if is_reloading {
+            **text = "Reloading...".to_string();
+        } else if is_brewing {
+            **text = "Brewing...".to_string();
+        }
     }
 }
 

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.370] - 2026-03-07
+
+### Added
+- **Warglock wizard type** — a new unlockable wizard that ditches spells entirely in favor of 5 guns: Machine Gun, Magnum, Rocket Launcher, Shotgun, and Flamethrower. Each gun has its own ammo pool and reload timer
+- **Ammo system** — each gun tracks its own ammo separately. Guns auto-reload when empty, or press R to reload early. Switching guns doesn't affect other guns' ammo
+- **Ammo display** — a new ammo counter and visual ammo bar replaces the mana bar when playing as the Warglock
+- **Reload bar** — the cast bar shows reload progress with amber fill when reloading a gun
+- **Gun sound effects** — unique firing sounds for each gun type
+- **Bullet hit flash** — enemies briefly flash white when hit by bullets
+- **Bullet tracers** — light gray speed-line visuals follow each shot
+- **Flamethrower physics** — flame projectiles arc downward with gravity and leave burning ground where they land
+- **Rocket explosions** — rockets explode on impact with area-of-effect damage
+- **New achievement** — a hidden achievement that unlocks the Warglock wizard type
+
 ## [v0.3.342] - 2026-03-06
 
 ### Added

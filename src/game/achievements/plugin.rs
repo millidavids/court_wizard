@@ -8,8 +8,9 @@ use crate::game::messages::IngredientCollectedMessage;
 
 use super::messages::{
     BattleEndedMessage, ClearProgressMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
-    EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
-    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage, UnitSickenedMessage,
+    EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, MarkedForDeathKillMessage,
+    OutOfRangeMessage, QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
+    UnitSickenedMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -29,6 +30,7 @@ impl Plugin for AchievementsPlugin {
             .add_message::<GuardianCircleHitAttackerMessage>()
             .add_message::<EntangleHitDefenderMessage>()
             .add_message::<UnitSickenedMessage>()
+            .add_message::<MarkedForDeathKillMessage>()
             .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
@@ -214,6 +216,13 @@ impl Plugin for AchievementsPlugin {
                 systems::check_master_brewer
                     .run_if(on_message::<IngredientCollectedMessage>)
                     .run_if(achievement_locked::<MasterBrewerAchievement>),
+            )
+            // Right to Bear Arms — kill a marked-for-death enemy (unlocks Warglock)
+            .add_systems(
+                Update,
+                systems::check_right_to_bear_arms
+                    .run_if(on_message::<MarkedForDeathKillMessage>)
+                    .run_if(achievement_locked::<RightToBearArmsAchievement>),
             )
             // Reset all achievements when progress is cleared
             .add_systems(

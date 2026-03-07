@@ -12,9 +12,13 @@ pub(crate) struct ManaBarFill;
 #[derive(Component)]
 pub(super) struct CastBarFill;
 
-/// Marker component for the brewing overlay text on the cast bar.
+/// Marker component for the brewing/reload overlay container on the cast bar.
 #[derive(Component)]
 pub(super) struct BrewingOverlay;
+
+/// Marker component for the text inside the brewing/reload overlay.
+#[derive(Component)]
+pub(super) struct BrewingOverlayText;
 
 /// Actions that can be triggered by HUD buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,3 +93,17 @@ pub(super) struct BuffTimerText(pub usize);
 /// Marker component for a buff tooltip popup.
 #[derive(Component)]
 pub(super) struct BuffTooltip;
+
+/// Marker component for the ammo display container (replaces mana bar for gunslinger).
+#[derive(Component)]
+pub(super) struct AmmoDisplayContainer;
+
+/// Marker component for an individual ammo piece in the ammo display.
+#[derive(Component)]
+pub(super) struct AmmoPiece {
+    pub index: u32,
+}
+
+/// Marker component for the ammo counter text (e.g., "12 / 60").
+#[derive(Component)]
+pub(super) struct AmmoCounterText;

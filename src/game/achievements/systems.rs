@@ -658,3 +658,14 @@ pub(crate) fn check_soiled_surprise(
         crate::config::save_data::unlock_wizard_type(WizardType::Excremage);
     }
 }
+
+pub(crate) fn check_right_to_bear_arms(
+    mut msg: MessageReader<super::messages::MarkedForDeathKillMessage>,
+    mut res: ResMut<RightToBearArmsAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        crate::config::save_data::unlock_wizard_type(WizardType::Warglock);
+    }
+}

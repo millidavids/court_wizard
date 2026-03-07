@@ -186,6 +186,7 @@ pub(crate) enum AchievementId {
     OgreWarlord,
     SoiledSurprise,
     MasterBrewer,
+    RightToBearArms,
 }
 
 impl AchievementId {
@@ -231,6 +232,7 @@ impl AchievementId {
             AchievementId::OgreWarlord,
             AchievementId::SoiledSurprise,
             AchievementId::MasterBrewer,
+            AchievementId::RightToBearArms,
         ]
     }
 
@@ -276,6 +278,7 @@ impl AchievementId {
             AchievementId::OgreWarlord => "ogre_warlord",
             AchievementId::SoiledSurprise => "soiled_surprise",
             AchievementId::MasterBrewer => "master_brewer",
+            AchievementId::RightToBearArms => "right_to_bear_arms",
         }
     }
 
@@ -321,6 +324,7 @@ impl AchievementId {
             AchievementId::OgreWarlord => "Ogre Warlord",
             AchievementId::SoiledSurprise => "Soiled Surprise",
             AchievementId::MasterBrewer => "Master Brewer",
+            AchievementId::RightToBearArms => "The Right to Bear Arms",
         }
     }
 
@@ -344,6 +348,7 @@ impl AchievementId {
             AchievementId::FriendlyThorns => Some("Grants: 15 Arcane Insight"),
             AchievementId::SoiledSurprise => Some("Unlocks: Excremage wizard"),
             AchievementId::MasterBrewer => Some("Unlocks: The Alchemist wizard"),
+            AchievementId::RightToBearArms => Some("Unlocks: Warglock wizard"),
             _ => None,
         }
     }
@@ -421,6 +426,7 @@ impl AchievementId {
             AchievementId::OgreWarlord => "The biggest one yet. And it's angry.",
             AchievementId::SoiledSurprise => "Something terrible happened. And it unlocked a wizard type.",
             AchievementId::MasterBrewer => "You've collected every ingredient. The cauldron recognizes a true master.",
+            AchievementId::RightToBearArms => "Killed an enemy marked by Finger of Death. Guns are now an option.",
         }
     }
 }

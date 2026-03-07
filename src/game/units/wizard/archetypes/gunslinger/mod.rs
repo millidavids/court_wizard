@@ -1,0 +1,10 @@
+mod components;
+mod constants;
+pub mod messages;
+mod plugin;
+mod resources;
+mod systems;
+
+pub(in crate::game) use plugin::GunslingerPlugin;
+pub use components::GunType;
+pub use resources::GunState;

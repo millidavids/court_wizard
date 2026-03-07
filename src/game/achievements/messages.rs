@@ -58,3 +58,7 @@ pub(crate) struct ClearProgressMessage;
 /// Message sent when a unit becomes sickened (poison threshold reached).
 #[derive(Message)]
 pub(crate) struct UnitSickenedMessage;
+
+/// Message sent when an enemy marked with Finger of Death's mark is killed.
+#[derive(Message)]
+pub(crate) struct MarkedForDeathKillMessage;
