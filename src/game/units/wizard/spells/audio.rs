@@ -46,6 +46,9 @@ pub(crate) struct SpellSfxAssets {
     pub teleport_cast: Handle<AudioSource>,
     pub wall_of_fire_persistent: Handle<AudioSource>,
     pub wall_of_stone_cast: Handle<AudioSource>,
+    // Weather ambient sounds (Meteorologist)
+    pub rain_persistent: Handle<AudioSource>,
+    pub blizzard_persistent: Handle<AudioSource>,
     // Gun sound effects (Warglock)
     pub machine_gun_shot: Handle<AudioSource>,
     pub magnum_shot: Handle<AudioSource>,
@@ -91,6 +94,9 @@ pub(super) fn load_spell_sfx_assets(mut commands: Commands, asset_server: Res<As
         wall_of_fire_persistent: asset_server
             .load("audio/sound_effects/wall_of_fire_persistent.ogg"),
         wall_of_stone_cast: asset_server.load("audio/sound_effects/wall_of_stone_cast.ogg"),
+        // Weather ambient sounds (Meteorologist)
+        rain_persistent: asset_server.load("audio/sound_effects/rain_persistent.ogg"),
+        blizzard_persistent: asset_server.load("audio/sound_effects/blizzard_persistent.ogg"),
         // Gun sound effects (Warglock)
         machine_gun_shot: asset_server.load("audio/sound_effects/machine_gun_shot.ogg"),
         magnum_shot: asset_server.load("audio/sound_effects/magnum_shot.ogg"),
@@ -148,8 +154,20 @@ pub(crate) fn play_impact_sfx(
     game_config: &GameConfig,
     sfx_assets: &SpellSfxAssets,
 ) {
+    play_impact_sfx_scaled(commands, handle, effect_pos, game_config, sfx_assets, 1.0);
+}
+
+/// Like `play_impact_sfx` but with an additional volume scale factor.
+pub(crate) fn play_impact_sfx_scaled(
+    commands: &mut Commands,
+    handle: &Handle<AudioSource>,
+    effect_pos: Vec3,
+    game_config: &GameConfig,
+    sfx_assets: &SpellSfxAssets,
+    volume_scale: f32,
+) {
     let effective = resolve_excremage_handle(handle, SfxKind::Impact, game_config, sfx_assets);
-    play_sfx_scaled(commands, effective, effect_pos, game_config, 1.0);
+    play_sfx_scaled(commands, effective, effect_pos, game_config, volume_scale);
 }
 
 /// Plays a one-shot sound effect with distance-based attenuation and an additional volume scale.

@@ -235,7 +235,7 @@ fn chain_lightning_casting_logic(
                 if mana.consume(effective_mana_cost)
                     && let Some(cursor_pos) = input.cursor_pos
                 {
-                    // Thunderstorm: cast multiple times at different targets
+                    // Storm talent: cast multiple times at different targets
                     let mut already_targeted: Vec<Entity> = Vec::new();
 
                     for _ in 0..talent_config.thunderstorm_count {

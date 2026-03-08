@@ -34,6 +34,15 @@ use crate::game::constants::{
     MELEE_SLOWDOWN_FACTOR, STEERING_FORCE, VELOCITY_DAMPING,
 };
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::units::wizard::archetypes::meteorologist::components::{
+    BurningPatch, ChargedModifier, ColdModifier, DryModifier, WetModifier,
+};
+use crate::game::units::wizard::archetypes::meteorologist::constants::{
+    BURNING_PATCH_COLOR, BURNING_PATCH_DPS, BURNING_PATCH_LIFETIME, BURNING_PATCH_RADIUS,
+    BURNING_PATCH_TICK_INTERVAL, CHARGED_EXTRA_ARC_TARGETS, COLD_FREEZE_DURATION,
+    COLD_FROST_SLOW_MULTIPLIER, DRY_BURNING_PATCH_COUNT, DRY_BURNING_PATCH_SCATTER,
+    WET_FIRE_DOT_MULTIPLIER,
+};
 
 /// Returns true if the unit is immobilized by any crowd control effect.
 /// Centralizes CC checks so new CC types only need updating here.
@@ -274,14 +283,29 @@ pub fn update_timed_modifier<
 pub fn process_pending_damage_effects(
     mut commands: Commands,
     config: Res<GameConfig>,
-    pending_query: Query<(Entity, &PendingDamageEffect, Has<SpellShield>)>,
+    pending_query: Query<(
+        Entity,
+        &PendingDamageEffect,
+        &Transform,
+        Has<SpellShield>,
+        Has<ColdModifier>,
+        Has<DryModifier>,
+    )>,
     mut fire_query: Query<&mut FireDoT>,
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut frost_marker_query: Query<&mut FrostEffectMarker>,
     mut electric_query: Query<&mut ElectricCharge>,
     mut poison_query: Query<&mut PoisonedModifier>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, pending, has_shield) in pending_query.iter() {
+    let mut rng = rand::thread_rng();
+
+    // Shared mesh/material for burning patches (Drought fire synergy), created once if needed
+    let mut burning_patch_mesh: Option<Handle<Mesh>> = None;
+    let mut burning_patch_material: Option<Handle<StandardMaterial>> = None;
+
+    for (entity, pending, transform, has_shield, has_cold, has_dry) in pending_query.iter() {
         if has_shield {
             commands.entity(entity).remove::<PendingDamageEffect>();
             continue;
@@ -299,14 +323,63 @@ pub fn process_pending_damage_effects(
                 } else {
                     commands.entity(entity).insert(FireDoT::new(pending.damage));
                 }
+                // Drought synergy: fire spells create burning ground patches
+                if has_dry {
+                    let impact_pos = transform.translation;
+                    let patch_mesh = burning_patch_mesh
+                        .get_or_insert_with(|| meshes.add(Circle::new(BURNING_PATCH_RADIUS)));
+                    let patch_material =
+                        burning_patch_material.get_or_insert_with(|| {
+                            materials.add(StandardMaterial {
+                                base_color: BURNING_PATCH_COLOR,
+                                unlit: true,
+                                alpha_mode: AlphaMode::Blend,
+                                ..default()
+                            })
+                        });
+                    for _ in 0..DRY_BURNING_PATCH_COUNT {
+                        let offset_x =
+                            rng.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                        let offset_z =
+                            rng.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                        let patch_pos = Vec3::new(
+                            impact_pos.x + offset_x,
+                            0.5, // Just above ground
+                            impact_pos.z + offset_z,
+                        );
+                        commands.spawn((
+                            BurningPatch {
+                                lifetime: BURNING_PATCH_LIFETIME,
+                                radius: BURNING_PATCH_RADIUS,
+                                damage_per_tick: BURNING_PATCH_DPS
+                                    * BURNING_PATCH_TICK_INTERVAL,
+                                tick_timer: BURNING_PATCH_TICK_INTERVAL,
+                            },
+                            Mesh3d(patch_mesh.clone()),
+                            MeshMaterial3d(patch_material.clone()),
+                            Transform::from_translation(patch_pos)
+                                .with_rotation(Quat::from_rotation_x(
+                                    -std::f32::consts::FRAC_PI_2,
+                                )),
+                            OnGameplayScreen,
+                        ));
+                    }
+                }
             }
             DamageType::Frost => {
+                // Blizzard synergy: frost slow is amplified by COLD_FROST_SLOW_MULTIPLIER
+                let slow_strength = if has_cold {
+                    FROST_SLOW_PER_STACK * COLD_FROST_SLOW_MULTIPLIER
+                } else {
+                    FROST_SLOW_PER_STACK
+                };
+
                 // Apply slow via unified SlowMovementModifier
                 if let Ok(mut slow) = slow_query.get_mut(entity) {
-                    slow.apply(FROST_SLOW_PER_STACK, FROST_SLOW_DURATION);
+                    slow.apply(slow_strength, FROST_SLOW_DURATION);
                 } else {
                     commands.entity(entity).insert(SlowMovementModifier::new(
-                        FROST_SLOW_PER_STACK,
+                        slow_strength,
                         FROST_SLOW_DURATION,
                     ));
                 }
@@ -317,6 +390,12 @@ pub fn process_pending_damage_effects(
                     commands
                         .entity(entity)
                         .insert(FrostEffectMarker::new(FROST_SLOW_DURATION));
+                }
+                // Blizzard synergy: frost + cold = freeze (brief root)
+                if has_cold {
+                    commands
+                        .entity(entity)
+                        .insert(RootedModifier::new(COLD_FREEZE_DURATION));
                 }
             }
             DamageType::Electric => {
@@ -367,17 +446,24 @@ pub fn update_fire_dot(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
+        Has<WetModifier>,
     )>,
 ) {
     let delta = time.delta_secs();
 
-    for (entity, mut fire_dot, mut health, temp_hp, has_shield) in query.iter_mut() {
+    for (entity, mut fire_dot, mut health, temp_hp, has_shield, is_wet) in query.iter_mut() {
         let (tick_damage, expired) = fire_dot.update(delta);
 
         if let Some(damage) = tick_damage
             && !has_shield
         {
-            apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
+            // Storm synergy: fire DoT damage is reduced on wet units
+            let effective_damage = if is_wet {
+                damage * WET_FIRE_DOT_MULTIPLIER
+            } else {
+                damage
+            };
+            apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), effective_damage);
         }
 
         if expired {
@@ -403,7 +489,7 @@ pub fn update_electric_charge(
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut charge_query: Query<(Entity, &mut ElectricCharge, &Transform, &Team), Without<Corpse>>,
+    mut charge_query: Query<(Entity, &mut ElectricCharge, &Transform, &Team, Has<ChargedModifier>), Without<Corpse>>,
     target_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>), Without<Corpse>>,
 ) {
@@ -413,7 +499,7 @@ pub fn update_electric_charge(
     // Collect arc events to process after iteration (avoids borrow conflicts)
     let mut arc_events: Vec<(Vec3, Entity, Vec3)> = Vec::new();
 
-    for (entity, mut charge, transform, _team) in charge_query.iter_mut() {
+    for (entity, mut charge, transform, _team, has_charged) in charge_query.iter_mut() {
         let expired = charge.update(delta);
         if expired {
             commands.entity(entity).remove::<ElectricCharge>();
@@ -455,8 +541,14 @@ pub fn update_electric_charge(
         }
 
         // Sort by distance and take up to max targets
+        // Storm synergy: charged units arc to extra targets
+        let max_targets = if has_charged {
+            ELECTRIC_ARC_MAX_TARGETS + CHARGED_EXTRA_ARC_TARGETS
+        } else {
+            ELECTRIC_ARC_MAX_TARGETS
+        };
         targets.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
-        targets.truncate(ELECTRIC_ARC_MAX_TARGETS);
+        targets.truncate(max_targets);
 
         charge.reset_arc_cooldown();
 

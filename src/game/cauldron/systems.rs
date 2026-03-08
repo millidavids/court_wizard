@@ -411,16 +411,25 @@ pub fn update_brewing_timer(
 pub fn heal_defenders(
     time: Res<Time>,
     cauldron_buffs: Res<CauldronBuffs>,
-    mut defenders: Query<(&mut Health, &Team), Without<Corpse>>,
+    mut defenders: Query<
+        (
+            &mut Health,
+            &Team,
+            Has<crate::game::units::wizard::archetypes::meteorologist::components::DryModifier>,
+        ),
+        Without<Corpse>,
+    >,
 ) {
+    use crate::game::units::wizard::archetypes::meteorologist::systems::apply_dry_healing_reduction;
+
     let heal_per_second = cauldron_buffs.defender_heal_per_second();
     if heal_per_second <= 0.0 {
         return;
     }
     let heal_amount = heal_per_second * time.delta_secs();
-    for (mut health, team) in &mut defenders {
+    for (mut health, team, is_dry) in &mut defenders {
         if *team == Team::Defenders {
-            health.heal(heal_amount);
+            health.heal(apply_dry_healing_reduction(heal_amount, is_dry));
         }
     }
 }

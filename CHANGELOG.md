@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.400] - 2026-03-07
+
+### Added
+- **Meteorologist wizard type** — a new unlockable wizard that controls the weather on the battlefield. Press Q, W, or E to activate Storm, Blizzard, or Drought, each applying different status effects to all units on the field
+- **Storm weather** — drenches and charges all units. Shocked units spread electricity to nearby wet targets, electric arcs chain to extra targets, and random lightning strikes hit the battlefield
+- **Blizzard weather** — chills all units. Frost spells slow even harder than normal, and can freeze units solid briefly
+- **Drought weather** — dries out all units. Fire spells create burning ground patches around their impact, and all healing is reduced
+- **Weather intensity** — weather effects grow stronger the longer they persist, shown by a fill bar on each weather button
+- **Weather visuals** — rain with sky darkening during storms, snowfall with ground whitening during blizzards, heat haze with ground browning during drought, and lightning strike beams during storms
+- **Weather sounds** — ambient rain and blizzard sounds play during their respective weather conditions, and each lightning strike has its own sound effect
+- **Weather bar UI** — a new set of clickable buttons at the bottom of the screen for switching weather, with hotkeys and a status description
+- **New achievement** — a hidden achievement that unlocks the Meteorologist wizard type
+
+### Changed
+- **Squall sound quieter** — Squall wind impacts are now much quieter
+
 ## [v0.3.384] - 2026-03-07
 
 ### Added

@@ -1,8 +1,9 @@
-//! Wizard archetype systems (RuneCaster, Randomancer, Arcanorouter, Gunslinger, and Battlemage).
+//! Wizard archetype systems (RuneCaster, Randomancer, Arcanorouter, Gunslinger, Battlemage, and Meteorologist).
 
 pub mod arcanorouter;
 pub mod battlemage;
 pub mod gunslinger;
+pub mod meteorologist;
 pub(crate) mod roulette;
 pub(crate) mod runes;
 
@@ -11,6 +12,7 @@ use bevy::prelude::*;
 use arcanorouter::ArcanoRouterPlugin;
 use battlemage::BattlemagePlugin;
 use gunslinger::GunslingerPlugin;
+use meteorologist::MeteorologistPlugin;
 use roulette::RoulettePlugin;
 use runes::RunePlugin;
 
@@ -25,6 +27,7 @@ impl Plugin for ArchetypesPlugin {
             ArcanoRouterPlugin,
             GunslingerPlugin,
             BattlemagePlugin,
+            MeteorologistPlugin,
         ));
     }
 }

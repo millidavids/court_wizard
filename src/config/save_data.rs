@@ -188,6 +188,7 @@ pub(crate) enum AchievementId {
     MasterBrewer,
     RightToBearArms,
     CloseCall,
+    Stormbringer,
 }
 
 impl AchievementId {
@@ -235,6 +236,7 @@ impl AchievementId {
             AchievementId::MasterBrewer,
             AchievementId::RightToBearArms,
             AchievementId::CloseCall,
+            AchievementId::Stormbringer,
         ]
     }
 
@@ -282,6 +284,7 @@ impl AchievementId {
             AchievementId::MasterBrewer => "master_brewer",
             AchievementId::RightToBearArms => "right_to_bear_arms",
             AchievementId::CloseCall => "close_call",
+            AchievementId::Stormbringer => "stormbringer",
         }
     }
 
@@ -329,6 +332,7 @@ impl AchievementId {
             AchievementId::MasterBrewer => "Master Brewer",
             AchievementId::RightToBearArms => "The Right to Bear Arms",
             AchievementId::CloseCall => "Close Call",
+            AchievementId::Stormbringer => "Stormbringer",
         }
     }
 
@@ -354,6 +358,7 @@ impl AchievementId {
             AchievementId::MasterBrewer => Some("Unlocks: The Alchemist wizard"),
             AchievementId::RightToBearArms => Some("Unlocks: Warglock wizard"),
             AchievementId::CloseCall => Some("Unlocks: Swordcerer wizard"),
+            AchievementId::Stormbringer => Some("Unlocks: Meteorologist wizard"),
             _ => None,
         }
     }
@@ -440,6 +445,9 @@ impl AchievementId {
             }
             AchievementId::CloseCall => {
                 "An enemy got dangerously close to the tower. Maybe it's time to get your hands dirty."
+            }
+            AchievementId::Stormbringer => {
+                "Lightning meets wind. The sky bends to your will."
             }
         }
     }

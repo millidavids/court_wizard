@@ -10,7 +10,7 @@ use super::messages::{
     BattleEndedMessage, ClearProgressMessage, CloseCallMessage, DefenderKilledBySpellMessage,
     EnemyKilledMessage, EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage,
     MarkedForDeathKillMessage, OutOfRangeMessage, QwerKeyPressedMessage, ScorchedEarthMessage,
-    SpellCastMessage, UnitSickenedMessage,
+    SpellCastMessage, StormbringerMessage, UnitSickenedMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -32,6 +32,7 @@ impl Plugin for AchievementsPlugin {
             .add_message::<UnitSickenedMessage>()
             .add_message::<MarkedForDeathKillMessage>()
             .add_message::<CloseCallMessage>()
+            .add_message::<StormbringerMessage>()
             .init_resource::<MultiKillTracker>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
@@ -231,6 +232,19 @@ impl Plugin for AchievementsPlugin {
                 systems::check_close_call
                     .run_if(on_message::<CloseCallMessage>)
                     .run_if(achievement_locked::<CloseCallAchievement>),
+            )
+            // Stormbringer — Lightning Rod placed within Squall AoE (unlocks Meteorologist)
+            .add_systems(
+                Update,
+                systems::detect_stormbringer
+                    .run_if(is_gameplay_active)
+                    .run_if(achievement_locked::<StormbringerAchievement>),
+            )
+            .add_systems(
+                Update,
+                systems::check_stormbringer
+                    .run_if(on_message::<StormbringerMessage>)
+                    .run_if(achievement_locked::<StormbringerAchievement>),
             )
             // Reset all achievements when progress is cleared
             .add_systems(

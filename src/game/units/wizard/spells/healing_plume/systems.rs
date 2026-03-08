@@ -206,11 +206,21 @@ pub fn update_healing_plume_indicator(
 }
 
 /// Applies periodic healing to all non-corpse units within the healing plume zone.
+/// Drought synergy: healing is reduced on dry units.
 pub fn apply_healing_plume_heal(
     time: Res<Time>,
     mut zones: Query<&mut HealingPlumeZone>,
-    mut targets: Query<(&Transform, &mut Health), Without<Corpse>>,
+    mut targets: Query<
+        (
+            &Transform,
+            &mut Health,
+            Has<crate::game::units::wizard::archetypes::meteorologist::components::DryModifier>,
+        ),
+        Without<Corpse>,
+    >,
 ) {
+    use crate::game::units::wizard::archetypes::meteorologist::systems::apply_dry_healing_reduction;
+
     let delta = time.delta_secs();
 
     for mut zone in &mut zones {
@@ -220,7 +230,7 @@ pub fn apply_healing_plume_heal(
         if zone.time_since_last_tick >= zone.tick_interval {
             zone.time_since_last_tick = 0.0;
 
-            for (transform, mut health) in &mut targets {
+            for (transform, mut health, is_dry) in &mut targets {
                 let distance = Vec3::new(
                     zone.origin.x - transform.translation.x,
                     0.0,
@@ -229,7 +239,7 @@ pub fn apply_healing_plume_heal(
                 .length();
 
                 if distance <= zone.radius {
-                    health.heal(zone.heal_per_tick);
+                    health.heal(apply_dry_healing_reduction(zone.heal_per_tick, is_dry));
                 }
             }
         }

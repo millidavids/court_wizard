@@ -25,6 +25,7 @@ use super::splash_screen::SplashScreenPlugin;
 use super::systems;
 use super::tutorial::TutorialPlugin;
 use super::version::VersionPlugin;
+use super::weather_bar::WeatherBarPlugin;
 use super::wizard_tower::WizardTowerPlugin;
 use crate::game::input::messages::MouseClicked;
 
@@ -63,6 +64,7 @@ impl Plugin for UiPlugin {
             MetaGameCompendiumPlugin,
             VersionPlugin,
             TutorialPlugin,
+            WeatherBarPlugin,
         ))
         .configure_sets(
             Update,

@@ -66,3 +66,7 @@ pub(crate) struct MarkedForDeathKillMessage;
 /// Message sent when an enemy dies within close range of the wizard.
 #[derive(Message)]
 pub(crate) struct CloseCallMessage;
+
+/// Message sent when a Lightning Rod is placed within a Squall's AoE.
+#[derive(Message)]
+pub(crate) struct StormbringerMessage;

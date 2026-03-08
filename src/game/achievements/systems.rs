@@ -16,7 +16,7 @@ use crate::ui::main_menu::settings::components::SliderAdjusted;
 use super::messages::{
     BattleEndedMessage, CloseCallMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
     EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
-    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage,
+    QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage, StormbringerMessage,
 };
 use super::resources::*;
 
@@ -719,5 +719,42 @@ pub(crate) fn check_close_call(
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
         crate::config::save_data::unlock_wizard_type(WizardType::Battlemage);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Stormbringer — Lightning Rod placed within Squall AoE (unlocks Meteorologist)
+// ---------------------------------------------------------------------------
+
+use crate::game::units::wizard::spells::lightning_rod::components::LightningRod;
+use crate::game::units::wizard::spells::squall::components::SquallStorm;
+
+/// Detects when a Lightning Rod exists within a Squall's AoE.
+pub(crate) fn detect_stormbringer(
+    lightning_rods: Query<&LightningRod>,
+    squalls: Query<&SquallStorm>,
+    mut msg: MessageWriter<StormbringerMessage>,
+) {
+    for rod in lightning_rods.iter() {
+        for squall in squalls.iter() {
+            let dx = rod.position.x - squall.position.x;
+            let dz = rod.position.z - squall.position.z;
+            let dist_sq = dx * dx + dz * dz;
+            if dist_sq <= squall.radius * squall.radius {
+                msg.write(StormbringerMessage);
+                return;
+            }
+        }
+    }
+}
+
+pub(crate) fn check_stormbringer(
+    mut msg: MessageReader<StormbringerMessage>,
+    mut res: ResMut<StormbringerAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_some() {
+        do_unlock(&mut res, &mut events);
+        crate::config::save_data::unlock_wizard_type(WizardType::Meteorologist);
     }
 }

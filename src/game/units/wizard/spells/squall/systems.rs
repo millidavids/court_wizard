@@ -312,12 +312,13 @@ pub(super) fn check_ice_projectile_collisions(
                     projectile.damage,
                     projectile.empowerment,
                 );
-                audio::play_impact_sfx(
+                audio::play_impact_sfx_scaled(
                     &mut commands,
                     &sfx.squall_impact,
                     explosion_pos,
                     &game_config,
                     &sfx,
+                    0.3,
                 );
                 commands.entity(entity).try_despawn();
                 hit_wall = true;

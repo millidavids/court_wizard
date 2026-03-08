@@ -116,6 +116,8 @@ pub enum WizardType {
     Warglock,
     /// Battlemage - enters the battlefield as a melee/ranged fighter.
     Battlemage,
+    /// Meteorologist - manipulates weather to apply global status effects.
+    Meteorologist,
 }
 
 impl WizardType {
@@ -130,6 +132,7 @@ impl WizardType {
             WizardType::Alchemist => "The Alchemist",
             WizardType::Warglock => "Warglock",
             WizardType::Battlemage => "Swordcerer",
+            WizardType::Meteorologist => "Meteorologist",
         }
     }
 
@@ -146,6 +149,7 @@ impl WizardType {
             WizardType::Alchemist => "Master the cauldron with faster brews and stronger potions.",
             WizardType::Warglock => "Who needs spells when you have guns?",
             WizardType::Battlemage => "Leave the tower. Enter the fray.",
+            WizardType::Meteorologist => "Control the weather. Control the battlefield.",
         }
     }
 
@@ -176,6 +180,9 @@ impl WizardType {
             WizardType::Battlemage => {
                 "Click 'Enter the Fray' to leave your tower and join the battle as a warrior. Move with WASD, shoot magic missiles with left-click, and swing your sword with right-click. You're fast but vulnerable — if your health hits zero, you teleport back to the tower. While on the field, spells, spell book, and cauldron are disabled."
             }
+            WizardType::Meteorologist => {
+                "Press Q, W, or E to change the weather. Storm makes units Wet and Charged — shocked units spread electricity to nearby wet targets, electric arcs hit more targets, and random lightning strikes the field. Blizzard makes units Cold — frost spells slow even harder, and can freeze units solid. Drought makes units Dry — fire spells create burning patches on the ground. Weather effects grow stronger the longer they persist."
+            }
         }
     }
 
@@ -190,6 +197,7 @@ impl WizardType {
             WizardType::Alchemist => "The cauldron whispers to those who listen.",
             WizardType::Warglock => "War and sorcery, forged into one.",
             WizardType::Battlemage => "Some wizards prefer a more... hands-on approach.",
+            WizardType::Meteorologist => "The sky darkens. Something is brewing up there.",
         }
     }
 
@@ -204,6 +212,7 @@ impl WizardType {
             WizardType::Alchemist,
             WizardType::Warglock,
             WizardType::Battlemage,
+            WizardType::Meteorologist,
         ]
     }
 }

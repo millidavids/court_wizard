@@ -25,6 +25,7 @@ mod styles;
 pub(crate) mod systems;
 pub(crate) mod tutorial;
 mod version;
+mod weather_bar;
 mod wizard_tower;
 
 pub use plugin::UiPlugin;
