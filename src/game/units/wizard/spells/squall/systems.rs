@@ -1,7 +1,6 @@
 //! Squall spell systems.
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use rand::Rng;
 
 use super::components::{IceExplosion, IceProjectile, SquallCircleIndicator, SquallStorm};
@@ -24,6 +23,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::networking::snapshot::SpellEffectKind;
 
 /// Local wizard squall casting -- reads mouse input.
@@ -39,13 +39,13 @@ pub(super) fn handle_squall_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SquallCircleIndicator>,
     existing_storms: Query<Entity, With<SquallStorm>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions already ensure mouse is held
         pressed: true,

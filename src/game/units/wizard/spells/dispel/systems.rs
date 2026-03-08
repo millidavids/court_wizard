@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
@@ -15,6 +13,7 @@ use crate::game::units::wizard::spells::grease::components::GreaseZone;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -40,7 +39,7 @@ pub fn handle_dispel_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -48,7 +47,7 @@ pub fn handle_dispel_casting(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some(target_pos) = cursor_pos else {
         return;
     };

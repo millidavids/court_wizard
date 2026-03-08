@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
@@ -15,6 +14,7 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{Corpse, MindControlled, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 
 /// Tracked highlight target — stored as system-local state so we have a single
 /// source of truth that doesn't depend on deferred command timing.
@@ -52,7 +52,7 @@ pub(super) fn handle_mind_control_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     enemies_query: Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
         (Without<Corpse>, Without<MindControlled>, Without<Boss>),
@@ -63,7 +63,7 @@ pub(super) fn handle_mind_control_casting(
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true,
         pressed: true,

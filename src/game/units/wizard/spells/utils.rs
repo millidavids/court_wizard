@@ -3,9 +3,9 @@
 //! These functions are used across many spell implementations to avoid duplication.
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 
 use crate::game::components::OnGameplayScreen;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Projects the cursor position onto the Y=0 ground plane via raycasting.
@@ -13,13 +13,15 @@ use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 /// Returns the world-space intersection point of the camera ray through the cursor
 /// with the horizontal ground plane (Y=0), or `None` if the cursor is not over the window,
 /// the ray is parallel to the ground, or the intersection is behind the camera.
+///
+/// Uses the barrel-distortion-corrected cursor position so that raycasting
+/// matches the visually distorted CRT output.
 pub(crate) fn get_cursor_world_position(
     camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: &Res<CorrectedCursorPosition>,
 ) -> Option<Vec3> {
     let (camera, camera_transform) = camera_query.single().ok()?;
-    let window = window_query.single().ok()?;
-    let cursor_pos = window.cursor_position()?;
+    let cursor_pos = corrected_cursor.0?;
 
     let ray = camera
         .viewport_to_world(camera_transform, cursor_pos)

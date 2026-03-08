@@ -484,8 +484,6 @@ fn handle_mp_score_buttons(
                     }
                 }
                 MpScoreButtonAction::Disconnect => {
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
@@ -672,8 +670,6 @@ fn handle_mp_pause_buttons(
                     next_mp_state.set(MultiplayerGameState::Running);
                 }
                 MpPauseButtonAction::Disconnect => {
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);

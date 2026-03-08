@@ -259,9 +259,9 @@ pub(in crate::game::units::wizard) use spell_name::constants as spell_name_const
 **Register plugin** in `src/game/units/wizard/spells/plugin.rs`:
 - Add `SpellNamePlugin` to one of the `.add_plugins((...))` tuples (max 8 per tuple)
 
-**Add spell icon** to `docs/assets/images/icons/spell_name.png` (64x64 recommended).
+**Add spell icon** to `assets/images/icons/spell_name.png` (64x64 recommended).
 
-**Add audio** (optional) to `docs/assets/audio/sound_effects/spell_name_cast.ogg` and register in `src/game/units/wizard/spells/audio.rs`.
+**Add audio** (optional) to `assets/audio/sound_effects/spell_name_cast.ogg` and register in `src/game/units/wizard/spells/audio.rs`.
 
 ### 7. Spell Categories Checklist
 

@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::components::*;
 use super::constants::*;
 use super::messages::*;
@@ -20,6 +18,7 @@ use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::units::wizard::components::{Mana, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Initialize or reset the battlemage state resource and cached assets.
@@ -161,7 +160,7 @@ pub(super) fn fire_missile(
         With<BattlemageAvatar>,
     >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     targets: Query<(Entity, &Transform, &Team), (Without<BattlemageAvatar>, Without<Corpse>)>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
@@ -190,7 +189,7 @@ pub(super) fn fire_missile(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
     let spawn_pos = avatar_transform.translation + Vec3::new(0.0, 30.0, 0.0);
 
     // Calculate direction toward cursor or nearest enemy
@@ -270,7 +269,7 @@ pub(super) fn sword_swing(
         With<BattlemageAvatar>,
     >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     state: Res<BattlemageState>,
 ) {
     if state.phase != BattlemagePhase::OnField {
@@ -290,7 +289,7 @@ pub(super) fn sword_swing(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
     let avatar_pos = avatar_transform.translation;
 
     // Direction toward cursor on the XZ plane
@@ -608,7 +607,7 @@ pub(super) fn handle_location_click(
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut text_query: Query<&mut Text, With<EnterFrayButtonText>>,
 ) {
     if state.phase != BattlemagePhase::ChoosingLocation {
@@ -618,7 +617,7 @@ pub(super) fn handle_location_click(
         return;
     }
 
-    let Some(world_pos) = get_cursor_world_position(&camera_query_3d, &window_query) else {
+    let Some(world_pos) = get_cursor_world_position(&camera_query_3d, &corrected_cursor) else {
         return;
     };
 

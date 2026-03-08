@@ -113,9 +113,6 @@ pub fn setup(
     connection.ping_timer = 0.0;
     connection.error = None;
 
-    #[cfg(target_arch = "wasm32")]
-    crate::networking::webrtc::disconnect();
-
     commands.insert_resource(LobbyPhase::Connection);
 
     // Root container: two-column horizontal layout
@@ -613,51 +610,20 @@ pub fn button_action(
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 MultiplayerButtonAction::HostGame => {
-                    connection.role = Some(PeerRole::Host);
-                    connection.mode = ConnectionMode::Online;
-                    connection.state = ConnectionState::WaitingForSignaling;
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::create_host_offer(None);
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        connection.state = ConnectionState::Failed;
-                        connection.error =
-                            Some("Multiplayer only available in browser".to_string());
-                    }
+                    connection.state = ConnectionState::Failed;
+                    connection.error =
+                        Some("Multiplayer only available in browser".to_string());
                 }
                 MultiplayerButtonAction::JoinGame => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        if let Some(code) = crate::networking::clipboard::prompt_for_text(
-                            "Paste the host's invite code:",
-                        ) {
-                            connection.role = Some(PeerRole::Guest);
-                            connection.mode = ConnectionMode::Online;
-                            connection.state = ConnectionState::WaitingForSignaling;
-                            crate::networking::webrtc::create_guest_answer(&code, None);
-                        }
-                    }
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        connection.state = ConnectionState::Failed;
-                        connection.error =
-                            Some("Multiplayer only available in browser".to_string());
-                    }
+                    connection.state = ConnectionState::Failed;
+                    connection.error =
+                        Some("Multiplayer only available in browser".to_string());
                 }
-                MultiplayerButtonAction::CopyCode =>
-                {
-                    #[cfg(target_arch = "wasm32")]
-                    if let Some(code) = &connection.local_code {
-                        crate::networking::clipboard::copy_to_clipboard(code);
-                    }
+                MultiplayerButtonAction::CopyCode => {
+                    // No-op: clipboard access is no longer available
                 }
                 MultiplayerButtonAction::PasteResponse => {
-                    #[cfg(target_arch = "wasm32")]
-                    if let Some(code) =
-                        crate::networking::clipboard::prompt_for_text("Paste the response code:")
-                    {
-                        crate::networking::webrtc::process_answer(&code);
-                    }
+                    // No-op: clipboard/webrtc is no longer available
                 }
                 MultiplayerButtonAction::PreviewWizard(wizard_type) => {
                     // Ignore wizard switches while readied — must unready first
@@ -717,70 +683,19 @@ pub fn button_action(
                     };
                 }
                 MultiplayerButtonAction::LanEditIp => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        let current =
-                            if let LobbyPhase::LanIpEntry { current_ip, .. } = &*lobby_phase {
-                                current_ip.clone()
-                            } else {
-                                None
-                            };
-                        let prompt_msg = if let Some(ip) = &current {
-                            format!("Enter your local IP address (current: {}):", ip)
-                        } else {
-                            "Enter your local IP address (e.g. 192.168.1.5):".to_string()
-                        };
-                        if let Some(new_ip) =
-                            crate::networking::clipboard::prompt_for_text(&prompt_msg)
-                            && let LobbyPhase::LanIpEntry { current_ip, .. } = lobby_phase.as_mut()
-                        {
-                            *current_ip = Some(new_ip);
-                        }
-                    }
+                    // No-op: IP editing via browser prompt is no longer available
                 }
                 MultiplayerButtonAction::LanConfirmIp => {
-                    if let LobbyPhase::LanIpEntry { role, current_ip } = lobby_phase.clone()
+                    if let LobbyPhase::LanIpEntry { role: _, current_ip } = lobby_phase.clone()
                         && let Some(ip) = &current_ip
                     {
                         // Save IP for future sessions
                         save_data::save_lan_ip(ip);
 
-                        match role {
-                            PeerRole::Host => {
-                                connection.role = Some(PeerRole::Host);
-                                connection.mode = ConnectionMode::Lan;
-                                connection.state = ConnectionState::WaitingForSignaling;
-                                #[cfg(target_arch = "wasm32")]
-                                crate::networking::webrtc::create_host_offer(Some(ip));
-                                *lobby_phase = LobbyPhase::Connection;
-                            }
-                            PeerRole::Guest => {
-                                #[cfg(target_arch = "wasm32")]
-                                {
-                                    if let Some(code) =
-                                        crate::networking::clipboard::prompt_for_text(
-                                            "Paste the host's LAN code:",
-                                        )
-                                    {
-                                        connection.role = Some(PeerRole::Guest);
-                                        connection.mode = ConnectionMode::Lan;
-                                        connection.state = ConnectionState::WaitingForSignaling;
-                                        crate::networking::webrtc::create_guest_answer(
-                                            &code,
-                                            Some(ip),
-                                        );
-                                        *lobby_phase = LobbyPhase::Connection;
-                                    }
-                                }
-                            }
-                        }
-                        #[cfg(not(target_arch = "wasm32"))]
-                        {
-                            connection.state = ConnectionState::Failed;
-                            connection.error =
-                                Some("Multiplayer only available in browser".to_string());
-                            *lobby_phase = LobbyPhase::Connection;
-                        }
+                        connection.state = ConnectionState::Failed;
+                        connection.error =
+                            Some("Multiplayer only available in browser".to_string());
+                        *lobby_phase = LobbyPhase::Connection;
                     }
                 }
                 MultiplayerButtonAction::LanIpCancel => {
@@ -790,8 +705,6 @@ pub fn button_action(
                     let role = connection.role;
                     let is_lan = connection.mode == ConnectionMode::Lan;
                     // Clean up old connection
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
                     connection.local_code = None;
                     connection.ping_ms = None;
                     connection.ping_timer = 0.0;
@@ -812,25 +725,13 @@ pub fn button_action(
                     } else {
                         match role {
                             Some(PeerRole::Host) => {
-                                connection.state = ConnectionState::WaitingForSignaling;
-                                #[cfg(target_arch = "wasm32")]
-                                crate::networking::webrtc::create_host_offer(None);
+                                connection.state = ConnectionState::Failed;
+                                connection.error =
+                                    Some("Multiplayer only available in browser".to_string());
                             }
                             Some(PeerRole::Guest) => {
-                                #[cfg(target_arch = "wasm32")]
-                                {
-                                    if let Some(code) =
-                                        crate::networking::clipboard::prompt_for_text(
-                                            "Paste the host's invite code:",
-                                        )
-                                    {
-                                        connection.state = ConnectionState::WaitingForSignaling;
-                                        crate::networking::webrtc::create_guest_answer(&code, None);
-                                    } else {
-                                        connection.state = ConnectionState::Disconnected;
-                                        connection.role = None;
-                                    }
-                                }
+                                connection.state = ConnectionState::Disconnected;
+                                connection.role = None;
                             }
                             None => {
                                 connection.state = ConnectionState::Disconnected;
@@ -840,8 +741,6 @@ pub fn button_action(
                 }
                 MultiplayerButtonAction::Cancel => {
                     // Return to the base multiplayer connection screen
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
                     connection.role = None;
                     connection.mode = ConnectionMode::default();
@@ -851,8 +750,6 @@ pub fn button_action(
                 }
                 MultiplayerButtonAction::Disconnect => {
                     // Disconnect and return to the main menu
-                    #[cfg(target_arch = "wasm32")]
-                    crate::networking::webrtc::disconnect();
                     connection.state = ConnectionState::Disconnected;
                     connection.role = None;
                     connection.mode = ConnectionMode::default();

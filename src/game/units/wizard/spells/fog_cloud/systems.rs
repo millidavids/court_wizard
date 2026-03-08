@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
@@ -17,6 +15,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     get_cursor_world_position, spawn_circle_indicator,
 };
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -34,14 +33,14 @@ pub fn handle_fog_cloud_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut FogCloudIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions already ensure mouse is held
         pressed: true,

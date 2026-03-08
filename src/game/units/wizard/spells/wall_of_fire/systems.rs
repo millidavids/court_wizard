@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -20,6 +18,7 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
@@ -86,7 +85,7 @@ pub fn handle_wall_of_fire_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut caster_query: Query<&mut WallOfFireCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfFirePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -94,7 +93,7 @@ pub fn handle_wall_of_fire_casting(
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions ensure mouse is held
         pressed: true,

@@ -1,6 +1,6 @@
 # Court Wizard
 
-A 3D wizard tower defense game built with Rust and Bevy, playable in the browser via WASM.
+A 3D wizard tower defense game built with Rust and Bevy.
 
 ## About
 
@@ -27,10 +27,6 @@ Play as a powerful wizard defending your castle from waves of attackers.
 - Raise The Dead - Turn fallen enemies into undead allies
 - Teleport - Reposition the wizard
 
-## Play
-
-The game is deployed at: https://millidavids.github.io/court_wizard/
-
 [View Changelog](CHANGELOG.md)
 
 ## Development
@@ -38,11 +34,19 @@ The game is deployed at: https://millidavids.github.io/court_wizard/
 Built with:
 - Rust
 - Bevy game engine
-- WASM for browser deployment
 
-To build for release:
+### Build
+
 ```bash
-./build_wasm.sh --release
+# Debug build for current platform
+./build_native.sh
+
+# Cross-compile for Windows (from WSL2)
+./build_native.sh windows
+
+# Release build
+./build_native.sh --release
+./build_native.sh windows --release
 ```
 
 ## Credits

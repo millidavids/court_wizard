@@ -1,7 +1,2 @@
 /target
 /.claude/settings.local.json
-# Ignore web/ folder (debug builds for local testing)
-/web/*
-
-# Allow docs/ folder for GitHub Pages deployment (release builds only)
-# All WASM build files in docs/ will be committed

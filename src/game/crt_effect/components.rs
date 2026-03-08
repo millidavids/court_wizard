@@ -40,8 +40,25 @@ pub struct CrtEffectSettings {
     pub channel_change_time: f32,
     /// Desaturation intensity (0.0 = full color, 1.0 = fully greyscale).
     pub desaturation: f32,
+    /// Viewport X offset in UV space (0.0–1.0). Used for 16:9 letterboxing.
+    pub viewport_x: f32,
+    /// Viewport Y offset in UV space (0.0–1.0). Used for 16:9 letterboxing.
+    pub viewport_y: f32,
+    /// Viewport width in UV space (0.0–1.0). Used for 16:9 letterboxing.
+    pub viewport_w: f32,
+    /// Viewport height in UV space (0.0–1.0). Used for 16:9 letterboxing.
+    pub viewport_h: f32,
     /// Padding for 16-byte GPU alignment.
-    pub _padding2: f32,
+    pub _padding3: f32,
+    pub _padding4: f32,
+    pub _padding5: f32,
+}
+
+impl CrtEffectSettings {
+    /// Returns true if barrel distortion correction is needed.
+    pub fn is_barrel_active(&self) -> bool {
+        self.enabled >= 0.5 && self.barrel_distortion != 0.0
+    }
 }
 
 impl Default for CrtEffectSettings {
@@ -62,7 +79,13 @@ impl Default for CrtEffectSettings {
             channel_change: 0.0,
             channel_change_time: 0.0,
             desaturation: 0.0,
-            _padding2: 0.0,
+            viewport_x: 0.0,
+            viewport_y: 0.0,
+            viewport_w: 1.0,
+            viewport_h: 1.0,
+            _padding3: 0.0,
+            _padding4: 0.0,
+            _padding5: 0.0,
         }
     }
 }

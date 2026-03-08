@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, WizardInput,
 };
@@ -20,6 +18,7 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 
@@ -83,7 +82,7 @@ pub(super) fn handle_telekinesis_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
     drops_query: Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: Query<&TelekinesisIndicator>,
@@ -103,7 +102,7 @@ pub(super) fn handle_telekinesis_casting(
     >,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions ensure mouse is held
         pressed: true,

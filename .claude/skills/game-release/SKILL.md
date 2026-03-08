@@ -1,6 +1,6 @@
 ---
 name: game-release
-description: Generate changelog, build release WASM, then commit and push
+description: Generate changelog, then commit and push (CI builds release binaries)
 user-invocable: true
 ---
 
@@ -22,12 +22,7 @@ Perform a full release of the game. Execute these steps in order, stopping if an
    - Don't spoil achievements, unlockables, or hidden content
    - Don't add an `[Unreleased]` section
 
-## Step 2: Build Release
-
-1. Run `./build_wasm.sh --release` to build the production WASM
-2. If the build fails, fix the issue and retry
-
-## Step 3: Commit and Push
+## Step 2: Commit and Push
 
 1. Stage all changed files with `git add -A`
 2. Write a concise commit message summarizing the release

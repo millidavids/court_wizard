@@ -1,7 +1,6 @@
 //! Meteor Fall spell systems.
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use rand::Rng;
 
 use super::components::{
@@ -28,6 +27,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
 };
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -151,14 +151,14 @@ pub(super) fn handle_meteor_fall_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut MeteorFallCircleIndicator>,
     existing_storms: Query<Entity, With<MeteorFallStorm>>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions already ensure mouse is held
         pressed: true,

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.11] - 2026-03-08
+
+### Added
+- **Native desktop app** — the game now runs as a standalone desktop application on Windows, Linux, and macOS instead of in a web browser
+- **Barrel distortion cursor fix** — buttons and UI elements now respond correctly to clicks and hovers when the CRT screen curvature effect is active
+
+### Changed
+- **Save files moved to your computer** — game saves, settings, and progress are now stored in your system's data folder instead of the browser
+- **Multiplayer temporarily disabled** — online multiplayer is offline while it's being rebuilt for the native version
+
+### Removed
+- **Browser version retired** — the web-based version has been replaced by the native desktop app
+
 ## [v0.3.412] - 2026-03-08
 
 ### Added

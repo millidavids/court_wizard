@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-Court Wizard is a real-time strategy game built with Rust and the Bevy game engine (v0.17.3). The game compiles to WebAssembly (WASM) for browser deployment.
+Court Wizard is a real-time strategy game built with Rust and the Bevy game engine (v0.17.3). The game targets native desktop platforms (Windows, Linux, macOS).
 
 ## Technology Stack
 
 - **Language**: Rust (edition 2024)
 - **Game Engine**: Bevy 0.17.3
-- **Target Platforms**: Native (Linux/Windows/Mac) and WebAssembly (browser)
-- **Key Dependencies**: serde, toml, thiserror, anyhow, rand
+- **Target Platforms**: Native (Windows, Linux, macOS)
+- **Key Dependencies**: serde, toml, thiserror, anyhow, rand, dirs
 
 ## Project Structure
 
@@ -85,7 +85,6 @@ Systems are grouped into sets with explicit ordering:
 - When adding new units or spells, check existing implementations for shared patterns
 - Extract common logic into shared functions rather than duplicating code
 - Unit-specific or spell-specific behavior should be minimal overrides on top of shared systems
-- **Multiplayer reuses single-player UI and gameplay systems** — never duplicate SP systems for MP. Instead, widen run conditions (e.g., `is_local_wizard_active`), add parallel `OnEnter` hooks for MP states, and use `Option<ResMut<NextState<...>>>` to handle both SP and MP state transitions in the same system.
 
 ## Key Systems
 
@@ -111,23 +110,27 @@ Systems are grouped into sets with explicit ordering:
 
 ## Build Instructions
 
-### Development (Wasm)
+### Development (Native)
 **IMPORTANT**: After completing ANY task that modifies Rust code, you MUST run (except changelog changes):
 ```bash
-./build_wash.sh
+./build_native.sh
 ```
 
-### Production Build (WASM)
+### Cross-compile for Windows (from WSL2)
 ```bash
-./build_wasm.sh --release
+./build_native.sh windows
+```
+
+### Release Build
+```bash
+./build_native.sh --release
+./build_native.sh windows --release
 ```
 
 This script:
-- Builds the WASM binary with optimizations
-- Copies assets to the web directory
-- Prepares the game for browser deployment
-
-The user tests in a web browser, so changes will NOT be visible until the WASM is rebuilt.
+- Builds the native binary with the specified target and profile
+- Copies assets alongside the binary so the game can find them at runtime
+- Save data is stored in the platform data directory (e.g., `%APPDATA%/court_wizard/` on Windows)
 
 ### Changelog
 - Make sure that the changelog is generated in laymans terms, no need to reference code changes

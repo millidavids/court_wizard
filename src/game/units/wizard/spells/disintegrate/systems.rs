@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -19,6 +17,7 @@ use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
@@ -158,7 +157,7 @@ pub fn handle_disintegrate_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut beams: Query<(Entity, &mut DisintegrateBeam), Without<CrystalSpawn>>,
     visual_assets: Res<SpellVisualAssets>,
     glow_query: Query<Entity, With<BeamGlow>>,
@@ -171,7 +170,7 @@ pub fn handle_disintegrate_casting(
     active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true,
         pressed: true,

@@ -58,10 +58,9 @@ jobs:
                   FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
                   BODY: ${{ steps.changelog.outputs.body }}
               run: |
-                  play_link=$'\n\n🎮 **Play now:** https://millidavids.github.io/court_wizard/'
                   payload=$(jq -n \
                     --arg title "$FULL_TITLE" \
-                    --arg desc "$BODY$play_link" \
+                    --arg desc "$BODY" \
                     '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
                   curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
 

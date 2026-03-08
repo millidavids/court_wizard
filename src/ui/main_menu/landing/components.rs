@@ -31,7 +31,4 @@ pub(super) enum MenuButtonAction {
 
     /// Open the compendium screen, transitioning to `MenuState::Compendium`.
     Compendium,
-
-    /// Open the multiplayer lobby, transitioning to `MenuState::Multiplayer`.
-    Multiplayer,
 }

@@ -116,16 +116,14 @@ pub(super) fn setup(mut commands: Commands) {
     });
 }
 
-/// Handles sprite credits button — opens CSV in a new browser tab.
+/// Handles sprite credits button — logs a message pointing to the CSV file.
 pub(super) fn handle_sprite_credits_button(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&SpriteCreditsButton>,
 ) {
     for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok()
-            && let Some(window) = web_sys::window()
-        {
-            let _ = window.open_with_url_and_target("./SPRITE_CREDITS.csv", "_blank");
+        if button_query.get(event.button).is_ok() {
+            info!("Sprite credits: see SPRITE_CREDITS.csv in the game directory");
         }
     }
 }

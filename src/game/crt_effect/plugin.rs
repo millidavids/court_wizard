@@ -26,9 +26,9 @@ use bevy::{
 use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use super::systems::{
-    RawCursorPosition, animate_channel_change, animate_desaturation,
-    correct_cursor_for_barrel_distortion, handle_channel_change_message,
-    handle_desaturation_message,
+    CorrectedCursorPosition, RawCursorPosition, animate_channel_change, animate_desaturation,
+    correct_cursor_for_barrel_distortion, correct_ui_interaction_for_barrel,
+    handle_channel_change_message, handle_desaturation_message,
 };
 
 const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
@@ -43,6 +43,7 @@ impl Plugin for CrtEffectPlugin {
         ));
 
         app.init_resource::<RawCursorPosition>();
+        app.init_resource::<CorrectedCursorPosition>();
         app.add_message::<ChannelChangeMessage>();
         app.add_message::<ScreenDesaturateMessage>();
 
@@ -62,6 +63,19 @@ impl Plugin for CrtEffectPlugin {
         // Runs in PreUpdate so all downstream systems (spells, UI picking, input)
         // automatically get the corrected position.
         app.add_systems(PreUpdate, correct_cursor_for_barrel_distortion);
+
+        // Correct UI Interaction components after Bevy's ui_focus_system has run.
+        // ui_focus_system reads window.physical_cursor_position() (raw OS cursor),
+        // so we re-do the hit testing with barrel-corrected coordinates and override
+        // the Interaction values it set.
+        app.add_systems(
+            PreUpdate,
+            correct_ui_interaction_for_barrel
+                .after(bevy::ui::UiSystems::Focus)
+                .run_if(|q: Query<&CrtEffectSettings>| {
+                    q.single().is_ok_and(|s| s.is_barrel_active())
+                }),
+        );
 
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;

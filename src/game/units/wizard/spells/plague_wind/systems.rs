@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::components::{PlagueWindCloud, PlagueWindIndicator};
 use super::constants;
 use crate::config::GameConfig;
@@ -20,6 +18,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
 };
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -37,7 +36,7 @@ pub fn handle_plague_wind_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -45,7 +44,7 @@ pub fn handle_plague_wind_casting(
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions ensure mouse is held
         pressed: true,

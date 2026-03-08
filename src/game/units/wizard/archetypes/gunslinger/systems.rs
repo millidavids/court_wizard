@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use rand::Rng;
 
 use super::components::*;
@@ -18,6 +17,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems::spawn_fireball_entity;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 const GUN_SPAWN_POS: Vec3 = Vec3::new(SPELL_ORIGIN.x, SPELL_ORIGIN.y + 30.0, SPELL_ORIGIN.z);
@@ -138,7 +138,7 @@ pub fn fire_machine_gun(
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
@@ -151,7 +151,7 @@ pub fn fire_machine_gun(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some((dir, range)) = aim_at_cursor(cursor_pos) else {
         return;
     };
@@ -199,7 +199,7 @@ pub fn fire_magnum(
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
@@ -212,7 +212,7 @@ pub fn fire_magnum(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some((dir, range)) = aim_at_cursor(cursor_pos) else {
         return;
     };
@@ -254,7 +254,7 @@ pub fn fire_rocket(
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
@@ -267,7 +267,7 @@ pub fn fire_rocket(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some(target) = cursor_pos else { return };
 
     let direction = (target - GUN_SPAWN_POS).normalize();
@@ -308,7 +308,7 @@ pub fn fire_shotgun(
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
 ) {
@@ -321,7 +321,7 @@ pub fn fire_shotgun(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some((dir, range)) = aim_at_cursor(cursor_pos) else {
         return;
     };
@@ -370,7 +370,7 @@ pub fn fire_flamethrower(
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
     mut flamethrower_sfx: ResMut<FlamethrowerSfx>,
@@ -404,7 +404,7 @@ pub fn fire_flamethrower(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let Some((dir, _range)) = aim_at_cursor(cursor_pos) else {
         return;
     };

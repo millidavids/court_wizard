@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use rand::Rng;
 
 use super::super::super::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
@@ -18,6 +17,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -96,7 +96,7 @@ pub fn handle_magic_missile_casting(
     >,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     peer_id: Option<Res<PeerId>>,
@@ -110,7 +110,7 @@ pub fn handle_magic_missile_casting(
         return;
     }
 
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
 
     let Ok((wizard_entity, mut mana, primed_spell, wizard, cooldown)) = wizard_query.single_mut()
     else {
@@ -221,7 +221,7 @@ pub fn update_arcane_barrage(
     mut barrage_query: Query<&mut ArcaneBarrage>,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     camera_query: Query<&GlobalTransform, With<Camera>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystals: Query<(Entity, &Transform, &ArcaneCrystal)>,
     sfx: Res<SpellSfxAssets>,
@@ -237,7 +237,7 @@ pub fn update_arcane_barrage(
     }
     barrage.timer -= barrage.interval;
 
-    let cursor_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
     let spawn_origin = SPELL_ORIGIN;
 
     let params = MissileParams {
@@ -468,7 +468,7 @@ pub fn move_magic_missiles(
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
     crystal_transforms: Query<&Transform, (With<ArcaneCrystal>, Without<MagicMissile>)>,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut sparkle_timer: Local<f32>,
 ) {
     // Track sparkle spawn timing
@@ -479,7 +479,7 @@ pub fn move_magic_missiles(
     }
 
     // Get cursor world position once for guided missiles
-    let cursor_world_pos = get_cursor_world_position(&camera_query_3d, &window_query);
+    let cursor_world_pos = get_cursor_world_position(&camera_query_3d, &corrected_cursor);
 
     for (mut missile_transform, mut missile) in &mut missiles {
         missile.time_alive += time.delta_secs();

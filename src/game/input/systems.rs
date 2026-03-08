@@ -12,6 +12,7 @@ use super::{
     },
     messages::*,
 };
+use crate::game::crt_effect::CorrectedCursorPosition;
 
 /// Clears all mouse input state to prevent stale events from carrying across state transitions.
 ///
@@ -35,7 +36,7 @@ pub fn clear_mouse_input_state(
 #[allow(clippy::too_many_arguments)]
 pub fn detect_mouse_input(
     mut mouse: ResMut<ButtonInput<MouseButton>>,
-    windows: Query<&Window>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut left_pressed: MessageWriter<MouseLeftPressed>,
     mut left_held: MessageWriter<MouseLeftHeld>,
@@ -44,11 +45,8 @@ pub fn detect_mouse_input(
     mut right_held: MessageWriter<MouseRightHeld>,
     mut right_released: MessageWriter<MouseRightReleased>,
 ) {
-    // Get cursor position from primary window
-    let cursor_position = windows
-        .single()
-        .ok()
-        .and_then(|window| window.cursor_position());
+    // Use barrel-distortion-corrected cursor position
+    let cursor_position = corrected_cursor.0;
 
     // Check left mouse button state
     // If button is pressed but we're not getting a just_pressed event, it's stuck from losing focus

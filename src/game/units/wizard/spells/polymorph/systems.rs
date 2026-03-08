@@ -1,8 +1,6 @@
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
 };
@@ -13,6 +11,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{AttackTiming, Corpse, Health, PolymorphedModifier};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 
 /// Local wizard polymorph casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -27,7 +26,7 @@ pub fn handle_polymorph_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     targets_query: Query<
         (
             Entity,
@@ -41,7 +40,7 @@ pub fn handle_polymorph_casting(
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true,
         pressed: true,

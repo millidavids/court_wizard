@@ -48,7 +48,6 @@ These rules apply to ALL features:
 - **Run conditions**: Every `Update` system MUST have a `run_if()` guard. Never run systems unconditionally.
 - **System sets**: Use `VelocitySystemSet` for targeting/flocking (parallel, immutable queries). `MovementSystemSet` for movement application (after velocity). `PostCombatSet` for post-combat reactions.
 - **Code sharing**: Check `src/game/units/systems.rs` and `src/game/shared_systems.rs` before writing new logic. Extract shared patterns into reusable functions.
-- **SP + MP**: Use `Option<ResMut<NextState<...>>>` for state transitions that work in both SP and MP. Use `.run_if(in_state(X).or(in_state(Y)))` for dual-mode systems.
 - **Error handling**: No `.unwrap()`. Use `.expect("reason")` only for invariants.
 - **Asset loading**: Preload in `Startup` systems. Store handles in Resource structs. Reference assets as relative paths from project root.
 - **Spawn queue**: New entities that spawn per-level go through `SpawnTask` enum in `src/game/loading/spawn_queue.rs`.

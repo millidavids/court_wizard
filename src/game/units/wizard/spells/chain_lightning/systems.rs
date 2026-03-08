@@ -2,8 +2,6 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
 };
@@ -24,6 +22,7 @@ use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrysta
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -130,7 +129,7 @@ pub fn handle_chain_lightning_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
@@ -145,7 +144,7 @@ pub fn handle_chain_lightning_casting(
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true,
         pressed: true,

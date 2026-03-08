@@ -1,7 +1,6 @@
 //! Systems for the Teleport spell.
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use rand::Rng;
 
 use super::super::super::components::{
@@ -17,6 +16,7 @@ use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::components::Teleportable;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::resources::NetworkConnection;
 
@@ -91,7 +91,7 @@ pub fn handle_teleport_casting(
         ),
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut caster_query: Query<&mut TeleportCaster>,
     mut destination_query: Query<
         (&mut Transform, &mut TeleportDestinationCircle),
@@ -120,7 +120,7 @@ pub fn handle_teleport_casting(
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions ensure mouse is held
         pressed: true,

@@ -10,7 +10,7 @@ use crate::config::save_data::{
     get_spell_talent_progress, get_spell_talent_selections, load_unified_save, spend_insight,
 };
 use crate::game::constants::boss_name_for_level;
-use crate::game::crt_effect::ChannelChangeMessage;
+use crate::game::crt_effect::{ChannelChangeMessage, CorrectedCursorPosition};
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
 use crate::game::resources::{BattleInsightData, CurrentLevel, KillStats, TimeTravelState};
@@ -1080,7 +1080,7 @@ fn clamp_view_offset(view: &mut GraphViewState, bounds: &GraphBounds) {
 pub(super) fn handle_graph_pan(
     mut commands: Commands,
     buttons: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     ui_scale: Res<bevy::ui::UiScale>,
     mut view: ResMut<GraphViewState>,
     mut drag: ResMut<GraphDragState>,
@@ -1093,10 +1093,7 @@ pub(super) fn handle_graph_pan(
         Or<(With<StudyAllocationSlider>, With<StudyAllocationHandle>)>,
     >,
 ) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
-    let Some(cursor_pos) = window.cursor_position() else {
+    let Some(cursor_pos) = corrected_cursor.0 else {
         if drag.dragging {
             drag.dragging = false;
         }
@@ -1152,6 +1149,7 @@ pub(super) fn handle_graph_zoom(
     mut commands: Commands,
     mut mouse_wheel: MessageReader<MouseWheel>,
     windows: Query<&Window>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     ui_scale: Res<bevy::ui::UiScale>,
     mut view: ResMut<GraphViewState>,
     bounds: Option<Res<GraphBounds>>,
@@ -1160,7 +1158,7 @@ pub(super) fn handle_graph_zoom(
     let Ok(window) = windows.single() else {
         return;
     };
-    let Some(cursor_pos) = window.cursor_position() else {
+    let Some(cursor_pos) = corrected_cursor.0 else {
         return;
     };
     // Convert window-logical cursor to UI space (ComputedNode sizes are in UI space)

@@ -189,7 +189,7 @@ impl Plugin for UnitNamePlugin {
 
 **Add to level config** if unit count scales with difficulty/level.
 
-**Add sprite asset** to `docs/assets/images/` (sprite sheet for animation).
+**Add sprite asset** to `assets/images/` (sprite sheet for animation).
 
 ### 8. Shared Systems Available
 
@@ -212,7 +212,7 @@ Before writing new logic, check these shared systems:
 - [ ] Spawn helper function created
 - [ ] Level config updated for unit counts
 - [ ] Assets preloaded in Startup system
-- [ ] Sprite sheet added to docs/assets/images/
+- [ ] Sprite sheet added to assets/images/
 - [ ] Systems use VelocitySystemSet / MovementCalculationSet correctly
 - [ ] All systems gated with `any_exist::<UnitName>()` and `is_gameplay_running`
 - [ ] Shared targeting/movement systems used where applicable

@@ -1,8 +1,6 @@
 //! Black Hole spell systems.
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::components::{
     BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx, UnitInBlackHole,
 };
@@ -23,6 +21,7 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -118,13 +117,13 @@ pub(super) fn handle_black_hole_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     visual_assets: Res<SpellVisualAssets>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true,
         pressed: true,

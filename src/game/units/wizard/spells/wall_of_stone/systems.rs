@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -18,6 +16,7 @@ use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{AttackTiming, Corpse, Hitbox, TargetingVelocity};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -46,7 +45,7 @@ pub fn handle_wall_of_stone_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
     mut caster_query: Query<&mut WallOfStoneCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -55,7 +54,7 @@ pub fn handle_wall_of_stone_casting(
     game_config: Res<GameConfig>,
 ) {
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &window_query);
+    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
         just_pressed: true, // Run conditions ensure mouse is held
         pressed: true,
