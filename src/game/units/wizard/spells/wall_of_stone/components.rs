@@ -171,6 +171,29 @@ impl WallOfStone {
         [min_x, min_z, max_x, max_z]
     }
 
+    /// Returns `true` if any wall in the slice blocks line-of-sight between two points.
+    pub fn any_blocks_los(walls: &[&Self], from: Vec3, to: Vec3) -> bool {
+        walls
+            .iter()
+            .any(|wall| wall.line_segment_intersects(from, to).is_some())
+    }
+
+    /// Returns the closest point on this wall's surface to the given point (XZ plane).
+    pub fn closest_point_on_surface(&self, point: Vec3) -> Vec3 {
+        let diff = Vec3::new(point.x - self.center.x, 0.0, point.z - self.center.z);
+        let forward_proj = diff.dot(self.forward).clamp(-self.half_length, self.half_length);
+        let right_proj = diff.dot(self.right).clamp(-self.half_width, self.half_width);
+        self.center + self.forward * forward_proj + self.right * right_proj
+    }
+
+    /// Returns the XZ-plane distance from a point to this wall's nearest surface.
+    pub fn distance_to_surface(&self, point: Vec3) -> f32 {
+        let closest = self.closest_point_on_surface(point);
+        let dx = point.x - closest.x;
+        let dz = point.z - closest.z;
+        (dx * dx + dz * dz).sqrt()
+    }
+
     fn slab_intersect(origin: f32, dir: f32, half_extent: f32) -> Option<(f32, f32)> {
         if dir.abs() < 1e-6 {
             // Ray parallel to slab
@@ -206,3 +229,34 @@ impl WallOfStoneCaster {
 /// Marker component for the wall preview mesh shown during drag.
 #[derive(Component)]
 pub struct WallOfStonePreview;
+
+/// Health component for destructible walls.
+///
+/// When HP reaches 0, the wall enters its sinking phase and is removed.
+#[derive(Component)]
+pub struct WallHealth {
+    pub current: f32,
+    pub max: f32,
+}
+
+impl WallHealth {
+    pub fn new(max: f32) -> Self {
+        Self { current: max, max }
+    }
+
+    pub fn take_damage(&mut self, amount: f32) {
+        self.current = (self.current - amount).max(0.0);
+    }
+
+    pub fn is_dead(&self) -> bool {
+        self.current <= 0.0
+    }
+
+    /// Returns HP as a fraction (1.0 = full, 0.0 = dead).
+    pub fn fraction(&self) -> f32 {
+        if self.max <= 0.0 {
+            return 0.0;
+        }
+        self.current / self.max
+    }
+}

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.412] - 2026-03-08
+
+### Added
+- **Destructible walls** — Walls of Stone now have health and can be destroyed by units. When units are completely trapped by walls with no path forward, they'll attack the walls to break free
+- **Wall damage visuals** — walls gradually change color as they take damage, shifting from their normal color to a darker cracked appearance
+- **Wall-aware archers** — archers no longer shoot through walls, and won't stop to fire at enemies when a wall is blocking the approach path. They'll navigate around walls like other units do
+
+### Changed
+- **Smarter wall targeting** — trapped units now push toward the king instead of running to the nearest wall on the map, so they converge on the walls that are actually blocking them
+- **Better unit pathfinding around walls** — units navigate more smoothly around walls instead of trying to push straight through them
+
 ## [v0.3.400] - 2026-03-07
 
 ### Added

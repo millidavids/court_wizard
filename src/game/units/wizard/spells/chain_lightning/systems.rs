@@ -531,6 +531,7 @@ pub fn process_chain_lightning_bounces(
             constants::BOUNCE_RANGE * snapshot.empowerment * snapshot.bounce_range_mult;
 
         // Find up to split_count targets (units + lightning rods + crystals)
+        let wall_snapshot: Vec<_> = walls.iter().collect();
         let targets = find_next_bounce_targets(
             snapshot.last_hit_position,
             &group.hit_entities,
@@ -539,7 +540,7 @@ pub fn process_chain_lightning_bounces(
             &crystals,
             bounce_range,
             snapshot.split_count,
-            &walls,
+            &wall_snapshot,
         );
 
         for (target_entity, target_pos) in &targets {
@@ -760,7 +761,7 @@ fn find_next_bounce_targets(
     crystals: &Query<(Entity, &Transform), With<ArcaneCrystal>>,
     bounce_range: f32,
     max_targets: usize,
-    walls: &Query<&WallOfStone>,
+    walls: &[&WallOfStone],
 ) -> Vec<(Entity, Vec3)> {
     let mut candidates: Vec<(Entity, Vec3, f32)> = enemies
         .iter()
@@ -768,17 +769,10 @@ fn find_next_bounce_targets(
         .filter(|(entity, _, _, _, _, _)| !hit_entities.contains(entity))
         .filter_map(|(entity, transform, _, _, _, _)| {
             let distance = origin.distance(transform.translation);
-            if distance <= bounce_range {
-                // Check wall line-of-sight
-                let blocked = walls.iter().any(|wall| {
-                    wall.line_segment_intersects(origin, transform.translation)
-                        .is_some()
-                });
-                if !blocked {
-                    Some((entity, transform.translation, distance))
-                } else {
-                    None
-                }
+            if distance <= bounce_range
+                && !WallOfStone::any_blocks_los(walls, origin, transform.translation)
+            {
+                Some((entity, transform.translation, distance))
             } else {
                 None
             }
@@ -791,14 +785,10 @@ fn find_next_bounce_targets(
             continue;
         }
         let distance = origin.distance(transform.translation);
-        if distance <= bounce_range {
-            let blocked = walls.iter().any(|wall| {
-                wall.line_segment_intersects(origin, transform.translation)
-                    .is_some()
-            });
-            if !blocked {
-                candidates.push((entity, transform.translation, distance));
-            }
+        if distance <= bounce_range
+            && !WallOfStone::any_blocks_los(walls, origin, transform.translation)
+        {
+            candidates.push((entity, transform.translation, distance));
         }
     }
 
@@ -808,14 +798,10 @@ fn find_next_bounce_targets(
             continue;
         }
         let distance = origin.distance(transform.translation);
-        if distance <= bounce_range {
-            let blocked = walls.iter().any(|wall| {
-                wall.line_segment_intersects(origin, transform.translation)
-                    .is_some()
-            });
-            if !blocked {
-                candidates.push((entity, transform.translation, distance));
-            }
+        if distance <= bounce_range
+            && !WallOfStone::any_blocks_los(walls, origin, transform.translation)
+        {
+            candidates.push((entity, transform.translation, distance));
         }
     }
 

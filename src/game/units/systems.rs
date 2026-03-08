@@ -175,9 +175,18 @@ pub fn calculate_weighted_movement(
         (0.1, 0.1, 0.8)
     };
 
+    // When pathfinding distance is INFINITY, the unit has no valid path to its goal
+    // (e.g. completely enclosed by walls). Give targeting full weight so the unit
+    // can move toward and attack the nearest wall to break free.
+    if distance.is_infinite() && targeting_velocity.velocity.length_squared() > 0.001 {
+        flow_weight = 0.0;
+        flocking_weight = 0.0;
+        targeting_weight = 1.0;
+    }
+
     // On hazardous terrain, boost flow field weight so units follow the rerouted path
     // instead of charging through the hazard toward their target
-    if flow_field_velocity.terrain_cost > 1.0 {
+    if !distance.is_infinite() && flow_field_velocity.terrain_cost > 1.0 {
         flow_weight = 0.8;
         flocking_weight = 0.1;
         targeting_weight = 0.1;
@@ -186,7 +195,9 @@ pub fn calculate_weighted_movement(
     // When pathfinding distance is much larger than straight-line distance to the
     // target, a wall is likely between the unit and its target. Keep flow field
     // weight high so units navigate around the wall instead of pushing into it.
-    if targeting_velocity.velocity.length_squared() > 0.001 {
+    // Skip when distance is INFINITY — those units are fully blocked and need
+    // targeting weight to attack walls.
+    if !distance.is_infinite() && targeting_velocity.velocity.length_squared() > 0.001 {
         let straight_line_distance = targeting_velocity.velocity.length();
         if straight_line_distance > 1.0
             && flow_field_velocity.pathfinding_distance > straight_line_distance * 2.0

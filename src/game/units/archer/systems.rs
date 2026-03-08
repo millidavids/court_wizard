@@ -165,7 +165,9 @@ pub fn archer_ranged_combat(
         ),
         Without<Corpse>,
     >,
+    walls: Query<&WallOfStone>,
 ) {
+    let wall_snapshot: Vec<_> = walls.iter().collect();
     for (
         archer_entity,
         archer_transform,
@@ -219,7 +221,15 @@ pub fn archer_ranged_combat(
             })
             .filter(|(_, transform, _, _, _, _)| {
                 let distance = archer_transform.translation.distance(transform.translation);
-                distance <= attack_range.max_range && distance >= attack_range.min_range
+                if distance > attack_range.max_range || distance < attack_range.min_range {
+                    return false;
+                }
+                // Skip targets blocked by walls
+                !WallOfStone::any_blocks_los(
+                    &wall_snapshot,
+                    archer_transform.translation,
+                    transform.translation,
+                )
             })
             .min_by(|a, b| {
                 let dist_a = archer_transform.translation.distance(a.1.translation);
@@ -245,6 +255,53 @@ pub fn archer_ranged_combat(
 /// Checks if a target is valid for the given team (same logic as combat system).
 fn is_valid_target(source_team: &Team, target_team: &Team) -> bool {
     source_team.is_enemy(target_team)
+}
+
+/// Returns true if any wall is near the straight-line path between two points.
+///
+/// Unlike `line_segment_intersects` (which checks exact LOS), this uses a broader
+/// check: if a wall's center projects onto the line segment and is within
+/// (wall_extent + buffer) of the line, the wall is considered an obstruction.
+/// This catches walls that force the flow field to detour even if they don't
+/// block the geometric line-of-sight.
+fn wall_near_approach_path(walls: &[&WallOfStone], from: Vec3, to: Vec3) -> bool {
+    let line_dir = Vec3::new(to.x - from.x, 0.0, to.z - from.z);
+    let line_len = line_dir.length();
+    if line_len < 1.0 {
+        return false;
+    }
+    let line_normalized = line_dir / line_len;
+
+    for wall in walls {
+        let to_wall = Vec3::new(wall.center.x - from.x, 0.0, wall.center.z - from.z);
+        let projection = to_wall.dot(line_normalized);
+
+        // Wall center must project between the two endpoints (with margin)
+        if projection < 0.0 || projection > line_len {
+            continue;
+        }
+
+        // Perpendicular distance from wall center to the line
+        let closest_on_line = Vec3::new(
+            from.x + line_normalized.x * projection,
+            0.0,
+            from.z + line_normalized.z * projection,
+        );
+        let perp_dist = Vec3::new(
+            wall.center.x - closest_on_line.x,
+            0.0,
+            wall.center.z - closest_on_line.z,
+        )
+        .length();
+
+        // Use the wall's largest extent plus a generous buffer so that walls
+        // near (but not directly on) the LOS line still count as obstructions.
+        let wall_extent = wall.half_length.max(wall.half_width);
+        if perp_dist < wall_extent + WALL_APPROACH_PATH_BUFFER {
+            return true;
+        }
+    }
+    false
 }
 
 /// Spawns an arrow projectile from archer toward target.
@@ -402,12 +459,16 @@ pub fn update_archer_targeting(
         (With<Archer>, Without<Corpse>),
     >,
     all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    walls: Query<&WallOfStone>,
 ) {
     // Collect snapshot of all unit positions
     let unit_snapshot: Vec<_> = all_units
         .iter()
         .map(|(entity, transform, team)| (entity, transform.translation, *team))
         .collect();
+
+    // Collect wall snapshot for line-of-sight checks
+    let wall_snapshot: Vec<_> = walls.iter().collect();
 
     // Update each archer's targeting velocity
     for (entity, transform, team, attack_range, mut targeting_velocity) in &mut archers {
@@ -426,6 +487,7 @@ pub fn update_archer_targeting(
         // Find nearest enemy in seek zone [min_range, seek_range]
         // Archers advance until enemies are within seek range, then stop.
         // They can still shoot up to max_range, but won't stop that far out.
+        // Only count targets with clear line-of-sight (no walls blocking).
         let ranged_target = unit_snapshot
             .iter()
             .filter(|(other_entity, _, other_team)| {
@@ -436,12 +498,17 @@ pub fn update_archer_targeting(
                 let dz = pos.z - target_pos.z;
                 let dist = (dx * dx + dz * dz).sqrt();
                 if dist >= attack_range.min_range && dist <= ARCHER_SEEK_RANGE {
-                    Some(dist)
+                    // Check line-of-sight: skip if any wall blocks the shot
+                    if WallOfStone::any_blocks_los(&wall_snapshot, pos, target_pos) {
+                        None
+                    } else {
+                        Some((dist, target_pos))
+                    }
                 } else {
                     None
                 }
             })
-            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Find nearest enemy overall (fallback for melee or advancing)
         let nearest_enemy = unit_snapshot
@@ -458,9 +525,16 @@ pub fn update_archer_targeting(
             });
 
         // Prefer ranged targets — only fall back to melee/advance if none in range
-        if let Some(ranged_dist) = ranged_target {
-            // Ranged target available — stop and prepare to shoot
-            targeting_velocity.velocity = Vec3::ZERO;
+        if let Some((ranged_dist, target_pos)) = ranged_target {
+            // If a wall is near the approach path (even if it doesn't block direct
+            // LOS), keep advancing so the flow field routes the archer around it.
+            // Otherwise enter shooting stance.
+            targeting_velocity.velocity = if wall_near_approach_path(&wall_snapshot, pos, target_pos)
+            {
+                Vec3::new(target_pos.x - pos.x, 0.0, target_pos.z - pos.z).normalize_or_zero()
+            } else {
+                Vec3::ZERO
+            };
             targeting_velocity.distance_to_target = ranged_dist;
             commands
                 .entity(entity)
@@ -584,12 +658,14 @@ pub fn archer_movement(
             elite_speed.map(|e| e.0),
         );
 
-        // Archer-specific: Stop completely when in optimal shooting range (not in melee)
-        // But keep moving if standing on hazardous terrain (fire, spikes)
-        // Only stop if there's actually a target in range (distance_to_target < MAX)
-        // — otherwise the archer needs to follow the flow field back to spawn
+        // Archer-specific: Stop completely when in optimal shooting range (not in melee).
+        // But keep moving if:
+        //  - standing on hazardous terrain (fire, spikes)
+        //  - no target in range (needs to follow flow field back to spawn)
+        //  - path is fully blocked (wall-attack system needs velocity)
         if in_melee.is_none()
             && flow_field_velocity.terrain_cost <= 1.0
+            && !flow_field_velocity.pathfinding_distance.is_infinite()
             && targeting_velocity.distance_to_target < f32::MAX
         {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;

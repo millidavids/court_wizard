@@ -4,7 +4,7 @@ use bevy::window::PrimaryWindow;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
-use super::components::{WallOfStone, WallOfStoneCaster, WallOfStonePreview};
+use super::components::{WallHealth, WallOfStone, WallOfStoneCaster, WallOfStonePreview};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::config::save_data::SavedWall;
@@ -13,7 +13,9 @@ use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::pathfinding::{ObstacleChanged, ObstacleShape, ObstacleType};
+use crate::game::pathfinding::{FlowFieldVelocity, ObstacleChanged, ObstacleShape, ObstacleType};
+use crate::game::plugin::GlobalAttackCycle;
+use crate::game::units::components::{AttackTiming, Corpse, Hitbox, TargetingVelocity};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -249,6 +251,7 @@ fn wall_of_stone_casting_logic(
                         .with_rotation(rotation)
                         .with_scale(Vec3::new(clamped_length, wall_height, wall_width)),
                     wall,
+                    WallHealth::new(WALL_HEALTH),
                     NetworkedSpellEffect {
                         kind: SpellEffectKind::WallOfStone,
                     },
@@ -426,6 +429,7 @@ pub(crate) fn spawn_permanent_wall(
             empowerment: saved.empowerment,
             permanent: true,
         },
+        WallHealth::new(WALL_HEALTH),
         NetworkedSpellEffect {
             kind: SpellEffectKind::WallOfStone,
         },
@@ -453,5 +457,124 @@ pub(crate) fn register_permanent_wall_obstacles(
                 wall.half_width,
             )),
         });
+    }
+}
+
+/// Units with no valid path (pathfinding_distance == INFINITY) move toward the
+/// king and attack any wall they end up pressed against. This prevents players
+/// from exploiting wall placement to permanently trap units — blocked attackers
+/// naturally converge on the walls surrounding the king rather than scattering
+/// to the nearest wall on the map.
+pub fn units_attack_blocking_walls(
+    attack_cycle: Res<GlobalAttackCycle>,
+    mut blocked_units: Query<
+        (
+            &Transform,
+            &Hitbox,
+            &FlowFieldVelocity,
+            &mut TargetingVelocity,
+            &mut AttackTiming,
+        ),
+        (Without<Corpse>, Without<WallOfStone>),
+    >,
+    king_query: Query<&Transform, With<crate::game::units::king::components::King>>,
+    mut walls: Query<(Entity, &WallOfStone, &mut WallHealth)>,
+) {
+    let current_time = attack_cycle.current_time;
+    let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
+
+    let king_pos = king_query.iter().next().map(|t| t.translation);
+
+    for (transform, hitbox, flow_vel, mut targeting_vel, mut attack_timing) in &mut blocked_units {
+        // Only target walls if this unit has no valid path
+        if !flow_vel.pathfinding_distance.is_infinite() {
+            continue;
+        }
+
+        let unit_pos = transform.translation;
+
+        // Move toward the king — wall collision will stop the unit at the
+        // blocking wall, causing units to pile up where they need to attack.
+        if let Some(king) = king_pos {
+            let diff = Vec3::new(king.x - unit_pos.x, 0.0, king.z - unit_pos.z);
+            targeting_vel.velocity = diff.normalize_or_zero();
+        }
+
+        // Find nearest wall by distance to surface for melee damage
+        let mut nearest_wall_entity = None;
+        let mut nearest_distance = f32::MAX;
+
+        for (entity, wall, _) in walls.iter() {
+            let dist = wall.distance_to_surface(unit_pos);
+            if dist < nearest_distance {
+                nearest_distance = dist;
+                nearest_wall_entity = Some(entity);
+            }
+        }
+
+        // Deal damage if close enough to a wall
+        let attack_range = hitbox.radius + WALL_ATTACK_RANGE;
+        if let Some(wall_entity) = nearest_wall_entity
+            && nearest_distance <= attack_range
+            && attack_timing.can_attack(current_time, last_time)
+            && let Ok((_, _, mut wall_health)) = walls.get_mut(wall_entity)
+        {
+            wall_health.take_damage(WALL_DAMAGE_PER_HIT);
+            attack_timing.record_attack(current_time);
+        }
+    }
+}
+
+/// Destroys walls that have lost all HP by triggering the existing sink + cleanup pipeline.
+pub fn destroy_dead_walls(
+    mut walls: Query<(&mut WallOfStone, &WallHealth)>,
+) {
+    for (mut wall, wall_health) in &mut walls {
+        if wall_health.is_dead() && !wall.sinking {
+            // Enter sinking phase — existing tick_wall_lifetime + cleanup_expired_walls
+            // will handle the rest (obstacle removal, despawn, network sync).
+            wall.sinking = true;
+            wall.permanent = false;
+            wall.duration = wall.time_alive + WALL_SINK_DURATION;
+        }
+    }
+}
+
+/// Tints wall material from base color to damaged color based on remaining HP.
+///
+/// On first damage, clones the shared material into a per-wall instance so
+/// tinting one wall doesn't affect others.
+pub fn update_wall_damage_tint(
+    mut walls: Query<(&WallHealth, &mut MeshMaterial3d<StandardMaterial>), With<WallOfStone>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
+) {
+    let base = WALL_BASE_COLOR.to_srgba();
+    let damaged = WALL_DAMAGED_COLOR.to_srgba();
+
+    for (wall_health, mut material_handle) in &mut walls {
+        if wall_health.current >= wall_health.max {
+            continue;
+        }
+
+        // If still using the shared material, clone it into a per-wall instance
+        if material_handle.0 == visual_assets.wall_of_stone {
+            let Some(shared_mat) = materials.get(&visual_assets.wall_of_stone) else {
+                continue;
+            };
+            let cloned = shared_mat.clone();
+            material_handle.0 = materials.add(cloned);
+        }
+
+        let Some(material) = materials.get_mut(&material_handle.0) else {
+            continue;
+        };
+
+        // Lerp from damaged color (0 HP) to base color (full HP)
+        let hp_frac = wall_health.fraction();
+        let r = damaged.red + (base.red - damaged.red) * hp_frac;
+        let g = damaged.green + (base.green - damaged.green) * hp_frac;
+        let b = damaged.blue + (base.blue - damaged.blue) * hp_frac;
+        material.base_color = Color::srgba(r, g, b, 1.0);
     }
 }

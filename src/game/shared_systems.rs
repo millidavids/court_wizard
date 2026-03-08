@@ -13,6 +13,7 @@ use super::constants::*;
 use super::plugin::GlobalAttackCycle;
 use super::resources::CurrentLevel;
 use super::units::archer::Archer;
+use super::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, CORPSE_MATERIAL_VARIANTS, Corpse, DamageMultiplier, Effectiveness,
@@ -830,10 +831,10 @@ pub fn cleanup_for_replay(
 /// suppressing targeting when blocked, those units follow the flow field
 /// around the wall instead.
 pub fn suppress_targeting_through_walls(
-    walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    walls: Query<&WallOfStone>,
     mut units: Query<
         (&Transform, &mut super::units::components::TargetingVelocity),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Archer>),
     >,
 ) {
     for (transform, mut targeting) in &mut units {
@@ -861,7 +862,7 @@ pub fn suppress_targeting_through_walls(
 /// Applies a steering force to units approaching walls so they navigate around them,
 /// and a proximity-based repulsion force to push units away from nearby walls.
 pub fn apply_wall_avoidance(
-    walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    walls: Query<&WallOfStone>,
     mut units: Query<(&Transform, &Velocity, &mut Acceleration, &Hitbox), Without<Corpse>>,
 ) {
     const AVOIDANCE_DISTANCE: f32 = 80.0; // How far ahead units look for walls

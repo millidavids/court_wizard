@@ -20,5 +20,9 @@ pub const ARROW_LENGTH: f32 = 16.0; // Visual length (rectangle)
 pub const ARROW_POWER_VARIATION: f32 = 0.05; // ±5% power variation
 pub const ARROW_ANGLE_VARIATION_DEGREES: f32 = 1.0; // ±1 degree angle variation
 
+// Wall interaction
+/// How far from the approach path a wall center can be to prevent shooting stance.
+pub const WALL_APPROACH_PATH_BUFFER: f32 = 50.0;
+
 // Spawn counts (for initial testing)
 pub const INITIAL_ARCHER_DEFENDER_COUNT: u32 = 20;
