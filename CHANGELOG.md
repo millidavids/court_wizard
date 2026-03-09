@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.12] - 2026-03-08
+
+### Added
+- **macOS and Linux downloads** — the game now has official release builds for macOS (Apple Silicon) and Linux in addition to Windows
+
+### Changed
+- **Improved build system** — the build script now supports building for macOS and Linux targets directly
+
 ## [v0.4.11] - 2026-03-08
 
 ### Added

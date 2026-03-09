@@ -35,7 +35,7 @@ jobs:
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
 
-  build:
+  build-windows:
     needs: check-version
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: windows-latest
@@ -71,8 +71,83 @@ jobs:
           name: court-wizard-windows-x86_64
           path: release/court-wizard-windows-x86_64.zip
 
+  build-macos:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: macos-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Build release binary
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Bundle release
+        run: |
+          dir="release/court-wizard-macos-aarch64"
+          mkdir -p "$dir"
+          cp target/aarch64-apple-darwin/release/court_wizard "$dir/"
+          cp -r assets "$dir/assets"
+          cp CHANGELOG.md "$dir/"
+          cp CREDITS.md "$dir/"
+          cp SPRITE_CREDITS.csv "$dir/"
+          cd release && zip -r court-wizard-macos-aarch64.zip court-wizard-macos-aarch64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: court-wizard-macos-aarch64
+          path: release/court-wizard-macos-aarch64.zip
+
+  build-linux:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Bundle release
+        run: |
+          dir="release/court-wizard-linux-x86_64"
+          mkdir -p "$dir"
+          cp target/x86_64-unknown-linux-gnu/release/court_wizard "$dir/"
+          cp -r assets "$dir/assets"
+          cp CHANGELOG.md "$dir/"
+          cp CREDITS.md "$dir/"
+          cp SPRITE_CREDITS.csv "$dir/"
+          cd release && zip -r court-wizard-linux-x86_64.zip court-wizard-linux-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: court-wizard-linux-x86_64
+          path: release/court-wizard-linux-x86_64.zip
+
   release:
-    needs: [check-version, build]
+    needs: [check-version, build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write

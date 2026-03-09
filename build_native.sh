@@ -1,25 +1,33 @@
 #!/bin/bash
 set -e
 
-# Build native binaries for Windows (default), Linux, or current host platform.
+# Build native binaries for Windows, Linux, macOS, or current host platform.
 # Usage:
-#   ./build_native.sh                  # Build for Windows (bumps patch version)
-#   ./build_native.sh linux            # Build for Linux (bumps patch version)
-#   ./build_native.sh --release        # Release build for Windows (no bump)
-#   ./build_native.sh --no-bump        # Build without bumping version
-#   ./build_native.sh linux --release
+#   ./build_native.sh                       # Build for host platform (bumps patch version)
+#   ./build_native.sh windows               # Build for Windows
+#   ./build_native.sh linux                 # Build for Linux
+#   ./build_native.sh macos                 # Build for macOS (Apple Silicon)
+#   ./build_native.sh macos-intel           # Build for macOS (Intel)
+#   ./build_native.sh --no-bump             # Build without bumping version
+#   ./build_native.sh --release             # Release build for host (no bump)
+#   ./build_native.sh windows --release     # Release build for Windows
+#   ./build_native.sh linux --release       # Release build for Linux
+#   ./build_native.sh macos --release       # Release build for macOS (Apple Silicon)
+#   ./build_native.sh macos-intel --release # Release build for macOS (Intel)
 
-TARGET="x86_64-pc-windows-gnu"
+TARGET=""
 PROFILE="dev"
 CARGO_PROFILE_FLAG=""
 NO_BUMP=false
 
 for arg in "$@"; do
     case "$arg" in
-        windows)   TARGET="x86_64-pc-windows-gnu" ;;
-        linux)     TARGET="x86_64-unknown-linux-gnu" ;;
-        --release) PROFILE="release"; CARGO_PROFILE_FLAG="--release"; NO_BUMP=true ;;
-        --no-bump) NO_BUMP=true ;;
+        windows)     TARGET="x86_64-pc-windows-gnu" ;;
+        linux)       TARGET="x86_64-unknown-linux-gnu" ;;
+        macos)       TARGET="aarch64-apple-darwin" ;;
+        macos-intel) TARGET="x86_64-apple-darwin" ;;
+        --release)   PROFILE="release"; CARGO_PROFILE_FLAG="--release"; NO_BUMP=true ;;
+        --no-bump)   NO_BUMP=true ;;
     esac
 done
 
@@ -31,7 +39,7 @@ if [ "$NO_BUMP" = false ]; then
     PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
     NEW_PATCH=$((PATCH + 1))
     NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-    sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
+    sed -i '' "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
     echo "Version bumped: $CURRENT_VERSION -> $NEW_VERSION"
 fi
 
