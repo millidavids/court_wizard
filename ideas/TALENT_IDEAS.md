@@ -8,12 +8,12 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 
 ## Table of Contents
 
-1. [Magic Missile](#1-magic-missile)
-2. [Disintegrate](#2-disintegrate)
-3. [Fireball](#3-fireball)
-4. [Guardian Circle](#4-guardian-circle)
-5. [Chain Lightning](#5-chain-lightning)
-6. [Finger of Death](#6-finger-of-death)
+1. [Magic Missile](#1-magic-missile) ✅
+2. [Disintegrate](#2-disintegrate) ✅
+3. [Fireball](#3-fireball) ✅
+4. [Guardian Circle](#4-guardian-circle) ✅
+5. [Chain Lightning](#5-chain-lightning) ✅
+6. [Finger of Death](#6-finger-of-death) ✅
 7. [Raise The Dead](#7-raise-the-dead)
 8. [Teleport](#8-teleport)
 9. [Wall of Stone](#9-wall-of-stone)
@@ -24,14 +24,14 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 14. [Haste](#14-haste)
 15. [Spike Growth](#15-spike-growth)
 16. [Lightning Rod](#16-lightning-rod)
-17. [Telekinesis](#17-telekinesis)
-18. [Meteor Fall](#18-meteor-fall)
+17. [Telekinesis](#17-telekinesis) ✅
+18. [Meteor Fall](#18-meteor-fall) ✅
 19. [Mark of Death](#19-mark-of-death)
 20. [Plague Wind](#20-plague-wind)
 21. [Sleep](#21-sleep)
 22. [Grease](#22-grease)
 23. [Fog Cloud](#23-fog-cloud)
-24. [Battle Hymn](#24-battle-hymn)
+24. [Battle Hymn](#24-battle-hymn) ✅
 25. [Healing Plume](#25-healing-plume)
 26. [Berserker Rage](#26-berserker-rage)
 27. [Banishment](#27-banishment)
@@ -42,7 +42,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 
 ---
 
-## 1. Magic Missile
+## 1. Magic Missile [IMPLEMENTED]
 
 > Fires 3 homing missiles that accelerate toward enemies near the cursor.
 
@@ -52,30 +52,30 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Volley** | Fire 5 missiles at 60% damage instead of 3 at 100%. | "More missiles means more chances to miss. Wait, they're homing? Never mind." |
-| 2 | **Piercing Bolts** | Missiles pass through the first target, hitting up to 2 enemies each. | "The missile said 'excuse me' and kept going. Very polite for a death projectile." |
-| 3 | **Swift Salvo** | Cooldown halved, mana cost +25%. | "Casting faster doesn't make you smarter, but it does make you louder." |
+|---|------|-------------|---------------------|
+| 1 | **Volley** | Fire 5 missiles at 80% damage instead of 3 at 100%. | "More missiles means more problems. For them." |
+| 2 | **Heavy Ordnance** | Fire only 1 missile, but at 4x damage with a larger collision radius. | "Quality over quantity. One big angry missile." |
+| 3 | **Swift Salvo** | Cooldown reduced by 25%, but mana cost increased by 50%. | "Speed costs extra. Wizard union rules." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Seeker Swarm** | When a missile kills its target, it splits into 2 half-damage missiles that seek new targets. | "It's the missile equivalent of 'and tell your friends.'" |
-| 2 | **Arcane Barrage** | Hold to continuously fire 1 missile per 0.2s (concentration). Replaces volley casting. | "Finally, the wizard discovers the joy of holding down the button." |
-| 3 | **Heavy Ordinance** | Fire only 1 missile, but it deals 3x damage with a larger collision radius. | "One big missile is just a fireball with commitment issues." |
+|---|------|-------------|---------------------|
+| 1 | **Seeker Swarm** | When a missile kills its target, it splits into 2 missiles at 20% damage. | "Death begets more death. Poetic, really." |
+| 2 | **Arcane Barrage** | Click to begin automatically casting free volleys every 5s. Requires concentration. | "Hold the button. Keep holding. Don't stop." |
+| 3 | **Piercing Bolts** | Missiles pass through the first target, hitting up to 2 enemies. | "Two birds, one glowing death projectile." |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Missile Storm** | Fire 12 mini-missiles with heavy wobble, each dealing 25% damage. | "The wizard's philosophy: if you can't aim, saturate." |
-| 2 | **Arcane Detonation** | Missiles explode on impact for small AoE damage (50% damage in radius). | "Turns out missiles were just tiny fireballs this whole time." |
-| 3 | **Guided Devastation** | Fire a single massive missile you steer with the cursor (concentration). Very high damage. | "The missile-guidance wizard: 'Left! No, YOUR left! No, wait--'" |
+|---|------|-------------|---------------------|
+| 1 | **Missile Storm** | Fire 4x as many mini-missiles with heavy wobble at 25% damage each. | "When in doubt, fill the sky with explosions." |
+| 2 | **Arcane Detonation** | Missiles explode on impact for small AoE dealing 20% damage in radius. | "Every missile is a fireball if you believe hard enough." |
+| 3 | **Guided Devastation** | All missiles steer toward your cursor at 1.5x damage. No target homing. | "Cruise missile, wizard edition." |
 
 ---
 
-## 2. Disintegrate
+## 2. Disintegrate [IMPLEMENTED]
 
 > Channeled beam that deals continuous damage along a line. Costs mana per second.
 
@@ -85,30 +85,30 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Focused Lens** | Beam width reduced by 40%, but damage increased by 30%. | "Thinner beam, fatter damage numbers. The wizard's diet plan." |
-| 2 | **Searing Residue** | Enemies hit by the beam burn for 3s after leaving, taking 25% beam DPS. | "The beam is gone but the memories -- and the third-degree burns -- linger." |
-| 3 | **Efficient Channeling** | Mana cost per second reduced by 30%. | "The wizard read a self-help book called 'Channel Your Energy (More Cheaply).'" |
+|---|------|-------------|---------------------|
+| 1 | **Focused Lens** | Beam width reduced by 40%, but damage increased by 30%. | "A tighter beam cuts deeper. Laser surgery, wizard style." |
+| 2 | **Unfocused Beam** | Beam is twice as wide but deals only 30% damage. | "Wider coverage, less intensity. Sometimes more is less." |
+| 3 | **Efficient Channeling** | Mana cost per second reduced by 30%. | "Same death ray, less mana drain. Efficiency matters." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Prismatic Beam** | Beam splits into 3 narrower beams in a fan pattern. Each deals 50% damage. | "It's not a disco ball, it's 'tactical light distribution.'" |
-| 2 | **Escalating Intensity** | Beam damage starts at 50% but ramps to 200% over 4 seconds of continuous channeling. | "The beam gets angrier the longer you hold it. Relatable." |
-| 3 | **Sweeping Destruction** | Beam rotates automatically in a slow arc. You choose the arc center, not the endpoint. | "The wizard finally automates the most tedious part: aiming." |
+|---|------|-------------|---------------------|
+| 1 | **Forked Beam** | Fire 3 beams in a fan pattern, each dealing 50% damage. | "One beam is good. Three beams is three times as good." |
+| 2 | **Escalating Intensity** | Damage ramps from 50% to 200% over 4s of channeling. | "Patience is a virtue. A very destructive virtue." |
+| 3 | **Sweeping Destruction** | Beam auto-sweeps in an arc with +100% damage. Cursor sets the center direction. | "Why aim when the beam can do it for you?" |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Annihilation Beam** | Beam width tripled, damage doubled, but mana cost tripled and movement locked. | "For when 'I want to delete that part of the battlefield' is a valid strategy." |
-| 2 | **Disintegration Field** | Beam replaced with a circular zone around the cursor. Same DPS, but hits all enemies in radius. | "Beams are so last century. Zones are in." |
-| 3 | **Unstable Resonance** | Every 2 seconds of channeling, the beam emits a damaging pulse wave along its length. | "The beam vibrates so hard it becomes a speaker. A very lethal speaker." |
+|---|------|-------------|---------------------|
+| 1 | **Annihilation Beam** | Beam rains from the sky at the target location. Locks position on cast. Triple width, double damage, double mana cost. | "Go big or go home. Preferably go big." |
+| 2 | **Searing Finale** | When channeling ends, the beam detonates along its entire length. | "The grand finale. Literally explosive." |
+| 3 | **Beam Fireballs** | Periodically fires small fireballs along the beam. | "The beam hums with barely contained energy." |
 
 ---
 
-## 3. Fireball
+## 3. Fireball [IMPLEMENTED]
 
 > Explosive projectile that detonates on impact, dealing fire damage in a radius.
 
@@ -118,30 +118,30 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Wider Blast** | Explosion radius +50%, damage unchanged. | "The fireball read a book on 'expanding your horizons.' Unfortunately, so did the explosion." |
-| 2 | **Lingering Flames** | Explosion duration +80% (more damage ticks for enemies caught inside). | "The fire is still burning. This is fine. Everything is fine." |
-| 3 | **Quick Ignition** | Cast time reduced to 2.0s instead of 3.0s. | "Speed-casting a fireball. What could go wrong? Don't answer that." |
+|---|------|-------------|---------------------|
+| 1 | **Wider Blast** | Explosion radius increased by 50%. Damage unchanged. | "Bigger boom. Same firepower. More coverage." |
+| 2 | **Lingering Flames** | Explosion duration increased by 80%. Same total damage, more area denial. | "The fire stays. The screaming continues." |
+| 3 | **Focused Blast** | Explosion radius halved, but damage doubled. | "Precision pyrotechnics. A niche field." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Cluster Bomb** | On impact, spawns 3 mini-fireballs that scatter in random directions and detonate. | "It's fireballs all the way down." |
-| 2 | **Napalm** | Fireball leaves a burning trail as it flies across the battlefield. | "The fireball that keeps on giving. And by giving, I mean burning." |
-| 3 | **Focused Blast** | Explosion radius halved, but damage doubled. | "Small boom, big ow. The wizard's approach to real estate: location, location, detonation." |
+|---|------|-------------|---------------------|
+| 1 | **Cluster Bomb** | On impact, spawns 3 mini-fireballs in random directions. | "One fireball is never enough for a real pyromaniac." |
+| 2 | **Napalm** | Fireball leaves a burning trail as it flies, damaging units in its path. | "Everything the fireball touches becomes fire too." |
+| 3 | **Quick Ignition** | Cast time reduced to 2.0s instead of 3.0s. | "Less dramatic. More practical." |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Meteor** | Fireball drops from the sky instead of flying from the wizard. Faster arrival, larger impact zone. | "Why aim horizontally when you can aim vertically? Gravity does the hard part." |
-| 2 | **Scorched Earth** | Explosion leaves persistent burning ground for 5 seconds. | "The real estate value of that patch of ground just went to zero." |
-| 3 | **Chain Ignition** | Enemies hit by the explosion take 50% more damage from all sources for 3 seconds. | "Getting exploded wasn't bad enough. Now everything else hurts more too." |
+|---|------|-------------|---------------------|
+| 1 | **Meteor** | Fireball drops from the sky instead of flying. Faster arrival, larger impact zone. | "Why throw fire sideways when you can drop it from space?" |
+| 2 | **Scorched Earth** | Explosion leaves persistent burning ground for 5 seconds. | "Area denial through aggressive landscaping." |
+| 3 | **Chain Ignition** | Hit enemies take 50% more damage from all sources for 3 seconds. | "Set them on fire AND make them fragile. Efficient." |
 
 ---
 
-## 4. Guardian Circle
+## 4. Guardian Circle [IMPLEMENTED]
 
 > Protective zone that grants temporary HP to all allied units inside.
 
@@ -151,30 +151,30 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Reinforced Wards** | Temp HP amount increased by 40%. | "Thicker shields. The wizard's solution to every problem since wizard school." |
-| 2 | **Enduring Protection** | Temp HP duration increased by 60%. | "The shield lasts so long the defenders forget they have one. Then they remember. Painfully." |
-| 3 | **Expansive Aegis** | Circle radius increased by 50%, but temp HP amount reduced by 15%. | "A wider net catches more fish. And also more soldiers. Metaphor works either way." |
+| 2 | **Enduring Protection** | Temp HP duration increased by 60%. | "The shield lasts so long the defenders forget they have one." |
+| 3 | **Expansive Aegis** | Circle radius increased by 50%, but temp HP amount reduced by 15%. | "A wider net catches more soldiers. Metaphor works either way." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Retaliating Wards** | When temp HP is broken, a burst of force damage hits nearby enemies (equal to temp HP absorbed). | "Hit the shield, the shield hits back. Karma, but magical." |
-| 2 | **Regenerating Barrier** | Temp HP slowly regenerates at 5 HP/s while the unit remains inside the circle. | "The shield has a shield. It's shields all the way down. Someone stop the wizard." |
-| 3 | **Rapid Deployment** | Cast time halved. Can store 2 charges. | "Two circles? At the same time? The wizard is clearly showing off." |
+|---|------|-------------|---------------------|
+| 1 | **Retaliating Wards** | When temp HP is fully broken, a burst of force damage hits nearby enemies. | "Hit the shield, the shield hits back. Karma, but magical." |
+| 2 | **Fortified Resolve** | Shielded units deal 20% more damage while they have temp HP. | "A shield makes you braver. Bravery makes you hit harder." |
+| 3 | **Rapid Deployment** | Cast time halved. | "Two circles? At the same time? The wizard is clearly showing off." |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Sanctuary** | Units inside the circle also take 30% reduced damage from all sources. Circle lasts 8s. | "Step inside the glowing circle on the ground. Yes, I know how that sounds. Trust me." |
-| 2 | **Martyrdom** | When a shielded unit would die, the temp HP explodes outward for massive AoE damage instead. | "They gave their life. And their shield. And everyone nearby's eardrums." |
-| 3 | **Chain Ward** | Temp HP jumps to the nearest unshielded ally when its holder dies. Hops up to 3 times. | "The shield of the fallen passes to the living. Very poetic. Very practical." |
+|---|------|-------------|---------------------|
+| 1 | **Sanctuary** | Shielded units also take 30% reduced damage while they have temp HP. | "Step inside the glowing circle. Yes, I know how that sounds. Trust me." |
+| 2 | **Martyrdom** | When a shielded unit dies, its remaining temp HP explodes as AoE damage to nearby enemies. | "They gave their life. And their shield. And everyone nearby's eardrums." |
+| 3 | **Chain Ward** | When a shielded unit dies, its temp HP jumps to the nearest unshielded ally. Up to 3 hops. | "The shield of the fallen passes to the living. Very poetic. Very practical." |
 
 ---
 
-## 5. Chain Lightning
+## 5. Chain Lightning [IMPLEMENTED]
 
 > Strikes the nearest enemy to cursor, then bounces to 8 additional targets with damage falloff.
 
@@ -184,58 +184,58 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Conducting Bolts** | Bounce range between targets increased by 50%. | "The lightning takes the scenic route. Hits more people along the way." |
-| 2 | **High Voltage** | Initial strike damage increased by 50%, but max bounces reduced to 5. | "Fewer bounces, each one angrier. Lightning with anger management issues." |
-| 3 | **Static Charge** | Hit enemies are slowed by 20% for 2 seconds. | "Getting struck by lightning makes you walk funny. Who knew?" |
+|---|------|-------------|---------------------|
+| 1 | **Conducting Bolts** | Bounce range doubled, but damage reduced by 30%. | "Longer arms on the lightning. It can reach the back row now." |
+| 2 | **High Voltage** | Initial strike damage increased by 80%, but damage falls off faster between bounces. | "Hit harder up front. The rest is just sparks and crying." |
+| 3 | **Static Charge** | Hit enemies are slowed by 20% for 2 seconds. | "Your hair stands up. Then you slow down. Then you regret your life choices." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Forked Lightning** | Lightning splits into 2 independent chains after the first strike, each with 4 bounces. | "Two chains! Double the zapping, double the fun, double the complaints from HR." |
-| 2 | **Ball Lightning** | Instead of bouncing instantly, lightning creates a slow-moving ball that zaps nearby enemies for 4s. | "It's round, it's electric, and it's very angry. Think of it as a weaponized mood." |
-| 3 | **Overcharge** | Each bounce increases damage by 10% instead of reducing it. Max bounces unchanged. | "The lightning gets STRONGER? That's not how physics works. Fortunately, this is magic." |
+|---|------|-------------|---------------------|
+| 1 | **Forked Lightning** | Each bounce splits to 3 targets instead of 2. | "Why hit two when you can hit three? Basic math wizardry." |
+| 2 | **Overcharge** | No damage falloff between bounces, but splits reduced to 1 target and max bounces reduced to 5. | "One bolt, full power, every time. Quality over quantity." |
+| 3 | **Magnetic Pull** | Hit enemies are pulled toward the bolt's previous position. | "Come here. No really. The lightning insists." |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Thunderstorm** | Cast creates 3 simultaneous chain lightning strikes at different targets in the area. Triple mana cost. | "The wizard decided 'one lightning bolt' was for amateurs." |
-| 2 | **Chain Reaction** | If a target is killed by lightning, it explodes in a small AoE and starts a new chain from its corpse. | "Death by lightning: tragic. Death by lightning that causes more lightning: theatrical." |
-| 3 | **Living Lightning** | Lightning bounces indefinitely between at least 2 targets until all targets in range die. Double mana cost. | "The lightning doesn't stop. It never stops. It has a very strong work ethic." |
+|---|------|-------------|---------------------|
+| 1 | **Thunderstorm** | Fires 3 simultaneous chain lightning strikes at different targets. Quadruple mana cost. | "Three bolts for the price of three. The wizard union approved this math." |
+| 2 | **Chain Reaction** | Enemies killed by chain lightning explode, dealing AoE damage and starting a sub-chain from the corpse. | "Death is contagious. Very, very contagious." |
+| 3 | **Living Lightning** | Max bounces increased to 100, bouncing until no unhit targets remain. Double mana cost. | "The lightning has a mind of its own. It won't stop until everyone's been introduced." |
 
 ---
 
-## 6. Finger of Death
+## 6. Finger of Death [IMPLEMENTED]
 
 > Massive damage instant-kill beam. Requires 50% mana to cast. 1000 base damage.
 
-**Progress metric:** Enemies killed with the beam
-**Tier thresholds:** 5 / 20 / 60
+**Progress metric:** Enemies killed by beam
+**Tier thresholds:** 20 / 60 / 180
 
-### Tier 1
+### Tier 1: Beam Modifiers
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Death's Reach** | Beam width increased by 50%, can hit multiple enemies in a line. | "The finger of death got fatter. We don't talk about it." |
 | 2 | **Soul Harvest** | Killing a target refunds 15% of max mana. | "Death pays dividends. The wizard's retirement plan is horrifying." |
 | 3 | **Quick Draw** | Cast time reduced by 40%. | "Point and shoot. The finger of death gets a speed upgrade. Enemies hate this one trick." |
 
-### Tier 2
+### Tier 2: Resource/Utility
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Necrotic Explosion** | Killed targets explode for 200 damage in a medium radius. | "They're already dead, what's a little explosion going to do? Oh, to the people AROUND them." |
+|---|------|-------------|---------------------|
+| 1 | **Finger of Undeath** | Killed targets are instantly raised as undead allies. | "Killed them AND recruited them. Two birds, one very spooky stone." |
 | 2 | **Death Sentence** | Mana threshold reduced to 30%, but damage reduced to 700. Cooldown reduced by 50%. | "Cheaper, weaker, faster. The fast food of death magic." |
 | 3 | **Siphon Life** | Beam heals the nearest defender for 50% of damage dealt. | "Someone had to die so that someone else could live. The wizard calls this 'triage.'" |
 
-### Tier 3
+### Tier 3: Transformative
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Reaper's Scythe** | Beam sweeps in an arc over 1 second, hitting everything in its path. Damage reduced to 400 per target. | "The finger of death goes through a phase. A 'sweep everything' phase." |
-| 2 | **Finger of Undeath** | Killed targets are instantly raised as undead allies (like Raise the Dead). | "Killed them AND recruited them. Two birds, one very spooky stone." |
+|---|------|-------------|---------------------|
+| 1 | **Reaper's Scythe** | Beam sweeps in an arc over 1 second, hitting everything in its path. Damage reduced to 60%. | "The finger of death goes through a phase. A 'sweep everything' phase." |
+| 2 | **Necrotic Explosion** | Killed targets explode for 200 damage in a medium radius. | "They're already dead, what's a little explosion going to do? Oh, to the people AROUND them." |
 | 3 | **Deathmark** | Beam instead applies a 5-second debuff. If the target dies during the debuff, a second Finger of Death fires at the nearest enemy automatically (at 50% damage). | "Kill chain. The only chain letter anyone actually follows up on." |
 
 ---
@@ -250,7 +250,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Mass Graves** | Resurrection radius increased by 60%. | "Cast a wider net. For corpses. This job description is something else." |
 | 2 | **Hasty Ritual** | Channeling speed starts at max speed instead of ramping up. | "Skipping the warm-up chant. The dead don't care about proper procedure." |
 | 3 | **Efficient Necromancy** | Mana cost per corpse reduced by 30%. | "Raising the dead on a budget. Student loans don't pay themselves. Wait, or do they?" |
@@ -258,7 +258,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Empowered Undead** | Raised undead have 50% more HP and deal 25% more damage. | "Better zombies through magic. If you're going to reanimate, reanimate with style." |
 | 2 | **Plague Bearer** | Raised undead emit a poison aura, dealing damage to nearby living enemies. | "The undead don't just fight. They bring ambiance. Toxic, lethal ambiance." |
 | 3 | **Corpse Magnet** | Corpses within a large radius are pulled toward the cursor before resurrection. | "The corpses come to you! It's like a drive-through but for necromancy." |
@@ -266,7 +266,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Revenant Lord** | Instead of many undead, raise one powerful Revenant with 5x HP, heavy damage, and an aura that buffs other undead. | "One champion of the dead is worth fifty shambling corpses. Economical AND terrifying." |
 | 2 | **Undead Detonation** | Raised undead explode when they die (again), dealing heavy damage in a radius. | "They were already dead, so technically this is recycling." |
 | 3 | **Perpetual Unrest** | When a raised undead kills an enemy, that enemy is automatically raised. No mana cost. | "It's a pyramid scheme, but with zombies. Honestly, most pyramid schemes already are." |
@@ -283,7 +283,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Wide Aperture** | Source circle radius increased by 50%. | "Bigger circle means more soldiers. Or more confused soldiers. Either way." |
 | 2 | **Hasty Translocation** | Second cast time reduced by 40%. | "Teleporting faster means less time to reconsider your terrible destination choice." |
 | 3 | **Lingering Gate** | Destination marker persists for 5 seconds, allowing a second teleport to the same spot. | "The portal stays open. In case you forgot someone. Or your keys." |
@@ -291,7 +291,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Disorienting Arrival** | Teleported enemies are stunned for 2 seconds on arrival. Teleported allies gain +20% attack speed for 3s. | "Surprise! You're somewhere else now. Take a moment. Take several moments." |
 | 2 | **Swap** | Instead of place-then-teleport, swap all units between two circles simultaneously. | "Musical chairs, but with soldiers and existential dread." |
 | 3 | **Emergency Recall** | Can be instant-cast without a destination to teleport all allies in radius back to the castle entrance. | "EVERYONE COME HOME. NOW. No, I don't care what you were doing." |
@@ -299,7 +299,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Dimensional Rift** | Creates a persistent two-way portal between source and destination for 10 seconds. Units walk through freely. | "A door. The wizard invented a door. A magical, reality-bending door, but still." |
 | 2 | **Banishing Teleport** | Enemies teleported are banished for 3 seconds upon arrival (removed from play briefly). | "Teleported AND banished? That's just rude. Efficient, but rude." |
 | 3 | **Scatterport** | Teleports each unit in the source to a random location within a large radius. Enemies only. Lower mana cost. | "Where did they go? Everywhere. Literally everywhere. Good luck regrouping." |
@@ -316,7 +316,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Reinforced Foundation** | Maximum wall length increased by 50%. | "Longer wall. The wizard is compensating for something, and that something is a lack of wall." |
 | 2 | **Quick Masonry** | Wall rises 50% faster after placement. | "Speed construction. OSHA would not approve, but OSHA doesn't fight goblins." |
 | 3 | **Cheap Materials** | Mana cost reduced by 30%. | "The discount wall. Made of slightly less magical stone. Shh, don't tell the attackers." |
@@ -324,7 +324,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Spiked Wall** | Enemies that walk into the wall take damage and are knocked back. | "The wall fights back. Architecture has never been so aggressive." |
 | 2 | **Crumbling Barricade** | Wall has HP and can be destroyed, but you can place 3 walls simultaneously. | "Quantity over quality. The wall's motto and also the wizard's dating strategy." |
 | 3 | **Maze Maker** | Can place walls in L-shapes and T-shapes by clicking corners during drag. | "The wizard minored in interior design. Specifically, 'hostile interior design.'" |
@@ -332,7 +332,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Fortress** | Wall is permanent until manually dismissed. Only one permanent wall at a time. | "One wall to rule them all. It's not going anywhere. Neither are the enemies." |
 | 2 | **Crushing Walls** | Place two walls. After 3 seconds, they slam together, dealing massive damage to anything between them. | "The wizard watched too many adventure movies. 'The walls are closing in' is now literal." |
 | 3 | **Living Stone** | Wall slowly advances forward (toward enemies) at walking speed for 8 seconds before stopping. | "The wall is coming for you. The WALL. IS. COMING. FOR. YOU." |
@@ -349,7 +349,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Deepening Well** | Gravity pull strength increased by 30%. | "Stronger pull. The black hole has been working out." |
 | 2 | **Accelerated Collapse** | Cast time reduced to 14 seconds. | "The wizard learned to cast faster by skipping the safety warnings. What safety warnings?" |
 | 3 | **Wider Event Horizon** | Gravity range increased by 40%, but pull strength reduced by 15%. | "It reaches further but grabs softer. Like the wizard's social skills." |
@@ -357,7 +357,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Hawking Radiation** | Black hole emits periodic energy pulses that damage all units within gravity range. | "Named after a very smart man who would probably not approve of this usage." |
 | 2 | **Time Dilation** | Enemies inside the gravity field move and attack 50% slower. | "Time passes differently near a black hole. For enemies, it passes very, very badly." |
 | 3 | **Gravitational Lens** | Spells that pass near the black hole curve toward it, increasing their effective range. | "Bending light, bending spells, bending the rules. The black hole is very flexible." |
@@ -365,7 +365,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Supernova** | When the black hole expires, it explodes outward for massive damage proportional to enemies consumed. | "What goes in must come out. Physics is terrifying." |
 | 2 | **Binary Stars** | Summon two smaller black holes that orbit each other. Reduced individual pull, but covers more area. | "Two black holes. The wizard may have exceeded the recommended dosage of cosmic horror." |
 | 3 | **Singularity** | Black hole becomes permanent but stationary. Very small radius. Only one at a time. No damage, pure displacement. | "It just... sits there. Forever. Pulling. The wizard created a metaphor for student debt." |
@@ -382,7 +382,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Bitter Cold** | Damage per ice shard increased by 30%. | "Colder ice. Somehow. The wizard doesn't understand thermodynamics and neither should you." |
 | 2 | **Howling Winds** | Storm radius increased by 30%. | "The storm got bigger. The enemies got sadder." |
 | 3 | **Freezing Rain** | Ice spawns 40% faster but each shard deals 20% less damage. | "More ice, less damage per ice. It's a quantity play." |
@@ -390,7 +390,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Permafrost** | Enemies hit 3+ times become frozen solid for 2 seconds (can't move or attack). | "Freeze! No literally. The wizard is very literal." |
 | 2 | **Hailstones** | Some ice shards are replaced with larger hailstones that deal 3x damage but spawn less frequently. | "Big ice. Big damage. Big problem for anyone standing in the circle." |
 | 3 | **Sleet Storm** | Storm also reduces enemy accuracy by 40% (attacks have a chance to miss). | "Can't hit what you can't see through a blizzard. Tactical meteorology." |
@@ -398,7 +398,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Absolute Zero** | After 5 seconds of channeling, everything in the storm freezes completely for 4 seconds. Massive mana cost. | "Entropy stops. Time stops. The wizard's heating bill does not stop." |
 | 2 | **Blizzard** | Storm follows the cursor slowly while channeling instead of staying in place. | "A movable ice storm. The wizard is basically a weather god now. A very petty weather god." |
 | 3 | **Ice Age** | Storm leaves permanent frozen ground that slows enemies by 30%. Persists after channeling ends. | "The ice never melts. Global warming has met its match: one very stubborn wizard." |
@@ -415,7 +415,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Infernal Reach** | Maximum wall length increased by 40%. | "Longer fire wall. More fire. The solution to every problem according to the wizard." |
 | 2 | **White Hot** | Damage per tick increased by 40%. | "The fire got hotter. Shocking development. Someone alert the press." |
 | 3 | **Eternal Flame** | Wall duration increased by 50%. | "This fire just won't quit. It's the most motivated thing on the battlefield." |
@@ -423,7 +423,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Heat Wave** | Enemies within a radius of the wall (not just touching it) are slowed by 25%. | "It's hot NEAR the fire too? What is this, science?" |
 | 2 | **Spreading Flames** | Wall slowly expands outward from its center, growing 20% wider over its duration. | "The fire grows. The wizard is starting to think this was a bad idea." |
 | 3 | **Flash Fire** | Wall appears instantly at full strength. First tick deals triple damage. Duration halved. | "Fast burn, bright burn, done burn. Like the wizard's last relationship." |
@@ -431,7 +431,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Ring of Fire** | Drag in a circle to create a fire ring that traps enemies inside. | "Walk the line? No. Walk the circle. A circle of fire. Johnny Cash would be proud." |
 | 2 | **Wildfire** | Wall of fire slowly creeps forward (toward enemies) for its duration. | "Fire that chases you. Because regular fire wasn't scary enough." |
 | 3 | **Phoenix Blaze** | When the wall expires, it detonates along its full length for massive burst damage. | "The wall died as it lived: on fire and ruining someone's day." |
@@ -448,7 +448,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Deep Roots** | Root duration increased by 40%. | "The vines grip tighter and longer. The enemies are not having a good time." |
 | 2 | **Tangling Reach** | Circle radius increased by 40%. | "Wider roots. More enemies. Same amount of screaming." |
 | 3 | **Selective Growth** | Only roots enemies. Allies can move freely through the zone. | "Smart vines. They check your ID before grabbing you." |
@@ -456,7 +456,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Thorned Vines** | Rooted enemies take 3 damage per second while held. | "The plants are hostile now. The wizard's garden has gone off the rails." |
 | 2 | **Constricting Grasp** | Rooted enemies deal 40% less damage while held. | "Hard to swing a sword when a vine is squeezing your everything." |
 | 3 | **Snap Trap** | Instant cast (0s cast time), but radius reduced by 40%. | "Quick roots for quick thinking. Or quick panicking. Either works." |
@@ -464,7 +464,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Stranglehold** | When root expires, enemies are slowed by 50% for 3 seconds as they tear free. | "Freedom! Sweet-- oh, still tangled. Slightly less tangled freedom." |
 | 2 | **Living Thicket** | Rooted area becomes impassable terrain (like Wall of Stone) for the root duration. Other enemies must path around. | "It's a wall made of angry plants. The wizard's HOA is going to have opinions." |
 | 3 | **Parasitic Bloom** | Rooted enemies heal nearby allies for 50% of any damage they receive while rooted. | "The enemies become accidental medics. They're very upset about this career change." |
@@ -481,7 +481,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Alacrity** | Speed bonus increased by 40%. | "Faster fast. The fasting of the fast. Fast." |
 | 2 | **Extended Rush** | Buff duration increased by 50%. | "They stay fast for longer. The wizard invented caffeine, basically." |
 | 3 | **Quick Cast** | Cast time reduced by 50%. | "Casting a speed spell... faster. The irony is not lost on the wizard." |
@@ -489,7 +489,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Adrenaline Surge** | Hasted units also gain +20% attack speed. | "They move fast AND hit fast. They're basically hummingbirds with swords." |
 | 2 | **Momentum** | Hasted units deal 25% more damage for 2 seconds after the buff ends. | "Newton's first law: a soldier in motion stays in motion. And hits harder." |
 | 3 | **Fleet Feet** | Hasted units dodge the first attack made against them. | "So fast the attacks miss. Honestly, this feels like cheating." |
@@ -497,7 +497,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Time Warp** | Hasted units take their turns twice as fast (double attack speed AND movement). Duration halved. | "Speeding up time itself. The wizard's calendar just had a panic attack." |
 | 2 | **Slow Zone** | Haste also creates a lingering slow field on the ground for enemies. Speed buff for allies, slow for enemies in the same zone. | "Fast friends, slow enemies. The wizard's approach to time management." |
 | 3 | **Chain Haste** | When the buff expires, it jumps to the nearest un-hasted ally. Loses 20% effectiveness per jump. Up to 4 jumps. | "The speed is contagious. Patient zero is doing laps around the castle." |
@@ -514,7 +514,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Barbed Thorns** | Damage per tick increased by 40%. | "Sharper spikes. The wizard upgraded from 'ow' to 'OW.'" |
 | 2 | **Creeping Growth** | Zone radius increases by 20% over its duration. | "The spikes spread. Nature finds a way. A painful, stabby way." |
 | 3 | **Persistent Brambles** | Zone duration increased by 50%. | "The spikes refuse to leave. They've put down roots. Literally." |
@@ -522,7 +522,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Bleeding Wounds** | Enemies leaving the zone continue to take damage for 3 seconds. | "You left the spikes, but the spikes didn't leave you." |
 | 2 | **Grasping Thorns** | Slow effect doubled while inside the zone. | "Walking through molasses. Molasses made of knives." |
 | 3 | **Reactive Spines** | Spike Growth deals bonus damage when enemies are pushed or pulled into it by other spells. | "Combo bonus! The spikes appreciate the teamwork." |
@@ -530,7 +530,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Iron Maiden** | Zone deals damage proportional to the enemy's movement speed (faster = more damage). Stationary enemies take no damage. | "Stand still and it won't hurt. Move and it REALLY will. The wizard invented a moral dilemma." |
 | 2 | **Erupting Thorns** | Every 3 seconds, spikes erupt upward dealing burst damage to all enemies in the zone. | "The ground explodes periodically. Real estate agents HATE this spell." |
 | 3 | **Thorn Fortress** | Zone becomes impassable to enemies (they path around it) but allies can walk through freely. | "Selective spikes. They know friend from foe. The wizard trained them. He doesn't want to talk about how." |
@@ -547,7 +547,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Overcharged Rod** | Arc damage increased by 30%. | "More voltage. The rod is overperforming. Just like the wizard's ego." |
 | 2 | **Extended Broadcast** | Arc radius increased by 40%. | "The rod's range increases. It's the cell tower of death." |
 | 3 | **Rapid Discharge** | Strike interval reduced by 30%. | "Lightning strikes the same place twice. And three times. And four..." |
@@ -555,7 +555,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Grounding Field** | Enemies within arc radius are slowed by 20%. | "The air is electric. Also the ground. Also the enemies. Everything is electric." |
 | 2 | **Superconduction** | Enemies hit by the rod take 30% more damage from all electric sources for 3 seconds. | "Wet enemies conduct better. The wizard paid attention in SOME classes." |
 | 3 | **Tesla Coil** | Rod arcs constantly (every 0.5s) to the 2 nearest enemies instead of periodic mass strikes. | "It just keeps zapping. It's like a bug zapper but for soldiers." |
@@ -563,14 +563,14 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Storm Spire** | Rod is permanent until destroyed (has HP). Only one at a time. Damage scales with rod lifetime. | "It's there forever. A monument to the wizard's commitment to electrocution." |
 | 2 | **Chain Conductor** | Place up to 3 rods. Lightning arcs between rods, damaging everything in the path. | "A fence made of lightning. The wizard just reinvented the electric fence. Centuries late." |
 | 3 | **Thunderlord's Beacon** | When the rod expires, a massive final strike hits ALL enemies in double the arc radius. | "Going out with a bang. Literally. A very loud, electric bang." |
 
 ---
 
-## 17. Telekinesis
+## 17. Telekinesis [IMPLEMENTED]
 
 > Picks up dropped spell ingredients from the battlefield.
 
@@ -580,30 +580,30 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Long Reach** | Pickup radius doubled. | "The wizard's invisible hand reaches further. Mostly for ingredients. Mostly." |
-| 2 | **Quick Grab** | Cast time reduced to near-instant. Can cast while another spell is cooling down. | "Grab and go. The telekinetic drive-through." |
-| 3 | **Eagle Eye** | Ingredients glow brighter and are visible through fog and spell effects. | "You can see the shiny things now. The wizard is basically a magpie with a degree." |
+|---|------|-------------|---------------------|
+| 1 | **Auto-Target** | No need to aim near a drop. Casting anywhere auto-targets the nearest drop on the field. | "Point anywhere. The magic knows what you want." |
+| 2 | **Quick Grab** | Cast time is near-instant. | "Blink and you'll miss it. Literally." |
+| 3 | **Mana Efficiency** | Mana cost reduced by 50%. | "Same spell, half the magical effort." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Magnetic Pull** | Ingredients within a large radius slowly drift toward the wizard over time. | "The ingredients come to you. Magic is just laziness with better branding." |
-| 2 | **Harvest** | Telekinesis also deals minor damage to enemies near the pickup point. | "Picking up ingredients AND slapping enemies. Multitasking." |
-| 3 | **Keen Senses** | Enemies killed while Telekinesis is equipped have a 20% higher chance to drop ingredients. | "The wizard's presence alone makes enemies drop things. Intimidation or clumsiness?" |
+|---|------|-------------|---------------------|
+| 1 | **Magnetic Pull** | Ingredients passively drift toward the wizard. | "The ingredients come to you. As it should be." |
+| 2 | **Harvest** | Picking up an ingredient deals minor damage to nearby enemies. | "Every pickup is a tiny explosion. Convenient." |
+| 3 | **Keen Senses** | Ingredient drop chance increased by 50% while Telekinesis is equipped. | "You see things others miss. Shiny things." |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Telekinetic Storm** | Activate to pull ALL ingredients on the battlefield to you simultaneously. Long cooldown. | "MINE. ALL OF THEM. MINE. The wizard has entered goblin mode." |
-| 2 | **Transmutation** | Small chance when picking up any ingredient to upgrade it to a rarer ingredient. | "Lead into gold, but for spell components. The wizard calls it 'upcycling.'" |
-| 3 | **Psychic Shockwave** | Each pickup creates a small shockwave that pushes enemies away from the collection point. | "The wizard picks up groceries so aggressively it knocks people over." |
+|---|------|-------------|---------------------|
+| 1 | **Telekinetic Storm** | Single cast pulls ALL ingredients on the battlefield. Costs 3x mana per ingredient. | "Why pick up one when you can grab them all?" |
+| 2 | **Transmutation** | Each ingredient collected grants +10% brew potency (stacking). Resets on brew. | "The ingredients whisper their secrets to you." |
+| 3 | **Psychic Shockwave** | Each pickup creates a knockback shockwave pushing enemies away. | "BOOM. Ingredient collected. Enemies scattered." |
 
 ---
 
-## 18. Meteor Fall
+## 18. Meteor Fall [IMPLEMENTED]
 
 > Concentration spell that rains meteors in a radius. Meteors explode and leave burning ground.
 
@@ -613,26 +613,26 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Dense Barrage** | Meteor spawn rate increased by 30%. | "More rocks from the sky. The wizard is having a very productive day." |
-| 2 | **Scorching Impact** | Explosion damage increased by 30%. | "Bigger booms. The meteors have been hitting the gym." |
-| 3 | **Wide Devastation** | Storm radius increased by 30%. | "The danger zone got bigger. Exit the danger zone? No. The danger zone exits YOU." |
+|---|------|-------------|---------------------|
+| 1 | **Dense Barrage** | Meteor spawn rate increased by 30%. | "More rocks from the sky. Simple but effective." |
+| 2 | **Scorching Impact** | Explosion and ground fire damage increased by 30%. | "Hotter meteors. The ground remembers." |
+| 3 | **Wide Devastation** | Storm radius increased by 30%. | "A wider rain of destruction. Cover more ground." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Molten Core** | Burning ground lasts twice as long and deals 50% more damage. | "The ground stays on fire. For a WHILE. Sorry about the property values." |
-| 2 | **Tracking Meteors** | Meteors are slightly guided toward enemies instead of landing randomly. | "Smart rocks from space. The future of warfare is guided geology." |
-| 3 | **Aftershock** | Each meteor impact creates a small shockwave that knocks enemies outward. | "Rocks from above, shockwaves below. There is no safe direction." |
+|---|------|-------------|---------------------|
+| 1 | **Molten Core** | Ground fire lasts twice as long and deals 50% more damage. | "The ground burns longer. Much longer." |
+| 2 | **Tracking Meteors** | Meteors steer toward nearby enemies as they fall. | "Smart rocks. What a time to be alive." |
+| 3 | **Aftershock** | Each meteor impact knocks nearby enemies outward and deals bonus damage. | "The impact sends everything flying. Physics!" |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Extinction Event** | After 5 seconds of channeling, drop one massive meteor that covers the entire storm radius. | "The dinosaurs send their regards." |
-| 2 | **Volcanic Eruption** | Meteor impacts stack. Areas hit by multiple meteors erupt, dealing escalating damage. | "The ground can only take so much. Then it erupts. The wizard relates." |
-| 3 | **Meteor Shower** | Mana cost halved, but meteors are smaller with less damage. Spawn rate tripled. | "Tiny rocks. Very many tiny rocks. Death by a thousand pebbles." |
+|---|------|-------------|---------------------|
+| 1 | **Extinction Event** | After 5 seconds of channeling, one massive meteor strikes the entire storm area for 100 damage. | "The big one. Dinosaurs hate this trick." |
+| 2 | **Volcanic Eruption** | Meteors landing near existing ground fire trigger eruption bursts with escalating damage. | "Fire on fire on fire. It keeps getting worse." |
+| 3 | **Meteor Shower** | Triple meteor spawn rate, but each meteor is smaller and weaker. Half mana cost. | "Quantity has a quality all its own." |
 
 ---
 
@@ -646,7 +646,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Deep Mark** | Damage amplification increased to 75%. | "More vulnerable. MORE. The wizard has no concept of 'enough.'" |
 | 2 | **Lingering Curse** | Mark duration increased to 12 seconds. | "The mark sticks around. Like a bad reputation. Or glitter." |
 | 3 | **Swift Hex** | Marking refunds 50% of its mana cost if the target dies while marked. | "Mark, kill, refund. The wizard invented magical couponing." |
@@ -654,7 +654,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Spreading Blight** | If a marked target dies, the mark jumps to the nearest enemy (50% remaining duration). | "The mark is contagious. Don't worry, it's only fatal." |
 | 2 | **Executioner's Brand** | Marked targets take an additional burst of damage when they fall below 30% HP. | "Kicking them while they're down. The wizard learned from cats." |
 | 3 | **Focal Point** | Defender units prioritize attacking marked targets. | "HIT THAT ONE. THAT ONE. The wizard has become a backseat driver for combat." |
@@ -662,7 +662,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Mass Marking** | Mark affects all enemies in a radius instead of a single target. Damage amp reduced to 35%. | "Everyone's marked. It's like a very aggressive roll call." |
 | 2 | **Death's Ledger** | Marked enemies that die cause a necrotic explosion. More HP the target had = bigger explosion. | "In death, they give back to the community. Violently." |
 | 3 | **Doom** | Mark cannot be removed and damage amplification increases by 10% per second. | "The mark grows. The mark hungers. The wizard is slightly concerned about the mark." |
@@ -679,7 +679,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Virulent Strain** | Damage per tick increased by 30%. | "The plague got worse. It was already a plague. How does a plague get worse? Like this." |
 | 2 | **Expanding Miasma** | Cloud radius increased by 40%. | "Bigger cloud. Bigger problems. The wizard's motto." |
 | 3 | **Lingering Toxin** | Cloud duration increased by 40%. | "The cloud just hangs around. Like a bad smell. Because it IS a bad smell." |
@@ -687,7 +687,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Weakening Plague** | Enemies inside the cloud deal 25% less damage. | "The plague saps their strength. It's multitasking: hurt AND debuff." |
 | 2 | **Pandemic** | Enemies that leave the cloud carry the poison with them for 4 seconds, spreading it to nearby allies. | "Patient zero leaves the cloud and visits friends. This is how plagues work." |
 | 3 | **Directed Wind** | You can control the cloud's direction by pointing the cursor. | "Steering a plague cloud. Add it to the resume under 'unique skills.'" |
@@ -695,7 +695,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Toxic Deluge** | Cloud rains poison droplets, dealing burst damage to random enemies inside every 2 seconds. | "It rains poison. INSIDE the cloud. There are no safe spaces in the poison cloud." |
 | 2 | **Death Fog** | Cloud becomes opaque -- enemies inside cannot be targeted by other enemies (friendly fire zone). | "Nobody can see in the fog. This is terrifying for everyone involved." |
 | 3 | **Plague of Ages** | Cloud splits into 3 smaller clouds traveling in different directions. | "Three plagues for the price of one. The wizard's BOGO deal." |
@@ -712,7 +712,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Deep Slumber** | Sleep duration increased by 40%. | "They sleep deeper. The wizard could learn from them. He hasn't slept in days." |
 | 2 | **Lullaby** | Circle radius increased by 40%. | "A bigger nap zone. Like a very aggressive daycare." |
 | 3 | **Nightmare Fuel** | Wake-up bonus damage increased by 50%. | "They wake up and IMMEDIATELY regret it." |
@@ -720,7 +720,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Narcoleptic Wave** | Sleep spreads to nearby awake enemies over 3 seconds (expanding radius). | "The sleep is contagious. Like yawning, but magical and involuntary." |
 | 2 | **Night Terrors** | Sleeping enemies take minor damage per second (not enough to wake them). | "They dream of being hurt. The dreams are accurate." |
 | 3 | **Drowsy** | Cast time halved. Mana cost reduced by 25%. | "Quicker casting. The wizard is getting sleepy just thinking about it. Hmm." |
@@ -728,7 +728,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Comatose** | Sleeping enemies can only be woken by taking damage equal to 30% of their max HP. Small damage doesn't wake them. | "They sleep through everything. EVERYTHING. The wizard's roommate in wizard college was like this." |
 | 2 | **Dreamwalker** | While enemies sleep, the wizard can cast one other spell without breaking their sleep. | "Cast within a cast. Spellception. The wizard saw that movie too." |
 | 3 | **Eternal Slumber** | Enemies that fall asleep below 25% HP never wake up (instant kill). | "They drift off peacefully. No refunds. No returns. No waking." |
@@ -745,7 +745,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Extra Slippery** | Slow effect increased by 30%. | "MORE slippery. The enemies can barely stand. Comedy gold." |
 | 2 | **Wider Slick** | Zone radius increased by 40%. | "Bigger puddle. The wizard should have been a plumber." |
 | 3 | **Volatile Mixture** | When ignited, fire damage increased by 50%. | "The grease burns better now. Better for us, not for them." |
@@ -753,7 +753,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Slip and Fall** | Enemies entering the grease have a 30% chance to fall prone (stunned 1.5s). | "They fall down. In the grease. This is the wizard's finest hour." |
 | 2 | **Oil Slick** | Grease also reduces enemy armor by 20% while they're inside. | "The oil gets in the joints. The armor joints. This is not a massage." |
 | 3 | **Greek Fire** | Ignited grease cannot be extinguished and burns for the full remaining duration. | "Undying fire. The wizard learned this from ancient history class. He actually attended that one." |
@@ -761,7 +761,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Chain Combustion** | When one grease zone ignites, fire spreads to any other grease zones within range. | "The fires connect. The wizard's arson network is now fully operational." |
 | 2 | **Grease Geyser** | On ignition, grease erupts upward, launching enemies into the air. They take fall damage on landing. | "Oil + fire = geyser. The wizard is basically an oil derrick now." |
 | 3 | **Endless Oil** | Grease zone regenerates over 10 seconds after igniting, becoming slippery again (can be re-ignited). | "It comes back. It always comes back. The self-replenishing grease. Disgusting AND effective." |
@@ -778,7 +778,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Dense Fog** | Evasion chance increased to 55%. | "Thicker fog. Harder to see. The wizard can't see either, but that's a feature." |
 | 2 | **Expanding Mists** | Zone radius increased by 40%. | "More fog. The visibility report says 'no.'" |
 | 3 | **Clinging Haze** | Evasion persists for 2 seconds after leaving the fog. | "The fog follows you. Clingy fog. The fog has attachment issues." |
@@ -786,7 +786,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Blinding Mist** | Enemies inside the fog have their attack range halved. | "They can't see far. They're swinging at shadows. Some of those shadows swing back." |
 | 2 | **Concealing Veil** | Allies inside the fog cannot be targeted by ranged attacks from outside the fog. | "Out of sight, out of range. The wizard invented stealth technology." |
 | 3 | **Disorienting Vapors** | Enemies inside have a 20% chance to attack an ally instead of their target. | "The fog makes them confused. They start hitting each other. Entertainment value: priceless." |
@@ -794,14 +794,14 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Phantom Fog** | Fog creates illusory defenders that enemies waste attacks on (30% of attacks target phantoms). | "Fake soldiers in the fog. The enemies can't tell what's real. Neither can the wizard, honestly." |
 | 2 | **Choking Fog** | Fog also deals minor damage per second to enemies (not allies). | "The fog fights back. It's gone from cover to weapon. Fog with an attitude." |
 | 3 | **Rolling Fog** | Fog slowly moves in the direction enemies are coming from, meeting them earlier. | "The fog approaches. It has places to be. People to obscure." |
 
 ---
 
-## 24. Battle Hymn
+## 24. Battle Hymn [IMPLEMENTED]
 
 > Grants damage and attack speed buff to all defenders in a radius.
 
@@ -811,26 +811,26 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Inspiring Words** | Buff duration +50%. | "The wizard's speech is so good the soldiers remember it for longer. It's mostly threats, but still." |
-| 2 | **War Drums** | Damage bonus +50%. | "LOUDER. HIT HARDER. The wizard's motivational speaking style needs work." |
-| 3 | **Wide Anthem** | Buff radius +40%. | "The wizard's voice carries. Mostly complaints, but also magical inspiration." |
+|---|------|-------------|---------------------|
+| 1 | **Inspiring Words** | Buff duration increased by 50%. | "Longer song, longer buff. Music theory is simple." |
+| 2 | **War Drums** | Damage bonus increased by 50%. | "LOUDER equals STRONGER. Science." |
+| 3 | **Wide Anthem** | Buff radius increased by 40%. | "The acoustics in this battlefield are terrible." |
 
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Fortifying Hymn** | Buffed units gain 20 temporary HP. | "The song is so good it makes you physically tougher. Music critics are baffled." |
-| 2 | **Echoing Song** | Buff re-applies once when it expires (50% duration). | "The encore nobody asked for but everyone needed." |
-| 3 | **Swift March** | Buffed units also gain +25% move speed. | "They march faster because the song has a really good beat." |
+|---|------|-------------|---------------------|
+| 1 | **Fortifying Hymn** | Buffed units gain 20 temporary hit points. | "Music so good it generates a force field." |
+| 2 | **Echoing Song** | When the buff expires, it re-applies once at 50% duration. | "The song gets stuck in their heads." |
+| 3 | **Swift March** | Buffed units also gain 25% movement speed. | "Double-time! Left, left, left-right-left!" |
 
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
-| 1 | **Hymn of Legends** | Damage and attack speed bonuses doubled. | "The wizard found the good verses. The ones that were too powerful for regular use." |
-| 2 | **Anthem of Resilience** | Buffed units take 30% reduced damage. | "They're not just inspired -- they're practically invincible. Keyword: practically." |
-| 3 | **Chorus of Valor** | Buff affects ALL defenders on the field (ignores radius). | "The wizard's voice reaches everyone. There is no escape from the singing." |
+|---|------|-------------|---------------------|
+| 1 | **Hymn of Legends** | Damage and attack speed bonuses doubled. | "This song goes to eleven." |
+| 2 | **Anthem of Resilience** | Buffed units take 30% reduced damage. | "Defense through the power of music. Bards were right all along." |
+| 3 | **Chorus of Valor** | Buff affects ALL defenders on the field, ignoring radius. Double mana cost. | "The whole army hears the song. Surround sound." |
 
 ---
 
@@ -844,7 +844,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Rejuvenating Mists** | Healing per tick increased by 40%. | "Stronger healing. The plume went to medical school. Very briefly." |
 | 2 | **Verdant Bloom** | Zone radius increased by 40%. | "Bigger healing cloud. Stand in the green circle. Why is this so hard for people?" |
 | 3 | **Lasting Remedy** | Zone duration increased by 50%. | "The healing lingers. Like the smell of the wizard's potions. Less pleasant, equally effective." |
@@ -852,7 +852,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Cleansing Plume** | Removes debuffs (slow, root, vulnerability) from allies inside the zone. | "It heals AND cleans. The wizard invented magical soap." |
 | 2 | **Overflow** | Healing that exceeds max HP becomes temporary HP (up to 20 temp HP). | "Can't waste the extra healing. Redirect it. The wizard is an efficiency expert." |
 | 3 | **Triage Pulse** | Allies below 30% HP are healed for double the amount. | "The sicker you are, the harder it works. The plume is a workaholic." |
@@ -860,7 +860,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Font of Life** | Units that die inside the healing zone are resurrected at 25% HP after 3 seconds. Once per unit. | "Death is temporary. Healing is permanent. The plume has strong opinions about mortality." |
 | 2 | **Sanctified Ground** | Enemies inside the healing zone deal 30% less damage and are slowed by 20%. | "Healing for friends, hostility for everyone else. The plume plays favorites." |
 | 3 | **Healing Rain** | Zone becomes mobile, following the cursor slowly. Healing per tick reduced by 25%. | "Portable healing. The wizard is basically an ambulance now." |
@@ -877,7 +877,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Blood Fury** | Damage bonus increased to 120%. Vulnerability increased to 65%. | "More damage in both directions. The berserker philosophy: hit harder, consequences later." |
 | 2 | **Controlled Rage** | Vulnerability reduced to 30%. Damage bonus reduced to 60%. | "Slightly calmer rage. The berserker took one anger management class." |
 | 3 | **Primal Roar** | Buff radius increased by 50%. | "EVERYONE GETS ANGRY. EVERYONE. Even the archers in the back." |
@@ -885,7 +885,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Bloodlust** | Enraged units heal for 15% of damage dealt. | "They heal by hitting things. The wizard discovered the world's most violent therapy." |
 | 2 | **Undying Fury** | Enraged units that would die instead survive at 1 HP for 2 seconds. | "Too angry to die. Briefly. Very briefly." |
 | 3 | **Frenzy** | Enraged units gain +30% attack speed as their HP drops below 50%. | "Lower health, faster attacks. They're panicking productively." |
@@ -893,7 +893,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Wrath Incarnate** | Enraged units deal 200% bonus damage but vulnerability is 100% (double damage taken). | "Glass cannon mode. Emphasis on GLASS. And CANNON." |
 | 2 | **Contagious Rage** | When an enraged unit kills an enemy, the nearest calm ally becomes enraged. | "The rage spreads. It's like office drama but with axes." |
 | 3 | **Final Stand** | If an enraged unit dies, they explode for damage equal to 50% of their max HP. | "Even in death, they rage. That's commitment to the bit." |
@@ -910,7 +910,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Extended Exile** | Banish duration increased to 12 seconds. | "Gone for longer. Where do they go? The wizard's pocket dimension. It's mostly storage." |
 | 2 | **Quick Dismissal** | Cast time reduced by 50%. | "Faster banishment. 'You're gone. NEXT.'" |
 | 3 | **Cheap Ticket** | Mana cost reduced by 30%. | "Economy class banishment. Same destination, less magical overhead." |
@@ -918,7 +918,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Painful Return** | Banished enemies take heavy damage when they return. | "Welcome back! Here's your complementary damage." |
 | 2 | **Displacement** | Banished enemy reappears at a random location far from where it was banished. | "They come back but have NO idea where they are. Cosmic disorientation." |
 | 3 | **Dual Banishment** | Can banish 2 targets simultaneously. Second target costs 50% mana. | "Two disappearances for the price of one and a half." |
@@ -926,7 +926,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Dimensional Shunt** | Banished enemies return at half HP regardless of their HP when banished. | "The pocket dimension is not a pleasant vacation. Zero stars. Would not recommend." |
 | 2 | **Mass Banishment** | Banishes all enemies in a radius. Very high mana cost. Short duration (4s). | "Everyone disappears. The battlefield is briefly a very peaceful meadow." |
 | 3 | **One-Way Trip** | If the banished enemy's HP is below 20% when banished, they don't come back. | "Some trips are one-way. The wizard doesn't make the rules. Actually, the wizard does make the rules." |
@@ -943,7 +943,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Extended Transformation** | Polymorph duration increased to 14 seconds. | "More time as a sheep. The enemy's wool production is off the charts." |
 | 2 | **Fragile Form** | Sheep HP reduced to 5 (from 20). Much easier to kill. | "A very fragile sheep. One good sneeze and it's over." |
 | 3 | **Quick Shapeshift** | Cast time reduced by 40%. | "Baa faster. Wait, that's not-- cast faster." |
@@ -951,7 +951,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Explosive Sheep** | If the sheep is killed, it explodes for medium AoE damage. | "The sheep explodes. Nobody expected the sheep to explode. NOBODY." |
 | 2 | **Contagious Baas** | Enemies near the sheep for 3+ seconds are also polymorphed (once per sheep). | "Sheep making more sheep. The wizard has created a woolen pyramid scheme." |
 | 3 | **Pig Form** | Target becomes a pig instead. Pig runs away from combat at high speed (repositioning). | "Not a sheep? A pig? The wizard is branching out into animal husbandry." |
@@ -959,7 +959,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Permanent Livestock** | If the sheep survives its full duration, the transformation is permanent. | "The sheep IS the enemy now. It lives on the farm. It seems happy, actually." |
 | 2 | **Mass Polymorph** | Transforms all enemies in a small radius into sheep. Very high mana cost. | "An entire flock. The wizard has become a shepherd. A very aggressive shepherd." |
 | 3 | **Dire Sheep** | The sheep is friendly, has 200 HP, and headbutts enemies for moderate damage. | "It's a BATTLE sheep. Big horns. Bad attitude. The enemies are deeply confused." |
@@ -976,7 +976,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Refined Facets** | Sub-projectile damage increased by 25%. | "Sharper crystal, sharper projectiles. The wizard polished it. With magic, not a cloth." |
 | 2 | **Wider Prism** | Crystal collision radius increased by 40%, easier to hit with spells. | "A bigger target to aim at. Even the wizard can hit it now." |
 | 3 | **Enduring Crystal** | Crystal duration increased by 30%. | "The crystal lasts longer. It's the Energizer Bunny of magical artifacts." |
@@ -984,7 +984,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Overcharged Matrix** | Sub-projectile count increased by 50% (rounded up). | "More projectiles per spell. The crystal is an overachiever." |
 | 2 | **Resonance Cascade** | Crystal stores absorbed spell energy. After 3 absorptions, emits a powerful burst in all directions. | "Charge it up, let it rip. The crystal has been watching too many anime." |
 | 3 | **Spell Echo** | Crystal has a 30% chance to duplicate an absorbed spell entirely (full damage copy). | "Sometimes the crystal just... copies your homework. Magical plagiarism." |
@@ -992,7 +992,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Crystal Network** | Place up to 3 crystals. Spells chain between crystals, amplifying at each one. | "A network of crystals. The wizard built a magical internet. It runs on fireballs." |
 | 2 | **Prismatic Explosion** | Crystal explodes when it expires, dealing massive damage of every damage type in a large radius. | "The crystal goes out in a blaze of... every element. It's beautiful AND lethal." |
 | 3 | **Auto-Crystal** | Crystal automatically fires its own low-damage spell projectiles at nearby enemies every 2 seconds (no spell input needed). | "The crystal casts spells by itself. The wizard is being replaced by a ROCK." |
@@ -1009,7 +1009,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Broad Spectrum** | Dispel projectile also removes buffs from enemies hit (not just spell zones). | "Dispels everything. Buffs, debuffs, self-confidence. Gone." |
 | 2 | **Swift Cancellation** | Cooldown between casts reduced by 40%. | "Faster dispelling. For when one magical mistake isn't enough." |
 | 3 | **Efficient Nullification** | Mana cost reduced to near-zero. | "Free dispels. The wizard's most cost-effective spell. Accountants love this." |
@@ -1017,7 +1017,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Mana Drain** | Dispelling an effect restores mana to the wizard equal to 50% of the dispelled spell's cost. | "Destroying magic AND getting paid for it. The wizard is basically a magical recycler." |
 | 2 | **Explosive Nullification** | Dispelled spell effects detonate on removal, dealing damage in a small radius. | "The spell doesn't just go away. It goes away VIOLENTLY." |
 | 3 | **Counterspell** | Projectile travels 50% faster and has a 25% larger collision radius. | "Faster, bigger, harder to dodge. The dispel projectile has been working on itself." |
@@ -1025,7 +1025,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Antimagic Pulse** | Replaces projectile with a radial pulse that dispels ALL spell effects in a large radius around the wizard. | "EVERYTHING STOPS. All magic, gone. The wizard is now the fun police." |
 | 2 | **Spell Reflection** | Dispelled offensive spells are redirected back at the nearest enemy. | "Return to sender. The postal service of magical warfare." |
 | 3 | **Null Zone** | Dispel creates a persistent anti-magic zone at the impact point for 5s. No spells function inside. | "A zone where magic doesn't work. The wizard has created a very awkward dead zone at parties." |
@@ -1042,7 +1042,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 1
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Iron Will** | Control duration increased to 14 seconds. | "Longer control. The wizard's grip on their mind is uncomfortably firm." |
 | 2 | **Deep Domination** | Controlled units deal 25% more damage. | "They fight harder for you than they ever fought for themselves. That's either inspiring or depressing." |
 | 3 | **Quick Subjugation** | Cast time reduced by 40%. | "Faster mind control. Consent is not a factor. Neither is ethics class." |
@@ -1050,7 +1050,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 2
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Puppet Master** | Max controlled units increased to 5. | "More puppets. The wizard's hand is getting tired. Metaphorically. Mind-hands don't cramp." |
 | 2 | **Traitor's Mark** | Controlled enemies cause nearby enemies to take 15% more damage (demoralization). | "Their friends turned on them. That hurts. Also the swords hurt. Everything hurts." |
 | 3 | **Amnesia** | When mind control ends, the target is confused for 3 seconds (attacks random targets, friend or foe). | "They forgot which side they were on. Then they forgot what 'sides' are." |
@@ -1058,7 +1058,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 ### Tier 3
 
 | # | Name | Description | Joke Text (locked) |
-|---|------|-------------|--------------------|
+|---|------|-------------|---------------------|
 | 1 | **Dominate** | Controlled unit is permanent until it dies. Only one permanent unit at a time. | "They work for you now. Forever. The wizard skipped the part about 'temporary' in the spellbook." |
 | 2 | **Mass Hysteria** | All enemies in a radius attack each other for 4 seconds. Not true mind control -- they just lose it. | "Everyone fights everyone. It's like Black Friday but with swords." |
 | 3 | **Sleeper Agent** | Controlled enemy appears to return to normal when the effect ends, but betrays its allies after 5 seconds, attacking with 200% damage once. | "Trust issues: the spell. They look normal. They seem fine. They are NOT fine." |

@@ -25,6 +25,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::ChainLightning => chain_lightning_talents(),
         Spell::Telekinesis => telekinesis_talents(),
         Spell::GuardianCircle => guardian_circle_talents(),
+        Spell::FingerOfDeath => finger_of_death_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -568,6 +569,74 @@ fn guardian_circle_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Chain Ward",
                 description: "When a shielded unit dies, its temp HP jumps to the nearest unshielded ally. Up to 3 hops.",
                 locked_text: "The shield of the fallen passes to the living. Very poetic. Very practical.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn finger_of_death_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Beam Modifiers
+        [
+            TalentDefinition {
+                name: "Death's Reach",
+                description: "Beam width increased by 50%, can hit multiple enemies in a line.",
+                locked_text: "The finger of death got fatter. We don't talk about it.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Soul Harvest",
+                description: "Killing a target refunds 15% of max mana.",
+                locked_text: "Death pays dividends. The wizard's retirement plan is horrifying.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Draw",
+                description: "Cast time reduced by 40%.",
+                locked_text: "Point and shoot. The finger of death gets a speed upgrade. Enemies hate this one trick.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Resource/Utility
+        [
+            TalentDefinition {
+                name: "Finger of Undeath",
+                description: "Killed targets are instantly raised as undead allies.",
+                locked_text: "Killed them AND recruited them. Two birds, one very spooky stone.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Death Sentence",
+                description: "Mana threshold reduced to 30%, but damage reduced to 700. Cooldown reduced by 50%.",
+                locked_text: "Cheaper, weaker, faster. The fast food of death magic.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Siphon Life",
+                description: "Beam heals the nearest defender for 50% of damage dealt.",
+                locked_text: "Someone had to die so that someone else could live. The wizard calls this 'triage.'",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative
+        [
+            TalentDefinition {
+                name: "Reaper's Scythe",
+                description: "Beam sweeps in an arc over 1 second, hitting everything in its path. Damage reduced to 60%.",
+                locked_text: "The finger of death goes through a phase. A 'sweep everything' phase.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Necrotic Explosion",
+                description: "Killed targets explode for 200 damage in a medium radius.",
+                locked_text: "They're already dead, what's a little explosion going to do? Oh, to the people AROUND them.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Deathmark",
+                description: "Beam instead applies a 5-second debuff. If the target dies during the debuff, a second Finger of Death fires at the nearest enemy automatically (at 50% damage).",
+                locked_text: "Kill chain. The only chain letter anyone actually follows up on.",
                 implemented: true,
             },
         ],

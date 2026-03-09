@@ -10,7 +10,7 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         // Offense spells
         Spell::Disintegrate => [40, 120, 350],
         Spell::ChainLightning => [30, 100, 300],
-        Spell::FingerOfDeath => [20, 60, 180],
+        Spell::FingerOfDeath => [5, 10, 20],
         Spell::LightningRod => [30, 100, 300],
         Spell::MeteorFall => [20, 70, 200],
         Spell::MarkOfDeath => [15, 50, 150],
@@ -50,7 +50,7 @@ pub(crate) fn progress_metric_label(spell: Spell) -> &'static str {
         Spell::BattleHymn => "Defenders inspired",
         Spell::Disintegrate => "Enemies damaged by beam",
         Spell::ChainLightning => "Enemies struck by lightning",
-        Spell::FingerOfDeath => "Enemies damaged by beam",
+        Spell::FingerOfDeath => "Enemies killed by beam",
         Spell::LightningRod => "Enemies struck by arcs",
         Spell::MeteorFall => "Enemies damaged by meteors",
         Spell::MarkOfDeath => "Enemies marked",

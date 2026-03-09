@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.16] - 2026-03-09
+
+### Added
+- **Finger of Death talents** — the Finger of Death spell now has a full talent tree with 9 talents across 3 tiers, unlocked by killing enemies with the beam
+- **Tier 1: Casting options** — choose between a wider beam, mana refund on kills, or faster casting
+- **Tier 2: Bonus effects** — choose between raising killed enemies as undead, a cheaper but weaker beam with shorter cooldown, or healing your nearest injured defender when the beam hits
+- **Tier 3: Devastating upgrades** — choose between a sweeping arc that cuts through groups, explosive bursts on kills, or a cascading chain that jumps between enemies
+
+### Changed
+- **Finger of Death visual overhaul** — the beam now uses a pointed triangle shape with pulsing purple glow, color cycling, shimmer effects, and a bright flare at the origin
+- **Finger of Death base damage reduced** — lowered from 1000 to 500 to better balance with the new talent options
+
 ## [v0.4.15] - 2026-03-09
 
 ### Added

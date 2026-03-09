@@ -129,6 +129,7 @@ pub struct SpellVisualAssets {
     // ── Finger of Death VFX materials ────────────────────────────────────
     pub necrotic_vein: Handle<StandardMaterial>,
     pub finger_of_death_glow: Handle<StandardMaterial>,
+    pub finger_of_death_flare: Handle<StandardMaterial>,
     pub necrotic_pulse: Handle<StandardMaterial>,
 
     // ── Telekinesis talent materials ────────────────────────────────────────
@@ -316,9 +317,9 @@ pub fn init_spell_visual_assets(
         crystal_beam: materials.add(unlit(Color::srgb(1.0, 0.6, 0.1))),
         crystal_arc: materials.add(unlit(Color::srgba(0.6, 0.4, 1.0, 0.9))),
         finger_of_death_beam: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.6, 0.0, 0.8, 0.0),
+            base_color: Color::srgb(0.6, 0.0, 0.8),
             unlit: true,
-            alpha_mode: AlphaMode::Blend,
+            emissive: bevy::color::LinearRgba::new(1.5, 0.0, 2.5, 1.0),
             ..default()
         }),
         disintegrate_beam: materials.add(StandardMaterial {
@@ -417,11 +418,17 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
         finger_of_death_glow: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.2, 0.0, 0.3, 0.15),
+            base_color: Color::srgba(0.4, 0.0, 0.6, 0.25),
             unlit: true,
-            emissive: bevy::color::LinearRgba::new(0.5, 0.0, 0.8, 1.0),
+            emissive: bevy::color::LinearRgba::new(0.8, 0.0, 1.2, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
+            ..default()
+        }),
+        finger_of_death_flare: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.9, 0.7, 1.0),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(3.0, 1.0, 5.0, 1.0),
             ..default()
         }),
         necrotic_pulse: materials.add(StandardMaterial {
@@ -618,6 +625,7 @@ impl SpellVisualAssets {
             // Finger of Death VFX
             &self.necrotic_vein,
             &self.finger_of_death_glow,
+            &self.finger_of_death_flare,
             &self.necrotic_pulse,
             // Magic Missile VFX
             &self.missile_glow,
