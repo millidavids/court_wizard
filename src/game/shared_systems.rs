@@ -403,6 +403,7 @@ pub fn combat(
             Option<&super::units::components::BattleHymnModifier>,
             Option<&super::units::components::BerserkerRageModifier>,
             Option<&RetaliationTarget>,
+            Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
         ),
         (Without<Corpse>, Without<Boss>),
     >,
@@ -417,6 +418,7 @@ pub fn combat(
         Option<&super::units::components::BerserkerRageModifier>,
         Option<&super::units::components::SleepModifier>,
         Option<&super::units::components::BattleHymnModifier>,
+        Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
     )>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -426,7 +428,7 @@ pub fn combat(
     let mut units_snapshot: Vec<_> = all_units
         .iter()
         .map(
-            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _)| {
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _, _)| {
                 (entity, transform.translation, *hitbox, *team)
             },
         )
@@ -456,6 +458,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         retaliation,
+        guardian_circle_attacker,
     ) in &mut all_units
     {
         // Skip attack if sleeping or banished
@@ -511,6 +514,7 @@ pub fn combat(
                     berserker_rage_target,
                     target_sleeping,
                     target_battle_hymn,
+                    guardian_circle_shielded,
                 )) = health_query.get_mut(*target_entity)
             {
                 // Check fog evasion
@@ -528,7 +532,8 @@ pub fn combat(
                     + cauldron_damage_bonus.map_or(0.0, |b| b.0)
                     + elite_damage_bonus.map_or(0.0, |b| b.0)
                     + battle_hymn.map_or(0.0, |b| b.damage_bonus)
-                    + berserker_rage_attacker.map_or(0.0, |b| b.damage_bonus);
+                    + berserker_rage_attacker.map_or(0.0, |b| b.damage_bonus)
+                    + guardian_circle_attacker.map_or(0.0, |g| g.fortified_damage_bonus);
                 let damage_multiplier = 1.0 + damage_percentage;
                 let mut modified_damage =
                     ATTACK_DAMAGE * effectiveness.multiplier() * damage_multiplier;
@@ -543,6 +548,13 @@ pub fn combat(
                     && hymn.damage_reduction > 0.0
                 {
                     modified_damage *= 1.0 - hymn.damage_reduction;
+                }
+
+                // Apply Guardian Circle Sanctuary damage reduction
+                if let Some(gc) = guardian_circle_shielded
+                    && gc.sanctuary_reduction > 0.0
+                {
+                    modified_damage *= 1.0 - gc.sanctuary_reduction;
                 }
 
                 // Apply target's Mark of Death amplification

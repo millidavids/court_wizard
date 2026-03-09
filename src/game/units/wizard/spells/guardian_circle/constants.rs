@@ -27,3 +27,38 @@ pub const TEMP_HP_DURATION: f32 = 20.0;
 
 /// Y position of the circle indicator (slightly above ground).
 pub const CIRCLE_Y_POSITION: f32 = 1.0;
+
+// === Talent Constants ===
+
+/// Tier 1, Choice 0: Reinforced Wards — temp HP multiplier.
+pub(super) const REINFORCED_WARDS_MULT: f32 = 1.4;
+
+/// Tier 1, Choice 1: Enduring Protection — duration multiplier.
+pub(super) const ENDURING_PROTECTION_MULT: f32 = 1.6;
+
+/// Tier 1, Choice 2: Expansive Aegis — radius multiplier.
+pub(super) const EXPANSIVE_AEGIS_RADIUS_MULT: f32 = 1.5;
+
+/// Tier 1, Choice 2: Expansive Aegis — temp HP reduction.
+pub(super) const EXPANSIVE_AEGIS_HP_MULT: f32 = 0.85;
+
+/// Tier 2, Choice 0: Retaliating Wards — burst damage when temp HP breaks.
+pub(super) const RETALIATING_WARDS_DAMAGE: f32 = 30.0;
+
+/// Tier 2, Choice 0: Retaliating Wards — burst damage radius.
+pub(super) const RETALIATING_WARDS_RADIUS: f32 = 80.0;
+
+/// Tier 2, Choice 1: Fortified Resolve — damage bonus while shielded.
+pub(super) const FORTIFIED_RESOLVE_DAMAGE_MULT: f32 = 0.2;
+
+/// Tier 2, Choice 2: Rapid Deployment — cast time multiplier.
+pub(super) const RAPID_DEPLOYMENT_CAST_MULT: f32 = 0.5;
+
+/// Tier 3, Choice 0: Sanctuary — damage reduction while shielded.
+pub(super) const SANCTUARY_DAMAGE_REDUCTION: f32 = 0.3;
+
+/// Tier 3, Choice 1: Martyrdom — explosion radius on death.
+pub(super) const MARTYRDOM_DAMAGE_RADIUS: f32 = 100.0;
+
+/// Tier 3, Choice 2: Chain Ward — max number of hops.
+pub(super) const CHAIN_WARD_MAX_HOPS: u32 = 3;

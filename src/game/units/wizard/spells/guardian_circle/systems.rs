@@ -2,19 +2,23 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::GuardianCircleIndicator;
+use super::components::{GuardianCircleIndicator, GuardianCircleShielded};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::GuardianCircleHitAttackerMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Team, TemporaryHitPoints};
+use crate::game::units::components::{
+    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+};
+use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 
 /// Local wizard Guardian Circle casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -36,6 +40,10 @@ pub fn handle_guardian_circle_casting(
     mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    mut talent_progress: Option<
+        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
@@ -55,11 +63,25 @@ pub fn handle_guardian_circle_casting(
         return;
     }
 
+    // Calculate talent modifications
+    let talents = active_talents.as_deref();
+    let t1 = talents.and_then(|t| t.get_selection(Spell::GuardianCircle, 0));
+    let t2 = talents.and_then(|t| t.get_selection(Spell::GuardianCircle, 1));
+
+    let radius_mult = match t1 {
+        Some(2) => constants::EXPANSIVE_AEGIS_RADIUS_MULT, // Expansive Aegis
+        _ => 1.0,
+    };
+    let cast_time_mult = match t2 {
+        Some(2) => constants::RAPID_DEPLOYMENT_CAST_MULT, // Rapid Deployment
+        _ => 1.0,
+    };
+
     // Clamp cursor to spell range
     let clamped_cursor = clamp_cursor_to_spell_range(
         input.cursor_pos,
         wizard.spell_range,
-        constants::CIRCLE_RADIUS * primed_spell.empowerment,
+        constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult,
     );
 
     // Handle release -- clean up indicator and SpellCaster
@@ -81,15 +103,17 @@ pub fn handle_guardian_circle_casting(
                 && mana.can_afford(constants::MANA_COST)
                 && let Some(pos) = clamped_cursor
             {
+                let mut indicator = GuardianCircleIndicator::new(pos, primed_spell.empowerment);
+                indicator.talent_radius_mult = radius_mult;
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
                     &visual_assets,
                     visual_assets.guardian_circle_indicator.clone(),
                     pos,
-                    constants::CIRCLE_RADIUS * primed_spell.empowerment,
+                    constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult,
                     constants::CIRCLE_Y_POSITION,
                 )
-                .insert(GuardianCircleIndicator::new(pos, primed_spell.empowerment))
+                .insert(indicator)
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -122,6 +146,7 @@ pub fn handle_guardian_circle_casting(
         &mut mana,
         primed_spell,
         clamped_cursor,
+        cast_time_mult,
     );
 
     if completed {
@@ -130,8 +155,9 @@ pub fn handle_guardian_circle_casting(
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                let scale = indicator.empowerment;
-                let radius = constants::CIRCLE_RADIUS * scale;
+                let radius = constants::CIRCLE_RADIUS
+                    * indicator.empowerment
+                    * indicator.talent_radius_mult;
 
                 audio::play_sfx(
                     &mut commands,
@@ -149,6 +175,8 @@ pub fn handle_guardian_circle_casting(
                     indicator.empowerment,
                     &mut targets_query,
                     &mut attacker_hit_msg,
+                    &mut talent_progress,
+                    talents,
                 );
             }
             commands.entity(indicator_entity).try_despawn();
@@ -169,6 +197,7 @@ fn guardian_circle_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     _clamped_cursor: Option<Vec3>,
+    cast_time_mult: f32,
 ) -> bool {
     // Release is handled by the wrappers before calling this function
     if input.just_released {
@@ -176,6 +205,7 @@ fn guardian_circle_casting_logic(
     }
 
     let mut completed = false;
+    let effective_cast_time = primed_spell.cast_time * cast_time_mult;
 
     match *casting_state {
         CastingState::Channeling { .. } => {
@@ -184,7 +214,7 @@ fn guardian_circle_casting_logic(
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
 
-            if casting_state.is_complete(primed_spell.cast_time) {
+            if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(constants::MANA_COST) {
                     completed = true;
                 }
@@ -203,8 +233,8 @@ fn guardian_circle_casting_logic(
 
 /// Helper function to apply Guardian Circle buff to all units in radius.
 ///
-/// Grants temporary HP to units. If a unit already has temp HP, takes the maximum.
-/// Scales temp HP amount and duration by 1.25x when empowered.
+/// Grants temporary HP to units with talent modifications applied.
+/// Also inserts GuardianCircleShielded marker for Tier 2/3 talent effects.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn apply_guardian_circle_buff(
     commands: &mut Commands,
@@ -215,12 +245,74 @@ pub(crate) fn apply_guardian_circle_buff(
     empowerment: f32,
     targets: &mut Query<(Entity, &Transform, &Team), Without<Wizard>>,
     attacker_hit_msg: &mut MessageWriter<GuardianCircleHitAttackerMessage>,
+    talent_progress: &mut Option<
+        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
+    >,
+    active_talents: Option<&ActiveTalents>,
 ) {
+    let t1 = active_talents.and_then(|t| t.get_selection(Spell::GuardianCircle, 0));
+    let t2 = active_talents.and_then(|t| t.get_selection(Spell::GuardianCircle, 1));
+    let t3 = active_talents.and_then(|t| t.get_selection(Spell::GuardianCircle, 2));
+
     // Scale values by empowerment
     let scale = empowerment;
-    let scaled_temp_hp = temp_hp_amount * scale;
-    let scaled_duration = duration * scale;
+    let mut scaled_temp_hp = temp_hp_amount * scale;
+    let mut scaled_duration = duration * scale;
 
+    // Tier 1 modifications
+    match t1 {
+        Some(0) => scaled_temp_hp *= constants::REINFORCED_WARDS_MULT,   // +40% temp HP
+        Some(1) => scaled_duration *= constants::ENDURING_PROTECTION_MULT, // +60% duration
+        Some(2) => scaled_temp_hp *= constants::EXPANSIVE_AEGIS_HP_MULT,  // -15% temp HP
+        _ => {}
+    }
+
+    // Build the GuardianCircleShielded component based on T2/T3 selections
+    let has_talent_effects = t2.is_some() || t3.is_some();
+    let shielded = if has_talent_effects {
+        let mut s = GuardianCircleShielded::default();
+
+        // Tier 2
+        match t2 {
+            Some(0) => {
+                // Retaliating Wards
+                s.retaliating_damage = constants::RETALIATING_WARDS_DAMAGE * scale;
+                s.retaliating_radius = constants::RETALIATING_WARDS_RADIUS;
+            }
+            Some(1) => {
+                // Fortified Resolve
+                s.fortified_damage_bonus = constants::FORTIFIED_RESOLVE_DAMAGE_MULT;
+            }
+            // Rapid Deployment is handled in casting, not here
+            _ => {}
+        }
+
+        // Tier 3
+        match t3 {
+            Some(0) => {
+                // Sanctuary
+                s.sanctuary_reduction = constants::SANCTUARY_DAMAGE_REDUCTION;
+            }
+            Some(1) => {
+                // Martyrdom — store the granted temp HP as explosion damage
+                s.martyrdom_damage = scaled_temp_hp;
+                s.martyrdom_radius = constants::MARTYRDOM_DAMAGE_RADIUS;
+            }
+            Some(2) => {
+                // Chain Ward
+                s.chain_ward_hops = constants::CHAIN_WARD_MAX_HOPS;
+                s.chain_ward_amount = scaled_temp_hp;
+                s.chain_ward_duration = scaled_duration;
+            }
+            _ => {}
+        }
+
+        Some(s)
+    } else {
+        None
+    };
+
+    let mut buffed_count = 0u32;
     for (entity, transform, team) in targets.iter() {
         let distance = transform.translation.distance(circle_pos);
 
@@ -230,10 +322,208 @@ pub(crate) fn apply_guardian_circle_buff(
                 .entity(entity)
                 .insert(TemporaryHitPoints::new(scaled_temp_hp, scaled_duration));
 
+            // Insert talent marker if any T2/T3 talents are active
+            if let Some(ref s) = shielded {
+                commands.entity(entity).insert(s.clone());
+            }
+
             // Protective Instincts: Guardian Circle hit an attacker or undead
             if *team == Team::Attackers || *team == Team::Undead {
                 attacker_hit_msg.write(GuardianCircleHitAttackerMessage);
             }
+
+            buffed_count += 1;
         }
+    }
+
+    if buffed_count > 0
+        && let Some(progress) = talent_progress.as_deref_mut()
+    {
+        progress.increment(Spell::GuardianCircle, buffed_count);
+    }
+}
+
+/// Cleanup system: remove GuardianCircleShielded when temp HP expires or is removed.
+pub fn cleanup_guardian_circle_shielded(
+    mut commands: Commands,
+    query: Query<Entity, (With<GuardianCircleShielded>, Without<TemporaryHitPoints>)>,
+) {
+    for entity in &query {
+        commands.entity(entity).remove::<GuardianCircleShielded>();
+    }
+}
+
+/// Deals AoE force damage to enemies within radius of a position.
+fn deal_aoe_force_damage(
+    commands: &mut Commands,
+    origin: Vec3,
+    radius: f32,
+    damage: f32,
+    source_team: &Team,
+    targets: &mut Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        (Without<Corpse>, Without<GuardianCircleShielded>),
+    >,
+) {
+    for (entity, transform, team, mut health, temp_hp) in targets.iter_mut() {
+        if *team == *source_team {
+            continue;
+        }
+        if transform.translation.distance(origin) <= radius {
+            apply_spell_damage(
+                commands,
+                entity,
+                &mut health,
+                temp_hp.map(|t| t.into_inner()),
+                damage,
+                DamageType::Force,
+                false,
+            );
+        }
+    }
+}
+
+/// Tier 2, Choice 0: Retaliating Wards.
+///
+/// When a unit's temp HP is fully broken (amount reaches 0 but component still exists),
+/// deal AoE force damage to nearby enemies. Fires once then removes the marker.
+pub fn retaliating_wards_check(
+    mut commands: Commands,
+    shielded_query: Query<(
+        Entity,
+        &GuardianCircleShielded,
+        &TemporaryHitPoints,
+        &Transform,
+        &Team,
+    )>,
+    mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        (Without<Corpse>, Without<GuardianCircleShielded>),
+    >,
+) {
+    for (entity, shielded, temp_hp, transform, team) in &shielded_query {
+        if shielded.retaliating_damage <= 0.0 || temp_hp.amount > 0.0 {
+            continue;
+        }
+
+        deal_aoe_force_damage(
+            &mut commands,
+            transform.translation,
+            shielded.retaliating_radius,
+            shielded.retaliating_damage,
+            team,
+            &mut targets,
+        );
+
+        // One-shot: remove marker so retaliation doesn't fire again
+        commands.entity(entity).remove::<GuardianCircleShielded>();
+    }
+}
+
+/// Tier 3, Choice 1: Martyrdom.
+///
+/// When a shielded unit dies, the stored shield amount explodes as AoE damage.
+/// Damage is the full temp HP granted at cast time (not what remained at death).
+/// Fires once then removes the marker from the corpse.
+pub fn martyrdom_on_death(
+    mut commands: Commands,
+    dead_query: Query<
+        (Entity, &GuardianCircleShielded, &Transform, &Team),
+        With<Corpse>,
+    >,
+    mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
+        (Without<Corpse>, Without<GuardianCircleShielded>),
+    >,
+) {
+    for (corpse_entity, shielded, transform, team) in &dead_query {
+        if shielded.martyrdom_damage <= 0.0 {
+            continue;
+        }
+
+        deal_aoe_force_damage(
+            &mut commands,
+            transform.translation,
+            shielded.martyrdom_radius,
+            shielded.martyrdom_damage,
+            team,
+            &mut targets,
+        );
+
+        // One-shot: remove marker so martyrdom doesn't fire again
+        commands
+            .entity(corpse_entity)
+            .remove::<GuardianCircleShielded>();
+    }
+}
+
+/// Tier 3, Choice 2: Chain Ward.
+///
+/// When a shielded unit dies, its temp HP jumps to the nearest unshielded ally.
+/// Fires once then removes the marker from the corpse.
+pub fn chain_ward_on_death(
+    mut commands: Commands,
+    dead_query: Query<
+        (Entity, &GuardianCircleShielded, &Transform, &Team),
+        With<Corpse>,
+    >,
+    alive_query: Query<
+        (Entity, &Transform, &Team),
+        (Without<Corpse>, Without<GuardianCircleShielded>, Without<Wizard>),
+    >,
+) {
+    for (corpse_entity, shielded, transform, shielded_team) in &dead_query {
+        if shielded.chain_ward_hops == 0 || shielded.chain_ward_amount <= 0.0 {
+            continue;
+        }
+
+        // Find the nearest allied unit without a shield
+        let mut nearest: Option<(Entity, f32)> = None;
+        for (candidate, candidate_transform, candidate_team) in &alive_query {
+            if *candidate_team != *shielded_team {
+                continue;
+            }
+            let dist = candidate_transform.translation.distance(transform.translation);
+            if nearest.is_none_or(|(_, d)| dist < d) {
+                nearest = Some((candidate, dist));
+            }
+        }
+
+        if let Some((target_entity, _)) = nearest {
+            commands
+                .entity(target_entity)
+                .insert(TemporaryHitPoints::new(
+                    shielded.chain_ward_amount,
+                    shielded.chain_ward_duration,
+                ));
+
+            // Clone and pass along with one fewer hop
+            let mut chained = shielded.clone();
+            chained.chain_ward_hops -= 1;
+            commands.entity(target_entity).insert(chained);
+        }
+
+        // One-shot: remove marker so chain ward doesn't fire again
+        commands
+            .entity(corpse_entity)
+            .remove::<GuardianCircleShielded>();
     }
 }

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.15] - 2026-03-09
+
+### Added
+- **Guardian Circle talents** — the Guardian Circle spell now has a full talent tree with 9 talents across 3 tiers, unlocked by shielding units in battle
+- **Tier 1: Shield enhancements** — choose between stronger shields, longer-lasting shields, or a wider circle area (with slightly weaker shields)
+- **Tier 2: Combat bonuses** — choose between an explosive burst when a shield breaks, a damage boost for shielded units, or faster casting speed
+- **Tier 3: Advanced effects** — choose between damage reduction while shielded, a deathblow explosion when a shielded unit falls, or shields that jump to a nearby ally when a shielded unit dies
+
 ## [v0.4.14] - 2026-03-09
 
 ### Added

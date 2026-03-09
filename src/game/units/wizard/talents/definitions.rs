@@ -24,6 +24,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::MeteorFall => meteor_fall_talents(),
         Spell::ChainLightning => chain_lightning_talents(),
         Spell::Telekinesis => telekinesis_talents(),
+        Spell::GuardianCircle => guardian_circle_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -499,6 +500,74 @@ fn telekinesis_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Psychic Shockwave",
                 description: "Each pickup creates a knockback shockwave pushing enemies away.",
                 locked_text: "BOOM. Ingredient collected. Enemies scattered.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn guardian_circle_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Reinforced Wards",
+                description: "Temp HP amount increased by 40%.",
+                locked_text: "Thicker shields. The wizard's solution to every problem since wizard school.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Enduring Protection",
+                description: "Temp HP duration increased by 60%.",
+                locked_text: "The shield lasts so long the defenders forget they have one.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Expansive Aegis",
+                description: "Circle radius increased by 50%, but temp HP amount reduced by 15%.",
+                locked_text: "A wider net catches more soldiers. Metaphor works either way.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Retaliating Wards",
+                description: "When temp HP is fully broken, a burst of force damage hits nearby enemies.",
+                locked_text: "Hit the shield, the shield hits back. Karma, but magical.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Fortified Resolve",
+                description: "Shielded units deal 20% more damage while they have temp HP.",
+                locked_text: "A shield makes you braver. Bravery makes you hit harder.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Rapid Deployment",
+                description: "Cast time halved.",
+                locked_text: "Two circles? At the same time? The wizard is clearly showing off.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Sanctuary",
+                description: "Shielded units also take 30% reduced damage while they have temp HP.",
+                locked_text: "Step inside the glowing circle. Yes, I know how that sounds. Trust me.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Martyrdom",
+                description: "When a shielded unit dies, its remaining temp HP explodes as AoE damage to nearby enemies.",
+                locked_text: "They gave their life. And their shield. And everyone nearby's eardrums.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Chain Ward",
+                description: "When a shielded unit dies, its temp HP jumps to the nearest unshielded ally. Up to 3 hops.",
+                locked_text: "The shield of the fallen passes to the living. Very poetic. Very practical.",
                 implemented: true,
             },
         ],

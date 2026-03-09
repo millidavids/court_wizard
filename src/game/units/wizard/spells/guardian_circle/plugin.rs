@@ -2,9 +2,10 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::GuardianCircleIndicator;
+use super::components::{GuardianCircleIndicator, GuardianCircleShielded};
 use super::systems;
-use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::plugin::PostCombatSet;
+use crate::game::run_conditions::{any_exist, is_gameplay_running, is_spell_effects_active};
 use crate::game::units::wizard::spells::utils;
 
 /// Plugin that handles Guardian Circle spell casting and behavior.
@@ -14,6 +15,7 @@ use crate::game::units::wizard::spells::utils;
 /// - Visual circle indicator during cast
 /// - Applying temporary HP buff to units in area
 /// - Circle animation and updates
+/// - Talent effects: Retaliating Wards, Martyrdom, Chain Ward, cleanup
 pub struct GuardianCirclePlugin;
 
 impl Plugin for GuardianCirclePlugin {
@@ -33,6 +35,19 @@ impl Plugin for GuardianCirclePlugin {
             utils::update_circle_indicator::<GuardianCircleIndicator>
                 .run_if(any_exist::<GuardianCircleIndicator>())
                 .run_if(is_spell_effects_active),
+        );
+        // Talent reaction systems — run after combat resolves
+        app.add_systems(
+            Update,
+            (
+                systems::retaliating_wards_check,
+                systems::martyrdom_on_death,
+                systems::chain_ward_on_death,
+                systems::cleanup_guardian_circle_shielded,
+            )
+                .after(PostCombatSet)
+                .run_if(is_gameplay_running)
+                .run_if(any_exist::<GuardianCircleShielded>()),
         );
     }
 }
