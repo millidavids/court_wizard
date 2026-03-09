@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.13] - 2026-03-09
+
+### Added
+- **New wizard type: Shepherd** — a support-only wizard that cannot cast any spell that deals damage. In exchange, all support spells are 30% more powerful — bigger heals, stronger shields, longer buffs, and tougher walls. Win using only your defenders' strength
+- **New achievement** — a new hidden achievement that unlocks the Shepherd wizard type. Can you figure out how to earn it?
+
+### Changed
+- **Discord update notifications now arrive after downloads are ready** — release announcements in Discord now wait until all platform builds are finished, so download links work immediately
+
 ## [v0.4.12] - 2026-03-08
 
 ### Added

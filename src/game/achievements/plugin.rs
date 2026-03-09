@@ -246,6 +246,13 @@ impl Plugin for AchievementsPlugin {
                     .run_if(on_message::<StormbringerMessage>)
                     .run_if(achievement_locked::<StormbringerAchievement>),
             )
+            // Pacifist — win without spells damaging enemies (unlocks Shepherd)
+            .add_systems(
+                Update,
+                systems::check_pacifist
+                    .run_if(on_message::<BattleEndedMessage>)
+                    .run_if(achievement_locked::<PacifistAchievement>),
+            )
             // Reset all achievements when progress is cleared
             .add_systems(
                 Update,

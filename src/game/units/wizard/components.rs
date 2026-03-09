@@ -650,6 +650,29 @@ impl Spell {
         0
     }
 
+    /// Returns true if this spell is allowed for the Shepherd wizard type.
+    /// The Shepherd can only cast spells that deal zero damage.
+    pub const fn is_shepherd_allowed(&self) -> bool {
+        matches!(
+            self,
+            Spell::WallOfStone
+                | Spell::Entangle
+                | Spell::Sleep
+                | Spell::Polymorph
+                | Spell::MindControl
+                | Spell::GuardianCircle
+                | Spell::Haste
+                | Spell::Teleport
+                | Spell::RaiseTheDead
+                | Spell::BattleHymn
+                | Spell::HealingPlume
+                | Spell::FogCloud
+                | Spell::BerserkerRage
+                | Spell::Banishment
+                | Spell::Dispel
+        )
+    }
+
     /// Returns true if this spell is researchable (not a default spell).
     pub const fn is_researchable(&self) -> bool {
         self.research_cost() > 0

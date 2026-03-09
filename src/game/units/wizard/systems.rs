@@ -59,6 +59,9 @@ pub fn setup_wizard(
         wizard.mana_cost_multiplier = 0.95; // 5% cheaper
         wizard.spell_power_multiplier = 1.05;
         wizard.cast_speed_multiplier = 1.05;
+    } else if config.wizard_type == WizardType::Shepherd {
+        wizard.spell_power_multiplier =
+            super::archetypes::shepherd::constants::SPELL_POWER_MULTIPLIER;
     }
 
     let mut entity_commands = commands.spawn((

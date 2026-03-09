@@ -62,7 +62,6 @@ jobs:
           Copy-Item -Recurse "assets" "$dir/assets"
           Copy-Item "CHANGELOG.md" $dir/
           Copy-Item "CREDITS.md" $dir/
-          Copy-Item "SPRITE_CREDITS.csv" $dir/
           Compress-Archive -Path "$dir/*" -DestinationPath "release/court-wizard-windows-x86_64.zip"
 
       - name: Upload artifact
@@ -97,7 +96,6 @@ jobs:
           cp -r assets "$dir/assets"
           cp CHANGELOG.md "$dir/"
           cp CREDITS.md "$dir/"
-          cp SPRITE_CREDITS.csv "$dir/"
           cd release && zip -r court-wizard-macos-aarch64.zip court-wizard-macos-aarch64
 
       - name: Upload artifact
@@ -137,7 +135,6 @@ jobs:
           cp -r assets "$dir/assets"
           cp CHANGELOG.md "$dir/"
           cp CREDITS.md "$dir/"
-          cp SPRITE_CREDITS.csv "$dir/"
           cd release && zip -r court-wizard-linux-x86_64.zip court-wizard-linux-x86_64
 
       - name: Upload artifact
@@ -186,3 +183,36 @@ jobs:
           name: v${{ needs.check-version.outputs.version }}
           body: ${{ steps.changelog.outputs.body }}
           files: artifacts/**/*.zip
+
+  notify-discord:
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract latest changelog entry
+        id: changelog
+        run: |
+          full_title=$(sed -n '/^## \[/{s/^## \[\(.*\)\] - \(.*\)/\1 - \2/;p;q}' CHANGELOG.md)
+          body=$(sed -n '/^## \[/{n; :a; /^## \[/q; p; n; ba}' CHANGELOG.md)
+          body=$(echo "$body" | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/d;N;ba')
+          echo "full_title=$full_title" >> "$GITHUB_OUTPUT"
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "body<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$body" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Post to Discord
+        if: env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          FULL_TITLE: ${{ steps.changelog.outputs.full_title }}
+          BODY: ${{ steps.changelog.outputs.body }}
+        run: |
+          payload=$(jq -n \
+            --arg title "$FULL_TITLE" \
+            --arg desc "$BODY" \
+            '{embeds: [{title: $title, description: $desc, color: 16744448}]}')
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"

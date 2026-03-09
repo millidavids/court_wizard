@@ -201,6 +201,14 @@ impl Plugin for GamePlugin {
                     .chain()
                     .in_set(PostCombatSet),
             )
+            // Track wizard spell damage to enemies (for Pacifist achievement).
+            // Runs after PostCombatSet, gated to stop once flagged.
+            .add_systems(
+                Update,
+                shared_systems::track_wizard_enemy_damage
+                    .after(PostCombatSet)
+                    .run_if(shared_systems::wizard_has_not_damaged_enemies),
+            )
             // Billboard rotation is a visual-only system that must run for both
             // SP host AND MP guest (ghost entities need billboard facing too).
             // Runs during any active game state, not just gameplay simulation.

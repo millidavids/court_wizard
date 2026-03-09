@@ -21,6 +21,8 @@ pub struct KillStats {
     pub first_defender_death_time: Option<f32>,
     /// Whether the king was killed by a spell (for Accidental Regicide).
     pub king_killed_by_spell: bool,
+    /// Whether any wizard spell dealt damage to an attacker or undead unit this battle.
+    pub wizard_damaged_enemies: bool,
 }
 
 impl KillStats {
@@ -54,6 +56,7 @@ impl KillStats {
         self.elapsed_time = 0.0;
         self.first_defender_death_time = None;
         self.king_killed_by_spell = false;
+        self.wizard_damaged_enemies = false;
     }
 }
 

@@ -189,6 +189,7 @@ pub(crate) enum AchievementId {
     RightToBearArms,
     CloseCall,
     Stormbringer,
+    Pacifist,
 }
 
 impl AchievementId {
@@ -237,6 +238,7 @@ impl AchievementId {
             AchievementId::RightToBearArms,
             AchievementId::CloseCall,
             AchievementId::Stormbringer,
+            AchievementId::Pacifist,
         ]
     }
 
@@ -285,6 +287,7 @@ impl AchievementId {
             AchievementId::RightToBearArms => "right_to_bear_arms",
             AchievementId::CloseCall => "close_call",
             AchievementId::Stormbringer => "stormbringer",
+            AchievementId::Pacifist => "pacifist",
         }
     }
 
@@ -333,6 +336,7 @@ impl AchievementId {
             AchievementId::RightToBearArms => "The Right to Bear Arms",
             AchievementId::CloseCall => "Close Call",
             AchievementId::Stormbringer => "Stormbringer",
+            AchievementId::Pacifist => "Pacifist",
         }
     }
 
@@ -359,6 +363,7 @@ impl AchievementId {
             AchievementId::RightToBearArms => Some("Unlocks: Warglock wizard"),
             AchievementId::CloseCall => Some("Unlocks: Swordcerer wizard"),
             AchievementId::Stormbringer => Some("Unlocks: Meteorologist wizard"),
+            AchievementId::Pacifist => Some("Unlocks: Shepherd wizard"),
             _ => None,
         }
     }
@@ -448,6 +453,9 @@ impl AchievementId {
             }
             AchievementId::Stormbringer => {
                 "Lightning meets wind. The sky bends to your will."
+            }
+            AchievementId::Pacifist => {
+                "You won without your spells hurting a single enemy. There is another way."
             }
         }
     }

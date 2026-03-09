@@ -113,6 +113,7 @@ pub(crate) fn send_battle_ended(
         king_killed_by_spell: kill_stats.king_killed_by_spell,
         first_defender_death_time: kill_stats.first_defender_death_time,
         retry_attempts: retry_tracker.attempts,
+        wizard_damaged_enemies: kill_stats.wizard_damaged_enemies,
     });
 }
 
@@ -756,5 +757,22 @@ pub(crate) fn check_stormbringer(
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
         crate::config::save_data::unlock_wizard_type(WizardType::Meteorologist);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pacifist — win a level without any spell damaging enemies (unlocks Shepherd)
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_pacifist(
+    mut msg: MessageReader<BattleEndedMessage>,
+    mut res: ResMut<PacifistAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    for m in msg.read() {
+        if m.outcome == GameOutcome::Victory && !m.wizard_damaged_enemies {
+            do_unlock(&mut res, &mut events);
+            crate::config::save_data::unlock_wizard_type(WizardType::Shepherd);
+        }
     }
 }

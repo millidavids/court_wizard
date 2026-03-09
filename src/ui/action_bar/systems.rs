@@ -26,6 +26,20 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
 }
 
 /// Spawns the action bar UI at the bottom-left of the screen.
+/// Clears action bar spells that are blocked by the current wizard type.
+/// Runs once when entering gameplay, before the action bar is spawned.
+pub(super) fn clear_blocked_action_bar_spells(mut config: ResMut<GameConfig>) {
+    if config.wizard_type == WizardType::Shepherd {
+        for slot in &mut config.action_bar_slots {
+            if let Some(spell) = slot {
+                if !spell.is_shepherd_allowed() {
+                    *slot = None;
+                }
+            }
+        }
+    }
+}
+
 pub(super) fn spawn_action_bar(
     mut commands: Commands,
     config: Res<GameConfig>,
@@ -339,6 +353,10 @@ pub(super) fn handle_spell_assignment(
     mut config_changed: MessageWriter<ConfigChanged>,
 ) {
     for event in assign_spell.read() {
+        // Shepherd cannot assign damage-dealing spells
+        if config.wizard_type == WizardType::Shepherd && !event.spell.is_shepherd_allowed() {
+            continue;
+        }
         let slot_idx = event.slot as usize;
         if let Some(slot) = config.action_bar_slots.get_mut(slot_idx) {
             *slot = Some(event.spell);

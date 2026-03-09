@@ -16,6 +16,7 @@ pub(crate) struct BattleEndedMessage {
     pub king_killed_by_spell: bool,
     pub first_defender_death_time: Option<f32>,
     pub retry_attempts: u32,
+    pub wizard_damaged_enemies: bool,
 }
 
 /// Message sent when a defender is killed by the player's spell during battle.

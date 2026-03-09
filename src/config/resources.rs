@@ -118,6 +118,8 @@ pub enum WizardType {
     Battlemage,
     /// Meteorologist - manipulates weather to apply global status effects.
     Meteorologist,
+    /// Shepherd - support-only wizard with no damage-dealing spells, bonus to support effects.
+    Shepherd,
 }
 
 impl WizardType {
@@ -133,6 +135,7 @@ impl WizardType {
             WizardType::Warglock => "Warglock",
             WizardType::Battlemage => "Swordcerer",
             WizardType::Meteorologist => "Meteorologist",
+            WizardType::Shepherd => "Shepherd",
         }
     }
 
@@ -150,6 +153,7 @@ impl WizardType {
             WizardType::Warglock => "Who needs spells when you have guns?",
             WizardType::Battlemage => "Leave the tower. Enter the fray.",
             WizardType::Meteorologist => "Control the weather. Control the battlefield.",
+            WizardType::Shepherd => "Heal. Shield. Inspire. Never harm.",
         }
     }
 
@@ -183,6 +187,9 @@ impl WizardType {
             WizardType::Meteorologist => {
                 "Press Q, W, or E to change the weather. Storm makes units Wet and Charged — shocked units spread electricity to nearby wet targets, electric arcs hit more targets, and random lightning strikes the field. Blizzard makes units Cold — frost spells slow even harder, and can freeze units solid. Drought makes units Dry — fire spells create burning patches on the ground. Weather effects grow stronger the longer they persist."
             }
+            WizardType::Shepherd => {
+                "You cannot cast any spell that deals damage. No fireballs, no black holes, no spike growth — nothing that hurts. In exchange, all your support spells are 30% more powerful: bigger heals, stronger shields, longer buffs, and tougher walls. Guide your flock to victory through faith alone."
+            }
         }
     }
 
@@ -198,6 +205,7 @@ impl WizardType {
             WizardType::Warglock => "War and sorcery, forged into one.",
             WizardType::Battlemage => "Some wizards prefer a more... hands-on approach.",
             WizardType::Meteorologist => "The sky darkens. Something is brewing up there.",
+            WizardType::Shepherd => "Violence is never the answer... right?",
         }
     }
 
@@ -213,6 +221,7 @@ impl WizardType {
             WizardType::Warglock,
             WizardType::Battlemage,
             WizardType::Meteorologist,
+            WizardType::Shepherd,
         ]
     }
 }

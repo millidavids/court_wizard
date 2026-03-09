@@ -1096,3 +1096,23 @@ pub fn activate_defenders_on_proximity(
         }
     }
 }
+
+/// Tracks when any wizard spell damages an attacker or undead unit.
+/// Uses `Added<SpellDamaged>` to detect newly damaged entities this frame.
+/// Gated by `run_if` so it stops running once flagged.
+pub fn track_wizard_enemy_damage(
+    query: Query<&Team, Added<SpellDamaged>>,
+    mut kill_stats: ResMut<super::resources::KillStats>,
+) {
+    for team in &query {
+        if *team == Team::Attackers || *team == Team::Undead {
+            kill_stats.wizard_damaged_enemies = true;
+            return;
+        }
+    }
+}
+
+/// Run condition: returns true when no wizard spell has damaged enemies yet this battle.
+pub fn wizard_has_not_damaged_enemies(kill_stats: Res<super::resources::KillStats>) -> bool {
+    !kill_stats.wizard_damaged_enemies
+}

@@ -16,8 +16,17 @@ impl Plugin for ActionBarPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InfiniteMana>()
             .add_message::<AssignSpellToSlot>()
+            // Clear blocked spells before spawning the action bar
+            .add_systems(
+                OnEnter(InGameState::Running),
+                systems::clear_blocked_action_bar_spells,
+            )
             // SP spawn
-            .add_systems(OnEnter(InGameState::Running), systems::spawn_action_bar)
+            .add_systems(
+                OnEnter(InGameState::Running),
+                systems::spawn_action_bar
+                    .after(systems::clear_blocked_action_bar_spells),
+            )
             // MP spawn
             .add_systems(
                 OnEnter(MultiplayerGameState::Running),

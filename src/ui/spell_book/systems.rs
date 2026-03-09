@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use crate::config::GameConfig;
+use crate::config::{GameConfig, WizardType};
 use crate::config::save_data::load_unified_save;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{Spell, SpellCategory};
@@ -42,7 +42,11 @@ pub(super) fn spawn_spell_book_ui(
             .unwrap_or_default()
     };
 
+    let is_shepherd = config.wizard_type == WizardType::Shepherd;
     let is_unlocked = move |spell: &Spell| {
+        if is_shepherd && !spell.is_shepherd_allowed() {
+            return false;
+        }
         if is_multiplayer {
             return true;
         }
