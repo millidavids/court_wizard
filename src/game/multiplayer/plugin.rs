@@ -373,7 +373,7 @@ fn setup_mp_score_screen(mut commands: Commands, game_outcome: Res<GameOutcome>)
 
     let title_text = match *game_outcome {
         GameOutcome::Victory => "VICTORY",
-        GameOutcome::Defeat | GameOutcome::DefeatKingDied => "DEFEAT",
+        _ => "DEFEAT",
     };
 
     commands

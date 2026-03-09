@@ -364,6 +364,7 @@ impl AchievementId {
             AchievementId::CloseCall => Some("Unlocks: Swordcerer wizard"),
             AchievementId::Stormbringer => Some("Unlocks: Meteorologist wizard"),
             AchievementId::Pacifist => Some("Unlocks: Shepherd wizard"),
+            AchievementId::AccidentalRegicide => Some("Unlocks: Psychopath wizard"),
             _ => None,
         }
     }

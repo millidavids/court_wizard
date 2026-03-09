@@ -207,6 +207,9 @@ impl Team {
 pub struct Health {
     pub current: f32,
     pub max: f32,
+    /// Extra vulnerability to spell damage (0.0 = normal, 0.3 = +30% spell damage taken).
+    /// Used by the Psychopath archetype to amplify spell damage against defenders.
+    pub spell_vulnerability: f32,
 }
 
 /// Movement speed component for all units.
@@ -460,7 +463,11 @@ impl Health {
     ///
     /// Current health starts at the maximum value.
     pub fn new(max: f32) -> Self {
-        Self { current: max, max }
+        Self {
+            current: max,
+            max,
+            spell_vulnerability: 0.0,
+        }
     }
 
     /// Returns true if the unit is dead (current health <= 0).
@@ -684,11 +691,12 @@ pub fn apply_spell_damage(
     if has_spell_shield {
         return;
     }
-    apply_damage_to_unit(health, temp_hp, damage);
+    let modified_damage = damage * (1.0 + health.spell_vulnerability);
+    apply_damage_to_unit(health, temp_hp, modified_damage);
     commands.entity(entity).insert(SpellDamaged);
     commands.entity(entity).insert(PendingDamageEffect {
         damage_type,
-        damage,
+        damage: modified_damage,
     });
 }
 

@@ -120,6 +120,8 @@ pub enum WizardType {
     Meteorologist,
     /// Shepherd - support-only wizard with no damage-dealing spells, bonus to support effects.
     Shepherd,
+    /// Psychopath - wants maximum carnage; must kill 80% of defenders to win.
+    Psychopath,
 }
 
 impl WizardType {
@@ -136,6 +138,7 @@ impl WizardType {
             WizardType::Battlemage => "Swordcerer",
             WizardType::Meteorologist => "Meteorologist",
             WizardType::Shepherd => "Shepherd",
+            WizardType::Psychopath => "Psychopath",
         }
     }
 
@@ -154,6 +157,7 @@ impl WizardType {
             WizardType::Battlemage => "Leave the tower. Enter the fray.",
             WizardType::Meteorologist => "Control the weather. Control the battlefield.",
             WizardType::Shepherd => "Heal. Shield. Inspire. Never harm.",
+            WizardType::Psychopath => "Burn it all. Both sides.",
         }
     }
 
@@ -190,6 +194,9 @@ impl WizardType {
             WizardType::Shepherd => {
                 "You cannot cast any spell that deals damage. No fireballs, no black holes, no spike growth — nothing that hurts. In exchange, all your support spells are 30% more powerful: bigger heals, stronger shields, longer buffs, and tougher walls. Guide your flock to victory through faith alone."
             }
+            WizardType::Psychopath => {
+                "Victory isn't enough — you need carnage. Your spells deal 30% extra damage to your own defenders. To win a level, at least 70% of your defenders must be dead by the time the last attacker falls. If too many survive, you lose. Efficiency is for cowards."
+            }
         }
     }
 
@@ -206,6 +213,7 @@ impl WizardType {
             WizardType::Battlemage => "Some wizards prefer a more... hands-on approach.",
             WizardType::Meteorologist => "The sky darkens. Something is brewing up there.",
             WizardType::Shepherd => "Violence is never the answer... right?",
+            WizardType::Psychopath => "Some people just want to watch the world burn.",
         }
     }
 
@@ -222,6 +230,7 @@ impl WizardType {
             WizardType::Battlemage,
             WizardType::Meteorologist,
             WizardType::Shepherd,
+            WizardType::Psychopath,
         ]
     }
 }

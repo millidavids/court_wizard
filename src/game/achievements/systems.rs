@@ -363,6 +363,7 @@ pub(crate) fn check_accidental_regicide(
     for m in msg.read() {
         if m.outcome != GameOutcome::Victory && m.king_killed_by_spell {
             do_unlock(&mut res, &mut events);
+            crate::config::save_data::unlock_wizard_type(WizardType::Psychopath);
         }
     }
 }

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::config::save_data::{SavedWall, load_unified_save};
-use crate::config::{ActiveSave, ConfigChanged, GameConfig};
+use crate::config::{ActiveSave, ConfigChanged, GameConfig, WizardType};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
@@ -9,6 +9,7 @@ use crate::game::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, TimeTravelState,
 };
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
+use crate::game::units::wizard::archetypes::psychopath::constants::DEFENDER_KILL_THRESHOLD;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
 use crate::ui::systems::spawn_button;
@@ -59,19 +60,14 @@ pub(super) fn update_level_after_display(
         return;
     }
     // Update level based on win/loss
-    match *game_outcome {
-        GameOutcome::Victory => {
-            current_level.0 += 1;
-            // Update highest level if surpassed
-            if current_level.0 > config.highest_level_achieved {
-                config.highest_level_achieved = current_level.0;
-            }
-        }
-        GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-            // Keep current level - player retries the same level
-            // No change to current_level.0
+    if *game_outcome == GameOutcome::Victory {
+        current_level.0 += 1;
+        // Update highest level if surpassed
+        if current_level.0 > config.highest_level_achieved {
+            config.highest_level_achieved = current_level.0;
         }
     }
+    // Defeat: keep current level - player retries the same level
 
     // Save current level to config
     config.current_level = current_level.0;
@@ -165,9 +161,10 @@ pub(super) fn setup_game_over_screen(
                 })
                 .with_children(|buttons| {
                     // Victory/Defeat title
-                    let title_text = match *game_outcome {
-                        GameOutcome::Victory => "VICTORY",
-                        GameOutcome::Defeat | GameOutcome::DefeatKingDied => "DEFEAT",
+                    let title_text = if game_outcome.is_defeat() {
+                        "DEFEAT"
+                    } else {
+                        "VICTORY"
                     };
 
                     buttons.spawn((
@@ -185,13 +182,25 @@ pub(super) fn setup_game_over_screen(
                         ));
                     }
 
+                    // Subtext for not enough carnage (Psychopath)
+                    if *game_outcome == GameOutcome::DefeatNotEnoughCarnage {
+                        let kill_pct =
+                            kill_stats.defenders_killed as f32 / total_defenders * 100.0;
+                        let required_pct = DEFENDER_KILL_THRESHOLD * 100.0;
+                        buttons.spawn((
+                            Text::new(format!(
+                                "Not enough carnage! Only {:.0}% killed ({:.0}% required)",
+                                kill_pct, required_pct
+                            )),
+                            TextFont::from_font_size(24.0),
+                            TextColor(TEXT_COLOR),
+                        ));
+                    }
+
                     if is_time_travel {
                         // Time travel: victory shows only "Return to Tower"
                         // Defeat shows retry + return to tower
-                        if matches!(
-                            *game_outcome,
-                            GameOutcome::Defeat | GameOutcome::DefeatKingDied
-                        ) {
+                        if game_outcome.is_defeat() {
                             spawn_button(
                                 buttons,
                                 &format!("Time Rewind (Level {})", current_level.0),
@@ -208,11 +217,10 @@ pub(super) fn setup_game_over_screen(
                         );
                     } else {
                         // Normal flow
-                        let button_text = match *game_outcome {
-                            GameOutcome::Victory => "Continue".to_string(),
-                            GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                                format!("Time Rewind (Level {})", current_level.0)
-                            }
+                        let button_text = if game_outcome.is_defeat() {
+                            format!("Time Rewind (Level {})", current_level.0)
+                        } else {
+                            "Continue".to_string()
                         };
 
                         spawn_button(
@@ -223,10 +231,7 @@ pub(super) fn setup_game_over_screen(
                         );
 
                         // Return to Tower button (only on defeat)
-                        if matches!(
-                            *game_outcome,
-                            GameOutcome::Defeat | GameOutcome::DefeatKingDied
-                        ) {
+                        if game_outcome.is_defeat() {
                             spawn_button(
                                 buttons,
                                 "Return to Tower",
@@ -296,6 +301,27 @@ pub(super) fn setup_game_over_screen(
                         TextFont::from_font_size(20.0),
                         TextColor(TEXT_COLOR),
                     ));
+
+                    // Carnage meter (Psychopath only)
+                    if config.wizard_type == WizardType::Psychopath {
+                        let carnage_pct =
+                            (kill_stats.defenders_killed as f32 / total_defenders * 100.0)
+                                .min(100.0);
+                        let carnage_color = if carnage_pct >= DEFENDER_KILL_THRESHOLD * 100.0 {
+                            CARNAGE_MET_COLOR
+                        } else {
+                            CARNAGE_UNMET_COLOR
+                        };
+                        stats.spawn((
+                            Text::new(format!(
+                                "  Carnage: {:.1}% / {:.0}%",
+                                carnage_pct,
+                                DEFENDER_KILL_THRESHOLD * 100.0
+                            )),
+                            TextFont::from_font_size(20.0),
+                            TextColor(carnage_color),
+                        ));
+                    }
 
                     // Insight earned this battle
                     stats.spawn((
@@ -375,29 +401,21 @@ pub(super) fn handle_button_actions(
             match action {
                 GameOverButtonAction::PlayAgain => {
                     if let Some(ref tt) = time_travel {
-                        match *game_outcome {
-                            GameOutcome::Victory => {
-                                // Time travel victory: restore real level, return to tower
-                                current_level.0 = tt.real_level;
-                                commands.remove_resource::<TimeTravelState>();
-                                next_app_state.set(AppState::MetaGame);
-                            }
-                            GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                                // Retry the time-traveled level (TimeTravelState persists)
-                                kill_stats.reset();
-                                next_app_state.set(AppState::Loading);
-                            }
+                        if game_outcome.is_defeat() {
+                            // Retry the time-traveled level (TimeTravelState persists)
+                            kill_stats.reset();
+                            next_app_state.set(AppState::Loading);
+                        } else {
+                            // Time travel victory: restore real level, return to tower
+                            current_level.0 = tt.real_level;
+                            commands.remove_resource::<TimeTravelState>();
+                            next_app_state.set(AppState::MetaGame);
                         }
+                    } else if game_outcome.is_defeat() {
+                        kill_stats.reset();
+                        next_app_state.set(AppState::Loading);
                     } else {
-                        match *game_outcome {
-                            GameOutcome::Victory => {
-                                next_app_state.set(AppState::MetaGame);
-                            }
-                            GameOutcome::Defeat | GameOutcome::DefeatKingDied => {
-                                kill_stats.reset();
-                                next_app_state.set(AppState::Loading);
-                            }
-                        }
+                        next_app_state.set(AppState::MetaGame);
                     }
                 }
                 GameOverButtonAction::ReturnToTower => {

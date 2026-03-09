@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.14] - 2026-03-09
+
+### Added
+- **New wizard type: Psychopath** — a twisted wizard who thrives on carnage. Your spells deal 30% extra damage to your own defenders, and you must eliminate at least 70% of them before the last attacker falls — otherwise you lose. Winning isn't enough; you need destruction
+- **Carnage meter on the score screen** — when playing as the Psychopath, a carnage tracker shows how many defenders you've eliminated and whether you've met the threshold
+- **New defeat message** — if you fail to cause enough destruction as the Psychopath, you'll see a unique defeat screen explaining why
+
 ## [v0.4.13] - 2026-03-09
 
 ### Added

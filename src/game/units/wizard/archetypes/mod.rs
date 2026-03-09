@@ -6,6 +6,7 @@ pub mod gunslinger;
 pub mod meteorologist;
 pub(crate) mod roulette;
 pub(crate) mod runes;
+pub mod psychopath;
 pub mod shepherd;
 
 use bevy::prelude::*;
@@ -14,6 +15,7 @@ use arcanorouter::ArcanoRouterPlugin;
 use battlemage::BattlemagePlugin;
 use gunslinger::GunslingerPlugin;
 use meteorologist::MeteorologistPlugin;
+use psychopath::PsychopathPlugin;
 use roulette::RoulettePlugin;
 use runes::RunePlugin;
 use shepherd::ShepherdPlugin;
@@ -31,6 +33,7 @@ impl Plugin for ArchetypesPlugin {
             BattlemagePlugin,
             MeteorologistPlugin,
             ShepherdPlugin,
+            PsychopathPlugin,
         ));
     }
 }
