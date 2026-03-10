@@ -38,6 +38,7 @@ impl Plugin for ActionBarPlugin {
                     systems::handle_slot_click.in_set(ButtonActionSet),
                     systems::handle_debug_mana_click.in_set(ButtonActionSet),
                     systems::handle_keyboard_input,
+                    systems::highlight_keyboard_pressed_slots,
                 )
                     .run_if(is_local_wizard_active),
             )

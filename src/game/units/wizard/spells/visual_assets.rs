@@ -147,6 +147,9 @@ pub struct SpellVisualAssets {
     pub missile_glow: Handle<StandardMaterial>,
     pub missile_sparkle: Handle<StandardMaterial>,
 
+    // ── Mark of Death materials ───────────────────────────────────────────
+    pub mark_indicator: Handle<StandardMaterial>,
+
     // ── Special meshes (fixed-size) ──────────────────────────────────────
     pub magic_missile_mesh: Handle<Mesh>,
     /// Flat quad mesh for particles (2 tris, double-sided).
@@ -376,6 +379,16 @@ pub fn init_spell_visual_assets(
         heat_shimmer: materials.add(StandardMaterial {
             base_color: Color::srgba(1.0, 0.9, 0.7, 0.1),
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
+        // Mark of Death indicator (purple circle above marked unit)
+        mark_indicator: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.6, 0.0, 0.8, 0.7),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(1.5, 0.0, 2.0, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
@@ -638,6 +651,8 @@ impl SpellVisualAssets {
             &self.crystal_range_indicator,
             // Heat shimmer
             &self.heat_shimmer,
+            // Mark of Death
+            &self.mark_indicator,
         ]
     }
 }

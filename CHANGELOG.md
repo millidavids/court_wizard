@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.17] - 2026-03-09
+
+### Added
+- **Mark of Death talents** — the Mark of Death spell now has a full talent tree with 9 talents across 3 tiers, unlocked by marking enemies in battle
+- **Tier 1: Mark enhancements** — choose between stronger damage amplification, a longer-lasting mark, or a mana refund when the marked target dies
+- **Tier 2: Death effects** — choose between the mark jumping to a nearby enemy on death, a burst of damage when the target's health gets low, or making your defenders focus on the marked target
+- **Tier 3: Advanced curses** — choose between marking all enemies in an area at once, a necrotic explosion when a marked enemy dies, or a mark that grows stronger over time and can never be removed
+- **Mark visual indicator** — marked enemies now display a glowing purple circle above them so you can easily see who's marked
+- **Action bar keyboard feedback** — pressing a number key (1–5) now visually highlights the corresponding action bar button, matching the look of clicking it with the mouse
+
 ## [v0.4.16] - 2026-03-09
 
 ### Added

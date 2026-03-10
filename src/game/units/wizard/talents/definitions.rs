@@ -26,6 +26,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Telekinesis => telekinesis_talents(),
         Spell::GuardianCircle => guardian_circle_talents(),
         Spell::FingerOfDeath => finger_of_death_talents(),
+        Spell::MarkOfDeath => mark_of_death_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -637,6 +638,74 @@ fn finger_of_death_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Deathmark",
                 description: "Beam instead applies a 5-second debuff. If the target dies during the debuff, a second Finger of Death fires at the nearest enemy automatically (at 50% damage).",
                 locked_text: "Kill chain. The only chain letter anyone actually follows up on.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn mark_of_death_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Deep Mark",
+                description: "Damage amplification increased to 75%.",
+                locked_text: "More vulnerable. MORE. The wizard has no concept of 'enough.'",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lingering Curse",
+                description: "Mark duration increased to 12 seconds.",
+                locked_text: "The mark sticks around. Like a bad reputation. Or glitter.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Swift Hex",
+                description: "Marking refunds 50% of its mana cost if the target dies while marked.",
+                locked_text: "Mark, kill, refund. The wizard invented magical couponing.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Spreading Blight",
+                description: "If a marked target dies, the mark jumps to the nearest enemy (50% remaining duration).",
+                locked_text: "The mark is contagious. Don't worry, it's only fatal.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Executioner's Brand",
+                description: "Marked targets take an additional burst of damage when they fall below 30% HP.",
+                locked_text: "Kicking them while they're down. The wizard learned from cats.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Focal Point",
+                description: "Defender units prioritize attacking marked targets.",
+                locked_text: "HIT THAT ONE. THAT ONE. The wizard has become a backseat driver for combat.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Mass Marking",
+                description: "Mark affects all enemies in a radius instead of a single target. Damage amp reduced to 35%.",
+                locked_text: "Everyone's marked. It's like a very aggressive roll call.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Death's Ledger",
+                description: "Marked enemies that die cause a necrotic explosion. More HP the target had = bigger explosion.",
+                locked_text: "In death, they give back to the community. Violently.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Doom",
+                description: "Mark cannot be removed and damage amplification increases by 10% per second.",
+                locked_text: "The mark grows. The mark hungers. The wizard is slightly concerned about the mark.",
                 implemented: true,
             },
         ],

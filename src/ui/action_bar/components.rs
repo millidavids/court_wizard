@@ -33,6 +33,10 @@ pub(super) struct ActionBarSlotIcon {
 #[derive(Component)]
 pub(super) struct DebugManaButton;
 
+/// Marker for action bar slots currently highlighted by keyboard input.
+#[derive(Component)]
+pub(super) struct KeyboardHighlighted;
+
 /// Resource that tracks whether infinite mana is enabled.
 #[derive(Resource, Default)]
 pub struct InfiniteMana(pub bool);

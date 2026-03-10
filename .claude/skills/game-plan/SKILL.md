@@ -33,6 +33,7 @@ Each category has a reference file with exact boilerplate templates:
 | New Unit | [units.md](references/units.md) | Adding a defender, attacker, or special unit type |
 | New UI Screen | [ui-screens.md](references/ui-screens.md) | Adding a menu, overlay, HUD element, or settings page |
 | New Wizard Archetype | [archetypes.md](references/archetypes.md) | Adding a new wizard class with unique mechanics |
+| New Talent Tree | [talents.md](references/talents.md) | Adding a talent tree for a spell (9 talents across 3 tiers) |
 | New Achievement | [achievements.md](references/achievements.md) | Adding trackable milestones or unlockables |
 | Core System | [core-systems.md](references/core-systems.md) | Adding game-wide systems (combat, pathfinding, config, etc.) |
 

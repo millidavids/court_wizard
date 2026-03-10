@@ -11,6 +11,7 @@ use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
+use crate::ui::styles::item_pressed;
 use crate::ui::systems::scale_font_by_text_width;
 
 const DEBUG_BUTTON_SIZE: f32 = 30.0;
@@ -342,6 +343,46 @@ pub(super) fn handle_debug_mana_click(
                 bg.0 = new_bg;
                 colors.background = new_bg;
             }
+        }
+    }
+}
+
+/// Highlights action bar buttons when their corresponding keyboard key is held down.
+pub(super) fn highlight_keyboard_pressed_slots(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut slots: Query<(
+        Entity,
+        &ActionBarSlot,
+        &ButtonColors,
+        &mut BackgroundColor,
+        &mut BorderColor,
+        Has<KeyboardHighlighted>,
+    )>,
+) {
+    const KEYS: [KeyCode; 5] = [
+        KeyCode::Digit1,
+        KeyCode::Digit2,
+        KeyCode::Digit3,
+        KeyCode::Digit4,
+        KeyCode::Digit5,
+    ];
+
+    for (entity, slot, colors, mut bg, mut border, is_highlighted) in &mut slots {
+        let slot_idx = slot.slot as usize;
+        if slot_idx >= KEYS.len() {
+            continue;
+        }
+        let pressed = keyboard.pressed(KEYS[slot_idx]);
+
+        if pressed && !is_highlighted {
+            commands.entity(entity).insert(KeyboardHighlighted);
+            *bg = item_pressed(colors.background).into();
+            *border = BorderColor::all(item_pressed(colors.border));
+        } else if !pressed && is_highlighted {
+            commands.entity(entity).remove::<KeyboardHighlighted>();
+            *bg = colors.background.into();
+            *border = BorderColor::all(colors.border);
         }
     }
 }
