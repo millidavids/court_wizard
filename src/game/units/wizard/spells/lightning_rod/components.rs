@@ -5,6 +5,51 @@ use bevy::prelude::*;
 use super::constants::{ARC_RADIUS, CIRCLE_Y_POSITION};
 use crate::game::units::wizard::spells::utils::CircleIndicator;
 
+/// Pre-computed talent parameters for a lightning rod instance.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LightningRodTalentParams {
+    /// Combined duration multiplier (T1-0 Taller Rod, T3-0 Storm Spire).
+    pub duration_mult: f32,
+    /// Multiplier applied to strike interval (T1-1 Rapid Strikes).
+    pub strike_interval_mult: f32,
+    /// Multiplier applied to arc radius (T1-2 Wider Arc).
+    pub arc_radius_mult: f32,
+    /// Extra targets per strike (T1-2 Wider Arc).
+    pub extra_targets: usize,
+    /// Multiplier applied to arc damage (T3-0 Storm Spire).
+    pub damage_mult: f32,
+    /// T2-0 Chain Reaction: chain to extra targets.
+    pub chain_reaction: bool,
+    /// T2-1 Magnetic Field: slow enemies hit by arcs.
+    pub magnetic_field: bool,
+    /// T2-2 Overcharge: every Nth strike is empowered.
+    pub overcharge: bool,
+    /// T3-0 Storm Spire: place 2 rods instead of 1.
+    pub storm_spire: bool,
+    /// T3-1 Tesla Coil: ramp damage per strike.
+    pub tesla_coil: bool,
+    /// T3-2 Lightning Nexus: kills trigger bonus strikes.
+    pub lightning_nexus: bool,
+}
+
+impl Default for LightningRodTalentParams {
+    fn default() -> Self {
+        Self {
+            duration_mult: 1.0,
+            strike_interval_mult: 1.0,
+            arc_radius_mult: 1.0,
+            extra_targets: 0,
+            damage_mult: 1.0,
+            chain_reaction: false,
+            magnetic_field: false,
+            overcharge: false,
+            storm_spire: false,
+            tesla_coil: false,
+            lightning_nexus: false,
+        }
+    }
+}
+
 /// Lightning rod tower placed on the battlefield.
 ///
 /// Periodically attracts lightning strikes that arc to nearby units.
@@ -20,11 +65,22 @@ pub(crate) struct LightningRod {
     pub duration: f32,
     /// Empowerment multiplier for spell effectiveness.
     pub empowerment: f32,
+    /// Number of strikes this rod has fired (for Overcharge / Tesla Coil).
+    pub strike_count: u32,
+    /// Cumulative damage ramp from Tesla Coil (additive, e.g. 0.30 = +30%).
+    pub damage_ramp: f32,
+    /// Talent parameters for this rod instance.
+    pub talent_params: LightningRodTalentParams,
 }
 
 impl LightningRod {
     /// Creates a new lightning rod at the specified position.
-    pub fn new(position: Vec3, duration: f32, empowerment: f32) -> Self {
+    pub fn new(
+        position: Vec3,
+        duration: f32,
+        empowerment: f32,
+        talent_params: LightningRodTalentParams,
+    ) -> Self {
         Self {
             position,
             time_alive: 0.0,
@@ -32,6 +88,9 @@ impl LightningRod {
             time_since_strike: f32::MAX,
             duration,
             empowerment,
+            strike_count: 0,
+            damage_ramp: 0.0,
+            talent_params,
         }
     }
 
@@ -54,6 +113,12 @@ pub(crate) struct LightningStrike {
     pub arc_radius: f32,
     /// Empowerment multiplier.
     pub empowerment: f32,
+    /// Maximum targets this strike can hit.
+    pub max_targets: usize,
+    /// Lightning Nexus damage multiplier (compounds per bonus generation, e.g. 1.0 → 0.5 → 0.25).
+    pub nexus_damage_mult: f32,
+    /// Talent parameters inherited from the rod.
+    pub talent_params: LightningRodTalentParams,
 }
 
 /// Visual lightning arc between the rod and a hit target.

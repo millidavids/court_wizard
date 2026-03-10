@@ -729,6 +729,7 @@ pub(super) fn spawn_spell_effect(
                 crate::game::units::wizard::spells::lightning_rod::components::LightningRod::new(
                     Vec3::new(pos.x, 0.0, pos.z),
                     duration, empowerment,
+                    crate::game::units::wizard::spells::lightning_rod::components::LightningRodTalentParams::default(),
                 ),
                 OnMultiplayerGameScreen,
             )).id())

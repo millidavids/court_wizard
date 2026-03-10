@@ -73,3 +73,56 @@ pub const CIRCLE_Y_POSITION: f32 = 0.1;
 
 /// Color of the arcs that jump to targets (electric blue).
 pub const ARC_COLOR: Color = Color::srgb(0.7, 0.85, 1.0);
+
+// ===== Talent Constants =====
+
+// -- Tier 1 --
+
+/// T1-0 Taller Rod: duration multiplier.
+pub(super) const TALLER_ROD_DURATION_MULT: f32 = 1.5;
+
+/// T1-1 Rapid Strikes: strike interval multiplier (lower = faster).
+pub(super) const RAPID_STRIKES_INTERVAL_MULT: f32 = 0.65;
+
+/// T1-2 Wider Arc: arc radius multiplier.
+pub(super) const WIDER_ARC_RADIUS_MULT: f32 = 1.5;
+
+/// T1-2 Wider Arc: extra targets per strike.
+pub(super) const WIDER_ARC_EXTRA_TARGETS: usize = 3;
+
+// -- Tier 2 --
+
+/// T2-0 Chain Reaction: extra chain targets per arc.
+pub(super) const CHAIN_REACTION_EXTRA_TARGETS: usize = 1;
+
+/// T2-0 Chain Reaction: chained arc damage multiplier.
+pub(super) const CHAIN_REACTION_DAMAGE_MULT: f32 = 0.5;
+
+/// T2-1 Magnetic Field: slow modifier (negative = slower).
+pub(super) const MAGNETIC_FIELD_SLOW: f32 = -0.4;
+
+/// T2-1 Magnetic Field: slow duration in seconds.
+pub(super) const MAGNETIC_FIELD_SLOW_DURATION: f32 = 2.0;
+
+/// T2-2 Overcharge: triggers every N strikes.
+pub(super) const OVERCHARGE_EVERY_N: u32 = 3;
+
+/// T2-2 Overcharge: damage multiplier on overcharged strikes.
+pub(super) const OVERCHARGE_DAMAGE_MULT: f32 = 2.5;
+
+// -- Tier 3 --
+
+/// T3-0 Storm Spire: damage multiplier for each rod.
+pub(super) const STORM_SPIRE_DAMAGE_MULT: f32 = 0.6;
+
+/// T3-0 Storm Spire: duration multiplier for each rod.
+pub(super) const STORM_SPIRE_DURATION_MULT: f32 = 0.7;
+
+/// T3-0 Storm Spire: offset distance between the two rods.
+pub(super) const STORM_SPIRE_OFFSET: f32 = 40.0;
+
+/// T3-2 Lightning Nexus: damage multiplier for each successive bonus strike (compounds).
+pub(super) const LIGHTNING_NEXUS_FALLOFF: f32 = 0.5;
+
+/// T3-1 Tesla Coil: damage ramp per strike (additive, e.g. 0.15 = +15%).
+pub(super) const TESLA_COIL_RAMP_PER_STRIKE: f32 = 0.15;

@@ -11,7 +11,7 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::Disintegrate => [40, 120, 350],
         Spell::ChainLightning => [30, 100, 300],
         Spell::FingerOfDeath => [5, 10, 20],
-        Spell::LightningRod => [30, 100, 300],
+        Spell::LightningRod => [1, 1, 1],
         Spell::MeteorFall => [20, 70, 200],
         Spell::MarkOfDeath => [15, 50, 150],
         Spell::PlagueWind => [30, 100, 300],

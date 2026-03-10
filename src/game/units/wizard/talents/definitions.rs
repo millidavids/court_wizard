@@ -27,6 +27,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::GuardianCircle => guardian_circle_talents(),
         Spell::FingerOfDeath => finger_of_death_talents(),
         Spell::MarkOfDeath => mark_of_death_talents(),
+        Spell::LightningRod => lightning_rod_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -706,6 +707,74 @@ fn mark_of_death_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Doom",
                 description: "Mark cannot be removed and damage amplification increases by 10% per second.",
                 locked_text: "The mark grows. The mark hungers. The wizard is slightly concerned about the mark.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn lightning_rod_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Taller Rod",
+                description: "Rod duration increased by 50%.",
+                locked_text: "They say size doesn't matter. They're wrong.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Rapid Strikes",
+                description: "Lightning strikes 35% faster.",
+                locked_text: "The sky barely gets a break.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Wider Arc",
+                description: "Arc radius increased by 50% and hits 3 additional targets per strike.",
+                locked_text: "Personal space? Never heard of it.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Chain Reaction",
+                description: "Each arc chains to 1 additional nearby enemy for 50% damage.",
+                locked_text: "One zap is never enough.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Magnetic Field",
+                description: "Enemies hit by arcs are slowed by 40% for 2 seconds.",
+                locked_text: "Electrifying. Literally paralyzing.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Overcharge",
+                description: "Every 3rd strike deals 2.5x damage.",
+                locked_text: "Third time's the charm. And the burn.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Storm Spire",
+                description: "Places 2 rods instead of 1. Each rod deals 60% damage and lasts 70% as long.",
+                locked_text: "Why have one lightning rod when you can have two?",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Tesla Coil",
+                description: "Arc damage increases by 15% with each strike. Stacks indefinitely.",
+                locked_text: "It just keeps getting angrier.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lightning Nexus",
+                description: "Killing a unit with arcs triggers a weaker bonus strike. Successive bonus strikes deal diminishing damage.",
+                locked_text: "Death begets lightning begets death.",
                 implemented: true,
             },
         ],

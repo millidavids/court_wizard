@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.25] - 2026-03-10
+
+### Added
+- **Lightning Rod talents** — the Lightning Rod spell now has a full talent tree with 9 talents across 3 tiers, unlocked by hitting enemies with arcs
+- **Tier 1: Rod enhancements** — choose between a longer-lasting rod, faster lightning strikes, or a wider arc that hits more targets
+- **Tier 2: New effects** — choose between chain arcs that jump to additional enemies, a slowing field on hit enemies, or supercharged strikes every few hits
+- **Tier 3: Powerful upgrades** — choose between placing two rods at once, lightning that ramps up in power over time, or bonus strikes triggered by kills (with diminishing returns)
+
 ## [v0.4.17] - 2026-03-09
 
 ### Added
