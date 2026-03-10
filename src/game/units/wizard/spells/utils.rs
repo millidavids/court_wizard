@@ -6,7 +6,57 @@ use bevy::prelude::*;
 
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::components::{Health, Team};
+use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+
+/// Resource representing a pending heal to be applied to the nearest injured defender.
+///
+/// Used by spells that deal damage and heal defenders as a side-effect (e.g., Void Siphon,
+/// Siphon Life). The heal is deferred to a separate system to avoid query conflicts when
+/// both the damage system and healing system need mutable access to Health components.
+#[derive(Resource)]
+pub(crate) struct PendingDefenderHeal {
+    /// Total heal amount to apply.
+    pub amount: f32,
+    /// World-space origin position (for finding the nearest injured defender).
+    pub origin: Vec3,
+}
+
+/// Applies a pending defender heal to the nearest injured defender, then removes the resource.
+///
+/// Finds the closest defender (by world-space distance to `origin`) that is alive but not
+/// at full health, and heals them for the pending amount.
+pub(crate) fn apply_pending_defender_heal(
+    mut commands: Commands,
+    pending: Option<Res<PendingDefenderHeal>>,
+    mut defenders: Query<(Entity, &Transform, &mut Health, &Team), Without<Wizard>>,
+) {
+    let Some(heal) = pending else {
+        return;
+    };
+
+    let mut best: Option<(Entity, f32)> = None;
+    for (entity, transform, health, team) in defenders.iter() {
+        if *team != Team::Defenders || health.current <= 0.0 || health.current >= health.max {
+            continue;
+        }
+        let dist = transform.translation.distance(heal.origin);
+        match best {
+            None => best = Some((entity, dist)),
+            Some((_, best_dist)) if dist < best_dist => best = Some((entity, dist)),
+            _ => {}
+        }
+    }
+
+    if let Some((entity, _)) = best {
+        if let Ok((_, _, mut health, _)) = defenders.get_mut(entity) {
+            health.heal(heal.amount);
+        }
+    }
+
+    commands.remove_resource::<PendingDefenderHeal>();
+}
 
 /// Projects the cursor position onto the Y=0 ground plane via raycasting.
 ///

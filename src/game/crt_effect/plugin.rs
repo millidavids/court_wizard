@@ -28,8 +28,9 @@ use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use super::systems::{
     CorrectedCursorPosition, RawCursorPosition, animate_channel_change, animate_desaturation,
     correct_cursor_for_barrel_distortion, correct_ui_interaction_for_barrel,
-    handle_channel_change_message, handle_desaturation_message,
+    handle_channel_change_message, handle_desaturation_message, update_lensing_positions,
 };
+use crate::state::AppState;
 
 const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
 
@@ -57,6 +58,10 @@ impl Plugin for CrtEffectPlugin {
         app.add_systems(
             Update,
             animate_desaturation.run_if(resource_exists::<DesaturationTimer>),
+        );
+        app.add_systems(
+            Update,
+            update_lensing_positions.run_if(in_state(AppState::InGame)),
         );
 
         // Correct cursor position for barrel distortion before any game systems read it.

@@ -8,6 +8,7 @@ use super::components::{BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackH
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::MovementCalculationSet;
+use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, apply_pending_defender_heal};
 
 /// Plugin that manages the Black Hole spell.
 #[derive(Default)]
@@ -28,6 +29,8 @@ impl Plugin for BlackHolePlugin {
                     systems::apply_gravitational_forces.in_set(MovementCalculationSet),
                     systems::apply_corpse_gravity_and_despawn.in_set(MovementCalculationSet),
                     systems::apply_black_hole_damage,
+                    systems::apply_crushing_pressure,
+                    systems::apply_dimensional_rift,
                     systems::remove_units_from_black_hole,
                     systems::update_black_hole_visuals,
                     systems::despawn_expired_black_holes,
@@ -46,6 +49,7 @@ impl Plugin for BlackHolePlugin {
                 )
                     .run_if(any_exist::<BlackHoleAccretionDisk>()),
                 systems::cleanup_black_hole_sfx.run_if(any_exist::<BlackHoleSfx>()),
+                apply_pending_defender_heal.run_if(resource_exists::<PendingDefenderHeal>),
             )
                 .run_if(is_spell_effects_active),
         );

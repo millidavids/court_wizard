@@ -34,3 +34,9 @@ pub(super) const CHANNEL_CHANGE_DURATION: f32 = 0.4;
 
 /// Duration of the screen desaturation pulse in seconds.
 pub(super) const DESATURATION_DURATION: f32 = 0.15;
+
+/// Gravitational lensing distortion strength (how far pixels are pulled toward black holes).
+pub(super) const LENSING_STRENGTH: f32 = 0.03;
+
+/// Multiplier for black hole visual radius to get screen-space influence radius.
+pub(super) const LENSING_INFLUENCE_MULT: f32 = 3.5;

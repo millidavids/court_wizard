@@ -28,6 +28,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::FingerOfDeath => finger_of_death_talents(),
         Spell::MarkOfDeath => mark_of_death_talents(),
         Spell::LightningRod => lightning_rod_talents(),
+        Spell::BlackHole => black_hole_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -775,6 +776,74 @@ fn lightning_rod_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Lightning Nexus",
                 description: "Killing a unit with arcs triggers a weaker bonus strike. Successive bonus strikes deal diminishing damage.",
                 locked_text: "Death begets lightning begets death.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn black_hole_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Denser Core",
+                description: "Gravity strength increased by 50%.",
+                locked_text: "The heavier the core, the harder they fall. Literally.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Expansive Void",
+                description: "Max radius increased by 40%, but damage reduced by 20%.",
+                locked_text: "Wider is better. Unless you're the one getting pulled in.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Collapse",
+                description: "Cast time reduced by 40%.",
+                locked_text: "Faster deployment. The void waits for no one.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Event Horizon",
+                description: "Units within 25% of center take double damage.",
+                locked_text: "Past a certain point, there is no return. Only pain.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Crushing Pressure",
+                description: "Units inside the black hole are slowed by 40%.",
+                locked_text: "Gravity doesn't just pull. It crushes.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Void Siphon",
+                description: "30% of damage dealt heals the nearest injured defender.",
+                locked_text: "The void takes from them and gives to yours. Fair trade.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Singularity",
+                description: "When the black hole expires, it collapses dealing 150 damage to all units inside.",
+                locked_text: "Everything that goes in must come out. Explosively.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Twin Stars",
+                description: "Spawns 2 black holes at 60% size and gravity instead of 1.",
+                locked_text: "Binary star systems are nature's way of saying 'why not both?'",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Dimensional Rift",
+                description: "Every 2 seconds, all enemies inside are teleported to the center and take 30 burst damage.",
+                locked_text: "The rift has opinions about where you should stand. The center. Always the center.",
                 implemented: true,
             },
         ],

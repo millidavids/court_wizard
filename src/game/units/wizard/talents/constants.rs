@@ -4,19 +4,19 @@ use crate::game::units::wizard::components::Spell;
 /// Each spell has 3 tiers, unlocked at these cumulative progress values.
 pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
     match spell {
-        Spell::MagicMissile => [50, 150, 400],
-        Spell::Fireball => [30, 100, 300],
+        Spell::MagicMissile => [50, 400, 1000],
+        Spell::Fireball => [30, 200, 700],
         Spell::BattleHymn => [20, 75, 200],
         // Offense spells
         Spell::Disintegrate => [40, 120, 350],
         Spell::ChainLightning => [30, 100, 300],
         Spell::FingerOfDeath => [5, 10, 20],
-        Spell::LightningRod => [1, 1, 1],
+        Spell::LightningRod => [10, 100, 500],
         Spell::MeteorFall => [20, 70, 200],
         Spell::MarkOfDeath => [15, 50, 150],
         Spell::PlagueWind => [30, 100, 300],
         // Control spells
-        Spell::BlackHole => [10, 35, 100],
+        Spell::BlackHole => [50, 200, 500],
         Spell::WallOfStone => [15, 50, 150],
         Spell::WallOfFire => [20, 70, 200],
         Spell::Entangle => [20, 70, 200],

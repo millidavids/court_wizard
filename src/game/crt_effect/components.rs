@@ -48,10 +48,24 @@ pub struct CrtEffectSettings {
     pub viewport_w: f32,
     /// Viewport height in UV space (0.0–1.0). Used for 16:9 letterboxing.
     pub viewport_h: f32,
-    /// Padding for 16-byte GPU alignment.
-    pub _padding3: f32,
-    pub _padding4: f32,
-    pub _padding5: f32,
+    /// Number of active black holes for gravitational lensing (0.0–2.0).
+    pub lensing_count: f32,
+    /// Global lensing distortion strength.
+    pub lensing_strength: f32,
+    /// Screen darkening factor during black holes (0.0 = no darkening, 1.0 = full dark).
+    pub lensing_darkening: f32,
+    /// Black hole 0: screen-space UV X position.
+    pub lensing_0_x: f32,
+    /// Black hole 0: screen-space UV Y position.
+    pub lensing_0_y: f32,
+    /// Black hole 0: screen-space influence radius in UV.
+    pub lensing_0_radius: f32,
+    /// Black hole 1: screen-space UV X position.
+    pub lensing_1_x: f32,
+    /// Black hole 1: screen-space UV Y position.
+    pub lensing_1_y: f32,
+    /// Black hole 1: screen-space influence radius in UV.
+    pub lensing_1_radius: f32,
 }
 
 impl CrtEffectSettings {
@@ -83,9 +97,15 @@ impl Default for CrtEffectSettings {
             viewport_y: 0.0,
             viewport_w: 1.0,
             viewport_h: 1.0,
-            _padding3: 0.0,
-            _padding4: 0.0,
-            _padding5: 0.0,
+            lensing_count: 0.0,
+            lensing_strength: 0.0,
+            lensing_darkening: 0.0,
+            lensing_0_x: 0.0,
+            lensing_0_y: 0.0,
+            lensing_0_radius: 0.0,
+            lensing_1_x: 0.0,
+            lensing_1_y: 0.0,
+            lensing_1_radius: 0.0,
         }
     }
 }

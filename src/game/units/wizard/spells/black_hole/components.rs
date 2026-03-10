@@ -5,6 +5,42 @@ use bevy::prelude::*;
 use super::constants::*;
 use crate::game::units::DamageType;
 
+/// Pre-computed talent parameters for a black hole instance.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BlackHoleTalentParams {
+    /// Gravity strength multiplier (T1-0 Denser Core).
+    pub gravity_mult: f32,
+    /// Max radius multiplier (T1-1 Expansive Void).
+    pub radius_mult: f32,
+    /// Damage multiplier (T1-1 Expansive Void).
+    pub damage_mult: f32,
+    /// T2-0 Event Horizon: units in inner zone take double damage.
+    pub event_horizon: bool,
+    /// T2-1 Crushing Pressure: slow units inside.
+    pub crushing_pressure: bool,
+    /// T2-2 Void Siphon: heal defenders with damage dealt.
+    pub void_siphon: bool,
+    /// T3-0 Singularity: collapse damage on expiration.
+    pub singularity: bool,
+    /// T3-2 Dimensional Rift: periodic teleport + burst.
+    pub dimensional_rift: bool,
+}
+
+impl Default for BlackHoleTalentParams {
+    fn default() -> Self {
+        Self {
+            gravity_mult: 1.0,
+            radius_mult: 1.0,
+            damage_mult: 1.0,
+            event_horizon: false,
+            crushing_pressure: false,
+            void_siphon: false,
+            singularity: false,
+            dimensional_rift: false,
+        }
+    }
+}
+
 /// Black hole spell component.
 ///
 /// Creates a gravitational sphere that pulls units inward while making them spiral.
@@ -26,11 +62,20 @@ pub(crate) struct BlackHole {
     pub time_since_damage: f32,
     /// Empowerment multiplier for spell effectiveness.
     pub empowerment: f32,
+    /// Talent parameters for this instance.
+    pub talent_params: BlackHoleTalentParams,
+    /// Time since last Dimensional Rift pulse (seconds).
+    pub time_since_rift_pulse: f32,
 }
 
 impl BlackHole {
     /// Creates a new black hole at the specified position.
-    pub fn new(position: Vec3, max_radius: f32, empowerment: f32) -> Self {
+    pub fn new(
+        position: Vec3,
+        max_radius: f32,
+        empowerment: f32,
+        talent_params: BlackHoleTalentParams,
+    ) -> Self {
         Self {
             position,
             current_radius: 0.0,
@@ -39,6 +84,8 @@ impl BlackHole {
             time_alive: 0.0,
             time_since_damage: 0.0,
             empowerment,
+            talent_params,
+            time_since_rift_pulse: 0.0,
         }
     }
 
@@ -55,12 +102,12 @@ impl BlackHole {
         let time_factor = (self.time_alive / GRAVITY_RAMP_TIME).min(1.0);
         let base_strength =
             BASE_GRAVITY_STRENGTH + (MAX_GRAVITY_STRENGTH - BASE_GRAVITY_STRENGTH) * time_factor;
-        base_strength * self.empowerment
+        base_strength * self.empowerment * self.talent_params.gravity_mult
     }
 
-    /// Returns damage per tick, scaled by empowerment.
+    /// Returns damage per tick, scaled by empowerment and talent damage multiplier.
     pub fn damage_per_tick(&self) -> f32 {
-        BASE_DAMAGE_PER_TICK * self.empowerment
+        BASE_DAMAGE_PER_TICK * self.empowerment * self.talent_params.damage_mult
     }
 
     /// Returns true if a position is within the black hole sphere.
@@ -82,6 +129,7 @@ impl BlackHole {
     pub fn update_timers(&mut self, delta: f32) {
         self.time_alive += delta;
         self.time_since_damage += delta;
+        self.time_since_rift_pulse += delta;
         self.calculate_current_radius();
     }
 

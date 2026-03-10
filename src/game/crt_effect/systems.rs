@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
 use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer};
-use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION};
+use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
+use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 
 /// Stores the raw (uncorrected) cursor position from OS events.
 ///
@@ -297,6 +298,109 @@ pub(super) fn handle_desaturation_message(
     if messages.read().next().is_some() && existing_timer.is_none() {
         commands.insert_resource(DesaturationTimer::new(DESATURATION_DURATION));
     }
+}
+
+/// Projects active black hole positions to viewport-local UV space for gravitational lensing.
+///
+/// The CRT shader operates in viewport-local UV (0–1 within the letterboxed region),
+/// so we must convert from full-window UV to local UV using the viewport offset/size.
+pub(super) fn update_lensing_positions(
+    black_holes: Query<&BlackHole>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    mut crt_query: Query<&mut CrtEffectSettings>,
+) {
+    let Ok(mut settings) = crt_query.single_mut() else {
+        return;
+    };
+
+    // Reset lensing data
+    settings.lensing_count = 0.0;
+    settings.lensing_strength = LENSING_STRENGTH;
+    settings.lensing_darkening = 0.0;
+    settings.lensing_0_x = 0.0;
+    settings.lensing_0_y = 0.0;
+    settings.lensing_0_radius = 0.0;
+    settings.lensing_1_x = 0.0;
+    settings.lensing_1_y = 0.0;
+    settings.lensing_1_radius = 0.0;
+
+    let Ok((camera, camera_transform)) = camera_query.single() else {
+        return;
+    };
+
+    // Viewport dimensions for converting full-window UV to local UV
+    let vp_x = settings.viewport_x;
+    let vp_y = settings.viewport_y;
+    let vp_w = settings.viewport_w;
+    let vp_h = settings.viewport_h;
+    if vp_w < 0.001 || vp_h < 0.001 {
+        return;
+    }
+
+    let mut count = 0u32;
+    let mut max_growth: f32 = 0.0;
+    for black_hole in &black_holes {
+        if count >= 2 {
+            break;
+        }
+        // Track growth for screen darkening (0→1 over GROWTH_TIME)
+        let growth = (black_hole.time_alive / crate::game::units::wizard::spells::black_hole::constants::GROWTH_TIME).min(1.0);
+        max_growth = max_growth.max(growth);
+
+        // Project black hole center to NDC
+        let Some(ndc) = camera.world_to_ndc(camera_transform, black_hole.position) else {
+            continue;
+        };
+
+        // Convert NDC (-1..1) to full-window UV (0..1), flipping Y for screen space
+        let full_uv_x = (ndc.x + 1.0) * 0.5;
+        let full_uv_y = 1.0 - (ndc.y + 1.0) * 0.5;
+
+        // Convert full-window UV to viewport-local UV (0..1 within letterboxed region)
+        let local_x = (full_uv_x - vp_x) / vp_w;
+        let local_y = (full_uv_y - vp_y) / vp_h;
+
+        // Skip if too far off viewport
+        if local_x < -0.3 || local_x > 1.3 || local_y < -0.3 || local_y > 1.3 {
+            continue;
+        }
+
+        // Project a point at the edge of the black hole to get screen-space radius
+        let edge_point =
+            black_hole.position + camera_transform.right() * black_hole.current_radius;
+        let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge_point) else {
+            continue;
+        };
+        let edge_full_uv_x = (edge_ndc.x + 1.0) * 0.5;
+        // Radius in viewport-local UV space
+        let screen_radius = ((edge_full_uv_x - full_uv_x) / vp_w).abs();
+
+        // Influence radius is larger than visual radius
+        let influence_radius = screen_radius * LENSING_INFLUENCE_MULT;
+
+        // Skip black holes that are too small (still growing)
+        if influence_radius < 0.001 {
+            continue;
+        }
+
+        match count {
+            0 => {
+                settings.lensing_0_x = local_x;
+                settings.lensing_0_y = local_y;
+                settings.lensing_0_radius = influence_radius;
+            }
+            1 => {
+                settings.lensing_1_x = local_x;
+                settings.lensing_1_y = local_y;
+                settings.lensing_1_radius = influence_radius;
+            }
+            _ => {}
+        }
+        count += 1;
+    }
+    settings.lensing_count = count as f32;
+    // Gradual screen darkening: 0→0.3 as black hole grows (70% brightness at full size)
+    settings.lensing_darkening = max_growth * 0.3;
 }
 
 /// Ticks the desaturation timer, writes intensity to CrtEffectSettings,

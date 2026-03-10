@@ -2,7 +2,8 @@
 
 use bevy::prelude::*;
 use super::components::{
-    BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx, UnitInBlackHole,
+    BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx, BlackHoleTalentParams,
+    UnitInBlackHole,
 };
 use super::constants::*;
 use crate::config::GameConfig;
@@ -12,7 +13,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{
-    Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
+    Corpse, Health, SlowMovementModifier, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
@@ -20,9 +21,10 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, clamp_to_spell_range, get_cursor_world_position};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
@@ -33,6 +35,48 @@ struct CastResult {
     cursor_pos: Option<Vec3>,
 }
 
+/// Compute talent parameters from active talent selections.
+fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> BlackHoleTalentParams {
+    let mut params = BlackHoleTalentParams::default();
+
+    let Some(talents) = active_talents else {
+        return params;
+    };
+
+    let t1 = talents.get_selection(Spell::BlackHole, 0);
+    let t2 = talents.get_selection(Spell::BlackHole, 1);
+    let t3 = talents.get_selection(Spell::BlackHole, 2);
+
+    // Tier 1
+    match t1 {
+        Some(0) => params.gravity_mult = DENSER_CORE_GRAVITY_MULT,
+        Some(1) => {
+            params.radius_mult = EXPANSIVE_VOID_RADIUS_MULT;
+            params.damage_mult = EXPANSIVE_VOID_DAMAGE_MULT;
+        }
+        // Some(2) Quick Collapse: handled at cast time, not stored in params
+        _ => {}
+    }
+
+    // Tier 2
+    match t2 {
+        Some(0) => params.event_horizon = true,
+        Some(1) => params.crushing_pressure = true,
+        Some(2) => params.void_siphon = true,
+        _ => {}
+    }
+
+    // Tier 3
+    match t3 {
+        Some(0) => params.singularity = true,
+        // Some(1) Twin Stars: handled at spawn time
+        Some(2) => params.dimensional_rift = true,
+        _ => {}
+    }
+
+    params
+}
+
 /// Spawns a black hole entity with billboard circle, torus ring, accretion disk, accretion ring, and looping sound.
 pub(crate) fn spawn_black_hole(
     commands: &mut Commands,
@@ -41,44 +85,22 @@ pub(crate) fn spawn_black_hole(
     empowerment: f32,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
+    talent_params: BlackHoleTalentParams,
 ) {
-    let max_radius = MAX_RADIUS * empowerment;
+    let max_radius = MAX_RADIUS * empowerment * talent_params.radius_mult;
     let spawn_pos = Vec3::new(position.x, BLACK_HOLE_HEIGHT, position.z);
 
-    // Main billboard circle (faces the camera each frame)
+    // Main black hole entity (no mesh — the shader lensing creates the black center)
     let black_hole_entity = commands
         .spawn((
-            BlackHole::new(spawn_pos, max_radius, empowerment),
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.black_hole_billboard.clone()),
-            Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
+            BlackHole::new(spawn_pos, max_radius, empowerment, talent_params),
+            Transform::from_translation(spawn_pos),
             NetworkedSpellEffect {
                 kind: SpellEffectKind::BlackHole,
             },
             OnGameplayScreen,
         ))
         .id();
-
-    // Billboard torus ring (white, pulsing)
-    commands.spawn((
-        BlackHoleRing {
-            black_hole_entity,
-            is_accretion: false,
-        },
-        Mesh3d(assets.black_hole_torus.clone()),
-        MeshMaterial3d(assets.black_hole_ring.clone()),
-        Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
-        OnGameplayScreen,
-    ));
-
-    // Accretion disk (tilted flat circle, redshifted)
-    commands.spawn((
-        BlackHoleAccretionDisk { black_hole_entity },
-        Mesh3d(assets.unit_circle.clone()),
-        MeshMaterial3d(assets.black_hole_accretion.clone()),
-        Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
-        OnGameplayScreen,
-    ));
 
     // Accretion disk torus ring (warm-white, pulsing)
     commands.spawn((
@@ -121,6 +143,7 @@ pub(super) fn handle_black_hole_casting(
     visual_assets: Res<SpellVisualAssets>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
@@ -138,6 +161,18 @@ pub(super) fn handle_black_hole_casting(
         return;
     }
 
+    let talent_params = compute_talent_params(active_talents.as_deref());
+
+    // Check Twin Stars talent for mana cost multiplier
+    let t3 = active_talents
+        .as_deref()
+        .and_then(|t| t.get_selection(Spell::BlackHole, 2));
+    let mana_mult = if t3 == Some(1) {
+        TWIN_STARS_MANA_MULT
+    } else {
+        1.0
+    };
+
     let cast_result = black_hole_casting_logic(
         &input,
         &time,
@@ -145,18 +180,44 @@ pub(super) fn handle_black_hole_casting(
         &mut mana,
         primed_spell,
         wizard,
+        mana_mult,
     );
 
     if cast_result.completed {
         if let Some(pos) = cast_result.cursor_pos {
-            spawn_black_hole(
-                &mut commands,
-                &visual_assets,
-                pos,
-                primed_spell.empowerment,
-                &sfx,
-                &game_config,
-            );
+            if t3 == Some(1) {
+                // Twin Stars: spawn 2 black holes offset from the target position
+                let offset = Vec3::new(TWIN_STARS_OFFSET / 2.0, 0.0, 0.0);
+                let emp = primed_spell.empowerment * TWIN_STARS_EFFECTIVENESS;
+                spawn_black_hole(
+                    &mut commands,
+                    &visual_assets,
+                    pos - offset,
+                    emp,
+                    &sfx,
+                    &game_config,
+                    talent_params,
+                );
+                spawn_black_hole(
+                    &mut commands,
+                    &visual_assets,
+                    pos + offset,
+                    emp,
+                    &sfx,
+                    &game_config,
+                    talent_params,
+                );
+            } else {
+                spawn_black_hole(
+                    &mut commands,
+                    &visual_assets,
+                    pos,
+                    primed_spell.empowerment,
+                    &sfx,
+                    &game_config,
+                    talent_params,
+                );
+            }
         }
         mouse_state.left_consumed = true;
     }
@@ -173,11 +234,14 @@ fn black_hole_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     wizard: &Wizard,
+    mana_mult: f32,
 ) -> CastResult {
     let mut result = CastResult {
         completed: false,
         cursor_pos: None,
     };
+
+    let total_mana_cost = MANA_COST * mana_mult;
 
     // Check for release event
     if input.just_released {
@@ -187,7 +251,7 @@ fn black_hole_casting_logic(
 
     match *casting_state {
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed) && mana.can_afford(MANA_COST) {
+            if (input.just_pressed || input.pressed) && mana.can_afford(total_mana_cost) {
                 casting_state.start_cast();
             }
         }
@@ -199,7 +263,7 @@ fn black_hole_casting_logic(
                     let clamped_pos =
                         clamp_to_spell_range(cursor_pos, SPELL_ORIGIN, wizard.spell_range);
 
-                    if mana.consume(MANA_COST) {
+                    if mana.consume(total_mana_cost) {
                         result.completed = true;
                         result.cursor_pos = Some(clamped_pos);
                     }
@@ -307,6 +371,7 @@ pub(super) fn apply_corpse_gravity_and_despawn(
 /// Applies damage to units touching the black hole sphere.
 ///
 /// Damage increases over time for units that remain in contact.
+/// Supports Event Horizon (double damage in inner zone) and Void Siphon (healing).
 pub(super) fn apply_black_hole_damage(
     time: Res<Time>,
     mut commands: Commands,
@@ -322,11 +387,17 @@ pub(super) fn apply_black_hole_damage(
         ),
         Without<Wizard>,
     >,
+    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
+    let mut total_siphon_heal = 0.0;
+    let mut siphon_origin = Vec3::ZERO;
+
     for mut black_hole in black_holes.iter_mut() {
         if !black_hole.should_damage() {
             continue;
         }
+
+        let bh_pos = black_hole.position;
 
         for (entity, transform, mut health, mut temp_hp, tracking, has_spell_shield) in
             units.iter_mut()
@@ -347,8 +418,23 @@ pub(super) fn apply_black_hole_damage(
                     1.0 // First tick, no multiplier yet
                 };
 
+                // Event Horizon: double damage in inner zone
+                let event_horizon_mult = if black_hole.talent_params.event_horizon {
+                    let dist = bh_pos.distance(unit_pos);
+                    let inner_radius =
+                        black_hole.current_radius * EVENT_HORIZON_INNER_FRACTION;
+                    if dist <= inner_radius {
+                        EVENT_HORIZON_DAMAGE_MULT
+                    } else {
+                        1.0
+                    }
+                } else {
+                    1.0
+                };
+
                 // Apply scaled damage
-                let total_damage = black_hole.damage_per_tick() * damage_multiplier;
+                let total_damage =
+                    black_hole.damage_per_tick() * damage_multiplier * event_horizon_mult;
                 apply_spell_damage(
                     &mut commands,
                     entity,
@@ -358,10 +444,29 @@ pub(super) fn apply_black_hole_damage(
                     DamageType::Force,
                     false,
                 );
+
+                // Accumulate siphon healing
+                if black_hole.talent_params.void_siphon {
+                    total_siphon_heal += total_damage * VOID_SIPHON_HEAL_FRACTION;
+                    siphon_origin = bh_pos;
+                }
             }
         }
 
+        // Track talent progress
+        if let Some(ref mut progress) = talent_progress {
+            progress.increment(Spell::BlackHole, 1);
+        }
+
         black_hole.reset_damage_timer();
+    }
+
+    // Defer siphon healing to a separate system to avoid query conflicts
+    if total_siphon_heal > 0.0 {
+        commands.insert_resource(PendingDefenderHeal {
+            amount: total_siphon_heal,
+            origin: siphon_origin,
+        });
     }
 }
 
@@ -384,6 +489,91 @@ pub(super) fn remove_units_from_black_hole(
 
         if !is_in_any_black_hole {
             commands.entity(entity).remove::<UnitInBlackHole>();
+        }
+    }
+}
+
+/// Applies Crushing Pressure slow to units inside the black hole.
+pub(super) fn apply_crushing_pressure(
+    mut commands: Commands,
+    black_holes: Query<&BlackHole>,
+    units: Query<(Entity, &Transform), (With<Team>, Without<Wizard>, Without<Corpse>)>,
+) {
+    // Only run if any black hole has crushing pressure
+    let has_crushing = black_holes.iter().any(|bh| bh.talent_params.crushing_pressure);
+    if !has_crushing {
+        return;
+    }
+
+    for (entity, transform) in units.iter() {
+        let unit_pos = transform.translation;
+        let mut inside_crushing = false;
+
+        for black_hole in black_holes.iter() {
+            if black_hole.talent_params.crushing_pressure && black_hole.contains_point(unit_pos) {
+                inside_crushing = true;
+                break;
+            }
+        }
+
+        if inside_crushing {
+            commands.entity(entity).insert(SlowMovementModifier::new(
+                CRUSHING_PRESSURE_SLOW,
+                CRUSHING_PRESSURE_SLOW_DURATION,
+            ));
+        }
+    }
+}
+
+/// Dimensional Rift: periodically teleports all enemies inside to the center and deals burst damage.
+pub(super) fn apply_dimensional_rift(
+    mut commands: Commands,
+    mut black_holes: Query<&mut BlackHole>,
+    mut units: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
+        (With<Team>, Without<Wizard>, Without<Corpse>, Without<BlackHole>),
+    >,
+) {
+    for mut black_hole in black_holes.iter_mut() {
+        if !black_hole.talent_params.dimensional_rift {
+            continue;
+        }
+
+        if black_hole.time_since_rift_pulse < DIMENSIONAL_RIFT_INTERVAL {
+            continue;
+        }
+
+        black_hole.time_since_rift_pulse = 0.0;
+        let bh_pos = black_hole.position;
+
+        for (entity, mut transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut()
+        {
+            if has_spell_shield {
+                continue;
+            }
+
+            if black_hole.contains_point(transform.translation) {
+                // Teleport to center (keep Y)
+                transform.translation.x = bh_pos.x;
+                transform.translation.z = bh_pos.z;
+
+                // Deal burst damage
+                apply_spell_damage(
+                    &mut commands,
+                    entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    DIMENSIONAL_RIFT_DAMAGE * black_hole.empowerment,
+                    DamageType::Force,
+                    false,
+                );
+            }
         }
     }
 }
@@ -424,12 +614,50 @@ pub(super) fn update_black_hole_visuals(
 }
 
 /// Despawns black holes when they expire after LIFETIME seconds.
+/// Handles Singularity talent: deals collapse damage to all units inside on expiration.
 pub(super) fn despawn_expired_black_holes(
     mut commands: Commands,
     black_holes: Query<(Entity, &BlackHole)>,
+    mut units: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
+        (Without<Wizard>, Without<BlackHole>),
+    >,
 ) {
     for (entity, black_hole) in black_holes.iter() {
         if black_hole.is_expired() {
+            // Singularity: collapse damage to all units inside
+            if black_hole.talent_params.singularity {
+                for (
+                    unit_entity,
+                    transform,
+                    mut health,
+                    mut temp_hp,
+                    has_spell_shield,
+                ) in units.iter_mut()
+                {
+                    if has_spell_shield {
+                        continue;
+                    }
+                    if black_hole.contains_point(transform.translation) {
+                        apply_spell_damage(
+                            &mut commands,
+                            unit_entity,
+                            &mut health,
+                            temp_hp.as_deref_mut(),
+                            SINGULARITY_DAMAGE * black_hole.empowerment,
+                            DamageType::Force,
+                            false,
+                        );
+                    }
+                }
+            }
+
             commands.entity(entity).try_despawn();
         }
     }

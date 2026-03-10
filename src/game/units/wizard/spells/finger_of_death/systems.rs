@@ -18,7 +18,7 @@ use crate::game::units::damage::DamageType;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, get_cursor_world_position};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -583,7 +583,7 @@ pub fn apply_finger_of_death_damage(
                     if beam_talent_params.siphon_life_percent > 0.0 && total_damage_dealt > 0.0 {
                         let heal_amount =
                             total_damage_dealt * beam_talent_params.siphon_life_percent;
-                        commands.insert_resource(PendingSiphonHeal {
+                        commands.insert_resource(PendingDefenderHeal {
                             amount: heal_amount,
                             origin: beam_origin,
                         });
@@ -681,38 +681,6 @@ pub fn apply_finger_of_death_damage(
             OnGameplayScreen,
         ));
     }
-}
-
-/// Applies pending siphon life heal to the nearest injured defender.
-pub fn apply_siphon_life_heals(
-    mut commands: Commands,
-    pending: Option<Res<PendingSiphonHeal>>,
-    mut defenders: Query<(Entity, &Transform, &mut Health, &Team), Without<Wizard>>,
-) {
-    let Some(heal) = pending else {
-        return;
-    };
-
-    let mut best: Option<(Entity, f32)> = None;
-    for (entity, transform, health, team) in defenders.iter() {
-        if *team != Team::Defenders || health.current <= 0.0 || health.current >= health.max {
-            continue;
-        }
-        let dist = transform.translation.distance(heal.origin);
-        match best {
-            None => best = Some((entity, dist)),
-            Some((_, best_dist)) if dist < best_dist => best = Some((entity, dist)),
-            _ => {}
-        }
-    }
-
-    if let Some((entity, _)) = best {
-        if let Ok((_, _, mut health, _)) = defenders.get_mut(entity) {
-            health.heal(heal.amount);
-        }
-    }
-
-    commands.remove_resource::<PendingSiphonHeal>();
 }
 
 /// Processes pending undead raises from Finger of Undeath.

@@ -36,9 +36,15 @@ struct CrtSettings {
     viewport_y: f32,
     viewport_w: f32,
     viewport_h: f32,
-    _padding3: f32,
-    _padding4: f32,
-    _padding5: f32,
+    lensing_count: f32,
+    lensing_strength: f32,
+    lensing_darkening: f32,
+    lensing_0_x: f32,
+    lensing_0_y: f32,
+    lensing_0_radius: f32,
+    lensing_1_x: f32,
+    lensing_1_y: f32,
+    lensing_1_radius: f32,
 }
 @group(0) @binding(2) var<uniform> settings: CrtSettings;
 
@@ -66,6 +72,22 @@ fn hash_u(n: u32) -> f32 {
     return f32(x & 0xFFFFu) / 65535.0;
 }
 
+/// Computes branchless UV offset pulling toward a black hole center.
+/// Creates a ring-shaped distortion: no effect at the center (keeps black hole black),
+/// peaks partway out, and fades to zero at the influence radius edge.
+fn lensing_offset(uv: vec2<f32>, center: vec2<f32>, radius: f32, is_active: f32) -> vec2<f32> {
+    let to_center = center - uv;
+    let dist = max(length(to_center), 0.001);
+    // Inner dead zone: no distortion inside the visual black hole (~40% of influence radius)
+    let inner_edge = radius * 0.4;
+    let inner_fade = smoothstep(0.0, inner_edge, dist);
+    // Outer falloff: distortion fades to zero closer to center
+    let outer_fade = smoothstep(radius * 0.6, inner_edge, dist);
+    let t = inner_fade * outer_fade;
+    let direction = to_center / dist;
+    return direction * t * settings.lensing_strength * is_active;
+}
+
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // --- Viewport mapping ---
@@ -79,7 +101,15 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
 
     // 1. Compute barrel-distorted local UV and clamp for safe sampling.
     let distorted_local = barrel_distort(local_uv, settings.barrel_distortion);
-    let safe_local = clamp(distorted_local, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
+
+    // 1b. Gravitational lensing: pull UVs toward black hole centers (branchless).
+    let lens_is_active_0 = step(0.5, settings.lensing_count);
+    let lens_is_active_1 = step(1.5, settings.lensing_count);
+    let lens_0 = lensing_offset(distorted_local, vec2<f32>(settings.lensing_0_x, settings.lensing_0_y), settings.lensing_0_radius, lens_is_active_0);
+    let lens_1 = lensing_offset(distorted_local, vec2<f32>(settings.lensing_1_x, settings.lensing_1_y), settings.lensing_1_radius, lens_is_active_1);
+    let lensed_local = distorted_local + lens_0 + lens_1;
+
+    let safe_local = clamp(lensed_local, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
     let safe_uv = local_to_tex(safe_local);
 
     // 2. Chromatic aberration: offset R and B channels away from center.
@@ -219,6 +249,27 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     if (settings.desaturation > 0.0) {
         let luma = dot(color.rgb, vec3<f32>(0.299, 0.587, 0.114));
         color = vec4<f32>(mix(color.rgb, vec3<f32>(luma), settings.desaturation), 1.0);
+    }
+
+    // 17. Gravitational lensing: gradually darken screen as black holes grow.
+    if (settings.lensing_darkening > 0.0) {
+        color = vec4<f32>(color.rgb * (1.0 - settings.lensing_darkening), 1.0);
+    }
+
+    // 18. Gravitational lensing: darken center of black holes to pure black.
+    if (settings.lensing_count >= 0.5) {
+        let bh0_center = vec2<f32>(settings.lensing_0_x, settings.lensing_0_y);
+        let bh0_inner = settings.lensing_0_radius * 0.3;
+        let bh0_dist = length(distorted_local - bh0_center);
+        let bh0_dark = smoothstep(0.0, bh0_inner, bh0_dist);
+        color = vec4<f32>(color.rgb * bh0_dark, 1.0);
+    }
+    if (settings.lensing_count >= 1.5) {
+        let bh1_center = vec2<f32>(settings.lensing_1_x, settings.lensing_1_y);
+        let bh1_inner = settings.lensing_1_radius * 0.3;
+        let bh1_dist = length(distorted_local - bh1_center);
+        let bh1_dark = smoothstep(0.0, bh1_inner, bh1_dist);
+        color = vec4<f32>(color.rgb * bh1_dark, 1.0);
     }
 
     return color;

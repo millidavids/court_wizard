@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.47] - 2026-03-10
+
+### Added
+- **Black Hole talents** — the Black Hole spell now has a full talent tree with 9 talents across 3 tiers, unlocked by pulling enemies in
+- **Tier 1: Core modifications** — choose between stronger gravitational pull, a larger but weaker black hole, or faster casting
+- **Tier 2: New effects** — choose between a deadly inner zone that deals double damage, a slowing field that persists after leaving, or healing your nearest injured defender with damage dealt
+- **Tier 3: Powerful upgrades** — choose between a massive explosion when the black hole expires, splitting into two smaller black holes, or periodic bursts that yank enemies to the center
+- **Gravitational lensing effect** — active black holes now visually bend the light around them, creating a screen-space distortion that looks like real gravitational lensing
+- **Black hole screen darkening** — the screen gradually dims as a black hole grows to full size, adding to the ominous atmosphere
+
+### Changed
+- **Black hole visuals reworked** — the black hole center is now rendered entirely through the lensing shader, creating a cleaner, more natural-looking dark core instead of a flat sprite
+
 ## [v0.4.25] - 2026-03-10
 
 ### Added

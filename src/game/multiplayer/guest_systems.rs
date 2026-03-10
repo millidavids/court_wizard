@@ -687,7 +687,7 @@ pub(super) fn spawn_spell_effect(
                         Mesh3d(assets.cross_plane_sphere.clone()),
                         MeshMaterial3d(assets.black_hole.clone()),
                         Transform::from_translation(pos).with_scale(Vec3::ZERO), // Grows from 0 via update_black_hole_visuals
-                        BlackHole::new(pos, max_radius, empowerment),
+                        BlackHole::new(pos, max_radius, empowerment, Default::default()),
                         OnMultiplayerGameScreen,
                     ))
                     .id(),

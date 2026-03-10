@@ -12,6 +12,7 @@ use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::units::components::{Health, Hitbox, MovementSpeed, Team};
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 
 /// Loads the wizard sprite sheet texture.
 pub fn load_wizard_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -144,6 +145,7 @@ pub fn handle_prime_spell_messages(
     mut messages: MessageReader<PrimeSpellMessage>,
     cauldron_buffs: Res<CauldronBuffs>,
     mut wizard_query: Query<&mut PrimedSpell, With<LocalWizard>>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     for message in messages.read() {
         if let Ok(mut primed_spell) = wizard_query.single_mut() {
@@ -160,8 +162,29 @@ pub fn handle_prime_spell_messages(
             if range_mult > 1.0 {
                 spell.range_multiplier *= range_mult;
             }
+            // Apply talent-based cast time modifiers
+            if let Some(ref talents) = active_talents {
+                let mult = talent_cast_time_multiplier(spell.spell, talents);
+                if mult < 1.0 {
+                    spell.cast_time *= mult;
+                }
+            }
             *primed_spell = spell;
         }
+    }
+}
+
+/// Returns the talent-based cast time multiplier for a spell (1.0 = no change).
+fn talent_cast_time_multiplier(spell: Spell, talents: &ActiveTalents) -> f32 {
+    match spell {
+        Spell::BlackHole => {
+            if talents.get_selection(Spell::BlackHole, 0) == Some(2) {
+                super::spells::black_hole_constants::QUICK_COLLAPSE_CAST_TIME_MULT
+            } else {
+                1.0
+            }
+        }
+        _ => 1.0,
     }
 }
 

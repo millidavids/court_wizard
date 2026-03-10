@@ -5,10 +5,11 @@ use super::super::run_conditions::*;
 use super::components::{
     AwaitingFingerOfDeathRelease, DeathmarkDebuff, FingerOfDeathBeam, FingerOfDeathCooldown,
     FingerOfDeathFlare, FingerOfDeathGlow, NecroticExplosionBurst, NecroticPulse, NecroticVein,
-    PendingSiphonHeal, PendingUndeadRaise, ReapersScytheSweep,
+    PendingUndeadRaise, ReapersScytheSweep,
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, apply_pending_defender_heal};
 
 pub struct FingerOfDeathPlugin;
 
@@ -40,8 +41,8 @@ impl Plugin for FingerOfDeathPlugin {
                 // Talent systems
                 systems::process_pending_undead_raises
                     .run_if(resource_exists::<PendingUndeadRaise>),
-                systems::apply_siphon_life_heals
-                    .run_if(resource_exists::<PendingSiphonHeal>),
+                apply_pending_defender_heal
+                    .run_if(resource_exists::<PendingDefenderHeal>),
                 systems::apply_necrotic_explosion_damage
                     .run_if(any_exist::<NecroticExplosionBurst>()),
                 systems::update_necrotic_explosion_bursts

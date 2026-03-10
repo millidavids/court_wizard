@@ -216,14 +216,6 @@ pub struct NecroticExplosionBurst {
     pub damage_applied: bool,
 }
 
-/// Resource storing a pending siphon life heal amount and origin.
-/// Processed by `apply_siphon_life_heals` system.
-#[derive(Resource)]
-pub struct PendingSiphonHeal {
-    pub amount: f32,
-    pub origin: Vec3,
-}
-
 /// Resource storing pending undead raises from Finger of Undeath.
 /// Deferred because killed units haven't become corpses yet on the same frame.
 #[derive(Resource)]

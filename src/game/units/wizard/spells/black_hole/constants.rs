@@ -91,3 +91,56 @@ pub const ACCRETION_TILT: f32 = 0.26;
 
 /// Torus tube thickness (unit-scale, used in visual_assets.rs mesh creation).
 pub(crate) const TORUS_MINOR_RADIUS: f32 = 0.03;
+
+// ===== Talent Constants =====
+
+// -- Tier 1 --
+
+/// T1-0 Denser Core: gravity strength multiplier.
+pub(super) const DENSER_CORE_GRAVITY_MULT: f32 = 1.5;
+
+/// T1-1 Expansive Void: max radius multiplier.
+pub(super) const EXPANSIVE_VOID_RADIUS_MULT: f32 = 1.4;
+
+/// T1-1 Expansive Void: damage multiplier (reduced).
+pub(super) const EXPANSIVE_VOID_DAMAGE_MULT: f32 = 0.8;
+
+/// T1-2 Quick Collapse: cast time multiplier.
+pub(crate) const QUICK_COLLAPSE_CAST_TIME_MULT: f32 = 0.6;
+
+// -- Tier 2 --
+
+/// T2-0 Event Horizon: inner zone fraction of radius (units within this % of center).
+pub(super) const EVENT_HORIZON_INNER_FRACTION: f32 = 0.25;
+
+/// T2-0 Event Horizon: damage multiplier in inner zone.
+pub(super) const EVENT_HORIZON_DAMAGE_MULT: f32 = 2.0;
+
+/// T2-1 Crushing Pressure: slow modifier applied to units inside.
+pub(super) const CRUSHING_PRESSURE_SLOW: f32 = -0.4;
+
+/// T2-1 Crushing Pressure: slow duration after leaving (seconds).
+pub(super) const CRUSHING_PRESSURE_SLOW_DURATION: f32 = 2.0;
+
+/// T2-2 Void Siphon: fraction of damage dealt that heals nearest defender.
+pub(super) const VOID_SIPHON_HEAL_FRACTION: f32 = 0.3;
+
+// -- Tier 3 --
+
+/// T3-0 Singularity: collapse damage on expiration.
+pub(super) const SINGULARITY_DAMAGE: f32 = 150.0;
+
+/// T3-1 Twin Stars: effectiveness multiplier for each black hole.
+pub(super) const TWIN_STARS_EFFECTIVENESS: f32 = 0.6;
+
+/// T3-1 Twin Stars: offset distance between the two black holes.
+pub(super) const TWIN_STARS_OFFSET: f32 = 60.0;
+
+/// T3-1 Twin Stars: mana cost multiplier.
+pub(super) const TWIN_STARS_MANA_MULT: f32 = 1.0;
+
+/// T3-2 Dimensional Rift: interval between teleport pulses (seconds).
+pub(super) const DIMENSIONAL_RIFT_INTERVAL: f32 = 2.0;
+
+/// T3-2 Dimensional Rift: burst damage per pulse.
+pub(super) const DIMENSIONAL_RIFT_DAMAGE: f32 = 30.0;

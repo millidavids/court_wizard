@@ -216,12 +216,15 @@ pub fn init_spell_visual_assets(
         black_hole: materials.add(StandardMaterial {
             base_color: Color::srgb(0.05, 0.0, 0.1),
             emissive: bevy::color::LinearRgba::new(0.2, 0.0, 0.4, 1.0),
+            depth_bias: 100.0,
             ..default()
         }),
         black_hole_billboard: materials.add(StandardMaterial {
-            base_color: Color::BLACK,
+            base_color: Color::srgba(0.0, 0.0, 0.0, 0.99),
             unlit: true,
             cull_mode: None,
+            alpha_mode: AlphaMode::Blend,
+            depth_bias: 100.0,
             ..default()
         }),
         black_hole_ring: materials.add(StandardMaterial {
@@ -230,12 +233,15 @@ pub fn init_spell_visual_assets(
             emissive: bevy::color::LinearRgba::new(2.5, 1.5, 1.0, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
+            depth_bias: 100.0,
             ..default()
         }),
         black_hole_accretion: materials.add(StandardMaterial {
-            base_color: Color::BLACK,
+            base_color: Color::srgba(0.0, 0.0, 0.0, 0.99),
             unlit: true,
             cull_mode: None,
+            alpha_mode: AlphaMode::Blend,
+            depth_bias: 100.0,
             ..default()
         }),
         black_hole_accretion_ring: materials.add(StandardMaterial {
@@ -244,6 +250,7 @@ pub fn init_spell_visual_assets(
             emissive: bevy::color::LinearRgba::new(2.5, 1.5, 1.0, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
+            depth_bias: 100.0,
             ..default()
         }),
         arcane_crystal: materials.add(StandardMaterial {
