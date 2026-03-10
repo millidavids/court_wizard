@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
-      tag: ${{ steps.get_version.outputs.tag }}
       should_release: ${{ steps.check_tag.outputs.should_release }}
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +22,6 @@ jobs:
         run: |
           VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if tag exists
         id: check_tag
@@ -35,116 +33,9 @@ jobs:
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
 
-  build-windows:
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Build release binary
-        run: cargo build --release --target x86_64-pc-windows-msvc
-
-      - name: Bundle release
-        shell: pwsh
-        run: |
-          $dir = "release/court-wizard-windows-x86_64"
-          New-Item -ItemType Directory -Force -Path $dir
-          Copy-Item "target/x86_64-pc-windows-msvc/release/court_wizard.exe" $dir/
-          Copy-Item -Recurse "assets" "$dir/assets"
-          Copy-Item "CHANGELOG.md" $dir/
-          Copy-Item "CREDITS.md" $dir/
-          Compress-Archive -Path "$dir/*" -DestinationPath "release/court-wizard-windows-x86_64.zip"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: court-wizard-windows-x86_64
-          path: release/court-wizard-windows-x86_64.zip
-
-  build-macos:
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
-    runs-on: macos-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - name: Build release binary
-        run: cargo build --release --target aarch64-apple-darwin
-
-      - name: Bundle release
-        run: |
-          dir="release/court-wizard-macos-aarch64"
-          mkdir -p "$dir"
-          cp target/aarch64-apple-darwin/release/court_wizard "$dir/"
-          cp -r assets "$dir/assets"
-          cp CHANGELOG.md "$dir/"
-          cp CREDITS.md "$dir/"
-          cd release && zip -r court-wizard-macos-aarch64.zip court-wizard-macos-aarch64
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: court-wizard-macos-aarch64
-          path: release/court-wizard-macos-aarch64.zip
-
-  build-linux:
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu
-
-      - name: Build release binary
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-
-      - name: Bundle release
-        run: |
-          dir="release/court-wizard-linux-x86_64"
-          mkdir -p "$dir"
-          cp target/x86_64-unknown-linux-gnu/release/court_wizard "$dir/"
-          cp -r assets "$dir/assets"
-          cp CHANGELOG.md "$dir/"
-          cp CREDITS.md "$dir/"
-          cd release && zip -r court-wizard-linux-x86_64.zip court-wizard-linux-x86_64
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: court-wizard-linux-x86_64
-          path: release/court-wizard-linux-x86_64.zip
-
   release:
-    needs: [check-version, build-windows, build-macos, build-linux]
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -160,11 +51,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${{ needs.check-version.outputs.version }}" -m "Release v${{ needs.check-version.outputs.version }}"
           git push origin "v${{ needs.check-version.outputs.version }}"
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
 
       - name: Extract latest changelog entry
         id: changelog
@@ -182,7 +68,6 @@ jobs:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: v${{ needs.check-version.outputs.version }}
           body: ${{ steps.changelog.outputs.body }}
-          files: artifacts/**/*.zip
 
   notify-discord:
     needs: [check-version, release]
