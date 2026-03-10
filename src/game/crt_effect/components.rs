@@ -48,6 +48,14 @@ pub struct CrtEffectSettings {
     pub viewport_w: f32,
     /// Viewport height in UV space (0.0–1.0). Used for 16:9 letterboxing.
     pub viewport_h: f32,
+}
+
+/// Settings component that controls the gravitational lensing post-processing effect.
+///
+/// Attach this to the same camera entity as `CrtEffectSettings` to enable
+/// black hole gravitational lensing. Runs as a separate render pass before CRT.
+#[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+pub struct LensingSettings {
     /// Number of active black holes for gravitational lensing (0.0–2.0).
     pub lensing_count: f32,
     /// Global lensing distortion strength.
@@ -97,6 +105,13 @@ impl Default for CrtEffectSettings {
             viewport_y: 0.0,
             viewport_w: 1.0,
             viewport_h: 1.0,
+        }
+    }
+}
+
+impl Default for LensingSettings {
+    fn default() -> Self {
+        Self {
             lensing_count: 0.0,
             lensing_strength: 0.0,
             lensing_darkening: 0.0,

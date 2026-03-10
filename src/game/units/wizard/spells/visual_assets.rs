@@ -140,6 +140,9 @@ pub struct SpellVisualAssets {
     pub crystal_mini_missile: Handle<StandardMaterial>,
     pub crystal_range_indicator: Handle<StandardMaterial>,
 
+    // ── Plague smoke material (poison cloud) ─────────────────────────
+    pub plague_smoke: Handle<StandardMaterial>,
+
     // ── Heat shimmer material (fire haze) ─────────────────────────────
     pub heat_shimmer: Handle<StandardMaterial>,
 
@@ -154,6 +157,11 @@ pub struct SpellVisualAssets {
     pub magic_missile_mesh: Handle<Mesh>,
     /// Flat quad mesh for particles (2 tris, double-sided).
     pub particle_quad: Handle<Mesh>,
+    /// Arrow mesh for directional indicators (triangle, double-sided, points along +Y).
+    pub arrow_mesh: Handle<Mesh>,
+
+    // ── Arrow indicator material ──────────────────────────────────────────
+    pub plague_wind_arrow: Handle<StandardMaterial>,
 }
 
 /// Initializes the shared spell visual assets resource.
@@ -382,6 +390,15 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
+        // Plague smoke (sickly green poison cloud puffs)
+        plague_smoke: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.15, 0.45, 0.08, 0.35),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
         // Heat shimmer (subtle warm haze near fire)
         heat_shimmer: materials.add(StandardMaterial {
             base_color: Color::srgba(1.0, 0.9, 0.7, 0.1),
@@ -568,6 +585,50 @@ pub fn init_spell_visual_assets(
             ]));
             mesh
         }),
+        // Arrow triangle pointing along +Y (from base at Y=0 to tip at Y=1), double-sided.
+        arrow_mesh: meshes.add({
+            let hw = 0.5_f32; // half-width at base
+            let mut mesh = Mesh::new(
+                PrimitiveTopology::TriangleList,
+                bevy::asset::RenderAssetUsages::default(),
+            );
+            mesh.insert_attribute(
+                Mesh::ATTRIBUTE_POSITION,
+                vec![
+                    [-hw, 0.0, 0.0],
+                    [hw, 0.0, 0.0],
+                    [0.0, 1.0, 0.0], // front
+                    [-hw, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [hw, 0.0, 0.0], // back
+                ],
+            );
+            mesh.insert_attribute(
+                Mesh::ATTRIBUTE_NORMAL,
+                vec![
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, 1.0],
+                    [0.0, 0.0, -1.0],
+                    [0.0, 0.0, -1.0],
+                    [0.0, 0.0, -1.0],
+                ],
+            );
+            mesh.insert_attribute(
+                Mesh::ATTRIBUTE_UV_0,
+                vec![
+                    [0.0, 1.0],
+                    [1.0, 1.0],
+                    [0.5, 0.0],
+                    [0.0, 1.0],
+                    [0.5, 0.0],
+                    [1.0, 1.0],
+                ],
+            );
+            mesh.insert_indices(Indices::U16(vec![0, 1, 2, 3, 4, 5]));
+            mesh
+        }),
+        plague_wind_arrow: materials.add(unlit_blend(Color::srgba(0.3, 0.8, 0.1, 0.5))),
     });
 }
 
@@ -660,6 +721,8 @@ impl SpellVisualAssets {
             &self.heat_shimmer,
             // Mark of Death
             &self.mark_indicator,
+            // Arrow indicator
+            &self.plague_wind_arrow,
         ]
     }
 }

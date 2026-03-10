@@ -36,6 +36,7 @@ Each category has a reference file with exact boilerplate templates:
 | New Talent Tree | [talents.md](references/talents.md) | Adding a talent tree for a spell (9 talents across 3 tiers) |
 | New Achievement | [achievements.md](references/achievements.md) | Adding trackable milestones or unlockables |
 | Core System | [core-systems.md](references/core-systems.md) | Adding game-wide systems (combat, pathfinding, config, etc.) |
+| Shader Effect | [shader-effects.md](references/shader-effects.md) | Adding screen-space post-processing effects (distortion, color, lensing) |
 
 For features that span multiple categories (e.g., a new wizard archetype with a custom UI and achievements), read all relevant references.
 

@@ -60,6 +60,22 @@ pub struct HeatShimmer {
     pub phase: f32,
 }
 
+/// Poison cloud puff that drifts and swirls within a plague wind cloud.
+/// Billboard particle that faces the camera, grows, then fades out.
+#[derive(Component)]
+pub struct PlagueSmoke {
+    /// World-space velocity (gentle upward drift + lateral swirl).
+    pub velocity: Vec3,
+    /// Seconds since this puff was spawned.
+    pub time_alive: f32,
+    /// Total lifetime before despawn (seconds).
+    pub lifetime: f32,
+    /// Base size of this smoke particle.
+    pub base_size: f32,
+    /// Phase offset for swirling motion.
+    pub phase: f32,
+}
+
 /// White sparkle particle that trails behind a magic missile.
 /// Spawns at the missile's position, inherits its velocity, then decelerates
 /// to create a comet-like trail effect.

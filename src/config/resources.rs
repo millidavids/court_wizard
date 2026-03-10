@@ -47,6 +47,12 @@ pub(crate) struct WindowConfig {
     pub vsync: VsyncMode,
     /// Scale factor override (None uses OS default)
     pub scale_factor: Option<f64>,
+    /// Saved window X position in physical pixels (None = let OS decide)
+    #[serde(default)]
+    pub position_x: Option<i32>,
+    /// Saved window Y position in physical pixels (None = let OS decide)
+    #[serde(default)]
+    pub position_y: Option<i32>,
 }
 
 impl Default for WindowConfig {
@@ -54,6 +60,8 @@ impl Default for WindowConfig {
         Self {
             vsync: VsyncMode::default(),
             scale_factor: Some(1.0),
+            position_x: None,
+            position_y: None,
         }
     }
 }

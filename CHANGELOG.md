@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.66] - 2026-03-10
+
+### Added
+- **Plague Wind talents** — the Plague Wind spell now has a full talent tree with 9 talents across 3 tiers, unlocked by poisoning enemies
+- **Tier 1: Cloud modifiers** — choose between stronger poison damage, a bigger cloud with shorter duration, or a slower cloud that lingers much longer
+- **Tier 2: Debuff effects** — choose between a lingering poison on enemies who leave the cloud, making poisoned enemies take more damage from all sources, or slowing enemies inside the cloud
+- **Tier 3: Devastating upgrades** — choose between clouds that spread from enemy deaths, splitting the cloud into two diverging plumes, or poison that permanently reduces enemies' max health
+- **Plague Wind particle cloud** — the poison cloud is now rendered as a swirling volumetric particle effect instead of a flat green circle, giving it real depth and atmosphere
+- **Click-drag casting for Plague Wind** — click to place the cloud origin, then drag to aim the direction it will travel. A green arrow indicator shows the wind direction while casting
+- **Window position saving** — the game now remembers where you placed the window on your screen and restores it on next launch
+
+### Changed
+- **Plague Wind travels faster** — the cloud now moves at double its previous speed
+- **Pandemic child clouds are bigger and last longer** — clouds spawned from enemy deaths are now 75% the size of the parent (up from 50%) and last 8 seconds (up from 4)
+- **Gravitational lensing separated** — the black hole lensing visual effect now runs independently from the CRT screen filter for cleaner rendering
+
 ## [v0.4.47] - 2026-03-10
 
 ### Added

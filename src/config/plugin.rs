@@ -84,6 +84,7 @@ impl Plugin for ConfigPlugin {
             (
                 // Change detection systems (emit ConfigChanged)
                 detect_window_resize,
+                detect_window_move,
                 detect_game_config_changes,
                 // Unified debounce trigger
                 mark_save_on_config_changed,

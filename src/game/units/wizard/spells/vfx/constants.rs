@@ -76,6 +76,24 @@ pub(crate) const SURFACE_SHIMMER_COUNT: usize = 2;
 /// Size of shimmer billboards for surface fires (2× base size).
 pub(crate) const SURFACE_SHIMMER_SIZE: f32 = 16.0;
 
+// ── Plague smoke (poison cloud) ────────────────────────────────────
+/// Time between plague smoke batch spawns (seconds).
+pub(crate) const PLAGUE_SMOKE_SPAWN_INTERVAL: f32 = 0.06;
+/// Number of smoke puffs per spawn batch.
+pub(crate) const PLAGUE_SMOKE_COUNT_PER_SPAWN: usize = 3;
+/// How long each plague smoke puff lives (seconds).
+pub(crate) const PLAGUE_SMOKE_LIFETIME: f32 = 2.0;
+/// Base size of each plague smoke particle.
+pub(crate) const PLAGUE_SMOKE_SIZE: f32 = 25.0;
+/// Upward drift speed of plague smoke.
+pub(crate) const PLAGUE_SMOKE_RISE_SPEED: f32 = 12.0;
+/// Lateral swirl speed of plague smoke puffs.
+pub(crate) const PLAGUE_SMOKE_SWIRL_SPEED: f32 = 8.0;
+/// Lateral sway frequency (Hz) for organic motion.
+pub(crate) const PLAGUE_SMOKE_SWAY_FREQUENCY: f32 = 1.5;
+/// Lateral sway amplitude (world units).
+pub(crate) const PLAGUE_SMOKE_SWAY_AMPLITUDE: f32 = 8.0;
+
 // ── Heat shimmer (fire haze) ────────────────────────────────────────
 /// How long each shimmer wisp lives (seconds).
 pub(crate) const SHIMMER_LIFETIME: f32 = 0.6;

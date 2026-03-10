@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer};
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, LensingSettings};
 use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
@@ -307,9 +307,9 @@ pub(super) fn handle_desaturation_message(
 pub(super) fn update_lensing_positions(
     black_holes: Query<&BlackHole>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    mut crt_query: Query<&mut CrtEffectSettings>,
+    mut lensing_query: Query<&mut LensingSettings>,
 ) {
-    let Ok(mut settings) = crt_query.single_mut() else {
+    let Ok(mut settings) = lensing_query.single_mut() else {
         return;
     };
 
@@ -327,15 +327,6 @@ pub(super) fn update_lensing_positions(
     let Ok((camera, camera_transform)) = camera_query.single() else {
         return;
     };
-
-    // Viewport dimensions for converting full-window UV to local UV
-    let vp_x = settings.viewport_x;
-    let vp_y = settings.viewport_y;
-    let vp_w = settings.viewport_w;
-    let vp_h = settings.viewport_h;
-    if vp_w < 0.001 || vp_h < 0.001 {
-        return;
-    }
 
     let mut count = 0u32;
     let mut max_growth: f32 = 0.0;
@@ -356,12 +347,8 @@ pub(super) fn update_lensing_positions(
         let full_uv_x = (ndc.x + 1.0) * 0.5;
         let full_uv_y = 1.0 - (ndc.y + 1.0) * 0.5;
 
-        // Convert full-window UV to viewport-local UV (0..1 within letterboxed region)
-        let local_x = (full_uv_x - vp_x) / vp_w;
-        let local_y = (full_uv_y - vp_y) / vp_h;
-
-        // Skip if too far off viewport
-        if local_x < -0.3 || local_x > 1.3 || local_y < -0.3 || local_y > 1.3 {
+        // Skip if too far off screen
+        if full_uv_x < -0.3 || full_uv_x > 1.3 || full_uv_y < -0.3 || full_uv_y > 1.3 {
             continue;
         }
 
@@ -372,8 +359,7 @@ pub(super) fn update_lensing_positions(
             continue;
         };
         let edge_full_uv_x = (edge_ndc.x + 1.0) * 0.5;
-        // Radius in viewport-local UV space
-        let screen_radius = ((edge_full_uv_x - full_uv_x) / vp_w).abs();
+        let screen_radius = (edge_full_uv_x - full_uv_x).abs();
 
         // Influence radius is larger than visual radius
         let influence_radius = screen_radius * LENSING_INFLUENCE_MULT;
@@ -385,13 +371,13 @@ pub(super) fn update_lensing_positions(
 
         match count {
             0 => {
-                settings.lensing_0_x = local_x;
-                settings.lensing_0_y = local_y;
+                settings.lensing_0_x = full_uv_x;
+                settings.lensing_0_y = full_uv_y;
                 settings.lensing_0_radius = influence_radius;
             }
             1 => {
-                settings.lensing_1_x = local_x;
-                settings.lensing_1_y = local_y;
+                settings.lensing_1_x = full_uv_x;
+                settings.lensing_1_y = full_uv_y;
                 settings.lensing_1_radius = influence_radius;
             }
             _ => {}

@@ -29,6 +29,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::MarkOfDeath => mark_of_death_talents(),
         Spell::LightningRod => lightning_rod_talents(),
         Spell::BlackHole => black_hole_talents(),
+        Spell::PlagueWind => plague_wind_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -844,6 +845,74 @@ fn black_hole_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Dimensional Rift",
                 description: "Every 2 seconds, all enemies inside are teleported to the center and take 30 burst damage.",
                 locked_text: "The rift has opinions about where you should stand. The center. Always the center.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn plague_wind_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Virulent Strain",
+                description: "Poison damage increased by 60%.",
+                locked_text: "This strain of plague was banned by the Geneva Suggestion.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Miasma",
+                description: "Cloud radius increased by 50%, but duration reduced by 25%.",
+                locked_text: "Wider coverage, shorter stay. Like a bad house guest.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lingering Fog",
+                description: "Duration increased by 50% and cloud speed reduced by 50%.",
+                locked_text: "It's not going anywhere. Neither are they.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Plague Carrier",
+                description: "Units that leave the cloud continue to take 50% poison damage for 3 seconds.",
+                locked_text: "They can run, but the plague runs faster.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Toxic Weakness",
+                description: "Units inside the cloud take 25% more damage from all sources.",
+                locked_text: "The poison doesn't just hurt. It makes everything else hurt more.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Choking Gas",
+                description: "Units inside the cloud are slowed by 40%.",
+                locked_text: "Hard to swing a sword when you can't breathe.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Pandemic",
+                description: "When an enemy dies inside the cloud, a half-size cloud spawns at their position for 4 seconds.",
+                locked_text: "Patient zero was just the beginning.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Twin Plumes",
+                description: "Spawns 2 clouds that drift at 45° angles apart instead of 1, each at 65% damage.",
+                locked_text: "Two clouds are better than one. The enemy's lungs disagree.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Necrotic Rot",
+                description: "Poison damage also permanently reduces the target's max health by the same amount.",
+                locked_text: "Some wounds don't heal. The wizard calls this a 'feature.'",
                 implemented: true,
             },
         ],

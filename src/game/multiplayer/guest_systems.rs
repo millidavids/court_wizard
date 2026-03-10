@@ -644,6 +644,7 @@ pub(super) fn spawn_spell_effect(
                             duration,
                             speed,
                             direction,
+                            Default::default(),
                         ),
                         OnMultiplayerGameScreen,
                     ))

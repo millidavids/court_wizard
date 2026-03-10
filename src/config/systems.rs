@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowResized};
+use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowMoved, WindowPosition, WindowResized};
 
 use super::messages::*;
 use super::resources::*;
@@ -51,12 +51,17 @@ pub(super) fn load_and_apply_config(
         }
     };
 
-    // Apply VSync to Bevy's Window
+    // Apply window settings
     let Ok(mut window) = windows.single_mut() else {
         warn!("Could not find primary window to apply config");
         return;
     };
     apply_vsync_config(config_file.window.vsync, &mut window);
+
+    // Restore saved window position
+    if let (Some(x), Some(y)) = (config_file.window.position_x, config_file.window.position_y) {
+        window.position = WindowPosition::At(IVec2::new(x, y));
+    }
 
     // Create GameConfig resource from config file
     let mut game_config = GameConfig {
@@ -108,14 +113,6 @@ fn apply_vsync_config(vsync: VsyncMode, window: &mut BevyWindow) {
 }
 
 /// Detects window resize events and triggers config save.
-///
-/// This system monitors Bevy's WindowResized events and emits a ConfigChanged
-/// message to trigger the debounce timer for saving.
-///
-/// # Arguments
-///
-/// * `resize_events` - Message reader for window resize events
-/// * `config_changed` - Message writer for config changed messages
 pub(super) fn detect_window_resize(
     mut resize_events: MessageReader<WindowResized>,
     mut config_changed: MessageWriter<ConfigChanged>,
@@ -125,6 +122,35 @@ pub(super) fn detect_window_resize(
     }
 
     config_changed.write(ConfigChanged);
+}
+
+/// Detects window move events and saves the new position to config.
+pub(super) fn detect_window_move(
+    mut move_events: MessageReader<WindowMoved>,
+    mut config_changed: MessageWriter<ConfigChanged>,
+    windows: Query<&BevyWindow, With<PrimaryWindow>>,
+) {
+    if move_events.read().count() == 0 {
+        return;
+    }
+
+    // Only save if the window is actually visible on screen (ignore minimized/offscreen moves)
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    if window.physical_width() == 0 || window.physical_height() == 0 {
+        return;
+    }
+
+    config_changed.write(ConfigChanged);
+}
+
+/// Extracts the saved window position from the primary window, if set.
+fn get_window_position(windows: &Query<&BevyWindow, With<PrimaryWindow>>) -> Option<IVec2> {
+    windows.single().ok().and_then(|w| match w.position {
+        WindowPosition::At(pos) => Some(pos),
+        _ => None,
+    })
 }
 
 /// Detects GameConfig changes and triggers config save.
@@ -189,6 +215,7 @@ pub(super) fn save_config_on_debounce_timer(
     mut debounce_timer: ResMut<SaveDebounceTimer>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
+    windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if !debounce_timer.pending {
         return;
@@ -197,7 +224,7 @@ pub(super) fn save_config_on_debounce_timer(
     debounce_timer.timer.tick(time.delta());
 
     if debounce_timer.timer.is_finished() {
-        persist_config(&game_config, &active_save);
+        persist_config(&game_config, &active_save, get_window_position(&windows));
         debounce_timer.pending = false;
     }
 }
@@ -217,12 +244,13 @@ pub(super) fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigMessage>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
+    windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if save_events.read().count() == 0 {
         return;
     }
 
-    persist_config(&game_config, &active_save);
+    persist_config(&game_config, &active_save, get_window_position(&windows));
 }
 
 /// Saves current state to localStorage by reading from Bevy components.
@@ -241,9 +269,9 @@ pub(super) fn save_config_on_event(
 /// * `window_config` - Window configuration resource
 /// * `audio_config` - Audio configuration resource
 /// * `game_config` - Game configuration resource
-fn persist_config(game_config: &GameConfig, active_save: &ActiveSave) {
+fn persist_config(game_config: &GameConfig, active_save: &ActiveSave, window_pos: Option<IVec2>) {
     // Build ConfigFile from current state
-    let config_file = build_config_from_game_config(game_config);
+    let config_file = build_config_from_game_config(game_config, window_pos);
 
     // Serialize and save
     match toml::to_string_pretty(&config_file) {
@@ -276,8 +304,8 @@ fn persist_config(game_config: &GameConfig, active_save: &ActiveSave) {
 /// # Returns
 ///
 /// A ConfigFile struct populated with current settings
-fn build_config_from_game_config(game_config: &GameConfig) -> ConfigFile {
-    // Load existing config to preserve window settings we don't modify (resolution, etc.)
+fn build_config_from_game_config(game_config: &GameConfig, window_pos: Option<IVec2>) -> ConfigFile {
+    // Load existing config to preserve window settings we don't modify
     let existing_window = match storage::load_config() {
         Ok(contents) => toml::from_str::<ConfigFile>(&contents)
             .map(|c| c.window)
@@ -285,9 +313,11 @@ fn build_config_from_game_config(game_config: &GameConfig) -> ConfigFile {
         Err(_) => WindowConfig::default(),
     };
 
-    // Update only the VSync setting, preserve everything else
+    // Update VSync and window position, preserve everything else
     let window_config = WindowConfig {
         vsync: game_config.vsync,
+        position_x: window_pos.map(|p| p.x).or(existing_window.position_x),
+        position_y: window_pos.map(|p| p.y).or(existing_window.position_y),
         ..existing_window
     };
 
