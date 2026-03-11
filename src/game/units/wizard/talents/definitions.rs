@@ -31,6 +31,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::BlackHole => black_hole_talents(),
         Spell::PlagueWind => plague_wind_talents(),
         Spell::WallOfFire => wall_of_fire_talents(),
+        Spell::WallOfStone => wall_of_stone_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -982,6 +983,74 @@ fn wall_of_fire_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Consuming Inferno",
                 description: "Wall damage increases by 15% per second it has been active, up to +300%.",
                 locked_text: "It starts as a campfire. It ends as a crematorium.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn wall_of_stone_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Quarry Master",
+                description: "Walls cost 30% less mana and can be 25% longer.",
+                locked_text: "Bulk stone discount. The quarry union would be furious.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Reinforced Stone",
+                description: "Walls have 2x health and are 30% wider.",
+                locked_text: "Thicker walls for thicker skulls trying to break through.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Foundations",
+                description: "Place 2 walls per cast at 60% mana cost each. Second wall starts where the first ends.",
+                locked_text: "Two walls, one drag. Efficiency!",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Jagged Stone",
+                description: "Units attacking this wall take 5 damage per hit back.",
+                locked_text: "Hit the wall, the wall hits back.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Permafrost Aura",
+                description: "Enemies within 80 units of the wall move 30% slower.",
+                locked_text: "The stone radiates an unnatural chill.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Living Stone",
+                description: "Walls regenerate 5% of max HP per second when not being attacked.",
+                locked_text: "Given enough time, the wall heals itself.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Collapsing Wall",
+                description: "When a wall is destroyed, it explodes into rubble dealing 30 damage to nearby enemies.",
+                locked_text: "Every wall is a loaded weapon if you wait long enough.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Terraformer",
+                description: "Walls become permanent and persist between levels.",
+                locked_text: "Why build temporary when you can reshape the earth itself?",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Maze Architect",
+                description: "Walls cost 50% less mana. When you have 3+ walls, all walls gain +50% health.",
+                locked_text: "A single wall is a suggestion. Three walls is a labyrinth.",
                 implemented: true,
             },
         ],

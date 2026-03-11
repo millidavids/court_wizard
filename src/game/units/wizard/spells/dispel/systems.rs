@@ -350,6 +350,9 @@ pub(crate) fn spell_edge_distance(
 }
 
 /// Despawns a spell effect entity and cleans up its pathfinding obstacle if applicable.
+///
+/// Wall of Stone is special: instead of instant despawn, it enters the sinking animation
+/// so it visually sinks into the ground with dust VFX before being cleaned up.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn despawn_spell_effect(
     commands: &mut Commands,
@@ -361,7 +364,9 @@ pub(crate) fn despawn_spell_effect(
     meteor_fire_query: &Query<&MeteorGroundFire>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
 ) {
-    // Wall of Stone -- blocked obstacle
+    // Wall of Stone -- trigger sink animation instead of instant despawn.
+    // The obstacle is removed immediately so units can path through,
+    // but the wall entity sinks visually over WALL_SINK_DURATION before cleanup.
     if let Ok(wall) = wall_of_stone_query.get(spell_entity) {
         let obs_bounds = wall.obstacle_bounds();
         obstacle_events.write(ObstacleChanged {
@@ -374,6 +379,18 @@ pub(crate) fn despawn_spell_effect(
                 wall.half_width,
             )),
         });
+
+        // Trigger sinking animation — the existing tick/animate/cleanup pipeline
+        // will handle the visual sink and eventual despawn.
+        let sink_duration = crate::game::units::wizard::spells::wall_of_stone::constants::WALL_SINK_DURATION;
+        commands.entity(spell_entity).insert(
+            crate::game::units::wizard::spells::wall_of_stone::components::DispelledWall {
+                sink_duration,
+            },
+        );
+        // Remove the NetworkedSpellEffect so the dispel impact doesn't re-target this wall
+        commands.entity(spell_entity).remove::<NetworkedSpellEffect>();
+        return;
     }
 
     // Wall of Fire -- hazard obstacle

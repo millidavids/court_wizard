@@ -312,7 +312,17 @@ pub fn handle_obstacle_events(
                 pathfinding.set_terrain_cost(&affected_cells, cost);
             }
             ObstacleType::Removed => {
+                // Check if any affected cells were blocked — if so, a full rebuild
+                // is needed since blocked-to-passable changes require Dijkstra recalc.
+                let w = pathfinding.grid_width;
+                let h = pathfinding.grid_height;
+                let had_blocked = affected_cells.iter().any(|&(x, z)| {
+                    x < w && z < h && pathfinding.base_costs[z * w + x] == f32::INFINITY
+                });
                 pathfinding.set_terrain_cost(&affected_cells, 1.0);
+                if had_blocked {
+                    needs_full_rebuild = true;
+                }
             }
         }
     }

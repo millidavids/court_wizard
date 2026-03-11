@@ -146,6 +146,11 @@ pub struct SpellVisualAssets {
     pub crystal_mini_missile: Handle<StandardMaterial>,
     pub crystal_range_indicator: Handle<StandardMaterial>,
 
+    // ── Dust smoke materials (wall of stone rising/sinking) ──────────
+    pub dust_smoke: Handle<StandardMaterial>,
+    pub dust_smoke_light: Handle<StandardMaterial>,
+    pub dust_smoke_dark: Handle<StandardMaterial>,
+
     // ── Plague smoke material (poison cloud) ─────────────────────────
     pub plague_smoke: Handle<StandardMaterial>,
 
@@ -422,6 +427,29 @@ pub fn init_spell_visual_assets(
             base_color: Color::srgba(0.9, 0.3, 0.02, 0.5),
             unlit: true,
             emissive: bevy::color::LinearRgba::new(1.2, 0.3, 0.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
+        // Dust smoke (earthy brown puffs for wall of stone rising/sinking)
+        dust_smoke: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.55, 0.40, 0.25, 0.35),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        dust_smoke_light: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.65, 0.50, 0.30, 0.30),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        dust_smoke_dark: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.40, 0.28, 0.15, 0.40),
+            unlit: true,
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
@@ -760,6 +788,10 @@ impl SpellVisualAssets {
             &self.crystal_range_indicator,
             // Heat shimmer
             &self.heat_shimmer,
+            // Dust smoke
+            &self.dust_smoke,
+            &self.dust_smoke_light,
+            &self.dust_smoke_dark,
             // Mark of Death
             &self.mark_indicator,
             // Arrow indicator

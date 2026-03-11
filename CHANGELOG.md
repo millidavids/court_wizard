@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.100] - 2026-03-11
+
+### Added
+- **Wall of Stone talents** — the Wall of Stone spell now has a full talent tree with 9 talents across 3 tiers, unlocked by placing walls
+- **Tier 1: Resource and build options** — choose between cheaper walls, tougher walls with extra width, or faster-casting walls that cost less mana but place two shorter walls
+- **Tier 2: Defensive effects** — choose between walls that reflect damage back to attackers, an icy aura that slows nearby enemies, or walls that slowly regenerate their health
+- **Tier 3: Powerful upgrades** — choose between walls that explode when destroyed, walls that last forever instead of crumbling, or placing extra walls at reduced cost
+- **Wall rise and sink animations** — walls now dramatically rise up from the ground when placed and sink back down when they expire or are destroyed, with a brown dust cloud effect
+- **Dispelled walls sink gracefully** — walls removed by Dispel now sink into the ground with dust effects instead of instantly vanishing
+
+### Fixed
+- **Units no longer get stuck when walls are removed** — pathfinding now properly updates when a wall blocking a path is destroyed or expires
+
 ## [v0.4.90] - 2026-03-10
 
 ### Added

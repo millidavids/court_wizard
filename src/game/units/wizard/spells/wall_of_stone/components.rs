@@ -230,6 +230,100 @@ impl WallOfStoneCaster {
 #[derive(Component)]
 pub struct WallOfStonePreview;
 
+/// Talent parameters computed from active talent selections.
+/// Stored on each WallOfStone entity so all talent logic can reference it.
+#[derive(Clone)]
+pub(crate) struct WallOfStoneTalentParams {
+    // Tier 1: numeric modifiers
+    pub mana_mult: f32,
+    pub max_length_mult: f32,
+    pub health_mult: f32,
+    pub width_mult: f32,
+    pub quick_foundations: bool,
+    // Tier 2: behavioral flags
+    pub jagged_stone: bool,
+    pub permafrost_aura: bool,
+    pub living_stone: bool,
+    // Tier 3: transformative flags
+    pub collapsing_wall: bool,
+    pub terraformer: bool,
+    pub maze_architect: bool,
+}
+
+impl Default for WallOfStoneTalentParams {
+    fn default() -> Self {
+        Self {
+            mana_mult: 1.0,
+            max_length_mult: 1.0,
+            health_mult: 1.0,
+            width_mult: 1.0,
+            quick_foundations: false,
+            jagged_stone: false,
+            permafrost_aura: false,
+            living_stone: false,
+            collapsing_wall: false,
+            terraformer: false,
+            maze_architect: false,
+        }
+    }
+}
+
+/// Component stored on WallOfStone entities to track talent state.
+#[derive(Component, Clone)]
+pub(crate) struct WallTalents(pub WallOfStoneTalentParams);
+
+/// Tracks time since last damage for Living Stone regen delay.
+#[derive(Component)]
+pub(crate) struct LivingStoneTracker {
+    pub time_since_last_damage: f32,
+}
+
+impl LivingStoneTracker {
+    pub const fn new() -> Self {
+        Self {
+            time_since_last_damage: 0.0,
+        }
+    }
+}
+
+/// Timer for Permafrost Aura slow application ticks.
+#[derive(Resource, Default)]
+pub(crate) struct PermafrostAuraTimer(pub f32);
+
+/// Tracks wall rising animation when first placed.
+#[derive(Component)]
+pub(crate) struct WallRising {
+    /// Duration of the rise animation in seconds.
+    pub duration: f32,
+    /// Time elapsed since spawn.
+    pub elapsed: f32,
+}
+
+impl WallRising {
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            duration,
+            elapsed: 0.0,
+        }
+    }
+
+    /// Returns progress from 0.0 (underground) to 1.0 (fully risen).
+    pub fn progress(&self) -> f32 {
+        (self.elapsed / self.duration).clamp(0.0, 1.0)
+    }
+}
+
+/// Marker component indicating this wall has already triggered its Collapsing Wall explosion.
+#[derive(Component)]
+pub(crate) struct CollapseExploded;
+
+/// Marker component added by dispel to trigger the sinking animation.
+/// Processed by `handle_dispelled_walls` which starts the sink and removes this marker.
+#[derive(Component)]
+pub(crate) struct DispelledWall {
+    pub sink_duration: f32,
+}
+
 /// Health component for destructible walls.
 ///
 /// When HP reaches 0, the wall enters its sinking phase and is removed.

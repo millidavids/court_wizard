@@ -774,3 +774,53 @@ pub fn update_plague_smoke(
         transform.scale = Vec3::splat(size);
     }
 }
+
+/// Spawns earthy brown dust puffs for wall of stone rising/sinking effects.
+/// Similar to orange fire smoke but with brown tones, slower rise, and more lateral spread.
+pub fn spawn_dust_smoke(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    half_width: f32,
+    count: usize,
+    time_secs: f32,
+) {
+    let materials = [
+        &assets.dust_smoke,
+        &assets.dust_smoke_light,
+        &assets.dust_smoke_dark,
+    ];
+
+    for i in 0..count {
+        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
+        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
+
+        // Scatter beyond the wall width for a wider dust cloud
+        let lateral_frac = (seed * 23.1).sin();
+        let spread = half_width * 1.5;
+        let x = position.x + angle.cos() * spread * lateral_frac;
+        let z = position.z + angle.sin() * spread * lateral_frac;
+
+        let rise_variation = 0.5 + 0.5 * ((seed * 17.3).cos() * 0.5 + 0.5);
+        // Slower rise than fire, more lateral spread for dusty feel
+        let velocity = Vec3::new(angle.sin() * 7.0, 6.0 * rise_variation, -angle.cos() * 7.0);
+
+        let size_variation = 0.6 + 1.0 * ((seed * 41.7).sin() * 0.5 + 0.5);
+        let base_size = 16.0 * size_variation;
+        let lifetime_variation = 0.8 + 0.4 * ((seed * 53.3).cos() * 0.5 + 0.5);
+
+        let mat_index = ((seed * 7.7).abs() as usize) % materials.len();
+
+        spawn_fire_smoke_puff(
+            commands,
+            &assets.particle_quad,
+            materials[mat_index].clone(),
+            Vec3::new(x, 2.0, z),
+            velocity,
+            base_size,
+            1.0 * lifetime_variation,
+            seed,
+            None,
+        );
+    }
+}
