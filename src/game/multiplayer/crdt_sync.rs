@@ -90,6 +90,7 @@ pub fn receive_wall_placement(
                     bounds: Rect::new(bounds[0], bounds[1], bounds[2], bounds[3]),
                     obstacle_type,
                     shape: None,
+                    rebuild: false,
                 });
             }
             other => unhandled.push(other),

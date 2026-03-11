@@ -204,138 +204,140 @@ impl FlowField {
             }
         }
 
-        // Generate flow field from integration field (before moving)
-        self.generate_flow_from_integration(
-            &integration,
-            goal_x,
-            goal_z,
-            satisfaction_radius_cells,
-        );
-
-        // Smooth directions using Line Integral Convolution for organic movement
-        self.smooth_with_lic();
-
-        // Store integration field for pathfinding distance queries (moved, not cloned)
+        // Store integration field (needed by gradient computation and distance queries)
         self.integration = integration;
+
+        // Generate smooth directions: gradient-based for open terrain, 8-neighbor + LIC near obstacles
+        self.generate_smooth_directions(goal_x, goal_z, satisfaction_radius_cells);
     }
 
-    /// Generates direction vectors from integration costs.
-    fn generate_flow_from_integration(
+    /// Generates smooth direction vectors from the integration field.
+    ///
+    /// Uses bilinear gradient of integration costs for continuous directions in open
+    /// terrain. Falls back to 8-neighbor best-direction + LIC smoothing near obstacles
+    /// where gradient computation would be corrupted by INFINITY costs.
+    fn generate_smooth_directions(
         &mut self,
-        integration: &[f32],
         goal_x: usize,
         goal_z: usize,
         satisfaction_radius: usize,
     ) {
-        for z in 0..self.height {
-            for x in 0..self.width {
+        let width = self.width;
+        let height = self.height;
+
+        // First pass: compute directions for every cell
+        for z in 0..height {
+            for x in 0..width {
                 let idx = self.index(x, z);
 
                 // Skip blocked or unreachable cells
-                if self.costs[idx].is_infinite() || integration[idx].is_infinite() {
+                if self.costs[idx].is_infinite() || self.integration[idx].is_infinite() {
                     self.directions[idx] = Vec3::ZERO;
                     continue;
                 }
 
-                // Check if within satisfaction radius of goal (if radius > 0)
+                // Check if within satisfaction radius of goal
                 if satisfaction_radius > 0 {
                     let dx = (x as isize - goal_x as isize).unsigned_abs();
                     let dz = (z as isize - goal_z as isize).unsigned_abs();
-                    let distance_squared = dx * dx + dz * dz;
-                    let radius_squared = satisfaction_radius * satisfaction_radius;
-
-                    if distance_squared <= radius_squared {
-                        // Within satisfaction radius - no need to move
+                    if dx * dx + dz * dz <= satisfaction_radius * satisfaction_radius {
                         self.directions[idx] = Vec3::ZERO;
                         continue;
                     }
                 }
 
-                // Find the neighbor with lowest integration cost
-                let mut best_direction = Vec3::ZERO;
-                let mut best_cost = integration[idx];
+                // Try bilinear gradient first (smooth, continuous directions).
+                // This requires all 4 surrounding integration costs to be finite.
+                let x0 = x as isize - 1;
+                let z0 = z as isize - 1;
+                let x1 = x as isize;
+                let z1 = z as isize;
 
-                // Cardinal neighbors (always checked)
-                let cardinals = [
-                    (x.wrapping_sub(1), z, Vec3::new(-1.0, 0.0, 0.0)), // West
-                    (x + 1, z, Vec3::new(1.0, 0.0, 0.0)),              // East
-                    (x, z.wrapping_sub(1), Vec3::new(0.0, 0.0, -1.0)), // South
-                    (x, z + 1, Vec3::new(0.0, 0.0, 1.0)),              // North
-                ];
+                let c00 = self.sample_integration_cost(x0, z0);
+                let c10 = self.sample_integration_cost(x1, z0);
+                let c01 = self.sample_integration_cost(x0, z1);
+                let c11 = self.sample_integration_cost(x1, z1);
 
-                for (nx, nz, direction) in cardinals {
-                    if nx >= self.width || nz >= self.height {
+                if !c00.is_infinite() && !c10.is_infinite() && !c01.is_infinite() && !c11.is_infinite() {
+                    // Gradient of the bilinear surface at cell center (fx=fz=0.5)
+                    let dx = 0.5 * (c10 - c00) + 0.5 * (c11 - c01);
+                    let dz = 0.5 * (c01 - c00) + 0.5 * (c11 - c10);
+                    let dir = Vec3::new(-dx, 0.0, -dz).normalize_or_zero();
+                    if dir != Vec3::ZERO {
+                        self.directions[idx] = dir;
                         continue;
-                    }
-                    let neighbor_cost = integration[self.index(nx, nz)];
-                    if neighbor_cost < best_cost {
-                        best_cost = neighbor_cost;
-                        best_direction = direction;
                     }
                 }
 
-                // Track which cardinals are passable for diagonal gating
-                let w_pass = x.wrapping_sub(1) < self.width
-                    && !self.costs[self.index(x.wrapping_sub(1), z)].is_infinite();
-                let e_pass = x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
-                let s_pass = z.wrapping_sub(1) < self.height
-                    && !self.costs[self.index(x, z.wrapping_sub(1))].is_infinite();
-                let n_pass = z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
-
-                // Diagonal neighbors: only consider if both adjacent cardinals are passable
-                let diag_neighbors = [
-                    (
-                        x.wrapping_sub(1),
-                        z.wrapping_sub(1),
-                        Vec3::new(-1.0, 0.0, -1.0),
-                        w_pass && s_pass,
-                    ), // SW
-                    (
-                        x + 1,
-                        z.wrapping_sub(1),
-                        Vec3::new(1.0, 0.0, -1.0),
-                        e_pass && s_pass,
-                    ), // SE
-                    (
-                        x.wrapping_sub(1),
-                        z + 1,
-                        Vec3::new(-1.0, 0.0, 1.0),
-                        w_pass && n_pass,
-                    ), // NW
-                    (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0), e_pass && n_pass), // NE
-                ];
-
-                for (nx, nz, direction, passable) in diag_neighbors {
-                    if !passable || nx >= self.width || nz >= self.height {
-                        continue;
-                    }
-                    let neighbor_cost = integration[self.index(nx, nz)];
-                    if neighbor_cost < best_cost {
-                        best_cost = neighbor_cost;
-                        best_direction = direction;
-                    }
-                }
-
-                // Normalize direction (diagonals are longer)
-                self.directions[idx] = best_direction.normalize_or_zero();
+                // Fallback: 8-neighbor best-direction (near obstacles/boundaries)
+                self.directions[idx] = self.best_neighbor_direction(x, z);
             }
         }
+
+        // Second pass: LIC smoothing for cells near obstacles
+        self.smooth_with_lic();
+    }
+
+    /// Finds the neighbor with lowest integration cost and returns the direction to it.
+    fn best_neighbor_direction(&self, x: usize, z: usize) -> Vec3 {
+        let idx = self.index(x, z);
+        let mut best_direction = Vec3::ZERO;
+        let mut best_cost = self.integration[idx];
+
+        let cardinals = [
+            (x.wrapping_sub(1), z, Vec3::new(-1.0, 0.0, 0.0)),
+            (x + 1, z, Vec3::new(1.0, 0.0, 0.0)),
+            (x, z.wrapping_sub(1), Vec3::new(0.0, 0.0, -1.0)),
+            (x, z + 1, Vec3::new(0.0, 0.0, 1.0)),
+        ];
+
+        for (nx, nz, direction) in cardinals {
+            if nx >= self.width || nz >= self.height {
+                continue;
+            }
+            let neighbor_cost = self.integration[self.index(nx, nz)];
+            if neighbor_cost < best_cost {
+                best_cost = neighbor_cost;
+                best_direction = direction;
+            }
+        }
+
+        let w_pass = x.wrapping_sub(1) < self.width
+            && !self.costs[self.index(x.wrapping_sub(1), z)].is_infinite();
+        let e_pass = x + 1 < self.width && !self.costs[self.index(x + 1, z)].is_infinite();
+        let s_pass = z.wrapping_sub(1) < self.height
+            && !self.costs[self.index(x, z.wrapping_sub(1))].is_infinite();
+        let n_pass = z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
+
+        let diag_neighbors = [
+            (x.wrapping_sub(1), z.wrapping_sub(1), Vec3::new(-1.0, 0.0, -1.0), w_pass && s_pass),
+            (x + 1, z.wrapping_sub(1), Vec3::new(1.0, 0.0, -1.0), e_pass && s_pass),
+            (x.wrapping_sub(1), z + 1, Vec3::new(-1.0, 0.0, 1.0), w_pass && n_pass),
+            (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0), e_pass && n_pass),
+        ];
+
+        for (nx, nz, direction, passable) in diag_neighbors {
+            if !passable || nx >= self.width || nz >= self.height {
+                continue;
+            }
+            let neighbor_cost = self.integration[self.index(nx, nz)];
+            if neighbor_cost < best_cost {
+                best_cost = neighbor_cost;
+                best_direction = direction;
+            }
+        }
+
+        best_direction.normalize_or_zero()
     }
 
     /// Smooths directions near obstacles using Line Integral Convolution.
     ///
-    /// Only applied to cells with elevated costs (near walls/hazards) where the
-    /// bilinear gradient fallback in `sample()` uses stored cell directions.
-    /// Open-terrain cells already get smooth directions from gradient interpolation.
-    ///
-    /// For each eligible cell, traces a streamline forward and backward through
-    /// the vector field, averaging directions along the path. Tracing stops at
-    /// grid edges, blocked cells, or zero-direction cells.
+    /// Only applied to cells that used the 8-neighbor fallback (near obstacles),
+    /// identified by having elevated terrain costs.
     fn smooth_with_lic(&mut self) {
         const LIC_STEPS: usize = 3;
         const STEP_SIZE: f32 = 0.5;
 
-        // Skip entirely if no cells have elevated costs (no obstacles to smooth around).
         if !self.costs.iter().any(|&c| c > 1.0 && !c.is_infinite()) {
             return;
         }
@@ -348,13 +350,11 @@ impl FlowField {
             for x in 0..width {
                 let idx = z * width + x;
 
-                // Skip blocked/unreachable/zero-direction cells
                 if self.costs[idx].is_infinite() || original_directions[idx] == Vec3::ZERO {
                     continue;
                 }
 
-                // Only smooth near obstacles (elevated cost). Open-terrain cells
-                // (cost == 1.0) get smooth directions from gradient interpolation.
+                // Only smooth cells with elevated cost (near obstacles)
                 if self.costs[idx] <= 1.0 {
                     continue;
                 }
@@ -362,13 +362,11 @@ impl FlowField {
                 let mut accumulated = original_directions[idx];
                 let mut total_weight = 1.0_f32;
 
-                // Trace in both directions: forward (+1) and backward (-1)
                 for &sign in &[1.0_f32, -1.0_f32] {
                     let mut pos_x = x as f32 + 0.5;
                     let mut pos_z = z as f32 + 0.5;
 
                     for step in 0..LIC_STEPS {
-                        // Get direction at current continuous position
                         let cell_x = pos_x.floor() as isize;
                         let cell_z = pos_z.floor() as isize;
 
@@ -389,12 +387,9 @@ impl FlowField {
                         }
 
                         let dir = original_directions[cell_idx];
-
-                        // Advance position along the streamline
                         pos_x += dir.x * STEP_SIZE * sign;
                         pos_z += dir.z * STEP_SIZE * sign;
 
-                        // Weight decreases with distance from center
                         let weight = 1.0 / (1.0 + (step + 1) as f32);
                         accumulated += dir * weight;
                         total_weight += weight;
@@ -424,46 +419,15 @@ impl FlowField {
         self.integration[z as usize * self.width + x as usize]
     }
 
-    /// Samples the flow field at a world position using gradient-based interpolation.
+    /// Samples the flow field at a world position.
     ///
-    /// Computes the negative gradient of the bilinear integration cost surface for
-    /// smooth, continuous direction vectors. Falls back to the stored cell direction
-    /// when any surrounding cell has INFINITY cost (near obstacles/boundaries).
+    /// Returns the precomputed smooth direction for the cell containing the position.
+    /// Directions are computed during `generate()` using bilinear gradient interpolation
+    /// in open terrain and 8-neighbor + LIC smoothing near obstacles.
     pub fn sample(&self, world_pos: Vec3, world_min: Vec2, cell_size: f32) -> Vec3 {
-        // Convert world position to continuous grid coordinates (cell centers at +0.5)
-        let gx = (world_pos.x - world_min.x) / cell_size - 0.5;
-        let gz = (world_pos.z - world_min.y) / cell_size - 0.5;
-
-        let x0 = gx.floor() as isize;
-        let z0 = gz.floor() as isize;
-        let x1 = x0 + 1;
-        let z1 = z0 + 1;
-
-        // Get integration costs of surrounding cells
-        let c00 = self.sample_integration_cost(x0, z0);
-        let c10 = self.sample_integration_cost(x1, z0);
-        let c01 = self.sample_integration_cost(x0, z1);
-        let c11 = self.sample_integration_cost(x1, z1);
-
-        // If any cost is INFINITY (near obstacle/boundary), fall back to stored
-        // cell direction to avoid gradient artifacts pointing into walls
-        if c00.is_infinite() || c10.is_infinite() || c01.is_infinite() || c11.is_infinite() {
-            // Use the direction of the cell the unit is currently in
-            let cell_x = ((world_pos.x - world_min.x) / cell_size).floor() as isize;
-            let cell_z = ((world_pos.z - world_min.y) / cell_size).floor() as isize;
-            return self.sample_cell(cell_x, cell_z);
-        }
-
-        // Compute negative gradient of the bilinear integration cost surface.
-        // This gives a smooth, continuous direction that always points downhill
-        // toward the goal, eliminating cell-boundary discontinuities.
-        let fx = gx - x0 as f32;
-        let fz = gz - z0 as f32;
-
-        let dx = (1.0 - fz) * (c10 - c00) + fz * (c11 - c01);
-        let dz = (1.0 - fx) * (c01 - c00) + fx * (c11 - c10);
-
-        Vec3::new(-dx, 0.0, -dz).normalize_or_zero()
+        let cell_x = ((world_pos.x - world_min.x) / cell_size).floor() as isize;
+        let cell_z = ((world_pos.z - world_min.y) / cell_size).floor() as isize;
+        self.sample_cell(cell_x, cell_z)
     }
 
     /// Samples the pathfinding distance at a world position.

@@ -12,6 +12,9 @@ pub struct ObstacleChanged {
     /// Actual shape for per-cell narrowphase testing.
     /// When `None`, every cell in `bounds` is affected (legacy AABB behavior).
     pub shape: Option<ObstacleShape>,
+    /// When true, triggers a full async flow field rebuild even for non-Blocked obstacles.
+    /// Use for hazards that should cause units to reroute (e.g. Wall of Fire).
+    pub rebuild: bool,
 }
 
 /// Types of obstacle changes.

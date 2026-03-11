@@ -281,11 +281,11 @@ const DEFENDER_TARGET_MOVEMENT_THRESHOLD: f32 = 100.0;
 
 /// Handles obstacle change events.
 ///
-/// For **hazards/terrain/removed**: updates costs in base_costs AND applies a cheap
-/// localized flow field update directly to both active fields. No full rebuild needed.
+/// For **hazards/terrain/removed**: updates costs in base_costs. A full rebuild is only
+/// triggered if `rebuild: true` is set on the message (e.g. Wall of Fire).
 ///
-/// For **blocked** obstacles (walls): updates base_costs and starts a debounce timer
-/// that triggers a full async rebuild, since walls fundamentally change pathing.
+/// For **blocked** obstacles (walls): always updates base_costs and starts a debounce
+/// timer that triggers a full async rebuild, since walls fundamentally change pathing.
 pub fn handle_obstacle_events(
     mut obstacle_events: MessageReader<ObstacleChanged>,
     mut pathfinding: ResMut<PathfindingGrid>,
@@ -307,9 +307,15 @@ pub fn handle_obstacle_events(
             }
             ObstacleType::SlowTerrain(multiplier) => {
                 pathfinding.set_terrain_cost(&affected_cells, multiplier);
+                if event.rebuild {
+                    needs_full_rebuild = true;
+                }
             }
             ObstacleType::Hazard(cost) => {
                 pathfinding.set_terrain_cost(&affected_cells, cost);
+                if event.rebuild {
+                    needs_full_rebuild = true;
+                }
             }
             ObstacleType::Removed => {
                 // Check if any affected cells were blocked — if so, a full rebuild
@@ -320,7 +326,7 @@ pub fn handle_obstacle_events(
                     x < w && z < h && pathfinding.base_costs[z * w + x] == f32::INFINITY
                 });
                 pathfinding.set_terrain_cost(&affected_cells, 1.0);
-                if had_blocked {
+                if had_blocked || event.rebuild {
                     needs_full_rebuild = true;
                 }
             }
@@ -351,7 +357,7 @@ pub fn tick_defender_rally_delay(mut pathfinding: ResMut<PathfindingGrid>, time:
 }
 
 /// Ticks down the debounce timer and enqueues full rebuilds when it expires.
-/// Only used for blocked obstacles (walls) that require a complete Dijkstra recalculation.
+/// Used for blocked obstacles (walls) and hazards that opt into rebuilds (e.g. Wall of Fire).
 pub fn flush_debounced_rebuilds(mut pathfinding: ResMut<PathfindingGrid>, time: Res<Time>) {
     if pathfinding.rebuild_debounce <= 0.0 {
         return;
@@ -369,17 +375,14 @@ pub fn flush_debounced_rebuilds(mut pathfinding: ResMut<PathfindingGrid>, time: 
     }
 }
 
-/// Processes the rebuild queue, spawning at most one async rebuild per frame.
-/// This spreads the cost of multiple rebuilds across frames to avoid spikes.
+/// Processes the rebuild queue, spawning async rebuilds in parallel.
+/// Both attacker and defender fields can rebuild simultaneously on separate threads.
 pub fn process_rebuild_queue(
     mut pathfinding: ResMut<PathfindingGrid>,
     king_query: Query<(&Transform, &Team), With<King>>,
     all_transforms: Query<&Transform>,
 ) {
-    // Don't start a new rebuild if both slots are already occupied
-    if pathfinding.pending_attacker_rebuild.is_some()
-        && pathfinding.pending_defender_rebuild.is_some()
-    {
+    if pathfinding.rebuild_queue.is_empty() {
         return;
     }
 
@@ -389,7 +392,7 @@ pub fn process_rebuild_queue(
         .find(|(_, team)| **team == Team::Defenders)
         .map(|(t, _)| Vec2::new(t.translation.x, t.translation.z));
 
-    // Try to dequeue one rebuild that doesn't already have a pending task
+    // Process all queued rebuilds, spawning both attacker and defender in parallel
     let queue_len = pathfinding.rebuild_queue.len();
     for _ in 0..queue_len {
         let Some(target) = pathfinding.rebuild_queue.pop_front() else {
@@ -405,7 +408,6 @@ pub fn process_rebuild_queue(
                 }
                 if let Some(pos) = king_pos {
                     spawn_attacker_field_rebuild(&mut pathfinding, pos);
-                    return; // One per frame
                 }
             }
             RebuildTarget::Defender => {
@@ -431,10 +433,9 @@ pub fn process_rebuild_queue(
                         DEFENDER_SPAWN_RALLY_RADIUS,
                     );
                 } else {
-                    // No target and no existing field — skip (defenders not yet activated)
-                    continue;
+                    // No target and no existing field — not ready yet, keep in queue
+                    pathfinding.rebuild_queue.push_back(target);
                 }
-                return; // One per frame
             }
         }
     }

@@ -378,6 +378,7 @@ pub(crate) fn despawn_spell_effect(
                 wall.half_length,
                 wall.half_width,
             )),
+            rebuild: false,
         });
 
         // Trigger sinking animation — the existing tick/animate/cleanup pipeline
@@ -416,6 +417,7 @@ pub(crate) fn despawn_spell_effect(
                 effect.end,
                 effect.half_width + OBSTACLE_BUFFER,
             )),
+            rebuild: false,
         });
     }
 
@@ -427,6 +429,7 @@ pub(crate) fn despawn_spell_effect(
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
             obstacle_type: ObstacleType::Removed,
             shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+            rebuild: false,
         });
     }
 
@@ -440,6 +443,7 @@ pub(crate) fn despawn_spell_effect(
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
             obstacle_type: ObstacleType::Removed,
             shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+            rebuild: false,
         });
     }
 
@@ -451,6 +455,7 @@ pub(crate) fn despawn_spell_effect(
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
             obstacle_type: ObstacleType::Removed,
             shape: Some(ObstacleShape::circle(origin_2d, buffered)),
+            rebuild: false,
         });
     }
 

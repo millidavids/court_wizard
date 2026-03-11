@@ -503,6 +503,7 @@ pub fn check_grease_ignition(
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Hazard(5.0),
                 shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+                rebuild: false,
             });
         }
     }
@@ -730,6 +731,7 @@ pub fn cleanup_grease_zone(
                     bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                     obstacle_type: ObstacleType::Removed,
                     shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+                    rebuild: false,
                 });
                 // Despawn fire overlay
                 for (overlay_entity, overlay) in &overlays {
@@ -763,6 +765,7 @@ pub(crate) fn spawn_grease_zone(
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
         obstacle_type: ObstacleType::SlowTerrain(3.0),
         shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+        rebuild: false,
     });
 
     let base_mat = materials

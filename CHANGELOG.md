@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.123] - 2026-03-11
+
+### Added
+- **Entangle talents** — the Entangle spell now has a full talent tree with 9 talents across 3 tiers, unlocked by rooting enemies
+- **Tier 1: Root modifiers** — choose between roots that last 50% longer, a 40% larger area at higher mana cost, or cheaper and faster casting
+- **Tier 2: Secondary effects** — choose between thorny vines that damage all rooted units over time, a lingering slow after the root wears off, or mana regeneration for each enemy rooted
+- **Tier 3: Powerful upgrades** — choose between an ever-expanding vine zone that roots newcomers, a protective blessing that shields your defenders instead of rooting them, or a strangling burst that deals heavy damage when roots expire
+- **Entangle vine effects** — the entangle zone now sprouts dark green vine rings that rise from the ground, with animated vines that continuously grow and shrink during the spell's duration
+- **Entangle base duration increased** — roots now last 15 seconds instead of 5, making the spell much more impactful
+
+### Changed
+- **Wall of Fire now redirects enemies** — enemies will now actively path around Wall of Fire instead of walking straight through it
+- **Smoother unit movement** — units now follow more natural, fluid paths instead of moving in rigid 8-directional steps
+- **Faster pathfinding updates** — attacker and defender pathfinding now updates simultaneously instead of one at a time
+
 ## [v0.4.100] - 2026-03-11
 
 ### Added

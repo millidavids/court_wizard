@@ -3,7 +3,9 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::super::utils::update_circle_indicator;
-use super::components::{EntangleGroundEffect, EntangleIndicator};
+use super::components::{
+    AnimatedVineRing, EntangleGroundEffect, EntangleIndicator, EntangleRooted, EntangleVine,
+};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -23,10 +25,27 @@ impl Plugin for EntanglePlugin {
                 update_circle_indicator::<EntangleIndicator>
                     .run_if(any_exist::<EntangleIndicator>()),
                 (
-                    systems::fade_entangle_ground_effect,
+                    systems::tick_entangle_ground_effect,
                     systems::cleanup_entangle_ground_effect,
                 )
                     .chain()
+                    .run_if(any_exist::<EntangleGroundEffect>()),
+                // Vine VFX: static arches + animated ring particles
+                systems::animate_entangle_vines
+                    .run_if(any_exist::<EntangleVine>()),
+                systems::emit_animated_vine_rings
+                    .run_if(any_exist::<EntangleGroundEffect>()),
+                systems::animate_vine_ring_particles
+                    .run_if(any_exist::<AnimatedVineRing>()),
+                // Talent systems — only run when EntangleRooted units exist
+                (
+                    systems::thorny_vines_tick,
+                    systems::nourishing_roots_mana_regen,
+                    systems::handle_entangle_root_expire,
+                )
+                    .run_if(any_exist::<EntangleRooted>()),
+                // Overgrowth — only run when ground effects exist
+                systems::overgrowth_root_new_units
                     .run_if(any_exist::<EntangleGroundEffect>()),
             )
                 .run_if(is_spell_effects_active),

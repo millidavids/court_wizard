@@ -37,6 +37,8 @@ pub struct SpellVisualAssets {
     pub black_hole_torus: Handle<Mesh>,
     /// Unit-scale torus for psychic shockwave ring.
     pub shockwave_torus: Handle<Mesh>,
+    /// Flat annulus ring for entangle vine arches.
+    pub entangle_vine_ring: Handle<Mesh>,
 
     // ── Zone materials (semi-transparent ground circles) ──────────────────
     pub spike_growth_zone: Handle<StandardMaterial>,
@@ -47,6 +49,8 @@ pub struct SpellVisualAssets {
     pub grease_fire: Handle<StandardMaterial>,
     pub plague_wind_zone: Handle<StandardMaterial>,
     pub meteor_ground_fire: Handle<StandardMaterial>,
+    /// Green semi-transparent material for entangle vine toruses.
+    pub entangle_vine: Handle<StandardMaterial>,
 
     // ── Casting indicator materials (translucent circles shown while aiming) ──
     pub haste_indicator: Handle<StandardMaterial>,
@@ -210,6 +214,7 @@ pub fn init_spell_visual_assets(
         grease_fire: materials.add(unlit_blend(Color::srgba(0.9, 0.3, 0.05, 0.55))),
         plague_wind_zone: materials.add(unlit_blend(Color::srgba(0.2, 0.6, 0.1, 0.4))),
         meteor_ground_fire: materials.add(unlit_blend(Color::srgba(0.9, 0.25, 0.05, 0.5))),
+        entangle_vine: materials.add(unlit_blend(Color::srgba(0.05, 0.3, 0.05, 0.75))),
 
         // Casting indicator materials (translucent circles shown while aiming)
         haste_indicator: materials.add(unlit_blend(Color::srgba(1.0, 0.85, 0.0, 0.3))),
@@ -594,6 +599,12 @@ pub fn init_spell_visual_assets(
                 .major_resolution(24)
                 .minor_resolution(8),
         ),
+        // Flat annulus ring for entangle vine arches (inner 0.5, outer 1.0 = 50% ring width)
+        entangle_vine_ring: meshes.add(
+            Annulus::new(0.5, 1.0)
+                .mesh()
+                .resolution(16),
+        ),
 
         // Special meshes (magic missile radius = 5.0)
         magic_missile_mesh: meshes.add(build_cross_plane_sphere(5.0)),
@@ -710,6 +721,7 @@ impl SpellVisualAssets {
             &self.grease_fire,
             &self.plague_wind_zone,
             &self.meteor_ground_fire,
+            &self.entangle_vine,
             // Indicators
             &self.haste_indicator,
             &self.battle_hymn_indicator,

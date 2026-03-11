@@ -363,6 +363,7 @@ pub fn handle_wall_of_fire_casting(
                     bounds: wall_obstacle_bounds(start, end, hw),
                     obstacle_type: ObstacleType::Hazard(4.5),
                     shape: Some(ObstacleShape::obb_from_wall(start, end, hw + OBSTACLE_BUFFER)),
+                    rebuild: true,
                 });
             }
 
@@ -444,6 +445,7 @@ fn wall_of_fire_casting_logic(
                             wall_end,
                             half_width + OBSTACLE_BUFFER,
                         )),
+                        rebuild: true,
                     });
                 }
 
@@ -640,6 +642,7 @@ pub fn cleanup_wall_of_fire(
                     effect.end,
                     effect.half_width + OBSTACLE_BUFFER,
                 )),
+                rebuild: true,
             });
 
             commands.entity(entity).try_despawn();

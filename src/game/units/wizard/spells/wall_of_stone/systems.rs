@@ -373,6 +373,7 @@ fn wall_of_stone_casting_logic(
                             segment_length / 2.0,
                             wall_width / 2.0,
                         )),
+                        rebuild: false,
                     });
 
                     // Use the last wall's bounds for network sync
@@ -489,6 +490,7 @@ pub fn cleanup_expired_walls(
                     wall.half_length,
                     wall.half_width,
                 )),
+                rebuild: false,
             });
 
             // Notify remote peer to update their pathfinding grid
@@ -565,6 +567,7 @@ pub(crate) fn register_permanent_wall_obstacles(
                 wall.half_length,
                 wall.half_width,
             )),
+            rebuild: false,
         });
     }
 }

@@ -394,6 +394,7 @@ fn spawn_plague_cloud(
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
         obstacle_type: ObstacleType::Hazard(10.0),
         shape: Some(ObstacleShape::circle(origin_2d, buffered)),
+        rebuild: false,
     });
 
     commands.spawn((
@@ -439,6 +440,7 @@ pub fn move_plague_wind_cloud(
             bounds: Rect::from_center_size(old_origin_2d, Vec2::splat(buffered * 2.0)),
             obstacle_type: ObstacleType::Removed,
             shape: Some(ObstacleShape::circle(old_origin_2d, buffered)),
+            rebuild: false,
         });
 
         // Move cloud
@@ -453,6 +455,7 @@ pub fn move_plague_wind_cloud(
             bounds: Rect::from_center_size(new_origin_2d, Vec2::splat(buffered * 2.0)),
             obstacle_type: ObstacleType::Hazard(10.0),
             shape: Some(ObstacleShape::circle(new_origin_2d, buffered)),
+            rebuild: false,
         });
     }
 }
@@ -755,6 +758,7 @@ pub fn cleanup_plague_wind_cloud(
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered * 2.0)),
                 obstacle_type: ObstacleType::Removed,
                 shape: Some(ObstacleShape::circle(origin_2d, buffered)),
+                rebuild: false,
             });
             commands.entity(entity).try_despawn();
         }

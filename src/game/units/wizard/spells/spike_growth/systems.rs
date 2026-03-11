@@ -286,6 +286,7 @@ pub fn cleanup_spike_growth_zone(
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
                 shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+                rebuild: false,
             });
             commands.entity(entity).try_despawn();
         }
@@ -313,6 +314,7 @@ pub(crate) fn spawn_spike_growth_zone(
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
         obstacle_type: ObstacleType::Hazard(15.0),
         shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+        rebuild: false,
     });
 
     // Clone material for per-instance fading

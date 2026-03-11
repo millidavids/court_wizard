@@ -32,6 +32,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::PlagueWind => plague_wind_talents(),
         Spell::WallOfFire => wall_of_fire_talents(),
         Spell::WallOfStone => wall_of_stone_talents(),
+        Spell::Entangle => entangle_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1057,6 +1058,74 @@ fn wall_of_stone_talents() -> [[TalentDefinition; 3]; 3] {
     ]
 }
 
+fn entangle_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Deep Roots",
+                description: "Root duration increased by 50%.",
+                locked_text: "The vines seem oddly clingy today.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Sprawling Thicket",
+                description: "Entangle radius increased by 40%, but mana cost increased by 25%.",
+                locked_text: "Turns out magic weeds spread just like regular ones.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Efficient Growth",
+                description: "Mana cost reduced by 40% and cast time reduced by 30%.",
+                locked_text: "Gardening on a budget.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Thorny Vines",
+                description: "Rooted units take 3 damage per second for the root duration.",
+                locked_text: "Nature's barbed wire.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Clinging Roots",
+                description: "When the root expires, affected enemies are slowed by 40% for 3 seconds.",
+                locked_text: "Leaving is harder than arriving.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Nourishing Roots",
+                description: "The wizard regenerates 3 mana per second for each enemy rooted by Entangle.",
+                locked_text: "The vines are hungry, and your strength is on the menu.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Overgrowth",
+                description: "Entangle area grows 50% larger over its duration. Enemies entering the growing area are also rooted for the remaining duration.",
+                locked_text: "The jungle has a mind of its own.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Nature's Sanctuary",
+                description: "Rooted defenders are not rooted. Instead, they gain 15 temporary HP.",
+                locked_text: "The vines know who their friends are... mostly.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Stranglehold",
+                description: "Enemies rooted for more than 3 seconds take 25 burst damage when the root expires. Enemies killed by this burst don't leave corpses.",
+                locked_text: "What the vines take, the earth reclaims.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
 fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
     // Generate thematic placeholder names based on spell type
     let (t1, t2, t3) = placeholder_names(spell);
@@ -1176,9 +1245,9 @@ fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'
             ["Hell's Gate", "Eternal Flame", "Burning Fortress"],
         ),
         Spell::Entangle => (
-            ["Wider Roots", "Thorny Vines", "Quick Growth"],
-            ["Crushing Vines", "Spreading Roots", "Poison Ivy"],
-            ["Forest's Wrath", "Living Jungle", "Nature's Prison"],
+            ["Deep Roots", "Sprawling Thicket", "Efficient Growth"],
+            ["Thorny Vines", "Clinging Roots", "Nourishing Roots"],
+            ["Overgrowth", "Nature's Sanctuary", "Stranglehold"],
         ),
         Spell::SpikeGrowth => (
             ["Wider Zone", "Sharper Spikes", "Quick Bloom"],

@@ -530,16 +530,17 @@ pub(super) fn spawn_spell_effect(
 
         SpellEffectKind::EntangleGround => {
             let duration = extra[1];
-            let material = materials.add(materials.get(&assets.entangle_zone)?.clone());
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(material),
-                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                            .with_rotation(flat_rotation)
-                            .with_scale(Vec3::splat(120.0)), // CIRCLE_RADIUS from entangle constants
-                        EntangleGroundEffect::new(duration),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z)),
+                        Visibility::Hidden,
+                        EntangleGroundEffect::new(
+                            duration,
+                            Vec3::new(pos.x, 1.0, pos.z),
+                            120.0,
+                            crate::game::units::wizard::spells::entangle::components::EntangleTalentParams::default(),
+                        ),
                         OnMultiplayerGameScreen,
                     ))
                     .id(),
