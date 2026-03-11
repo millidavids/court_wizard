@@ -210,6 +210,9 @@ pub struct Health {
     /// Extra vulnerability to spell damage (0.0 = normal, 0.3 = +30% spell damage taken).
     /// Used by the Psychopath archetype to amplify spell damage against defenders.
     pub spell_vulnerability: f32,
+    /// Healing reduction (0.0 = normal, 0.5 = 50% less healing received).
+    /// Applied inside heal() so all heal sources are affected automatically.
+    pub healing_reduction: f32,
 }
 
 /// Movement speed component for all units.
@@ -467,6 +470,7 @@ impl Health {
             current: max,
             max,
             spell_vulnerability: 0.0,
+            healing_reduction: 0.0,
         }
     }
 
@@ -486,7 +490,8 @@ impl Health {
     ///
     /// Current health is clamped to not exceed max health.
     pub fn heal(&mut self, amount: f32) {
-        self.current = (self.current + amount).min(self.max);
+        let effective = amount * (1.0 - self.healing_reduction).max(0.0);
+        self.current = (self.current + effective).min(self.max);
     }
 }
 

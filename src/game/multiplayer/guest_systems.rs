@@ -777,10 +777,13 @@ pub(super) fn spawn_spell_effect(
             let half_width = extra[0];
             let duration = extra[1];
             let wall_length = extra[2];
-            let material = materials.add(materials.get(&assets.wall_of_fire)?.clone());
+            let material = materials.add(StandardMaterial {
+                base_color: Color::NONE,
+                alpha_mode: AlphaMode::Blend,
+                unlit: true,
+                ..default()
+            });
             let rotation = Quat::from_rotation_y(effect.rotation_y);
-            // Host mesh is Cuboid(1.0, 10.0, 60.0) with scale.x = length.
-            // Guest uses unit cuboid with scale matching host visual dimensions.
             let wall_height = 10.0;
             Some(
                 commands
@@ -798,6 +801,7 @@ pub(super) fn spawn_spell_effect(
                             crate::game::units::DamageType::Fire,
                             1.0,
                             duration,
+                            Default::default(),
                         ),
                         OnMultiplayerGameScreen,
                     ))

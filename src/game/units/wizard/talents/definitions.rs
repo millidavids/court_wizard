@@ -30,6 +30,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::LightningRod => lightning_rod_talents(),
         Spell::BlackHole => black_hole_talents(),
         Spell::PlagueWind => plague_wind_talents(),
+        Spell::WallOfFire => wall_of_fire_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -913,6 +914,74 @@ fn plague_wind_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Necrotic Rot",
                 description: "Poison damage also permanently reduces the target's max health by the same amount.",
                 locked_text: "Some wounds don't heal. The wizard calls this a 'feature.'",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn wall_of_fire_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Infernal Intensity",
+                description: "Fire damage increased by 100%.",
+                locked_text: "Some like it hot. These flames like it hotter.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Firebreak",
+                description: "Wall width increased by 80% and duration increased by 25%.",
+                locked_text: "A wider wall keeps more things on the wrong side of it.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Flash Fire",
+                description: "Max wall length increased by 50% and damage increased by 50%, but duration reduced by 40%.",
+                locked_text: "Burns twice as bright, lasts half as long. Worth it.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Searing Heat",
+                description: "Units inside the wall have healing received reduced by 50%.",
+                locked_text: "Hard to apply bandages when you're on fire.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Scorched Earth",
+                description: "After the wall expires, it leaves a burnt zone for 8 seconds that slows units by 30%.",
+                locked_text: "The fire is gone. The ground remembers.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Spreading Flames",
+                description: "Units that leave the wall continue to burn for 3 seconds, taking 50% of the wall's damage per tick.",
+                locked_text: "Stop, drop, and roll? Too late.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Firestorm",
+                description: "When an enemy dies inside the wall, a fire explosion deals 5 damage to all enemies within 60 units.",
+                locked_text: "Every death fans the flames. Literally.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Twin Walls",
+                description: "Places 2 parallel walls offset by the wall width, each at 60% damage.",
+                locked_text: "Why build one wall when you can build two for twice the price?",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Consuming Inferno",
+                description: "Wall damage increases by 15% per second it has been active, up to +300%.",
+                locked_text: "It starts as a campfire. It ends as a crematorium.",
                 implemented: true,
             },
         ],

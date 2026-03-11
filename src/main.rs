@@ -13,7 +13,7 @@ mod ui;
 
 use config::{ConfigPlugin, GameConfig};
 use game::GamePlugin;
-use game::crt_effect::{CrtEffectSettings, LensingSettings};
+use game::crt_effect::{CrtEffectSettings, HeatDistortionSettings, LensingSettings};
 use game::multiplayer::MultiplayerGamePlugin;
 use music::MusicPlugin;
 use networking::NetworkingPlugin;
@@ -169,6 +169,7 @@ fn setup(mut commands: Commands) {
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y), // Looking at origin
         CrtEffectSettings::default(),
         LensingSettings::default(),
+        HeatDistortionSettings::default(),
     ));
 
     // Spawn brightness overlay (a fullscreen node that adjusts screen brightness)

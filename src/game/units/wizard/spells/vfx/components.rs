@@ -76,6 +76,13 @@ pub struct PlagueSmoke {
     pub phase: f32,
 }
 
+/// Marker on orange fire smoke puffs. Spawns a black smoke puff at apex growth.
+#[derive(Component)]
+pub struct FireOrangeSmokePuff {
+    /// Whether the black smoke puff has already been emitted.
+    pub emitted: bool,
+}
+
 /// White sparkle particle that trails behind a magic missile.
 /// Spawns at the missile's position, inherits its velocity, then decelerates
 /// to create a comet-like trail effect.

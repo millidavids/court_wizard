@@ -3,7 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    FireGlow, FireSmoke, FireSpark, HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke,
+    FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, HeatShimmer, MissileGlow,
+    MissileSparkle, PlagueSmoke,
 };
 use super::systems;
 use crate::game::run_conditions::{any_exist, is_spell_effects_active};
@@ -33,6 +34,7 @@ impl Plugin for VfxPlugin {
                 systems::update_missile_sparkles.run_if(any_exist::<MissileSparkle>()),
                 systems::update_heat_shimmer.run_if(any_exist::<HeatShimmer>()),
                 systems::update_plague_smoke.run_if(any_exist::<PlagueSmoke>()),
+                systems::emit_fire_smoke_apex_puffs.run_if(any_exist::<FireOrangeSmokePuff>()),
             )
                 .run_if(is_spell_effects_active),
         );

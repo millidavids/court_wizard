@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.90] - 2026-03-10
+
+### Added
+- **Wall of Fire talents** — the Wall of Fire spell now has a full talent tree with 9 talents across 3 tiers, unlocked by burning enemies
+- **Tier 1: Fire modifiers** — choose between doubled fire damage, a much wider and longer-lasting wall, or a longer but shorter-lived wall with extra damage
+- **Tier 2: Burn effects** — choose between reducing healing on burning enemies, leaving a slowing zone after the wall expires, or setting enemies on fire even after they leave the wall
+- **Tier 3: Devastating upgrades** — choose between enemies exploding on death inside the wall, placing two parallel walls at once, or fire that grows stronger the longer the wall burns
+- **Wall of Fire smoke effects** — the wall now billows with thick orange and black smoke that rises and swirls, giving it a much more dramatic look with natural color and size variation
+- **Heat distortion shader** — a subtle screen-space heat shimmer effect warps the air above active walls of fire, similar to how real heat distortion looks
+- **Healing reduction mechanic** — a new system that lets effects reduce how much healing a unit receives
+
+### Changed
+- **Wall of Fire visuals reworked** — the wall is now rendered as rising smoke particles instead of a solid colored block, looking much more like actual fire
+
 ## [v0.4.66] - 2026-03-10
 
 ### Added

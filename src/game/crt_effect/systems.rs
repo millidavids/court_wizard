@@ -1,10 +1,16 @@
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, LensingSettings};
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings};
 use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
+use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
+
+/// Converts NDC coordinates (-1..1) to screen UV (0..1), flipping Y for screen space.
+fn ndc_to_uv(ndc: Vec3) -> Vec2 {
+    Vec2::new((ndc.x + 1.0) * 0.5, 1.0 - (ndc.y + 1.0) * 0.5)
+}
 
 /// Stores the raw (uncorrected) cursor position from OS events.
 ///
@@ -343,12 +349,10 @@ pub(super) fn update_lensing_positions(
             continue;
         };
 
-        // Convert NDC (-1..1) to full-window UV (0..1), flipping Y for screen space
-        let full_uv_x = (ndc.x + 1.0) * 0.5;
-        let full_uv_y = 1.0 - (ndc.y + 1.0) * 0.5;
+        let uv = ndc_to_uv(ndc);
 
         // Skip if too far off screen
-        if full_uv_x < -0.3 || full_uv_x > 1.3 || full_uv_y < -0.3 || full_uv_y > 1.3 {
+        if uv.x < -0.3 || uv.x > 1.3 || uv.y < -0.3 || uv.y > 1.3 {
             continue;
         }
 
@@ -358,8 +362,8 @@ pub(super) fn update_lensing_positions(
         let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge_point) else {
             continue;
         };
-        let edge_full_uv_x = (edge_ndc.x + 1.0) * 0.5;
-        let screen_radius = (edge_full_uv_x - full_uv_x).abs();
+        let edge_uv = ndc_to_uv(edge_ndc);
+        let screen_radius = (edge_uv.x - uv.x).abs();
 
         // Influence radius is larger than visual radius
         let influence_radius = screen_radius * LENSING_INFLUENCE_MULT;
@@ -371,13 +375,13 @@ pub(super) fn update_lensing_positions(
 
         match count {
             0 => {
-                settings.lensing_0_x = full_uv_x;
-                settings.lensing_0_y = full_uv_y;
+                settings.lensing_0_x = uv.x;
+                settings.lensing_0_y = uv.y;
                 settings.lensing_0_radius = influence_radius;
             }
             1 => {
-                settings.lensing_1_x = full_uv_x;
-                settings.lensing_1_y = full_uv_y;
+                settings.lensing_1_x = uv.x;
+                settings.lensing_1_y = uv.y;
                 settings.lensing_1_radius = influence_radius;
             }
             _ => {}
@@ -387,6 +391,98 @@ pub(super) fn update_lensing_positions(
     settings.lensing_count = count as f32;
     // Gradual screen darkening: 0→0.3 as black hole grows (70% brightness at full size)
     settings.lensing_darkening = max_growth * 0.3;
+}
+
+/// Projects active wall of fire positions to viewport-local UV space for heat distortion.
+pub(super) fn update_heat_distortion_positions(
+    walls: Query<&WallOfFireEffect>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    mut distortion_query: Query<&mut HeatDistortionSettings>,
+    time: Res<Time>,
+) {
+    let Ok(mut settings) = distortion_query.single_mut() else {
+        return;
+    };
+
+    // Reset
+    settings.count = 0.0;
+    settings.time = time.elapsed_secs();
+
+    let Ok((camera, camera_transform)) = camera_query.single() else {
+        return;
+    };
+
+    let mut count = 0u32;
+    for wall in &walls {
+        if count >= 4 {
+            break;
+        }
+
+        // Project wall start to screen UV
+        let Some(start_ndc) = camera.world_to_ndc(camera_transform, wall.start) else {
+            continue;
+        };
+        let Some(end_ndc) = camera.world_to_ndc(camera_transform, wall.end) else {
+            continue;
+        };
+
+        let start_uv = ndc_to_uv(start_ndc);
+        let end_uv = ndc_to_uv(end_ndc);
+
+        // Skip walls entirely off screen
+        if (start_uv.x < -0.3 && end_uv.x < -0.3)
+            || (start_uv.x > 1.3 && end_uv.x > 1.3)
+            || (start_uv.y < -0.3 && end_uv.y < -0.3)
+            || (start_uv.y > 1.3 && end_uv.y > 1.3)
+        {
+            continue;
+        }
+
+        // Estimate screen-space influence radius from wall half_width
+        let mid = (wall.start + wall.end) / 2.0;
+        let edge = mid + camera_transform.right() * wall.half_width * 3.0;
+        let Some(mid_ndc) = camera.world_to_ndc(camera_transform, mid) else {
+            continue;
+        };
+        let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge) else {
+            continue;
+        };
+        let radius = (ndc_to_uv(edge_ndc).x - ndc_to_uv(mid_ndc).x).abs().max(0.02);
+
+        match count {
+            0 => {
+                settings.wall_0_start_x = start_uv.x;
+                settings.wall_0_start_y = start_uv.y;
+                settings.wall_0_end_x = end_uv.x;
+                settings.wall_0_end_y = end_uv.y;
+                settings.wall_0_radius = radius;
+            }
+            1 => {
+                settings.wall_1_start_x = start_uv.x;
+                settings.wall_1_start_y = start_uv.y;
+                settings.wall_1_end_x = end_uv.x;
+                settings.wall_1_end_y = end_uv.y;
+                settings.wall_1_radius = radius;
+            }
+            2 => {
+                settings.wall_2_start_x = start_uv.x;
+                settings.wall_2_start_y = start_uv.y;
+                settings.wall_2_end_x = end_uv.x;
+                settings.wall_2_end_y = end_uv.y;
+                settings.wall_2_radius = radius;
+            }
+            3 => {
+                settings.wall_3_start_x = start_uv.x;
+                settings.wall_3_start_y = start_uv.y;
+                settings.wall_3_end_x = end_uv.x;
+                settings.wall_3_end_y = end_uv.y;
+                settings.wall_3_radius = radius;
+            }
+            _ => {}
+        }
+        count += 1;
+    }
+    settings.count = count as f32;
 }
 
 /// Ticks the desaturation timer, writes intensity to CrtEffectSettings,

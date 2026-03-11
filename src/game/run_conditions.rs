@@ -15,6 +15,13 @@ pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
     |query: Query<(), With<T>>| !query.is_empty()
 }
 
+/// Check if any entities have component T but not component U.
+#[allow(dead_code)]
+pub fn any_exist_without<T: Component, U: Component>(
+) -> impl FnMut(Query<(), (With<T>, Without<U>)>) -> bool {
+    move |query: Query<(), (With<T>, Without<U>)>| !query.is_empty()
+}
+
 /// Returns true if single-player simulation should be active.
 ///
 /// True when `InGameState::Running`, or when urgent mode is enabled and the

@@ -116,6 +116,12 @@ pub struct SpellVisualAssets {
     pub fire_glow: Handle<StandardMaterial>,
     pub fire_spark: Handle<StandardMaterial>,
     pub fire_smoke: Handle<StandardMaterial>,
+    pub fire_black_smoke: Handle<StandardMaterial>,
+    pub fire_orange_smoke: Handle<StandardMaterial>,
+    /// Lighter, more yellow-orange variant for fire smoke.
+    pub fire_orange_smoke_light: Handle<StandardMaterial>,
+    /// Deeper, more red-orange variant for fire smoke.
+    pub fire_orange_smoke_deep: Handle<StandardMaterial>,
 
     // ── Disintegrate smoke material ─────────────────────────────────────
     pub disintegrate_smoke: Handle<StandardMaterial>,
@@ -385,6 +391,37 @@ pub fn init_spell_visual_assets(
         fire_smoke: materials.add(StandardMaterial {
             base_color: Color::srgba(0.05, 0.05, 0.05, 0.4),
             unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        fire_black_smoke: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.02, 0.02, 0.02, 0.5),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        fire_orange_smoke: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.45, 0.05, 0.45),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(1.5, 0.5, 0.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        fire_orange_smoke_light: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.6, 0.1, 0.4),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(2.0, 0.8, 0.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        fire_orange_smoke_deep: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.9, 0.3, 0.02, 0.5),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(1.2, 0.3, 0.0, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
@@ -699,6 +736,10 @@ impl SpellVisualAssets {
             &self.fire_glow,
             &self.fire_spark,
             &self.fire_smoke,
+            &self.fire_orange_smoke,
+            &self.fire_orange_smoke_light,
+            &self.fire_orange_smoke_deep,
+            &self.fire_black_smoke,
             // Disintegrate VFX
             &self.disintegrate_smoke,
             &self.searing_finale,

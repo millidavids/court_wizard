@@ -10,6 +10,22 @@ use crate::game::units::components::{Health, Team};
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
+/// Returns the shortest XZ-plane distance from a point to a line segment defined by start/end.
+pub(crate) fn distance_to_line_segment_xz(point: Vec3, start: Vec3, end: Vec3) -> f32 {
+    let p = Vec2::new(point.x, point.z);
+    let a = Vec2::new(start.x, start.z);
+    let b = Vec2::new(end.x, end.z);
+    let ab = b - a;
+    let ap = p - a;
+    let ab_len_sq = ab.length_squared();
+    if ab_len_sq < 0.0001 {
+        return ap.length();
+    }
+    let t = (ap.dot(ab) / ab_len_sq).clamp(0.0, 1.0);
+    let closest = a + ab * t;
+    (p - closest).length()
+}
+
 /// Resource representing a pending heal to be applied to the nearest injured defender.
 ///
 /// Used by spells that deal damage and heal defenders as a side-effect (e.g., Void Siphon,

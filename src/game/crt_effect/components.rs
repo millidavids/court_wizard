@@ -125,6 +125,77 @@ impl Default for LensingSettings {
     }
 }
 
+/// Settings component that controls the heat distortion post-processing effect.
+///
+/// Attach this to the same camera entity as `CrtEffectSettings` to enable
+/// heat shimmer around wall of fire effects. Supports up to 4 walls.
+#[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+pub struct HeatDistortionSettings {
+    /// Number of active walls (0.0–4.0).
+    pub count: f32,
+    /// Global distortion strength.
+    pub strength: f32,
+    /// Elapsed time for animation.
+    pub time: f32,
+    pub _pad0: f32,
+    // Wall 0 endpoints in screen UV
+    pub wall_0_start_x: f32,
+    pub wall_0_start_y: f32,
+    pub wall_0_end_x: f32,
+    pub wall_0_end_y: f32,
+    // Wall 1 endpoints in screen UV
+    pub wall_1_start_x: f32,
+    pub wall_1_start_y: f32,
+    pub wall_1_end_x: f32,
+    pub wall_1_end_y: f32,
+    // Wall 2 endpoints in screen UV
+    pub wall_2_start_x: f32,
+    pub wall_2_start_y: f32,
+    pub wall_2_end_x: f32,
+    pub wall_2_end_y: f32,
+    // Wall 3 endpoints in screen UV
+    pub wall_3_start_x: f32,
+    pub wall_3_start_y: f32,
+    pub wall_3_end_x: f32,
+    pub wall_3_end_y: f32,
+    // Influence radius per wall (in UV space)
+    pub wall_0_radius: f32,
+    pub wall_1_radius: f32,
+    pub wall_2_radius: f32,
+    pub wall_3_radius: f32,
+}
+
+impl Default for HeatDistortionSettings {
+    fn default() -> Self {
+        Self {
+            count: 0.0,
+            strength: 0.001,
+            time: 0.0,
+            _pad0: 0.0,
+            wall_0_start_x: 0.0,
+            wall_0_start_y: 0.0,
+            wall_0_end_x: 0.0,
+            wall_0_end_y: 0.0,
+            wall_1_start_x: 0.0,
+            wall_1_start_y: 0.0,
+            wall_1_end_x: 0.0,
+            wall_1_end_y: 0.0,
+            wall_2_start_x: 0.0,
+            wall_2_start_y: 0.0,
+            wall_2_end_x: 0.0,
+            wall_2_end_y: 0.0,
+            wall_3_start_x: 0.0,
+            wall_3_start_y: 0.0,
+            wall_3_end_x: 0.0,
+            wall_3_end_y: 0.0,
+            wall_0_radius: 0.0,
+            wall_1_radius: 0.0,
+            wall_2_radius: 0.0,
+            wall_3_radius: 0.0,
+        }
+    }
+}
+
 /// Timer resource that drives the channel-change animation.
 /// Inserted when a `ChannelChangeMessage` is received, removed when finished.
 #[derive(Resource)]

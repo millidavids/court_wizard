@@ -3,7 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    FireGlow, FireSmoke, FireSpark, HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke,
+    FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, HeatShimmer, MissileGlow, MissileSparkle,
+    PlagueSmoke,
 };
 use crate::game::components::Billboard;
 use super::constants;
@@ -439,37 +440,7 @@ pub fn spawn_heat_shimmer(
     count: usize,
     time_secs: f32,
 ) {
-    for i in 0..count {
-        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
-        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
-        let spread_variation = 0.6 + 0.4 * ((seed * 17.3).sin() * 0.5 + 0.5);
-        let rise_variation = 0.7 + 0.3 * ((seed * 23.1).cos() * 0.5 + 0.5);
-        let lateral_x = angle.cos() * constants::SHIMMER_SPREAD_SPEED * spread_variation;
-        let lateral_z = angle.sin() * constants::SHIMMER_SPREAD_SPEED * spread_variation;
-        let velocity = Vec3::new(
-            lateral_x,
-            constants::SHIMMER_RISE_SPEED * rise_variation,
-            lateral_z,
-        );
-
-        let phase = seed * std::f32::consts::PI + (seed * 41.7).sin();
-
-        commands.spawn((
-            HeatShimmer {
-                velocity,
-                time_alive: 0.0,
-                lifetime: constants::SHIMMER_LIFETIME,
-                base_size: constants::SHIMMER_SIZE,
-                phase,
-            },
-            Mesh3d(assets.particle_quad.clone()),
-            MeshMaterial3d(assets.heat_shimmer.clone()),
-            Transform::from_translation(position)
-                .with_rotation(UPWARD_ROTATION)
-                .with_scale(Vec3::splat(0.0)),
-            OnGameplayScreen,
-        ));
-    }
+    spawn_heat_shimmer_sized(commands, assets, position, count, time_secs, constants::SHIMMER_SIZE);
 }
 
 /// Spawns heat shimmer billboards with a custom size (for larger surface fire effects).
@@ -612,6 +583,151 @@ pub fn spawn_plague_smoke_puffs(
             Billboard,
             OnGameplayScreen,
         ));
+    }
+}
+
+/// Shared helper for spawning fire smoke billboard puffs (black or orange).
+///
+/// Each puff reuses `PlagueSmoke` for its drift/sway/scale lifecycle.
+#[allow(clippy::too_many_arguments)]
+fn spawn_fire_smoke_puff(
+    commands: &mut Commands,
+    mesh: &Handle<Mesh>,
+    material: Handle<StandardMaterial>,
+    position: Vec3,
+    velocity: Vec3,
+    base_size: f32,
+    lifetime: f32,
+    seed: f32,
+    extra: Option<FireOrangeSmokePuff>,
+) {
+    let mut entity = commands.spawn((
+        PlagueSmoke {
+            velocity,
+            time_alive: 0.0,
+            lifetime,
+            base_size,
+            phase: seed,
+        },
+        Mesh3d(mesh.clone()),
+        MeshMaterial3d(material),
+        Transform::from_translation(position)
+            .with_scale(Vec3::splat(base_size * 0.3)),
+        Billboard,
+        OnGameplayScreen,
+    ));
+    if let Some(marker) = extra {
+        entity.insert(marker);
+    }
+}
+
+/// Spawns black smoke puffs rising from a fire source.
+pub fn spawn_fire_black_smoke(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    count: usize,
+    time_secs: f32,
+) {
+    for i in 0..count {
+        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
+        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
+
+        let rise_variation = 0.7 + 0.3 * ((seed * 17.3).cos() * 0.5 + 0.5);
+        let velocity = Vec3::new(angle.sin() * 6.0, 20.0 * rise_variation, -angle.cos() * 6.0);
+
+        let size_variation = 0.6 + 0.4 * ((seed * 41.7).sin() * 0.5 + 0.5);
+        let base_size = 18.0 * size_variation;
+        let lifetime_variation = 0.8 + 0.4 * ((seed * 53.3).cos() * 0.5 + 0.5);
+
+        spawn_fire_smoke_puff(
+            commands,
+            &assets.particle_quad,
+            assets.fire_black_smoke.clone(),
+            Vec3::new(position.x, position.y + 8.0, position.z),
+            velocity,
+            base_size,
+            1.5 * lifetime_variation,
+            seed,
+            None,
+        );
+    }
+}
+
+/// Spawns thick orange fire smoke puffs near the ground.
+/// Scattered within the wall's half-width, slow rise, large particles.
+/// Each puff will emit a black smoke puff at its apex via [`emit_fire_smoke_apex_puffs`].
+pub fn spawn_fire_orange_smoke(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    half_width: f32,
+    count: usize,
+    time_secs: f32,
+) {
+    // Material variants for natural color variation
+    let materials = [
+        &assets.fire_orange_smoke,
+        &assets.fire_orange_smoke_light,
+        &assets.fire_orange_smoke_deep,
+    ];
+
+    for i in 0..count {
+        let seed = i as f32 * 1.618_034 + time_secs * 7.1;
+        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5 + (seed * 31.3).cos() * 0.8;
+
+        // Scatter within the wall width
+        let lateral_frac = (seed * 23.1).sin();
+        let x = position.x + angle.cos() * half_width * lateral_frac * 0.6;
+        let z = position.z + angle.sin() * half_width * lateral_frac * 0.6;
+
+        let rise_variation = 0.6 + 0.4 * ((seed * 17.3).cos() * 0.5 + 0.5);
+        let velocity = Vec3::new(angle.sin() * 4.0, 8.0 * rise_variation, -angle.cos() * 4.0);
+
+        // Wider size range for natural variation (10–30 base units)
+        let size_variation = 0.5 + 1.0 * ((seed * 41.7).sin() * 0.5 + 0.5);
+        let base_size = 20.0 * size_variation;
+        let lifetime_variation = 0.8 + 0.4 * ((seed * 53.3).cos() * 0.5 + 0.5);
+
+        let mat_index = ((seed * 7.7).abs() as usize) % materials.len();
+
+        spawn_fire_smoke_puff(
+            commands,
+            &assets.particle_quad,
+            materials[mat_index].clone(),
+            Vec3::new(x, 2.0, z),
+            velocity,
+            base_size,
+            1.2 * lifetime_variation,
+            seed,
+            Some(FireOrangeSmokePuff { emitted: false }),
+        );
+    }
+}
+
+/// Emits a single black smoke puff from each orange fire smoke puff at its apex (30% lifetime).
+pub fn emit_fire_smoke_apex_puffs(
+    mut commands: Commands,
+    mut puffs: Query<(&PlagueSmoke, &Transform, &mut FireOrangeSmokePuff)>,
+    assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+) {
+    let t = time.elapsed_secs();
+    for (smoke, transform, mut marker) in puffs.iter_mut() {
+        if marker.emitted {
+            continue;
+        }
+        let progress = smoke.time_alive / smoke.lifetime;
+        if progress >= 0.3 {
+            marker.emitted = true;
+            spawn_fire_black_smoke(
+                &mut commands,
+                &assets,
+                transform.translation,
+                1,
+                t,
+            );
+        }
     }
 }
 
