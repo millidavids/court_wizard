@@ -13,8 +13,8 @@ use super::drops::DropsPlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::{
-    AchievementUnlockedMessage, IngredientCollectedMessage, SpellResearchedMessage,
-    WaveSpawnedMessage,
+    AchievementUnlockedMessage, IngredientCollectedMessage, RetreatMessage,
+    SpellResearchedMessage, WaveSpawnedMessage,
 };
 use super::pathfinding::PathfindingPlugin;
 use super::resources::{
@@ -101,6 +101,7 @@ impl Plugin for GamePlugin {
             .add_message::<IngredientCollectedMessage>()
             .add_message::<SpellResearchedMessage>()
             .add_message::<WaveSpawnedMessage>()
+            .add_message::<RetreatMessage>()
             .add_plugins((
                 InputPlugin,
                 LoadingPlugin,

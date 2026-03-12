@@ -397,13 +397,16 @@ pub fn combat(
             Option<&DamageMultiplier>,
             Option<&CauldronDamageBonus>,
             Option<&EliteDamageBonus>,
-            // New spell modifiers on attacker side
+            // Spell modifiers on attacker side
             Option<&super::units::components::SleepModifier>,
             Option<&super::units::components::BanishedModifier>,
             Option<&super::units::components::BattleHymnModifier>,
             Option<&super::units::components::BerserkerRageModifier>,
-            Option<&RetaliationTarget>,
-            Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
+            (
+                Option<&RetaliationTarget>,
+                Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
+                Has<super::units::infantry::components::Retreating>,
+            ),
         ),
         (Without<Corpse>, Without<Boss>),
     >,
@@ -428,7 +431,7 @@ pub fn combat(
     let mut units_snapshot: Vec<_> = all_units
         .iter()
         .map(
-            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _, _)| {
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _)| {
                 (entity, transform.translation, *hitbox, *team)
             },
         )
@@ -457,12 +460,11 @@ pub fn combat(
         banished,
         battle_hymn,
         berserker_rage_attacker,
-        retaliation,
-        guardian_circle_attacker,
+        (retaliation, guardian_circle_attacker, is_retreating),
     ) in &mut all_units
     {
-        // Skip attack if sleeping or banished
-        if sleeping.is_some() || banished.is_some() {
+        // Skip attack if sleeping, banished, or retreating
+        if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
         }
 
@@ -1050,6 +1052,7 @@ pub fn reset_resources_for_replay(
     mut cauldron_buffs: ResMut<CauldronBuffs>,
     mut battle_insight: ResMut<super::resources::BattleInsightData>,
     mut stone_used: ResMut<super::cauldron::resources::PhilosophersStoneUsed>,
+    mut retreat_state: ResMut<super::units::infantry::components::RetreatState>,
 ) {
     attack_cycle.current_time = 0.0;
     defenders_activated.active = false;
@@ -1057,6 +1060,7 @@ pub fn reset_resources_for_replay(
     cauldron_buffs.reset();
     stone_used.0 = false;
     *battle_insight = Default::default();
+    *retreat_state = Default::default();
     // WaveState is NOT reset here — it's freshly set by init_loading_progress
     // during each level load, so resetting here would overwrite the correct values.
 }
@@ -1067,10 +1071,16 @@ pub fn reset_resources_for_replay(
 /// engages together rather than individually.
 pub fn activate_defenders_on_proximity(
     mut defenders_activated: ResMut<super::units::infantry::components::DefendersActivated>,
+    retreat_state: Res<super::units::infantry::components::RetreatState>,
     defenders: Query<(&Transform, &Team), Without<Corpse>>,
     all_units: Query<(&Transform, &Team), Without<Corpse>>,
 ) {
     const ENGAGEMENT_RANGE: f32 = 800.0; // Archer max range (700) + 100
+
+    // During retreat, defenders are force-deactivated — skip activation
+    if retreat_state.is_active() {
+        return;
+    }
 
     // If already active, stay active (defenders don't deactivate once engaged)
     if defenders_activated.active {

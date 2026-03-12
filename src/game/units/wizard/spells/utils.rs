@@ -128,6 +128,19 @@ pub(crate) fn clamp_to_spell_range(target: Vec3, wizard_pos: Vec3, spell_range: 
     }
 }
 
+/// Computes the ground-plane radius of a spell range circle, accounting for wizard height.
+///
+/// The wizard sits at height `wizard_height` above the ground. A spell with 3D range
+/// `spell_range` can reach a ground circle of radius `sqrt(spell_range² - wizard_height²)`.
+/// Returns 0.0 if the wizard is higher than the spell range.
+pub(crate) fn ground_projected_range(spell_range: f32, wizard_height: f32) -> f32 {
+    if wizard_height < spell_range {
+        (spell_range * spell_range - wizard_height * wizard_height).sqrt()
+    } else {
+        0.0
+    }
+}
+
 /// Clamps a target position to be within the wizard's spell range on the ground plane,
 /// accounting for the wizard's height above ground and an optional effect radius.
 ///
@@ -140,14 +153,7 @@ pub(crate) fn clamp_to_spell_range_ground(
     spell_range: f32,
     effect_radius: f32,
 ) -> Vec3 {
-    let wizard_height = wizard_pos.y;
-
-    // Calculate max ground radius using Pythagorean theorem
-    let max_ground_radius = if wizard_height < spell_range {
-        (spell_range * spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
+    let max_ground_radius = ground_projected_range(spell_range, wizard_pos.y);
 
     // Account for effect radius so entire circle stays within range
     let max_center_distance = (max_ground_radius - effect_radius).max(0.0);

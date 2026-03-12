@@ -4,7 +4,7 @@ use crate::game::run_conditions::any_exist;
 use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::MovementCalculationSet;
 
-use super::components::{DefendersActivated, Infantry};
+use super::components::{DefendersActivated, Infantry, RetreatState};
 use super::resources;
 use super::systems;
 
@@ -20,10 +20,14 @@ pub struct InfantryPlugin;
 impl Plugin for InfantryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DefendersActivated>()
+            .init_resource::<RetreatState>()
             .add_systems(Startup, resources::preload_infantry_assets)
             .add_systems(
                 Update,
                 (
+                    systems::check_retreat_trigger
+                        .before(systems::check_defender_activation)
+                        .before(crate::game::plugin::VelocitySystemSet),
                     systems::check_defender_activation
                         .before(crate::game::plugin::VelocitySystemSet),
                     systems::update_infantry_targeting

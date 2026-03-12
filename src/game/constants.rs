@@ -323,6 +323,15 @@ pub fn defender_spawn_center() -> (f32, f32) {
 /// Once any enemy is within this range of any defender, all defenders activate.
 pub const DEFENDER_ACTIVATION_RANGE: f32 = 800.0;
 
+// ===== King's Retreat =====
+
+/// Percentage of the wizard's spell range at which the King triggers a retreat.
+/// At 90% of spell range, the King is dangerously close to the edge.
+pub const RETREAT_TRIGGER_DISTANCE_PERCENT: f32 = 0.90;
+
+/// Duration of retreat in seconds — defenders disengage and fall back to spawn.
+pub const RETREAT_DURATION_SECS: f32 = 15.0;
+
 // ===== Wave System =====
 
 /// Seconds between each wave of attackers.

@@ -1017,30 +1017,63 @@ pub(super) fn spawn_wave_incoming_flash(
     existing_flash: Query<Entity, With<WaveIncomingFlash>>,
 ) {
     for event in wave_events.read() {
-        // Remove any existing flash
-        for entity in &existing_flash {
-            commands.entity(entity).try_despawn();
-        }
-
-        commands.spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                top: Val::Percent(15.0),
-                width: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            Text::new(format!("Wave {} incoming!", event.wave_number)),
-            TextFont::from_font_size(WAVE_FLASH_FONT_SIZE),
-            TextColor(WAVE_FLASH_COLOR),
-            WaveIncomingFlash {
-                timer: WAVE_FLASH_DURATION,
-            },
-            Pickable::IGNORE,
-            GlobalZIndex(998),
-            crate::game::components::OnGameplayScreen,
-        ));
+        spawn_flash_banner(
+            &mut commands,
+            &existing_flash,
+            &format!("Wave {} incoming!", event.wave_number),
+            WAVE_FLASH_COLOR,
+        );
     }
+}
+
+/// Spawns a "The King calls for a retreat!" flash when retreat triggers.
+pub(super) fn spawn_retreat_flash(
+    mut commands: Commands,
+    mut retreat_events: MessageReader<crate::game::messages::RetreatMessage>,
+    existing_flash: Query<Entity, With<WaveIncomingFlash>>,
+) {
+    for _event in retreat_events.read() {
+        spawn_flash_banner(
+            &mut commands,
+            &existing_flash,
+            "The King calls for a retreat!",
+            RETREAT_FLASH_COLOR,
+        );
+    }
+}
+
+/// Spawns a centered flash banner at the top of the screen.
+///
+/// Removes any existing flash before spawning the new one.
+fn spawn_flash_banner(
+    commands: &mut Commands,
+    existing_flash: &Query<Entity, With<WaveIncomingFlash>>,
+    text: &str,
+    color: Color,
+) {
+    for entity in existing_flash {
+        commands.entity(entity).try_despawn();
+    }
+
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Percent(15.0),
+            left: Val::Percent(5.0),
+            width: Val::Percent(90.0),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        Text::new(text),
+        TextFont::from_font_size(WAVE_FLASH_FONT_SIZE),
+        TextColor(color),
+        WaveIncomingFlash {
+            timer: WAVE_FLASH_DURATION,
+        },
+        Pickable::IGNORE,
+        GlobalZIndex(998),
+        crate::game::components::OnGameplayScreen,
+    ));
 }
 
 /// Fades and despawns the wave incoming flash.

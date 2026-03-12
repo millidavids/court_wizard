@@ -29,6 +29,10 @@ pub(crate) struct WaveSpawnedMessage {
     pub(crate) wave_number: u32,
 }
 
+/// Message sent when the King calls for a retreat.
+#[derive(Message)]
+pub(crate) struct RetreatMessage;
+
 /// Message sent when a hidden ingredient combo is discovered during brewing.
 #[derive(Message)]
 pub(crate) struct ComboDiscoveredMessage {

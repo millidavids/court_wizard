@@ -101,6 +101,9 @@ pub(super) const WAVE_FLASH_COLOR: Color = Color::srgb(1.0, 0.3, 0.3);
 /// Duration the "Wave incoming!" flash is displayed (seconds).
 pub(super) const WAVE_FLASH_DURATION: f32 = 3.0;
 
+/// Color for the retreat flash text (gold/yellow).
+pub(super) const RETREAT_FLASH_COLOR: Color = Color::srgb(1.0, 0.85, 0.2);
+
 // ===== Buff Tracker Constants =====
 
 /// Size of each buff tracker box.

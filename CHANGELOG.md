@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.149] - 2026-03-12
+
+### Added
+- **King's Retreat** — when the King pushes too far toward the edge of the wizard's range, he calls for a retreat and all defenders fall back to safety for 15 seconds, giving you time to regroup
+- **Retreat announcement** — a golden flash message appears on screen when the King calls for retreat, just like wave announcements
+
+### Changed
+- **Wave and retreat announcements padded** — text banners no longer run into the edges of the screen
+- **Wall of Fire talent progress rebalanced** — talent tier thresholds adjusted to better match the spell's usage patterns
+
 ## [v0.4.140] - 2026-03-11
 
 ### Added

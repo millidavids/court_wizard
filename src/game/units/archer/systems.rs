@@ -69,6 +69,7 @@ pub fn archer_melee_combat(
             &Effectiveness,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
+            Has<crate::game::units::infantry::components::Retreating>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -93,10 +94,11 @@ pub fn archer_melee_combat(
         effectiveness,
         sleeping,
         banished,
+        is_retreating,
     ) in &mut archers
     {
-        // Skip attack if sleeping or banished
-        if sleeping.is_some() || banished.is_some() {
+        // Skip attack if sleeping, banished, or retreating
+        if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
         }
 
@@ -151,6 +153,7 @@ pub fn archer_ranged_combat(
             &mut ArcherMovementTimer,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
+            Has<crate::game::units::infantry::components::Retreating>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -178,10 +181,11 @@ pub fn archer_ranged_combat(
         mut movement_timer,
         sleeping,
         banished,
+        is_retreating,
     ) in archers.iter_mut()
     {
-        // Skip attack if sleeping or banished
-        if sleeping.is_some() || banished.is_some() {
+        // Skip attack if sleeping, banished, or retreating
+        if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
         }
 

@@ -18,7 +18,7 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         // Control spells
         Spell::BlackHole => [50, 200, 500],
         Spell::WallOfStone => [15, 50, 150],
-        Spell::WallOfFire => [1, 5, 10],
+        Spell::WallOfFire => [20, 100, 500],
         Spell::Entangle => [20, 70, 200],
         Spell::SpikeGrowth => [20, 100, 500],
         Spell::Squall => [30, 100, 300],

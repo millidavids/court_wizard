@@ -4,6 +4,7 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::components::{LocalWizard, Wizard};
+use crate::game::units::wizard::spells::utils::ground_projected_range;
 
 /// Spawns the spell range indicator circle when the wizard is created.
 pub fn setup_spell_range_indicator(
@@ -14,19 +15,11 @@ pub fn setup_spell_range_indicator(
 ) {
     for (wizard_transform, wizard) in wizard_query.iter() {
         let wizard_pos = wizard_transform.translation;
-        let wizard_height = wizard_pos.y;
 
-        // Calculate horizontal reach accounting for wizard's height
-        // If wizard is at height H and spell_range is R, the ground circle radius is sqrt(R^2 - H^2)
         const BASE_RADIUS: f32 = 3000.0;
-        const BASE_HEIGHT: f32 = 100.0; // Wizard's typical height on castle wall
-        let base_ground_radius = (BASE_RADIUS * BASE_RADIUS - BASE_HEIGHT * BASE_HEIGHT).sqrt();
-
-        let actual_ground_radius = if wizard.spell_range > wizard_height {
-            (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-        } else {
-            0.0 // Spell range is less than height, can't reach ground
-        };
+        const BASE_HEIGHT: f32 = 100.0;
+        let base_ground_radius = ground_projected_range(BASE_RADIUS, BASE_HEIGHT);
+        let actual_ground_radius = ground_projected_range(wizard.spell_range, wizard_pos.y);
 
         let scale = actual_ground_radius / base_ground_radius;
 
@@ -61,18 +54,11 @@ pub fn update_spell_range_indicator(
         return;
     };
 
-    let wizard_height = wizard_transform.translation.y;
-
-    // Calculate ground radius accounting for height
     const BASE_RADIUS: f32 = 3000.0;
     const BASE_HEIGHT: f32 = 100.0;
-    let base_ground_radius = (BASE_RADIUS * BASE_RADIUS - BASE_HEIGHT * BASE_HEIGHT).sqrt();
-
-    let actual_ground_radius = if wizard.spell_range > wizard_height {
-        (wizard.spell_range * wizard.spell_range - wizard_height * wizard_height).sqrt()
-    } else {
-        0.0
-    };
+    let base_ground_radius = ground_projected_range(BASE_RADIUS, BASE_HEIGHT);
+    let actual_ground_radius =
+        ground_projected_range(wizard.spell_range, wizard_transform.translation.y);
 
     let scale_factor = actual_ground_radius / base_ground_radius;
     circle_transform.scale = Vec3::splat(scale_factor);
