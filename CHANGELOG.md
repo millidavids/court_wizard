@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.140] - 2026-03-11
+
+### Added
+- **Spike Growth talents** — Spike Growth now has a full talent tree with 9 talents across 3 tiers, unlocked by damaging enemies with spikes
+- **Tier 1: Zone modifiers** — choose between a 40% larger zone, 60% more damage per tick, or faster and cheaper casting
+- **Tier 2: Secondary effects** — choose between a much stronger slow that enemies actively avoid, lingering poison damage after leaving the zone, or quicksand that roots units in place after 2 seconds
+- **Tier 3: Powerful upgrades** — choose between a growing zone that extends its duration when enemies die inside, splitting into 3 smaller zones in a triangle pattern, or launching spike projectiles at nearby enemies every few seconds
+- **Spike Growth vine effects** — spike growth zones now show animated green vine and red spike rings rising from the ground instead of a flat green circle
+- **Back wall backdrop** — added a new scenic backdrop along the back wall of the battlefield
+
+### Fixed
+- **Plague Wind no longer permanently slows enemies** — enemies hit by Plague Wind would sometimes have their speed permanently reduced even after recovering; they now properly regain full speed after the sickness wears off
+
 ## [v0.4.123] - 2026-03-11
 
 ### Added

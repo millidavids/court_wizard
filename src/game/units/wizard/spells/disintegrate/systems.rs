@@ -16,7 +16,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{UniqueHitTracker, get_cursor_world_position};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -461,7 +461,7 @@ fn disintegrate_casting_logic(
 /// but not the wizard.
 pub fn apply_disintegrate_damage(
     mut commands: Commands,
-    mut beam_query: Query<&mut DisintegrateBeam>,
+    mut beam_query: Query<(&mut DisintegrateBeam, &mut UniqueHitTracker)>,
     mut target_query: Query<
         (
             Entity,
@@ -479,7 +479,7 @@ pub fn apply_disintegrate_damage(
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
 ) {
-    for mut beam in beam_query.iter_mut() {
+    for (mut beam, mut hit_tracker) in beam_query.iter_mut() {
         beam.update_damage_timer(time.delta_secs());
         beam.update_time_alive(time.delta_secs());
 
@@ -549,7 +549,9 @@ pub fn apply_disintegrate_damage(
                         constants::DAMAGE_TYPE,
                         has_spell_shield,
                     );
-                    hit_count += 1;
+                    if hit_tracker.track_hit(entity) {
+                        hit_count += 1;
+                    }
                 }
             }
 
@@ -690,6 +692,7 @@ fn spawn_beam_core(
     commands
         .spawn((
             beam,
+            UniqueHitTracker::default(),
             Mesh3d(assets.cross_plane_triangle.clone()),
             MeshMaterial3d(assets.disintegrate_beam.clone()),
             Transform::from_translation(midpoint),

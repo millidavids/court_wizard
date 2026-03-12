@@ -328,7 +328,7 @@ pub(crate) fn spell_edge_distance(
     if let Ok(zone) = spike_growth_query.get(spell_entity) {
         let dist_to_center =
             ((point.x - zone.origin.x).powi(2) + (point.z - zone.origin.z).powi(2)).sqrt();
-        return (dist_to_center - zone.radius).max(0.0);
+        return (dist_to_center - zone.effective_radius()).max(0.0);
     }
 
     // Grease: circular zone
@@ -424,7 +424,7 @@ pub(crate) fn despawn_spell_effect(
     // Spike Growth -- hazard obstacle (circular zone)
     if let Ok(zone) = spike_growth_query.get(spell_entity) {
         let origin_2d = Vec2::new(zone.origin.x, zone.origin.z);
-        let buffered_radius = zone.radius + OBSTACLE_BUFFER;
+        let buffered_radius = zone.effective_radius() + OBSTACLE_BUFFER;
         obstacle_events.write(ObstacleChanged {
             bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
             obstacle_type: ObstacleType::Removed,

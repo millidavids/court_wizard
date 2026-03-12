@@ -94,7 +94,7 @@ pub fn collect_spell_effect_snapshots(
         let extra = match effect.kind {
             SpellEffectKind::SpikeGrowthZone => {
                 if let Ok(z) = zone_data.0.get(entity) {
-                    [z.radius, z.duration, 0.0, 0.0]
+                    [z.base_radius, z.duration, 0.0, 0.0]
                 } else {
                     continue;
                 }

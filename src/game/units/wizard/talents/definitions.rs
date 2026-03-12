@@ -33,6 +33,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::WallOfFire => wall_of_fire_talents(),
         Spell::WallOfStone => wall_of_stone_talents(),
         Spell::Entangle => entangle_talents(),
+        Spell::SpikeGrowth => spike_growth_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1120,6 +1121,74 @@ fn entangle_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Stranglehold",
                 description: "Enemies rooted for more than 3 seconds take 25 burst damage when the root expires. Enemies killed by this burst don't leave corpses.",
                 locked_text: "What the vines take, the earth reclaims.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn spike_growth_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1: Numeric modifiers
+        [
+            TalentDefinition {
+                name: "Wider Zone",
+                description: "Zone radius increased by 40%.",
+                locked_text: "The spikes are spreading — someone call a landscaper.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Sharper Spikes",
+                description: "Damage per tick increased by 60%.",
+                locked_text: "These spikes were forged in the school of ouch.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Bloom",
+                description: "Cast time reduced by 40% and mana cost reduced by 30%.",
+                locked_text: "Gardening on a budget and a deadline.",
+                implemented: true,
+            },
+        ],
+        // Tier 2: Secondary effects
+        [
+            TalentDefinition {
+                name: "Thorn Maze",
+                description: "Slow effect doubled to 60%. Enemies avoid the zone much more aggressively.",
+                locked_text: "Nobody wants to walk through the wizard's hedge maze twice.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Poisoned Spikes",
+                description: "Units that leave the zone continue taking 2 poison damage per second for 4 seconds.",
+                locked_text: "The gift that keeps on giving — and stinging.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quicksand",
+                description: "Units inside the zone for more than 2 seconds are rooted in place for 1.5 seconds. Can only trigger once per unit per zone.",
+                locked_text: "Step in, stay a while. No really, you have to.",
+                implemented: true,
+            },
+        ],
+        // Tier 3: Transformative upgrades
+        [
+            TalentDefinition {
+                name: "Death Garden",
+                description: "Zone grows 30% larger over its duration. Units dying inside extend the zone's duration by 3 seconds (max +9s extra).",
+                locked_text: "Feed the garden, and the garden feeds on you.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Nature's Minefield",
+                description: "Casts 3 smaller zones (55% radius) in a triangle pattern instead of 1 large zone. Each zone is independent.",
+                locked_text: "Why have one deadly garden when you can have three?",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Spike Storm",
+                description: "Every 2 seconds, launches spike projectiles at up to 3 nearby enemies, dealing 5 damage each.",
+                locked_text: "The spikes have learned to fly. Nobody asked for this.",
                 implemented: true,
             },
         ],

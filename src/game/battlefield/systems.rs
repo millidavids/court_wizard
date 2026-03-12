@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{Battlefield, BattlefieldAssets, Castle, RightWall};
+use super::components::{Battlefield, BattlefieldAssets, Castle, LeftWall, RightWall};
 use super::styles::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::*;
@@ -33,6 +33,28 @@ const RIGHT_WALL_POSITION: Vec3 = Vec3::new(
 /// Rotation so the wall faces inward (toward -X).
 /// A Rectangle mesh faces +Z by default, so rotate 90° to face -X.
 const RIGHT_WALL_ROTATION_DEGREES: f32 = 90.0;
+
+// ===== Left (Back) Wall Constants =====
+
+/// The left wall image is 640x180 (twice as wide as the right wall).
+const LEFT_WALL_IMAGE_WIDTH: f32 = 640.0;
+const LEFT_WALL_IMAGE_HEIGHT: f32 = 180.0;
+
+/// Height matches the right wall.
+const LEFT_WALL_HEIGHT: f32 = RIGHT_WALL_HEIGHT;
+
+/// Width derived from aspect ratio to match the right wall height.
+const LEFT_WALL_WIDTH: f32 =
+    LEFT_WALL_HEIGHT * (LEFT_WALL_IMAGE_WIDTH / LEFT_WALL_IMAGE_HEIGHT);
+
+/// Position of the left wall (along the -Z edge of the battlefield, facing +Z toward camera).
+/// Shares the corner with the right wall at (BATTLEFIELD_HALF, 0, -BATTLEFIELD_HALF).
+/// Extends from that corner to the left along the X axis.
+const LEFT_WALL_POSITION: Vec3 = Vec3::new(
+    BATTLEFIELD_HALF - LEFT_WALL_WIDTH / 2.0,
+    LEFT_WALL_HEIGHT / 2.0,
+    -BATTLEFIELD_HALF,
+);
 
 /// Sets up the battlefield and castle when entering the InGame state.
 ///
@@ -82,24 +104,55 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     );
 
-    // Spawn right wall backdrop (vertical plane at the right edge)
-    let right_wall_mesh = Rectangle::new(RIGHT_WALL_WIDTH, RIGHT_WALL_HEIGHT);
-    let right_wall_material = materials.add(StandardMaterial {
-        base_color_texture: Some(battlefield_assets.right_wall.clone()),
+    // Spawn wall backdrops
+    spawn_wall_backdrop(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        battlefield_assets.right_wall.clone(),
+        RIGHT_WALL_WIDTH,
+        RIGHT_WALL_HEIGHT,
+        Transform::from_translation(RIGHT_WALL_POSITION)
+            .with_rotation(Quat::from_rotation_y(RIGHT_WALL_ROTATION_DEGREES.to_radians())),
+        RightWall,
+    );
+    spawn_wall_backdrop(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        battlefield_assets.left_wall.clone(),
+        LEFT_WALL_WIDTH,
+        LEFT_WALL_HEIGHT,
+        Transform::from_translation(LEFT_WALL_POSITION),
+        LeftWall,
+    );
+}
+
+/// Spawns a textured wall backdrop as a vertical rectangle.
+fn spawn_wall_backdrop<M: Component>(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    texture: Handle<Image>,
+    width: f32,
+    height: f32,
+    transform: Transform,
+    marker: M,
+) {
+    let mesh = Rectangle::new(width, height);
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(texture),
         base_color: Color::WHITE,
         alpha_mode: AlphaMode::Blend,
         unlit: true,
         cull_mode: None,
         ..default()
     });
-
     commands.spawn((
-        Mesh3d(meshes.add(right_wall_mesh)),
-        MeshMaterial3d(right_wall_material),
-        Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(Quat::from_rotation_y(
-            RIGHT_WALL_ROTATION_DEGREES.to_radians(),
-        )),
-        RightWall,
+        Mesh3d(meshes.add(mesh)),
+        MeshMaterial3d(material),
+        transform,
+        marker,
         OnGameplayScreen,
     ));
 }

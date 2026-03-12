@@ -31,7 +31,7 @@ use crate::game::units::wizard::spells::meteor_fall::components::{
     MeteorExplosion, MeteorGroundFire,
 };
 use crate::game::units::wizard::spells::plague_wind::components::PlagueWindCloud;
-use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
+use crate::game::units::wizard::spells::spike_growth::components::{SpikeGrowthTalentParams, SpikeGrowthZone};
 use crate::game::units::wizard::spells::squall::components::IceExplosion;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -479,15 +479,10 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::SpikeGrowthZone => {
             let radius = extra[0];
             let duration = extra[1];
-            let material = materials.add(materials.get(&assets.spike_growth_zone)?.clone());
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(material),
-                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                            .with_rotation(flat_rotation)
-                            .with_scale(Vec3::splat(radius)),
+                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z)),
                         SpikeGrowthZone::new(
                             Vec3::new(pos.x, 0.0, pos.z),
                             radius,
@@ -496,6 +491,7 @@ pub(super) fn spawn_spell_effect(
                             0.0,
                             0.0,
                             duration,
+                            SpikeGrowthTalentParams::default(),
                         ),
                         OnMultiplayerGameScreen,
                     ))

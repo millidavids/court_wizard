@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{AnimatedVineRing, EntangleGroundEffect, EntangleIndicator, EntangleRooted, EntangleTalentParams, EntangleVine};
+use super::components::{EntangleGroundEffect, EntangleIndicator, EntangleRooted, EntangleTalentParams, EntangleVine};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
@@ -15,7 +15,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    self, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -616,77 +616,17 @@ pub fn emit_animated_vine_rings(
         }
 
         effect.animated_vine_timer += delta;
-        if effect.animated_vine_timer < constants::ANIMATED_VINE_SPAWN_INTERVAL {
+        if effect.animated_vine_timer < utils::RING_SPAWN_INTERVAL {
             continue;
         }
-        effect.animated_vine_timer -= constants::ANIMATED_VINE_SPAWN_INTERVAL;
+        effect.animated_vine_timer -= utils::RING_SPAWN_INTERVAL;
 
-        let center = effect.center;
-        let radius = effect.current_radius;
-
-        // Random position within circle
-        let angle = rand::random::<f32>() * std::f32::consts::TAU;
-        let dist = radius * rand::random::<f32>().sqrt() * 0.9;
-        let x = center.x + angle.cos() * dist;
-        let z = center.z + angle.sin() * dist;
-
-        // Random tilt and yaw
-        let yaw = rand::random::<f32>() * std::f32::consts::TAU;
-        let tilt = 0.3 + rand::random::<f32>() * constants::ANIMATED_VINE_MAX_TILT;
-        let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(tilt);
-
-        let max_scale = constants::ANIMATED_VINE_MIN_SCALE
-            + rand::random::<f32>() * (constants::ANIMATED_VINE_MAX_SCALE - constants::ANIMATED_VINE_MIN_SCALE);
-
-        // Start partially underground
-        let y = -max_scale * 0.3 * tilt.sin();
-
-        // Animated rings share the base material — they only animate scale, not alpha
-        commands.spawn((
-            Mesh3d(visual_assets.entangle_vine_ring.clone()),
-            MeshMaterial3d(visual_assets.entangle_vine.clone()),
-            Transform::from_translation(Vec3::new(x, y, z))
-                .with_rotation(rotation)
-                .with_scale(Vec3::ZERO), // Start at zero, grows outward
-            AnimatedVineRing {
-                time_alive: 0.0,
-                lifetime: constants::ANIMATED_VINE_LIFETIME
-                    * (0.7 + rand::random::<f32>() * 0.6),
-                max_scale,
-            },
-            OnGameplayScreen,
-        ));
-    }
-}
-
-/// Animates vine ring particles: grow outward then shrink.
-pub fn animate_vine_ring_particles(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut rings: Query<(Entity, &mut AnimatedVineRing, &mut Transform)>,
-) {
-    let delta = time.delta_secs();
-    for (entity, mut ring, mut transform) in &mut rings {
-        ring.time_alive += delta;
-        let progress = (ring.time_alive / ring.lifetime).clamp(0.0, 1.0);
-
-        // Grow in first 40%, hold briefly, shrink in last 40%
-        let scale_fraction = if progress < 0.4 {
-            // Grow: ease-out
-            let t = progress / 0.4;
-            1.0 - (1.0 - t) * (1.0 - t)
-        } else if progress < 0.6 {
-            // Hold at full size
-            1.0
-        } else {
-            // Shrink: ease-in
-            let t = (progress - 0.6) / 0.4;
-            (1.0 - t) * (1.0 - t)
-        };
-        transform.scale = Vec3::splat(ring.max_scale * scale_fraction);
-
-        if ring.time_alive >= ring.lifetime {
-            commands.entity(entity).try_despawn();
-        }
+        utils::spawn_ring_particle(
+            &mut commands,
+            visual_assets.entangle_vine_ring.clone(),
+            visual_assets.entangle_vine.clone(),
+            effect.center,
+            effect.current_radius,
+        );
     }
 }

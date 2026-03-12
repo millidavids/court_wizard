@@ -2,9 +2,9 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::super::utils::update_circle_indicator;
+use super::super::utils::{AnimatedRingParticle, animate_ring_particles, update_circle_indicator};
 use super::components::{
-    AnimatedVineRing, EntangleGroundEffect, EntangleIndicator, EntangleRooted, EntangleVine,
+    EntangleGroundEffect, EntangleIndicator, EntangleRooted, EntangleVine,
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -35,8 +35,8 @@ impl Plugin for EntanglePlugin {
                     .run_if(any_exist::<EntangleVine>()),
                 systems::emit_animated_vine_rings
                     .run_if(any_exist::<EntangleGroundEffect>()),
-                systems::animate_vine_ring_particles
-                    .run_if(any_exist::<AnimatedVineRing>()),
+                animate_ring_particles
+                    .run_if(any_exist::<AnimatedRingParticle>()),
                 // Talent systems — only run when EntangleRooted units exist
                 (
                     systems::thorny_vines_tick,

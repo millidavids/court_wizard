@@ -1248,6 +1248,8 @@ pub struct PoisonedModifier {
     pub tick_timer: f32,
     /// Total accumulated penalty for sickened threshold check.
     pub total_accumulated: f32,
+    /// Total penalty applied to spell_bonus (for accurate cleanup).
+    pub applied_to_spell_bonus: f32,
 }
 
 impl PoisonedModifier {
@@ -1257,6 +1259,7 @@ impl PoisonedModifier {
             time_remaining: duration,
             tick_timer: 0.0,
             total_accumulated: penalty_per_stack.abs(),
+            applied_to_spell_bonus: 0.0,
         }
     }
 

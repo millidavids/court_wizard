@@ -51,6 +51,12 @@ pub struct SpellVisualAssets {
     pub meteor_ground_fire: Handle<StandardMaterial>,
     /// Green semi-transparent material for entangle vine toruses.
     pub entangle_vine: Handle<StandardMaterial>,
+    /// Dark green material for spike growth vine rings.
+    pub spike_growth_vine: Handle<StandardMaterial>,
+    /// Dark red material for spike growth spike rings.
+    pub spike_growth_spike: Handle<StandardMaterial>,
+    /// Darker red material for spike storm projectiles.
+    pub spike_storm_projectile: Handle<StandardMaterial>,
 
     // ── Casting indicator materials (translucent circles shown while aiming) ──
     pub haste_indicator: Handle<StandardMaterial>,
@@ -215,6 +221,9 @@ pub fn init_spell_visual_assets(
         plague_wind_zone: materials.add(unlit_blend(Color::srgba(0.2, 0.6, 0.1, 0.4))),
         meteor_ground_fire: materials.add(unlit_blend(Color::srgba(0.9, 0.25, 0.05, 0.5))),
         entangle_vine: materials.add(unlit_blend(Color::srgba(0.05, 0.3, 0.05, 0.75))),
+        spike_growth_vine: materials.add(unlit_blend(Color::srgba(0.08, 0.25, 0.05, 0.7))),
+        spike_growth_spike: materials.add(unlit_blend(Color::srgba(0.5, 0.08, 0.08, 0.75))),
+        spike_storm_projectile: materials.add(unlit_blend(Color::srgba(0.6, 0.1, 0.1, 0.9))),
 
         // Casting indicator materials (translucent circles shown while aiming)
         haste_indicator: materials.add(unlit_blend(Color::srgba(1.0, 0.85, 0.0, 0.3))),
@@ -722,6 +731,9 @@ impl SpellVisualAssets {
             &self.plague_wind_zone,
             &self.meteor_ground_fire,
             &self.entangle_vine,
+            &self.spike_growth_vine,
+            &self.spike_growth_spike,
+            &self.spike_storm_projectile,
             // Indicators
             &self.haste_indicator,
             &self.battle_hymn_indicator,

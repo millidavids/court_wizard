@@ -25,8 +25,9 @@ use crate::game::units::components::{
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::clamp_to_spell_range;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{
+    UniqueHitTracker, clamp_to_spell_range, get_cursor_world_position,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -338,6 +339,7 @@ pub fn handle_wall_of_fire_casting(
                             MeshMaterial3d(wall_mat),
                             transform,
                             effect,
+                            UniqueHitTracker::default(),
                             net,
                         ));
                     preview_entity
@@ -351,6 +353,7 @@ pub fn handle_wall_of_fire_casting(
                         MeshMaterial3d(wall_mat),
                         transform,
                         effect,
+                        UniqueHitTracker::default(),
                         net,
                         OnGameplayScreen,
                     ))
@@ -520,7 +523,7 @@ pub fn handle_wall_of_fire_cancel(
 pub fn apply_wall_of_fire_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut effects: Query<&mut WallOfFireEffect>,
+    mut effects: Query<(&mut WallOfFireEffect, &mut UniqueHitTracker)>,
     mut targets: Query<(
         Entity,
         &Transform,
@@ -534,7 +537,7 @@ pub fn apply_wall_of_fire_damage(
 ) {
     let delta = time.delta_secs();
 
-    for mut effect in &mut effects {
+    for (mut effect, mut hit_tracker) in &mut effects {
         effect.time_alive += delta;
         effect.time_since_last_tick += delta;
 
@@ -577,7 +580,9 @@ pub fn apply_wall_of_fire_damage(
                         ));
                     }
 
-                    units_hit += 1;
+                    if hit_tracker.track_hit(entity) {
+                        units_hit += 1;
+                    }
                 }
             }
 

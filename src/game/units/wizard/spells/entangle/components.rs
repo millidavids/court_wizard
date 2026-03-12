@@ -127,17 +127,6 @@ pub(crate) struct EntangleVine {
     pub time_remaining: f32,
 }
 
-/// Animated vine ring particle that grows outward and fades, giving a "living vines" look.
-#[derive(Component)]
-pub(crate) struct AnimatedVineRing {
-    /// Seconds since this ring was spawned.
-    pub time_alive: f32,
-    /// Total lifetime before despawn.
-    pub lifetime: f32,
-    /// Maximum scale this ring grows to.
-    pub max_scale: f32,
-}
-
 /// Marker component on units rooted by the Entangle spell.
 /// Tracks talent-specific data for Tier 2/3 effects.
 #[derive(Component)]

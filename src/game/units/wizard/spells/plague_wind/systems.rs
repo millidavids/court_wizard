@@ -21,7 +21,8 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+    UniqueHitTracker, clamp_to_spell_range_ground, get_cursor_world_position,
+    spawn_circle_indicator,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -403,6 +404,7 @@ fn spawn_plague_cloud(
             pos, radius, damage, constants::TICK_INTERVAL, duration, speed, direction,
             talent_params,
         ),
+        UniqueHitTracker::default(),
         NetworkedSpellEffect {
             kind: SpellEffectKind::PlagueWindCloud,
         },
@@ -471,7 +473,7 @@ fn horizontal_distance(a: Vec3, b: Vec3) -> f32 {
 pub fn apply_plague_wind_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut clouds: Query<&mut PlagueWindCloud>,
+    mut clouds: Query<(&mut PlagueWindCloud, &mut UniqueHitTracker)>,
     mut units: Query<(
         Entity,
         &Transform,
@@ -483,9 +485,9 @@ pub fn apply_plague_wind_damage(
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     let delta = time.delta_secs();
-    let mut poisoned_count: u32 = 0;
+    let mut unique_hits: u32 = 0;
 
-    for mut cloud in &mut clouds {
+    for (mut cloud, mut hit_tracker) in &mut clouds {
         cloud.time_alive += delta;
         cloud.time_since_last_tick += delta;
 
@@ -533,7 +535,9 @@ pub fn apply_plague_wind_damage(
                         DamageType::Poison,
                         has_spell_shield,
                     );
-                    poisoned_count += 1;
+                    if hit_tracker.track_hit(entity) {
+                        unique_hits += 1;
+                    }
 
                     // Necrotic Rot: reduce max HP by the damage dealt
                     if has_necrotic_rot {
@@ -555,9 +559,9 @@ pub fn apply_plague_wind_damage(
         }
     }
 
-    if poisoned_count > 0 {
+    if unique_hits > 0 {
         if let Some(ref mut progress) = talent_progress {
-            progress.increment(Spell::PlagueWind, poisoned_count);
+            progress.increment(Spell::PlagueWind, unique_hits);
         }
     }
 }

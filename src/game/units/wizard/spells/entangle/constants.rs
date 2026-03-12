@@ -75,16 +75,3 @@ pub(super) const VINE_MAX_ABOVE_GROUND: f32 = 8.0;
 pub(super) const VINE_RISE_DURATION: f32 = 0.5;
 /// How far below ground vines start before rising.
 pub(super) const VINE_START_OFFSET: f32 = -15.0;
-
-// --- Animated vine ring constants ---
-
-/// Seconds between spawning a new animated vine ring.
-pub(super) const ANIMATED_VINE_SPAWN_INTERVAL: f32 = 0.08;
-/// Lifetime of each animated vine ring (seconds).
-pub(super) const ANIMATED_VINE_LIFETIME: f32 = 2.4;
-/// Minimum max-scale for animated vine rings.
-pub(super) const ANIMATED_VINE_MIN_SCALE: f32 = 8.0;
-/// Maximum max-scale for animated vine rings.
-pub(super) const ANIMATED_VINE_MAX_SCALE: f32 = 28.0;
-/// Maximum tilt from horizontal for animated vine rings (radians).
-pub(super) const ANIMATED_VINE_MAX_TILT: f32 = 1.0;

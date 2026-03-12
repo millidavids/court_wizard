@@ -624,8 +624,8 @@ pub fn update_poisoned(
     for (entity, mut poison, mut effectiveness) in query.iter_mut() {
         // Check sickened threshold first
         if poison.is_sickened(SICKENED_THRESHOLD) {
-            // Remove poison penalty from effectiveness (recalculate happens naturally)
-            effectiveness.spell_bonus -= poison.effectiveness_penalty;
+            // Remove all penalty applied to spell_bonus
+            effectiveness.spell_bonus -= poison.applied_to_spell_bonus;
             commands.entity(entity).remove::<PoisonedModifier>();
             commands
                 .entity(entity)
@@ -637,8 +637,8 @@ pub fn update_poisoned(
         let expired = poison.update(delta);
 
         if expired {
-            // Remove poison penalty from effectiveness
-            effectiveness.spell_bonus -= poison.effectiveness_penalty;
+            // Remove all penalty applied to spell_bonus
+            effectiveness.spell_bonus -= poison.applied_to_spell_bonus;
             commands.entity(entity).remove::<PoisonedModifier>();
         } else {
             // Apply effectiveness penalty via tick timer
@@ -646,6 +646,7 @@ pub fn update_poisoned(
             if poison.tick_timer >= super::constants::POISON_TICK_INTERVAL {
                 poison.tick_timer = 0.0;
                 effectiveness.spell_bonus += poison.effectiveness_penalty;
+                poison.applied_to_spell_bonus += poison.effectiveness_penalty;
             }
         }
     }

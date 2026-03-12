@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{SpikeGrowthIndicator, SpikeGrowthZone};
+use super::components::{
+    SpikeGrowthIndicator, SpikeGrowthLingeringPoison, SpikeGrowthTalentParams,
+    SpikeGrowthZone, SpikeStormProjectile, ZonePresenceTracker,
+};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -12,16 +15,69 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
+    Health, RootedModifier, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    self, UniqueHitTracker, clamp_cursor_to_spell_range, get_cursor_world_position,
+    spawn_circle_indicator, xz_distance,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+
+/// Computes talent parameters from active talent selections.
+pub(crate) fn compute_talent_params(
+    active_talents: Option<&ActiveTalents>,
+) -> SpikeGrowthTalentParams {
+    let mut params = SpikeGrowthTalentParams::default();
+
+    let Some(talents) = active_talents else {
+        return params;
+    };
+
+    let t1 = talents.get_selection(Spell::SpikeGrowth, 0);
+    let t2 = talents.get_selection(Spell::SpikeGrowth, 1);
+    let t3 = talents.get_selection(Spell::SpikeGrowth, 2);
+
+    // Tier 1: Numeric modifiers
+    match t1 {
+        Some(0) => {
+            // Wider Zone
+            params.radius_mult = constants::WIDER_ZONE_RADIUS_MULT;
+        }
+        Some(1) => {
+            // Sharper Spikes
+            params.damage_mult = constants::SHARPER_SPIKES_DAMAGE_MULT;
+        }
+        Some(2) => {
+            // Quick Bloom
+            params.cast_time_mult = constants::QUICK_BLOOM_CAST_TIME_MULT;
+            params.mana_mult = constants::QUICK_BLOOM_MANA_MULT;
+        }
+        _ => {}
+    }
+
+    // Tier 2: Behavioral flags
+    match t2 {
+        Some(0) => params.thorn_maze = true,
+        Some(1) => params.poisoned_spikes = true,
+        Some(2) => params.quicksand = true,
+        _ => {}
+    }
+
+    // Tier 3: Transformative flags
+    match t3 {
+        Some(0) => params.death_garden = true,
+        Some(1) => params.minefield = true,
+        Some(2) => params.spike_storm = true,
+        _ => {}
+    }
+
+    params
+}
 
 /// Local wizard spike growth casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -31,7 +87,6 @@ pub fn handle_spike_growth_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -43,7 +98,9 @@ pub fn handle_spike_growth_casting(
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
 ) {
+    let (active_talents, _talent_progress) = talent_resources;
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
@@ -62,11 +119,16 @@ pub fn handle_spike_growth_casting(
         return;
     }
 
+    let talent_params = compute_talent_params(active_talents.as_deref());
+    let effective_radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
+    let effective_mana_cost = constants::MANA_COST * talent_params.mana_mult;
+    let effective_cast_time = primed_spell.cast_time * talent_params.cast_time_mult;
+
     // Clamp cursor to spell range
     let clamped_cursor = clamp_cursor_to_spell_range(
         input.cursor_pos,
         wizard.spell_range,
-        constants::CIRCLE_RADIUS * primed_spell.empowerment,
+        effective_radius,
     );
 
     // Handle release — clean up indicator
@@ -89,19 +151,19 @@ pub fn handle_spike_growth_casting(
         CastingState::Resting => {
             if (input.just_pressed || input.pressed)
                 && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
+                && mana.can_afford(effective_mana_cost)
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
                     &visual_assets,
                     visual_assets.spike_growth_indicator.clone(),
                     clamped_cursor,
-                    constants::CIRCLE_RADIUS * primed_spell.empowerment,
+                    effective_radius,
                     constants::CIRCLE_Y_POSITION,
                 )
                 .insert(SpikeGrowthIndicator::new(
                     clamped_cursor,
-                    primed_spell.empowerment,
+                    effective_radius,
                 ))
                 .id();
                 commands
@@ -121,13 +183,12 @@ pub fn handle_spike_growth_casting(
                 indicator.position = clamped_cursor;
             }
 
-            if casting_state.is_complete(primed_spell.cast_time) {
-                if mana.consume(constants::MANA_COST) {
+            if casting_state.is_complete(effective_cast_time) {
+                if mana.consume(effective_mana_cost) {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
                             audio::play_sfx(
                                 &mut commands,
                                 &sfx.spike_growth_cast,
@@ -135,15 +196,28 @@ pub fn handle_spike_growth_casting(
                                 &game_config,
                                 &sfx,
                             );
-                            spawn_spike_growth_zone(
-                                &mut commands,
-                                &visual_assets,
-                                &mut materials,
-                                indicator.position,
-                                radius,
-                                indicator.empowerment,
-                                &mut obstacle_events,
-                            );
+
+                            if talent_params.minefield {
+                                spawn_minefield_zones(
+                                    &mut commands,
+                                    &visual_assets,
+                                    indicator.position,
+                                    effective_radius,
+                                    primed_spell.empowerment,
+                                    &mut obstacle_events,
+                                    &talent_params,
+                                );
+                            } else {
+                                spawn_spike_growth_zone(
+                                    &mut commands,
+                                    &visual_assets,
+                                    indicator.position,
+                                    effective_radius,
+                                    primed_spell.empowerment,
+                                    &mut obstacle_events,
+                                    &talent_params,
+                                );
+                            }
                         }
                         commands.entity(indicator_entity).try_despawn();
                     }
@@ -173,26 +247,14 @@ pub fn handle_spike_growth_casting(
     }
 }
 
-pub fn update_spike_growth_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut SpikeGrowthIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
-}
-
 /// Applies periodic damage and slow to ALL units within the spike growth zone.
+/// Handles Thorn Maze (enhanced slow), Quicksand (root after threshold),
+/// and Poisoned Spikes (zone presence tracking + lingering on exit).
+/// Also tracks Death Garden kill extensions.
 pub fn apply_spike_growth_damage(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<&mut SpikeGrowthZone>,
+    mut zones: Query<(Entity, &mut SpikeGrowthZone, &mut UniqueHitTracker)>,
     mut targets: Query<(
         Entity,
         &Transform,
@@ -200,75 +262,362 @@ pub fn apply_spike_growth_damage(
         Option<&mut TemporaryHitPoints>,
         Option<&mut SlowMovementModifier>,
         Has<SpellShield>,
+        Option<&mut ZonePresenceTracker>,
     )>,
+    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     let delta = time.delta_secs();
 
-    for mut zone in &mut zones {
+    for (zone_entity, mut zone, mut hit_tracker) in &mut zones {
         zone.time_alive += delta;
         zone.time_since_last_tick += delta;
 
-        if zone.time_since_last_tick >= zone.tick_interval {
-            zone.time_since_last_tick = 0.0;
+        if zone.time_since_last_tick < zone.tick_interval {
+            continue;
+        }
+        zone.time_since_last_tick = 0.0;
 
-            for (entity, transform, mut health, mut temp_hp, existing_slow, has_spell_shield) in
-                &mut targets
-            {
-                let distance = Vec3::new(
-                    zone.origin.x - transform.translation.x,
-                    0.0,
-                    zone.origin.z - transform.translation.z,
-                )
-                .length();
+        let effective_radius = zone.effective_radius();
+        let needs_tracking = zone.talent_params.quicksand || zone.talent_params.poisoned_spikes;
 
-                if distance <= zone.radius {
-                    // Apply damage with Poison type (triggers PoisonedModifier stacking)
-                    apply_spell_damage(
-                        &mut commands,
-                        entity,
-                        &mut health,
-                        temp_hp.as_deref_mut(),
-                        zone.damage_per_tick,
-                        DamageType::Poison,
-                        has_spell_shield,
-                    );
-                    if has_spell_shield {
-                        continue;
-                    }
+        let slow_mod = if zone.talent_params.thorn_maze {
+            constants::THORN_MAZE_SLOW_MODIFIER
+        } else {
+            zone.slow_modifier
+        };
 
-                    // Apply or refresh spike growth slow
-                    if let Some(mut slow) = existing_slow {
-                        slow.apply(zone.slow_modifier, zone.slow_duration);
+        let mut units_hit: u32 = 0;
+
+        for (entity, transform, mut health, mut temp_hp, existing_slow, has_spell_shield, zone_tracker) in
+            &mut targets
+        {
+            let distance = xz_distance(zone.origin, transform.translation);
+
+            if distance <= effective_radius {
+                let was_alive = !health.is_dead();
+
+                apply_spell_damage(
+                    &mut commands,
+                    entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    zone.damage_per_tick,
+                    DamageType::Poison,
+                    has_spell_shield,
+                );
+
+                if has_spell_shield {
+                    continue;
+                }
+
+                // Track unique units hit for talent progress
+                if hit_tracker.track_hit(entity) {
+                    units_hit += 1;
+                }
+
+                // Death Garden: extend duration on kills
+                if zone.talent_params.death_garden
+                    && was_alive
+                    && health.is_dead()
+                    && zone.death_garden_extension < constants::DEATH_GARDEN_MAX_EXTENSION
+                {
+                    zone.death_garden_extension = (zone.death_garden_extension
+                        + constants::DEATH_GARDEN_KILL_EXTENSION)
+                        .min(constants::DEATH_GARDEN_MAX_EXTENSION);
+                }
+
+                // Apply or refresh slow
+                if let Some(mut slow) = existing_slow {
+                    slow.apply(slow_mod, zone.slow_duration);
+                } else {
+                    commands.entity(entity).insert(SlowMovementModifier::new(
+                        slow_mod,
+                        zone.slow_duration,
+                    ));
+                }
+
+                // Zone presence tracking (for Quicksand and/or Poisoned Spikes)
+                if needs_tracking {
+                    if let Some(mut tracker) = zone_tracker {
+                        if tracker.zone_entity == zone_entity {
+                            tracker.time_in_zone += zone.tick_interval;
+                            // Quicksand: root after threshold
+                            if zone.talent_params.quicksand
+                                && !tracker.rooted
+                                && tracker.time_in_zone >= constants::QUICKSAND_TIME_THRESHOLD
+                            {
+                                tracker.rooted = true;
+                                commands.entity(entity).insert(RootedModifier::new(
+                                    constants::QUICKSAND_ROOT_DURATION,
+                                ));
+                            }
+                        }
                     } else {
-                        commands.entity(entity).insert(SlowMovementModifier::new(
-                            zone.slow_modifier,
-                            zone.slow_duration,
-                        ));
+                        commands.entity(entity).insert(ZonePresenceTracker {
+                            zone_entity,
+                            time_in_zone: 0.0,
+                            rooted: false,
+                        });
                     }
                 }
+            } else if needs_tracking {
+                // Unit is outside the zone — handle exit
+                if let Some(ref tracker) = zone_tracker {
+                    if tracker.zone_entity == zone_entity {
+                        commands.entity(entity).remove::<ZonePresenceTracker>();
+                        // Poisoned Spikes: apply lingering poison on exit
+                        if zone.talent_params.poisoned_spikes {
+                            commands
+                                .entity(entity)
+                                .insert(SpikeGrowthLingeringPoison::new());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Track talent progress
+        if units_hit > 0 {
+            if let Some(ref mut progress) = talent_progress {
+                progress.increment(Spell::SpikeGrowth, units_hit);
             }
         }
     }
 }
 
-/// Fades spike growth zone visual over the last few seconds.
-pub fn fade_spike_growth_zone(
-    zones: Query<(&SpikeGrowthZone, &MeshMaterial3d<StandardMaterial>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+/// Ticks lingering poison effect and applies damage.
+pub fn tick_lingering_poison(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut targets: Query<(
+        Entity,
+        &mut SpikeGrowthLingeringPoison,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    )>,
 ) {
-    for (zone, material_handle) in &zones {
-        let Some(material) = materials.get_mut(material_handle) else {
+    let delta = time.delta_secs();
+
+    for (entity, mut poison, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+        poison.time_remaining -= delta;
+        poison.time_since_last_tick += delta;
+
+        if poison.time_remaining <= 0.0 {
+            commands.entity(entity).remove::<SpikeGrowthLingeringPoison>();
+            continue;
+        }
+
+        if poison.time_since_last_tick >= poison.tick_interval {
+            poison.time_since_last_tick = 0.0;
+            apply_spell_damage(
+                &mut commands,
+                entity,
+                &mut health,
+                temp_hp.as_deref_mut(),
+                poison.damage_per_tick,
+                DamageType::Poison,
+                has_spell_shield,
+            );
+        }
+    }
+}
+
+/// Death Garden: grows zone radius over time and updates pathfinding obstacles.
+pub fn update_death_garden(
+    time: Res<Time>,
+    mut zones: Query<&mut SpikeGrowthZone>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
+    let delta = time.delta_secs();
+
+    for mut zone in &mut zones {
+        if !zone.talent_params.death_garden {
+            continue;
+        }
+
+        let new_radius = zone.effective_radius();
+
+        // Throttle obstacle updates to every 1 second
+        zone.death_garden_obstacle_timer += delta;
+        if zone.death_garden_obstacle_timer >= 1.0 {
+            zone.death_garden_obstacle_timer = 0.0;
+            let origin_2d = Vec2::new(zone.origin.x, zone.origin.z);
+            let buffered_radius = new_radius + OBSTACLE_BUFFER;
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
+                obstacle_type: ObstacleType::Hazard(15.0),
+                shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+                rebuild: false,
+            });
+        }
+    }
+}
+
+/// Spike Storm: launches projectiles at nearby enemies periodically.
+pub fn spike_storm_volley(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut zones: Query<&mut SpikeGrowthZone>,
+    targets: Query<(Entity, &Transform, &Health), Without<SpikeGrowthZone>>,
+    visual_assets: Res<SpellVisualAssets>,
+) {
+    let delta = time.delta_secs();
+
+    for mut zone in &mut zones {
+        if !zone.talent_params.spike_storm {
+            continue;
+        }
+
+        zone.spike_storm_timer += delta;
+        if zone.spike_storm_timer < constants::SPIKE_STORM_INTERVAL {
+            continue;
+        }
+        zone.spike_storm_timer = 0.0;
+
+        let targeting_range = zone.effective_radius() * constants::SPIKE_STORM_RANGE_MULT;
+
+        // Find nearest enemies
+        let mut candidates: Vec<(Vec3, f32)> = targets
+            .iter()
+            .filter(|(_, _, health)| !health.is_dead())
+            .filter_map(|(_, transform, _)| {
+                let dist = xz_distance(zone.origin, transform.translation);
+                if dist <= targeting_range {
+                    Some((transform.translation, dist))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.truncate(constants::SPIKE_STORM_MAX_TARGETS);
+
+        let Some(ref material) = zone.spike_storm_material else {
             continue;
         };
 
-        let remaining = zone.duration - zone.time_alive;
-        let fade = if remaining < constants::FADE_DURATION {
-            (remaining / constants::FADE_DURATION).max(0.0)
+        for (target_pos, _) in &candidates {
+            let spawn_pos = Vec3::new(zone.origin.x, 3.0, zone.origin.z);
+            let direction = Vec3::new(
+                target_pos.x - spawn_pos.x,
+                0.0,
+                target_pos.z - spawn_pos.z,
+            );
+            let direction = if direction.length_squared() > 0.001 {
+                direction.normalize()
+            } else {
+                Vec3::X
+            };
+
+            let max_lifetime = targeting_range / constants::SPIKE_STORM_PROJECTILE_SPEED + 0.5;
+
+            commands.spawn((
+                Mesh3d(visual_assets.cross_plane_sphere.clone()),
+                MeshMaterial3d(material.clone()),
+                Transform::from_translation(spawn_pos)
+                    .with_scale(Vec3::splat(constants::SPIKE_STORM_PROJECTILE_SCALE)),
+                SpikeStormProjectile {
+                    direction,
+                    speed: constants::SPIKE_STORM_PROJECTILE_SPEED,
+                    damage: constants::SPIKE_STORM_DAMAGE,
+                    radius: constants::SPIKE_STORM_PROJECTILE_RADIUS,
+                    time_alive: 0.0,
+                    max_lifetime,
+                },
+                OnGameplayScreen,
+            ));
+        }
+    }
+}
+
+/// Updates spike storm projectile positions and checks for collisions.
+pub fn update_spike_storm_projectiles(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut projectiles: Query<(Entity, &mut Transform, &mut SpikeStormProjectile)>,
+    mut targets: Query<(
+        Entity,
+        &Transform,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<SpellShield>,
+    ), Without<SpikeStormProjectile>>,
+) {
+    let delta = time.delta_secs();
+
+    for (proj_entity, mut proj_transform, mut projectile) in &mut projectiles {
+        projectile.time_alive += delta;
+
+        if projectile.time_alive >= projectile.max_lifetime {
+            commands.entity(proj_entity).try_despawn();
+            continue;
+        }
+
+        proj_transform.translation += projectile.direction * projectile.speed * delta;
+
+        let mut hit = false;
+        for (target_entity, target_transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+            if health.is_dead() {
+                continue;
+            }
+            let dist = xz_distance(proj_transform.translation, target_transform.translation);
+
+            if dist <= projectile.radius + constants::UNIT_COLLISION_RADIUS {
+                apply_spell_damage(
+                    &mut commands,
+                    target_entity,
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    projectile.damage,
+                    DamageType::Poison,
+                    has_spell_shield,
+                );
+                hit = true;
+                break;
+            }
+        }
+
+        if hit {
+            commands.entity(proj_entity).try_despawn();
+        }
+    }
+}
+
+/// Spawns animated green vine rings and red spike rings from active spike growth zones.
+pub fn emit_spike_growth_rings(
+    time: Res<Time>,
+    mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
+    mut zones: Query<&mut SpikeGrowthZone>,
+) {
+    let delta = time.delta_secs();
+    for mut zone in &mut zones {
+        if zone.time_alive >= zone.effective_duration() {
+            continue;
+        }
+
+        zone.ring_timer += delta;
+        if zone.ring_timer < utils::RING_SPAWN_INTERVAL {
+            continue;
+        }
+        zone.ring_timer -= utils::RING_SPAWN_INTERVAL;
+
+        // Alternate between green vine rings and red spike rings
+        let material = if rand::random::<f32>() < 0.35 {
+            visual_assets.spike_growth_spike.clone()
         } else {
-            1.0
+            visual_assets.spike_growth_vine.clone()
         };
 
-        material.base_color = Color::srgba(0.15, 0.4, 0.05, 0.4 * fade);
+        utils::spawn_ring_particle(
+            &mut commands,
+            visual_assets.entangle_vine_ring.clone(),
+            material,
+            zone.origin,
+            zone.effective_radius(),
+        );
     }
 }
 
@@ -279,9 +628,9 @@ pub fn cleanup_spike_growth_zone(
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, zone) in &zones {
-        if zone.time_alive >= zone.duration {
+        if zone.time_alive >= zone.effective_duration() {
             let origin_2d = Vec2::new(zone.origin.x, zone.origin.z);
-            let buffered_radius = zone.radius + OBSTACLE_BUFFER;
+            let buffered_radius = zone.effective_radius() + OBSTACLE_BUFFER;
             obstacle_events.write(ObstacleChanged {
                 bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
@@ -293,59 +642,100 @@ pub fn cleanup_spike_growth_zone(
     }
 }
 
+/// Spawns a single spike growth zone with talent parameters.
 pub(crate) fn spawn_spike_growth_zone(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     radius: f32,
     empowerment: f32,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
+    talent_params: &SpikeGrowthTalentParams,
 ) {
     let duration = constants::ZONE_DURATION * empowerment;
-    let damage = constants::DAMAGE_PER_TICK * empowerment;
+    let damage = constants::DAMAGE_PER_TICK * empowerment * talent_params.damage_mult;
     let slow_mod = constants::SLOW_MODIFIER * empowerment;
     let slow_dur = constants::SLOW_DURATION * empowerment;
 
-    // Notify pathfinding about hazard zone (buffered so units reroute before reaching it)
+    // Notify pathfinding about hazard zone
     let origin_2d = Vec2::new(position.x, position.z);
     let buffered_radius = radius + OBSTACLE_BUFFER;
+    let hazard_cost = if talent_params.thorn_maze {
+        15.0 * constants::THORN_MAZE_HAZARD_MULT
+    } else {
+        15.0
+    };
     obstacle_events.write(ObstacleChanged {
         bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
-        obstacle_type: ObstacleType::Hazard(15.0),
+        obstacle_type: ObstacleType::Hazard(hazard_cost),
         shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
         rebuild: false,
     });
 
-    // Clone material for per-instance fading
-    let base_mat = materials
-        .get(&assets.spike_growth_zone)
-        .cloned()
-        .unwrap_or_default();
-    let instance_material = materials.add(base_mat);
+    // Use pre-loaded spike storm material from visual assets
+    let spike_storm_material = if talent_params.spike_storm {
+        Some(assets.spike_storm_projectile.clone())
+    } else {
+        None
+    };
+
+    let mut zone = SpikeGrowthZone::new(
+        Vec3::new(position.x, 0.0, position.z),
+        radius,
+        damage,
+        constants::TICK_INTERVAL,
+        slow_mod,
+        slow_dur,
+        duration,
+        *talent_params,
+    );
+    zone.spike_storm_material = spike_storm_material;
 
     commands.spawn((
-        Mesh3d(assets.unit_circle.clone()),
-        MeshMaterial3d(instance_material),
         Transform::from_translation(Vec3::new(
             position.x,
             constants::CIRCLE_Y_POSITION,
             position.z,
-        ))
-        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-        .with_scale(Vec3::splat(radius)),
-        SpikeGrowthZone::new(
-            Vec3::new(position.x, 0.0, position.z),
-            radius,
-            damage,
-            constants::TICK_INTERVAL,
-            slow_mod,
-            slow_dur,
-            duration,
-        ),
+        )),
+        zone,
+        UniqueHitTracker::default(),
         NetworkedSpellEffect {
             kind: SpellEffectKind::SpikeGrowthZone,
         },
         OnGameplayScreen,
     ));
+}
+
+/// Nature's Minefield: spawns 3 smaller zones in a triangle pattern.
+fn spawn_minefield_zones(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    base_radius: f32,
+    empowerment: f32,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
+    talent_params: &SpikeGrowthTalentParams,
+) {
+    let sub_radius = base_radius * constants::MINEFIELD_RADIUS_MULT;
+    let spread = base_radius * constants::MINEFIELD_SPREAD_FRACTION;
+
+    // Triangle offsets: 120° apart
+    let offsets = [
+        Vec3::new(0.0, 0.0, -spread),
+        Vec3::new(spread * 0.866, 0.0, spread * 0.5),
+        Vec3::new(-spread * 0.866, 0.0, spread * 0.5),
+    ];
+
+    for offset in &offsets {
+        let sub_position = position + *offset;
+        spawn_spike_growth_zone(
+            commands,
+            assets,
+            sub_position,
+            sub_radius,
+            empowerment,
+            obstacle_events,
+            talent_params,
+        );
+    }
 }

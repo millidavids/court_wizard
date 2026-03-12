@@ -15,8 +15,14 @@ pub struct BattlefieldAssets {
     pub castle_wall: Handle<Image>,
     /// Right wall backdrop texture.
     pub right_wall: Handle<Image>,
+    /// Left (back) wall backdrop texture.
+    pub left_wall: Handle<Image>,
 }
 
 /// Marker component for the right wall backdrop.
 #[derive(Component)]
 pub struct RightWall;
+
+/// Marker component for the left (back) wall backdrop.
+#[derive(Component)]
+pub struct LeftWall;
