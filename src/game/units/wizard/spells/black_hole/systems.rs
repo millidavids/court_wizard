@@ -18,10 +18,13 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, clamp_to_spell_range, get_cursor_world_position};
+use crate::game::units::wizard::spells::utils::{
+    PendingDefenderHeal, SpellCircleIndicator, clamp_to_spell_range,
+    get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -135,12 +138,15 @@ pub(super) fn handle_black_hole_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     mut wizard_query: Query<
-        (&mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell, &Wizard),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    caster_query: Query<&SpellCaster>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
@@ -154,7 +160,9 @@ pub(super) fn handle_black_hole_casting(
         cursor_pos,
     };
 
-    let Ok((mut casting_state, mut mana, primed_spell, wizard)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell, wizard)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
     if primed_spell.spell != Spell::BlackHole {
@@ -162,6 +170,7 @@ pub(super) fn handle_black_hole_casting(
     }
 
     let talent_params = compute_talent_params(active_talents.as_deref());
+    let indicator_radius = MAX_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
 
     // Check Twin Stars talent for mana cost multiplier
     let t3 = active_talents
@@ -172,6 +181,62 @@ pub(super) fn handle_black_hole_casting(
     } else {
         1.0
     };
+
+    let total_mana_cost = MANA_COST * mana_mult;
+
+    // Clamp cursor to spell range for indicator positioning
+    let clamped_cursor = cursor_pos.map(|pos| {
+        clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range)
+    });
+
+    // Handle release -- clean up indicator and SpellCaster
+    if input.just_released {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).try_despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+    }
+
+    // Manage indicator based on casting state
+    match *casting_state {
+        CastingState::Resting => {
+            if caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(total_mana_cost)
+                && let Some(pos) = clamped_cursor
+            {
+                let circle_entity = spawn_circle_indicator(
+                    &mut commands,
+                    &mut meshes,
+                    visual_assets.black_hole_indicator.clone(),
+                    pos,
+                    indicator_radius,
+                )
+                .id();
+                commands
+                    .entity(wizard_entity)
+                    .insert(SpellCaster::with_indicator(circle_entity));
+            }
+        }
+        CastingState::Casting { .. } => {
+            if let Some(pos) = clamped_cursor
+                && let Ok(caster) = caster_query.get(wizard_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+            {
+                indicator.position = pos;
+            }
+        }
+        CastingState::Channeling { .. } => {
+            if let Ok(caster) = caster_query.get(wizard_entity) {
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).try_despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+            }
+        }
+    }
 
     let cast_result = black_hole_casting_logic(
         &input,
@@ -184,6 +249,14 @@ pub(super) fn handle_black_hole_casting(
     );
 
     if cast_result.completed {
+        // Clean up indicator and SpellCaster
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).try_despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+
         if let Some(pos) = cast_result.cursor_pos {
             if t3 == Some(1) {
                 // Twin Stars: spawn 2 black holes offset from the target position

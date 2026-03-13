@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{GuardianCircleIndicator, GuardianCircleShielded};
+use super::components::GuardianCircleShielded;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::GuardianCircleHitAttackerMessage;
@@ -14,7 +14,7 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -28,6 +28,7 @@ pub fn handle_guardian_circle_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -35,16 +36,17 @@ pub fn handle_guardian_circle_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut GuardianCircleIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform, &Team), Without<Wizard>>,
     mut attacker_hit_msg: MessageWriter<GuardianCircleHitAttackerMessage>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    mut talent_progress: Option<
-        ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
-    >,
-    active_talents: Option<Res<ActiveTalents>>,
+    talent_resources: (
+        Option<ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>>,
+        Option<Res<ActiveTalents>>,
+    ),
 ) {
+    let (mut talent_progress, active_talents) = talent_resources;
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
@@ -103,17 +105,13 @@ pub fn handle_guardian_circle_casting(
                 && mana.can_afford(constants::MANA_COST)
                 && let Some(pos) = clamped_cursor
             {
-                let mut indicator = GuardianCircleIndicator::new(pos, primed_spell.empowerment);
-                indicator.talent_radius_mult = radius_mult;
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &visual_assets,
+                    &mut meshes,
                     visual_assets.guardian_circle_indicator.clone(),
                     pos,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(indicator)
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -156,8 +154,8 @@ pub fn handle_guardian_circle_casting(
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius = constants::CIRCLE_RADIUS
-                    * indicator.empowerment
-                    * indicator.talent_radius_mult;
+                    * primed_spell.empowerment
+                    * radius_mult;
 
                 audio::play_sfx(
                     &mut commands,
@@ -172,7 +170,7 @@ pub fn handle_guardian_circle_casting(
                     radius,
                     constants::TEMP_HP_AMOUNT,
                     constants::TEMP_HP_DURATION,
-                    indicator.empowerment,
+                    primed_spell.empowerment,
                     &mut targets_query,
                     &mut attacker_hit_msg,
                     &mut talent_progress,

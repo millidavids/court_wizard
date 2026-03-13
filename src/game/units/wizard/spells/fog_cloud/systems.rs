@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{FogCloudIndicator, FogCloudZone};
+use super::components::FogCloudZone;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -13,7 +13,7 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, FogEvasionModifier};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -27,6 +27,7 @@ pub fn handle_fog_cloud_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
@@ -35,7 +36,7 @@ pub fn handle_fog_cloud_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut FogCloudIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -69,6 +70,7 @@ pub fn handle_fog_cloud_casting(
         &mut indicator_query,
         &mut commands,
         &visual_assets,
+        &mut meshes,
         &mut materials,
         &sfx,
         &game_config,
@@ -90,9 +92,10 @@ fn fog_cloud_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
-    indicator_query: &mut Query<&mut FogCloudIndicator>,
+    indicator_query: &mut Query<&mut SpellCircleIndicator>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    meshes: &mut Assets<Mesh>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
@@ -139,16 +142,11 @@ fn fog_cloud_casting_logic(
             {
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    assets,
+                    meshes,
                     assets.fog_cloud_indicator.clone(),
                     cursor_world_pos,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(FogCloudIndicator::new(
-                    cursor_world_pos,
-                    primed_spell.empowerment,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -170,7 +168,7 @@ fn fog_cloud_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
                             audio::play_sfx(
                                 commands,
                                 &sfx.fog_cloud_cast,
@@ -184,7 +182,7 @@ fn fog_cloud_casting_logic(
                                 materials,
                                 indicator.position,
                                 radius,
-                                indicator.empowerment,
+                                primed_spell.empowerment,
                             );
                         }
                         commands.entity(indicator_entity).try_despawn();
@@ -215,21 +213,6 @@ fn fog_cloud_casting_logic(
     }
 
     completed
-}
-
-pub fn update_fog_cloud_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut FogCloudIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 pub fn apply_fog_cloud_evasion(

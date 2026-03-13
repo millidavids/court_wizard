@@ -8,9 +8,9 @@ use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
     BattleHymnModifier, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
-    FrostEffectMarker, HasteModifier, Knockback, MarkedForDeathModifier, PoisonedModifier,
-    RootedModifier, SickenedModifier, SleepModifier, SlowMovementModifier, SmellyModifier,
-    TemporaryHitPoints, WalkingAnimation,
+    FrostEffectMarker, FrozenSolidModifier, HasteModifier, Knockback, MarkedForDeathModifier,
+    PoisonedModifier, RootedModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
+    SmellyModifier, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -111,6 +111,8 @@ impl Plugin for UnitsPlugin {
                     .run_if(any_with_component::<BerserkerRageModifier>),
                 systems::update_timed_modifier::<FogEvasionModifier>
                     .run_if(any_with_component::<FogEvasionModifier>),
+                systems::update_timed_modifier::<FrozenSolidModifier>
+                    .run_if(any_with_component::<FrozenSolidModifier>),
             )
                 .run_if(is_gameplay_running),
         );

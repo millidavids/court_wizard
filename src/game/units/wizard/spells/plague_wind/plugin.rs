@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{
-    InsidePlagueCloud, PlagueCarrierDoT, PlagueWindCloud, PlagueWindIndicator,
+    InsidePlagueCloud, PlagueCarrierDoT, PlagueWindCloud,
     ToxicWeaknessDebuff,
 };
 use super::systems;
@@ -22,8 +22,6 @@ impl Plugin for PlagueWindPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::update_plague_wind_indicator
-                    .run_if(any_exist::<PlagueWindIndicator>()),
                 (
                     systems::move_plague_wind_cloud,
                     systems::apply_plague_wind_damage,

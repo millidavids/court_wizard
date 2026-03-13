@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::HasteIndicator;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::input::MouseButtonState;
@@ -10,7 +9,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::HasteModifier;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -23,6 +22,7 @@ pub fn handle_haste_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -30,7 +30,7 @@ pub fn handle_haste_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut HasteIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<(Entity, &Transform, Option<&mut HasteModifier>), Without<Wizard>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -86,16 +86,11 @@ pub fn handle_haste_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &visual_assets,
+                    &mut meshes,
                     visual_assets.haste_indicator.clone(),
                     clamped_cursor,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(HasteIndicator::new(
-                    clamped_cursor,
-                    primed_spell.empowerment,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -120,7 +115,7 @@ pub fn handle_haste_casting(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
                             audio::play_sfx(
                                 &mut commands,
                                 &sfx.haste_cast,
@@ -132,7 +127,7 @@ pub fn handle_haste_casting(
                                 &mut commands,
                                 indicator.position,
                                 radius,
-                                indicator.empowerment,
+                                primed_spell.empowerment,
                                 &mut targets_query,
                             );
                         }

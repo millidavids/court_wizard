@@ -13,7 +13,8 @@ pub const CAST_TIME: f32 = 2.0;
 pub const MANA_COST: f32 = 25.0;
 pub const CIRCLE_RADIUS: f32 = 120.0;
 pub const ROOT_DURATION: f32 = 15.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;
+/// Y position for the invisible ground effect entity.
+pub const CIRCLE_Y_POSITION: f32 = 2.0;
 
 // --- Tier 1 talent constants ---
 

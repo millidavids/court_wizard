@@ -2,8 +2,6 @@
 
 use bevy::prelude::*;
 
-use super::constants::{ARC_RADIUS, CIRCLE_Y_POSITION};
-use crate::game::units::wizard::spells::utils::CircleIndicator;
 
 /// Pre-computed talent parameters for a lightning rod instance.
 #[derive(Clone, Copy, Debug)]
@@ -140,52 +138,3 @@ impl LightningRodArc {
     }
 }
 
-/// Circle indicator shown during casting to preview the arc radius.
-#[derive(Component)]
-pub(super) struct LightningRodCircleIndicator {
-    /// Position of the circle center.
-    pub position: Vec3,
-    /// Time this indicator has been active (for animations).
-    pub time_alive: f32,
-    /// Empowerment multiplier (for scaling unit-sized mesh).
-    pub empowerment: f32,
-}
-
-impl LightningRodCircleIndicator {
-    /// Creates a new circle indicator.
-    pub fn new(position: Vec3, empowerment: f32) -> Self {
-        Self {
-            position,
-            time_alive: 0.0,
-            empowerment,
-        }
-    }
-
-    /// Returns the current scale factor for pulse animation.
-    pub fn pulse_scale(&self) -> f32 {
-        let pulse_freq = 2.0;
-        let pulse_amplitude = 0.05;
-        1.0 + (self.time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
-    }
-}
-
-impl CircleIndicator for LightningRodCircleIndicator {
-    fn position(&self) -> Vec3 {
-        self.position
-    }
-    fn time_alive(&self) -> f32 {
-        self.time_alive
-    }
-    fn set_time_alive(&mut self, time: f32) {
-        self.time_alive = time;
-    }
-    fn base_radius(&self) -> f32 {
-        ARC_RADIUS * self.empowerment
-    }
-    fn circle_y_position(&self) -> f32 {
-        CIRCLE_Y_POSITION
-    }
-    fn pulse_scale(&self) -> f32 {
-        self.pulse_scale()
-    }
-}

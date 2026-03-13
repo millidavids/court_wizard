@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use bevy::prelude::*;
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, WizardInput,
 };
 use super::components::*;
 use super::constants::{
@@ -16,7 +16,10 @@ use crate::game::units::components::{Corpse, PermanentCorpse, Team};
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{
+    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
+};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::crt_effect::CorrectedCursorPosition;
 
 /// Local wizard Raise The Dead casting — reads mouse input.
@@ -25,9 +28,13 @@ pub fn handle_raise_the_dead_casting(
     time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
-    mut wizard_query: Query<(&mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
+    visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
+    caster_query: Query<&SpellCaster>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     infantry_assets: Res<InfantryAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -43,11 +50,64 @@ pub fn handle_raise_the_dead_casting(
         cursor_pos,
     };
 
-    let Ok((mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut() else {
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
+    else {
         return;
     };
     if primed_spell.spell != Spell::RaiseTheDead {
         return;
+    }
+
+    let indicator_radius = RESURRECTION_RADIUS * primed_spell.empowerment;
+
+    // Handle release -- clean up indicator and SpellCaster
+    if input.just_released {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).try_despawn();
+            }
+            commands.entity(wizard_entity).remove::<SpellCaster>();
+        }
+    }
+
+    // Manage indicator based on casting state
+    match *casting_state {
+        CastingState::Resting => {
+            if caster_query.get(wizard_entity).is_err()
+                && mana.can_afford(MANA_COST_PER_CORPSE)
+                && let Some(pos) = cursor_pos
+            {
+                let circle_entity = spawn_circle_indicator(
+                    &mut commands,
+                    &mut meshes,
+                    visual_assets.raise_the_dead_indicator.clone(),
+                    pos,
+                    indicator_radius,
+                )
+                .id();
+                commands
+                    .entity(wizard_entity)
+                    .insert(SpellCaster::with_indicator(circle_entity));
+            }
+        }
+        CastingState::Casting { .. } => {
+            if let Some(pos) = cursor_pos
+                && let Ok(caster) = caster_query.get(wizard_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+            {
+                indicator.position = pos;
+            }
+        }
+        CastingState::Channeling { .. } => {
+            if let Ok(caster) = caster_query.get(wizard_entity) {
+                if let Some(indicator_entity) = caster.indicator_entity {
+                    commands.entity(indicator_entity).try_despawn();
+                }
+                commands.entity(wizard_entity).remove::<SpellCaster>();
+            }
+        }
     }
 
     raise_the_dead_casting_logic(

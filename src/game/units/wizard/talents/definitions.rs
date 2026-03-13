@@ -34,6 +34,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::WallOfStone => wall_of_stone_talents(),
         Spell::Entangle => entangle_talents(),
         Spell::SpikeGrowth => spike_growth_talents(),
+        Spell::Squall => squall_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1189,6 +1190,74 @@ fn spike_growth_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Spike Storm",
                 description: "Every 2 seconds, launches spike projectiles at up to 3 nearby enemies, dealing 5 damage each.",
                 locked_text: "The spikes have learned to fly. Nobody asked for this.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn squall_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Bitter Cold",
+                description: "Damage per ice shard increased by 30%.",
+                locked_text: "Colder ice. Somehow. The wizard doesn't understand thermodynamics and neither should you.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Howling Winds",
+                description: "Storm radius increased by 30%.",
+                locked_text: "The storm got bigger. The enemies got sadder.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Freezing Rain",
+                description: "Ice spawns 40% faster but each shard deals 20% less damage.",
+                locked_text: "More ice, less damage per ice. It's a quantity play.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Permafrost",
+                description: "Enemies hit 3+ times become frozen solid for 2 seconds (can't move or attack).",
+                locked_text: "Freeze! No literally. The wizard is very literal.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Hailstones",
+                description: "Some ice shards are replaced with larger hailstones that deal 3x damage.",
+                locked_text: "Big ice. Big damage. Big problem for anyone standing in the circle.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Sleet Storm",
+                description: "Enemies inside the storm have a 40% chance to miss their attacks.",
+                locked_text: "Can't hit what you can't see through a blizzard. Tactical meteorology.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Absolute Zero",
+                description: "Storm continuously drains mana and applies a stacking slow and frost damage to enemies inside. The longer they stay, the slower they get.",
+                locked_text: "Entropy stops. Time stops. The wizard's heating bill does not stop.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Blizzard",
+                description: "Storm follows the cursor slowly while channeling instead of staying in place.",
+                locked_text: "A movable ice storm. The wizard is basically a weather god now. A very petty weather god.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Ice Age",
+                description: "Storm leaves frozen ground that slows enemies by 30%. Persists after channeling ends.",
+                locked_text: "The ice never melts. Global warming has met its match: one very stubborn wizard.",
                 implemented: true,
             },
         ],

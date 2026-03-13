@@ -21,9 +21,6 @@ pub const MANA_COST: f32 = 60.0;
 /// Radius of the storm circle where meteors will rain down.
 pub const STORM_RADIUS: f32 = 300.0;
 
-/// Y position for the circle indicator on the ground.
-pub const CIRCLE_Y_POSITION: f32 = 0.1;
-
 /// Time between meteor spawns (seconds).
 pub const METEOR_SPAWN_INTERVAL: f32 = 0.8;
 

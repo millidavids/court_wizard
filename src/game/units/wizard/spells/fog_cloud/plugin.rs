@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{FogCloudIndicator, FogCloudZone};
+use super::components::FogCloudZone;
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -19,7 +19,6 @@ impl Plugin for FogCloudPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                systems::update_fog_cloud_indicator.run_if(any_exist::<FogCloudIndicator>()),
                 (
                     systems::apply_fog_cloud_evasion,
                     systems::fade_fog_cloud_zone,

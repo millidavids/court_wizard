@@ -21,7 +21,7 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::WallOfFire => [20, 100, 500],
         Spell::Entangle => [20, 70, 200],
         Spell::SpikeGrowth => [20, 100, 500],
-        Spell::Squall => [30, 100, 300],
+        Spell::Squall => [20, 100, 500],
         Spell::Sleep => [15, 50, 150],
         Spell::Grease => [20, 70, 200],
         Spell::Polymorph => [10, 35, 100],

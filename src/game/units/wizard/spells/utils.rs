@@ -6,11 +6,12 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use bevy::prelude::Annulus;
+
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::components::{Health, Team};
 use crate::game::units::wizard::components::Wizard;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Returns the XZ-plane distance between two points (ignoring Y).
 pub(crate) fn xz_distance(a: Vec3, b: Vec3) -> f32 {
@@ -188,6 +189,26 @@ pub(crate) fn clamp_cursor_to_spell_range(
     ))
 }
 
+/// Y position for all spell aiming reticles (hovering just above the ground).
+pub(crate) const RETICLE_Y: f32 = 2.0;
+
+/// Fixed world-space width of the reticle ring (in world units).
+/// The annulus inner radius is computed per-spawn so this width stays constant
+/// regardless of the spell's radius.
+const RETICLE_RING_WIDTH: f32 = 3.0;
+
+/// Resolution (number of segments) for the reticle annulus mesh.
+const RETICLE_RING_RESOLUTION: u32 = 48;
+
+/// Creates a reticle annulus mesh with a fixed world-space ring width for the given radius.
+pub(crate) fn make_reticle_mesh(radius: f32) -> Mesh {
+    let inner = (1.0 - RETICLE_RING_WIDTH / radius).max(0.0);
+    Annulus::new(inner, 1.0)
+        .mesh()
+        .resolution(RETICLE_RING_RESOLUTION)
+        .into()
+}
+
 /// Computes a standard pulse scale factor for circle indicators.
 ///
 /// Returns a value oscillating around 1.0 with a small amplitude, creating
@@ -198,74 +219,69 @@ pub(crate) fn indicator_pulse_scale(time_alive: f32) -> f32 {
     1.0 + (time_alive * pulse_freq * std::f32::consts::TAU).sin() * pulse_amplitude
 }
 
-/// Spawns a circle indicator entity on the ground plane.
+/// Shared aiming reticle component for all spells.
 ///
-/// Creates a unit circle mesh with the given material, positioned at the target location
-/// on the ground plane at `circle_y_position`, scaled to `radius`. The caller must add
-/// any spell-specific marker components to the returned entity.
+/// Attached to the annulus ring entity spawned during casting. Tracks position
+/// and effective radius; the shared [`update_spell_indicators`] system handles
+/// pulse animation and transform updates.
+#[derive(Component)]
+pub(crate) struct SpellCircleIndicator {
+    /// World-space position (XZ plane). Updated by spell casting systems.
+    pub position: Vec3,
+    /// Time this indicator has been alive (drives pulse animation).
+    pub time_alive: f32,
+    /// Pre-computed radius including empowerment and talent multipliers.
+    pub effective_radius: f32,
+}
+
+impl SpellCircleIndicator {
+    pub fn new(position: Vec3, effective_radius: f32) -> Self {
+        Self {
+            position,
+            time_alive: 0.0,
+            effective_radius,
+        }
+    }
+}
+
+/// Spawns a spell aiming reticle (annulus ring) on the ground plane.
 ///
-/// Returns the `EntityCommands` so the caller can insert additional components.
+/// The annulus mesh is generated per-spawn so that the ring width is constant
+/// in world space regardless of the spell radius.
+///
+/// Inserts the shared [`SpellCircleIndicator`] component. The caller can chain
+/// `.insert(...)` to add spell-specific marker components if needed.
 pub(crate) fn spawn_circle_indicator<'a>(
     commands: &'a mut Commands,
-    assets: &SpellVisualAssets,
+    meshes: &mut Assets<Mesh>,
     material: Handle<StandardMaterial>,
     position: Vec3,
     radius: f32,
-    circle_y_position: f32,
 ) -> EntityCommands<'a> {
+    let mesh = meshes.add(make_reticle_mesh(radius));
     commands.spawn((
-        Mesh3d(assets.unit_circle.clone()),
+        Mesh3d(mesh),
         MeshMaterial3d(material),
-        Transform::from_translation(Vec3::new(position.x, circle_y_position, position.z))
+        Transform::from_translation(Vec3::new(position.x, RETICLE_Y, position.z))
             .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(radius)),
+        SpellCircleIndicator::new(position, radius),
         OnGameplayScreen,
     ))
 }
 
-/// Trait for circle indicator components that support pulse animation and position tracking.
-///
-/// Implement this trait on spell-specific indicator components to use
-/// [`update_circle_indicator`] as a shared system helper.
-pub(crate) trait CircleIndicator:
-    Component<Mutability = bevy::ecs::component::Mutable>
-{
-    /// Returns a mutable reference to the position field.
-    fn position(&self) -> Vec3;
-    /// Returns the current time alive.
-    fn time_alive(&self) -> f32;
-    /// Sets the time alive value.
-    fn set_time_alive(&mut self, time: f32);
-    /// Returns the base radius for this indicator (before pulse).
-    fn base_radius(&self) -> f32;
-    /// Returns the Y position for the circle on the ground plane.
-    fn circle_y_position(&self) -> f32;
-    /// Returns the current pulse scale factor.
-    fn pulse_scale(&self) -> f32;
-}
-
-/// Updates circle indicator transforms with pulse animation and position tracking.
-///
-/// This is a generic system helper that works with any component implementing [`CircleIndicator`].
-pub(crate) fn update_circle_indicator<T: CircleIndicator>(
+/// Shared system that updates all spell aiming reticles: pulse animation and position tracking.
+pub(crate) fn update_spell_indicators(
     time: Res<Time>,
-    mut indicators: Query<(&mut T, &mut Transform)>,
+    mut indicators: Query<(&mut SpellCircleIndicator, &mut Transform)>,
 ) {
     for (mut indicator, mut transform) in indicators.iter_mut() {
-        // Update time alive for pulse animation
-        let new_time = indicator.time_alive() + time.delta_secs();
-        indicator.set_time_alive(new_time);
-
-        // Apply pulse scale
-        let radius = indicator.base_radius();
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-
-        // Update position
-        let pos = indicator.position();
-        transform.translation.x = pos.x;
-        transform.translation.y = indicator.circle_y_position();
-        transform.translation.z = pos.z;
+        indicator.time_alive += time.delta_secs();
+        let pulse = indicator_pulse_scale(indicator.time_alive);
+        transform.scale = Vec3::splat(indicator.effective_radius * pulse);
+        transform.translation.x = indicator.position.x;
+        transform.translation.y = RETICLE_Y;
+        transform.translation.z = indicator.position.z;
     }
 }
 

@@ -64,11 +64,6 @@ pub const ARC_LIFETIME: f32 = 0.3;
 /// Visual width of the lightning arcs.
 pub const ARC_WIDTH: f32 = 6.0;
 
-// ===== Circle Indicator =====
-
-/// Y position for the circle indicator on the ground.
-pub const CIRCLE_Y_POSITION: f32 = 0.1;
-
 // ===== Colors =====
 
 /// Color of the arcs that jump to targets (electric blue).

@@ -17,7 +17,7 @@ pub const TICK_INTERVAL: f32 = 0.5;
 pub const ZONE_DURATION: f32 = 15.0;
 pub const SLOW_MODIFIER: f32 = -0.3;
 pub const SLOW_DURATION: f32 = 2.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;
+pub const CIRCLE_Y_POSITION: f32 = 2.0;
 
 // --- Tier 1 talent constants ---
 

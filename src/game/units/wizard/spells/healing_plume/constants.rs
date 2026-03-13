@@ -15,5 +15,5 @@ pub const CIRCLE_RADIUS: f32 = 120.0;
 pub const HEAL_PER_TICK: f32 = 4.0;
 pub const TICK_INTERVAL: f32 = 0.5;
 pub const ZONE_DURATION: f32 = 10.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;
+pub const CIRCLE_Y_POSITION: f32 = 2.0;
 pub const FADE_DURATION: f32 = 2.0;

@@ -14,4 +14,3 @@ pub const MANA_COST: f32 = 35.0;
 pub const CIRCLE_RADIUS: f32 = 120.0;
 pub const SLEEP_DURATION: f32 = 8.0;
 pub const BONUS_DAMAGE_MULTIPLIER: f32 = 2.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;

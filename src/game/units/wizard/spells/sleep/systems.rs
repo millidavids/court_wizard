@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::SleepIndicator;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
@@ -11,7 +10,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, SleepModifier};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -24,6 +23,7 @@ pub fn handle_sleep_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -31,7 +31,7 @@ pub fn handle_sleep_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut SleepIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     targets_query: Query<(Entity, &Transform), Without<Corpse>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -67,6 +67,7 @@ pub fn handle_sleep_casting(
         &targets_query,
         &mut commands,
         &visual_assets,
+        &mut meshes,
         &sfx,
         &game_config,
     );
@@ -87,10 +88,11 @@ fn sleep_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
-    indicator_query: &mut Query<&mut SleepIndicator>,
+    indicator_query: &mut Query<&mut SpellCircleIndicator>,
     targets_query: &Query<(Entity, &Transform), Without<Corpse>>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    meshes: &mut Assets<Mesh>,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
 ) -> bool {
@@ -137,16 +139,11 @@ fn sleep_casting_logic(
             {
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    assets,
+                    meshes,
                     assets.sleep_indicator.clone(),
                     cursor_world_pos,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(SleepIndicator::new(
-                    cursor_world_pos,
-                    primed_spell.empowerment,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -168,7 +165,7 @@ fn sleep_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                         && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
-                        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                        let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
                         audio::play_sfx(
                             commands,
                             &sfx.sleep_cast,
@@ -180,7 +177,7 @@ fn sleep_casting_logic(
                             commands,
                             indicator.position,
                             radius,
-                            indicator.empowerment,
+                            primed_spell.empowerment,
                             targets_query,
                         );
                     }

@@ -8,10 +8,11 @@ use super::components::{
 };
 use super::components::{
     BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
-    FrostEffectMarker, Health, InMelee, MindControlled, OriginalMaterial, PendingDamageEffect,
-    PoisonedModifier, RemoteElectricEffect, RemoteFireEffect, RemoteFrostEffect, RootedModifier,
-    SickenedModifier, SleepModifier, SlowMovementModifier, SmellyModifier, TargetingVelocity, Team,
-    TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
+    FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled, OriginalMaterial,
+    PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
+    RemoteFrostEffect, RootedModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
+    SmellyModifier, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
+    apply_damage_to_unit,
 };
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
@@ -52,8 +53,13 @@ pub fn is_cc_immobilized(
     sleeping: Option<&SleepModifier>,
     banished: Option<&BanishedModifier>,
     sickened: Option<&SickenedModifier>,
+    frozen: Option<&FrozenSolidModifier>,
 ) -> bool {
-    rooted.is_some() || sleeping.is_some() || banished.is_some() || sickened.is_some()
+    rooted.is_some()
+        || sleeping.is_some()
+        || banished.is_some()
+        || sickened.is_some()
+        || frozen.is_some()
 }
 
 /// Generic targeting system for melee units.

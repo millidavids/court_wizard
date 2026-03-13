@@ -19,7 +19,7 @@ pub const ZONE_DURATION: f32 = 20.0;
 pub const IGNITE_DAMAGE: f32 = 0.0;
 pub const IGNITE_BURN_DAMAGE: f32 = 1.0;
 pub const IGNITE_BURN_TICK: f32 = 0.5;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;
+pub const CIRCLE_Y_POSITION: f32 = 2.0;
 pub const FADE_DURATION: f32 = 2.0;
 /// Max Y height a fire source can be at to ignite grease (filters out aerial spells)
 pub const IGNITION_HEIGHT_THRESHOLD: f32 = 15.0;

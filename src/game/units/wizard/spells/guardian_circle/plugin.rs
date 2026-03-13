@@ -2,11 +2,10 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{GuardianCircleIndicator, GuardianCircleShielded};
+use super::components::GuardianCircleShielded;
 use super::systems;
 use crate::game::plugin::PostCombatSet;
 use crate::game::run_conditions::{any_exist, is_gameplay_running, is_spell_effects_active};
-use crate::game::units::wizard::spells::utils;
 
 /// Plugin that handles Guardian Circle spell casting and behavior.
 ///
@@ -28,12 +27,6 @@ impl Plugin for GuardianCirclePlugin {
                 .run_if(spell_input_not_blocked)
                 .run_if(mouse_left_not_consumed)
                 .run_if(mouse_held_or_wizard_casting)
-                .run_if(is_spell_effects_active),
-        );
-        app.add_systems(
-            Update,
-            utils::update_circle_indicator::<GuardianCircleIndicator>
-                .run_if(any_exist::<GuardianCircleIndicator>())
                 .run_if(is_spell_effects_active),
         );
         // Talent reaction systems — run after combat resolves

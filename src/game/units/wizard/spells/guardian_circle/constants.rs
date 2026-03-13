@@ -25,9 +25,6 @@ pub const TEMP_HP_AMOUNT: f32 = 50.0;
 /// Duration of temporary HP in seconds.
 pub const TEMP_HP_DURATION: f32 = 20.0;
 
-/// Y position of the circle indicator (slightly above ground).
-pub const CIRCLE_Y_POSITION: f32 = 1.0;
-
 // === Talent Constants ===
 
 /// Tier 1, Choice 0: Reinforced Wards — temp HP multiplier.

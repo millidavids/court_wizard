@@ -1,31 +1,14 @@
 use bevy::prelude::*;
 
-use crate::game::units::wizard::spells::utils::indicator_pulse_scale;
-
-/// Visual indicator during casting.
+/// Marker component for the plague wind casting indicator.
+/// Stores the directional arrow entity; position/radius/pulse are handled
+/// by the shared `SpellCircleIndicator` component.
 #[derive(Component)]
 pub struct PlagueWindIndicator {
-    pub position: Vec3,
-    pub radius: f32,
-    pub time_alive: f32,
     /// Directional arrow entity showing wind direction.
     pub arrow_entity: Option<Entity>,
 }
 
-impl PlagueWindIndicator {
-    pub const fn new(position: Vec3, radius: f32) -> Self {
-        Self {
-            position,
-            radius,
-            time_alive: 0.0,
-            arrow_entity: None,
-        }
-    }
-
-    pub fn pulse_scale(&self) -> f32 {
-        indicator_pulse_scale(self.time_alive)
-    }
-}
 
 /// Pre-computed talent parameters for a plague wind cloud.
 #[derive(Clone, Copy, Debug)]

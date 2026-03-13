@@ -2,9 +2,6 @@
 
 use bevy::prelude::*;
 
-use super::constants::CIRCLE_Y_POSITION;
-use crate::game::units::wizard::spells::utils::{CircleIndicator, indicator_pulse_scale};
-
 /// Meteor Fall storm component - invisible marker entity that spawns meteor projectiles.
 ///
 /// The storm persists as long as the wizard maintains concentration.
@@ -85,58 +82,6 @@ impl MeteorFallStorm {
     /// Resets the spawn timer.
     pub fn reset_spawn_timer(&mut self) {
         self.time_since_spawn = 0.0;
-    }
-}
-
-/// Circle indicator for the meteor fall storm during casting.
-///
-/// Shows the area of effect that will be targeted by meteors.
-#[derive(Component)]
-pub(super) struct MeteorFallCircleIndicator {
-    /// Position of the circle center.
-    pub position: Vec3,
-    /// Pre-computed storm radius (includes empowerment and talent multipliers).
-    pub radius: f32,
-    /// Time this indicator has been active (for animations).
-    pub time_alive: f32,
-}
-
-impl MeteorFallCircleIndicator {
-    /// Creates a new circle indicator with the given pre-computed radius.
-    pub const fn new(position: Vec3, radius: f32) -> Self {
-        Self {
-            position,
-            radius,
-            time_alive: 0.0,
-        }
-    }
-
-    /// Returns the current scale factor for pulse animation.
-    ///
-    /// Pulsates between 0.95 and 1.05 during cast time.
-    pub fn pulse_scale(&self) -> f32 {
-        indicator_pulse_scale(self.time_alive)
-    }
-}
-
-impl CircleIndicator for MeteorFallCircleIndicator {
-    fn position(&self) -> Vec3 {
-        self.position
-    }
-    fn time_alive(&self) -> f32 {
-        self.time_alive
-    }
-    fn set_time_alive(&mut self, time: f32) {
-        self.time_alive = time;
-    }
-    fn base_radius(&self) -> f32 {
-        self.radius
-    }
-    fn circle_y_position(&self) -> f32 {
-        CIRCLE_Y_POSITION
-    }
-    fn pulse_scale(&self) -> f32 {
-        self.pulse_scale()
     }
 }
 

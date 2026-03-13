@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{HealingPlumeIndicator, HealingPlumeZone};
+use super::components::HealingPlumeZone;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -12,7 +12,8 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::components::{Corpse, Health};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
+    spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -26,6 +27,7 @@ pub fn handle_healing_plume_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
@@ -34,7 +36,7 @@ pub fn handle_healing_plume_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut HealingPlumeIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -83,13 +85,11 @@ pub fn handle_healing_plume_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &visual_assets,
+                    &mut meshes,
                     visual_assets.healing_plume_indicator.clone(),
                     pos,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(HealingPlumeIndicator::new(pos, primed_spell.empowerment))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -124,14 +124,14 @@ pub fn handle_healing_plume_casting(
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
                 spawn_healing_plume_zone(
                     &mut commands,
                     &visual_assets,
                     &mut materials,
                     indicator.position,
                     radius,
-                    indicator.empowerment,
+                    primed_spell.empowerment,
                 );
                 audio::play_sfx(
                     &mut commands,
@@ -187,21 +187,6 @@ fn healing_plume_casting_logic(
     }
 
     completed
-}
-
-pub fn update_healing_plume_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut HealingPlumeIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 /// Applies periodic healing to all non-corpse units within the healing plume zone.

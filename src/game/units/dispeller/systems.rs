@@ -12,7 +12,8 @@ use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
+    FrozenSolidModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    SlowMovementModifier,
     TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
@@ -194,6 +195,7 @@ pub fn dispeller_movement(
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
             ),
         ),
         With<Dispeller>,
@@ -212,11 +214,11 @@ pub fn dispeller_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed, sickened),
+        (sleeping, banished, polymorphed, sickened, frozen),
     ) in &mut dispeller_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

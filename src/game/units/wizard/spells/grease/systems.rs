@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{GreaseFireOverlay, GreaseIndicator, GreaseZone};
+use super::components::{GreaseFireOverlay, GreaseZone};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -21,7 +21,7 @@ use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBe
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::utils::{
-    get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
@@ -37,6 +37,7 @@ pub fn handle_grease_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
@@ -45,7 +46,7 @@ pub fn handle_grease_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut GreaseIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -80,6 +81,7 @@ pub fn handle_grease_casting(
         &mut indicator_query,
         &mut commands,
         &visual_assets,
+        &mut meshes,
         &mut materials,
         &mut obstacle_events,
         &sfx,
@@ -102,9 +104,10 @@ fn grease_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
-    indicator_query: &mut Query<&mut GreaseIndicator>,
+    indicator_query: &mut Query<&mut SpellCircleIndicator>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    meshes: &mut Assets<Mesh>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     sfx: &SpellSfxAssets,
@@ -152,16 +155,11 @@ fn grease_casting_logic(
             {
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    assets,
+                    meshes,
                     assets.grease_indicator.clone(),
                     cursor_world_pos,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(GreaseIndicator::new(
-                    cursor_world_pos,
-                    primed_spell.empowerment,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -183,7 +181,7 @@ fn grease_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
+                            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
                             audio::play_sfx(
                                 commands,
                                 &sfx.grease_cast,
@@ -197,7 +195,7 @@ fn grease_casting_logic(
                                 materials,
                                 indicator.position,
                                 radius,
-                                indicator.empowerment,
+                                primed_spell.empowerment,
                                 obstacle_events,
                             );
                         }
@@ -229,21 +227,6 @@ fn grease_casting_logic(
     }
 
     completed
-}
-
-pub fn update_grease_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut GreaseIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let radius = constants::CIRCLE_RADIUS * indicator.empowerment;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 /// Applies slow to units inside non-ignited grease zone.

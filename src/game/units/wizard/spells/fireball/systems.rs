@@ -18,7 +18,9 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{
+    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
+};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -34,11 +36,13 @@ pub fn handle_fireball_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     caster_query: Query<&SpellCaster>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     sfx: Res<SpellSfxAssets>,
@@ -70,8 +74,10 @@ pub fn handle_fireball_casting(
         &mut mana,
         primed_spell,
         &caster_query,
+        &mut indicator_query,
         &mut commands,
         &visual_assets,
+        &mut meshes,
         &sfx,
         &game_config,
         &active_talents,
@@ -92,8 +98,10 @@ fn fireball_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
+    indicator_query: &mut Query<&mut SpellCircleIndicator>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    meshes: &mut Assets<Mesh>,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     active_talents: &Option<Res<ActiveTalents>>,
@@ -102,7 +110,10 @@ fn fireball_casting_logic(
 
     // Check for release event
     if input.just_released {
-        if caster_query.get(wizard_entity).is_ok() {
+        if let Ok(caster) = caster_query.get(wizard_entity) {
+            if let Some(indicator_entity) = caster.indicator_entity {
+                commands.entity(indicator_entity).try_despawn();
+            }
             commands.entity(wizard_entity).remove::<SpellCaster>();
         }
         casting_state.cancel();
@@ -122,6 +133,16 @@ fn fireball_casting_logic(
             casting_state.cancel();
         }
         CastingState::Casting { .. } => {
+            // Update indicator position to follow cursor
+            if let Ok(caster) = caster_query.get(wizard_entity)
+                && let Some(indicator_entity) = caster.indicator_entity
+                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+            {
+                if let Some(cursor_pos) = input.cursor_pos {
+                    indicator.position = cursor_pos;
+                }
+            }
+
             casting_state.advance(time.delta_secs());
 
             if casting_state.is_complete(cast_time) {
@@ -141,6 +162,11 @@ fn fireball_casting_logic(
                     audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config, sfx);
                     completed = true;
                 }
+                if let Ok(caster) = caster_query.get(wizard_entity) {
+                    if let Some(indicator_entity) = caster.indicator_entity {
+                        commands.entity(indicator_entity).try_despawn();
+                    }
+                }
                 commands.entity(wizard_entity).remove::<SpellCaster>();
                 casting_state.cancel();
             }
@@ -150,7 +176,19 @@ fn fireball_casting_logic(
                 && caster_query.get(wizard_entity).is_err()
                 && mana.can_afford(constants::MANA_COST)
             {
-                commands.entity(wizard_entity).insert(SpellCaster::new());
+                let indicator_pos = input.cursor_pos.unwrap_or(SPELL_ORIGIN);
+                let indicator_radius = constants::EXPLOSION_RADIUS * primed_spell.empowerment;
+                let circle_entity = spawn_circle_indicator(
+                    commands,
+                    meshes,
+                    assets.fireball_indicator.clone(),
+                    indicator_pos,
+                    indicator_radius,
+                )
+                .id();
+                commands
+                    .entity(wizard_entity)
+                    .insert(SpellCaster::with_indicator(circle_entity));
                 casting_state.start_cast();
             }
         }

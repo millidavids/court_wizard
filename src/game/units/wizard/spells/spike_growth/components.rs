@@ -1,46 +1,6 @@
 use bevy::prelude::*;
 
 use super::constants;
-use crate::game::units::wizard::spells::utils::{CircleIndicator, indicator_pulse_scale};
-
-/// Visual indicator for the Spike Growth area during casting.
-#[derive(Component)]
-pub struct SpikeGrowthIndicator {
-    pub position: Vec3,
-    pub time_alive: f32,
-    pub effective_radius: f32,
-}
-
-impl SpikeGrowthIndicator {
-    pub fn new(position: Vec3, effective_radius: f32) -> Self {
-        Self {
-            position,
-            time_alive: 0.0,
-            effective_radius,
-        }
-    }
-}
-
-impl CircleIndicator for SpikeGrowthIndicator {
-    fn position(&self) -> Vec3 {
-        self.position
-    }
-    fn time_alive(&self) -> f32 {
-        self.time_alive
-    }
-    fn set_time_alive(&mut self, time: f32) {
-        self.time_alive = time;
-    }
-    fn base_radius(&self) -> f32 {
-        self.effective_radius
-    }
-    fn circle_y_position(&self) -> f32 {
-        constants::CIRCLE_Y_POSITION
-    }
-    fn pulse_scale(&self) -> f32 {
-        indicator_pulse_scale(self.time_alive)
-    }
-}
 
 /// Talent parameters computed from active talent selections.
 /// Stored on each SpikeGrowthZone entity so talent logic can reference it.

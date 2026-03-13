@@ -13,8 +13,8 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
     HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier, RootedModifier,
-    RoughTerrainModifier, SickenedModifier, SleepModifier, SlowMovementModifier, TargetingVelocity,
-    Team, Teleportable, WalkingAnimation,
+    FrozenSolidModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -201,6 +201,7 @@ pub fn king_movement(
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
             ),
         ),
         With<King>,
@@ -220,11 +221,11 @@ pub fn king_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, _polymorphed, sickened),
+        (sleeping, banished, _polymorphed, sickened, frozen),
     ) in &mut king_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

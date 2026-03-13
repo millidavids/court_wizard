@@ -3,7 +3,7 @@ use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use super::components::{
-    SpikeGrowthIndicator, SpikeGrowthLingeringPoison, SpikeGrowthTalentParams,
+    SpikeGrowthLingeringPoison, SpikeGrowthTalentParams,
     SpikeGrowthZone, SpikeStormProjectile, ZonePresenceTracker,
 };
 use super::constants;
@@ -20,8 +20,8 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    self, UniqueHitTracker, clamp_cursor_to_spell_range, get_cursor_world_position,
-    spawn_circle_indicator, xz_distance,
+    self, SpellCircleIndicator, UniqueHitTracker, clamp_cursor_to_spell_range,
+    get_cursor_world_position, spawn_circle_indicator, xz_distance,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -87,6 +87,7 @@ pub fn handle_spike_growth_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -94,7 +95,7 @@ pub fn handle_spike_growth_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut SpikeGrowthIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -155,16 +156,11 @@ pub fn handle_spike_growth_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &visual_assets,
+                    &mut meshes,
                     visual_assets.spike_growth_indicator.clone(),
                     clamped_cursor,
                     effective_radius,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(SpikeGrowthIndicator::new(
-                    clamped_cursor,
-                    effective_radius,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)

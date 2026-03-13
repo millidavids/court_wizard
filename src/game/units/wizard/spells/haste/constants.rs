@@ -14,4 +14,3 @@ pub const MANA_COST: f32 = 20.0;
 pub const CIRCLE_RADIUS: f32 = 150.0;
 pub const HASTE_MODIFIER: f32 = 0.5;
 pub const HASTE_DURATION: f32 = 10.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;

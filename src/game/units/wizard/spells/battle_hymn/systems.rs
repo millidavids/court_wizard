@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::BattleHymnIndicator;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
@@ -11,7 +10,8 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{BattleHymnModifier, HasteModifier, Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
+    spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -25,6 +25,7 @@ pub fn handle_battle_hymn_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -32,7 +33,7 @@ pub fn handle_battle_hymn_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut BattleHymnIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<
         (
             Entity,
@@ -114,17 +115,13 @@ pub fn handle_battle_hymn_casting(
                     // No indicator for Chorus of Valor (affects all defenders)
                     commands.entity(wizard_entity).insert(SpellCaster::new());
                 } else {
-                    let mut indicator = BattleHymnIndicator::new(pos, primed_spell.empowerment);
-                    indicator.talent_radius_mult = radius_mult;
                     let circle_entity = spawn_circle_indicator(
                         &mut commands,
-                        &visual_assets,
+                        &mut meshes,
                         visual_assets.battle_hymn_indicator.clone(),
                         pos,
                         constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult,
-                        constants::CIRCLE_Y_POSITION,
                     )
-                    .insert(indicator)
                     .id();
                     commands
                         .entity(wizard_entity)
@@ -185,12 +182,12 @@ pub fn handle_battle_hymn_casting(
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius =
-                    constants::CIRCLE_RADIUS * indicator.empowerment * indicator.talent_radius_mult;
+                    constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
                 apply_battle_hymn_buff(
                     &mut commands,
                     indicator.position,
                     radius,
-                    indicator.empowerment,
+                    primed_spell.empowerment,
                     &mut targets_query,
                     &mut talent_progress,
                     talents,
@@ -252,22 +249,6 @@ fn battle_hymn_casting_logic(
     }
 
     completed
-}
-
-pub fn update_battle_hymn_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut BattleHymnIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let radius =
-            constants::CIRCLE_RADIUS * indicator.empowerment * indicator.talent_radius_mult;
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CIRCLE_Y_POSITION;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 pub(crate) fn apply_battle_hymn_buff(

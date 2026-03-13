@@ -3,13 +3,12 @@
 use bevy::prelude::*;
 
 use super::components::{
-    LightningRod, LightningRodArc, LightningRodCircleIndicator, LightningStrike,
+    LightningRod, LightningRodArc, LightningStrike,
 };
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::*;
-use crate::game::units::wizard::spells::utils;
 
 /// Plugin for the Lightning Rod spell.
 ///
@@ -27,9 +26,6 @@ impl Plugin for LightningRodPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                // Circle indicator updates
-                utils::update_circle_indicator::<LightningRodCircleIndicator>
-                    .run_if(any_exist::<LightningRodCircleIndicator>()),
                 // Tower systems
                 update_lightning_rod.run_if(any_exist::<LightningRod>()),
                 // Strike systems

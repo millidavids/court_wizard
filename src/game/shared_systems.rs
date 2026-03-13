@@ -402,6 +402,7 @@ pub fn combat(
             Option<&super::units::components::BanishedModifier>,
             Option<&super::units::components::BattleHymnModifier>,
             Option<&super::units::components::BerserkerRageModifier>,
+            Option<&super::units::components::FrozenSolidModifier>,
             (
                 Option<&RetaliationTarget>,
                 Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
@@ -431,7 +432,7 @@ pub fn combat(
     let mut units_snapshot: Vec<_> = all_units
         .iter()
         .map(
-            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _)| {
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _, _)| {
                 (entity, transform.translation, *hitbox, *team)
             },
         )
@@ -460,11 +461,12 @@ pub fn combat(
         banished,
         battle_hymn,
         berserker_rage_attacker,
+        frozen_solid,
         (retaliation, guardian_circle_attacker, is_retreating),
     ) in &mut all_units
     {
-        // Skip attack if sleeping, banished, or retreating
-        if sleeping.is_some() || banished.is_some() || is_retreating {
+        // Skip attack if sleeping, banished, frozen, or retreating
+        if sleeping.is_some() || banished.is_some() || frozen_solid.is_some() || is_retreating {
             continue;
         }
 
@@ -800,6 +802,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::BattleHymnModifier>()
                 .remove::<super::units::components::BerserkerRageModifier>()
                 .remove::<super::units::components::FogEvasionModifier>()
+                .remove::<super::units::components::FrozenSolidModifier>()
                 .remove::<super::units::components::BanishedModifier>()
                 .remove::<super::units::components::PolymorphedModifier>()
                 .remove::<super::units::components::PoisonedModifier>()

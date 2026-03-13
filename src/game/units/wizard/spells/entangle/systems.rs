@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{EntangleGroundEffect, EntangleIndicator, EntangleRooted, EntangleTalentParams, EntangleVine};
+use super::components::{EntangleGroundEffect, EntangleRooted, EntangleTalentParams, EntangleVine};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
@@ -15,7 +15,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    self, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    self, SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -82,7 +82,7 @@ pub fn handle_entangle_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mesh_and_materials: (ResMut<Assets<Mesh>>, ResMut<Assets<StandardMaterial>>),
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -90,7 +90,7 @@ pub fn handle_entangle_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut EntangleIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     targets_query: Query<(Entity, &Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
     mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
     sfx: Res<SpellSfxAssets>,
@@ -98,6 +98,7 @@ pub fn handle_entangle_casting(
     talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
+    let (mut meshes, mut materials) = mesh_and_materials;
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
     let input = WizardInput {
@@ -152,16 +153,11 @@ pub fn handle_entangle_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &visual_assets,
+                    &mut meshes,
                     visual_assets.entangle_indicator.clone(),
                     clamped_cursor,
                     effective_radius,
-                    constants::CIRCLE_Y_POSITION,
                 )
-                .insert(EntangleIndicator::new(
-                    clamped_cursor,
-                    primed_spell.empowerment,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)
@@ -188,7 +184,7 @@ pub fn handle_entangle_casting(
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let cast_pos = indicator.position;
                             let root_duration =
-                                constants::ROOT_DURATION * indicator.empowerment * talent_params.duration_mult;
+                                constants::ROOT_DURATION * primed_spell.empowerment * talent_params.duration_mult;
                             audio::play_sfx(
                                 &mut commands,
                                 &sfx.entangle_cast,

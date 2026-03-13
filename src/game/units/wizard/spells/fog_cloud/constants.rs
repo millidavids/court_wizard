@@ -16,5 +16,5 @@ pub const EVASION_CHANCE: f32 = 0.4;
 pub const EVASION_REFRESH_DURATION: f32 = 1.0;
 pub const TICK_INTERVAL: f32 = 0.5;
 pub const ZONE_DURATION: f32 = 12.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;
+pub const CIRCLE_Y_POSITION: f32 = 2.0;
 pub const FADE_DURATION: f32 = 2.0;

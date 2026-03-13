@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 
 use bevy::prelude::*;
 use super::components::{
-    LightningRod, LightningRodArc, LightningRodCircleIndicator, LightningRodTalentParams,
+    LightningRod, LightningRodArc, LightningRodTalentParams,
     LightningStrike,
 };
 use super::constants::*;
@@ -24,7 +24,8 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_to_spell_range_ground, get_cursor_world_position,
+    spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -109,6 +110,7 @@ pub(super) fn handle_lightning_rod_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -116,7 +118,7 @@ pub(super) fn handle_lightning_rod_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut LightningRodCircleIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
@@ -151,16 +153,11 @@ pub(super) fn handle_lightning_rod_casting(
     {
         let circle_entity = spawn_circle_indicator(
             &mut commands,
-            &visual_assets,
+            &mut meshes,
             visual_assets.lightning_rod_indicator.clone(),
             pos,
             ARC_RADIUS * primed_spell.empowerment,
-            CIRCLE_Y_POSITION,
         )
-        .insert(LightningRodCircleIndicator::new(
-            pos,
-            primed_spell.empowerment,
-        ))
         .id();
         commands
             .entity(wizard_entity)

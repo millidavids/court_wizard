@@ -12,7 +12,8 @@ use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
     EliteSpeedBonus, FacingDirection, FlockingVelocity, HasteModifier, Health, Hitbox, KingsGuard,
-    MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier,
+    FrozenSolidModifier, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
+    SickenedModifier,
     SleepModifier, SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
@@ -250,6 +251,7 @@ pub fn infantry_movement(
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
             ),
         ),
         With<Infantry>,
@@ -269,11 +271,11 @@ pub fn infantry_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed, sickened),
+        (sleeping, banished, polymorphed, sickened, frozen),
     ) in &mut infantry_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::run_conditions::{any_exist, is_spell_effects_active};
+use super::utils::{SpellCircleIndicator, update_spell_indicators};
 use crate::state::AppState;
 
 use super::arcane_crystal::ArcaneCrystalPlugin;
@@ -95,6 +96,12 @@ impl Plugin for SpellsPlugin {
             MindControlPlugin,
         ))
         .add_plugins(VfxPlugin)
+        .add_systems(
+            Update,
+            update_spell_indicators
+                .run_if(any_exist::<SpellCircleIndicator>())
+                .run_if(is_spell_effects_active),
+        )
         .add_systems(
             Update,
             (

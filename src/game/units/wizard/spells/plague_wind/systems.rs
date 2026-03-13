@@ -21,8 +21,8 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    UniqueHitTracker, clamp_to_spell_range_ground, get_cursor_world_position,
-    spawn_circle_indicator,
+    SpellCircleIndicator, UniqueHitTracker, clamp_to_spell_range_ground,
+    get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -84,6 +84,7 @@ pub fn handle_plague_wind_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -91,7 +92,8 @@ pub fn handle_plague_wind_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut PlagueWindIndicator>,
+    circle_indicator_query: Query<&SpellCircleIndicator>,
+    indicator_query: Query<&PlagueWindIndicator>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -128,9 +130,6 @@ pub fn handle_plague_wind_casting(
         && mana.can_afford(constants::MANA_COST)
         && let Some(pos) = clamped_pos
     {
-        // Spawn circle indicator at the locked origin
-        let mut indicator = PlagueWindIndicator::new(pos, constants::CLOUD_RADIUS * scale);
-
         // Spawn directional arrow
         let arrow_entity = commands
             .spawn((
@@ -140,17 +139,17 @@ pub fn handle_plague_wind_casting(
                 OnGameplayScreen,
             ))
             .id();
-        indicator.arrow_entity = Some(arrow_entity);
 
         let circle_entity = spawn_circle_indicator(
             &mut commands,
-            &visual_assets,
+            &mut meshes,
             visual_assets.plague_wind_indicator.clone(),
             pos,
             constants::CLOUD_RADIUS * scale,
-            constants::CLOUD_BASE_Y,
         )
-        .insert(indicator)
+        .insert(PlagueWindIndicator {
+            arrow_entity: Some(arrow_entity),
+        })
         .id();
         commands
             .entity(wizard_entity)
@@ -162,10 +161,11 @@ pub fn handle_plague_wind_casting(
         && let Some(cursor) = clamped_pos
         && let Ok(caster) = caster_query.get(wizard_entity)
         && let Some(indicator_entity) = caster.indicator_entity
-        && let Ok(indicator) = indicator_query.get_mut(indicator_entity)
-        && let Some(arrow_entity) = indicator.arrow_entity
+        && let Ok(circle_indicator) = circle_indicator_query.get(indicator_entity)
+        && let Ok(pw_indicator) = indicator_query.get(indicator_entity)
+        && let Some(arrow_entity) = pw_indicator.arrow_entity
     {
-        let origin = indicator.position;
+        let origin = circle_indicator.position;
         let delta_xz = Vec2::new(cursor.x - origin.x, cursor.z - origin.z);
         if delta_xz.length_squared() > 1.0 {
             let angle = -delta_xz.x.atan2(-delta_xz.y);
@@ -180,7 +180,7 @@ pub fn handle_plague_wind_casting(
         .get(wizard_entity)
         .ok()
         .and_then(|caster| caster.indicator_entity)
-        .and_then(|ie| indicator_query.get(ie).ok())
+        .and_then(|ie| circle_indicator_query.get(ie).ok())
         .map(|indicator| indicator.position);
 
     let effective_input = WizardInput {
@@ -223,7 +223,7 @@ fn plague_wind_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
-    indicator_query: &Query<&mut PlagueWindIndicator>,
+    indicator_query: &Query<&PlagueWindIndicator>,
     commands: &mut Commands,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     sfx: &SpellSfxAssets,
@@ -359,7 +359,7 @@ fn arrow_transform(origin: Vec3, angle: f32) -> Transform {
 fn cleanup_indicator(
     commands: &mut Commands,
     caster_query: &Query<&SpellCaster>,
-    indicator_query: &Query<&mut PlagueWindIndicator>,
+    indicator_query: &Query<&PlagueWindIndicator>,
     wizard_entity: Entity,
 ) {
     if let Ok(caster) = caster_query.get(wizard_entity)
@@ -410,20 +410,6 @@ fn spawn_plague_cloud(
         },
         OnGameplayScreen,
     ));
-}
-
-pub fn update_plague_wind_indicator(
-    time: Res<Time>,
-    mut indicators: Query<(&mut PlagueWindIndicator, &mut Transform)>,
-) {
-    for (mut indicator, mut transform) in indicators.iter_mut() {
-        indicator.time_alive += time.delta_secs();
-        let pulse = indicator.pulse_scale();
-        transform.scale = Vec3::splat(indicator.radius * pulse);
-        transform.translation.x = indicator.position.x;
-        transform.translation.y = constants::CLOUD_BASE_Y;
-        transform.translation.z = indicator.position.z;
-    }
 }
 
 /// Moves the plague wind cloud in its drift direction and updates pathfinding.

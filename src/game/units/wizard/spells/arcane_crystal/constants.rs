@@ -80,9 +80,6 @@ pub const PULSE_SCALE: f32 = 1.3;
 /// Duration of absorption pulse animation.
 pub const PULSE_DURATION: f32 = 0.15;
 
-/// Y position for the casting circle indicator.
-pub const CIRCLE_Y_POSITION: f32 = 1.5;
-
 // ===== Mini Missiles =====
 
 /// Number of mini magic missiles emitted per absorbed missile.

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.202] - 2026-03-13
+
+### Added
+- **Squall talents** — the Squall spell now has a full talent tree with 9 talents across 3 tiers, unlocked by hitting enemies with ice
+- **Tier 1: Storm modifiers** — choose between 30% more damage per shard, a 30% larger storm area, or a barrage of faster but slightly weaker ice shards
+- **Tier 2: Secondary effects** — choose between permafrost that freezes enemies solid after multiple hits, heavy hailstones that deal triple damage, or blinding sleet that causes enemies to miss attacks
+- **Tier 3: Powerful upgrades** — choose between a channeled blizzard you aim with your cursor that stacks a devastating slow, a mobile storm that follows your mouse, or lingering frozen ground that slows enemies long after the storm ends
+- **Swirling snow effects** — active storms now have swirling snow particles drifting through the air
+- **Spell aiming indicators** — Fireball, Black Hole, and Raise the Dead now show an aiming circle when casting, matching all other area spells
+
+### Changed
+- **Spell aiming circles redesigned** — all spell aiming reticles are now thin ring outlines instead of filled circles, making them much less distracting while still clearly showing the area of effect
+- **Consistent aiming ring thickness** — the ring width is now the same for all spells regardless of their size, so small and large spells both look clean
+
+### Fixed
+- **Squall no longer hits friendly units** — ice explosions, frozen ground, and storm effects now correctly only affect enemies
+
 ## [v0.4.149] - 2026-03-12
 
 ### Added

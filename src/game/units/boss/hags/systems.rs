@@ -16,7 +16,8 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
     Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled, MovementSpeed, PolymorphedModifier,
-    RetaliationTarget, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    FrozenSolidModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier,
+    SickenedModifier, SleepModifier,
     SlowMovementModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
     apply_damage_to_unit,
 };
@@ -385,6 +386,7 @@ pub fn hag_movement(
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
             ),
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
@@ -407,11 +409,11 @@ pub fn hag_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed, sickened),
+        (sleeping, banished, polymorphed, sickened, frozen),
     ) in &mut hags
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

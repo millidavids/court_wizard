@@ -2,9 +2,9 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::super::utils::{AnimatedRingParticle, animate_ring_particles, update_circle_indicator};
+use super::super::utils::{AnimatedRingParticle, animate_ring_particles};
 use super::components::{
-    SpikeGrowthIndicator, SpikeGrowthLingeringPoison, SpikeGrowthZone,
+    SpikeGrowthLingeringPoison, SpikeGrowthZone,
     SpikeStormProjectile,
 };
 use super::systems;
@@ -23,8 +23,7 @@ impl Plugin for SpikeGrowthPlugin {
                     .run_if(spell_input_not_blocked)
                     .run_if(mouse_left_not_consumed)
                     .run_if(mouse_held_or_wizard_casting),
-                update_circle_indicator::<SpikeGrowthIndicator>
-                    .run_if(any_exist::<SpikeGrowthIndicator>()),
+                // Note: indicator updates handled by shared update_spell_indicators system
                 (
                     systems::apply_spike_growth_damage,
                     systems::update_death_garden,

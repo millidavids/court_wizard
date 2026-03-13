@@ -35,7 +35,7 @@ use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectil
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
 use crate::game::units::wizard::spells::meteor_fall::systems::MeteorProjectileTalentFlags;
 use crate::game::units::wizard::spells::utils::{
-    clamp_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -139,6 +139,7 @@ pub(super) fn handle_arcane_crystal_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -146,7 +147,7 @@ pub(super) fn handle_arcane_crystal_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut ArcaneCrystalCircleIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -194,16 +195,11 @@ pub(super) fn handle_arcane_crystal_casting(
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
-                    &visual_assets,
+                    &mut meshes,
                     visual_assets.arcane_crystal_indicator.clone(),
                     pos,
                     CRYSTAL_RANGE * primed_spell.empowerment,
-                    CIRCLE_Y_POSITION,
                 )
-                .insert(ArcaneCrystalCircleIndicator::new(
-                    pos,
-                    primed_spell.empowerment,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)

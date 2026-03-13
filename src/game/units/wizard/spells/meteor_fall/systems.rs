@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    MeteorExplosion, MeteorFallCircleIndicator, MeteorFallStorm, MeteorGroundFire, MeteorProjectile,
+    MeteorExplosion, MeteorFallStorm, MeteorGroundFire, MeteorProjectile,
 };
 use super::constants::*;
 use crate::config::GameConfig;
@@ -25,7 +25,7 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
@@ -146,6 +146,7 @@ pub(super) fn handle_meteor_fall_casting(
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -153,7 +154,7 @@ pub(super) fn handle_meteor_fall_casting(
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
-    mut indicator_query: Query<&mut MeteorFallCircleIndicator>,
+    mut indicator_query: Query<&mut SpellCircleIndicator>,
     existing_storms: Query<Entity, With<MeteorFallStorm>>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
@@ -190,6 +191,7 @@ pub(super) fn handle_meteor_fall_casting(
         &existing_storms,
         &mut commands,
         &visual_assets,
+        &mut meshes,
         &talent_cfg,
     );
 
@@ -209,10 +211,11 @@ fn meteor_fall_casting_logic(
     mana: &mut Mana,
     primed_spell: &PrimedSpell,
     caster_query: &Query<&SpellCaster>,
-    indicator_query: &mut Query<&mut MeteorFallCircleIndicator>,
+    indicator_query: &mut Query<&mut SpellCircleIndicator>,
     existing_storms: &Query<Entity, With<MeteorFallStorm>>,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    meshes: &mut Assets<Mesh>,
     talent_cfg: &MeteorTalentConfig,
 ) -> bool {
     let mut completed = false;
@@ -256,16 +259,11 @@ fn meteor_fall_casting_logic(
                 // Start casting - spawn circle indicator
                 let circle_entity = spawn_circle_indicator(
                     commands,
-                    assets,
+                    meshes,
                     assets.meteor_fall_indicator.clone(),
                     cursor_world_pos,
                     storm_radius,
-                    CIRCLE_Y_POSITION,
                 )
-                .insert(MeteorFallCircleIndicator::new(
-                    cursor_world_pos,
-                    storm_radius,
-                ))
                 .id();
                 commands
                     .entity(wizard_entity)

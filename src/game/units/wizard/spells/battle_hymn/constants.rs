@@ -15,4 +15,3 @@ pub const CIRCLE_RADIUS: f32 = 200.0;
 pub const DAMAGE_BONUS: f32 = 0.4;
 pub const ATTACK_SPEED_BONUS: f32 = 0.3;
 pub const BUFF_DURATION: f32 = 10.0;
-pub const CIRCLE_Y_POSITION: f32 = 1.0;

@@ -1,10 +1,44 @@
 //! Squall spell components.
 
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 
-use super::constants::{CIRCLE_Y_POSITION, STORM_RADIUS};
 use crate::game::units::DamageType;
-use crate::game::units::wizard::spells::utils::{CircleIndicator, indicator_pulse_scale};
+
+/// Talent parameters computed from active talent selections.
+/// Stored on each SquallStorm entity so talent logic can reference it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SquallTalentParams {
+    // Tier 1: numeric modifiers
+    pub damage_mult: f32,
+    pub radius_mult: f32,
+    pub spawn_rate_mult: f32,
+    // Tier 2: behavioral flags
+    pub permafrost: bool,
+    pub hailstones: bool,
+    pub sleet_storm: bool,
+    // Tier 3: transformative flags
+    pub absolute_zero: bool,
+    pub blizzard: bool,
+    pub ice_age: bool,
+}
+
+impl Default for SquallTalentParams {
+    fn default() -> Self {
+        Self {
+            damage_mult: 1.0,
+            radius_mult: 1.0,
+            spawn_rate_mult: 1.0,
+            permafrost: false,
+            hailstones: false,
+            sleet_storm: false,
+            absolute_zero: false,
+            blizzard: false,
+            ice_age: false,
+        }
+    }
+}
 
 /// Squall storm component - invisible marker entity that spawns ice projectiles.
 ///
@@ -22,17 +56,25 @@ pub(crate) struct SquallStorm {
     pub time_since_spawn: f32,
     /// Empowerment multiplier for spell effectiveness.
     pub empowerment: f32,
+    /// Talent parameters for this storm instance.
+    pub talent_params: SquallTalentParams,
 }
 
 impl SquallStorm {
     /// Creates a new squall storm at the specified position.
-    pub const fn new(position: Vec3, radius: f32, empowerment: f32) -> Self {
+    pub fn new(
+        position: Vec3,
+        radius: f32,
+        empowerment: f32,
+        talent_params: SquallTalentParams,
+    ) -> Self {
         Self {
             position,
             radius,
             time_alive: 0.0,
             time_since_spawn: 0.0,
             empowerment,
+            talent_params,
         }
     }
 
@@ -45,59 +87,6 @@ impl SquallStorm {
     /// Resets the spawn timer.
     pub fn reset_spawn_timer(&mut self) {
         self.time_since_spawn = 0.0;
-    }
-}
-
-/// Circle indicator for the squall storm during casting.
-///
-/// Shows the area of effect that will be targeted by ice projectiles.
-#[derive(Component)]
-pub(super) struct SquallCircleIndicator {
-    /// Position of the circle center.
-    pub position: Vec3,
-    /// Time this indicator has been active (for animations).
-    pub time_alive: f32,
-    /// Empowerment multiplier.
-    #[allow(dead_code)]
-    pub empowerment: f32,
-}
-
-impl SquallCircleIndicator {
-    /// Creates a new circle indicator.
-    pub const fn new(position: Vec3, empowerment: f32) -> Self {
-        Self {
-            position,
-            time_alive: 0.0,
-            empowerment,
-        }
-    }
-
-    /// Returns the current scale factor for pulse animation.
-    ///
-    /// Pulsates between 0.95 and 1.05 during cast time.
-    pub fn pulse_scale(&self) -> f32 {
-        indicator_pulse_scale(self.time_alive)
-    }
-}
-
-impl CircleIndicator for SquallCircleIndicator {
-    fn position(&self) -> Vec3 {
-        self.position
-    }
-    fn time_alive(&self) -> f32 {
-        self.time_alive
-    }
-    fn set_time_alive(&mut self, time: f32) {
-        self.time_alive = time;
-    }
-    fn base_radius(&self) -> f32 {
-        STORM_RADIUS * self.empowerment
-    }
-    fn circle_y_position(&self) -> f32 {
-        CIRCLE_Y_POSITION
-    }
-    fn pulse_scale(&self) -> f32 {
-        self.pulse_scale()
     }
 }
 
@@ -119,16 +108,22 @@ pub(crate) struct IceProjectile {
     /// Empowerment multiplier.
     #[allow(dead_code)]
     pub empowerment: f32,
+    /// Whether this projectile is a hailstone (larger, more damage).
+    pub is_hailstone: bool,
+    /// Whether this projectile should leave frozen ground on impact (Ice Age talent).
+    pub ice_age: bool,
 }
 
 impl IceProjectile {
     /// Creates a new ice projectile.
-    pub const fn new(
+    pub fn new(
         velocity: Vec3,
         damage: f32,
         explosion_radius: f32,
         radius: f32,
         empowerment: f32,
+        is_hailstone: bool,
+        ice_age: bool,
     ) -> Self {
         Self {
             velocity,
@@ -137,6 +132,8 @@ impl IceProjectile {
             explosion_radius,
             radius,
             empowerment,
+            is_hailstone,
+            ice_age,
         }
     }
 }
@@ -185,4 +182,67 @@ impl IceExplosion {
         let growth_factor = (self.time_alive / growth_time).min(1.0);
         self.max_radius * growth_factor
     }
+}
+
+/// Tracks how many times each enemy has been hit by ice explosions from this storm.
+/// Used by the Permafrost talent to trigger freezes after 3 hits.
+#[derive(Component, Default)]
+pub(crate) struct PermafrostTracker {
+    /// Maps entity to number of ice hits received.
+    pub hit_counts: HashMap<Entity, u32>,
+}
+
+/// Frozen ground patch left by the Ice Age talent.
+/// Slows enemies that walk over it.
+#[derive(Component)]
+pub(crate) struct FrozenGround {
+    /// Center position of the frozen patch.
+    pub position: Vec3,
+    /// Radius of the frozen patch.
+    pub radius: f32,
+    /// Time remaining before this patch melts.
+    pub time_remaining: f32,
+}
+
+impl FrozenGround {
+    pub fn new(position: Vec3, radius: f32, duration: f32) -> Self {
+        Self {
+            position,
+            radius,
+            time_remaining: duration,
+        }
+    }
+}
+
+/// Annulus ring reticle that persists while the storm is active.
+#[derive(Component)]
+pub(crate) struct SquallStormRing {
+    /// Time alive for pulse animation.
+    pub time_alive: f32,
+}
+
+/// Swirling snow particle in the squall storm area.
+#[derive(Component)]
+pub(crate) struct SnowParticle {
+    /// Current velocity for swirling movement.
+    pub velocity: Vec3,
+    /// Time this particle has been alive.
+    pub time_alive: f32,
+    /// Total lifetime before despawn.
+    pub lifetime: f32,
+    /// Base visual size.
+    pub base_size: f32,
+    /// Phase offset for animation variation.
+    pub phase: f32,
+}
+
+/// Stacking slow from Absolute Zero talent.
+/// Tracks accumulated slow separately from `SlowMovementModifier` so it can stack.
+/// Decays after the unit leaves the zone or channeling stops.
+#[derive(Component)]
+pub(crate) struct AbsoluteZeroSlow {
+    /// Current accumulated slow modifier (negative, e.g., -0.3 = 30% slow).
+    pub accumulated_slow: f32,
+    /// Time remaining before the slow decays (resets while in zone).
+    pub decay_timer: f32,
 }
