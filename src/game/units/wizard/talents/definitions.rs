@@ -35,6 +35,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Entangle => entangle_talents(),
         Spell::SpikeGrowth => spike_growth_talents(),
         Spell::Squall => squall_talents(),
+        Spell::Sleep => sleep_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1258,6 +1259,74 @@ fn squall_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Ice Age",
                 description: "Storm leaves frozen ground that slows enemies by 30%. Persists after channeling ends.",
                 locked_text: "The ice never melts. Global warming has met its match: one very stubborn wizard.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn sleep_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Deep Slumber",
+                description: "Sleep duration increased by 40%.",
+                locked_text: "They sleep deeper. The wizard could learn from them. He hasn't slept in days.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lullaby",
+                description: "Circle radius increased by 40%.",
+                locked_text: "A bigger nap zone. Like a very aggressive daycare.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Nightmare Fuel",
+                description: "Wake-up bonus damage increased by 50%.",
+                locked_text: "They wake up and IMMEDIATELY regret it.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Narcoleptic Wave",
+                description: "Sleep spreads to nearby awake enemies over 3 seconds (expanding radius).",
+                locked_text: "The sleep is contagious. Like yawning, but magical and involuntary.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Night Terrors",
+                description: "Sleeping enemies take minor damage per second (not enough to wake them).",
+                locked_text: "They dream of being hurt. The dreams are accurate.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Drowsy",
+                description: "Cast time halved. Mana cost reduced by 25%.",
+                locked_text: "Quicker casting. The wizard is getting sleepy just thinking about it. Hmm.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Comatose",
+                description: "Sleeping enemies can only be woken by taking damage equal to 30% of their max HP. Small damage doesn't wake them.",
+                locked_text: "They sleep through everything. EVERYTHING. The wizard's roommate in wizard college was like this.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Dreamwalker",
+                description: "Sleeping enemies sleepwalk back toward their spawn at half speed for 30 seconds. They don't target or attack while sleepwalking.",
+                locked_text: "They walk in their sleep. Away from the castle. The wizard finds this hilarious.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Eternal Slumber",
+                description: "Enemies that fall asleep below 25% HP never wake up (instant kill).",
+                locked_text: "They drift off peacefully. No refunds. No returns. No waking.",
                 implemented: true,
             },
         ],

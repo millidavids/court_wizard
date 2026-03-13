@@ -86,6 +86,13 @@ Systems are grouped into sets with explicit ordering:
 - Extract common logic into shared functions rather than duplicating code
 - Unit-specific or spell-specific behavior should be minimal overrides on top of shared systems
 
+### Component Design
+**Prefer small, focused Components over monolithic data structs.** This is core to Bevy's ECS design:
+- **Status effects and conditions** (e.g., sleepwalking, burning, comatose) should be their own `#[derive(Component)]` structs — not boolean flags or optional fields inside a larger modifier component.
+- **Behavioral modifiers** that drive dedicated systems (DPS ticks, movement overrides, spreading effects) should be separate components so systems can query/filter on them directly with `With<T>`, `Without<T>`, and `any_with_component::<T>`.
+- **Numeric-only modifiers** applied at cast time (damage multipliers, radius multipliers) are fine as fields on the parent component or in a params struct — they don't need their own component since no system queries on them independently.
+- **Rule of thumb**: If a piece of data drives its own system or needs to be queried/filtered independently, it should be its own component. If it's just a number read once at cast time, it can stay as a field.
+
 ## Key Systems
 
 ### General Systems

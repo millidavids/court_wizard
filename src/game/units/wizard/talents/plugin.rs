@@ -15,9 +15,20 @@ impl Plugin for TalentsPlugin {
 }
 
 /// Initialize talent resources when entering gameplay.
-fn init_talent_resources(mut commands: Commands) {
-    commands.insert_resource(ActiveTalents::from_save());
-    commands.insert_resource(BattleTalentProgress::default());
+/// Only creates resources if they don't already exist, since InGameState::Running
+/// can be re-entered (e.g., after spell book or pause menu) and we don't want to
+/// wipe accumulated progress.
+fn init_talent_resources(
+    mut commands: Commands,
+    existing_talents: Option<Res<ActiveTalents>>,
+    existing_progress: Option<Res<BattleTalentProgress>>,
+) {
+    if existing_talents.is_none() {
+        commands.insert_resource(ActiveTalents::from_save());
+    }
+    if existing_progress.is_none() {
+        commands.insert_resource(BattleTalentProgress::default());
+    }
 }
 
 /// Clean up talent resources when leaving the game.

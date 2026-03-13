@@ -1082,13 +1082,41 @@ pub struct SleepModifier {
     pub time_remaining: f32,
     /// Bonus damage multiplier on first hit (e.g., 2.0 = double damage).
     pub bonus_damage_multiplier: f32,
+    /// Night Terrors: damage per second while sleeping (0.0 = disabled).
+    pub night_terrors_dps: f32,
+    /// Night Terrors: tick accumulator for DPS application.
+    pub night_terrors_tick: f32,
+    /// Comatose: fraction of max HP that a single hit must exceed to wake.
+    /// 0.0 = normal (any hit wakes), 0.3 = 30% max HP threshold.
+    pub comatose_threshold: f32,
+    /// Narcoleptic Wave: timer counting down before sleep spreads. Negative = disabled.
+    pub narcoleptic_timer: f32,
+    /// Narcoleptic Wave: radius for spreading sleep.
+    pub narcoleptic_radius: f32,
+    /// Whether this sleep has already spread (narcoleptic wave only spreads once).
+    pub narcoleptic_spread: bool,
+    /// Dreamwalker: unit sleepwalks back toward spawn instead of being immobilized.
+    pub sleepwalking: bool,
+    /// Dreamwalker: speed multiplier for sleepwalking movement.
+    pub sleepwalking_speed_mult: f32,
+    /// Full duration this modifier was created with (for narcoleptic wave inheritance).
+    pub full_duration: f32,
 }
 
 impl SleepModifier {
-    pub const fn new(duration: f32, bonus_multiplier: f32) -> Self {
+    pub fn new(duration: f32, bonus_multiplier: f32) -> Self {
         Self {
             time_remaining: duration,
             bonus_damage_multiplier: bonus_multiplier,
+            night_terrors_dps: 0.0,
+            night_terrors_tick: 0.0,
+            comatose_threshold: 0.0,
+            narcoleptic_timer: -1.0,
+            narcoleptic_radius: 0.0,
+            narcoleptic_spread: false,
+            sleepwalking: false,
+            sleepwalking_speed_mult: 1.0,
+            full_duration: duration,
         }
     }
 

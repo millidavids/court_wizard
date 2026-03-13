@@ -17,6 +17,10 @@ system_name/
 └── systems.rs       # System implementations
 ```
 
+## Component Design
+
+**Prefer small, focused components over monolithic structs.** Status effects, conditions, and behavioral modifiers should each be their own `#[derive(Component)]` so systems can query and filter on them independently with `With<T>`, `Without<T>`, and `any_with_component::<T>`. Numeric-only modifiers applied once at creation time can stay as fields. See the [talents reference](../references/talents.md) for detailed examples.
+
 ## Plugin Template
 
 ```rust

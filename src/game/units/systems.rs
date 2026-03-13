@@ -47,6 +47,7 @@ use crate::game::units::wizard::archetypes::meteorologist::constants::{
 
 /// Returns true if the unit is immobilized by any crowd control effect.
 /// Centralizes CC checks so new CC types only need updating here.
+/// Sleepwalking units (Dreamwalker talent) are NOT immobilized.
 #[inline]
 pub fn is_cc_immobilized(
     rooted: Option<&RootedModifier>,
@@ -56,7 +57,7 @@ pub fn is_cc_immobilized(
     frozen: Option<&FrozenSolidModifier>,
 ) -> bool {
     rooted.is_some()
-        || sleeping.is_some()
+        || sleeping.is_some_and(|s| !s.sleepwalking)
         || banished.is_some()
         || sickened.is_some()
         || frozen.is_some()

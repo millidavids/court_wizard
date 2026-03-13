@@ -94,13 +94,73 @@ Spell::SpellName => spell_name_talents(),
 
 ### 3. Implement gameplay effects
 
-In the spell's `systems.rs`, read active talents from `TalentResources` and branch behavior accordingly. Common patterns:
+In the spell's `systems.rs`, read active talents from `TalentResources` and branch behavior accordingly.
 
-- **Numeric modifiers**: Multiply constants by talent-based factors
-- **New behaviors**: Add conditional logic gated on talent checks
-- **New components**: Add talent-specific components for complex effects
+#### Component Design for Talents
 
-### 4. Verify cross-tier interactions
+**Prefer small, separate Components for behavioral effects over boolean flags in a monolithic modifier struct.**
+
+- **Numeric modifiers** (Tier 1 style: +40% radius, +50% damage): These are applied once at cast time. Keep them as fields in a `TalentParams` struct or on the parent modifier component. No dedicated system needed.
+
+- **Behavioral effects** (Tier 2/3 style: DPS ticks, spreading, sleepwalking, comatose thresholds): These drive their own systems and should be **separate `#[derive(Component)]` structs** attached to the affected entity alongside the base modifier. This enables:
+  - `run_if(any_with_component::<Sleepwalking>)` — system doesn't run if nobody has the talent
+  - `Query<..., With<NightTerrors>>` — only iterate entities with the talent
+  - Clean attach/detach — removing an effect is `remove::<Comatose>()` rather than zeroing out fields
+  - Independent system logic — each talent's system only touches the data it needs
+
+**Example — Good (separate components):**
+```rust
+/// Base sleep effect on an entity.
+#[derive(Component)]
+pub struct SleepModifier { pub time_remaining: f32, pub bonus_damage_multiplier: f32 }
+
+/// Talent: unit sleepwalks back toward spawn instead of being immobilized.
+#[derive(Component)]
+pub struct Sleepwalking { pub time_remaining: f32, pub speed_mult: f32 }
+
+/// Talent: takes minor DPS while sleeping.
+#[derive(Component)]
+pub struct NightTerrors { pub dps: f32, pub tick_accumulator: f32 }
+```
+
+**Example — Avoid (monolithic struct with flags):**
+```rust
+pub struct SleepModifier {
+    pub time_remaining: f32,
+    pub bonus_damage_multiplier: f32,
+    pub sleepwalking: bool,           // flag checked by if-statement
+    pub sleepwalking_speed_mult: f32, // unused when sleepwalking is false
+    pub night_terrors_dps: f32,       // 0.0 means disabled
+    pub night_terrors_tick: f32,      // unused when dps is 0.0
+    pub comatose_threshold: f32,     // 0.0 means disabled
+    // ... keeps growing with each new talent
+}
+```
+
+#### When to keep fields on the parent component
+
+- The data is read once at cast/apply time and never queried again
+- No system needs to filter on it (e.g., a damage multiplier — combat reads it inline)
+- It's a small numeric tweak, not a behavioral change
+
+#### Applying talent components
+
+In `apply_sleep()` (or equivalent), insert the base modifier plus any talent-specific components:
+```rust
+commands.entity(entity).insert(SleepModifier::new(duration, bonus));
+if talent_params.night_terrors {
+    commands.entity(entity).insert(NightTerrors::new(NIGHT_TERRORS_DPS));
+}
+if talent_params.sleepwalking {
+    commands.entity(entity).insert(Sleepwalking::new(DREAMWALKER_DURATION, DREAMWALKER_SPEED_MULT));
+}
+```
+
+### 4. Make sure that the talent progression tracks correctly.
+
+The spell's talent progression should actually track the metric it is intended to track. Don't just assume that that feature is implemented already.
+
+### 5. Verify cross-tier interactions
 
 Test or mentally trace all 27 talent combinations to ensure no conflicts.
 

@@ -398,7 +398,7 @@ pub fn combat(
             Option<&CauldronDamageBonus>,
             Option<&EliteDamageBonus>,
             // Spell modifiers on attacker side
-            Option<&super::units::components::SleepModifier>,
+            Has<super::units::components::SleepModifier>,
             Option<&super::units::components::BanishedModifier>,
             Option<&super::units::components::BattleHymnModifier>,
             Option<&super::units::components::BerserkerRageModifier>,
@@ -420,7 +420,7 @@ pub fn combat(
         Option<&super::units::components::FogEvasionModifier>,
         Option<&super::units::components::MarkedForDeathModifier>,
         Option<&super::units::components::BerserkerRageModifier>,
-        Option<&super::units::components::SleepModifier>,
+        Option<&mut super::units::components::SleepModifier>,
         Option<&super::units::components::BattleHymnModifier>,
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
     )>,
@@ -457,7 +457,7 @@ pub fn combat(
         damage_mult,
         cauldron_damage_bonus,
         elite_damage_bonus,
-        sleeping,
+        is_sleeping,
         banished,
         battle_hymn,
         berserker_rage_attacker,
@@ -466,7 +466,7 @@ pub fn combat(
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, or retreating
-        if sleeping.is_some() || banished.is_some() || frozen_solid.is_some() || is_retreating {
+        if is_sleeping || banished.is_some() || frozen_solid.is_some() || is_retreating {
             continue;
         }
 
@@ -516,7 +516,7 @@ pub fn combat(
                     fog_evasion,
                     marked_for_death,
                     berserker_rage_target,
-                    target_sleeping,
+                    mut target_sleeping,
                     target_battle_hymn,
                     guardian_circle_shielded,
                 )) = health_query.get_mut(*target_entity)
@@ -572,9 +572,18 @@ pub fn combat(
                 }
 
                 // Apply Sleep bonus damage (first hit wakes and deals bonus)
-                if let Some(sleep) = target_sleeping {
+                if let Some(sleep) = &mut target_sleeping {
                     modified_damage *= sleep.bonus_damage_multiplier;
-                    post_combat_removes.push((*target_entity, PostCombatAction::RemoveSleep));
+
+                    // Comatose: only wake if damage exceeds threshold
+                    let comatose_blocks_wake = sleep.comatose_threshold > 0.0
+                        && modified_damage < sleep.comatose_threshold * target_health.max;
+
+                    if comatose_blocks_wake {
+                        // Damage applied but sleep persists
+                    } else {
+                        post_combat_removes.push((*target_entity, PostCombatAction::RemoveSleep));
+                    }
                 }
 
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);

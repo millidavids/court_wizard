@@ -66,6 +66,8 @@ pub const INDICATOR_COLOR: Color = Color::srgba(0.8, 0.2, 0.2, 0.3);
 
 ### 3. Create components.rs
 
+**Prefer small, focused components over monolithic structs.** Each distinct behavior or status effect should be its own component so systems can query and filter on it independently.
+
 ```rust
 use bevy::prelude::*;
 
@@ -91,6 +93,8 @@ pub struct SpellNameExplosion {
     pub radius: f32,
 }
 ```
+
+**Status effects applied to units** (debuffs, buffs, conditions) should be separate components — not boolean flags inside a larger modifier. This enables `With<T>`/`Without<T>` query filters and `any_with_component::<T>` run conditions. See the [talents reference](talents.md) for detailed guidance.
 
 ### 4. Create systems.rs
 

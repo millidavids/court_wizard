@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.217] - 2026-03-13
+
+### Added
+- **Sleep talents** — the Sleep spell now has a full talent tree with 9 talents across 3 tiers, unlocked by putting enemies to sleep
+- **Tier 1: Sleep modifiers** — choose between 40% longer sleep duration, a 40% larger sleep area, or 50% more bonus damage when enemies wake up
+- **Tier 2: Secondary effects** — choose between a contagious sleep that spreads to nearby enemies after 3 seconds, minor damage per second while sleeping, or halved cast time with reduced mana cost
+- **Tier 3: Powerful upgrades** — choose between making enemies nearly impossible to wake unless they take massive damage, causing sleeping enemies to sleepwalk back toward their spawn point for 30 seconds, or instantly finishing off any low-health enemies caught in the spell
+
+### Fixed
+- **Talent progress no longer lost when switching spells** — previously, opening the spell book mid-battle could reset your accumulated talent progress for the current spell
+
 ## [v0.4.202] - 2026-03-13
 
 ### Added
