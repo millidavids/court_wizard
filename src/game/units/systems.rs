@@ -10,9 +10,8 @@ use super::components::{
     BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
     FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled, OriginalMaterial,
     PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, RootedModifier, SickenedModifier, SleepModifier, SlowMovementModifier,
-    SmellyModifier, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
-    apply_damage_to_unit,
+    RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier, SmellyModifier,
+    TargetingVelocity, Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
 };
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
@@ -51,13 +50,14 @@ use crate::game::units::wizard::archetypes::meteorologist::constants::{
 #[inline]
 pub fn is_cc_immobilized(
     rooted: Option<&RootedModifier>,
-    sleeping: Option<&SleepModifier>,
+    has_sleep: bool,
+    has_sleepwalking: bool,
     banished: Option<&BanishedModifier>,
     sickened: Option<&SickenedModifier>,
     frozen: Option<&FrozenSolidModifier>,
 ) -> bool {
     rooted.is_some()
-        || sleeping.is_some_and(|s| !s.sleepwalking)
+        || (has_sleep && !has_sleepwalking)
         || banished.is_some()
         || sickened.is_some()
         || frozen.is_some()

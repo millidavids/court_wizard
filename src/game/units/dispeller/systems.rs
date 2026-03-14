@@ -13,14 +13,14 @@ use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
     FrozenSolidModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
-    SlowMovementModifier,
+    Sleepwalking, SlowMovementModifier,
     TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::wizard::spells::dispel::systems::{
     is_dispellable, spawn_dispel_projectile, spell_edge_distance,
 };
-use crate::game::units::wizard::spells::grease::components::GreaseZone;
+use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
@@ -41,7 +41,7 @@ pub fn update_dispeller_targeting(
     wall_of_fire_query: Query<&WallOfFireEffect>,
     wall_of_stone_query: Query<&WallOfStone>,
     spike_growth_query: Query<&SpikeGrowthZone>,
-    grease_query: Query<&GreaseZone>,
+    grease_query: Query<(&GreaseZone, Has<GreaseIgnited>)>,
     meteor_fire_query: Query<&MeteorGroundFire>,
 ) {
     // Collect dispellable spell effects (entity + center position)
@@ -191,7 +191,8 @@ pub fn dispeller_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&SleepModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
@@ -214,11 +215,11 @@ pub fn dispeller_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
     ) in &mut dispeller_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -280,7 +281,7 @@ pub fn dispeller_cast_dispel(
     wall_of_fire_query: Query<&WallOfFireEffect>,
     wall_of_stone_query: Query<&WallOfStone>,
     spike_growth_query: Query<&SpikeGrowthZone>,
-    grease_query: Query<&GreaseZone>,
+    grease_query: Query<(&GreaseZone, Has<GreaseIgnited>)>,
     meteor_fire_query: Query<&MeteorGroundFire>,
 ) {
     let delta = time.delta_secs();

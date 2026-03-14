@@ -4,7 +4,7 @@ use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::super::utils::{AnimatedRingParticle, animate_ring_particles};
 use super::components::{
-    EntangleGroundEffect, EntangleRooted, EntangleVine,
+    EntangleGroundEffect, EntangleRooted, EntangleVine, ThornyVines,
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -35,9 +35,11 @@ impl Plugin for EntanglePlugin {
                     .run_if(any_exist::<EntangleGroundEffect>()),
                 animate_ring_particles
                     .run_if(any_exist::<AnimatedRingParticle>()),
-                // Talent systems — only run when EntangleRooted units exist
+                // Thorny Vines: DPS to rooted enemies
+                systems::thorny_vines_tick
+                    .run_if(any_exist::<ThornyVines>()),
+                // Other talent effects — only run when EntangleRooted units exist
                 (
-                    systems::thorny_vines_tick,
                     systems::nourishing_roots_mana_regen,
                     systems::handle_entangle_root_expire,
                 )

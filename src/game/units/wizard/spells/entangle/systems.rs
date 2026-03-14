@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{EntangleGroundEffect, EntangleRooted, EntangleTalentParams, EntangleVine};
+use super::components::{EntangleGroundEffect, EntangleRooted, EntangleTalentParams, EntangleVine, ThornyVines};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
@@ -325,19 +325,16 @@ pub fn thorny_vines_tick(
     mut commands: Commands,
     mut rooted_units: Query<(
         Entity,
-        &mut EntangleRooted,
+        &mut ThornyVines,
         &mut Health,
         Option<&mut TemporaryHitPoints>,
     )>,
 ) {
     let delta = time.delta_secs();
-    for (entity, mut entangle, mut health, mut temp_hp) in &mut rooted_units {
-        if !entangle.talent_params.thorny_vines {
-            continue;
-        }
-        entangle.thorny_tick_timer += delta;
-        if entangle.thorny_tick_timer >= constants::THORNY_VINES_TICK_INTERVAL {
-            entangle.thorny_tick_timer -= constants::THORNY_VINES_TICK_INTERVAL;
+    for (entity, mut thorny, mut health, mut temp_hp) in &mut rooted_units {
+        thorny.tick_timer += delta;
+        if thorny.tick_timer >= constants::THORNY_VINES_TICK_INTERVAL {
+            thorny.tick_timer -= constants::THORNY_VINES_TICK_INTERVAL;
             let damage = constants::THORNY_VINES_DPS * constants::THORNY_VINES_TICK_INTERVAL;
             crate::game::units::components::apply_damage_to_unit(
                 &mut health,
@@ -386,7 +383,7 @@ pub fn handle_entangle_root_expire(
             }
         }
 
-        commands.entity(entity).remove::<EntangleRooted>();
+        commands.entity(entity).remove::<(EntangleRooted, ThornyVines)>();
     }
 }
 
@@ -432,15 +429,19 @@ fn apply_entangle_to_unit(
                 duration,
             ));
     } else {
-        commands.entity(entity).insert((
+        let mut entity_commands = commands.entity(entity);
+        entity_commands.insert((
             RootedModifier::new(duration),
             EntangleRooted {
                 total_root_duration: duration,
                 is_defender,
-                thorny_tick_timer: 0.0,
                 talent_params: *talent_params,
             },
         ));
+        // Thorny Vines: only apply to non-defenders
+        if talent_params.thorny_vines && !is_defender {
+            entity_commands.insert(ThornyVines { tick_timer: 0.0 });
+        }
     }
 
     if is_defender {

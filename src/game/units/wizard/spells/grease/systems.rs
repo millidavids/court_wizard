@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::{GreaseFireOverlay, GreaseZone};
+use super::components::{GreaseFireOverlay, GreaseIgnited, GreaseZone};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -229,19 +229,18 @@ fn grease_casting_logic(
     completed
 }
 
-/// Applies slow to units inside non-ignited grease zone.
+/// Applies slow to units inside grease zones and ticks time_alive for non-ignited zones.
 pub fn apply_grease_slow(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<&mut GreaseZone>,
+    mut zones: Query<(&mut GreaseZone, Has<GreaseIgnited>)>,
     mut targets: Query<(Entity, &Transform, Option<&mut SlowMovementModifier>), Without<Corpse>>,
 ) {
     let delta = time.delta_secs();
-    for mut zone in &mut zones {
-        if zone.ignited {
-            // Still apply slow even when ignited — only skip time_alive tracking
-            // (ignited zones track time_alive in apply_grease_burn instead)
-        } else {
+    for (mut zone, is_ignited) in &mut zones {
+        // Only track time_alive for non-ignited zones
+        // (ignited zones track time_alive in apply_grease_burn instead)
+        if !is_ignited {
             zone.time_alive += delta;
         }
         zone.time_since_last_tick += delta;
@@ -280,7 +279,8 @@ pub fn check_grease_ignition(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut zones: Query<(Entity, &mut GreaseZone)>,
+    zones: Query<(Entity, &GreaseZone), Without<GreaseIgnited>>,
+    ignited_zone_query: Query<&GreaseZone, With<GreaseIgnited>>,
     fire_units: Query<
         &Transform,
         (
@@ -305,16 +305,12 @@ pub fn check_grease_ignition(
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     // Collect ignited zone positions for chain-ignition checks
-    let ignited_zones: Vec<(Vec3, f32)> = zones
+    let ignited_zones: Vec<(Vec3, f32)> = ignited_zone_query
         .iter()
-        .filter(|(_, z)| z.ignited)
-        .map(|(_, z)| (z.origin, z.radius))
+        .map(|z| (z.origin, z.radius))
         .collect();
 
-    for (zone_entity, mut zone) in &mut zones {
-        if zone.ignited {
-            continue;
-        }
+    for (zone_entity, zone) in &zones {
 
         // Track ignition source point
         let mut ignition_pos: Option<Vec3> = None;
@@ -429,9 +425,7 @@ pub fn check_grease_ignition(
         }
 
         if let Some(ign_point) = ignition_pos {
-            zone.ignited = true;
-            zone.ignition_point = Some(ign_point);
-            zone.fire_spread_time = 0.0;
+            commands.entity(zone_entity).insert(GreaseIgnited::new(ign_point));
 
             // Spawn fire overlay mesh at the ignition point
             let base_mat = materials
@@ -495,21 +489,16 @@ pub fn check_grease_ignition(
 /// Updates fire spread animation — ticks spread timer and scales the overlay mesh.
 pub fn update_grease_fire_spread(
     time: Res<Time>,
-    mut zones: Query<(Entity, &mut GreaseZone)>,
+    mut zones: Query<(Entity, &GreaseZone, &mut GreaseIgnited)>,
     mut overlays: Query<(&GreaseFireOverlay, &mut Transform)>,
 ) {
     let delta = time.delta_secs();
-    for (zone_entity, mut zone) in &mut zones {
-        if !zone.ignited {
-            continue;
-        }
-        zone.fire_spread_time += delta;
+    for (zone_entity, zone, mut ignited) in &mut zones {
+        ignited.fire_spread_time += delta;
 
-        let Some(ign_point) = zone.ignition_point else {
-            continue;
-        };
+        let ign_point = ignited.ignition_point;
 
-        let progress = (zone.fire_spread_time / constants::FIRE_SPREAD_DURATION).min(1.0);
+        let progress = (ignited.fire_spread_time / constants::FIRE_SPREAD_DURATION).min(1.0);
 
         // Update the overlay transform
         for (overlay, mut transform) in &mut overlays {
@@ -532,7 +521,7 @@ pub fn update_grease_fire_spread(
 /// Spawns smoke wisps and heat shimmer rising off burning grease zones.
 pub fn spawn_grease_fire_smoke(
     mut commands: Commands,
-    zones: Query<&GreaseZone>,
+    zones: Query<&GreaseZone, With<GreaseIgnited>>,
     visual_assets: Res<SpellVisualAssets>,
     time: Res<Time>,
     mut timer: Local<f32>,
@@ -546,10 +535,6 @@ pub fn spawn_grease_fire_smoke(
     let t = time.elapsed_secs();
 
     for zone in zones.iter() {
-        if !zone.ignited {
-            continue;
-        }
-
         // Don't emit smoke during the fade-out period
         let remaining = zone.duration - zone.time_alive;
         if remaining < constants::FADE_DURATION {
@@ -595,7 +580,7 @@ pub fn spawn_grease_fire_smoke(
 pub fn apply_grease_burn(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<&mut GreaseZone>,
+    mut zones: Query<(&mut GreaseZone, &GreaseIgnited)>,
     mut targets: Query<
         (
             Entity,
@@ -608,32 +593,25 @@ pub fn apply_grease_burn(
     >,
 ) {
     let delta = time.delta_secs();
-    for mut zone in &mut zones {
-        if !zone.ignited {
-            continue;
-        }
+    for (mut zone, ignited) in &mut zones {
         zone.time_alive += delta;
         zone.time_since_last_tick += delta;
         if zone.time_since_last_tick >= zone.ignite_burn_tick {
             zone.time_since_last_tick = 0.0;
 
             // During spread phase, scope damage to current fire radius from ignition point
-            let fire_radius = zone.current_fire_radius(constants::FIRE_SPREAD_DURATION);
-            let spreading = zone.fire_spread_time < constants::FIRE_SPREAD_DURATION;
+            let fire_radius = ignited.current_fire_radius(zone.radius, constants::FIRE_SPREAD_DURATION);
+            let spreading = ignited.fire_spread_time < constants::FIRE_SPREAD_DURATION;
 
             for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
                 let in_burn_area = if spreading {
-                    if let Some(ign_point) = zone.ignition_point {
-                        // Check distance from ignition point during spread
-                        let dist = Vec2::new(
-                            ign_point.x - transform.translation.x,
-                            ign_point.z - transform.translation.z,
-                        )
-                        .length();
-                        dist <= fire_radius
-                    } else {
-                        false
-                    }
+                    // Check distance from ignition point during spread
+                    let dist = Vec2::new(
+                        ignited.ignition_point.x - transform.translation.x,
+                        ignited.ignition_point.z - transform.translation.z,
+                    )
+                    .length();
+                    dist <= fire_radius
                 } else {
                     // Fire fully spread — use full zone radius from center
                     let dist = Vec2::new(
@@ -661,7 +639,7 @@ pub fn apply_grease_burn(
 }
 
 pub fn fade_grease_zone(
-    zones: Query<(Entity, &GreaseZone, &MeshMaterial3d<StandardMaterial>)>,
+    zones: Query<(Entity, &GreaseZone, &MeshMaterial3d<StandardMaterial>, Has<GreaseIgnited>)>,
     mut overlays: Query<
         (&GreaseFireOverlay, &MeshMaterial3d<StandardMaterial>),
         Without<GreaseZone>,
@@ -670,7 +648,7 @@ pub fn fade_grease_zone(
     config: Res<crate::config::GameConfig>,
 ) {
     let is_excremage = config.wizard_type == crate::config::WizardType::Excremage;
-    for (zone_entity, zone, material_handle) in &zones {
+    for (zone_entity, zone, material_handle, is_ignited) in &zones {
         let remaining = zone.duration - zone.time_alive;
         let fade = if remaining < constants::FADE_DURATION {
             (remaining / constants::FADE_DURATION).max(0.0)
@@ -684,7 +662,7 @@ pub fn fade_grease_zone(
         }
 
         // Fade the fire overlay mesh if this zone is ignited
-        if zone.ignited {
+        if is_ignited {
             let (fire_base, fire_emissive) =
                 vfx::systems::effect_color_at(zone.time_alive, fade, is_excremage);
             for (overlay, overlay_handle) in &mut overlays {
@@ -701,13 +679,13 @@ pub fn fade_grease_zone(
 
 pub fn cleanup_grease_zone(
     mut commands: Commands,
-    zones: Query<(Entity, &GreaseZone)>,
+    zones: Query<(Entity, &GreaseZone, Has<GreaseIgnited>)>,
     overlays: Query<(Entity, &GreaseFireOverlay)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
-    for (entity, zone) in &zones {
+    for (entity, zone, is_ignited) in &zones {
         if zone.time_alive >= zone.duration {
-            if zone.ignited {
+            if is_ignited {
                 let origin_2d = Vec2::new(zone.origin.x, zone.origin.z);
                 let buffered_radius = zone.radius + OBSTACLE_BUFFER;
                 obstacle_events.write(ObstacleChanged {

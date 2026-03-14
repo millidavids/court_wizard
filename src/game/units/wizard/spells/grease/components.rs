@@ -10,15 +10,13 @@ pub struct GreaseZone {
     pub duration: f32,
     pub time_alive: f32,
     pub time_since_last_tick: f32,
-    pub ignited: bool,
-    pub ignite_damage: f32,
-    pub ignite_burn_damage: f32,
-    pub ignite_burn_tick: f32,
     pub empowerment: f32,
-    /// XZ point where fire started spreading from
-    pub ignition_point: Option<Vec3>,
-    /// Time since ignition occurred (for fire spread animation)
-    pub fire_spread_time: f32,
+    /// Pre-configured ignition damage (applied when GreaseIgnited is inserted).
+    pub ignite_damage: f32,
+    /// Pre-configured burn damage per tick.
+    pub ignite_burn_damage: f32,
+    /// Pre-configured burn tick interval.
+    pub ignite_burn_tick: f32,
 }
 
 impl GreaseZone {
@@ -44,23 +42,36 @@ impl GreaseZone {
             duration,
             time_alive: 0.0,
             time_since_last_tick: 0.0,
-            ignited: false,
+            empowerment,
             ignite_damage,
             ignite_burn_damage,
             ignite_burn_tick,
-            empowerment,
-            ignition_point: None,
+        }
+    }
+}
+
+/// Marker component inserted when a grease zone is set on fire.
+/// Drives burn damage, fire spread VFX, and prevents normal time_alive tracking.
+#[derive(Component)]
+pub struct GreaseIgnited {
+    /// XZ point where fire started spreading from.
+    pub ignition_point: Vec3,
+    /// Time since ignition occurred (for fire spread animation).
+    pub fire_spread_time: f32,
+}
+
+impl GreaseIgnited {
+    pub fn new(ignition_point: Vec3) -> Self {
+        Self {
+            ignition_point,
             fire_spread_time: 0.0,
         }
     }
 
     /// Returns the current fire spread radius based on time since ignition.
-    pub fn current_fire_radius(&self, spread_duration: f32) -> f32 {
-        if !self.ignited {
-            return 0.0;
-        }
+    pub fn current_fire_radius(&self, zone_radius: f32, spread_duration: f32) -> f32 {
         let progress = (self.fire_spread_time / spread_duration).min(1.0);
-        self.radius * progress
+        zone_radius * progress
     }
 }
 

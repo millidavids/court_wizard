@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.227] - 2026-03-13
+
+### Changed
+- **Smarter spell effects** — status effects like sleep talents, battle hymn buffs, entangle thorns, and grease fire now work more cleanly behind the scenes, improving consistency and fixing edge cases
+- **Sleep damage-over-time now respects shields** — the Night Terrors talent now correctly reduces temporary hit points before dealing health damage, matching how all other damage-over-time effects work
+
+### Fixed
+- **Night Terrors can now finish off enemies** — previously, damage from the Night Terrors sleep talent couldn't actually kill enemies; now enemies properly die if their health reaches zero from the effect
+- **Contagious sleep no longer wastes processing** — the Narcoleptic Wave effect now properly cleans itself up after spreading, instead of lingering uselessly
+
 ## [v0.4.217] - 2026-03-13
 
 ### Added

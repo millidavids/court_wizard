@@ -14,7 +14,8 @@ use crate::game::units::components::{
     EliteSpeedBonus, FacingDirection, FlockingVelocity, HasteModifier, Health, Hitbox, KingsGuard,
     FrozenSolidModifier, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
     SickenedModifier,
-    SleepModifier, SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
+    SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, Teleportable,
+    WalkingAnimation,
 };
 use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
@@ -247,7 +248,8 @@ pub fn infantry_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&SleepModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
@@ -271,11 +273,11 @@ pub fn infantry_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed, sickened, frozen),
+        (has_sleep, has_sleepwalking, banished, polymorphed, sickened, frozen),
     ) in &mut infantry_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, has_sleep, has_sleepwalking, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

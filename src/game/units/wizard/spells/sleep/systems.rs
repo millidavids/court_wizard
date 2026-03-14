@@ -8,7 +8,7 @@ use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Corpse, Health, MovementSpeed, SleepModifier, TargetingVelocity, Team};
+use crate::game::units::components::{Comatose, Corpse, Health, MovementSpeed, NarcolepticWave, NightTerrors, SleepModifier, Sleepwalking, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
@@ -313,63 +313,76 @@ pub(crate) fn apply_sleep(
             continue;
         }
 
-        let mut modifier = SleepModifier::new(duration, bonus);
+        let mut modifier = if talent_params.dreamwalker {
+            SleepModifier::new(constants::DREAMWALKER_DURATION, bonus)
+        } else {
+            SleepModifier::new(duration, bonus)
+        };
+
+        let mut entity_commands = commands.entity(entity);
 
         // Night Terrors: minor DPS while sleeping
         if talent_params.night_terrors {
-            modifier.night_terrors_dps = constants::NIGHT_TERRORS_DPS;
+            entity_commands.insert(NightTerrors::new(constants::NIGHT_TERRORS_DPS));
         }
 
         // Comatose: require 30% max HP damage to wake
         if talent_params.comatose {
-            modifier.comatose_threshold = constants::COMATOSE_WAKE_THRESHOLD;
+            entity_commands.insert(Comatose::new(constants::COMATOSE_WAKE_THRESHOLD));
         }
 
         // Narcoleptic Wave: spreading sleep after delay
         if talent_params.narcoleptic_wave {
-            modifier.narcoleptic_timer = constants::NARCOLEPTIC_SPREAD_DELAY;
-            modifier.narcoleptic_radius = constants::NARCOLEPTIC_SPREAD_RADIUS;
+            entity_commands.insert(NarcolepticWave::new(
+                constants::NARCOLEPTIC_SPREAD_DELAY,
+                constants::NARCOLEPTIC_SPREAD_RADIUS,
+            ));
         }
 
         // Dreamwalker: enemies sleepwalk back toward spawn
         if talent_params.dreamwalker {
-            modifier.sleepwalking = true;
-            modifier.sleepwalking_speed_mult = constants::DREAMWALKER_SPEED_MULT;
-            // Override duration to 30s for sleepwalkers
-            modifier.time_remaining = constants::DREAMWALKER_DURATION;
+            entity_commands.insert(Sleepwalking::new(constants::DREAMWALKER_SPEED_MULT));
             modifier.full_duration = constants::DREAMWALKER_DURATION;
         }
 
-        commands.entity(entity).insert(modifier);
+        entity_commands.insert(modifier);
         hit_count += 1;
     }
 
     hit_count
 }
 
-/// Combined sleep timer tick + Night Terrors DPS.
-/// Replaces the generic `update_timed_modifier::<SleepModifier>` to avoid query conflicts.
+/// Tick sleep timer and remove when expired (along with all sub-components).
 pub fn update_sleep_modifiers(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut SleepModifier, &mut Health)>,
+    mut query: Query<(Entity, &mut SleepModifier)>,
 ) {
     let delta = time.delta_secs();
-    for (entity, mut sleep, mut health) in query.iter_mut() {
-        // Tick the timer — remove if expired
+    for (entity, mut sleep) in query.iter_mut() {
         if sleep.update(delta) {
-            commands.entity(entity).remove::<SleepModifier>();
-            continue;
+            commands
+                .entity(entity)
+                .remove::<(SleepModifier, NightTerrors, Comatose, NarcolepticWave, Sleepwalking)>();
         }
+    }
+}
 
-        // Night Terrors: minor DPS while sleeping
-        if sleep.night_terrors_dps > 0.0 {
-            sleep.night_terrors_tick += delta;
-            // Apply damage in 0.5s ticks to avoid per-frame micro-damage
-            if sleep.night_terrors_tick >= 0.5 {
-                let damage = sleep.night_terrors_dps * sleep.night_terrors_tick;
-                health.take_damage(damage);
-                sleep.night_terrors_tick = 0.0;
+/// Night Terrors talent: apply DPS to sleeping units.
+pub fn update_night_terrors(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut NightTerrors, &mut Health, Option<&mut TemporaryHitPoints>)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut terrors, mut health, mut temp_hp) in query.iter_mut() {
+        terrors.tick_accumulator += delta;
+        if terrors.tick_accumulator >= constants::NIGHT_TERRORS_TICK_INTERVAL {
+            let damage = terrors.dps * terrors.tick_accumulator;
+            apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
+            terrors.tick_accumulator = 0.0;
+            if health.current <= 0.0 {
+                commands.entity(entity).insert(Corpse);
             }
         }
     }
@@ -379,43 +392,47 @@ pub fn update_sleep_modifiers(
 pub fn update_narcoleptic_wave(
     time: Res<Time>,
     mut commands: Commands,
-    mut sleepers: Query<(&mut SleepModifier, &Transform, &Team)>,
+    mut wave_query: Query<(
+        Entity,
+        &mut NarcolepticWave,
+        &SleepModifier,
+        &Transform,
+        &Team,
+        Has<NightTerrors>,
+        Has<Comatose>,
+        Option<&Sleepwalking>,
+    )>,
     awake_targets: Query<(Entity, &Transform, &Team), (Without<SleepModifier>, Without<Corpse>)>,
 ) {
     let delta = time.delta_secs();
 
-    // Collect spread events first to avoid borrow conflicts
     struct SpreadEvent {
         position: Vec3,
         radius: f32,
         duration: f32,
         bonus_damage: f32,
-        night_terrors_dps: f32,
-        comatose: bool,
-        sleepwalking: bool,
-        sleepwalking_speed_mult: f32,
+        has_night_terrors: bool,
+        has_comatose: bool,
+        sleepwalking: Option<f32>,
     }
 
     let mut spread_events: Vec<SpreadEvent> = Vec::new();
 
-    for (mut sleep, transform, team) in sleepers.iter_mut() {
-        if sleep.narcoleptic_timer < 0.0 || sleep.narcoleptic_spread {
-            continue;
-        }
-        sleep.narcoleptic_timer -= delta;
-        if sleep.narcoleptic_timer <= 0.0 {
-            sleep.narcoleptic_spread = true;
+    for (entity, mut wave, sleep, transform, team, has_night_terrors, has_comatose, sleepwalking) in wave_query.iter_mut() {
+        wave.timer -= delta;
+        if wave.timer <= 0.0 {
+            // Remove the component now that it's spread — avoids iterating every frame
+            commands.entity(entity).remove::<NarcolepticWave>();
             // Only spread from non-defender sleepers
             if *team != Team::Defenders {
                 spread_events.push(SpreadEvent {
                     position: transform.translation,
-                    radius: sleep.narcoleptic_radius,
-                    duration: sleep.full_duration * 0.5, // 50% remaining duration
+                    radius: wave.radius,
+                    duration: sleep.full_duration * 0.5,
                     bonus_damage: sleep.bonus_damage_multiplier,
-                    night_terrors_dps: sleep.night_terrors_dps,
-                    comatose: sleep.comatose_threshold > 0.0,
-                    sleepwalking: sleep.sleepwalking,
-                    sleepwalking_speed_mult: sleep.sleepwalking_speed_mult,
+                    has_night_terrors,
+                    has_comatose,
+                    sleepwalking: sleepwalking.map(|s| s.speed_mult),
                 });
             }
         }
@@ -429,16 +446,18 @@ pub fn update_narcoleptic_wave(
             }
             let dist = transform.translation.distance(event.position);
             if dist <= event.radius {
-                let mut modifier = SleepModifier::new(event.duration, event.bonus_damage);
-                modifier.night_terrors_dps = event.night_terrors_dps;
-                if event.comatose {
-                    modifier.comatose_threshold = constants::COMATOSE_WAKE_THRESHOLD;
+                let modifier = SleepModifier::new(event.duration, event.bonus_damage);
+                let mut entity_commands = commands.entity(entity);
+                entity_commands.insert(modifier);
+                if event.has_night_terrors {
+                    entity_commands.insert(NightTerrors::new(constants::NIGHT_TERRORS_DPS));
                 }
-                modifier.sleepwalking = event.sleepwalking;
-                modifier.sleepwalking_speed_mult = event.sleepwalking_speed_mult;
-                // Spread sleepers don't spread further
-                modifier.narcoleptic_spread = true;
-                commands.entity(entity).insert(modifier);
+                if event.has_comatose {
+                    entity_commands.insert(Comatose::new(constants::COMATOSE_WAKE_THRESHOLD));
+                }
+                if let Some(speed_mult) = event.sleepwalking {
+                    entity_commands.insert(Sleepwalking::new(speed_mult));
+                }
             }
         }
     }
@@ -449,16 +468,12 @@ pub fn update_narcoleptic_wave(
 pub fn update_sleepwalkers(
     mut query: Query<(
         &Transform,
-        &SleepModifier,
+        &Sleepwalking,
         &mut TargetingVelocity,
         &MovementSpeed,
     )>,
 ) {
-    for (transform, sleep, mut targeting, movement_speed) in query.iter_mut() {
-        if !sleep.sleepwalking {
-            continue;
-        }
-
+    for (transform, sleepwalking, mut targeting, movement_speed) in query.iter_mut() {
         // Walk away from the castle (SPELL_ORIGIN)
         let away_dir = transform.translation - SPELL_ORIGIN;
         let horizontal = Vec3::new(away_dir.x, 0.0, away_dir.z);
@@ -466,7 +481,7 @@ pub fn update_sleepwalkers(
 
         if length > 0.001 {
             let normalized = horizontal / length;
-            targeting.velocity = normalized * movement_speed.0 * sleep.sleepwalking_speed_mult;
+            targeting.velocity = normalized * movement_speed.0 * sleepwalking.speed_mult;
             // Set a large distance so flocking/flow fields don't override
             targeting.distance_to_target = 1000.0;
         }

@@ -7,7 +7,7 @@ use super::boss::BossPlugin;
 use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
-    BattleHymnModifier, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
+    BerserkerRageModifier, FacingDirection, FogEvasionModifier,
     FrostEffectMarker, FrozenSolidModifier, HasteModifier, Knockback, MarkedForDeathModifier,
     PoisonedModifier, RootedModifier, SickenedModifier, SlowMovementModifier,
     SmellyModifier, TemporaryHitPoints, WalkingAnimation,
@@ -104,9 +104,7 @@ impl Plugin for UnitsPlugin {
                 systems::update_timed_modifier::<MarkedForDeathModifier>
                     .run_if(any_with_component::<MarkedForDeathModifier>),
                 // SleepModifier timer is handled by SleepPlugin::update_sleep_modifiers
-                // (combined with Night Terrors DPS to avoid query conflicts)
-                systems::update_timed_modifier::<BattleHymnModifier>
-                    .run_if(any_with_component::<BattleHymnModifier>),
+                // BattleHymnModifier timer is handled by BattleHymnPlugin (handles EchoingSong)
                 systems::update_timed_modifier::<BerserkerRageModifier>
                     .run_if(any_with_component::<BerserkerRageModifier>),
                 systems::update_timed_modifier::<FogEvasionModifier>

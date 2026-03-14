@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::GreaseZone;
+use super::components::{GreaseIgnited, GreaseZone};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -22,14 +22,19 @@ impl Plugin for GreasePlugin {
                 (
                     systems::apply_grease_slow,
                     systems::check_grease_ignition,
-                    systems::update_grease_fire_spread,
-                    systems::spawn_grease_fire_smoke,
-                    systems::apply_grease_burn,
                     systems::fade_grease_zone,
                     systems::cleanup_grease_zone,
                 )
                     .chain()
                     .run_if(any_exist::<GreaseZone>()),
+                // Fire-specific systems — only run when ignited zones exist
+                (
+                    systems::update_grease_fire_spread,
+                    systems::spawn_grease_fire_smoke,
+                    systems::apply_grease_burn,
+                )
+                    .chain()
+                    .run_if(any_exist::<GreaseIgnited>()),
             )
                 .run_if(is_spell_effects_active),
         );

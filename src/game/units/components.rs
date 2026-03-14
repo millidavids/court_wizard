@@ -172,7 +172,7 @@ impl_timed_modifier!(
     HasteModifier,
     MarkedForDeathModifier,
     SleepModifier,
-    BattleHymnModifier,
+    // BattleHymnModifier has a custom tick system (handles EchoingSong)
     BerserkerRageModifier,
     FogEvasionModifier,
     FrozenSolidModifier,
@@ -1076,29 +1076,15 @@ impl MarkedForDeathModifier {
 ///
 /// Sleeping units cannot move or attack. First damage hit deals bonus damage
 /// and wakes them (removes this effect).
+///
+/// Talent-specific behaviors are separate components: [`NightTerrors`],
+/// [`Comatose`], [`NarcolepticWave`], [`Sleepwalking`].
 #[derive(Component)]
 pub struct SleepModifier {
     /// Time remaining before the effect expires (in seconds).
     pub time_remaining: f32,
     /// Bonus damage multiplier on first hit (e.g., 2.0 = double damage).
     pub bonus_damage_multiplier: f32,
-    /// Night Terrors: damage per second while sleeping (0.0 = disabled).
-    pub night_terrors_dps: f32,
-    /// Night Terrors: tick accumulator for DPS application.
-    pub night_terrors_tick: f32,
-    /// Comatose: fraction of max HP that a single hit must exceed to wake.
-    /// 0.0 = normal (any hit wakes), 0.3 = 30% max HP threshold.
-    pub comatose_threshold: f32,
-    /// Narcoleptic Wave: timer counting down before sleep spreads. Negative = disabled.
-    pub narcoleptic_timer: f32,
-    /// Narcoleptic Wave: radius for spreading sleep.
-    pub narcoleptic_radius: f32,
-    /// Whether this sleep has already spread (narcoleptic wave only spreads once).
-    pub narcoleptic_spread: bool,
-    /// Dreamwalker: unit sleepwalks back toward spawn instead of being immobilized.
-    pub sleepwalking: bool,
-    /// Dreamwalker: speed multiplier for sleepwalking movement.
-    pub sleepwalking_speed_mult: f32,
     /// Full duration this modifier was created with (for narcoleptic wave inheritance).
     pub full_duration: f32,
 }
@@ -1108,14 +1094,6 @@ impl SleepModifier {
         Self {
             time_remaining: duration,
             bonus_damage_multiplier: bonus_multiplier,
-            night_terrors_dps: 0.0,
-            night_terrors_tick: 0.0,
-            comatose_threshold: 0.0,
-            narcoleptic_timer: -1.0,
-            narcoleptic_radius: 0.0,
-            narcoleptic_spread: false,
-            sleepwalking: false,
-            sleepwalking_speed_mult: 1.0,
             full_duration: duration,
         }
     }
@@ -1126,9 +1104,69 @@ impl SleepModifier {
     }
 }
 
+/// Night Terrors talent: sleeping units take minor DPS.
+#[derive(Component)]
+pub struct NightTerrors {
+    pub dps: f32,
+    pub tick_accumulator: f32,
+}
+
+impl NightTerrors {
+    pub fn new(dps: f32) -> Self {
+        Self {
+            dps,
+            tick_accumulator: 0.0,
+        }
+    }
+}
+
+/// Comatose talent: sleeping units only wake if a single hit exceeds a fraction of max HP.
+#[derive(Component)]
+pub struct Comatose {
+    /// Fraction of max HP that a single hit must exceed to wake (e.g., 0.3 = 30%).
+    pub wake_threshold: f32,
+}
+
+impl Comatose {
+    pub fn new(threshold: f32) -> Self {
+        Self {
+            wake_threshold: threshold,
+        }
+    }
+}
+
+/// Narcoleptic Wave talent: after a delay, sleep spreads to nearby awake enemies.
+/// Removed from the entity once it has spread.
+#[derive(Component)]
+pub struct NarcolepticWave {
+    /// Timer counting down before sleep spreads.
+    pub timer: f32,
+    /// Radius for spreading sleep.
+    pub radius: f32,
+}
+
+impl NarcolepticWave {
+    pub fn new(delay: f32, radius: f32) -> Self {
+        Self { timer: delay, radius }
+    }
+}
+
+/// Dreamwalker talent: sleeping units sleepwalk back toward spawn instead of being immobilized.
+#[derive(Component)]
+pub struct Sleepwalking {
+    pub speed_mult: f32,
+}
+
+impl Sleepwalking {
+    pub fn new(speed_mult: f32) -> Self {
+        Self { speed_mult }
+    }
+}
+
 /// Battle Hymn buff granting damage and attack speed bonuses.
 ///
 /// Combat system adds damage_bonus to outgoing damage and scales attack timing.
+/// Talent-specific behaviors are separate components: [`EchoingSong`], [`AnthemResilience`].
 #[derive(Component)]
 pub struct BattleHymnModifier {
     /// Damage bonus as a percentage (e.g., 0.4 = +40% damage).
@@ -1137,10 +1175,6 @@ pub struct BattleHymnModifier {
     pub attack_speed: f32,
     /// Time remaining before the buff expires (in seconds).
     pub time_remaining: f32,
-    /// Echoing Song talent: if > 0, buff re-applies with this duration when it expires.
-    pub echo_duration: f32,
-    /// Anthem of Resilience talent: damage reduction percentage (e.g., 0.3 = 30% less damage taken).
-    pub damage_reduction: f32,
 }
 
 impl BattleHymnModifier {
@@ -1149,29 +1183,46 @@ impl BattleHymnModifier {
             damage_bonus,
             attack_speed,
             time_remaining: duration,
-            echo_duration: 0.0,
-            damage_reduction: 0.0,
         }
     }
 
     pub fn update(&mut self, delta: f32) -> bool {
         self.time_remaining -= delta;
-        if self.time_remaining <= 0.0 {
-            if self.echo_duration > 0.0 {
-                // Echoing Song: re-apply at reduced duration
-                self.time_remaining = self.echo_duration;
-                self.echo_duration = 0.0;
-                false
-            } else {
-                true
-            }
-        } else {
-            false
-        }
+        self.time_remaining <= 0.0
     }
 
     pub fn refresh(&mut self, duration: f32) {
         self.time_remaining = duration;
+    }
+}
+
+/// Echoing Song talent: when BattleHymnModifier expires, re-apply at reduced duration.
+#[derive(Component)]
+pub struct EchoingSong {
+    /// Duration to re-apply when the buff expires.
+    pub echo_duration: f32,
+}
+
+impl EchoingSong {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            echo_duration: duration,
+        }
+    }
+}
+
+/// Anthem of Resilience talent: damage reduction while Battle Hymn is active.
+#[derive(Component)]
+pub struct AnthemResilience {
+    /// Damage reduction percentage (e.g., 0.3 = 30% less damage taken).
+    pub damage_reduction: f32,
+}
+
+impl AnthemResilience {
+    pub fn new(reduction: f32) -> Self {
+        Self {
+            damage_reduction: reduction,
+        }
     }
 }
 

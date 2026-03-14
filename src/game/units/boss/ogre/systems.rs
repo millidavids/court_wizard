@@ -13,7 +13,7 @@ use crate::game::units::components::{
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
     Hitbox, InMelee, Knockback, MovementSpeed, OriginalMaterial, PolymorphedModifier,
     FrozenSolidModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
-    SlowMovementModifier,
+    Sleepwalking, SlowMovementModifier,
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::random_position_in_cell;
@@ -225,7 +225,8 @@ pub fn ogre_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&SleepModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
@@ -249,11 +250,11 @@ pub fn ogre_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
     ) in &mut bosses
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

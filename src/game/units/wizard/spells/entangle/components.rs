@@ -93,8 +93,12 @@ pub(crate) struct EntangleRooted {
     pub total_root_duration: f32,
     /// Whether this unit is a defender.
     pub is_defender: bool,
-    /// Thorny Vines: tick timer for DPS.
-    pub thorny_tick_timer: f32,
     /// Copy of talent params for effect processing.
     pub talent_params: EntangleTalentParams,
+}
+
+/// Thorny Vines talent: deals periodic DPS to rooted enemies.
+#[derive(Component)]
+pub(crate) struct ThornyVines {
+    pub tick_timer: f32,
 }

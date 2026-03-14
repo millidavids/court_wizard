@@ -13,7 +13,7 @@ use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
     HasteModifier, Health, Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier, RootedModifier,
-    FrozenSolidModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    FrozenSolidModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
     SlowMovementModifier, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::systems::create_default_sprite_material;
@@ -197,7 +197,8 @@ pub fn king_movement(
                 Option<&EliteSpeedBonus>,
             ),
             (
-                Option<&SleepModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
                 Option<&BanishedModifier>,
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
@@ -221,11 +222,11 @@ pub fn king_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, banished, _polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, _polymorphed, sickened, frozen),
     ) in &mut king_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

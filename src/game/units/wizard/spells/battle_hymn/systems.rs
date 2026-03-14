@@ -7,7 +7,7 @@ use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{BattleHymnModifier, HasteModifier, Team, TemporaryHitPoints};
+use crate::game::units::components::{AnthemResilience, BattleHymnModifier, EchoingSong, HasteModifier, Team, TemporaryHitPoints};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
@@ -296,10 +296,12 @@ pub(crate) fn apply_battle_hymn_buff(
     }
 
     // Tier 2 echo duration
-    let echo_duration = if t2 == Some(1) { duration * 0.5 } else { 0.0 }; // Echoing Song
+    let has_echoing_song = t2 == Some(1);
+    let echo_duration = if has_echoing_song { duration * 0.5 } else { 0.0 };
 
     // Tier 3 damage reduction
-    let damage_reduction = if t3 == Some(1) { 0.3 } else { 0.0 }; // Anthem of Resilience
+    let has_anthem_resilience = t3 == Some(1);
+    let anthem_reduction = if has_anthem_resilience { 0.3 } else { 0.0 };
 
     // Tier 3: Chorus of Valor ignores radius (buff all defenders)
     let ignore_radius = t3 == Some(2);
@@ -319,14 +321,17 @@ pub(crate) fn apply_battle_hymn_buff(
             if let Some(mut buff) = existing {
                 buff.damage_bonus = damage_bonus;
                 buff.attack_speed = attack_speed;
-                buff.echo_duration = echo_duration;
-                buff.damage_reduction = damage_reduction;
                 buff.refresh(duration);
             } else {
-                let mut modifier = BattleHymnModifier::new(damage_bonus, attack_speed, duration);
-                modifier.echo_duration = echo_duration;
-                modifier.damage_reduction = damage_reduction;
-                commands.entity(entity).insert(modifier);
+                commands.entity(entity).insert(BattleHymnModifier::new(damage_bonus, attack_speed, duration));
+            }
+
+            // Insert/update talent sub-components
+            if has_echoing_song {
+                commands.entity(entity).insert(EchoingSong::new(echo_duration));
+            }
+            if has_anthem_resilience {
+                commands.entity(entity).insert(AnthemResilience::new(anthem_reduction));
             }
 
             // Tier 2: Fortifying Hymn grants 20 temporary HP
@@ -368,5 +373,30 @@ pub(crate) fn apply_battle_hymn_buff(
             crate::game::units::wizard::components::Spell::BattleHymn,
             buffed_count,
         );
+    }
+}
+
+/// Custom tick for BattleHymnModifier that handles EchoingSong re-apply on expiry.
+pub fn update_battle_hymn_modifier(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut BattleHymnModifier, Option<&mut EchoingSong>)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut modifier, echoing_song) in query.iter_mut() {
+        if modifier.update(delta) {
+            // Check for Echoing Song: re-apply at reduced duration
+            if let Some(echo) = echoing_song {
+                modifier.time_remaining = echo.echo_duration;
+                // Consume the echo — only triggers once
+                commands
+                    .entity(entity)
+                    .remove::<EchoingSong>();
+            } else {
+                commands
+                    .entity(entity)
+                    .remove::<(BattleHymnModifier, AnthemResilience)>();
+            }
+        }
     }
 }

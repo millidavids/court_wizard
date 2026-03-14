@@ -32,6 +32,8 @@ pub(super) const NARCOLEPTIC_SPREAD_DELAY: f32 = 3.0;
 pub(super) const NARCOLEPTIC_SPREAD_RADIUS: f32 = 60.0;
 /// Night Terrors: damage per second while sleeping (not enough to wake with Comatose).
 pub(super) const NIGHT_TERRORS_DPS: f32 = 2.0;
+/// Night Terrors: tick interval in seconds.
+pub(super) const NIGHT_TERRORS_TICK_INTERVAL: f32 = 0.5;
 /// Drowsy: cast time multiplier (halved).
 pub(super) const DROWSY_CAST_TIME_MULT: f32 = 0.5;
 /// Drowsy: mana cost multiplier (-25%).

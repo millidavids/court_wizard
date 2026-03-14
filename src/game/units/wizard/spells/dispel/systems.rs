@@ -9,7 +9,7 @@ use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, 
 use crate::game::units::components::MindControlled;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::grease::components::GreaseZone;
+use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
@@ -199,7 +199,7 @@ pub fn update_dispel_impacts(
     wall_of_fire_query: Query<&WallOfFireEffect>,
     wall_of_stone_query: Query<&WallOfStone>,
     spike_growth_query: Query<&SpikeGrowthZone>,
-    grease_query: Query<&GreaseZone>,
+    grease_query: Query<(&GreaseZone, Has<GreaseIgnited>)>,
     meteor_fire_query: Query<&MeteorGroundFire>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mind_controlled_query: Query<
@@ -299,7 +299,7 @@ pub(crate) fn spell_edge_distance(
     wall_of_fire_query: &Query<&WallOfFireEffect>,
     wall_of_stone_query: &Query<&WallOfStone>,
     spike_growth_query: &Query<&SpikeGrowthZone>,
-    grease_query: &Query<&GreaseZone>,
+    grease_query: &Query<(&GreaseZone, Has<GreaseIgnited>)>,
     meteor_fire_query: &Query<&MeteorGroundFire>,
 ) -> f32 {
     // Wall of Fire: line segment with half_width
@@ -332,7 +332,7 @@ pub(crate) fn spell_edge_distance(
     }
 
     // Grease: circular zone
-    if let Ok(zone) = grease_query.get(spell_entity) {
+    if let Ok((zone, _)) = grease_query.get(spell_entity) {
         let dist_to_center =
             ((point.x - zone.origin.x).powi(2) + (point.z - zone.origin.z).powi(2)).sqrt();
         return (dist_to_center - zone.radius).max(0.0);
@@ -360,7 +360,7 @@ pub(crate) fn despawn_spell_effect(
     wall_of_stone_query: &Query<&WallOfStone>,
     wall_of_fire_query: &Query<&WallOfFireEffect>,
     spike_growth_query: &Query<&SpikeGrowthZone>,
-    grease_query: &Query<&GreaseZone>,
+    grease_query: &Query<(&GreaseZone, Has<GreaseIgnited>)>,
     meteor_fire_query: &Query<&MeteorGroundFire>,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
 ) {
@@ -434,8 +434,8 @@ pub(crate) fn despawn_spell_effect(
     }
 
     // Grease -- hazard obstacle when ignited
-    if let Ok(zone) = grease_query.get(spell_entity)
-        && zone.ignited
+    if let Ok((zone, is_ignited)) = grease_query.get(spell_entity)
+        && is_ignited
     {
         let origin_2d = Vec2::new(zone.origin.x, zone.origin.z);
         let buffered_radius = zone.radius + OBSTACLE_BUFFER;

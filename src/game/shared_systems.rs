@@ -421,7 +421,8 @@ pub fn combat(
         Option<&super::units::components::MarkedForDeathModifier>,
         Option<&super::units::components::BerserkerRageModifier>,
         Option<&mut super::units::components::SleepModifier>,
-        Option<&super::units::components::BattleHymnModifier>,
+        Option<&super::units::components::Comatose>,
+        Option<&super::units::components::AnthemResilience>,
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
     )>,
 ) {
@@ -517,7 +518,8 @@ pub fn combat(
                     marked_for_death,
                     berserker_rage_target,
                     mut target_sleeping,
-                    target_battle_hymn,
+                    target_comatose,
+                    target_anthem_resilience,
                     guardian_circle_shielded,
                 )) = health_query.get_mut(*target_entity)
             {
@@ -548,10 +550,8 @@ pub fn combat(
                 }
 
                 // Apply Battle Hymn damage reduction (Anthem of Resilience talent)
-                if let Some(hymn) = target_battle_hymn
-                    && hymn.damage_reduction > 0.0
-                {
-                    modified_damage *= 1.0 - hymn.damage_reduction;
+                if let Some(resilience) = target_anthem_resilience {
+                    modified_damage *= 1.0 - resilience.damage_reduction;
                 }
 
                 // Apply Guardian Circle Sanctuary damage reduction
@@ -576,12 +576,11 @@ pub fn combat(
                     modified_damage *= sleep.bonus_damage_multiplier;
 
                     // Comatose: only wake if damage exceeds threshold
-                    let comatose_blocks_wake = sleep.comatose_threshold > 0.0
-                        && modified_damage < sleep.comatose_threshold * target_health.max;
+                    let comatose_blocks_wake = target_comatose.is_some_and(|c| {
+                        modified_damage < c.wake_threshold * target_health.max
+                    });
 
-                    if comatose_blocks_wake {
-                        // Damage applied but sleep persists
-                    } else {
+                    if !comatose_blocks_wake {
                         post_combat_removes.push((*target_entity, PostCombatAction::RemoveSleep));
                     }
                 }
@@ -596,9 +595,13 @@ pub fn combat(
     for (entity, action) in post_combat_removes {
         match action {
             PostCombatAction::RemoveSleep => {
-                commands
-                    .entity(entity)
-                    .remove::<super::units::components::SleepModifier>();
+                commands.entity(entity).remove::<(
+                    super::units::components::SleepModifier,
+                    super::units::components::NightTerrors,
+                    super::units::components::Comatose,
+                    super::units::components::NarcolepticWave,
+                    super::units::components::Sleepwalking,
+                )>();
             }
         }
     }
@@ -808,7 +811,13 @@ pub fn convert_dead_to_corpses(
                 // New spell modifiers
                 .remove::<super::units::components::MarkedForDeathModifier>()
                 .remove::<super::units::components::SleepModifier>()
+                .remove::<super::units::components::NightTerrors>()
+                .remove::<super::units::components::Comatose>()
+                .remove::<super::units::components::NarcolepticWave>()
+                .remove::<super::units::components::Sleepwalking>()
                 .remove::<super::units::components::BattleHymnModifier>()
+                .remove::<super::units::components::EchoingSong>()
+                .remove::<super::units::components::AnthemResilience>()
                 .remove::<super::units::components::BerserkerRageModifier>()
                 .remove::<super::units::components::FogEvasionModifier>()
                 .remove::<super::units::components::FrozenSolidModifier>()
