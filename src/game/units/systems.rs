@@ -7,11 +7,12 @@ use super::components::{
     SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
 };
 use super::components::{
-    BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
+    Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
     FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled, OriginalMaterial,
     PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
     RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier, SmellyModifier,
     TargetingVelocity, Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
+    FALL_DAMAGE_SCALE,
 };
 use super::constants::{
     ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
@@ -1067,6 +1068,48 @@ pub fn apply_knockback_effects(
 
         transform.translation.x += knockback.direction_x * speed * delta;
         transform.translation.z += knockback.direction_z * speed * delta;
+    }
+}
+
+/// Updates airborne units: applies gravity, offsets Y visually, and deals
+/// velocity-based fall damage on landing. Any system can make a unit airborne
+/// by inserting the `Airborne` component with a launch velocity and gravity.
+pub fn update_airborne_units(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut units: Query<(
+        Entity,
+        &mut Transform,
+        &mut Airborne,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+    )>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut transform, mut airborne, mut health, mut temp_hp) in &mut units {
+        // Apply gravity
+        airborne.vertical_velocity -= airborne.gravity * delta;
+        airborne.height += airborne.vertical_velocity * delta;
+
+        if airborne.height <= 0.0 {
+            // Landed — apply velocity-based fall damage and restore position
+            airborne.height = 0.0;
+            transform.translation.y = airborne.base_y;
+
+            let impact_velocity = airborne.vertical_velocity.abs();
+            let fall_damage = impact_velocity * FALL_DAMAGE_SCALE;
+            if fall_damage > 0.0 {
+                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), fall_damage);
+                commands.entity(entity).insert(PendingDamageEffect {
+                    damage_type: airborne.damage_type,
+                    damage: fall_damage,
+                });
+            }
+            commands.entity(entity).remove::<Airborne>();
+        } else {
+            // Offset the visual Y position during flight
+            transform.translation.y = airborne.base_y + airborne.height;
+        }
     }
 }
 

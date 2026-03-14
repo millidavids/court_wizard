@@ -1516,6 +1516,40 @@ pub struct MindControlled {
 #[derive(Component)]
 pub struct RetaliationTarget(pub Entity);
 
+/// Airborne state for units launched into the air (geyser, explosions, etc.).
+/// Applies gravity, offsets Y visually, and deals velocity-based fall damage on landing.
+/// The unit is rooted separately via `RootedModifier` during flight.
+#[derive(Component)]
+pub struct Airborne {
+    /// Current vertical velocity (positive = upward).
+    pub vertical_velocity: f32,
+    /// Current vertical offset from ground.
+    pub height: f32,
+    /// The unit's original Y position before launch (restored on landing).
+    pub base_y: f32,
+    /// Gravity acceleration applied per second (units/s²).
+    pub gravity: f32,
+    /// Damage type to apply on landing.
+    pub damage_type: DamageType,
+}
+
+impl Airborne {
+    /// Creates a new airborne state with the given launch velocity, gravity, and base Y.
+    pub fn new(launch_velocity: f32, gravity: f32, base_y: f32, damage_type: DamageType) -> Self {
+        Self {
+            vertical_velocity: launch_velocity,
+            height: 0.0,
+            base_y,
+            gravity,
+            damage_type,
+        }
+    }
+}
+
+/// Damage scale factor for fall damage: `damage = abs(impact_velocity) * FALL_DAMAGE_SCALE`.
+/// Calibrated so a geyser launch (200 velocity, 120 gravity → ~200 impact velocity) deals 15 damage.
+pub const FALL_DAMAGE_SCALE: f32 = 0.075;
+
 /// Knockback effect that moves a unit outward over time with decay.
 /// Applied by ogre melee attacks, hag leaps, and meteor aftershock.
 /// Decays linearly for a "tumbling through dirt" feel.

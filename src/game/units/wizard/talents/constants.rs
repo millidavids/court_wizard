@@ -62,7 +62,7 @@ pub(crate) fn progress_metric_label(spell: Spell) -> &'static str {
         Spell::SpikeGrowth => "Enemies damaged in zone",
         Spell::Squall => "Enemies slowed by storm",
         Spell::Sleep => "Enemies put to sleep",
-        Spell::Grease => "Enemies slowed",
+        Spell::Grease => "Enemies slowed or burned",
         Spell::Polymorph => "Enemies polymorphed",
         Spell::MindControl => "Enemies controlled",
         Spell::GuardianCircle => "Units shielded",

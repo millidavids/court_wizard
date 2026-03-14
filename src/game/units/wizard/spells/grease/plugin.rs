@@ -2,7 +2,10 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{GreaseIgnited, GreaseZone};
+use super::components::{
+    GreaseBubble, GreaseIgnited, GreaseRegenerating, GreaseSplatter,
+    GreaseZone, GreaseZonePresenceTracker,
+};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -24,6 +27,8 @@ impl Plugin for GreasePlugin {
                     systems::check_grease_ignition,
                     systems::fade_grease_zone,
                     systems::cleanup_grease_zone,
+                    systems::cleanup_grease_debuffs
+                        .run_if(any_with_component::<GreaseZonePresenceTracker>),
                 )
                     .chain()
                     .run_if(any_exist::<GreaseZone>()),
@@ -35,6 +40,17 @@ impl Plugin for GreasePlugin {
                 )
                     .chain()
                     .run_if(any_exist::<GreaseIgnited>()),
+                // Zone VFX — fumes, bubbles, splatters for non-ignited zones
+                systems::spawn_grease_zone_vfx
+                    .run_if(any_exist::<GreaseZone>()),
+                // Bubble and splatter update systems
+                systems::update_grease_bubbles
+                    .run_if(any_exist::<GreaseBubble>()),
+                systems::update_grease_splatters
+                    .run_if(any_exist::<GreaseSplatter>()),
+                // Endless Oil regeneration — only run when regenerating zones exist
+                systems::update_grease_regeneration
+                    .run_if(any_with_component::<GreaseRegenerating>),
             )
                 .run_if(is_spell_effects_active),
         );

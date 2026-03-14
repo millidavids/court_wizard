@@ -36,6 +36,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::SpikeGrowth => spike_growth_talents(),
         Spell::Squall => squall_talents(),
         Spell::Sleep => sleep_talents(),
+        Spell::Grease => grease_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1327,6 +1328,74 @@ fn sleep_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Eternal Slumber",
                 description: "Enemies that fall asleep below 25% HP never wake up (instant kill).",
                 locked_text: "They drift off peacefully. No refunds. No returns. No waking.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn grease_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Extra Slippery",
+                description: "Slow effect increased by 30%.",
+                locked_text: "MORE slippery. The enemies can barely stand. Comedy gold.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Wider Slick",
+                description: "Zone radius increased by 40%.",
+                locked_text: "Bigger puddle. The wizard should have been a plumber.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Volatile Mixture",
+                description: "When ignited, fire damage increased by 50%.",
+                locked_text: "The grease burns better now. Better for us, not for them.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Slip and Fall",
+                description: "Enemies entering the grease have a 30% chance to fall prone (stunned 1.5s).",
+                locked_text: "They fall down. In the grease. This is the wizard's finest hour.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Oil Slick",
+                description: "Enemies in the grease take 20% more spell damage.",
+                locked_text: "The oil gets in the joints. The armor joints. This is not a massage.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lingering Flames",
+                description: "Ignited grease resets its duration, burning for the full zone lifetime.",
+                locked_text: "Some fires just don't know when to quit. This one never learned.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Chain Combustion",
+                description: "When one grease zone ignites, fire spreads to any other grease zones within double range.",
+                locked_text: "The fires connect. The wizard's arson network is now fully operational.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Grease Geyser",
+                description: "On ignition, grease erupts upward, launching enemies into the air. They take fall damage on landing.",
+                locked_text: "Oil + fire = geyser. The wizard is basically an oil derrick now.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Endless Oil",
+                description: "After burning out, grease zone regenerates over 10 seconds, becoming slippery again. Can be re-ignited.",
+                locked_text: "It comes back. It always comes back. The self-replenishing grease. Disgusting AND effective.",
                 implemented: true,
             },
         ],

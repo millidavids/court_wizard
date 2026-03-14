@@ -1,5 +1,15 @@
 //! Shared visual effect constants.
 
+use bevy::prelude::Quat;
+
+/// Rotation to make a circle mesh (XY plane) lie flat facing upward (XZ plane).
+pub(crate) const UPWARD_ROTATION: Quat = Quat::from_xyzw(
+    -std::f32::consts::FRAC_1_SQRT_2,
+    0.0,
+    0.0,
+    std::f32::consts::FRAC_1_SQRT_2,
+);
+
 // ── Projectile glow ──────────────────────────────────────────────────
 /// Glow sphere is this many times wider than the projectile.
 pub(crate) const GLOW_SIZE_MULTIPLIER: f32 = 2.0;

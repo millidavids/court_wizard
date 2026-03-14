@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.246] - 2026-03-14
+
+### Added
+- **Grease talents** — the Grease spell now has a full talent tree with 9 talents across 3 tiers, unlocked by slowing and burning enemies
+- **Tier 1: Grease modifiers** — choose between 30% stronger slowing, a 40% larger puddle, or 50% more fire damage when ignited
+- **Tier 2: Secondary effects** — choose between a chance to trip enemies when they enter the grease, increased spell damage against greased enemies, or fire that resets the zone's full duration
+- **Tier 3: Powerful upgrades** — choose between chain ignition that spreads fire between nearby grease puddles, an explosive geyser that launches enemies into the air on ignition, or a self-regenerating puddle that reforms after burning out
+- **Grease zone VFX** — grease puddles now have rising fumes, bubbling oil, and edge splatters for a more visceral look
+- **Grease spawn animation** — grease puddles now expand outward when cast instead of appearing instantly
+- **Grease fire VFX** — ignited grease now produces thick orange and black smoke instead of just changing color
+- **Fall damage** — units launched into the air (like by the Grease Geyser talent) now take damage when they land based on how far they fell
+
+### Changed
+- **Grease puddles no longer render on top of units** — the grease circle now always appears beneath units walking through it, instead of occasionally popping in front of them
+
 ## [v0.4.227] - 2026-03-13
 
 ### Changed

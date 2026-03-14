@@ -7,7 +7,7 @@ use super::boss::BossPlugin;
 use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
-    BerserkerRageModifier, FacingDirection, FogEvasionModifier,
+    Airborne, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
     FrostEffectMarker, FrozenSolidModifier, HasteModifier, Knockback, MarkedForDeathModifier,
     PoisonedModifier, RootedModifier, SickenedModifier, SlowMovementModifier,
     SmellyModifier, TemporaryHitPoints, WalkingAnimation,
@@ -93,10 +93,14 @@ impl Plugin for UnitsPlugin {
         )
         .add_systems(
             Update,
-            systems::apply_knockback_effects
+            (
+                systems::apply_knockback_effects
+                    .run_if(any_with_component::<Knockback>),
+                systems::update_airborne_units
+                    .run_if(any_with_component::<Airborne>),
+            )
                 .after(ApplyTransformsSet)
-                .run_if(is_gameplay_running)
-                .run_if(any_with_component::<Knockback>),
+                .run_if(is_gameplay_running),
         )
         .add_systems(
             Update,

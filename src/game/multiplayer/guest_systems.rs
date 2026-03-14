@@ -572,13 +572,15 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::GreaseZone => {
             let radius = extra[0];
             let duration = extra[1];
-            let material = materials.add(materials.get(&assets.grease_zone)?.clone());
+            let mut base_mat = materials.get(&assets.grease_zone)?.clone();
+            base_mat.alpha_mode = bevy::render::alpha::AlphaMode::Mask(0.01);
+            let material = materials.add(base_mat);
             Some(
                 commands
                     .spawn((
                         Mesh3d(assets.unit_circle.clone()),
                         MeshMaterial3d(material),
-                        Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
+                        Transform::from_translation(Vec3::new(pos.x, 2.0, pos.z))
                             .with_rotation(flat_rotation)
                             .with_scale(Vec3::splat(radius)),
                         GreaseZone::new(
@@ -592,6 +594,7 @@ pub(super) fn spawn_spell_effect(
                             0.0,
                             0.0,
                             1.0,
+                            Default::default(),
                         ),
                         OnMultiplayerGameScreen,
                     ))

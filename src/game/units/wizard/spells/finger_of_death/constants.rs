@@ -2,14 +2,6 @@ use bevy::prelude::*;
 
 use crate::game::units::wizard::components::{PrimedSpell, Spell};
 
-/// Rotation to make a quad lie flat on the ground (XZ plane).
-pub(super) const UPWARD_ROTATION: Quat = Quat::from_xyzw(
-    -std::f32::consts::FRAC_1_SQRT_2,
-    0.0,
-    0.0,
-    std::f32::consts::FRAC_1_SQRT_2,
-);
-
 pub const PRIMED_FINGER_OF_DEATH: PrimedSpell = PrimedSpell {
     spell: Spell::FingerOfDeath,
     cast_time: CAST_TIME,

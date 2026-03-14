@@ -20,6 +20,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, get_cursor_world_position};
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 
@@ -649,7 +650,7 @@ pub fn apply_finger_of_death_damage(
                     Mesh3d(visual_assets.particle_quad.clone()),
                     MeshMaterial3d(instance),
                     Transform::from_translation(ground_pos)
-                        .with_rotation(constants::UPWARD_ROTATION)
+                        .with_rotation(UPWARD_ROTATION)
                         .with_scale(Vec3::splat(constants::VEIN_SIZE)),
                     OnGameplayScreen,
                 ));
@@ -676,7 +677,7 @@ pub fn apply_finger_of_death_damage(
                 constants::PULSE_Y_POSITION,
                 beam_origin.z,
             ))
-            .with_rotation(constants::UPWARD_ROTATION)
+            .with_rotation(UPWARD_ROTATION)
             .with_scale(Vec3::splat(1.0)),
             OnGameplayScreen,
         ));
@@ -778,7 +779,7 @@ fn spawn_necrotic_explosion(
         Mesh3d(visual_assets.unit_circle.clone()),
         MeshMaterial3d(instance),
         Transform::from_translation(Vec3::new(position.x, constants::PULSE_Y_POSITION, position.z))
-            .with_rotation(constants::UPWARD_ROTATION)
+            .with_rotation(UPWARD_ROTATION)
             .with_scale(Vec3::splat(1.0)),
         OnGameplayScreen,
     ));

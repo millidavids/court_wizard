@@ -176,6 +176,14 @@ pub struct SpellVisualAssets {
     pub missile_glow: Handle<StandardMaterial>,
     pub missile_sparkle: Handle<StandardMaterial>,
 
+    // ── Grease VFX materials ─────────────────────────────────────────────
+    /// Yellowish-brown fume wisp rising off grease zones.
+    pub grease_fume: Handle<StandardMaterial>,
+    /// Translucent dark brown bubble particle for grease zones.
+    pub grease_bubble: Handle<StandardMaterial>,
+    /// Dark brown splatter particle for grease zone edges.
+    pub grease_splatter: Handle<StandardMaterial>,
+
     // ── Mark of Death materials ───────────────────────────────────────────
     pub mark_indicator: Handle<StandardMaterial>,
 
@@ -240,7 +248,7 @@ pub fn init_spell_visual_assets(
         healing_plume_indicator: materials.add(unlit_blend(Color::srgba(0.2, 0.8, 0.3, 0.3))),
         entangle_indicator: materials.add(unlit_blend(Color::srgba(0.1, 0.7, 0.2, 0.3))),
         fog_cloud_indicator: materials.add(unlit_blend(Color::srgba(0.7, 0.75, 0.8, 0.3))),
-        grease_indicator: materials.add(unlit_blend(Color::srgba(0.5, 0.45, 0.1, 0.3))),
+        grease_indicator: materials.add(unlit_blend(Color::srgba(0.25, 0.2, 0.05, 0.45))),
         plague_wind_indicator: materials.add(unlit_blend(Color::srgba(0.3, 0.8, 0.1, 0.3))),
         arcane_crystal_indicator: materials.add(unlit_blend(Color::srgba(0.5, 0.2, 0.8, 0.3))),
         lightning_rod_indicator: materials.add(unlit_blend(Color::srgba(0.7, 0.85, 1.0, 0.4))),
@@ -503,6 +511,11 @@ pub fn init_spell_visual_assets(
             cull_mode: None,
             ..default()
         }),
+
+        // Grease fume wisps (yellowish-brown vapor rising off grease)
+        grease_fume: materials.add(unlit_blend(Color::srgba(0.4, 0.35, 0.1, 0.35))),
+        grease_bubble: materials.add(unlit_blend(Color::srgba(0.35, 0.3, 0.08, 0.45))),
+        grease_splatter: materials.add(unlit_blend(Color::srgba(0.3, 0.22, 0.05, 0.5))),
 
         // Mark of Death indicator (purple circle above marked unit)
         mark_indicator: materials.add(StandardMaterial {
@@ -834,6 +847,10 @@ impl SpellVisualAssets {
             &self.dust_smoke,
             &self.dust_smoke_light,
             &self.dust_smoke_dark,
+            // Grease VFX
+            &self.grease_fume,
+            &self.grease_bubble,
+            &self.grease_splatter,
             // Mark of Death
             &self.mark_indicator,
             // Arrow indicator

@@ -26,15 +26,8 @@ use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
-
-/// Rotation quaternion to make a circle mesh lie flat on the XZ plane.
-const UPWARD_ROTATION: Quat = Quat::from_xyzw(
-    -std::f32::consts::FRAC_1_SQRT_2,
-    0.0,
-    0.0,
-    std::f32::consts::FRAC_1_SQRT_2,
-);
 
 /// Computes the mark indicator pulse scale factor based on elapsed time.
 fn mark_pulse_scale(elapsed_secs: f32) -> f32 {
