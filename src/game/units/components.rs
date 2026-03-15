@@ -1420,6 +1420,8 @@ pub struct PolymorphedModifier {
     pub original_health_max: f32,
     /// Original material handle to restore on revert.
     pub original_material: Handle<StandardMaterial>,
+    /// Original team to restore on revert.
+    pub original_team: Team,
 }
 
 impl PolymorphedModifier {
@@ -1428,12 +1430,14 @@ impl PolymorphedModifier {
         health_current: f32,
         health_max: f32,
         material: Handle<StandardMaterial>,
+        team: Team,
     ) -> Self {
         Self {
             time_remaining: duration,
             original_health_current: health_current,
             original_health_max: health_max,
             original_material: material,
+            original_team: team,
         }
     }
 

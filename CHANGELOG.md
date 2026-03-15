@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.262] - 2026-03-15
+
+### Added
+- **Polymorph talents** — the Polymorph spell now has a full talent tree with 9 talents across 3 tiers, unlocked by polymorphing enemies
+- **Tier 1: Polymorph modifiers** — choose between a longer 14-second transformation, fragile sheep with very low health, or a 40% faster cast time
+- **Tier 2: Secondary effects** — choose between explosive sheep that detonate on death for area damage, contagious polymorph that jumps to the nearest unit when it expires (and keeps jumping forever), or turning enemies into panicked pigs that flee at high speed
+- **Tier 3: Powerful upgrades** — choose between making the transformation permanent if the sheep survives its full duration, transforming all enemies in an area at once for a steep mana cost, or summoning a friendly battle sheep with high health that headbutts enemies
+
 ## [v0.4.246] - 2026-03-14
 
 ### Added

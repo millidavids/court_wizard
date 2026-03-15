@@ -37,6 +37,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Squall => squall_talents(),
         Spell::Sleep => sleep_talents(),
         Spell::Grease => grease_talents(),
+        Spell::Polymorph => polymorph_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1396,6 +1397,74 @@ fn grease_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Endless Oil",
                 description: "After burning out, grease zone regenerates over 10 seconds, becoming slippery again. Can be re-ignited.",
                 locked_text: "It comes back. It always comes back. The self-replenishing grease. Disgusting AND effective.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn polymorph_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Extended Transformation",
+                description: "Polymorph duration increased to 14 seconds.",
+                locked_text: "More time as a sheep. The enemy's wool production is off the charts.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Fragile Form",
+                description: "Sheep HP reduced to 5 (from 20). Much easier to kill.",
+                locked_text: "A very fragile sheep. One good sneeze and it's over.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Shapeshift",
+                description: "Cast time reduced by 40%.",
+                locked_text: "Baa faster. Wait, that's not-- cast faster.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Explosive Sheep",
+                description: "If the sheep is killed, it explodes for medium AoE damage.",
+                locked_text: "The sheep explodes. Nobody expected the sheep to explode. NOBODY.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Contagious Baas",
+                description: "When the polymorph expires, it jumps to the nearest unit. Keeps jumping forever.",
+                locked_text: "Sheep making more sheep. The wizard has created a woolen pyramid scheme.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Pig Form",
+                description: "Target becomes a pig instead. Pig runs away from combat at high speed.",
+                locked_text: "Not a sheep? A pig? The wizard is branching out into animal husbandry.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Permanent Livestock",
+                description: "If the sheep survives its full duration, the transformation is permanent.",
+                locked_text: "The sheep IS the enemy now. It lives on the farm. It seems happy, actually.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Mass Polymorph",
+                description: "Transforms all enemies in a small radius into sheep. Very high mana cost.",
+                locked_text: "An entire flock. The wizard has become a shepherd. A very aggressive shepherd.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Dire Sheep",
+                description: "The sheep is friendly, has 200 HP, and headbutts enemies for moderate damage.",
+                locked_text: "It's a BATTLE sheep. Big horns. Bad attitude. The enemies are deeply confused.",
                 implemented: true,
             },
         ],
