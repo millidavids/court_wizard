@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use bevy::prelude::*;
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
 use super::components::{
     ContagiousBaas, DireSheep, ExplosiveSheep, PermanentLivestock, PigForm,
@@ -19,7 +19,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{
+    clamp_cursor_to_spell_range, get_cursor_world_position,
+};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 
@@ -164,7 +166,7 @@ pub fn handle_polymorph_casting(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
-        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
+        (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -185,21 +187,24 @@ pub fn handle_polymorph_casting(
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
     let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let raw_cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
 
-    let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
+    let Ok((_wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
+        wizard_query.single_mut()
     else {
         return;
     };
     if primed_spell.spell != Spell::Polymorph {
         return;
     }
+
+    let cursor_pos = clamp_cursor_to_spell_range(raw_cursor_pos, wizard.spell_range, 0.0);
+    let input = WizardInput {
+        just_pressed: true,
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    };
 
     let talent_params = compute_talent_params(active_talents.as_deref());
 

@@ -79,6 +79,7 @@ pub struct SpellVisualAssets {
     pub teleport_destination: Handle<StandardMaterial>,
     pub teleport_source: Handle<StandardMaterial>,
     pub telekinesis_indicator: Handle<StandardMaterial>,
+    pub mind_control_indicator: Handle<StandardMaterial>,
 
     // ── Object materials ─────────────────────────────────────────────────
     pub black_hole: Handle<StandardMaterial>,
@@ -260,6 +261,9 @@ pub fn init_spell_visual_assets(
         teleport_destination: materials.add(unlit_blend(Color::srgba(0.0, 0.6, 1.0, 0.25))),
         teleport_source: materials.add(unlit_blend(Color::srgba(0.0, 0.8, 1.0, 0.35))),
         telekinesis_indicator: materials.add(unlit_blend(Color::srgba(0.6, 0.9, 1.0, 0.7))),
+        mind_control_indicator: materials.add(unlit_blend(
+            super::mind_control::constants::INDICATOR_COLOR,
+        )),
 
         // Object materials
         black_hole: materials.add(StandardMaterial {
@@ -782,6 +786,7 @@ impl SpellVisualAssets {
             &self.teleport_destination,
             &self.teleport_source,
             &self.telekinesis_indicator,
+            &self.mind_control_indicator,
             // Objects
             &self.black_hole,
             &self.black_hole_billboard,

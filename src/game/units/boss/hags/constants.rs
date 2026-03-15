@@ -125,8 +125,8 @@ pub const MIND_CONTROL_AURA_RADIUS: f32 = 100.0;
 pub const MIND_CONTROL_MAX_CONTROLLED: u32 = 20;
 /// Martina's aura color (translucent purple).
 pub const MIND_CONTROL_AURA_COLOR: Color = Color::srgba(0.7, 0.2, 1.0, 0.15);
-/// Damage dealt by mind-controlled units per attack.
-pub const MIND_CONTROL_COMBAT_DAMAGE: f32 = 5.0;
+/// Damage dealt by mind-controlled units per attack (re-export from mind_control spell).
+pub use crate::game::units::wizard::spells::mind_control::constants::COMBAT_DAMAGE as MIND_CONTROL_COMBAT_DAMAGE;
 /// Range at which Josephina will seek a corpse to consume.
 pub const CORPSE_CONSUME_RANGE: f32 = 60.0;
 /// Health threshold (fraction of max) below which Josephina will consume corpses.

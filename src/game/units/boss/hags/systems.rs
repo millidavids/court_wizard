@@ -1558,6 +1558,7 @@ pub fn martina_mind_control(
                         time_elapsed: 0.0,
                         wear_off_duration: 300.0, // 5 minutes
                         original_spawn_pos,
+                        damage_multiplier: 1.0,
                     },
                     FlowFieldInfluence::Attacker,
                 ));
@@ -1616,15 +1617,26 @@ pub fn update_mind_controlled_targeting(
 
 /// Updates mind control wear-off timer — removes when duration expires.
 /// Also cleans up RetaliationTarget components that point at freed entities.
+/// Handles talent on-expiry effects: Amnesia (confused state) and Sleeper Agent (delayed betrayal).
 pub fn update_mind_control_wear_off(
     time: Res<Time>,
     mut commands: Commands,
-    mut controlled: Query<(Entity, &mut MindControlled)>,
+    mut controlled: Query<(
+        Entity,
+        &mut MindControlled,
+        Has<crate::game::units::wizard::spells::mind_control::components::AmnesiaOnExpiry>,
+        Has<crate::game::units::wizard::spells::mind_control::components::SleeperAgentPending>,
+    )>,
     retaliators: Query<(Entity, &RetaliationTarget)>,
 ) {
+    use crate::game::units::wizard::spells::mind_control::components::{
+        AmnesiaEffect, SleeperAgentActive,
+    };
+    use crate::game::units::wizard::spells::mind_control::constants;
+
     let delta = time.delta_secs();
 
-    for (entity, mut mc) in &mut controlled {
+    for (entity, mut mc, has_amnesia, has_sleeper) in &mut controlled {
         mc.time_elapsed += delta;
 
         if mc.time_elapsed >= mc.wear_off_duration {
@@ -1636,6 +1648,26 @@ pub fn update_mind_control_wear_off(
             }
 
             commands.entity(entity).remove::<MindControlled>();
+
+            // Clean up talent marker components
+            crate::game::units::wizard::spells::mind_control::systems::strip_mind_control_talent_components(
+                &mut commands, entity,
+            );
+
+            // Amnesia: apply confused state on expiry
+            if has_amnesia {
+                commands.entity(entity).insert(AmnesiaEffect {
+                    time_remaining: constants::AMNESIA_DURATION,
+                });
+            }
+
+            // Sleeper Agent: start delayed betrayal timer
+            if has_sleeper {
+                commands.entity(entity).insert(SleeperAgentActive {
+                    delay_remaining: constants::SLEEPER_AGENT_DELAY,
+                    damage_multiplier: constants::SLEEPER_AGENT_DAMAGE_MULT,
+                });
+            }
 
             // Remove RetaliationTarget from any units retaliating against this entity
             for (retaliator_entity, retaliation) in &retaliators {
@@ -1678,9 +1710,9 @@ pub fn mind_controlled_combat(
     >,
 ) {
     let current_time = attack_cycle.current_time;
-    let last_time = current_time - 0.016; // approximate last frame
+    let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
 
-    for (mc_entity, mc_transform, mc_hitbox, mc_team, mut timing, _mc) in &mut controlled {
+    for (mc_entity, mc_transform, mc_hitbox, mc_team, mut timing, mc) in &mut controlled {
         if !timing.can_attack(current_time, last_time) {
             continue;
         }
@@ -1705,10 +1737,11 @@ pub fn mind_controlled_combat(
             let attack_range = (mc_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
 
             if dist <= attack_range {
+                let damage = MIND_CONTROL_COMBAT_DAMAGE * mc.damage_multiplier;
                 apply_damage_to_unit(
                     &mut health,
                     temp_hp.as_deref_mut(),
-                    MIND_CONTROL_COMBAT_DAMAGE,
+                    damage,
                 );
                 timing.last_attack_time = Some(current_time);
 

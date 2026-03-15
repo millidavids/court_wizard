@@ -38,6 +38,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Sleep => sleep_talents(),
         Spell::Grease => grease_talents(),
         Spell::Polymorph => polymorph_talents(),
+        Spell::MindControl => mind_control_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1465,6 +1466,74 @@ fn polymorph_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Dire Sheep",
                 description: "The sheep is friendly, has 200 HP, and headbutts enemies for moderate damage.",
                 locked_text: "It's a BATTLE sheep. Big horns. Bad attitude. The enemies are deeply confused.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn mind_control_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Iron Will",
+                description: "All mind control effects last 40% longer.",
+                locked_text: "Longer control. The wizard's grip on their mind is uncomfortably firm.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Deep Domination",
+                description: "Controlled units deal 25% more damage.",
+                locked_text: "They fight harder for you than they ever fought for themselves. That's either inspiring or depressing.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Subjugation",
+                description: "Cast time reduced by 40%.",
+                locked_text: "Faster mind control. Consent is not a factor. Neither is ethics class.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Puppet Master",
+                description: "Max controlled units increased to 5.",
+                locked_text: "More puppets. The wizard's hand is getting tired. Metaphorically. Mind-hands don't cramp.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Traitor's Mark",
+                description: "Controlled enemies cause nearby enemies to take 15% more damage (demoralization).",
+                locked_text: "Their friends turned on them. That hurts. Also the swords hurt. Everything hurts.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Amnesia",
+                description: "When mind control ends, the target is confused for 3 seconds (attacks random targets).",
+                locked_text: "They forgot which side they were on. Then they forgot what 'sides' are.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Dominate",
+                description: "Controlled unit is permanent until it dies. Only one permanent unit at a time.",
+                locked_text: "They work for you now. Forever. The wizard skipped the part about 'temporary' in the spellbook.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Mass Hysteria",
+                description: "All enemies in a radius attack each other for 4 seconds. Not true mind control. Costs all your mana.",
+                locked_text: "Everyone fights everyone. It's like Black Friday but with swords.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Sleeper Agent",
+                description: "Controlled enemy appears normal when MC ends, but betrays allies after 5 seconds with a 200% damage attack.",
+                locked_text: "Trust issues: the spell. They look normal. They seem fine. They are NOT fine.",
                 implemented: true,
             },
         ],

@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use super::components::MindControlCooldown;
+use super::components::{
+    AmnesiaEffect, Demoralized, MassHysteriaTarget, MindControlCooldown, SleeperAgentActive,
+    TraitorsMarkAura,
+};
 use super::systems;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
@@ -45,6 +48,41 @@ impl Plugin for MindControlPlugin {
             crate::game::units::boss::hags::systems::cleanup_retaliation_targets
                 .run_if(is_gameplay_running)
                 .run_if(any_with_component::<RetaliationTarget>),
+        )
+        // Talent behavior systems
+        .add_systems(
+            Update,
+            systems::update_traitors_mark_aura
+                .run_if(is_gameplay_running)
+                .run_if(
+                    any_with_component::<TraitorsMarkAura>
+                        .or(any_with_component::<Demoralized>),
+                ),
+        )
+        .add_systems(
+            Update,
+            systems::update_mass_hysteria_targeting
+                .after(VelocitySystemSet)
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<MassHysteriaTarget>),
+        )
+        .add_systems(
+            Update,
+            systems::tick_mass_hysteria
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<MassHysteriaTarget>),
+        )
+        .add_systems(
+            Update,
+            systems::tick_amnesia_effect
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<AmnesiaEffect>),
+        )
+        .add_systems(
+            Update,
+            systems::tick_sleeper_agent
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<SleeperAgentActive>),
         );
     }
 }

@@ -24,8 +24,8 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::Squall => [20, 100, 500],
         Spell::Sleep => [15, 50, 150],
         Spell::Grease => [20, 70, 200],
-        Spell::Polymorph => [1, 2, 3],
-        Spell::MindControl => [10, 35, 100],
+        Spell::Polymorph => [10, 50, 100],
+        Spell::MindControl => [1, 2, 3],
         // Support spells
         Spell::GuardianCircle => [20, 70, 200],
         Spell::Haste => [20, 70, 200],

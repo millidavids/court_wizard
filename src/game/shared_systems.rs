@@ -407,6 +407,7 @@ pub fn combat(
                 Option<&RetaliationTarget>,
                 Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
                 Has<super::units::infantry::components::Retreating>,
+                Has<super::units::wizard::spells::mind_control::components::MassHysteriaTarget>,
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -419,6 +420,7 @@ pub fn combat(
         // New spell modifiers on target side
         Option<&super::units::components::FogEvasionModifier>,
         Option<&super::units::components::MarkedForDeathModifier>,
+        Option<&super::units::wizard::spells::mind_control::components::Demoralized>,
         Option<&super::units::components::BerserkerRageModifier>,
         Option<&mut super::units::components::SleepModifier>,
         Option<&super::units::components::Comatose>,
@@ -463,7 +465,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, or retreating
@@ -478,7 +480,9 @@ pub fn combat(
             .iter()
             .filter(|(entity, _, _, team)| {
                 *entity != attacker_entity
-                    && (retaliation_entity == Some(*entity) || attacker_team.is_enemy(team))
+                    && (has_mass_hysteria
+                        || retaliation_entity == Some(*entity)
+                        || attacker_team.is_enemy(team))
             })
             .filter_map(|(entity, target_pos, target_hitbox, _)| {
                 let dx = attacker_transform.translation.x - target_pos.x;
@@ -516,6 +520,7 @@ pub fn combat(
                     target_resistance,
                     fog_evasion,
                     marked_for_death,
+                    demoralized,
                     berserker_rage_target,
                     mut target_sleeping,
                     target_comatose,
@@ -564,6 +569,11 @@ pub fn combat(
                 // Apply target's Mark of Death amplification
                 if let Some(mark) = marked_for_death {
                     modified_damage *= 1.0 + mark.damage_amplification;
+                }
+
+                // Apply Traitor's Mark demoralization
+                if let Some(demoralized) = demoralized {
+                    modified_damage *= 1.0 + demoralized.damage_amplification;
                 }
 
                 // Apply target's Berserker Rage vulnerability
@@ -826,6 +836,14 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::PoisonedModifier>()
                 .remove::<super::units::components::SickenedModifier>()
                 .remove::<super::units::components::SmellyModifier>()
+                .remove::<super::units::wizard::spells::mind_control::components::TraitorsMarkAura>()
+                .remove::<super::units::wizard::spells::mind_control::components::Demoralized>()
+                .remove::<super::units::wizard::spells::mind_control::components::AmnesiaOnExpiry>()
+                .remove::<super::units::wizard::spells::mind_control::components::AmnesiaEffect>()
+                .remove::<super::units::wizard::spells::mind_control::components::DominatedUnit>()
+                .remove::<super::units::wizard::spells::mind_control::components::MassHysteriaTarget>()
+                .remove::<super::units::wizard::spells::mind_control::components::SleeperAgentPending>()
+                .remove::<super::units::wizard::spells::mind_control::components::SleeperAgentActive>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>()

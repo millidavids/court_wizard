@@ -1512,6 +1512,8 @@ pub struct MindControlled {
     pub wear_off_duration: f32,
     /// Original defender spawn position for restoring flow field on wear-off.
     pub original_spawn_pos: Option<Vec2>,
+    /// Damage multiplier for controlled unit's attacks (Deep Domination talent).
+    pub damage_multiplier: f32,
 }
 
 /// Marks a unit as wanting to retaliate against a specific entity.

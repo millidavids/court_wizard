@@ -35,6 +35,7 @@ use crate::game::constants::{
     MELEE_SLOWDOWN_FACTOR, STEERING_FORCE, VELOCITY_DAMPING,
 };
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::units::wizard::spells::mind_control::components::MassHysteriaTarget;
 use crate::game::units::wizard::archetypes::meteorologist::components::{
     BurningPatch, ChargedModifier, ColdModifier, DryModifier, WetModifier,
 };
@@ -719,6 +720,7 @@ pub fn update_persistent_effect_visuals(
             Has<RemoteFrostEffect>,
             Has<RemoteElectricEffect>,
             Has<MindControlled>,
+            Has<MassHysteriaTarget>,
             Option<&OriginalMaterial>,
             Has<PoisonedModifier>,
             Has<SickenedModifier>,
@@ -732,6 +734,7 @@ pub fn update_persistent_effect_visuals(
             With<RemoteFrostEffect>,
             With<RemoteElectricEffect>,
             With<MindControlled>,
+            With<MassHysteriaTarget>,
             With<OriginalMaterial>,
             With<PoisonedModifier>,
             With<SickenedModifier>,
@@ -760,6 +763,7 @@ pub fn update_persistent_effect_visuals(
         remote_frost,
         remote_electric,
         has_mind_control,
+        has_mass_hysteria,
         original_mat,
         has_poisoned,
         has_sickened,
@@ -769,10 +773,11 @@ pub fn update_persistent_effect_visuals(
         let has_fire = fire.is_some() || remote_fire;
         let has_frost = frost.is_some() || remote_frost;
         let has_electric = electric.is_some() || remote_electric;
+        let has_mc_visual = has_mind_control || has_mass_hysteria;
         let has_any_effect = has_fire
             || has_frost
             || has_electric
-            || has_mind_control
+            || has_mc_visual
             || has_poisoned
             || has_sickened
             || has_smelly;
@@ -821,7 +826,7 @@ pub fn update_persistent_effect_visuals(
                 result_linear = result_linear.mix(&electric_linear, intensity);
             }
 
-            if has_mind_control {
+            if has_mc_visual {
                 result_linear = result_linear.mix(&mc_linear, MIND_CONTROL_EFFECT_INTENSITY);
             }
 

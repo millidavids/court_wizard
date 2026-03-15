@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.281] - 2026-03-15
+
+### Added
+- **Mind Control talents** — the Mind Control spell now has a full talent tree with 9 talents across 3 tiers, unlocked by mind-controlling enemies
+- **Tier 1: Mind Control modifiers** — choose between 40% longer effect duration on all mind control effects, controlled units dealing 25% more damage, or a 40% faster cast time
+- **Tier 2: Secondary effects** — choose between controlling up to 5 units at once instead of 3, a demoralizing aura around controlled units that makes nearby enemies take more damage, or a confused state after mind control ends where the unit attacks random targets
+- **Tier 3: Powerful upgrades** — choose between permanently taking over a single enemy, unleashing mass hysteria in a large area where all affected enemies attack anything near them regardless of team, or planting a sleeper agent that appears normal but betrays its allies with a surprise attack after a delay
+- **Mass Hysteria indicator** — casting Mass Hysteria now shows a purple ring showing the area of effect while aiming
+
+### Changed
+- **Mind Control and Polymorph respect wizard range** — both spells now properly limit targeting to the wizard's spell range, preventing casting on enemies too far away
+
 ## [v0.4.262] - 2026-03-15
 
 ### Added
