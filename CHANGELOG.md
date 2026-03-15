@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.296] - 2026-03-15
+
+### Added
+- **Haste talents** — the Haste spell now has a full talent tree with 9 talents across 3 tiers, unlocked by buffing units with Haste
+- **Tier 1: Haste modifiers** — choose between 40% stronger speed boost, 50% longer buff duration, or 50% faster cast time
+- **Tier 2: Secondary effects** — choose between hasted units also attacking 20% faster, a damage bonus that kicks in for 2 seconds after the speed buff expires, or hasted units dodging the first attack against them
+- **Tier 3: Powerful upgrades** — choose between doubling all speed and attack bonuses at the cost of halving the duration, leaving behind a slow field that slows all non-hasted units in the area, or the buff jumping to the nearest un-hasted ally when it expires (up to 4 jumps, losing effectiveness each time)
+
 ## [v0.4.281] - 2026-03-15
 
 ### Added

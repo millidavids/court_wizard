@@ -932,10 +932,9 @@ pub fn apply_enrage_to_last_hag(
     for (entity, _) in &hags {
         // Only add haste if not already enraged
         if existing_haste.get(entity).is_err() {
-            commands.entity(entity).insert(HasteModifier {
-                modifier: ENRAGE_SPEED_BONUS,
-                time_remaining: f32::MAX, // Permanent
-            });
+            commands
+                .entity(entity)
+                .insert(HasteModifier::new(ENRAGE_SPEED_BONUS, f32::MAX));
         }
     }
 }

@@ -126,6 +126,7 @@ pub fn setup_battlefield(
         Transform::from_translation(LEFT_WALL_POSITION),
         LeftWall,
     );
+
 }
 
 /// Spawns a textured wall backdrop as a vertical rectangle.

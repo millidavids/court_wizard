@@ -39,6 +39,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Grease => grease_talents(),
         Spell::Polymorph => polymorph_talents(),
         Spell::MindControl => mind_control_talents(),
+        Spell::Haste => haste_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1540,6 +1541,74 @@ fn mind_control_talents() -> [[TalentDefinition; 3]; 3] {
     ]
 }
 
+fn haste_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Alacrity",
+                description: "Speed bonus increased by 40%.",
+                locked_text: "Faster fast. The fasting of the fast. Fast.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Extended Rush",
+                description: "Buff duration increased by 50%.",
+                locked_text: "They stay fast for longer. The wizard invented caffeine, basically.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Cast",
+                description: "Cast time reduced by 50%.",
+                locked_text: "Casting a speed spell... faster. The irony is not lost on the wizard.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Adrenaline Surge",
+                description: "Hasted units also gain +20% attack speed.",
+                locked_text: "They move fast AND hit fast. They're basically hummingbirds with swords.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Momentum",
+                description: "Hasted units deal 25% more damage for 2 seconds after the buff ends.",
+                locked_text: "Newton's first law: a soldier in motion stays in motion. And hits harder.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Fleet Feet",
+                description: "Hasted units dodge the first attack made against them.",
+                locked_text: "So fast the attacks miss. Honestly, this feels like cheating.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Time Warp",
+                description: "Hasted units take their turns twice as fast (double attack speed AND movement). Duration halved.",
+                locked_text: "Speeding up time itself. The wizard's calendar just had a panic attack.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Slow Zone",
+                description: "Haste also creates a lingering slow field on the ground for enemies. Speed buff for allies, slow for enemies in the same zone.",
+                locked_text: "Fast friends, slow enemies. The wizard's approach to time management.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Chain Haste",
+                description: "When the buff expires, it jumps to the nearest un-hasted ally. Loses 20% effectiveness per jump. Up to 4 jumps.",
+                locked_text: "The speed is contagious. Patient zero is doing laps around the castle.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
 fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
     // Generate thematic placeholder names based on spell type
     let (t1, t2, t3) = placeholder_names(spell);
@@ -1699,9 +1768,9 @@ fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'
             ["Impenetrable Dome", "Guardian Angel", "Sanctuary"],
         ),
         Spell::Haste => (
-            ["Longer Duration", "Faster Speed", "Wider Zone"],
-            ["Time Warp", "Adrenaline Rush", "Lightning Reflexes"],
-            ["Time Stop", "Infinite Speed", "Temporal Mastery"],
+            ["Alacrity", "Extended Rush", "Quick Cast"],
+            ["Adrenaline Surge", "Momentum", "Fleet Feet"],
+            ["Time Warp", "Slow Zone", "Chain Haste"],
         ),
         Spell::Teleport => (
             ["Wider Area", "Longer Range", "Quick Shift"],

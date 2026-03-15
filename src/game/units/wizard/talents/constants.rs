@@ -25,10 +25,10 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::Sleep => [15, 50, 150],
         Spell::Grease => [20, 70, 200],
         Spell::Polymorph => [10, 50, 100],
-        Spell::MindControl => [1, 2, 3],
+        Spell::MindControl => [10, 50, 100],
         // Support spells
         Spell::GuardianCircle => [20, 70, 200],
-        Spell::Haste => [20, 70, 200],
+        Spell::Haste => [1, 2, 3],
         Spell::Teleport => [15, 50, 150],
         Spell::RaiseTheDead => [15, 50, 150],
         Spell::HealingPlume => [30, 100, 300],

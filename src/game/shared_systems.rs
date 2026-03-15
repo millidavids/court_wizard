@@ -408,6 +408,8 @@ pub fn combat(
                 Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
                 Has<super::units::infantry::components::Retreating>,
                 Has<super::units::wizard::spells::mind_control::components::MassHysteriaTarget>,
+                Option<&super::units::components::HasteModifier>,
+                Option<&super::units::wizard::spells::haste::components::MomentumBuff>,
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -426,6 +428,7 @@ pub fn combat(
         Option<&super::units::components::Comatose>,
         Option<&super::units::components::AnthemResilience>,
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
+        Option<&super::units::wizard::spells::haste::components::FleetFeet>,
     )>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -435,7 +438,7 @@ pub fn combat(
     let mut units_snapshot: Vec<_> = all_units
         .iter()
         .map(
-            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _, _)| {
+            |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _, (..))| {
                 (entity, transform.translation, *hitbox, *team)
             },
         )
@@ -465,7 +468,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, or retreating
@@ -498,8 +501,9 @@ pub fn combat(
             })
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
-            // Calculate effective attack speed (BattleHymn + cauldron buff for defenders)
-            let mut attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed);
+            // Calculate effective attack speed (BattleHymn + Haste + cauldron buff for defenders)
+            let mut attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed)
+                + haste_modifier.map_or(0.0, |h| h.attack_speed);
             if *attacker_team == Team::Defenders {
                 let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
                 if cauldron_speed > 1.0 {
@@ -526,6 +530,7 @@ pub fn combat(
                     target_comatose,
                     target_anthem_resilience,
                     guardian_circle_shielded,
+                    target_fleet_feet,
                 )) = health_query.get_mut(*target_entity)
             {
                 // Check fog evasion
@@ -538,13 +543,26 @@ pub fn combat(
                     }
                 }
 
+                // Check Fleet Feet dodge (Haste talent)
+                if let Some(ff) = target_fleet_feet
+                    && ff.dodges_remaining > 0
+                {
+                    attack_timing.record_attack(current_time);
+                    post_combat_removes.push((
+                        *target_entity,
+                        PostCombatAction::ConsumeFleetFeetDodge,
+                    ));
+                    continue;
+                }
+
                 // Calculate base damage with attacker bonuses
                 let damage_percentage = damage_mult.map_or(0.0, |d| d.0)
                     + cauldron_damage_bonus.map_or(0.0, |b| b.0)
                     + elite_damage_bonus.map_or(0.0, |b| b.0)
                     + battle_hymn.map_or(0.0, |b| b.damage_bonus)
                     + berserker_rage_attacker.map_or(0.0, |b| b.damage_bonus)
-                    + guardian_circle_attacker.map_or(0.0, |g| g.fortified_damage_bonus);
+                    + guardian_circle_attacker.map_or(0.0, |g| g.fortified_damage_bonus)
+                    + momentum_buff.map_or(0.0, |m| m.damage_mult);
                 let damage_multiplier = 1.0 + damage_percentage;
                 let mut modified_damage =
                     ATTACK_DAMAGE * effectiveness.multiplier() * damage_multiplier;
@@ -613,6 +631,12 @@ pub fn combat(
                     super::units::components::Sleepwalking,
                 )>();
             }
+            PostCombatAction::ConsumeFleetFeetDodge => {
+                // Remove FleetFeet — single dodge consumed
+                commands
+                    .entity(entity)
+                    .remove::<super::units::wizard::spells::haste::components::FleetFeet>();
+            }
         }
     }
 }
@@ -620,6 +644,7 @@ pub fn combat(
 /// Post-combat actions to defer component removal after the main combat loop.
 enum PostCombatAction {
     RemoveSleep,
+    ConsumeFleetFeetDodge,
 }
 
 /// Converts dead units to corpses instead of despawning them.
@@ -844,6 +869,10 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::wizard::spells::mind_control::components::MassHysteriaTarget>()
                 .remove::<super::units::wizard::spells::mind_control::components::SleeperAgentPending>()
                 .remove::<super::units::wizard::spells::mind_control::components::SleeperAgentActive>()
+                .remove::<super::units::wizard::spells::haste::components::MomentumBuff>()
+                .remove::<super::units::wizard::spells::haste::components::MomentumPending>()
+                .remove::<super::units::wizard::spells::haste::components::FleetFeet>()
+                .remove::<super::units::wizard::spells::haste::components::ChainHasteSource>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>()

@@ -26,3 +26,4 @@ pub struct RightWall;
 /// Marker component for the left (back) wall backdrop.
 #[derive(Component)]
 pub struct LeftWall;
+

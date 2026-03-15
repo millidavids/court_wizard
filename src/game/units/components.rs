@@ -1023,6 +1023,8 @@ pub struct HasteModifier {
     pub modifier: f32,
     /// Time remaining before the haste effect expires (in seconds).
     pub time_remaining: f32,
+    /// Attack speed bonus (e.g., 0.2 = +20% attack speed). From Adrenaline Surge / Time Warp.
+    pub attack_speed: f32,
 }
 
 impl HasteModifier {
@@ -1031,6 +1033,16 @@ impl HasteModifier {
         Self {
             modifier,
             time_remaining: duration,
+            attack_speed: 0.0,
+        }
+    }
+
+    /// Creates a new haste modifier with attack speed bonus.
+    pub const fn with_attack_speed(modifier: f32, duration: f32, attack_speed: f32) -> Self {
+        Self {
+            modifier,
+            time_remaining: duration,
+            attack_speed,
         }
     }
 
