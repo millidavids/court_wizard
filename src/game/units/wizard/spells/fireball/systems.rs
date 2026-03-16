@@ -657,6 +657,11 @@ pub fn apply_explosion_damage(
         if explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL {
             explosion.time_since_last_tick = 0.0;
 
+            // Skip damage iteration for VFX-only explosions (e.g. undead detonation)
+            if explosion.damage_per_tick <= 0.0 {
+                continue;
+            }
+
             let current_radius = explosion.current_radius();
             let mut hit_count = 0u32;
 

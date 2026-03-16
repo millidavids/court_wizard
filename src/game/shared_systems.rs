@@ -889,6 +889,17 @@ pub fn convert_dead_to_corpses(
     }
 }
 
+/// Stops all in-game sound effects by despawning audio entities.
+/// Runs when transitioning to the score screen so spell sounds don't persist.
+pub fn stop_all_sfx(
+    mut commands: Commands,
+    audio_query: Query<Entity, (With<AudioPlayer>, With<super::components::OnGameplayScreen>)>,
+) {
+    for entity in &audio_query {
+        commands.entity(entity).try_despawn();
+    }
+}
+
 /// Cleans up all game entities when exiting the InGame state.
 pub fn cleanup_game(
     mut commands: Commands,

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.339] - 2026-03-16
+
+### Added
+- **Raise The Dead talents** — the Raise The Dead spell now has a full talent tree with 9 talents across 3 tiers, unlocked by raising corpses
+- **Tier 1: Resurrection modifiers** — choose between a 60% larger resurrection radius, channeling that starts at maximum speed instead of ramping up, or 30% reduced mana cost per corpse
+- **Tier 2: Undead enhancements** — choose between raised undead having 50% more HP and dealing 25% more damage, a poisonous aura around each raised undead that damages and sickens nearby enemies, or a corpse magnet that pulls nearby bodies toward your cursor while channeling
+- **Tier 3: Powerful upgrades** — choose between raised undead becoming powerful Revenants with 5x HP and heavy damage that passively resurrect nearby corpses on their own, undead that explode in a fiery blast when they die dealing heavy area damage, or a chain reaction where enemies slain by your undead are automatically raised as new undead at no mana cost
+- **Plague Bearer visual effects** — undead with the poison aura emit swirling green plague smoke and turn nearby enemies green as the poison takes hold
+- **Undead Detonation visual effects** — exploding undead create a fireball-style explosion with sparks, smoke, and heat shimmer, and leave no corpse behind
+
+### Fixed
+- **Spell sounds no longer persist after battle** — all spell sound effects now stop immediately when the battle ends, instead of continuing to play through the results screen
+
 ## [v0.4.323] - 2026-03-16
 
 ### Added

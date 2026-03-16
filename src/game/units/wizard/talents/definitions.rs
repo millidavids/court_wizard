@@ -41,6 +41,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::MindControl => mind_control_talents(),
         Spell::Haste => haste_talents(),
         Spell::Teleport => teleport_talents(),
+        Spell::RaiseTheDead => raise_the_dead_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1672,6 +1673,82 @@ fn teleport_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Scatterport",
                 description: "Teleports each unit in the source to a random location within a large radius. Lower mana cost.",
                 locked_text: "Where did they go? Everywhere. Literally everywhere. Good luck regrouping.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn raise_the_dead_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Mass Graves",
+                description: "Resurrection radius increased by 60%.",
+                locked_text:
+                    "Cast a wider net. For corpses. This job description is something else.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Hasty Ritual",
+                description:
+                    "Channeling speed starts at max speed instead of ramping up.",
+                locked_text:
+                    "Skipping the warm-up chant. The dead don't care about proper procedure.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Efficient Necromancy",
+                description: "Mana cost per corpse reduced by 30%.",
+                locked_text: "Raising the dead on a budget. Student loans don't pay themselves. Wait, or do they?",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Empowered Undead",
+                description:
+                    "Raised undead have 50% more HP and deal 25% more damage.",
+                locked_text: "Better zombies through magic. If you're going to reanimate, reanimate with style.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Plague Bearer",
+                description:
+                    "Raised undead emit a poison aura, dealing damage to nearby living enemies.",
+                locked_text: "The undead don't just fight. They bring ambiance. Toxic, lethal ambiance.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Corpse Magnet",
+                description:
+                    "Corpses within a large radius are pulled toward the cursor before resurrection.",
+                locked_text: "The corpses come to you! It's like a drive-through but for necromancy.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Revenant Lord",
+                description: "Raised undead become powerful Revenants with 5x HP and heavy damage that passively resurrect nearby corpses.",
+                locked_text: "One champion of the dead is worth fifty shambling corpses. Economical AND terrifying.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Undead Detonation",
+                description:
+                    "Raised undead explode when they die (again), dealing heavy damage in a radius.",
+                locked_text:
+                    "They were already dead, so technically this is recycling.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Perpetual Unrest",
+                description: "When a raised undead kills an enemy, that enemy is automatically raised. No mana cost.",
+                locked_text: "It's a pyramid scheme, but with zombies. Honestly, most pyramid schemes already are.",
                 implemented: true,
             },
         ],

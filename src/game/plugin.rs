@@ -125,6 +125,10 @@ impl Plugin for GamePlugin {
                     shared_systems::reset_resources_for_replay,
                 ),
             )
+            .add_systems(
+                OnEnter(InGameState::ScoreScreen),
+                shared_systems::stop_all_sfx,
+            )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             // Also clean up OnGameplayScreen entities when leaving MP
             // (HUD, action bar, and other shared UI use this marker)
