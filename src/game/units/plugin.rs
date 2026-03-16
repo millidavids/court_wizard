@@ -10,7 +10,7 @@ use super::components::{
     Airborne, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
     FrostEffectMarker, FrozenSolidModifier, HasteModifier, Knockback, MarkedForDeathModifier,
     PoisonedModifier, RootedModifier, SickenedModifier, SlowMovementModifier,
-    SmellyModifier, TemporaryHitPoints, WalkingAnimation,
+    SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -63,6 +63,12 @@ impl Plugin for UnitsPlugin {
                 systems::update_timed_modifier::<FrostEffectMarker>,
                 systems::update_timed_modifier::<RootedModifier>,
                 systems::update_timed_modifier::<HasteModifier>,
+                systems::update_timed_modifier::<Stunned>
+                    .run_if(any_with_component::<Stunned>),
+                movement::zero_stunned_velocity
+                    .after(MovementCalculationSet)
+                    .before(ApplyTransformsSet)
+                    .run_if(any_with_component::<Stunned>),
                 movement::apply_unit_movement.in_set(ApplyTransformsSet),
                 movement::clear_corpse_velocity.after(movement::apply_unit_movement),
                 systems::update_walking_animation

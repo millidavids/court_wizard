@@ -11,7 +11,7 @@ use super::components::{
     FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled, OriginalMaterial,
     PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
     RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier, SmellyModifier,
-    TargetingVelocity, Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
+    Stunned, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
     FALL_DAMAGE_SCALE,
 };
 use super::constants::{
@@ -57,12 +57,14 @@ pub fn is_cc_immobilized(
     banished: Option<&BanishedModifier>,
     sickened: Option<&SickenedModifier>,
     frozen: Option<&FrozenSolidModifier>,
+    stunned: Option<&Stunned>,
 ) -> bool {
     rooted.is_some()
         || (has_sleep && !has_sleepwalking)
         || banished.is_some()
         || sickened.is_some()
         || frozen.is_some()
+        || stunned.is_some()
 }
 
 /// Generic targeting system for melee units.

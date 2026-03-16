@@ -410,6 +410,8 @@ pub fn combat(
                 Has<super::units::wizard::spells::mind_control::components::MassHysteriaTarget>,
                 Option<&super::units::components::HasteModifier>,
                 Option<&super::units::wizard::spells::haste::components::MomentumBuff>,
+                Option<&super::units::components::Stunned>,
+                Option<&super::units::wizard::spells::teleport::components::DisorientingHaste>,
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -435,8 +437,10 @@ pub fn combat(
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
 
     // Collect snapshot of all units for enemy detection (includes bosses as targets)
+    // Exclude banished units so they cannot be targeted while removed from play.
     let mut units_snapshot: Vec<_> = all_units
         .iter()
+        .filter(|(_, _, _, _, _, _, _, _, _, _, banished, _, _, _, _)| banished.is_none())
         .map(
             |(entity, transform, hitbox, team, _, _, _, _, _, _, _, _, _, _, (..))| {
                 (entity, transform.translation, *hitbox, *team)
@@ -468,11 +472,11 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste),
     ) in &mut all_units
     {
-        // Skip attack if sleeping, banished, frozen, or retreating
-        if is_sleeping || banished.is_some() || frozen_solid.is_some() || is_retreating {
+        // Skip attack if sleeping, banished, frozen, stunned, or retreating
+        if is_sleeping || banished.is_some() || frozen_solid.is_some() || stunned.is_some() || is_retreating {
             continue;
         }
 
@@ -501,9 +505,10 @@ pub fn combat(
             })
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
-            // Calculate effective attack speed (BattleHymn + Haste + cauldron buff for defenders)
+            // Calculate effective attack speed (BattleHymn + Haste + DisorientingHaste + cauldron buff for defenders)
             let mut attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed)
-                + haste_modifier.map_or(0.0, |h| h.attack_speed);
+                + haste_modifier.map_or(0.0, |h| h.attack_speed)
+                + disorienting_haste.map_or(0.0, |d| d.attack_speed);
             if *attacker_team == Team::Defenders {
                 let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
                 if cauldron_speed > 1.0 {
@@ -856,6 +861,8 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::BerserkerRageModifier>()
                 .remove::<super::units::components::FogEvasionModifier>()
                 .remove::<super::units::components::FrozenSolidModifier>()
+                .remove::<super::units::components::Stunned>()
+                .remove::<super::units::wizard::spells::teleport::components::DisorientingHaste>()
                 .remove::<super::units::components::BanishedModifier>()
                 .remove::<super::units::components::PolymorphedModifier>()
                 .remove::<super::units::components::PoisonedModifier>()

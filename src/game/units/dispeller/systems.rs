@@ -36,7 +36,7 @@ pub fn update_dispeller_targeting(
         (With<Dispeller>, Without<Corpse>),
     >,
     spell_effects: Query<(Entity, &Transform, &NetworkedSpellEffect)>,
-    all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
     // Spell-specific queries for volume-aware distance
     wall_of_fire_query: Query<&WallOfFireEffect>,
     wall_of_stone_query: Query<&WallOfStone>,
@@ -197,6 +197,7 @@ pub fn dispeller_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<Dispeller>,
@@ -215,11 +216,11 @@ pub fn dispeller_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut dispeller_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -367,7 +368,7 @@ pub fn dispeller_ranged_combat(
         ),
         (With<Dispeller>, Without<Corpse>),
     >,
-    targets: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    targets: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     // Only fire bolts when no dispellable spell effects exist
     let has_spell_targets = spell_effects.iter().any(|nse| is_dispellable(nse.kind));

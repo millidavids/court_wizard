@@ -6,19 +6,61 @@ use rand::Rng;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
-use super::components::{TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle};
+use super::components::{
+    DimensionalRift, DisorientingHaste, LingeringGateMarker, RiftCooldown,
+    TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle, TeleportTalentParams,
+};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::{BATTLEFIELD_SIZE, SPELL_ORIGIN};
+use crate::game::constants::{BATTLEFIELD_SIZE, DEFENDER_GRID_CENTER_ANGLE, DEFENDER_GRID_GROUND_RANGE, SPELL_ORIGIN, WIZARD_POSITION};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
-use crate::game::units::components::Teleportable;
+use crate::game::units::DamageType;
+use crate::game::units::components::{Airborne, Corpse, Stunned, Team, Teleportable};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position, xz_distance};
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::resources::NetworkConnection;
+
+/// Computes talent parameters from active talent selections.
+pub(crate) fn compute_talent_params(
+    active_talents: Option<&ActiveTalents>,
+) -> TeleportTalentParams {
+    let mut params = TeleportTalentParams::default();
+    let Some(talents) = active_talents else {
+        return params;
+    };
+
+    let t1 = talents.get_selection(Spell::Teleport, 0);
+    let t2 = talents.get_selection(Spell::Teleport, 1);
+    let t3 = talents.get_selection(Spell::Teleport, 2);
+
+    match t1 {
+        Some(0) => params.radius_mult = WIDE_APERTURE_RADIUS_MULT,
+        Some(1) => params.cast_time_mult = HASTY_TRANSLOCATION_CAST_TIME_MULT,
+        Some(2) => params.lingering_gate = true,
+        _ => {}
+    }
+
+    match t2 {
+        Some(0) => params.disorienting_arrival = true,
+        Some(1) => params.swap_mode = true,
+        Some(2) => params.emergency_recall = true,
+        _ => {}
+    }
+
+    match t3 {
+        Some(0) => params.dimensional_rift = true,
+        Some(1) => params.teleport_up = true,
+        Some(2) => params.scatterport = true,
+        _ => {}
+    }
+
+    params
+}
 
 /// Result from teleport casting logic, used to communicate state back to the wrapper.
 struct TeleportCastResult {
@@ -28,6 +70,15 @@ struct TeleportCastResult {
     first_phase_released: bool,
     /// Teleport parameters for network sync: (source_x, source_z, dest_x, dest_z, radius).
     teleport_params: Option<(f32, f32, f32, f32, f32)>,
+    /// Entities that were teleported (for talent effects and progress tracking).
+    teleported_entities: Vec<Entity>,
+    /// Whether to keep the destination (Lingering Gate talent).
+    keep_destination: bool,
+    /// Source and dest positions for post-teleport effects.
+    source_pos: Option<Vec3>,
+    dest_pos: Option<Vec3>,
+    /// The effective radius used for this teleport.
+    effective_radius: f32,
 }
 
 /// Handles right-click to cancel/reset the teleport spell.
@@ -70,6 +121,7 @@ pub fn handle_teleport_cancel(
     caster.destination_circle = None;
     caster.destination_position = None;
     caster.source_circle = None;
+    caster.lingering_gate_active = false;
     casting_state.cancel();
     mouse_state.left_consumed = true; // Prevent immediate restart if left button still held
 }
@@ -108,16 +160,21 @@ pub fn handle_teleport_casting(
         ),
     >,
     units_query: Query<
-        (Entity, &Transform),
+        (Entity, &Transform, &Team),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
+            Without<Corpse>,
         ),
     >,
-    mut connection: Option<ResMut<NetworkConnection>>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
+    (mut connection, sfx, game_config, active_talents, mut talent_progress): (
+        Option<ResMut<NetworkConnection>>,
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
@@ -142,6 +199,8 @@ pub fn handle_teleport_casting(
         return;
     }
 
+    let talent_params = compute_talent_params(active_talents.as_deref());
+
     let mut caster = if let Ok(c) = caster_query.get_mut(wizard_entity) {
         c
     } else {
@@ -164,23 +223,29 @@ pub fn handle_teleport_casting(
         &mut commands,
         &units_query,
         &source_query,
+        &talent_params,
     );
 
     // === Local-only: manage indicator circles ===
 
+    let effective_circle_radius = CIRCLE_RADIUS * talent_params.radius_mult;
+
     // Phase 1: Spawn/update destination crosshair
-    if !caster.has_destination() {
+    if !caster.has_destination() && !talent_params.emergency_recall && !talent_params.teleport_up {
         match *casting_state {
             CastingState::Resting => {
-                // If anchor was just set (transition to Casting happened then was handled),
-                // we may need to spawn crosshair. But actually shared logic handles start_cast.
-                // Check: if casting just started and no crosshair exists, spawn it.
+                // Waiting for user to click
             }
             CastingState::Casting { .. } => {
                 // Destination crosshair — spawn if needed, update position
+                // Swap talent: show full-size circle so the player can see the capture area
                 if caster.destination_circle.is_none() {
                     if let Some(pos) = clamped_pos {
-                        let radius = primed_spell.scale(CROSSHAIR_RADIUS);
+                        let radius = if talent_params.swap_mode {
+                            effective_circle_radius * primed_spell.empowerment
+                        } else {
+                            primed_spell.scale(CROSSHAIR_RADIUS)
+                        };
 
                         let crosshair_entity = commands
                             .spawn((
@@ -191,7 +256,7 @@ pub fn handle_teleport_casting(
                                         -std::f32::consts::FRAC_PI_2,
                                     ))
                                     .with_scale(Vec3::splat(radius)),
-                                TeleportDestinationCircle::new(primed_spell.empowerment),
+                                TeleportDestinationCircle::new(radius),
                                 OnGameplayScreen,
                             ))
                             .id();
@@ -209,8 +274,9 @@ pub fn handle_teleport_casting(
             _ => {}
         }
     } else {
-        // Phase 2: Spawn/update source circle
+        // Phase 2: Spawn/update source circle (also used for Emergency Recall)
         if let CastingState::Casting { elapsed } = *casting_state {
+            let cast_time = SECOND_CAST_TIME * talent_params.cast_time_mult;
             if caster.source_circle.is_none() {
                 if let Some(pos) = clamped_pos {
                     let circle_entity = commands
@@ -234,8 +300,8 @@ pub fn handle_teleport_casting(
                 transform.translation.x = pos.x;
                 transform.translation.z = pos.z;
 
-                let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
-                let radius = CIRCLE_RADIUS * indicator.empowerment;
+                let growth = (elapsed / cast_time).min(1.0);
+                let radius = effective_circle_radius * indicator.empowerment;
                 transform.scale = Vec3::splat(radius * growth);
 
                 indicator.position = pos;
@@ -257,13 +323,69 @@ pub fn handle_teleport_casting(
                 &sfx,
             );
         }
-        if let Some(dest_entity) = caster.destination_circle {
-            commands.entity(dest_entity).try_despawn();
+
+        // Track talent progress
+        let teleported_count = cast_result.teleported_entities.len() as u32;
+        if teleported_count > 0 {
+            if let Some(progress) = talent_progress.as_deref_mut() {
+                progress.increment(Spell::Teleport, teleported_count);
+            }
         }
+
+        // Apply post-teleport talent effects directly to teleported entities
+        if let (Some(source_pos), Some(dest_pos)) = (cast_result.source_pos, cast_result.dest_pos) {
+            let rift_entity = apply_post_teleport_effects(
+                &mut commands,
+                &talent_params,
+                source_pos,
+                dest_pos,
+                &cast_result.teleported_entities,
+            );
+
+            // Spawn VFX (spatial distortion)
+            if let Some(rift_entity) = rift_entity {
+                super::vfx_systems::spawn_rift_vfx(
+                    &mut commands,
+                    rift_entity,
+                    source_pos,
+                    dest_pos,
+                    cast_result.effective_radius,
+                );
+            } else if talent_params.teleport_up {
+                // Gravitational Surge: only VFX at the source (no destination)
+                super::vfx_systems::spawn_teleport_vfx(
+                    &mut commands,
+                    source_pos,
+                    source_pos,
+                    cast_result.effective_radius,
+                );
+            } else {
+                super::vfx_systems::spawn_teleport_vfx(
+                    &mut commands,
+                    source_pos,
+                    dest_pos,
+                    cast_result.effective_radius,
+                );
+            }
+        }
+
+        // Handle Lingering Gate: keep destination for reuse
+        if cast_result.keep_destination {
+            // Don't despawn the destination circle — mark as lingering
+            if let Some(dest_entity) = caster.destination_circle {
+                commands.entity(dest_entity).insert(LingeringGateMarker::new(LINGERING_GATE_DURATION));
+            }
+            caster.lingering_gate_active = true;
+        } else {
+            if let Some(dest_entity) = caster.destination_circle {
+                commands.entity(dest_entity).try_despawn();
+            }
+            caster.destination_circle = None;
+        }
+
         if let Some(source_entity) = caster.source_circle {
             commands.entity(source_entity).try_despawn();
         }
-        caster.destination_circle = None;
         caster.source_circle = None;
         mouse_state.left_consumed = true;
 
@@ -293,6 +415,10 @@ pub fn handle_teleport_casting(
 /// Handles the two-phase state machine:
 /// Phase 1: Click to start casting, release to lock destination position.
 /// Phase 2: Click again to start source circle growth, cast completes on timer or early release.
+///
+/// With Emergency Recall talent: skips Phase 1, goes straight to source circle.
+/// With Swap talent: captures units at both source and destination, then swaps them.
+/// With Scatterport talent: scatters enemies to random locations instead of teleporting to dest.
 #[allow(clippy::too_many_arguments)]
 fn teleport_casting_logic(
     input: &WizardInput,
@@ -304,11 +430,12 @@ fn teleport_casting_logic(
     caster: &mut TeleportCaster,
     commands: &mut Commands,
     units_query: &Query<
-        (Entity, &Transform),
+        (Entity, &Transform, &Team),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
+            Without<Corpse>,
         ),
     >,
     source_query: &Query<
@@ -318,12 +445,46 @@ fn teleport_casting_logic(
             Without<TeleportDestinationCircle>,
         ),
     >,
+    talent_params: &TeleportTalentParams,
 ) -> TeleportCastResult {
     let mut result = TeleportCastResult {
         completed: false,
         first_phase_released: false,
         teleport_params: None,
+        teleported_entities: Vec::new(),
+        keep_destination: false,
+        source_pos: None,
+        dest_pos: None,
+        effective_radius: 0.0,
     };
+
+    let effective_circle_radius = CIRCLE_RADIUS * talent_params.radius_mult;
+    let effective_cast_time = SECOND_CAST_TIME * talent_params.cast_time_mult;
+    let effective_mana_cost = if talent_params.scatterport {
+        MANA_COST * SCATTERPORT_MANA_MULT
+    } else {
+        MANA_COST
+    };
+
+    // Gravitational Surge: skip Phase 1, single-cast at cursor (no destination needed).
+    // Sets a dummy destination so the state machine enters Phase 2 immediately.
+    if talent_params.teleport_up && !caster.has_destination() {
+        caster.destination_position = Some(Vec3::ZERO);
+    }
+
+    // Emergency Recall: skip Phase 1, always set destination to castle entrance.
+    // Overrides any lingering gate destination — recall always goes home.
+    if talent_params.emergency_recall && !caster.has_destination() {
+        // Recall to King's spawn position (same formula as spawn_king)
+        let angle = DEFENDER_GRID_CENTER_ANGLE;
+        let radius = DEFENDER_GRID_GROUND_RANGE + 600.0;
+        let king_spawn = Vec3::new(
+            WIZARD_POSITION.x + radius * angle.cos(),
+            0.0,
+            WIZARD_POSITION.z + radius * angle.sin(),
+        );
+        caster.destination_position = Some(king_spawn);
+    }
 
     // Handle release during first cast — finalize destination position
     if input.just_released
@@ -348,20 +509,21 @@ fn teleport_casting_logic(
             && let Ok((transform, source_circle)) = source_query.get(source_entity)
         {
             let source_pos = transform.translation;
-            let growth = (elapsed / SECOND_CAST_TIME).min(1.0);
+            let growth = (elapsed / effective_cast_time).min(1.0);
             let scale = source_circle.empowerment;
-            let current_radius = CIRCLE_RADIUS * scale * growth;
+            let current_radius = effective_circle_radius * scale * growth;
 
-            if mana.can_afford(MANA_COST) {
-                mana.consume(MANA_COST);
+            if mana.can_afford(effective_mana_cost) {
+                mana.consume(effective_mana_cost);
 
                 if let Some(dest_pos) = caster.destination_position {
-                    teleport_units_with_radius(
+                    let entities = execute_teleport(
                         source_pos,
                         dest_pos,
                         current_radius,
                         units_query,
                         commands,
+                        talent_params,
                     );
                     result.teleport_params = Some((
                         source_pos.x,
@@ -370,9 +532,20 @@ fn teleport_casting_logic(
                         dest_pos.z,
                         current_radius,
                     ));
+                    result.teleported_entities = entities;
+                    result.source_pos = Some(source_pos);
+                    result.dest_pos = Some(dest_pos);
+                    result.effective_radius = current_radius;
                 }
 
-                caster.destination_position = None;
+                // Lingering Gate: keep destination for a second teleport
+                if talent_params.lingering_gate && !caster.lingering_gate_active {
+                    result.keep_destination = true;
+                } else {
+                    caster.destination_position = None;
+                    caster.lingering_gate_active = false;
+                }
+
                 casting_state.cancel();
                 result.completed = true;
             }
@@ -402,7 +575,7 @@ fn teleport_casting_logic(
         // PHASE 2: Placing source circle and teleporting
         match *casting_state {
             CastingState::Resting => {
-                if !mana.can_afford(MANA_COST) {
+                if !mana.can_afford(effective_mana_cost) {
                     return result;
                 }
                 if input.just_pressed || input.pressed {
@@ -413,28 +586,40 @@ fn teleport_casting_logic(
                 *elapsed += time.delta_secs();
 
                 // Check if cast complete
-                if *elapsed >= SECOND_CAST_TIME
+                if *elapsed >= effective_cast_time
                     && let Some(source_entity) = caster.source_circle
                     && let Ok((transform, source_circle)) = source_query.get(source_entity)
                 {
                     let source_pos = transform.translation;
-                    let radius = CIRCLE_RADIUS * source_circle.empowerment;
+                    let radius = effective_circle_radius * source_circle.empowerment;
 
-                    mana.consume(MANA_COST);
+                    mana.consume(effective_mana_cost);
 
                     if let Some(dest_pos) = caster.destination_position {
-                        teleport_units_with_radius(
+                        let entities = execute_teleport(
                             source_pos,
                             dest_pos,
                             radius,
                             units_query,
                             commands,
+                            talent_params,
                         );
                         result.teleport_params =
                             Some((source_pos.x, source_pos.z, dest_pos.x, dest_pos.z, radius));
+                        result.teleported_entities = entities;
+                        result.source_pos = Some(source_pos);
+                        result.dest_pos = Some(dest_pos);
+                        result.effective_radius = radius;
                     }
 
-                    caster.destination_position = None;
+                    // Lingering Gate: keep destination for a second teleport
+                    if talent_params.lingering_gate && !caster.lingering_gate_active {
+                        result.keep_destination = true;
+                    } else {
+                        caster.destination_position = None;
+                        caster.lingering_gate_active = false;
+                    }
+
                     casting_state.cancel();
                     result.completed = true;
                 }
@@ -446,52 +631,350 @@ fn teleport_casting_logic(
     result
 }
 
+/// Executes the actual teleportation, handling talent variants.
+/// Returns the list of teleported entities for post-teleport effect application.
+fn execute_teleport(
+    source_center: Vec3,
+    dest_center: Vec3,
+    radius: f32,
+    units_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            With<Teleportable>,
+            Without<TeleportDestinationCircle>,
+            Without<TeleportSourceCircle>,
+            Without<Corpse>,
+        ),
+    >,
+    commands: &mut Commands,
+    talent_params: &TeleportTalentParams,
+) -> Vec<Entity> {
+    if talent_params.teleport_up {
+        teleport_units_up(source_center, radius, units_query, commands)
+    } else if talent_params.scatterport {
+        scatter_enemies(source_center, radius, units_query, commands)
+    } else if talent_params.swap_mode {
+        swap_units(source_center, dest_center, radius, units_query, commands)
+    } else if talent_params.emergency_recall {
+        recall_allies(source_center, dest_center, radius, units_query, commands)
+    } else {
+        teleport_units_with_radius(source_center, dest_center, radius, units_query, commands)
+    }
+}
+
+/// Up: teleports all units within radius straight up into the air.
+/// They fall back down and take fall damage on landing.
+fn teleport_units_up(
+    center: Vec3,
+    radius: f32,
+    units_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            With<Teleportable>,
+            Without<TeleportDestinationCircle>,
+            Without<TeleportSourceCircle>,
+            Without<Corpse>,
+        ),
+    >,
+    commands: &mut Commands,
+) -> Vec<Entity> {
+    let mut teleported = Vec::new();
+
+    for (entity, transform, _team) in units_query.iter() {
+        if xz_distance(transform.translation, center) <= radius {
+            // Place the unit high in the air with zero velocity — it falls from there.
+            // The airborne system handles visual Y offset via base_y + height.
+            commands.entity(entity).insert(Airborne {
+                vertical_velocity: 0.0,
+                height: TELEPORT_UP_HEIGHT,
+                base_y: transform.translation.y,
+                gravity: TELEPORT_UP_GRAVITY,
+                damage_type: DamageType::Force,
+            });
+            teleported.push(entity);
+        }
+    }
+
+    teleported
+}
+
 /// Teleports all units within a specified radius of the source center to random positions
 /// within the same radius of the destination center.
+/// Returns the list of teleported entity IDs.
 pub(crate) fn teleport_units_with_radius(
     source_center: Vec3,
     dest_center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform),
+        (Entity, &Transform, &Team),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
             Without<TeleportSourceCircle>,
+            Without<Corpse>,
         ),
     >,
     commands: &mut Commands,
-) {
+) -> Vec<Entity> {
     let mut rng = rand::thread_rng();
+    let mut teleported = Vec::new();
 
-    for (entity, transform) in units_query.iter() {
-        // Check if unit is within source circle (XZ distance only)
-        let diff_x = transform.translation.x - source_center.x;
-        let diff_z = transform.translation.z - source_center.z;
-        let distance = (diff_x * diff_x + diff_z * diff_z).sqrt();
-
-        if distance <= radius {
-            // Generate random position within destination circle
-            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-            let random_radius = rng.gen_range(0.0..radius);
-
-            let offset_x = angle.cos() * random_radius;
-            let offset_z = angle.sin() * random_radius;
-
-            let new_x = dest_center.x + offset_x;
-            let new_z = dest_center.z + offset_z;
-
-            // Clamp to battlefield bounds
-            let clamped_x = new_x.clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
-            let clamped_z = new_z.clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
-
-            // Keep original Y position and rotation
-            let new_position = Vec3::new(clamped_x, transform.translation.y, clamped_z);
-
+    for (entity, transform, _team) in units_query.iter() {
+        if xz_distance(transform.translation, source_center) <= radius {
+            let new_position = random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
             let mut new_transform = *transform;
             new_transform.translation = new_position;
-
             commands.entity(entity).insert(new_transform);
+            teleported.push(entity);
+        }
+    }
+
+    teleported
+}
+
+/// Scatterport talent: scatters all units to random locations in a large radius.
+fn scatter_enemies(
+    source_center: Vec3,
+    radius: f32,
+    units_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            With<Teleportable>,
+            Without<TeleportDestinationCircle>,
+            Without<TeleportSourceCircle>,
+            Without<Corpse>,
+        ),
+    >,
+    commands: &mut Commands,
+) -> Vec<Entity> {
+    let mut rng = rand::thread_rng();
+    let mut teleported = Vec::new();
+
+    for (entity, transform, _team) in units_query.iter() {
+        if xz_distance(transform.translation, source_center) <= radius {
+            let new_position = random_position_in_circle(
+                &mut rng,
+                source_center,
+                SCATTERPORT_RADIUS,
+                transform.translation.y,
+            );
+            let mut new_transform = *transform;
+            new_transform.translation = new_position;
+            commands.entity(entity).insert(new_transform);
+            teleported.push(entity);
+        }
+    }
+
+    teleported
+}
+
+/// Swap talent: swaps all units between two circles simultaneously.
+fn swap_units(
+    source_center: Vec3,
+    dest_center: Vec3,
+    radius: f32,
+    units_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            With<Teleportable>,
+            Without<TeleportDestinationCircle>,
+            Without<TeleportSourceCircle>,
+            Without<Corpse>,
+        ),
+    >,
+    commands: &mut Commands,
+) -> Vec<Entity> {
+    let mut rng = rand::thread_rng();
+    let mut teleported = Vec::new();
+
+    // Collect units in each circle first (can't modify while iterating)
+    let mut source_units: Vec<(Entity, Vec3)> = Vec::new();
+    let mut dest_units: Vec<(Entity, Vec3)> = Vec::new();
+
+    for (entity, transform, _team) in units_query.iter() {
+        if xz_distance(transform.translation, source_center) <= radius {
+            source_units.push((entity, transform.translation));
+        } else if xz_distance(transform.translation, dest_center) <= radius {
+            dest_units.push((entity, transform.translation));
+        }
+    }
+
+    // Move source units to destination
+    for (entity, original_pos) in &source_units {
+        let new_position = random_position_in_circle(&mut rng, dest_center, radius, original_pos.y);
+        commands.entity(*entity).insert(Transform::from_translation(new_position));
+        teleported.push(*entity);
+    }
+
+    // Move destination units to source
+    for (entity, original_pos) in &dest_units {
+        let new_position = random_position_in_circle(&mut rng, source_center, radius, original_pos.y);
+        commands.entity(*entity).insert(Transform::from_translation(new_position));
+        teleported.push(*entity);
+    }
+
+    teleported
+}
+
+/// Emergency Recall talent: teleports only allied (Defender) units to the King's spawn position.
+fn recall_allies(
+    source_center: Vec3,
+    dest_center: Vec3,
+    radius: f32,
+    units_query: &Query<
+        (Entity, &Transform, &Team),
+        (
+            With<Teleportable>,
+            Without<TeleportDestinationCircle>,
+            Without<TeleportSourceCircle>,
+            Without<Corpse>,
+        ),
+    >,
+    commands: &mut Commands,
+) -> Vec<Entity> {
+    let mut rng = rand::thread_rng();
+    let mut teleported = Vec::new();
+
+    for (entity, transform, team) in units_query.iter() {
+        // Only recall defenders
+        if *team != Team::Defenders {
+            continue;
+        }
+
+        if xz_distance(transform.translation, source_center) <= radius {
+            let new_position = random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
+            let mut new_transform = *transform;
+            new_transform.translation = new_position;
+            commands.entity(entity).insert(new_transform);
+            teleported.push(entity);
+        }
+    }
+
+    teleported
+}
+
+/// Applies post-teleport talent effects (stun, haste, dimensional rift).
+/// Effects are applied directly to the teleported entities rather than querying by position,
+/// since teleport uses deferred commands (transforms haven't been applied yet).
+/// Returns the rift entity if Dimensional Rift was spawned.
+fn apply_post_teleport_effects(
+    commands: &mut Commands,
+    talent_params: &TeleportTalentParams,
+    source_pos: Vec3,
+    dest_pos: Vec3,
+    teleported_entities: &[Entity],
+) -> Option<Entity> {
+    // Disorienting Arrival: stun AND haste all teleported units
+    if talent_params.disorienting_arrival {
+        for &entity in teleported_entities {
+            commands
+                .entity(entity)
+                .insert(Stunned::new(DISORIENTING_STUN_DURATION));
+            commands.entity(entity).insert(DisorientingHaste::new(
+                DISORIENTING_ATTACK_SPEED,
+                DISORIENTING_ATTACK_SPEED_DURATION,
+            ));
+        }
+    }
+
+    // Dimensional Rift: spawn persistent two-way portal
+    if talent_params.dimensional_rift {
+        let rift_entity = commands.spawn((
+            DimensionalRift {
+                source_pos,
+                dest_pos,
+                walk_radius: DIMENSIONAL_RIFT_WALK_RADIUS,
+                time_remaining: DIMENSIONAL_RIFT_DURATION,
+                two_way: talent_params.swap_mode,
+            },
+            OnGameplayScreen,
+        )).id();
+        return Some(rift_entity);
+    }
+
+    None
+}
+
+/// Ticks Dimensional Rift portals and teleports units that walk through them.
+pub fn tick_dimensional_rift(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut rifts: Query<(Entity, &mut DimensionalRift)>,
+    mut units: Query<
+        (Entity, &mut Transform, Option<&RiftCooldown>),
+        (With<Teleportable>, Without<Corpse>),
+    >,
+) {
+    let delta = time.delta_secs();
+
+    for (rift_entity, mut rift) in rifts.iter_mut() {
+        rift.time_remaining -= delta;
+        if rift.time_remaining <= 0.0 {
+            commands.entity(rift_entity).try_despawn();
+            continue;
+        }
+
+        let mut rng = rand::thread_rng();
+
+        for (unit_entity, mut transform, cooldown) in units.iter_mut() {
+            // Skip units on cooldown from recent rift teleport
+            if cooldown.is_some() {
+                continue;
+            }
+
+            let pos = transform.translation;
+
+            if xz_distance(pos, rift.source_pos) <= rift.walk_radius {
+                // Near source portal → teleport to destination
+                let new_pos = random_position_in_circle(
+                    &mut rng,
+                    rift.dest_pos,
+                    rift.walk_radius,
+                    pos.y,
+                );
+                transform.translation = new_pos;
+                commands.entity(unit_entity).insert(RiftCooldown {
+                    time_remaining: DIMENSIONAL_RIFT_UNIT_COOLDOWN,
+                });
+            } else if rift.two_way && xz_distance(pos, rift.dest_pos) <= rift.walk_radius {
+                // Near destination portal → teleport to source (only with Swap talent)
+                let new_pos = random_position_in_circle(
+                    &mut rng,
+                    rift.source_pos,
+                    rift.walk_radius,
+                    pos.y,
+                );
+                transform.translation = new_pos;
+                commands.entity(unit_entity).insert(RiftCooldown {
+                    time_remaining: DIMENSIONAL_RIFT_UNIT_COOLDOWN,
+                });
+            }
+        }
+    }
+}
+
+/// Ticks Lingering Gate markers and removes expired ones.
+pub fn tick_lingering_gate(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut gates: Query<(Entity, &mut LingeringGateMarker)>,
+    mut caster_query: Query<&mut TeleportCaster, With<LocalWizard>>,
+) {
+    let delta = time.delta_secs();
+
+    for (gate_entity, mut gate) in gates.iter_mut() {
+        gate.time_remaining -= delta;
+        if gate.time_remaining <= 0.0 {
+            commands.entity(gate_entity).try_despawn();
+
+            // Reset caster state when gate expires
+            if let Ok(mut caster) = caster_query.single_mut() {
+                if caster.destination_circle == Some(gate_entity) {
+                    caster.destination_circle = None;
+                    caster.destination_position = None;
+                    caster.lingering_gate_active = false;
+                }
+            }
         }
     }
 }
@@ -509,11 +992,10 @@ pub fn update_circle_animations(
     for (mut transform, mut indicator) in &mut destination_query {
         indicator.time_alive += time.delta_secs();
 
-        let radius = CROSSHAIR_RADIUS * indicator.empowerment;
         // Only apply pulse animation after growth is mostly complete
-        if transform.scale.x >= radius * PULSE_THRESHOLD {
+        if transform.scale.x >= indicator.base_radius * PULSE_THRESHOLD {
             let pulse = indicator.pulse_scale();
-            transform.scale = Vec3::splat(radius * pulse);
+            transform.scale = Vec3::splat(indicator.base_radius * pulse);
         }
     }
 
@@ -528,4 +1010,15 @@ pub fn update_circle_animations(
             transform.scale = Vec3::splat(radius * pulse);
         }
     }
+}
+
+/// Generates a random position within a circle, clamped to battlefield bounds.
+fn random_position_in_circle(rng: &mut impl Rng, center: Vec3, radius: f32, y: f32) -> Vec3 {
+    let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+    let random_radius = rng.gen_range(0.0..radius);
+
+    let new_x = (center.x + angle.cos() * random_radius).clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
+    let new_z = (center.z + angle.sin() * random_radius).clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
+
+    Vec3::new(new_x, y, new_z)
 }

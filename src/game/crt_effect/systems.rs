@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings};
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings};
 use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
@@ -312,6 +312,7 @@ pub(super) fn handle_desaturation_message(
 /// so we must convert from full-window UV to local UV using the viewport offset/size.
 pub(super) fn update_lensing_positions(
     black_holes: Query<&BlackHole>,
+    rifts: Query<&crate::game::units::wizard::spells::teleport::components::DimensionalRift>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut lensing_query: Query<&mut LensingSettings>,
 ) {
@@ -329,11 +330,18 @@ pub(super) fn update_lensing_positions(
     settings.lensing_1_x = 0.0;
     settings.lensing_1_y = 0.0;
     settings.lensing_1_radius = 0.0;
+    settings.lensing_2_x = 0.0;
+    settings.lensing_2_y = 0.0;
+    settings.lensing_2_radius = 0.0;
+    settings.lensing_3_x = 0.0;
+    settings.lensing_3_y = 0.0;
+    settings.lensing_3_radius = 0.0;
 
     let Ok((camera, camera_transform)) = camera_query.single() else {
         return;
     };
 
+    // Slots 0-1: black holes (with center darkening)
     let mut count = 0u32;
     let mut max_growth: f32 = 0.0;
     for black_hole in &black_holes {
@@ -388,7 +396,58 @@ pub(super) fn update_lensing_positions(
         }
         count += 1;
     }
-    settings.lensing_count = count as f32;
+
+    // Slots 2-3: Dimensional Rift endpoints (lensing only, no darkening)
+    let rift_radius = crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_LENSING_RADIUS;
+    let mut rift_slot = 2u32;
+    'rift_loop: for rift in &rifts {
+        for &pos in &[rift.source_pos, rift.dest_pos] {
+            if rift_slot > 3 {
+                break 'rift_loop;
+            }
+
+            let Some(ndc) = camera.world_to_ndc(camera_transform, pos) else {
+                continue;
+            };
+            let uv = ndc_to_uv(ndc);
+
+            if uv.x < -0.3 || uv.x > 1.3 || uv.y < -0.3 || uv.y > 1.3 {
+                continue;
+            }
+
+            let edge_point = pos + camera_transform.right() * rift_radius;
+            let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge_point) else {
+                continue;
+            };
+            let edge_uv = ndc_to_uv(edge_ndc);
+            let screen_radius = (edge_uv.x - uv.x).abs() * LENSING_INFLUENCE_MULT;
+
+            if screen_radius < 0.001 {
+                continue;
+            }
+
+            match rift_slot {
+                2 => {
+                    settings.lensing_2_x = uv.x;
+                    settings.lensing_2_y = uv.y;
+                    settings.lensing_2_radius = screen_radius;
+                }
+                3 => {
+                    settings.lensing_3_x = uv.x;
+                    settings.lensing_3_y = uv.y;
+                    settings.lensing_3_radius = screen_radius;
+                }
+                _ => {}
+            }
+            rift_slot += 1;
+        }
+    }
+
+    // lensing_count must reflect the highest occupied slot + 1, not total sources.
+    // Rift endpoints live in slots 2-3, so even with 0 black holes we need count >= 3/4
+    // for the shader's branchless step() checks to activate those slots.
+    let max_slot = if rift_slot > 2 { rift_slot } else { count };
+    settings.lensing_count = max_slot as f32;
     // Gradual screen darkening: 0→0.3 as black hole grows (70% brightness at full size)
     settings.lensing_darkening = max_growth * 0.3;
 }
@@ -483,6 +542,74 @@ pub(super) fn update_heat_distortion_positions(
         count += 1;
     }
     settings.count = count as f32;
+}
+
+/// Projects active teleport warp effect positions to viewport-local UV for the distortion shader.
+pub(super) fn update_teleport_distortion_positions(
+    warps: Query<&crate::game::units::wizard::spells::teleport::vfx_components::TeleportWarpEffect>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    mut distortion_query: Query<&mut TeleportDistortionSettings>,
+    time: Res<Time>,
+) {
+    let Ok(mut settings) = distortion_query.single_mut() else {
+        return;
+    };
+
+    // Reset
+    settings.count = 0.0;
+    settings.time = time.elapsed_secs();
+
+    let Ok((camera, camera_transform)) = camera_query.single() else {
+        return;
+    };
+
+    let influence_mult = crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_INFLUENCE_MULT;
+
+    let mut count = 0u32;
+    let mut has_persistent = false;
+    for warp in &warps {
+        if count >= 4 {
+            break;
+        }
+
+        if warp.duration == 0.0 {
+            has_persistent = true;
+        }
+
+        // Project center to screen UV
+        let Some(ndc) = camera.world_to_ndc(camera_transform, warp.position) else {
+            continue;
+        };
+        let uv = ndc_to_uv(ndc);
+
+        // Skip if too far off screen
+        if uv.x < -0.5 || uv.x > 1.5 || uv.y < -0.5 || uv.y > 1.5 {
+            continue;
+        }
+
+        // Project a point at the edge to get screen-space radius
+        let edge_point = warp.position + camera_transform.right() * warp.radius;
+        let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge_point) else {
+            continue;
+        };
+        let edge_uv = ndc_to_uv(edge_ndc);
+        let screen_radius = (edge_uv.x - uv.x).abs() * influence_mult;
+
+        if screen_radius < 0.001 {
+            continue;
+        }
+
+        settings.set_point(count, uv.x, uv.y, screen_radius, warp.intensity);
+        count += 1;
+    }
+    settings.count = count as f32;
+
+    // Use rift strength if any persistent warp effects are active, otherwise one-shot strength
+    if has_persistent {
+        settings.strength = crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_RIPPLE_STRENGTH;
+    } else {
+        settings.strength = crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_STRENGTH;
+    }
 }
 
 /// Ticks the desaturation timer, writes intensity to CrtEffectSettings,

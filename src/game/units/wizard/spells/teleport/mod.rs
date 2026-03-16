@@ -7,5 +7,8 @@ pub(crate) mod components;
 pub(crate) mod constants;
 mod plugin;
 pub(crate) mod systems;
+pub(crate) mod vfx_components;
+pub(crate) mod vfx_constants;
+pub(crate) mod vfx_systems;
 
 pub(super) use plugin::TeleportPlugin;

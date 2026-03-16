@@ -40,6 +40,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Polymorph => polymorph_talents(),
         Spell::MindControl => mind_control_talents(),
         Spell::Haste => haste_talents(),
+        Spell::Teleport => teleport_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1609,6 +1610,74 @@ fn haste_talents() -> [[TalentDefinition; 3]; 3] {
     ]
 }
 
+fn teleport_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Wide Aperture",
+                description: "Source circle radius increased by 50%.",
+                locked_text: "Bigger circle means more soldiers. Or more confused soldiers. Either way.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Hasty Translocation",
+                description: "Second cast time reduced by 40%.",
+                locked_text: "Teleporting faster means less time to reconsider your terrible destination choice.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lingering Gate",
+                description: "Destination marker persists for 5 seconds, allowing a second teleport to the same spot.",
+                locked_text: "The portal stays open. In case you forgot someone. Or your keys.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Disorienting Arrival",
+                description: "Teleported units are stunned for 2 seconds on arrival, then gain +20% attack speed for 3s.",
+                locked_text: "Surprise! You're somewhere else now. Take a moment. Take several moments.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Swap",
+                description: "Instead of place-then-teleport, swap all units between two circles simultaneously.",
+                locked_text: "Musical chairs, but with soldiers and existential dread.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Emergency Recall",
+                description: "Can be instant-cast without a destination to teleport all allies in radius back to the King's position.",
+                locked_text: "EVERYONE COME HOME. NOW. No, I don't care what you were doing.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Dimensional Rift",
+                description: "Creates a persistent two-way portal between source and destination for 10 seconds. Units walk through freely.",
+                locked_text: "A door. The wizard invented a door. A magical, reality-bending door, but still.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Up",
+                description: "Single cast: teleports all units at the target straight up into the sky. They fall back down and take damage on impact.",
+                locked_text: "What goes up must come down. Preferably on their heads.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Scatterport",
+                description: "Teleports each unit in the source to a random location within a large radius. Lower mana cost.",
+                locked_text: "Where did they go? Everywhere. Literally everywhere. Good luck regrouping.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
 fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
     // Generate thematic placeholder names based on spell type
     let (t1, t2, t3) = placeholder_names(spell);
@@ -1773,9 +1842,9 @@ fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'
             ["Time Warp", "Slow Zone", "Chain Haste"],
         ),
         Spell::Teleport => (
-            ["Wider Area", "Longer Range", "Quick Shift"],
-            ["Momentum Teleport", "Swap Places", "Phase Shift"],
-            ["Mass Teleport", "Dimensional Gate", "Everywhere At Once"],
+            ["Wide Aperture", "Hasty Translocation", "Lingering Gate"],
+            ["Disorienting Arrival", "Swap", "Emergency Recall"],
+            ["Dimensional Rift", "Up", "Scatterport"],
         ),
         Spell::RaiseTheDead => (
             ["More Corpses", "Stronger Undead", "Quick Raise"],

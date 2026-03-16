@@ -54,26 +54,40 @@ pub struct CrtEffectSettings {
 ///
 /// Attach this to the same camera entity as `CrtEffectSettings` to enable
 /// black hole gravitational lensing. Runs as a separate render pass before CRT.
+/// Supports up to 2 black holes (slots 0-1, with center darkening) plus
+/// 2 rift endpoints (slots 2-3, lensing only, no darkening).
 #[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
 pub struct LensingSettings {
-    /// Number of active black holes for gravitational lensing (0.0–2.0).
+    /// Total number of active lensing sources (0.0–4.0).
     pub lensing_count: f32,
     /// Global lensing distortion strength.
     pub lensing_strength: f32,
     /// Screen darkening factor during black holes (0.0 = no darkening, 1.0 = full dark).
     pub lensing_darkening: f32,
-    /// Black hole 0: screen-space UV X position.
+    /// Slot 0 (black hole): screen-space UV X position.
     pub lensing_0_x: f32,
-    /// Black hole 0: screen-space UV Y position.
+    /// Slot 0 (black hole): screen-space UV Y position.
     pub lensing_0_y: f32,
-    /// Black hole 0: screen-space influence radius in UV.
+    /// Slot 0 (black hole): screen-space influence radius in UV.
     pub lensing_0_radius: f32,
-    /// Black hole 1: screen-space UV X position.
+    /// Slot 1 (black hole): screen-space UV X position.
     pub lensing_1_x: f32,
-    /// Black hole 1: screen-space UV Y position.
+    /// Slot 1 (black hole): screen-space UV Y position.
     pub lensing_1_y: f32,
-    /// Black hole 1: screen-space influence radius in UV.
+    /// Slot 1 (black hole): screen-space influence radius in UV.
     pub lensing_1_radius: f32,
+    /// Slot 2 (rift): screen-space UV X position.
+    pub lensing_2_x: f32,
+    /// Slot 2 (rift): screen-space UV Y position.
+    pub lensing_2_y: f32,
+    /// Slot 2 (rift): screen-space influence radius in UV.
+    pub lensing_2_radius: f32,
+    /// Slot 3 (rift): screen-space UV X position.
+    pub lensing_3_x: f32,
+    /// Slot 3 (rift): screen-space UV Y position.
+    pub lensing_3_y: f32,
+    /// Slot 3 (rift): screen-space influence radius in UV.
+    pub lensing_3_radius: f32,
 }
 
 impl CrtEffectSettings {
@@ -121,6 +135,12 @@ impl Default for LensingSettings {
             lensing_1_x: 0.0,
             lensing_1_y: 0.0,
             lensing_1_radius: 0.0,
+            lensing_2_x: 0.0,
+            lensing_2_y: 0.0,
+            lensing_2_radius: 0.0,
+            lensing_3_x: 0.0,
+            lensing_3_y: 0.0,
+            lensing_3_radius: 0.0,
         }
     }
 }
@@ -192,6 +212,92 @@ impl Default for HeatDistortionSettings {
             wall_1_radius: 0.0,
             wall_2_radius: 0.0,
             wall_3_radius: 0.0,
+        }
+    }
+}
+
+/// Settings component that controls the teleport spatial distortion post-processing effect.
+///
+/// Attach this to the same camera entity as `CrtEffectSettings` to enable
+/// radial ripple effects at teleport source/destination points. Supports up to 4 points.
+#[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+pub struct TeleportDistortionSettings {
+    /// Number of active distortion points (0.0–4.0).
+    pub count: f32,
+    /// Elapsed time for wave animation.
+    pub time: f32,
+    /// Global distortion strength multiplier.
+    pub strength: f32,
+    /// Wave frequency (number of concentric rings).
+    pub frequency: f32,
+    /// Wave propagation speed.
+    pub speed: f32,
+    pub _pad0: f32,
+    pub _pad1: f32,
+    pub _pad2: f32,
+    // Point 0
+    pub point_0_x: f32,
+    pub point_0_y: f32,
+    pub point_0_radius: f32,
+    pub point_0_intensity: f32,
+    // Point 1
+    pub point_1_x: f32,
+    pub point_1_y: f32,
+    pub point_1_radius: f32,
+    pub point_1_intensity: f32,
+    // Point 2
+    pub point_2_x: f32,
+    pub point_2_y: f32,
+    pub point_2_radius: f32,
+    pub point_2_intensity: f32,
+    // Point 3
+    pub point_3_x: f32,
+    pub point_3_y: f32,
+    pub point_3_radius: f32,
+    pub point_3_intensity: f32,
+}
+
+impl Default for TeleportDistortionSettings {
+    fn default() -> Self {
+        use crate::game::units::wizard::spells::teleport::vfx_constants;
+        Self {
+            count: 0.0,
+            time: 0.0,
+            strength: vfx_constants::RIPPLE_STRENGTH,
+            frequency: vfx_constants::RIPPLE_FREQUENCY,
+            speed: vfx_constants::RIPPLE_SPEED,
+            _pad0: 0.0,
+            _pad1: 0.0,
+            _pad2: 0.0,
+            point_0_x: 0.0,
+            point_0_y: 0.0,
+            point_0_radius: 0.0,
+            point_0_intensity: 0.0,
+            point_1_x: 0.0,
+            point_1_y: 0.0,
+            point_1_radius: 0.0,
+            point_1_intensity: 0.0,
+            point_2_x: 0.0,
+            point_2_y: 0.0,
+            point_2_radius: 0.0,
+            point_2_intensity: 0.0,
+            point_3_x: 0.0,
+            point_3_y: 0.0,
+            point_3_radius: 0.0,
+            point_3_intensity: 0.0,
+        }
+    }
+}
+
+impl TeleportDistortionSettings {
+    /// Sets a distortion point by index (0–3), avoiding repetitive match arms.
+    pub fn set_point(&mut self, index: u32, x: f32, y: f32, radius: f32, intensity: f32) {
+        match index {
+            0 => { self.point_0_x = x; self.point_0_y = y; self.point_0_radius = radius; self.point_0_intensity = intensity; }
+            1 => { self.point_1_x = x; self.point_1_y = y; self.point_1_radius = radius; self.point_1_intensity = intensity; }
+            2 => { self.point_2_x = x; self.point_2_y = y; self.point_2_radius = radius; self.point_2_intensity = intensity; }
+            3 => { self.point_3_x = x; self.point_3_y = y; self.point_3_radius = radius; self.point_3_intensity = intensity; }
+            _ => {}
         }
     }
 }

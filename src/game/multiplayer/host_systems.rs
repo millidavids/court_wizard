@@ -158,13 +158,14 @@ pub fn receive_teleport_message(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
     units_query: Query<
-        (Entity, &Transform),
+        (Entity, &Transform, &crate::game::units::components::Team),
         (
             With<crate::game::units::components::Teleportable>,
             Without<
                 crate::game::units::wizard::spells::teleport::components::TeleportDestinationCircle,
             >,
             Without<crate::game::units::wizard::spells::teleport::components::TeleportSourceCircle>,
+            Without<crate::game::units::components::Corpse>,
         ),
     >,
 ) {

@@ -6,7 +6,7 @@
 use bevy::prelude::*;
 
 use crate::game::components::{Acceleration, Velocity};
-use crate::game::units::components::Corpse;
+use crate::game::units::components::{Corpse, Stunned};
 
 /// Applies velocity to position for all units.
 ///
@@ -33,6 +33,20 @@ pub fn apply_unit_movement(
         transform.translation.z += velocity.z * delta;
 
         // FINALLY: Reset acceleration for next frame
+        acceleration.reset();
+    }
+}
+
+/// Zeroes velocity and acceleration for stunned units, preventing all voluntary movement.
+///
+/// Runs after movement calculations but before `apply_unit_movement` so that
+/// any residual velocity or acceleration from external forces is also cleared.
+pub fn zero_stunned_velocity(
+    mut stunned_units: Query<(&mut Velocity, &mut Acceleration), With<Stunned>>,
+) {
+    for (mut velocity, mut acceleration) in stunned_units.iter_mut() {
+        velocity.x = 0.0;
+        velocity.z = 0.0;
         acceleration.reset();
     }
 }

@@ -176,6 +176,7 @@ impl_timed_modifier!(
     BerserkerRageModifier,
     FogEvasionModifier,
     FrozenSolidModifier,
+    Stunned,
 );
 
 /// Team component for all units.
@@ -961,6 +962,29 @@ mod tests {
         let mut eff = Effectiveness::new();
         eff.recalculate(2, 1);
         assert_eq!(eff.multiplier(), eff.current);
+    }
+}
+
+/// Stun effect that prevents both movement and attacking.
+///
+/// General-purpose CC component — any spell can insert this with a duration.
+/// A dedicated system zeros velocity on stunned units each frame.
+#[derive(Component)]
+pub struct Stunned {
+    /// Time remaining before the stun expires (in seconds).
+    pub time_remaining: f32,
+}
+
+impl Stunned {
+    pub const fn new(duration: f32) -> Self {
+        Self {
+            time_remaining: duration,
+        }
+    }
+
+    pub fn update(&mut self, delta: f32) -> bool {
+        self.time_remaining -= delta;
+        self.time_remaining <= 0.0
     }
 }
 

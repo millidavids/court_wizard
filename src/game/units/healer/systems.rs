@@ -39,9 +39,9 @@ pub fn update_healer_targeting(
             Option<&Dispeller>,
             Option<&Healer>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<BanishedModifier>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     // Snapshot ally data for heal targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, f32, f32, u32)> = potential_targets
@@ -177,6 +177,7 @@ pub fn healer_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<Healer>,
@@ -195,11 +196,11 @@ pub fn healer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut healer_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -389,7 +390,7 @@ pub fn move_heal_bolts(
 pub fn check_heal_bolt_arrivals(
     mut commands: Commands,
     bolts: Query<(Entity, &Transform, &HealBolt)>,
-    mut targets: Query<(&Transform, &Hitbox, &Team, &mut Health), Without<Corpse>>,
+    mut targets: Query<(&Transform, &Hitbox, &Team, &mut Health), (Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     for (bolt_entity, bolt_transform, bolt) in &bolts {
         let bolt_pos = bolt_transform.translation;

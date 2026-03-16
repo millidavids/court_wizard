@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.323] - 2026-03-16
+
+### Added
+- **Teleport talents** — the Teleport spell now has a full talent tree with 9 talents across 3 tiers, unlocked by teleporting units
+- **Tier 1: Teleport modifiers** — choose between a 50% larger source circle, 40% faster second cast time, or a destination marker that lingers for 5 seconds allowing a second teleport to the same spot
+- **Tier 2: Secondary effects** — choose between stunning teleported units for 2 seconds on arrival (then giving them a brief attack speed boost), swapping all units between two circles simultaneously, or an instant-cast emergency recall that brings nearby allies back to the King
+- **Tier 3: Powerful upgrades** — choose between opening a persistent two-way portal that units can walk through for 10 seconds, teleporting all units at the target straight up into the sky where they fall and take impact damage, or scattering all units in the area to random locations across the battlefield at a reduced mana cost
+- **Teleport visual effects** — casting Teleport now creates a spatial ripple distortion at both the source and destination, and Dimensional Rift portals bend light around them with a subtle gravitational lensing effect
+
 ## [v0.4.296] - 2026-03-15
 
 ### Added

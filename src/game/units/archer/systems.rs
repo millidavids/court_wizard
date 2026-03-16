@@ -74,7 +74,7 @@ pub fn archer_melee_combat(
         ),
         (With<Archer>, Without<Corpse>),
     >,
-    targets: Query<(Entity, &Transform, &Hitbox, &Team), Without<Corpse>>,
+    targets: Query<(Entity, &Transform, &Hitbox, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
 ) {
     let current_time = attack_cycle.current_time;
@@ -167,7 +167,7 @@ pub fn archer_ranged_combat(
             Option<&crate::game::units::components::InMelee>,
             Has<crate::game::units::boss::components::Boss>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<BanishedModifier>),
     >,
     walls: Query<&WallOfStone>,
 ) {
@@ -463,7 +463,7 @@ pub fn update_archer_targeting(
         ),
         (With<Archer>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
     walls: Query<&WallOfStone>,
 ) {
     // Collect snapshot of all unit positions
@@ -608,6 +608,7 @@ pub fn archer_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<Archer>,
@@ -627,11 +628,11 @@ pub fn archer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut archer_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

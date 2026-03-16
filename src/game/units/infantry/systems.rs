@@ -187,7 +187,7 @@ pub fn update_infantry_targeting(
             Without<crate::game::units::components::Corpse>,
         ),
     >,
-    all_units: Query<(Entity, &Transform, &Team), Without<crate::game::units::components::Corpse>>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     // Collect snapshot of all unit positions
     let unit_snapshot: Vec<_> = all_units
@@ -254,6 +254,7 @@ pub fn infantry_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<Infantry>,
@@ -273,11 +274,11 @@ pub fn infantry_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (has_sleep, has_sleepwalking, banished, polymorphed, sickened, frozen),
+        (has_sleep, has_sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut infantry_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, has_sleep, has_sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, has_sleep, has_sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

@@ -202,7 +202,7 @@ pub fn update_hag_targeting(
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
@@ -255,6 +255,7 @@ pub fn hag_combat(
             Without<Corpse>,
             Without<MindControlled>,
             Without<Wizard>,
+            Without<BanishedModifier>,
         ),
     >,
 ) {
@@ -388,6 +389,7 @@ pub fn hag_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
@@ -410,11 +412,11 @@ pub fn hag_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut hags
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -965,6 +967,7 @@ pub fn justina_chain_lightning(
             Without<Corpse>,
             Without<MindControlled>,
             Without<Wizard>,
+            Without<BanishedModifier>,
         ),
     >,
     mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
@@ -1069,6 +1072,7 @@ pub fn justina_fireball(
             Without<Corpse>,
             Without<MindControlled>,
             Without<Wizard>,
+            Without<BanishedModifier>,
         ),
     >,
     visual_assets: Res<SpellVisualAssets>,
@@ -1153,6 +1157,7 @@ pub fn josephina_leap(
             Without<Corpse>,
             Without<MindControlled>,
             Without<Wizard>,
+            Without<BanishedModifier>,
         ),
     >,
 ) {
@@ -1261,7 +1266,7 @@ pub fn josephina_leap_knockback(
         (&Transform, &Team, &HagIdentity, &mut LeapState),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    targets: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>)>,
+    targets: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>)>,
 ) {
     for (transform, team, identity, mut leap) in &mut josephina_query {
         if *identity != HagIdentity::Josephina {
@@ -1442,6 +1447,7 @@ pub fn martina_teleport_pull(
             Without<Corpse>,
             Without<MindControlled>,
             Without<Wizard>,
+            Without<BanishedModifier>,
         ),
     >,
 ) {
@@ -1521,6 +1527,7 @@ pub fn martina_mind_control(
             Without<Corpse>,
             Without<MindControlled>,
             Without<Wizard>,
+            Without<BanishedModifier>,
         ),
     >,
     existing_controlled: Query<&MindControlled, Without<Corpse>>,
@@ -1575,7 +1582,7 @@ pub fn update_mind_controlled_targeting(
         &mut TargetingVelocity,
         &MindControlled,
     )>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<MindControlled>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<MindControlled>, Without<BanishedModifier>)>,
 ) {
     for (entity, transform, team, mut targeting, _mc) in &mut controlled {
         // Find nearest ALLY to attack (reversed targeting)
@@ -1705,7 +1712,7 @@ pub fn mind_controlled_combat(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<MindControlled>),
+        (Without<Corpse>, Without<MindControlled>, Without<BanishedModifier>),
     >,
 ) {
     let current_time = attack_cycle.current_time;

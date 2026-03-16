@@ -78,7 +78,7 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
 pub fn update_ogre_targeting(
     mut commands: Commands,
     mut bosses: Query<(Entity, &Transform, &Team, &mut TargetingVelocity), With<Boss>>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Boss>, Without<Corpse>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Boss>, Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
@@ -117,7 +117,7 @@ pub fn ogre_combat(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Boss>, Without<Corpse>),
+        (Without<Boss>, Without<Corpse>, Without<BanishedModifier>),
     >,
 ) {
     let delta = time.delta_secs();
@@ -231,6 +231,7 @@ pub fn ogre_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<Boss>,
@@ -250,11 +251,11 @@ pub fn ogre_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut bosses
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

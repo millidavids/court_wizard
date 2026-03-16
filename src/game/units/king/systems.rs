@@ -136,7 +136,7 @@ pub fn update_king_targeting(
         ),
         (With<King>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), Without<Corpse>>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     // Collect snapshot of all unit positions
     let unit_snapshot: Vec<_> = all_units
@@ -203,6 +203,7 @@ pub fn king_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<King>,
@@ -222,11 +223,11 @@ pub fn king_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, _polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, _polymorphed, sickened, frozen, stunned),
     ) in &mut king_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

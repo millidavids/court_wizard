@@ -4,9 +4,15 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{TeleportDestinationCircle, TeleportSourceCircle};
+use super::components::{
+    DimensionalRift, DisorientingHaste, LingeringGateMarker, RiftCooldown,
+    TeleportDestinationCircle, TeleportSourceCircle,
+};
 use super::systems;
-use crate::game::run_conditions::is_spell_effects_active;
+use super::vfx_components::TeleportWarpEffect;
+use super::vfx_systems;
+use crate::game::run_conditions::{any_exist, is_gameplay_running, is_spell_effects_active};
+use crate::game::units::systems::update_timed_modifier;
 
 /// Plugin that handles the Teleport spell.
 ///
@@ -14,6 +20,7 @@ use crate::game::run_conditions::is_spell_effects_active;
 /// - Two-phase casting (destination placement, then source placement)
 /// - Circle animations (pulsing effects)
 /// - Unit teleportation
+/// - Talent effects (stun, haste, rift, lingering gate)
 pub struct TeleportPlugin;
 
 impl Plugin for TeleportPlugin {
@@ -35,6 +42,47 @@ impl Plugin for TeleportPlugin {
                 ),
             )
                 .run_if(is_spell_effects_active),
+        );
+
+        // Talent behavior systems
+        // Note: Stunned timer is handled by UnitsPlugin (general-purpose component)
+        app.add_systems(
+            Update,
+            update_timed_modifier::<DisorientingHaste>
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<DisorientingHaste>),
+        );
+
+        app.add_systems(
+            Update,
+            update_timed_modifier::<RiftCooldown>
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<RiftCooldown>),
+        );
+
+        app.add_systems(
+            Update,
+            systems::tick_dimensional_rift
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<DimensionalRift>),
+        );
+
+        app.add_systems(
+            Update,
+            systems::tick_lingering_gate
+                .run_if(is_gameplay_running)
+                .run_if(any_with_component::<LingeringGateMarker>),
+        );
+
+        // VFX systems
+        app.add_systems(
+            Update,
+            (
+                vfx_systems::tick_warp_effects,
+                vfx_systems::cleanup_rift_warp_effects,
+            )
+                .run_if(is_spell_effects_active)
+                .run_if(any_with_component::<TeleportWarpEffect>),
         );
     }
 }

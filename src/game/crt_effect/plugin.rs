@@ -23,19 +23,20 @@ use bevy::{
     ui_render::graph::NodeUi,
 };
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings};
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings};
 use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
 use super::systems::{
     CorrectedCursorPosition, RawCursorPosition, animate_channel_change, animate_desaturation,
     correct_cursor_for_barrel_distortion, correct_ui_interaction_for_barrel,
     handle_channel_change_message, handle_desaturation_message, update_heat_distortion_positions,
-    update_lensing_positions,
+    update_lensing_positions, update_teleport_distortion_positions,
 };
 use crate::state::AppState;
 
 const CRT_SHADER_PATH: &str = "shaders/crt_effect.wgsl";
 const LENSING_SHADER_PATH: &str = "shaders/gravitational_lensing.wgsl";
 const HEAT_DISTORTION_SHADER_PATH: &str = "shaders/heat_distortion.wgsl";
+const TELEPORT_DISTORTION_SHADER_PATH: &str = "shaders/teleport_distortion.wgsl";
 
 pub(crate) struct CrtEffectPlugin;
 
@@ -48,6 +49,8 @@ impl Plugin for CrtEffectPlugin {
             UniformComponentPlugin::<LensingSettings>::default(),
             ExtractComponentPlugin::<HeatDistortionSettings>::default(),
             UniformComponentPlugin::<HeatDistortionSettings>::default(),
+            ExtractComponentPlugin::<TeleportDistortionSettings>::default(),
+            UniformComponentPlugin::<TeleportDistortionSettings>::default(),
         ));
 
         app.init_resource::<RawCursorPosition>();
@@ -71,6 +74,7 @@ impl Plugin for CrtEffectPlugin {
             (
                 update_lensing_positions,
                 update_heat_distortion_positions,
+                update_teleport_distortion_positions,
             )
                 .run_if(in_state(AppState::InGame)),
         );
@@ -99,16 +103,17 @@ impl Plugin for CrtEffectPlugin {
 
         render_app.add_systems(
             RenderStartup,
-            (init_crt_pipeline, init_lensing_pipeline, init_heat_distortion_pipeline),
+            (init_crt_pipeline, init_lensing_pipeline, init_heat_distortion_pipeline, init_teleport_distortion_pipeline),
         );
 
         render_app
             .add_render_graph_node::<ViewNodeRunner<LensingNode>>(Core3d, LensingLabel)
+            .add_render_graph_node::<ViewNodeRunner<TeleportDistortionNode>>(Core3d, TeleportDistortionLabel)
             .add_render_graph_node::<ViewNodeRunner<HeatDistortionNode>>(Core3d, HeatDistortionLabel)
             .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(Core3d, CrtEffectLabel)
             .add_render_graph_edges(
                 Core3d,
-                (NodeUi::UiPass, LensingLabel, HeatDistortionLabel, CrtEffectLabel, Node3d::Upscaling),
+                (NodeUi::UiPass, LensingLabel, TeleportDistortionLabel, HeatDistortionLabel, CrtEffectLabel, Node3d::Upscaling),
             );
     }
 }
@@ -471,6 +476,132 @@ fn init_heat_distortion_pipeline(
     });
 
     commands.insert_resource(HeatDistortionPipeline {
+        layout,
+        sampler,
+        pipeline_id,
+    });
+}
+
+// --- Teleport Distortion render node ---
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+struct TeleportDistortionLabel;
+
+#[derive(Default)]
+struct TeleportDistortionNode;
+
+impl ViewNode for TeleportDistortionNode {
+    type ViewQuery = (
+        &'static ViewTarget,
+        &'static TeleportDistortionSettings,
+        &'static DynamicUniformIndex<TeleportDistortionSettings>,
+    );
+
+    fn run(
+        &self,
+        _graph: &mut RenderGraphContext,
+        render_context: &mut RenderContext,
+        (view_target, settings, settings_index): QueryItem<Self::ViewQuery>,
+        world: &World,
+    ) -> Result<(), NodeRunError> {
+        // Skip the entire render pass when no distortion points are active
+        if settings.count < 0.5 {
+            return Ok(());
+        }
+
+        let teleport_pipeline = world.resource::<TeleportDistortionPipeline>();
+        let pipeline_cache = world.resource::<PipelineCache>();
+
+        let Some(pipeline) = pipeline_cache.get_render_pipeline(teleport_pipeline.pipeline_id)
+        else {
+            return Ok(());
+        };
+
+        let settings_uniforms = world.resource::<ComponentUniforms<TeleportDistortionSettings>>();
+        let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
+            return Ok(());
+        };
+
+        let post_process = view_target.post_process_write();
+
+        let bind_group = render_context.render_device().create_bind_group(
+            "teleport_distortion_bind_group",
+            &teleport_pipeline.layout,
+            &BindGroupEntries::sequential((
+                post_process.source,
+                &teleport_pipeline.sampler,
+                settings_binding.clone(),
+            )),
+        );
+
+        let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
+            label: Some("teleport_distortion_pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: post_process.destination,
+                depth_slice: None,
+                resolve_target: None,
+                ops: Operations::default(),
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        render_pass.set_render_pipeline(pipeline);
+        render_pass.set_bind_group(0, &bind_group, &[settings_index.index()]);
+        render_pass.draw(0..3, 0..1);
+
+        Ok(())
+    }
+}
+
+#[derive(Resource)]
+struct TeleportDistortionPipeline {
+    layout: BindGroupLayout,
+    sampler: Sampler,
+    pipeline_id: CachedRenderPipelineId,
+}
+
+fn init_teleport_distortion_pipeline(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    asset_server: Res<AssetServer>,
+    fullscreen_shader: Res<FullscreenShader>,
+    pipeline_cache: Res<PipelineCache>,
+) {
+    let layout = render_device.create_bind_group_layout(
+        "teleport_distortion_bind_group_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::FRAGMENT,
+            (
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
+                uniform_buffer::<TeleportDistortionSettings>(true),
+            ),
+        ),
+    );
+
+    let sampler = render_device.create_sampler(&SamplerDescriptor::default());
+    let shader = asset_server.load(TELEPORT_DISTORTION_SHADER_PATH);
+    let vertex_state = fullscreen_shader.to_vertex_state();
+
+    let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
+        label: Some("teleport_distortion_pipeline".into()),
+        layout: vec![layout.clone()],
+        vertex: vertex_state,
+        fragment: Some(FragmentState {
+            shader,
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::bevy_default(),
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            })],
+            ..default()
+        }),
+        ..default()
+    });
+
+    commands.insert_resource(TeleportDistortionPipeline {
         layout,
         sampler,
         pipeline_id,

@@ -28,8 +28,8 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::MindControl => [10, 50, 100],
         // Support spells
         Spell::GuardianCircle => [20, 70, 200],
-        Spell::Haste => [1, 2, 3],
-        Spell::Teleport => [15, 50, 150],
+        Spell::Haste => [30, 200, 500],
+        Spell::Teleport => [1, 2, 3],
         Spell::RaiseTheDead => [15, 50, 150],
         Spell::HealingPlume => [30, 100, 300],
         Spell::FogCloud => [20, 70, 200],

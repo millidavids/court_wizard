@@ -123,7 +123,7 @@ pub fn update_brute_targeting(
         ),
         With<Brute>,
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>, Without<BanishedModifier>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
@@ -173,6 +173,7 @@ pub fn brute_movement(
                 Option<&PolymorphedModifier>,
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
             ),
         ),
         With<Brute>,
@@ -191,11 +192,11 @@ pub fn brute_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut brutes
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen) {
+        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
