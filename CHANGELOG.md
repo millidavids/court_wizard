@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.353] - 2026-03-16
+
+### Added
+- **Healing Plume talents** — the Healing Plume spell now has a full talent tree with 9 talents across 3 tiers, unlocked by restoring health with the healing zone
+- **Tier 1: Zone modifiers** — choose between 40% stronger healing per tick, a 40% larger zone radius, or 50% longer zone duration
+- **Tier 2: Secondary effects** — choose between periodically cleansing debuffs from all units inside the zone, excess healing converting into temporary HP (up to 20 bonus HP), or doubling healing for units below 30% health
+- **Tier 3: Powerful upgrades** — choose between units that die inside the zone being resurrected after a short delay, the zone becoming mobile and following your cursor (at slightly reduced healing), or converting the nearest defender into a temporary healer who fires heal bolts at hurt allies for the zone's duration
+- **Field Medic visual feedback** — units converted into temporary healers turn green so you can easily spot them on the battlefield, and revert to their original appearance when the zone expires
+
+### Changed
+- **Healing Plume effects are indiscriminate** — the healing zone and all its talent effects now affect all units inside, regardless of team, just like the base healing spell
+
 ## [v0.4.339] - 2026-03-16
 
 ### Added

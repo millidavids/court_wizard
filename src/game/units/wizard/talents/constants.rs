@@ -30,8 +30,8 @@ pub(crate) fn tier_thresholds(spell: Spell) -> [u32; 3] {
         Spell::GuardianCircle => [20, 70, 200],
         Spell::Haste => [30, 200, 500],
         Spell::Teleport => [20, 100, 500],
-        Spell::RaiseTheDead => [1, 2, 3],
-        Spell::HealingPlume => [30, 100, 300],
+        Spell::RaiseTheDead => [10, 50, 100],
+        Spell::HealingPlume => [1, 2, 3],
         Spell::FogCloud => [20, 70, 200],
         Spell::BerserkerRage => [15, 50, 150],
         // Utility spells

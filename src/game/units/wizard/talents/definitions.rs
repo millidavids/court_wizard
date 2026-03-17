@@ -42,6 +42,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Haste => haste_talents(),
         Spell::Teleport => teleport_talents(),
         Spell::RaiseTheDead => raise_the_dead_talents(),
+        Spell::HealingPlume => healing_plume_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1755,6 +1756,74 @@ fn raise_the_dead_talents() -> [[TalentDefinition; 3]; 3] {
     ]
 }
 
+fn healing_plume_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Rejuvenating Mists",
+                description: "Healing per tick increased by 40%.",
+                locked_text: "Stronger healing. The plume went to medical school. Very briefly.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Verdant Bloom",
+                description: "Zone radius increased by 40%.",
+                locked_text: "Bigger healing cloud. Stand in the green circle. Why is this so hard for people?",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Lasting Remedy",
+                description: "Zone duration increased by 50%.",
+                locked_text: "The healing lingers. Like the smell of the wizard's potions. Less pleasant, equally effective.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Cleansing Plume",
+                description: "Removes debuffs (slow, root, vulnerability) from all units inside the zone.",
+                locked_text: "It heals AND cleans. The wizard invented magical soap.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Overflow",
+                description: "Healing that exceeds max HP becomes temporary HP (up to 20 temp HP).",
+                locked_text: "Can't waste the extra healing. Redirect it. The wizard is an efficiency expert.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Triage Pulse",
+                description: "Allies below 30% HP are healed for double the amount.",
+                locked_text: "The sicker you are, the harder it works. The plume is a workaholic.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Font of Life",
+                description: "Units that die inside the healing zone are resurrected at 25% HP after 3 seconds. Once per unit.",
+                locked_text: "Death is temporary. Healing is permanent. The plume has strong opinions about mortality.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Healing Rain",
+                description: "The healing zone follows your cursor. Healing per tick reduced by 25%.",
+                locked_text: "Portable healing. The wizard is basically an ambulance now.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Field Medic",
+                description: "The nearest defender in the zone is temporarily converted into a healer for the zone's duration. They fire heal bolts at hurt allies.",
+                locked_text: "One soldier puts down their sword and picks up a first aid kit. Involuntarily.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
 fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
     // Generate thematic placeholder names based on spell type
     let (t1, t2, t3) = placeholder_names(spell);
@@ -1929,9 +1998,9 @@ fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'
             ["Necropolis", "Lich's Command", "Army of Darkness"],
         ),
         Spell::HealingPlume => (
-            ["Wider Zone", "Stronger Healing", "Quick Bloom"],
-            ["Regeneration", "Cleansing Mist", "Life Burst"],
-            ["Miracle", "Fountain of Life", "Divine Intervention"],
+            ["Rejuvenating Mists", "Verdant Bloom", "Lasting Remedy"],
+            ["Cleansing Plume", "Overflow", "Triage Pulse"],
+            ["Font of Life", "Healing Rain", "Field Medic"],
         ),
         Spell::FogCloud => (
             ["Wider Fog", "Thicker Mist", "Quick Cover"],

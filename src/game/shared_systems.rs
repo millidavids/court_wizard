@@ -880,6 +880,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::wizard::spells::haste::components::MomentumPending>()
                 .remove::<super::units::wizard::spells::haste::components::FleetFeet>()
                 .remove::<super::units::wizard::spells::haste::components::ChainHasteSource>()
+                .remove::<super::units::wizard::spells::healing_plume::components::FieldMedicConverted>()
                 .remove::<CauldronDamageBonus>()
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>()
