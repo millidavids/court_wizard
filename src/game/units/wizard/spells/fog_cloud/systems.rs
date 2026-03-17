@@ -2,22 +2,68 @@ use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
-use super::components::FogCloudZone;
+use super::components::{
+    BlindingMistDebuff, BlindingMistZone, ChokingFogZone, ConcealingVeilZone,
+    DisorientingVaporsZone, FogCloudTalentParams, FogCloudZone, PhantomFogZone, PhantomUnit,
+    RollingFogZone,
+};
 use super::constants;
 use crate::config::GameConfig;
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
-use crate::game::units::components::{Corpse, FogEvasionModifier};
+use crate::game::units::components::{
+    AttackTiming, Corpse, Effectiveness, FogEvasionModifier, Health, Hitbox, Stunned, Team,
+};
+use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator, xz_distance,
 };
+use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
+
+/// Computes talent parameters from active talent selections.
+pub(crate) fn compute_talent_params(
+    active_talents: Option<&ActiveTalents>,
+) -> FogCloudTalentParams {
+    let mut params = FogCloudTalentParams::default();
+    let Some(talents) = active_talents else {
+        return params;
+    };
+
+    // Tier 1
+    match talents.get_selection(Spell::FogCloud, 0) {
+        Some(0) => params.evasion_chance = constants::DENSE_FOG_EVASION,
+        Some(1) => params.radius_mult = constants::EXPANDING_MISTS_RADIUS_MULT,
+        Some(2) => params.linger_duration = constants::CLINGING_HAZE_LINGER,
+        _ => {}
+    }
+
+    // Tier 2
+    match talents.get_selection(Spell::FogCloud, 1) {
+        Some(0) => params.blinding_mist = true,
+        Some(1) => params.concealing_veil = true,
+        Some(2) => params.disorienting_vapors = true,
+        _ => {}
+    }
+
+    // Tier 3
+    match talents.get_selection(Spell::FogCloud, 2) {
+        Some(0) => params.phantom_fog = true,
+        Some(1) => params.choking_fog = true,
+        Some(2) => params.rolling_fog = true,
+        _ => {}
+    }
+
+    params
+}
 
 /// Local wizard fog cloud casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -28,7 +74,6 @@ pub fn handle_fog_cloud_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -39,6 +84,7 @@ pub fn handle_fog_cloud_casting(
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    active_talents: Option<Res<ActiveTalents>>,
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
@@ -58,6 +104,8 @@ pub fn handle_fog_cloud_casting(
         return;
     }
 
+    let talent_params = compute_talent_params(active_talents.as_deref());
+
     let completed = fog_cloud_casting_logic(
         &input,
         &time,
@@ -71,9 +119,9 @@ pub fn handle_fog_cloud_casting(
         &mut commands,
         &visual_assets,
         &mut meshes,
-        &mut materials,
         &sfx,
         &game_config,
+        &talent_params,
     );
 
     if completed {
@@ -96,9 +144,9 @@ fn fog_cloud_casting_logic(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     meshes: &mut Assets<Mesh>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
+    talent_params: &FogCloudTalentParams,
 ) -> bool {
     let mut completed = false;
 
@@ -125,7 +173,7 @@ fn fog_cloud_casting_logic(
         0.0
     };
     let scale = primed_spell.empowerment;
-    let circle_radius = constants::CIRCLE_RADIUS * scale;
+    let circle_radius = constants::CIRCLE_RADIUS * scale * talent_params.radius_mult;
     let max_center_distance = (max_ground_radius - circle_radius).max(0.0);
     let direction = cursor_world_pos - wizard_pos;
     let distance = (direction.x * direction.x + direction.z * direction.z).sqrt();
@@ -145,7 +193,7 @@ fn fog_cloud_casting_logic(
                     meshes,
                     assets.fog_cloud_indicator.clone(),
                     cursor_world_pos,
-                    constants::CIRCLE_RADIUS * primed_spell.empowerment,
+                    constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult,
                 )
                 .id();
                 commands
@@ -168,7 +216,9 @@ fn fog_cloud_casting_logic(
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
+                            let radius = constants::CIRCLE_RADIUS
+                                * primed_spell.empowerment
+                                * talent_params.radius_mult;
                             audio::play_sfx(
                                 commands,
                                 &sfx.fog_cloud_cast,
@@ -178,11 +228,10 @@ fn fog_cloud_casting_logic(
                             );
                             spawn_fog_cloud_zone(
                                 commands,
-                                assets,
-                                materials,
                                 indicator.position,
                                 radius,
                                 primed_spell.empowerment,
+                                talent_params,
                             );
                         }
                         commands.entity(indicator_entity).try_despawn();
@@ -228,12 +277,7 @@ pub fn apply_fog_cloud_evasion(
         if zone.time_since_last_tick >= zone.tick_interval {
             zone.time_since_last_tick = 0.0;
             for (entity, transform, existing_evasion) in &mut targets {
-                let dist = Vec3::new(
-                    zone.origin.x - transform.translation.x,
-                    0.0,
-                    zone.origin.z - transform.translation.z,
-                )
-                .length();
+                let dist = xz_distance(zone.origin, transform.translation);
                 if dist <= zone.radius {
                     if let Some(mut evasion) = existing_evasion {
                         evasion.refresh(zone.evasion_refresh_duration);
@@ -249,21 +293,216 @@ pub fn apply_fog_cloud_evasion(
     }
 }
 
-pub fn fade_fog_cloud_zone(
-    zones: Query<(&FogCloudZone, &MeshMaterial3d<StandardMaterial>)>,
+/// Tier 2: Blinding Mist — apply/refresh debuff on units inside fog zones with this talent.
+pub fn apply_blinding_mist(
+    mut commands: Commands,
+    zones: Query<(&FogCloudZone, &BlindingMistZone)>,
+    mut targets: Query<
+        (Entity, &Transform, Option<&mut BlindingMistDebuff>),
+        Without<Corpse>,
+    >,
+) {
+    for (zone, _) in &zones {
+        for (entity, transform, existing_debuff) in &mut targets {
+            if xz_distance(zone.origin, transform.translation) <= zone.radius {
+                if let Some(mut debuff) = existing_debuff {
+                    debuff.refresh();
+                } else {
+                    commands
+                        .entity(entity)
+                        .insert(BlindingMistDebuff::new(constants::BLINDING_MIST_RANGE_MULT));
+                }
+            }
+        }
+    }
+}
+
+/// Tick down BlindingMistDebuff timers and remove expired ones.
+pub fn tick_blinding_mist_debuff(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut debuffs: Query<(Entity, &mut BlindingMistDebuff)>,
+) {
+    let delta = time.delta_secs();
+    for (entity, mut debuff) in &mut debuffs {
+        debuff.time_remaining -= delta;
+        if debuff.time_remaining <= 0.0 {
+            commands.entity(entity).remove::<BlindingMistDebuff>();
+        }
+    }
+}
+
+/// Tier 3: Choking Fog — deal minor DPS to non-ally units inside the fog.
+pub fn apply_choking_fog_damage(
+    time: Res<Time>,
+    mut zones: Query<(&FogCloudZone, &mut ChokingFogZone)>,
+    mut targets: Query<(&Transform, &Team, &mut Health), Without<Corpse>>,
+) {
+    let delta = time.delta_secs();
+    for (zone, mut choking) in &mut zones {
+        choking.tick_accumulator += delta;
+        if choking.tick_accumulator >= choking.tick_interval {
+            choking.tick_accumulator -= choking.tick_interval;
+            let damage = choking.dps * choking.tick_interval;
+            for (transform, _team, mut health) in &mut targets {
+                let dist = xz_distance(zone.origin, transform.translation);
+                if dist <= zone.radius {
+                    health.current = (health.current - damage).max(0.0);
+                }
+            }
+        }
+    }
+}
+
+/// Tier 3: Rolling Fog — move the fog zone toward the nearest attacker approach direction.
+pub fn move_rolling_fog(
+    time: Res<Time>,
+    mut zones: Query<(
+        &mut FogCloudZone,
+        &mut Transform,
+        &RollingFogZone,
+    )>,
+    units: Query<(&Transform, &Team), (Without<Corpse>, Without<FogCloudZone>)>,
+) {
+    let delta = time.delta_secs();
+
+    // Collect attacker positions
+    let attacker_positions: Vec<Vec3> = units
+        .iter()
+        .filter(|(_, team)| **team == Team::Attackers)
+        .map(|(t, _)| t.translation)
+        .collect();
+
+    for (mut zone, mut zone_transform, rolling) in &mut zones {
+        // Find nearest attacker to move toward
+        let mut nearest_dist = f32::MAX;
+        let mut nearest_dir = Vec3::ZERO;
+
+        for &attacker_pos in &attacker_positions {
+            let diff = Vec3::new(
+                attacker_pos.x - zone.origin.x,
+                0.0,
+                attacker_pos.z - zone.origin.z,
+            );
+            let dist = diff.length();
+            if dist < nearest_dist && dist > 1.0 {
+                nearest_dist = dist;
+                nearest_dir = diff / dist;
+            }
+        }
+
+        if nearest_dist < f32::MAX {
+            let movement = nearest_dir * rolling.speed * delta;
+            zone.origin.x += movement.x;
+            zone.origin.z += movement.z;
+            zone_transform.translation.x = zone.origin.x;
+            zone_transform.translation.z = zone.origin.z;
+        }
+    }
+}
+
+/// Continuously spawns gray smoke particles from active fog cloud zones.
+pub fn emit_fog_cloud_particles(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut zones: Query<&mut FogCloudZone>,
+    assets: Res<SpellVisualAssets>,
+) {
+    let dt = time.delta_secs();
+    let t = time.elapsed_secs();
+
+    for mut zone in &mut zones {
+        // Don't emit particles during fade-out
+        let remaining = zone.duration - zone.time_alive;
+        if remaining < constants::FADE_DURATION {
+            continue;
+        }
+
+        zone.smoke_spawn_timer += dt;
+        if zone.smoke_spawn_timer >= vfx::constants::FOG_SMOKE_SPAWN_INTERVAL {
+            zone.smoke_spawn_timer -= vfx::constants::FOG_SMOKE_SPAWN_INTERVAL;
+
+            vfx::systems::spawn_fog_smoke_puffs(
+                &mut commands,
+                &assets,
+                zone.origin,
+                zone.radius,
+                vfx::constants::FOG_SMOKE_COUNT_PER_SPAWN,
+                t,
+            );
+        }
+    }
+}
+
+/// Tier 3: Phantom Fog — periodically spawns phantom decoy units inside fog zones.
+pub fn spawn_phantom_units(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut zones: Query<(Entity, &FogCloudZone, &mut PhantomFogZone)>,
+    existing_phantoms: Query<&PhantomUnit>,
+    infantry_assets: Res<InfantryAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (zone, material_handle) in &zones {
-        let Some(material) = materials.get_mut(material_handle) else {
+    let dt = time.delta_secs();
+    let t = time.elapsed_secs();
+    let mut phantom_count: Option<usize> = None;
+
+    for (_zone_entity, zone, mut phantom_zone) in &mut zones {
+        phantom_zone.spawn_timer += dt;
+        if phantom_zone.spawn_timer < constants::PHANTOM_SPAWN_INTERVAL {
             continue;
-        };
-        let remaining = zone.duration - zone.time_alive;
-        let fade = if remaining < constants::FADE_DURATION {
-            (remaining / constants::FADE_DURATION).max(0.0)
-        } else {
-            1.0
-        };
-        material.base_color = Color::srgba(0.6, 0.65, 0.7, 0.35 * fade);
+        }
+        phantom_zone.spawn_timer -= constants::PHANTOM_SPAWN_INTERVAL;
+
+        // Count phantoms lazily (only when a zone is ready to spawn)
+        let count = *phantom_count.get_or_insert_with(|| existing_phantoms.iter().count());
+        if count >= constants::PHANTOM_MAX_TOTAL {
+            continue;
+        }
+
+        // Spawn phantom at a random position within the zone
+        let seed = t * 7.1 + zone.origin.x * 3.3;
+        let angle = seed * 2.39 + (seed * 13.7).sin() * 1.5;
+        let r_frac = 0.3 + 0.5 * ((seed * 23.1).sin() * 0.5 + 0.5);
+        let r = zone.radius * r_frac;
+        let x = zone.origin.x + angle.cos() * r;
+        let z = zone.origin.z + angle.sin() * r;
+
+        // Ghostly translucent infantry sprite
+        let material = create_default_sprite_material(
+            &mut materials,
+            infantry_assets.sprite_texture.clone(),
+            Color::srgba(0.7, 0.75, 0.85, 0.3),
+        );
+
+        commands.spawn((
+            Mesh3d(infantry_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_translation(Vec3::new(x, constants::PHANTOM_HITBOX_HEIGHT * 0.5, z)),
+            Billboard,
+            Hitbox::new(constants::PHANTOM_HITBOX_RADIUS, constants::PHANTOM_HITBOX_HEIGHT),
+            Health::new(1.0),
+            Team::Defenders,
+            AttackTiming::new(),
+            Effectiveness::new(),
+            Stunned { time_remaining: f32::MAX },
+            PhantomUnit,
+            OnGameplayScreen,
+        ));
+    }
+}
+
+/// Despawns phantom units when they die or when no phantom fog zones remain.
+pub fn cleanup_phantom_units(
+    mut commands: Commands,
+    phantoms: Query<(Entity, &Health), With<PhantomUnit>>,
+    zones: Query<&PhantomFogZone>,
+) {
+    let zones_exist = !zones.is_empty();
+    for (entity, health) in &phantoms {
+        if health.current <= 0.0 || !zones_exist {
+            commands.entity(entity).try_despawn();
+        }
     }
 }
 
@@ -277,43 +516,68 @@ pub fn cleanup_fog_cloud_zone(mut commands: Commands, zones: Query<(Entity, &Fog
 
 pub(crate) fn spawn_fog_cloud_zone(
     commands: &mut Commands,
-    assets: &SpellVisualAssets,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     radius: f32,
     empowerment: f32,
+    talent_params: &FogCloudTalentParams,
 ) {
     let duration = constants::ZONE_DURATION * empowerment;
-    let evasion = constants::EVASION_CHANCE;
-    let refresh_dur = constants::EVASION_REFRESH_DURATION * empowerment;
+    let evasion = talent_params.evasion_chance;
+    let refresh_dur = talent_params.linger_duration * empowerment;
 
-    let base_mat = materials
-        .get(&assets.fog_cloud_zone)
-        .cloned()
-        .unwrap_or_default();
-    let instance_material = materials.add(base_mat);
-
-    commands.spawn((
-        Mesh3d(assets.unit_circle.clone()),
-        MeshMaterial3d(instance_material),
-        Transform::from_translation(Vec3::new(
-            position.x,
-            constants::CIRCLE_Y_POSITION,
-            position.z,
+    let zone_entity = commands
+        .spawn((
+            Transform::from_translation(Vec3::new(position.x, 0.0, position.z)),
+            FogCloudZone::new(
+                Vec3::new(position.x, 0.0, position.z),
+                radius,
+                evasion,
+                refresh_dur,
+                constants::TICK_INTERVAL,
+                duration,
+            ),
+            NetworkedSpellEffect {
+                kind: SpellEffectKind::FogCloudZone,
+            },
+            OnGameplayScreen,
         ))
-        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-        .with_scale(Vec3::splat(radius)),
-        FogCloudZone::new(
-            Vec3::new(position.x, 0.0, position.z),
-            radius,
-            evasion,
-            refresh_dur,
-            constants::TICK_INTERVAL,
-            duration,
-        ),
-        NetworkedSpellEffect {
-            kind: SpellEffectKind::FogCloudZone,
-        },
-        OnGameplayScreen,
-    ));
+        .id();
+
+    // Insert talent-specific zone marker components
+    if talent_params.blinding_mist {
+        commands.entity(zone_entity).insert(BlindingMistZone);
+    }
+    if talent_params.concealing_veil {
+        commands.entity(zone_entity).insert(ConcealingVeilZone);
+    }
+    if talent_params.disorienting_vapors {
+        commands.entity(zone_entity).insert(DisorientingVaporsZone);
+    }
+    if talent_params.phantom_fog {
+        commands.entity(zone_entity).insert(PhantomFogZone { spawn_timer: 0.0 });
+    }
+    if talent_params.choking_fog {
+        commands.entity(zone_entity).insert(ChokingFogZone::new(
+            constants::CHOKING_FOG_DPS,
+            constants::CHOKING_FOG_TICK_INTERVAL,
+        ));
+    }
+    if talent_params.rolling_fog {
+        commands.entity(zone_entity).insert(RollingFogZone {
+            speed: constants::ROLLING_FOG_SPEED,
+        });
+    }
+}
+
+/// Returns true if the given position is inside any fog cloud zone (given as origin/radius pairs).
+pub(crate) fn is_in_fog_zone(
+    pos: Vec3,
+    zones: &[(Vec3, f32)],
+) -> bool {
+    for &(origin, radius) in zones {
+        if xz_distance(pos, origin) <= radius {
+            return true;
+        }
+    }
+    false
 }

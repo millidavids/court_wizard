@@ -167,6 +167,10 @@ pub struct SpellVisualAssets {
     // ── Plague smoke material (poison cloud) ─────────────────────────
     pub plague_smoke: Handle<StandardMaterial>,
 
+    // ── Fog smoke material (gray fog cloud puffs) ──────────────────
+    pub fog_smoke: Handle<StandardMaterial>,
+
+
     // ── Snow particle material (squall storm) ─────────────────────────
     pub snow_particle: Handle<StandardMaterial>,
 
@@ -497,6 +501,16 @@ pub fn init_spell_visual_assets(
             cull_mode: None,
             ..default()
         }),
+
+        // Fog smoke (gray fog cloud puffs — denser than plague smoke)
+        fog_smoke: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.55, 0.6, 0.65, 0.5),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
 
         // Snow particle (white translucent swirling flakes)
         snow_particle: materials.add(StandardMaterial {

@@ -104,6 +104,20 @@ pub(crate) const PLAGUE_SMOKE_SWAY_FREQUENCY: f32 = 1.5;
 /// Lateral sway amplitude (world units).
 pub(crate) const PLAGUE_SMOKE_SWAY_AMPLITUDE: f32 = 8.0;
 
+// ── Fog smoke (fog cloud) ──────────────────────────────────────────
+/// Time between fog smoke batch spawns (seconds).
+pub(crate) const FOG_SMOKE_SPAWN_INTERVAL: f32 = 0.04;
+/// Number of fog smoke puffs per spawn batch.
+pub(crate) const FOG_SMOKE_COUNT_PER_SPAWN: usize = 5;
+/// How long each fog smoke puff lives (seconds).
+pub(crate) const FOG_SMOKE_LIFETIME: f32 = 2.5;
+/// Base size of each fog smoke particle.
+pub(crate) const FOG_SMOKE_SIZE: f32 = 35.0;
+/// Upward drift speed of fog smoke.
+pub(crate) const FOG_SMOKE_RISE_SPEED: f32 = 8.0;
+/// Lateral swirl speed of fog smoke puffs.
+pub(crate) const FOG_SMOKE_SWIRL_SPEED: f32 = 5.0;
+
 // ── Heat shimmer (fire haze) ────────────────────────────────────────
 /// How long each shimmer wisp lives (seconds).
 pub(crate) const SHIMMER_LIFETIME: f32 = 0.6;

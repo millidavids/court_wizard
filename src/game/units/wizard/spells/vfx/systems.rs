@@ -447,9 +447,69 @@ pub fn update_heat_shimmer(
 
 /// Spawns plague smoke puffs scattered within a cloud volume.
 /// Each puff is a billboard that drifts upward with gentle swirling.
+/// Tunable parameters for smoke puff spawning.
+pub struct SmokePuffParams {
+    pub rise_speed: f32,
+    pub swirl_speed: f32,
+    pub size: f32,
+    pub lifetime: f32,
+    /// Height base multiplier (fraction of rise_speed for minimum height).
+    pub height_base: f32,
+    /// Height range multiplier (fraction of rise_speed added by randomness).
+    pub height_range: f32,
+}
+
+/// Plague wind smoke parameters (standard cloud).
+pub const PLAGUE_SMOKE_PARAMS: SmokePuffParams = SmokePuffParams {
+    rise_speed: constants::PLAGUE_SMOKE_RISE_SPEED,
+    swirl_speed: constants::PLAGUE_SMOKE_SWIRL_SPEED,
+    size: constants::PLAGUE_SMOKE_SIZE,
+    lifetime: constants::PLAGUE_SMOKE_LIFETIME,
+    height_base: 0.3,
+    height_range: 0.5,
+};
+
+/// Fog cloud smoke parameters (denser, ground-hugging).
+pub const FOG_SMOKE_PARAMS: SmokePuffParams = SmokePuffParams {
+    rise_speed: constants::FOG_SMOKE_RISE_SPEED,
+    swirl_speed: constants::FOG_SMOKE_SWIRL_SPEED,
+    size: constants::FOG_SMOKE_SIZE,
+    lifetime: constants::FOG_SMOKE_LIFETIME,
+    height_base: 0.2,
+    height_range: 0.3,
+};
+
+/// Spawns plague smoke puffs (green).
 pub fn spawn_plague_smoke_puffs(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    center: Vec3,
+    cloud_radius: f32,
+    count: usize,
+    time_secs: f32,
+) {
+    spawn_smoke_puffs(commands, assets, &assets.plague_smoke, &PLAGUE_SMOKE_PARAMS, center, cloud_radius, count, time_secs);
+}
+
+/// Spawns fog smoke puffs (gray, denser and ground-hugging).
+pub fn spawn_fog_smoke_puffs(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    center: Vec3,
+    cloud_radius: f32,
+    count: usize,
+    time_secs: f32,
+) {
+    spawn_smoke_puffs(commands, assets, &assets.fog_smoke, &FOG_SMOKE_PARAMS, center, cloud_radius, count, time_secs);
+}
+
+/// Spawns smoke puffs with configurable material and parameters.
+#[allow(clippy::too_many_arguments)]
+fn spawn_smoke_puffs(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    material: &Handle<StandardMaterial>,
+    params: &SmokePuffParams,
     center: Vec3,
     cloud_radius: f32,
     count: usize,
@@ -467,21 +527,21 @@ pub fn spawn_plague_smoke_puffs(
 
         // Random height within cloud volume
         let height_frac = (seed * 31.3).cos() * 0.5 + 0.5;
-        let y = constants::PLAGUE_SMOKE_RISE_SPEED * 0.3
-            + height_frac * constants::PLAGUE_SMOKE_RISE_SPEED * 0.5;
+        let y = params.rise_speed * params.height_base
+            + height_frac * params.rise_speed * params.height_range;
 
         // Gentle upward drift with swirl
         let rise_variation = 0.7 + 0.3 * ((seed * 17.3).cos() * 0.5 + 0.5);
-        let swirl_x = angle.sin() * constants::PLAGUE_SMOKE_SWIRL_SPEED;
-        let swirl_z = -angle.cos() * constants::PLAGUE_SMOKE_SWIRL_SPEED;
+        let swirl_x = angle.sin() * params.swirl_speed;
+        let swirl_z = -angle.cos() * params.swirl_speed;
         let velocity = Vec3::new(
             swirl_x,
-            constants::PLAGUE_SMOKE_RISE_SPEED * rise_variation,
+            params.rise_speed * rise_variation,
             swirl_z,
         );
 
         let size_variation = 0.6 + 0.4 * ((seed * 41.7).sin() * 0.5 + 0.5);
-        let base_size = constants::PLAGUE_SMOKE_SIZE * size_variation;
+        let base_size = params.size * size_variation;
 
         let lifetime_variation = 0.8 + 0.4 * ((seed * 53.3).cos() * 0.5 + 0.5);
 
@@ -489,12 +549,12 @@ pub fn spawn_plague_smoke_puffs(
             PlagueSmoke {
                 velocity,
                 time_alive: 0.0,
-                lifetime: constants::PLAGUE_SMOKE_LIFETIME * lifetime_variation,
+                lifetime: params.lifetime * lifetime_variation,
                 base_size,
                 phase: seed,
             },
             Mesh3d(assets.particle_quad.clone()),
-            MeshMaterial3d(assets.plague_smoke.clone()),
+            MeshMaterial3d(material.clone()),
             Transform::from_translation(Vec3::new(x, y, z))
                 .with_scale(Vec3::splat(base_size * 0.3)),
             Billboard,

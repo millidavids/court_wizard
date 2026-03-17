@@ -43,6 +43,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::Teleport => teleport_talents(),
         Spell::RaiseTheDead => raise_the_dead_talents(),
         Spell::HealingPlume => healing_plume_talents(),
+        Spell::FogCloud => fog_cloud_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1824,6 +1825,74 @@ fn healing_plume_talents() -> [[TalentDefinition; 3]; 3] {
     ]
 }
 
+fn fog_cloud_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Dense Fog",
+                description: "Evasion chance increased to 55%.",
+                locked_text: "Thicker fog. Harder to see. The wizard can't see either, but that's a feature.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Expanding Mists",
+                description: "Zone radius increased by 40%.",
+                locked_text: "More fog. The visibility report says 'no.'",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Clinging Haze",
+                description: "Evasion persists for 2 seconds after leaving the fog.",
+                locked_text: "The fog follows you. Clingy fog. The fog has attachment issues.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Blinding Mist",
+                description: "Units inside the fog have their attack range halved.",
+                locked_text: "They can't see far. They're swinging at shadows. Some of those shadows swing back.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Concealing Veil",
+                description: "Units inside the fog cannot be targeted by ranged attacks from outside the fog.",
+                locked_text: "Out of sight, out of range. The wizard invented stealth technology.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Disorienting Vapors",
+                description: "Units inside have a 20% chance to attack an ally instead of their target.",
+                locked_text: "The fog makes them confused. They start hitting each other. Entertainment value: priceless.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Phantom Fog",
+                description: "Fog creates illusory defenders that units waste attacks on (30% of attacks target phantoms).",
+                locked_text: "Fake soldiers in the fog. The units can't tell what's real. Neither can the wizard, honestly.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Choking Fog",
+                description: "Fog also deals minor damage per second to all units inside.",
+                locked_text: "The fog fights back. It's gone from cover to weapon. Fog with an attitude.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Rolling Fog",
+                description: "Fog slowly moves in the direction units are coming from, meeting them earlier.",
+                locked_text: "The fog approaches. It has places to be. People to obscure.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
 fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
     // Generate thematic placeholder names based on spell type
     let (t1, t2, t3) = placeholder_names(spell);
@@ -2001,11 +2070,6 @@ fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'
             ["Rejuvenating Mists", "Verdant Bloom", "Lasting Remedy"],
             ["Cleansing Plume", "Overflow", "Triage Pulse"],
             ["Font of Life", "Healing Rain", "Field Medic"],
-        ),
-        Spell::FogCloud => (
-            ["Wider Fog", "Thicker Mist", "Quick Cover"],
-            ["Blinding Fog", "Toxic Fumes", "Phantom Fog"],
-            ["Impenetrable Mist", "Shadow Realm", "Void Cloud"],
         ),
         Spell::BerserkerRage => (
             ["Longer Rage", "More Damage", "Wider Effect"],

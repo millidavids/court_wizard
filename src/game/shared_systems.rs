@@ -412,6 +412,7 @@ pub fn combat(
                 Option<&super::units::wizard::spells::haste::components::MomentumBuff>,
                 Option<&super::units::components::Stunned>,
                 Option<&super::units::wizard::spells::teleport::components::DisorientingHaste>,
+                Option<&super::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -432,6 +433,12 @@ pub fn combat(
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
         Option<&super::units::wizard::spells::haste::components::FleetFeet>,
     )>,
+    // Fog Cloud talent zones
+    disorienting_zones: Query<
+        &super::units::wizard::spells::fog_cloud::components::FogCloudZone,
+        With<super::units::wizard::spells::fog_cloud::components::DisorientingVaporsZone>,
+    >,
+    mut talent_progress: Option<ResMut<super::units::wizard::talents::resources::BattleTalentProgress>>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -453,6 +460,12 @@ pub fn combat(
         units_snapshot.push((entity, transform.translation, *hitbox, *team));
     }
 
+    // Collect fog cloud talent zone snapshots for combat checks
+    let disorienting_snapshot: Vec<(Vec3, f32)> = disorienting_zones
+        .iter()
+        .map(|z| (z.origin, z.radius))
+        .collect();
+
     // Collect post-combat actions to apply after the main loop
     let mut post_combat_removes: Vec<(Entity, PostCombatAction)> = Vec::new();
 
@@ -472,7 +485,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, stunned, or retreating
@@ -495,8 +508,12 @@ pub fn combat(
                 let dx = attacker_transform.translation.x - target_pos.x;
                 let dz = attacker_transform.translation.z - target_pos.z;
                 let distance = (dx * dx + dz * dz).sqrt();
-                let attack_range =
+                let mut attack_range =
                     (attacker_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+                // Blinding Mist: halve attack range
+                if let Some(debuff) = blinding_mist_debuff {
+                    attack_range *= debuff.range_mult;
+                }
                 if distance <= attack_range {
                     Some((entity, target_pos, distance))
                 } else {
@@ -522,8 +539,35 @@ pub fn combat(
                 last_time
             };
 
-            if attack_timing.can_attack(current_time, effective_last_time)
-                && let Ok((
+            if attack_timing.can_attack(current_time, effective_last_time) {
+                // Disorienting Vapors: if attacker is in a disorienting fog zone,
+                // 20% chance to redirect the attack to a same-team ally
+                let mut actual_target = *target_entity;
+                if !disorienting_snapshot.is_empty() {
+                    use super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
+                    let attacker_pos = attacker_transform.translation;
+                    if is_in_fog_zone(attacker_pos, &disorienting_snapshot)
+                        && rand::random::<f32>() < super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
+                    {
+                        // Find a random same-team unit to attack instead
+                        let count = units_snapshot
+                            .iter()
+                            .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
+                            .count();
+                        if count > 0 {
+                            let idx = rand::random::<usize>() % count;
+                            if let Some((e, _, _, _)) = units_snapshot
+                                .iter()
+                                .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
+                                .nth(idx)
+                            {
+                                actual_target = *e;
+                            }
+                        }
+                    }
+                }
+
+                if let Ok((
                     mut target_health,
                     mut temp_hp,
                     target_resistance,
@@ -536,7 +580,7 @@ pub fn combat(
                     target_anthem_resilience,
                     guardian_circle_shielded,
                     target_fleet_feet,
-                )) = health_query.get_mut(*target_entity)
+                )) = health_query.get_mut(actual_target)
             {
                 // Check fog evasion
                 if let Some(evasion) = fog_evasion {
@@ -544,6 +588,13 @@ pub fn combat(
                     if roll < evasion.evasion_chance {
                         // Attack evaded - still record the attack timing
                         attack_timing.record_attack(current_time);
+                        // Track talent progress
+                        if let Some(ref mut progress) = talent_progress {
+                            progress.increment(
+                                super::units::wizard::components::Spell::FogCloud,
+                                1,
+                            );
+                        }
                         continue;
                     }
                 }
@@ -554,7 +605,7 @@ pub fn combat(
                 {
                     attack_timing.record_attack(current_time);
                     post_combat_removes.push((
-                        *target_entity,
+                        actual_target,
                         PostCombatAction::ConsumeFleetFeetDodge,
                     ));
                     continue;
@@ -614,12 +665,13 @@ pub fn combat(
                     });
 
                     if !comatose_blocks_wake {
-                        post_combat_removes.push((*target_entity, PostCombatAction::RemoveSleep));
+                        post_combat_removes.push((actual_target, PostCombatAction::RemoveSleep));
                     }
                 }
 
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.record_attack(current_time);
+            }
             }
         }
     }
@@ -696,7 +748,7 @@ pub fn convert_dead_to_corpses(
             Option<&ResidualFireDamaged>,
             Option<&super::units::components::MarkedForDeathModifier>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<super::units::wizard::spells::fog_cloud::components::PhantomUnit>),
     >,
     infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
     archer_assets: Res<super::units::archer::resources::ArcherAssets>,
@@ -860,6 +912,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::AnthemResilience>()
                 .remove::<super::units::components::BerserkerRageModifier>()
                 .remove::<super::units::components::FogEvasionModifier>()
+                .remove::<super::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>()
                 .remove::<super::units::components::FrozenSolidModifier>()
                 .remove::<super::units::components::Stunned>()
                 .remove::<super::units::wizard::spells::teleport::components::DisorientingHaste>()

@@ -155,6 +155,7 @@ pub fn archer_ranged_combat(
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
             Has<crate::game::units::infantry::components::Retreating>,
+            Option<&crate::game::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -170,8 +171,19 @@ pub fn archer_ranged_combat(
         (Without<Corpse>, Without<BanishedModifier>),
     >,
     walls: Query<&WallOfStone>,
+    concealing_veil_zones: Query<
+        &crate::game::units::wizard::spells::fog_cloud::components::FogCloudZone,
+        With<crate::game::units::wizard::spells::fog_cloud::components::ConcealingVeilZone>,
+    >,
 ) {
     let wall_snapshot: Vec<_> = walls.iter().collect();
+
+    // Collect concealing veil zone snapshots for ranged targeting checks
+    let concealing_veil_snapshot: Vec<(Vec3, f32)> = concealing_veil_zones
+        .iter()
+        .map(|z| (z.origin, z.radius))
+        .collect();
+
     for (
         archer_entity,
         archer_transform,
@@ -183,6 +195,7 @@ pub fn archer_ranged_combat(
         sleeping,
         banished,
         is_retreating,
+        blinding_mist,
     ) in archers.iter_mut()
     {
         // Skip attack if sleeping, banished, or retreating
@@ -200,6 +213,21 @@ pub fn archer_ranged_combat(
         if movement_timer.time_since_last_attack < attack_cooldown {
             continue;
         }
+
+        // Blinding Mist: halve max attack range when debuffed
+        let effective_max_range = if let Some(debuff) = blinding_mist {
+            attack_range.max_range * debuff.range_mult
+        } else {
+            attack_range.max_range
+        };
+
+        // Concealing Veil: skip check if archer is also inside a veil zone
+        // (units inside fog together can still target each other)
+        let archer_is_in_veil = !concealing_veil_snapshot.is_empty()
+            && crate::game::units::wizard::spells::fog_cloud::systems::is_in_fog_zone(
+                archer_transform.translation,
+                &concealing_veil_snapshot,
+            );
 
         // Find nearest enemy within ranged attack max_range
         // Exclude targets in melee with someone on the archer's own team
@@ -226,8 +254,17 @@ pub fn archer_ranged_combat(
             })
             .filter(|(_, transform, _, _, _, _)| {
                 let distance = archer_transform.translation.distance(transform.translation);
-                if distance > attack_range.max_range || distance < attack_range.min_range {
+                if distance > effective_max_range || distance < attack_range.min_range {
                     return false;
+                }
+                // Concealing Veil: units in fog can't be targeted by ranged attacks from outside
+                if !archer_is_in_veil && !concealing_veil_snapshot.is_empty() {
+                    if crate::game::units::wizard::spells::fog_cloud::systems::is_in_fog_zone(
+                        transform.translation,
+                        &concealing_veil_snapshot,
+                    ) {
+                        return false;
+                    }
                 }
                 // Skip targets blocked by walls
                 !WallOfStone::any_blocks_los(

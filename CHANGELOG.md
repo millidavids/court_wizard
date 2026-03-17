@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.365] - 2026-03-17
+
+### Added
+- **Fog Cloud talents** — the Fog Cloud spell now has a full talent tree with 9 talents across 3 tiers, unlocked by evading attacks in the fog
+- **Tier 1: Fog modifiers** — choose between a higher evasion chance (55% instead of 40%), a 40% larger fog radius, or a longer-lasting evasion effect that lingers 2 seconds after leaving the fog
+- **Tier 2: Battlefield control** — choose between halving the attack range of all units inside the fog, making units inside the fog invisible to ranged attacks from outside, or a disorienting effect where units in the fog have a 20% chance to accidentally attack an ally
+- **Tier 3: Powerful upgrades** — choose between spawning ghostly phantom decoys inside the fog that distract enemies, dealing damage over time to all units standing in the fog, or making the fog slowly drift toward incoming attackers
+- **Fog Cloud visual overhaul** — Fog Cloud now uses a dense, swirling gray smoke particle effect instead of a flat ground circle, making the fog much more visible and atmospheric on the battlefield
+
 ## [v0.4.353] - 2026-03-16
 
 ### Added
