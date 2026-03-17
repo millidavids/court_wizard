@@ -44,6 +44,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::RaiseTheDead => raise_the_dead_talents(),
         Spell::HealingPlume => healing_plume_talents(),
         Spell::FogCloud => fog_cloud_talents(),
+        Spell::BerserkerRage => berserker_rage_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1887,6 +1888,74 @@ fn fog_cloud_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Rolling Fog",
                 description: "Fog slowly moves in the direction units are coming from, meeting them earlier.",
                 locked_text: "The fog approaches. It has places to be. People to obscure.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn berserker_rage_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Blood Fury",
+                description: "Damage bonus increased to 120%. Vulnerability increased to 65%.",
+                locked_text: "More damage in both directions. The berserker philosophy: hit harder, consequences later.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Controlled Rage",
+                description: "Vulnerability reduced to 30%. Damage bonus reduced to 60%.",
+                locked_text: "Slightly calmer rage. The berserker took one anger management class.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Primal Roar",
+                description: "Buff radius increased by 50%.",
+                locked_text: "EVERYONE GETS ANGRY. EVERYONE. Even the archers in the back.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Bloodlust",
+                description: "Enraged units heal for 15% of damage dealt.",
+                locked_text: "They heal by hitting things. The wizard discovered the world's most violent therapy.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Undying Fury",
+                description: "Enraged units that would die instead survive at 1 HP for 2 seconds.",
+                locked_text: "Too angry to die. Briefly. Very briefly.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Frenzy",
+                description: "Enraged units gain +30% attack speed as their HP drops below 50%.",
+                locked_text: "Lower health, faster attacks. They're panicking productively.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Wrath Incarnate",
+                description: "Enraged units deal 200% bonus damage but vulnerability is 100% (double damage taken).",
+                locked_text: "Glass cannon mode. Emphasis on GLASS. And CANNON.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Contagious Rage",
+                description: "When an enraged unit kills an enemy, the nearest calm ally becomes enraged.",
+                locked_text: "The rage spreads. It's like office drama but with axes.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Final Stand",
+                description: "If an enraged unit dies, they explode for damage equal to 50% of their max HP.",
+                locked_text: "Even in death, they rage. That's commitment to the bit.",
                 implemented: true,
             },
         ],

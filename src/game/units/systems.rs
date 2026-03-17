@@ -22,8 +22,9 @@ use super::constants::{
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
     MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY, POISON_DURATION, POISON_EFFECT_COLOR,
     POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
-    SICKENED_DURATION, SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD,
-    SMELLY_DURATION, SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY,
+    BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, SICKENED_DURATION,
+    SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD, SMELLY_DURATION,
+    SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY,
 };
 use super::damage::DamageType;
 use super::king::components::SpellShield;
@@ -35,6 +36,7 @@ use crate::game::constants::{
     MELEE_SLOWDOWN_FACTOR, STEERING_FORCE, VELOCITY_DAMPING,
 };
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::units::components::BerserkerRageModifier;
 use crate::game::units::wizard::spells::mind_control::components::MassHysteriaTarget;
 use crate::game::units::wizard::archetypes::meteorologist::components::{
     BurningPatch, ChargedModifier, ColdModifier, DryModifier, WetModifier,
@@ -727,6 +729,7 @@ pub fn update_persistent_effect_visuals(
             Has<PoisonedModifier>,
             Has<SickenedModifier>,
             Has<SmellyModifier>,
+            Has<BerserkerRageModifier>,
         ),
         Or<(
             With<FireDoT>,
@@ -741,6 +744,7 @@ pub fn update_persistent_effect_visuals(
             With<PoisonedModifier>,
             With<SickenedModifier>,
             With<SmellyModifier>,
+            With<BerserkerRageModifier>,
         )>,
     >,
 ) {
@@ -754,6 +758,7 @@ pub fn update_persistent_effect_visuals(
     let poison_linear = POISON_EFFECT_COLOR.to_linear();
     let sickened_linear = SICKENED_EFFECT_COLOR.to_linear();
     let smelly_linear = SMELLY_EFFECT_COLOR.to_linear();
+    let rage_linear = BERSERKER_RAGE_EFFECT_COLOR.to_linear();
 
     for (
         entity,
@@ -770,6 +775,7 @@ pub fn update_persistent_effect_visuals(
         has_poisoned,
         has_sickened,
         has_smelly,
+        has_rage,
     ) in &query
     {
         let has_fire = fire.is_some() || remote_fire;
@@ -782,7 +788,8 @@ pub fn update_persistent_effect_visuals(
             || has_mc_visual
             || has_poisoned
             || has_sickened
-            || has_smelly;
+            || has_smelly
+            || has_rage;
 
         if has_any_effect && original_mat.is_none() {
             // Phase 1: First effect applied — clone the material and store original
@@ -842,6 +849,11 @@ pub fn update_persistent_effect_visuals(
 
             if has_smelly {
                 result_linear = result_linear.mix(&smelly_linear, SMELLY_EFFECT_INTENSITY);
+            }
+
+            if has_rage {
+                result_linear =
+                    result_linear.mix(&rage_linear, BERSERKER_RAGE_EFFECT_INTENSITY);
             }
 
             if let Some(cloned_material) = materials.get_mut(material_handle) {

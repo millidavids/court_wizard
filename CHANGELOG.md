@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.373] - 2026-03-17
+
+### Added
+- **Berserker Rage talents** — the Berserker Rage spell now has a full talent tree with 9 talents across 3 tiers, unlocked by buffing units with rage
+- **Tier 1: Rage modifiers** — choose between a much stronger damage boost at the cost of taking more damage, a safer rage with less damage bonus but lower vulnerability, or a 50% larger rage radius to buff more units at once
+- **Tier 2: Survival effects** — choose between enraged units healing themselves for a portion of each attack's damage, a last-stand effect where enraged units survive a killing blow and become temporarily unkillable, or a frenzy mode that increases attack speed when below half health
+- **Tier 3: Powerful upgrades** — choose between massively boosted damage and vulnerability, rage that spreads to a nearby ally whenever an enraged unit kills an enemy, or a death explosion where enraged units detonate for area damage when they die
+- **Berserker Rage visual effects** — enraged units now glow red while the buff is active, and the Final Stand death explosion creates a fireball burst with sparks and smoke
+
 ## [v0.4.365] - 2026-03-17
 
 ### Added

@@ -116,3 +116,10 @@ pub const SMELLY_EFFECT_INTENSITY: f32 = 0.6;
 pub const SICKENED_EFFECT_COLOR: Color = Color::srgb(0.1, 0.9, 0.1);
 /// Blend strength for sickened tint.
 pub const SICKENED_EFFECT_INTENSITY: f32 = 0.5;
+
+// ===== Berserker Rage Visual Tinting =====
+
+/// Color overlay for berserker rage effect (deep red).
+pub const BERSERKER_RAGE_EFFECT_COLOR: Color = Color::srgb(1.0, 0.15, 0.1);
+/// Blend strength for berserker rage tint (constant, no pulsing).
+pub const BERSERKER_RAGE_EFFECT_INTENSITY: f32 = 0.35;

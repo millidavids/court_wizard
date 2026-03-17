@@ -200,6 +200,7 @@ impl Plugin for GamePlugin {
                     shared_systems::enforce_wall_collision,
                     shared_systems::combat,
                     shared_systems::enforce_invulnerability,
+                    super::units::wizard::spells::berserker_rage::systems::undying_fury_trigger,
                     hags_systems::resurrect_eyed_hags,
                     shared_systems::convert_dead_to_corpses,
                 )

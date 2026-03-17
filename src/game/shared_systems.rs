@@ -413,6 +413,10 @@ pub fn combat(
                 Option<&super::units::components::Stunned>,
                 Option<&super::units::wizard::spells::teleport::components::DisorientingHaste>,
                 Option<&super::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
+                Option<&super::units::wizard::spells::berserker_rage::components::Frenzy>,
+                Has<super::units::wizard::spells::berserker_rage::components::FrenzyActive>,
+                Option<&super::units::wizard::spells::berserker_rage::components::Bloodlust>,
+                Has<super::units::wizard::spells::berserker_rage::components::ContagiousRage>,
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -439,6 +443,7 @@ pub fn combat(
         With<super::units::wizard::spells::fog_cloud::components::DisorientingVaporsZone>,
     >,
     mut talent_progress: Option<ResMut<super::units::wizard::talents::resources::BattleTalentProgress>>,
+    mut contagious_rage_events: MessageWriter<super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -469,6 +474,9 @@ pub fn combat(
     // Collect post-combat actions to apply after the main loop
     let mut post_combat_removes: Vec<(Entity, PostCombatAction)> = Vec::new();
 
+    // Bloodlust: accumulate heal amounts per attacker entity
+    let mut bloodlust_heals: Vec<(Entity, f32)> = Vec::new();
+
     // Process each unit's combat
     for (
         attacker_entity,
@@ -485,7 +493,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, stunned, or retreating
@@ -522,10 +530,11 @@ pub fn combat(
             })
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
-            // Calculate effective attack speed (BattleHymn + Haste + DisorientingHaste + cauldron buff for defenders)
+            // Calculate effective attack speed (BattleHymn + Haste + DisorientingHaste + Frenzy + cauldron buff for defenders)
             let mut attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed)
                 + haste_modifier.map_or(0.0, |h| h.attack_speed)
-                + disorienting_haste.map_or(0.0, |d| d.attack_speed);
+                + disorienting_haste.map_or(0.0, |d| d.attack_speed)
+                + if has_frenzy_active { frenzy.map_or(0.0, |f| f.attack_speed_bonus) } else { 0.0 };
             if *attacker_team == Team::Defenders {
                 let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
                 if cauldron_speed > 1.0 {
@@ -670,9 +679,34 @@ pub fn combat(
                 }
 
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
+
+                // Bloodlust: heal attacker for a fraction of damage dealt
+                if let Some(bl) = bloodlust {
+                    bloodlust_heals.push((
+                        attacker_entity,
+                        modified_damage * bl.heal_fraction,
+                    ));
+                }
+
+                // Contagious Rage: track kills by enraged units
+                if has_contagious_rage && target_health.is_dead() {
+                    contagious_rage_events.write(
+                        super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage {
+                            killer: attacker_entity,
+                        },
+                    );
+                }
+
                 attack_timing.record_attack(current_time);
             }
             }
+        }
+    }
+
+    // Apply bloodlust healing to attackers
+    for (entity, heal_amount) in bloodlust_heals {
+        if let Ok((mut health, ..)) = health_query.get_mut(entity) {
+            health.heal(heal_amount);
         }
     }
 
@@ -911,6 +945,13 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::EchoingSong>()
                 .remove::<super::units::components::AnthemResilience>()
                 .remove::<super::units::components::BerserkerRageModifier>()
+                // Berserker rage talent components (FinalStand intentionally NOT removed — it fires on death)
+                .remove::<super::units::wizard::spells::berserker_rage::components::Bloodlust>()
+                .remove::<super::units::wizard::spells::berserker_rage::components::Frenzy>()
+                .remove::<super::units::wizard::spells::berserker_rage::components::FrenzyActive>()
+                .remove::<super::units::wizard::spells::berserker_rage::components::UndyingFury>()
+                .remove::<super::units::wizard::spells::berserker_rage::components::UndyingFuryActive>()
+                .remove::<super::units::wizard::spells::berserker_rage::components::ContagiousRage>()
                 .remove::<super::units::components::FogEvasionModifier>()
                 .remove::<super::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>()
                 .remove::<super::units::components::FrozenSolidModifier>()
