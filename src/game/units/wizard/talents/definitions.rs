@@ -45,6 +45,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::HealingPlume => healing_plume_talents(),
         Spell::FogCloud => fog_cloud_talents(),
         Spell::BerserkerRage => berserker_rage_talents(),
+        Spell::Banishment => banishment_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -1956,6 +1957,74 @@ fn berserker_rage_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "Final Stand",
                 description: "If an enraged unit dies, they explode for damage equal to 50% of their max HP.",
                 locked_text: "Even in death, they rage. That's commitment to the bit.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn banishment_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Extended Exile",
+                description: "Banish duration increased to 12 seconds.",
+                locked_text: "Gone for longer. Where do they go? The wizard's pocket dimension. It's mostly storage.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Quick Dismissal",
+                description: "Cast time reduced by 50%.",
+                locked_text: "Faster banishment. 'You're gone. NEXT.'",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Cheap Ticket",
+                description: "Mana cost reduced by 30%.",
+                locked_text: "Economy class banishment. Same destination, less magical overhead.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Painful Return",
+                description: "Banished units take heavy damage when they return.",
+                locked_text: "Welcome back! Here's your complementary damage.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Displacement",
+                description: "Banished enemy reappears at a random location far from where it was banished.",
+                locked_text: "They come back but have NO idea where they are. Cosmic disorientation.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Dual Banishment",
+                description: "Can banish 2 targets simultaneously. Second target costs 50% mana.",
+                locked_text: "Two disappearances for the price of one and a half.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Dimensional Shunt",
+                description: "Banished units return at half HP regardless of their HP when banished.",
+                locked_text: "The pocket dimension is not a pleasant vacation. Zero stars. Would not recommend.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Mass Banishment",
+                description: "Banishes all units in a radius. Very high mana cost. Short duration (4s).",
+                locked_text: "Everyone disappears. The battlefield is briefly a very peaceful meadow.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "One-Way Trip",
+                description: "If the banished enemy's HP is below 20% when banished, they don't come back.",
+                locked_text: "Some trips are one-way. The wizard doesn't make the rules. Actually, the wizard does make the rules.",
                 implemented: true,
             },
         ],

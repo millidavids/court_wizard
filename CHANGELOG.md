@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.381] - 2026-03-18
+
+### Added
+- **Banishment talents** — the Banishment spell now has a full talent tree with 9 talents across 3 tiers, unlocked by banishing enemies
+- **Tier 1: Casting modifiers** — choose between a longer 12-second banish duration, 50% faster casting, or 30% reduced mana cost
+- **Tier 2: Return effects** — choose between banished enemies taking heavy damage when they reappear, enemies reappearing at a random faraway location, or banishing two targets at once for extra mana
+- **Tier 3: Powerful upgrades** — choose between enemies returning at half health no matter what, a mass banishment that removes all nearby enemies at once (high cost, short duration), or a finishing move that permanently removes low-health enemies
+- **Banishment visual effects** — banishing a unit now shows a green lensing sphere that rapidly collapses inward, accompanied by a burst of green sparks
+
 ## [v0.4.373] - 2026-03-17
 
 ### Added

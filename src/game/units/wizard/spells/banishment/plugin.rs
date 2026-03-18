@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::BanishmentVfx;
 use super::systems;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 use crate::game::units::components::BanishedModifier;
@@ -22,8 +23,10 @@ impl Plugin for BanishmentPlugin {
         );
         app.add_systems(
             Update,
-            systems::tick_banished_units
-                .run_if(any_exist::<BanishedModifier>())
+            (
+                systems::tick_banished_units.run_if(any_exist::<BanishedModifier>()),
+                systems::update_banishment_vfx.run_if(any_exist::<BanishmentVfx>()),
+            )
                 .run_if(is_gameplay_running),
         );
     }

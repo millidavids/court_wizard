@@ -201,6 +201,11 @@ pub struct SpellVisualAssets {
 
     // ── Arrow indicator material ──────────────────────────────────────────
     pub plague_wind_arrow: Handle<StandardMaterial>,
+
+    // ── Banishment VFX material ─────────────────────────────────────────
+    /// Semi-transparent dark purple lensing sphere for banishment effect.
+    pub banishment_lens: Handle<StandardMaterial>,
+    pub banishment_spark: Handle<StandardMaterial>,
 }
 
 /// Initializes the shared spell visual assets resource.
@@ -761,6 +766,8 @@ pub fn init_spell_visual_assets(
             mesh
         }),
         plague_wind_arrow: materials.add(unlit_blend(Color::srgba(0.3, 0.8, 0.1, 0.5))),
+        banishment_lens: materials.add(unlit_blend(Color::srgba(0.1, 0.5, 0.2, 0.6))),
+        banishment_spark: materials.add(unlit_blend(Color::srgba(0.2, 0.9, 0.3, 0.8))),
     });
 }
 
@@ -874,6 +881,9 @@ impl SpellVisualAssets {
             &self.mark_indicator,
             // Arrow indicator
             &self.plague_wind_arrow,
+            // Banishment
+            &self.banishment_lens,
+            &self.banishment_spark,
         ]
     }
 }
