@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.440] - 2026-03-18
+
+### Added
+- **Dispel talents** — the Dispel spell now has a full talent tree with 9 talents across 3 tiers, unlocked by dispelling spell effects
+- **Tier 1: Casting modifiers** — choose between also removing buffs from affected units, 40% faster cooldown, or near-zero mana cost
+- **Tier 2: Counter effects** — choose between recovering mana when you dispel a spell, dispelled effects detonating for area damage, or a faster and larger dispel projectile
+- **Tier 3: Powerful upgrades** — choose between an instant radial pulse that wipes all spells in a huge area, redirecting dispelled offensive spells back at the nearest enemy, or creating a persistent anti-magic dead zone where no spells work
+- **Battlefield backdrop** — the area behind the battlefield now has textured walls and a painted stone floor forming a three-sided enclosure
+- **Lava pool effects** — the lava pool on the stone floor now emits persistent fire, smoke, and sparks
+- **Water pool ripples** — the water pool on the stone floor now shows subtle expanding ring ripples
+- **Fireball explosion gradient** — fireball explosions now have a bright yellow-to-orange radial gradient instead of a flat color
+- **Scorched Earth fire VFX** — Scorched Earth zones now show rising fire and smoke instead of a flat orange circle
+
+### Changed
+- **Battlefield color** — the ground plane is now a deeper green
+- **Explosion effects** — explosions now have more particles including dark smoke and heat shimmer for a more dramatic look
+
 ## [v0.4.381] - 2026-03-18
 
 ### Added

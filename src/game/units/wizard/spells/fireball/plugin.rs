@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{Fireball, FireballExplosion};
+use super::components::{Fireball, FireballExplosion, ScorchedEarthFire};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -35,6 +35,8 @@ impl Plugin for FireballPlugin {
                 )
                     .chain()
                     .run_if(any_exist::<FireballExplosion>()),
+                systems::spawn_scorched_earth_fire_smoke
+                    .run_if(any_exist::<ScorchedEarthFire>()),
             )
                 .run_if(is_spell_effects_active),
         );

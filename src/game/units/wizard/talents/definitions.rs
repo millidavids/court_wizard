@@ -46,6 +46,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::FogCloud => fog_cloud_talents(),
         Spell::BerserkerRage => berserker_rage_talents(),
         Spell::Banishment => banishment_talents(),
+        Spell::Dispel => dispel_talents(),
         // All other spells get placeholder talents
         _ => placeholder_talents(spell),
     }
@@ -2025,6 +2026,74 @@ fn banishment_talents() -> [[TalentDefinition; 3]; 3] {
                 name: "One-Way Trip",
                 description: "If the banished enemy's HP is below 20% when banished, they don't come back.",
                 locked_text: "Some trips are one-way. The wizard doesn't make the rules. Actually, the wizard does make the rules.",
+                implemented: true,
+            },
+        ],
+    ]
+}
+
+fn dispel_talents() -> [[TalentDefinition; 3]; 3] {
+    [
+        // Tier 1
+        [
+            TalentDefinition {
+                name: "Broad Spectrum",
+                description: "Dispel projectile also removes buffs from units hit (not just spell zones).",
+                locked_text: "Dispels everything. Buffs, debuffs, self-confidence. Gone.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Swift Cancellation",
+                description: "Cooldown between casts reduced by 40%.",
+                locked_text: "Faster dispelling. For when one magical mistake isn't enough.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Efficient Nullification",
+                description: "Mana cost reduced to near-zero.",
+                locked_text: "Free dispels. The wizard's most cost-effective spell. Accountants love this.",
+                implemented: true,
+            },
+        ],
+        // Tier 2
+        [
+            TalentDefinition {
+                name: "Mana Drain",
+                description: "Dispelling an effect restores mana to the wizard equal to 50% of the dispelled spell's cost.",
+                locked_text: "Destroying magic AND getting paid for it. The wizard is basically a magical recycler.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Explosive Nullification",
+                description: "Dispelled spell effects detonate on removal, dealing damage in a small radius.",
+                locked_text: "The spell doesn't just go away. It goes away VIOLENTLY.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Counterspell",
+                description: "Projectile travels 50% faster and has a 25% larger collision radius.",
+                locked_text: "Faster, bigger, harder to dodge. The dispel projectile has been working on itself.",
+                implemented: true,
+            },
+        ],
+        // Tier 3
+        [
+            TalentDefinition {
+                name: "Antimagic Pulse",
+                description: "Replaces projectile with an instant radial pulse at the target location that dispels ALL spell effects in a large radius.",
+                locked_text: "EVERYTHING STOPS. All magic, gone. The wizard is now the fun police.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Spell Reflection",
+                description: "Dispelled offensive spells are redirected back at the nearest enemy.",
+                locked_text: "Return to sender. The postal service of magical warfare.",
+                implemented: true,
+            },
+            TalentDefinition {
+                name: "Null Zone",
+                description: "Dispel creates a persistent anti-magic zone at the impact point for 5s. No spells function inside.",
+                locked_text: "A zone where magic doesn't work. The wizard has created a very awkward dead zone at parties.",
                 implemented: true,
             },
         ],

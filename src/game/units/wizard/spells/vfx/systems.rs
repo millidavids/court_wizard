@@ -176,10 +176,31 @@ pub fn spawn_fire_sparks(
     count: usize,
     time_secs: f32,
 ) {
+    spawn_sparks_with_material(
+        commands,
+        assets,
+        position,
+        count,
+        time_secs,
+        assets.fire_spark.clone(),
+    );
+}
+
+/// Spawns impact sparks with a custom material (e.g., white dispel sparks).
+pub fn spawn_sparks_with_material(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    count: usize,
+    time_secs: f32,
+    material: Handle<StandardMaterial>,
+) {
     for i in 0..count {
         let angle = (i as f32 / count as f32) * std::f32::consts::TAU + time_secs * 3.7;
-        // Random-ish elevation between 10° and 60° above horizontal
-        let elevation = 0.2 + (i as f32 * 1.618).fract() * 0.8;
+        // Low elevation: mostly horizontal with slight upward bias
+        let elevation_range = constants::SPARK_ELEVATION_MAX - constants::SPARK_ELEVATION_MIN;
+        let elevation =
+            constants::SPARK_ELEVATION_MIN + (i as f32 * 1.618).fract() * elevation_range;
         let horizontal = (1.0 - elevation * elevation).sqrt();
 
         let velocity = Vec3::new(
@@ -194,7 +215,7 @@ pub fn spawn_fire_sparks(
                 time_alive: 0.0,
             },
             Mesh3d(assets.particle_quad.clone()),
-            MeshMaterial3d(assets.fire_spark.clone()),
+            MeshMaterial3d(material.clone()),
             Transform::from_translation(position)
                 .with_rotation(UPWARD_ROTATION)
                 .with_scale(Vec3::splat(constants::SPARK_SIZE)),
@@ -221,6 +242,41 @@ pub fn spawn_explosion_smoke(
         constants::EXPLOSION_SMOKE_RISE_SPEED,
         constants::EXPLOSION_SMOKE_SPREAD,
     );
+}
+
+/// Spawns lingering dark smoke puffs that drift slowly upward after an explosion.
+pub fn spawn_explosion_dark_smoke(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    time_secs: f32,
+) {
+    for i in 0..constants::DARK_SMOKE_COUNT {
+        let seed = i as f32 * 1.618_034 + time_secs * 5.3;
+        let angle = seed * 2.39 + (seed * 11.7).sin() * 1.2;
+        let spread_variation = 0.5 + 0.5 * ((seed * 19.1).sin() * 0.5 + 0.5);
+        let rise_variation = 0.6 + 0.4 * ((seed * 27.3).cos() * 0.5 + 0.5);
+        let lateral_x = angle.cos() * constants::DARK_SMOKE_SPREAD_SPEED * spread_variation;
+        let lateral_z = angle.sin() * constants::DARK_SMOKE_SPREAD_SPEED * spread_variation;
+        let velocity = Vec3::new(
+            lateral_x,
+            constants::DARK_SMOKE_RISE_SPEED * rise_variation,
+            lateral_z,
+        );
+        let phase = seed * std::f32::consts::PI + (seed * 37.1).sin();
+
+        spawn_fire_smoke_puff(
+            commands,
+            &assets.particle_quad,
+            assets.fire_black_smoke.clone(),
+            position,
+            velocity,
+            constants::DARK_SMOKE_SIZE,
+            constants::DARK_SMOKE_LIFETIME,
+            phase,
+            None,
+        );
+    }
 }
 
 // ── Magic missile VFX ──────────────────────────────────────────────

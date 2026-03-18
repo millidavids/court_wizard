@@ -34,25 +34,45 @@ pub(crate) const SMOKE_SPREAD_SPEED: f32 = 20.0;
 
 // ── Explosion smoke ──────────────────────────────────────────────────
 /// Smoke spawned per explosion.
-pub(crate) const EXPLOSION_SMOKE_COUNT: usize = 6;
+pub(crate) const EXPLOSION_SMOKE_COUNT: usize = 20;
 /// Lifetime of explosion smoke wisps (seconds).
-pub(crate) const EXPLOSION_SMOKE_LIFETIME: f32 = 1.2;
+pub(crate) const EXPLOSION_SMOKE_LIFETIME: f32 = 1.4;
 /// Size of explosion smoke triangles.
-pub(crate) const EXPLOSION_SMOKE_SIZE: f32 = 6.0;
+pub(crate) const EXPLOSION_SMOKE_SIZE: f32 = 8.0;
 /// Rise speed of explosion smoke.
-pub(crate) const EXPLOSION_SMOKE_RISE_SPEED: f32 = 80.0;
+pub(crate) const EXPLOSION_SMOKE_RISE_SPEED: f32 = 50.0;
 /// Lateral spread of explosion smoke.
-pub(crate) const EXPLOSION_SMOKE_SPREAD: f32 = 60.0;
+pub(crate) const EXPLOSION_SMOKE_SPREAD: f32 = 90.0;
 
 // ── Impact sparks ────────────────────────────────────────────────────
 /// Number of sparks spawned per explosion.
-pub(crate) const SPARK_COUNT: usize = 10;
+pub(crate) const SPARK_COUNT: usize = 32;
 /// How long each spark lives (seconds).
-pub(crate) const SPARK_LIFETIME: f32 = 0.4;
+pub(crate) const SPARK_LIFETIME: f32 = 0.5;
 /// Base size of each spark triangle.
 pub(crate) const SPARK_SIZE: f32 = 2.5;
 /// Speed of sparks flying outward from impact.
-pub(crate) const SPARK_SPEED: f32 = 250.0;
+pub(crate) const SPARK_SPEED: f32 = 180.0;
+/// Minimum spark elevation (fraction, 0=horizontal 1=vertical).
+pub(crate) const SPARK_ELEVATION_MIN: f32 = 0.05;
+/// Maximum spark elevation (fraction).
+pub(crate) const SPARK_ELEVATION_MAX: f32 = 0.45;
+
+// ── Explosion heat shimmer ───────────────────────────────────────────
+/// Number of heat shimmer billboards spawned per explosion.
+pub(crate) const EXPLOSION_SHIMMER_COUNT: usize = 4;
+
+// ── Explosion dark smoke (lingering aftermath) ───────────────────────
+/// Number of dark smoke puffs spawned per explosion.
+pub(crate) const DARK_SMOKE_COUNT: usize = 5;
+/// Lifetime of dark smoke puffs (seconds).
+pub(crate) const DARK_SMOKE_LIFETIME: f32 = 1.2;
+/// Base size of dark smoke puffs.
+pub(crate) const DARK_SMOKE_SIZE: f32 = 15.0;
+/// Gentle upward drift speed of dark smoke.
+pub(crate) const DARK_SMOKE_RISE_SPEED: f32 = 10.0;
+/// Lateral spread speed of dark smoke.
+pub(crate) const DARK_SMOKE_SPREAD_SPEED: f32 = 12.0;
 
 // ── Magic missile glow ─────────────────────────────────────────────
 /// Glow is this many times wider than the missile.

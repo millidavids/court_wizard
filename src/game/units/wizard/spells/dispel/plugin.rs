@@ -2,9 +2,9 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{DispelCooldown, DispelImpact, DispelProjectile};
+use super::components::{DispelCooldown, DispelImpact, DispelProjectile, NullZone};
 use super::systems;
-use crate::game::run_conditions::is_spell_effects_active;
+use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
 pub struct DispelPlugin;
 
@@ -27,6 +27,9 @@ impl Plugin for DispelPlugin {
                 systems::update_dispel_impacts
                     .run_if(any_exist::<DispelImpact>())
                     .run_if(is_spell_effects_active),
+                systems::update_null_zones
+                    .run_if(any_exist::<NullZone>())
+                    .run_if(is_gameplay_running),
             ),
         );
     }

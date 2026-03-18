@@ -575,7 +575,7 @@ pub fn handle_undead_detonation(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
-    let t = time.elapsed_secs();
+    let _t = time.elapsed_secs();
 
     for (dead_entity, detonation, transform) in &dead_query {
         let origin = transform.translation;
@@ -601,15 +601,7 @@ pub fn handle_undead_detonation(
             crate::game::components::OnGameplayScreen,
         ));
 
-        vfx::systems::spawn_fire_sparks(
-            &mut commands,
-            &assets,
-            origin,
-            vfx::constants::SPARK_COUNT,
-            t,
-        );
-        vfx::systems::spawn_explosion_smoke(&mut commands, &assets, origin, t);
-        vfx::systems::spawn_heat_shimmer(&mut commands, &assets, origin, 3, t);
+        // Sparks, smoke, and heat shimmer are spawned by update_explosions on first frame
 
         audio::play_impact_sfx(
             &mut commands,

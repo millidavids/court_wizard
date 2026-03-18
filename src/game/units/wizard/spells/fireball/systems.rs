@@ -446,7 +446,7 @@ fn spawn_explosion_with_talents(
     assets: &SpellVisualAssets,
     position: Vec3,
     fireball: &Fireball,
-    time_secs: f32,
+    _time_secs: f32,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     crystal_spawn: Option<&CrystalSpawn>,
@@ -488,20 +488,7 @@ fn spawn_explosion_with_talents(
         });
     }
 
-    // Impact sparks
-    vfx::systems::spawn_fire_sparks(
-        commands,
-        assets,
-        position,
-        vfx::constants::SPARK_COUNT,
-        time_secs,
-    );
-
-    // Explosion smoke burst
-    vfx::systems::spawn_explosion_smoke(commands, assets, position, time_secs);
-
-    // Heat shimmer burst at impact
-    vfx::systems::spawn_heat_shimmer(commands, assets, position, 3, time_secs);
+    // Sparks, smoke, and heat shimmer are spawned by update_explosions on first frame
 
     // Impact sound effect
     audio::play_impact_sfx(commands, &sfx.fireball_impact, position, game_config, sfx);
@@ -526,12 +513,10 @@ fn spawn_explosion_with_talents(
         scorched.chain_ignition = fireball.chain_ignition;
 
         commands.spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(assets.grease_fire.clone()),
-            Transform::from_translation(scorched_pos)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-                .with_scale(Vec3::splat(fireball.explosion_radius * 0.8)),
+            Transform::from_translation(scorched_pos),
+            Visibility::default(),
             scorched,
+            ScorchedEarthFire,
             OnGameplayScreen,
         ));
     }
@@ -623,17 +608,52 @@ pub fn update_napalm_trails(
     }
 }
 
-/// Updates explosion visuals and timing.
+/// Updates explosion visuals and timing. Spawns sparks+smoke VFX on first frame.
 pub fn update_explosions(
+    mut commands: Commands,
     time: Res<Time>,
+    visual_assets: Res<SpellVisualAssets>,
     mut explosions: Query<(&mut FireballExplosion, &mut Transform)>,
 ) {
+    let time_secs = time.elapsed_secs();
     for (mut explosion, mut transform) in &mut explosions {
         explosion.time_alive += time.delta_secs();
         explosion.time_since_last_tick += time.delta_secs();
 
         let current_radius = explosion.current_radius();
         transform.scale = Vec3::splat(current_radius);
+
+        // Spawn sparks + smoke + shimmer on first frame (skip for persistent ground effects)
+        if !explosion.vfx_spawned && !explosion.skip_growth {
+            explosion.vfx_spawned = true;
+            let pos = explosion.origin;
+            vfx::systems::spawn_fire_sparks(
+                &mut commands,
+                &visual_assets,
+                pos,
+                vfx::constants::SPARK_COUNT,
+                time_secs,
+            );
+            vfx::systems::spawn_explosion_smoke(
+                &mut commands,
+                &visual_assets,
+                pos,
+                time_secs,
+            );
+            vfx::systems::spawn_heat_shimmer(
+                &mut commands,
+                &visual_assets,
+                pos,
+                vfx::constants::EXPLOSION_SHIMMER_COUNT,
+                time_secs,
+            );
+            vfx::systems::spawn_explosion_dark_smoke(
+                &mut commands,
+                &visual_assets,
+                pos,
+                time_secs,
+            );
+        }
     }
 }
 
@@ -709,6 +729,40 @@ pub fn cleanup_finished_explosions(
         if explosion.time_alive >= explosion.duration {
             commands.entity(entity).try_despawn();
         }
+    }
+}
+
+/// Spawns wall-of-fire-style orange and black smoke puffs over Scorched Earth fire zones.
+pub fn spawn_scorched_earth_fire_smoke(
+    mut commands: Commands,
+    zones: Query<&FireballExplosion, With<ScorchedEarthFire>>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < 0.25 {
+        return;
+    }
+    *timer -= 0.25;
+
+    let t = time.elapsed_secs();
+
+    for explosion in zones.iter() {
+        // Don't emit smoke in the last 0.5s (fade-out)
+        let remaining = explosion.duration - explosion.time_alive;
+        if remaining < 0.5 {
+            continue;
+        }
+
+        vfx::systems::spawn_fire_orange_smoke(
+            &mut commands,
+            &visual_assets,
+            Vec3::new(explosion.origin.x, 0.0, explosion.origin.z),
+            explosion.max_radius,
+            9,
+            t,
+        );
     }
 }
 

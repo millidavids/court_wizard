@@ -49,5 +49,3 @@ pub const VFX_START_RADIUS: f32 = 25.0;
 pub const VFX_LIFETIME: f32 = 0.5;
 /// Number of spark particles per banishment.
 pub const SPARK_COUNT: usize = 12;
-/// Speed of sparks flying outward.
-pub const SPARK_SPEED: f32 = 200.0;

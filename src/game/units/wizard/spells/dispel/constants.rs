@@ -44,3 +44,65 @@ pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 
 /// Maximum projectile lifetime before auto-despawn (seconds).
 pub const PROJECTILE_LIFETIME: f32 = 3.0;
+
+// ===== Talent Constants =====
+
+// Tier 1
+/// Swift Cancellation: cooldown multiplier (40% reduction).
+pub const SWIFT_CANCELLATION_COOLDOWN_MULT: f32 = 0.6;
+/// Efficient Nullification: near-zero mana cost.
+pub const EFFICIENT_NULLIFICATION_MANA_COST: f32 = 1.0;
+
+// Tier 2
+/// Mana Drain: fraction of the dispelled spell's mana cost refunded to the wizard.
+pub const MANA_DRAIN_REFUND_FRACTION: f32 = 0.5;
+/// Explosive Nullification: damage dealt to units near a dispelled effect.
+pub const EXPLOSIVE_NULLIFICATION_DAMAGE: f32 = 40.0;
+/// Explosive Nullification: radius of the damage burst around a dispelled effect.
+pub const EXPLOSIVE_NULLIFICATION_RADIUS: f32 = 60.0;
+/// Counterspell: projectile speed multiplier.
+pub const COUNTERSPELL_SPEED_MULT: f32 = 1.5;
+/// Counterspell: impact expand speed multiplier (larger collision radius).
+pub const COUNTERSPELL_EXPAND_MULT: f32 = 1.25;
+/// Spell Reflection: damage dealt to enemies near the reflected target.
+pub const SPELL_REFLECTION_DAMAGE: f32 = 60.0;
+/// Spell Reflection: radius of the reflected damage burst.
+pub const SPELL_REFLECTION_RADIUS: f32 = 60.0;
+
+// Tier 3
+/// Antimagic Pulse: radius of the wizard-centered radial pulse.
+pub const ANTIMAGIC_PULSE_RADIUS: f32 = 400.0;
+/// Antimagic Pulse: duration of the expanding pulse visual.
+pub const ANTIMAGIC_PULSE_DURATION: f32 = 0.6;
+/// Null Zone: duration of the persistent anti-magic field (seconds).
+pub const NULL_ZONE_DURATION: f32 = 10.0;
+/// Null Zone: radius of the anti-magic field.
+pub const NULL_ZONE_RADIUS: f32 = 80.0;
+/// Null Zone: visual color (pale purple anti-magic field).
+pub const NULL_ZONE_COLOR: Color = Color::srgba(0.6, 0.4, 0.9, 0.15);
+/// Null Zone: height of the visual cylinder.
+pub const NULL_ZONE_HEIGHT: f32 = 40.0;
+
+/// Mana cost lookup for SpellEffectKind (for Mana Drain talent).
+/// Returns the mana cost of the spell that created this effect.
+pub fn spell_effect_mana_cost(kind: crate::networking::snapshot::SpellEffectKind) -> f32 {
+    use crate::game::units::wizard::spells as s;
+    use crate::networking::snapshot::SpellEffectKind;
+    match kind {
+        SpellEffectKind::SpikeGrowthZone => s::spike_growth::constants::MANA_COST,
+        SpellEffectKind::HealingPlumeZone => s::healing_plume::constants::MANA_COST,
+        SpellEffectKind::EntangleGround => s::entangle::constants::MANA_COST,
+        SpellEffectKind::FogCloudZone => s::fog_cloud::constants::MANA_COST,
+        SpellEffectKind::GreaseZone | SpellEffectKind::GreaseFire => s::grease::constants::MANA_COST,
+        SpellEffectKind::PlagueWindCloud => s::plague_wind::constants::MANA_COST,
+        SpellEffectKind::MeteorGroundFire => s::meteor_fall::constants::MANA_COST,
+        SpellEffectKind::BlackHole => s::black_hole::constants::MANA_COST,
+        SpellEffectKind::ArcaneCrystal => s::arcane_crystal::constants::MANA_COST,
+        SpellEffectKind::LightningRod => s::lightning_rod::constants::MANA_COST,
+        SpellEffectKind::WallOfStone => s::wall_of_stone::constants::MANA_COST,
+        SpellEffectKind::WallOfFire => s::wall_of_fire::constants::MANA_COST,
+        SpellEffectKind::FireballExplosion
+        | SpellEffectKind::MeteorExplosion
+        | SpellEffectKind::IceExplosion => 0.0, // Not dispellable
+    }
+}

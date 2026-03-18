@@ -512,6 +512,8 @@ pub fn final_stand_explosion(
             time_secs,
         );
         vfx::systems::spawn_explosion_smoke(&mut commands, &visual_assets, position, time_secs);
+        vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, position, vfx::constants::EXPLOSION_SHIMMER_COUNT, time_secs);
+        vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, position, time_secs);
 
         // One-shot: remove marker so explosion doesn't fire again
         commands.entity(corpse_entity).remove::<FinalStand>();

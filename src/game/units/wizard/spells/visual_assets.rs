@@ -9,12 +9,39 @@ use std::collections::HashMap;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy::render::alpha::AlphaMode;
+use bevy::render::render_resource::AsBindGroup;
+use bevy::shader::ShaderRef;
 
 use crate::config::{GameConfig, WizardType};
 use crate::game::units::constants::EXCREMAGE_BROWN;
 
 use super::black_hole::constants::TORUS_MINOR_RADIUS;
 use super::telekinesis::constants::{HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKWAVE_TORUS_MINOR};
+
+/// Default bright yellow center color for fire explosion material.
+const FIRE_EXPLOSION_INNER_COLOR: LinearRgba = LinearRgba::new(4.0, 2.5, 0.4, 1.0);
+/// Default deep orange-red edge color for fire explosion material.
+const FIRE_EXPLOSION_OUTER_COLOR: LinearRgba = LinearRgba::new(2.5, 0.4, 0.0, 1.0);
+
+/// Radial-gradient material for explosion cross-plane spheres.
+/// Lerps from `inner_color` at center to `outer_color` at rim using mesh UVs.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub struct FireExplosionMaterial {
+    #[uniform(0)]
+    pub inner_color: LinearRgba,
+    #[uniform(0)]
+    pub outer_color: LinearRgba,
+}
+
+impl Material for FireExplosionMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/fire_explosion.wgsl".into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::Opaque
+    }
+}
 
 /// Pre-allocated meshes and materials for all spell visuals.
 ///
@@ -99,7 +126,7 @@ pub struct SpellVisualAssets {
     pub wall_of_fire: Handle<StandardMaterial>,
 
     // ── Explosion materials ──────────────────────────────────────────────
-    pub fireball_explosion: Handle<StandardMaterial>,
+    pub fireball_explosion: Handle<FireExplosionMaterial>,
     pub meteor_explosion: Handle<StandardMaterial>,
     pub ice_explosion: Handle<StandardMaterial>,
 
@@ -206,6 +233,7 @@ pub struct SpellVisualAssets {
     /// Semi-transparent dark purple lensing sphere for banishment effect.
     pub banishment_lens: Handle<StandardMaterial>,
     pub banishment_spark: Handle<StandardMaterial>,
+    pub dispel_spark: Handle<StandardMaterial>,
 }
 
 /// Initializes the shared spell visual assets resource.
@@ -213,6 +241,7 @@ pub fn init_spell_visual_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut fire_explosion_materials: ResMut<Assets<FireExplosionMaterial>>,
 ) {
     let unlit = |color: Color| StandardMaterial {
         base_color: color,
@@ -342,11 +371,9 @@ pub fn init_spell_visual_assets(
         }),
 
         // Explosion materials
-        fireball_explosion: materials.add(StandardMaterial {
-            base_color: Color::srgb(1.0, 0.3, 0.0),
-            unlit: true,
-            emissive: bevy::color::LinearRgba::new(3.0, 1.0, 0.0, 1.0),
-            ..default()
+        fireball_explosion: fire_explosion_materials.add(FireExplosionMaterial {
+            inner_color: FIRE_EXPLOSION_INNER_COLOR,
+            outer_color: FIRE_EXPLOSION_OUTER_COLOR,
         }),
         meteor_explosion: materials.add(StandardMaterial {
             base_color: Color::srgba(1.0, 0.5, 0.1, 0.6),
@@ -768,6 +795,12 @@ pub fn init_spell_visual_assets(
         plague_wind_arrow: materials.add(unlit_blend(Color::srgba(0.3, 0.8, 0.1, 0.5))),
         banishment_lens: materials.add(unlit_blend(Color::srgba(0.1, 0.5, 0.2, 0.6))),
         banishment_spark: materials.add(unlit_blend(Color::srgba(0.2, 0.9, 0.3, 0.8))),
+        dispel_spark: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.9, 0.9, 1.0),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(4.0, 4.0, 5.0, 1.0),
+            ..default()
+        }),
     });
 }
 
@@ -819,8 +852,7 @@ impl SpellVisualAssets {
             // Walls
             &self.wall_of_stone,
             &self.wall_of_fire,
-            // Explosions
-            &self.fireball_explosion,
+            // Explosions (fireball_explosion uses FireExplosionMaterial, handled separately)
             &self.meteor_explosion,
             &self.ice_explosion,
             // Projectiles
@@ -884,6 +916,8 @@ impl SpellVisualAssets {
             // Banishment
             &self.banishment_lens,
             &self.banishment_spark,
+            // Dispel
+            &self.dispel_spark,
         ]
     }
 }
@@ -919,6 +953,7 @@ pub fn refresh_spell_visuals_for_wizard(
     assets: Res<SpellVisualAssets>,
     mut originals: ResMut<OriginalSpellColors>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut fire_explosion_materials: ResMut<Assets<FireExplosionMaterial>>,
     config: Res<GameConfig>,
 ) {
     let is_excremage = config.wizard_type == WizardType::Excremage;
@@ -943,6 +978,18 @@ pub fn refresh_spell_visuals_for_wizard(
         } else {
             mat.base_color = *orig_color;
             mat.emissive = *orig_emissive;
+        }
+    }
+
+    // Handle fire explosion gradient material separately
+    if let Some(mat) = fire_explosion_materials.get_mut(&assets.fireball_explosion) {
+        if is_excremage {
+            let brown = EXCREMAGE_BROWN.to_linear();
+            mat.inner_color = LinearRgba::new(brown.red * 3.0, brown.green * 3.0, brown.blue * 1.5, 1.0);
+            mat.outer_color = LinearRgba::new(brown.red * 2.0, brown.green * 0.5, brown.blue * 0.1, 1.0);
+        } else {
+            mat.inner_color = FIRE_EXPLOSION_INNER_COLOR;
+            mat.outer_color = FIRE_EXPLOSION_OUTER_COLOR;
         }
     }
 }

@@ -61,6 +61,10 @@ impl Fireball {
     }
 }
 
+/// Marker for Scorched Earth persistent fire zones (enables fire smoke VFX).
+#[derive(Component)]
+pub struct ScorchedEarthFire;
+
 /// Fireball explosion component.
 ///
 /// Represents the expanding sphere explosion after a fireball impacts.
@@ -90,6 +94,8 @@ pub struct FireballExplosion {
     pub skip_growth: bool,
     /// Which spell created this explosion (for talent progress tracking).
     pub source_spell: crate::game::units::wizard::components::Spell,
+    /// Whether VFX (sparks + smoke) have been spawned for this explosion.
+    pub vfx_spawned: bool,
 }
 
 impl FireballExplosion {
@@ -114,6 +120,7 @@ impl FireballExplosion {
             chain_ignition: false,
             skip_growth: false,
             source_spell: crate::game::units::wizard::components::Spell::Fireball,
+            vfx_spawned: false,
         }
     }
 

@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use crate::game::battlefield::components::{Battlefield, BattlefieldAssets};
-use crate::game::battlefield::styles::BATTLEFIELD_COLOR;
+use crate::game::battlefield::constants::BATTLEFIELD_COLOR;
 use crate::game::components::Billboard;
 use crate::game::constants::*;
 use crate::game::loading::resources::LoadingProgress;

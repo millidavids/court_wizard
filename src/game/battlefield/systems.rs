@@ -1,60 +1,12 @@
 use bevy::prelude::*;
 
-use super::components::{Battlefield, BattlefieldAssets, Castle, LeftWall, RightWall};
-use super::styles::*;
+use super::components::{
+    Battlefield, BattlefieldAssets, Castle, LavaPool, LeftWall, RightWall, WallFloor, WaterRipple,
+    WaterRippleAssets,
+};
+use super::constants::*;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::*;
-
-// ===== Right Wall Constants =====
-
-/// The right wall image is 320x180 (16:9 aspect ratio).
-const RIGHT_WALL_IMAGE_WIDTH: f32 = 320.0;
-const RIGHT_WALL_IMAGE_HEIGHT: f32 = 180.0;
-
-/// Width of the right wall backdrop in world units.
-const RIGHT_WALL_WIDTH: f32 = 4000.0;
-
-/// Height derived from aspect ratio.
-const RIGHT_WALL_HEIGHT: f32 =
-    RIGHT_WALL_WIDTH * (RIGHT_WALL_IMAGE_HEIGHT / RIGHT_WALL_IMAGE_WIDTH);
-
-/// Position of the right wall (along the +X edge of the battlefield, facing inward).
-/// Centered along the Z axis, raised so it fills the background.
-/// Positioned so the bottom-left corner of the image meets the top corner of the battlefield.
-/// Bottom edge at Y=0 (center Y = half height), far end at Z = -BATTLEFIELD_HALF
-/// (center Z = -BATTLEFIELD_HALF + half width).
-const BATTLEFIELD_HALF: f32 = BATTLEFIELD_SIZE / 2.0;
-const RIGHT_WALL_POSITION: Vec3 = Vec3::new(
-    BATTLEFIELD_HALF,
-    RIGHT_WALL_HEIGHT / 2.0,
-    -BATTLEFIELD_HALF + RIGHT_WALL_WIDTH / 2.0,
-);
-
-/// Rotation so the wall faces inward (toward -X).
-/// A Rectangle mesh faces +Z by default, so rotate 90° to face -X.
-const RIGHT_WALL_ROTATION_DEGREES: f32 = 90.0;
-
-// ===== Left (Back) Wall Constants =====
-
-/// The left wall image is 640x180 (twice as wide as the right wall).
-const LEFT_WALL_IMAGE_WIDTH: f32 = 640.0;
-const LEFT_WALL_IMAGE_HEIGHT: f32 = 180.0;
-
-/// Height matches the right wall.
-const LEFT_WALL_HEIGHT: f32 = RIGHT_WALL_HEIGHT;
-
-/// Width derived from aspect ratio to match the right wall height.
-const LEFT_WALL_WIDTH: f32 =
-    LEFT_WALL_HEIGHT * (LEFT_WALL_IMAGE_WIDTH / LEFT_WALL_IMAGE_HEIGHT);
-
-/// Position of the left wall (along the -Z edge of the battlefield, facing +Z toward camera).
-/// Shares the corner with the right wall at (BATTLEFIELD_HALF, 0, -BATTLEFIELD_HALF).
-/// Extends from that corner to the left along the X axis.
-const LEFT_WALL_POSITION: Vec3 = Vec3::new(
-    BATTLEFIELD_HALF - LEFT_WALL_WIDTH / 2.0,
-    LEFT_WALL_HEIGHT / 2.0,
-    -BATTLEFIELD_HALF,
-);
 
 /// Sets up the battlefield and castle when entering the InGame state.
 ///
@@ -104,7 +56,7 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     );
 
-    // Spawn wall backdrops
+    // Spawn wall backdrops (vertical walls get depth_bias so they render behind game entities)
     spawn_wall_backdrop(
         &mut commands,
         &mut meshes,
@@ -112,9 +64,11 @@ pub fn setup_battlefield(
         battlefield_assets.right_wall.clone(),
         RIGHT_WALL_WIDTH,
         RIGHT_WALL_HEIGHT,
-        Transform::from_translation(RIGHT_WALL_POSITION)
-            .with_rotation(Quat::from_rotation_y(RIGHT_WALL_ROTATION_DEGREES.to_radians())),
+        Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(Quat::from_rotation_y(
+            RIGHT_WALL_ROTATION_DEGREES.to_radians(),
+        )),
         RightWall,
+        -100.0,
     );
     spawn_wall_backdrop(
         &mut commands,
@@ -125,11 +79,38 @@ pub fn setup_battlefield(
         LEFT_WALL_HEIGHT,
         Transform::from_translation(LEFT_WALL_POSITION),
         LeftWall,
+        -100.0,
     );
 
+    // Spawn floor between the right and left walls (laid flat, facing up; negative depth bias so effects render on top)
+    spawn_wall_backdrop(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        battlefield_assets.wall_floor.clone(),
+        WALL_FLOOR_DEPTH,
+        WALL_FLOOR_LENGTH,
+        Transform::from_translation(WALL_FLOOR_POSITION)
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        WallFloor,
+        -1000.0,
+    );
+
+    // Spawn lava pool marker (drives fire/smoke/spark effects)
+    commands.spawn((
+        Transform::from_translation(LAVA_POOL_POSITION),
+        Visibility::default(),
+        LavaPool,
+        OnGameplayScreen,
+    ));
+
+    // Pre-allocate annulus mesh for water ripples (inner_radius < outer_radius, thin ring)
+    let ripple_mesh = meshes.add(Annulus::new(0.9, 1.0));
+    commands.insert_resource(WaterRippleAssets { mesh: ripple_mesh });
 }
 
 /// Spawns a textured wall backdrop as a vertical rectangle.
+#[allow(clippy::too_many_arguments)]
 fn spawn_wall_backdrop<M: Component>(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -139,6 +120,7 @@ fn spawn_wall_backdrop<M: Component>(
     height: f32,
     transform: Transform,
     marker: M,
+    depth_bias: f32,
 ) {
     let mesh = Rectangle::new(width, height);
     let material = materials.add(StandardMaterial {
@@ -147,6 +129,7 @@ fn spawn_wall_backdrop<M: Component>(
         alpha_mode: AlphaMode::Blend,
         unlit: true,
         cull_mode: None,
+        depth_bias,
         ..default()
     });
     commands.spawn((
@@ -196,4 +179,145 @@ pub fn spawn_castle_wall<M: Component + Clone>(
         Castle,
         screen_marker,
     ));
+}
+
+// ===== Environmental Effects =====
+
+use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+
+/// Emits fire smoke puffs from the lava pool on the wall floor.
+pub fn emit_lava_fire_smoke(
+    mut commands: Commands,
+    lava_pools: Query<&Transform, With<LavaPool>>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < LAVA_SMOKE_INTERVAL {
+        return;
+    }
+    *timer -= LAVA_SMOKE_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for transform in lava_pools.iter() {
+        vfx::systems::spawn_fire_orange_smoke(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            LAVA_POOL_RADIUS,
+            4,
+            t,
+        );
+    }
+}
+
+/// Emits occasional spark bursts from the lava pool.
+pub fn emit_lava_sparks(
+    mut commands: Commands,
+    lava_pools: Query<&Transform, With<LavaPool>>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < LAVA_SPARK_INTERVAL {
+        return;
+    }
+    *timer -= LAVA_SPARK_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    for transform in lava_pools.iter() {
+        vfx::systems::spawn_fire_sparks(&mut commands, &visual_assets, transform.translation, 6, t);
+    }
+}
+
+/// Spawns growing, fading annulus ripples on the water pool.
+pub fn emit_water_ripples(
+    mut commands: Commands,
+    ripple_assets: Res<WaterRippleAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    let assets = ripple_assets;
+
+    *timer += time.delta_secs();
+    if *timer < WATER_RIPPLE_INTERVAL {
+        return;
+    }
+    *timer -= WATER_RIPPLE_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    // Spawn 1 ripple per interval at a random position within the pool
+    let seed = t * 3.7;
+    let angle = seed * 2.39;
+    let dist_frac = (seed * 17.3).sin() * 0.5 + 0.5;
+    let x = WATER_POOL_POSITION.x + angle.cos() * WATER_POOL_RADIUS * dist_frac * 0.5;
+    let z = WATER_POOL_POSITION.z + angle.sin() * WATER_POOL_RADIUS * dist_frac * 0.5;
+
+    let max_scale = WATER_RIPPLE_MAX_SCALE * (0.6 + 0.4 * ((seed * 41.7).sin() * 0.5 + 0.5));
+    let lifetime = WATER_RIPPLE_LIFETIME * (0.8 + 0.4 * ((seed * 23.1).sin() * 0.5 + 0.5));
+
+    // Each ripple gets its own material so we can fade alpha independently
+    let mat = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.9, 0.95, 1.0, WATER_RIPPLE_ALPHA),
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        cull_mode: None,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(assets.mesh.clone()),
+        MeshMaterial3d(mat),
+        Transform::from_xyz(x, WATER_POOL_POSITION.y + 2.0, z)
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(10.0)),
+        WaterRipple {
+            lifetime: 0.0,
+            max_lifetime: lifetime,
+            max_scale,
+        },
+        OnGameplayScreen,
+    ));
+}
+
+/// Grows and fades water ripples over their lifetime.
+pub fn update_water_ripples(
+    mut commands: Commands,
+    mut ripples: Query<(Entity, &mut WaterRipple, &mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    time: Res<Time>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut ripple, mut transform, mesh_material) in &mut ripples {
+        ripple.lifetime += delta;
+        if ripple.lifetime >= ripple.max_lifetime {
+            commands.entity(entity).try_despawn();
+            continue;
+        }
+
+        let t = ripple.lifetime / ripple.max_lifetime;
+
+        // Grow from small to max_scale
+        let scale = 10.0 + t * ripple.max_scale;
+        transform.scale = Vec3::splat(scale);
+
+        // Fade alpha: ramp up quickly then fade out
+        let alpha = if t < 0.1 {
+            t / 0.1
+        } else {
+            1.0 - (t - 0.1) / 0.9
+        } * WATER_RIPPLE_ALPHA;
+
+        if let Some(mat) = materials.get_mut(&mesh_material.0) {
+            mat.base_color = Color::srgba(0.9, 0.95, 1.0, alpha);
+        }
+    }
 }

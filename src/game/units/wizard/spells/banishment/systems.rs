@@ -8,8 +8,7 @@ use super::components::{
     BanishmentTalentParams, BanishmentVfx, DimensionalShunt, Displacement, OneWayTrip,
     PainfulReturn,
 };
-use super::super::vfx::components::FireSpark;
-use super::super::vfx::constants as vfx_constants;
+use super::super::vfx;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
@@ -136,30 +135,14 @@ fn spawn_banishment_vfx(
     ));
 
     // Spawn exploding spark particles (reuses FireSpark component + update system)
-    for i in 0..constants::SPARK_COUNT {
-        let angle =
-            (i as f32 / constants::SPARK_COUNT as f32) * std::f32::consts::TAU;
-        let elevation = 0.2 + (i as f32 * 1.618).fract() * 0.8;
-        let horizontal = (1.0 - elevation * elevation).sqrt();
-
-        let velocity = Vec3::new(
-            horizontal * angle.cos() * constants::SPARK_SPEED,
-            elevation * constants::SPARK_SPEED,
-            horizontal * angle.sin() * constants::SPARK_SPEED,
-        );
-
-        commands.spawn((
-            FireSpark {
-                velocity,
-                time_alive: 0.0,
-            },
-            Mesh3d(visual_assets.particle_quad.clone()),
-            MeshMaterial3d(visual_assets.banishment_spark.clone()),
-            Transform::from_translation(position)
-                .with_scale(Vec3::splat(vfx_constants::SPARK_SIZE)),
-            OnGameplayScreen,
-        ));
-    }
+    vfx::systems::spawn_sparks_with_material(
+        commands,
+        visual_assets,
+        position,
+        constants::SPARK_COUNT,
+        0.0,
+        visual_assets.banishment_spark.clone(),
+    );
 }
 
 /// Local wizard banishment casting -- reads mouse input.

@@ -18,10 +18,10 @@ pub const MANA_COST: f32 = 15.0;
 pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 
 // Damage
-pub const INITIAL_DAMAGE: f32 = 20.0;
+pub const INITIAL_DAMAGE: f32 = 10.0;
 pub const DAMAGE_TYPE: DamageType = DamageType::Electric;
 pub const DAMAGE_FALLOFF: f32 = 0.6;
-pub const MAX_BOUNCES: u32 = 8;
+pub const MAX_BOUNCES: u32 = 4;
 
 // Splitting
 pub const SPLIT_COUNT: usize = 2;

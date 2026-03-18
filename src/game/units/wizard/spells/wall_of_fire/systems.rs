@@ -886,11 +886,7 @@ pub fn firestorm_death_explosion(
             OnGameplayScreen,
         ));
 
-        // Fire sparks (half count of fireball)
-        vfx::systems::spawn_fire_sparks(&mut commands, &assets, pos, 5, time_secs);
-
-        // Smoke burst (reuse fireball's explosion smoke)
-        vfx::systems::spawn_explosion_smoke(&mut commands, &assets, pos, time_secs);
+        // Sparks + smoke are spawned automatically by update_explosions
 
         // Heat shimmer
         vfx::systems::spawn_heat_shimmer(&mut commands, &assets, pos, 2, time_secs);

@@ -717,7 +717,8 @@ pub(super) fn check_meteor_collisions(
             vfx::systems::spawn_explosion_smoke(&mut commands, &visual_assets, pos, t);
 
             // Heat shimmer burst at impact
-            vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, pos, 3, t);
+            vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, pos, vfx::constants::EXPLOSION_SHIMMER_COUNT, t);
+            vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, pos, t);
 
             // Impact sound (fireball explosion)
             audio::play_impact_sfx(&mut commands, &sfx.fireball_impact, pos, &game_config, &sfx);

@@ -17,6 +17,8 @@ pub struct BattlefieldAssets {
     pub right_wall: Handle<Image>,
     /// Left (back) wall backdrop texture.
     pub left_wall: Handle<Image>,
+    /// Floor texture between the right and left walls.
+    pub wall_floor: Handle<Image>,
 }
 
 /// Marker component for the right wall backdrop.
@@ -26,4 +28,26 @@ pub struct RightWall;
 /// Marker component for the left (back) wall backdrop.
 #[derive(Component)]
 pub struct LeftWall;
+
+/// Marker component for the floor between the right and left walls.
+#[derive(Component)]
+pub struct WallFloor;
+
+/// Marker for the lava pool environmental fire effect.
+#[derive(Component)]
+pub struct LavaPool;
+
+/// A growing, fading annulus ripple on the water pool surface.
+#[derive(Component)]
+pub struct WaterRipple {
+    pub lifetime: f32,
+    pub max_lifetime: f32,
+    pub max_scale: f32,
+}
+
+/// Pre-allocated annulus mesh for water ripples.
+#[derive(Resource)]
+pub struct WaterRippleAssets {
+    pub mesh: Handle<Mesh>,
+}
 
