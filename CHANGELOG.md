@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.454] - 2026-03-18
+
+### Added
+- **Arcane Crystal talents** — the Arcane Crystal spell now has a full talent tree with 9 talents across 3 tiers, unlocked by absorbing and re-emitting spells through the crystal
+- **Tier 1: Crystal modifiers** — choose between 25% stronger sub-projectiles, 40% larger crystal range, or 30% longer crystal duration
+- **Tier 2: Absorption effects** — choose between 50% more sub-projectiles per absorption (also speeds up auto-crystal turrets), a powerful energy burst after every 3 absorptions, or a 30% chance to duplicate absorbed spells entirely
+- **Tier 3: Powerful upgrades** — choose between placing up to 3 crystals that chain spells between each other, a massive explosion when the crystal expires, or turning the crystal into a permanent magic missile turret that persists between levels
+- **Permanent crystal turrets** — with the Auto-Crystal talent, placed crystals become permanent fixtures that fire rapid magic missiles at nearby enemies and survive between levels unless dispelled
+- **Dynamic text sizing** — spell and talent descriptions in the Study Spells panel now automatically shrink to fit when they're too long
+
 ## [v0.4.440] - 2026-03-18
 
 ### Added

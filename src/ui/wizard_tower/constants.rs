@@ -109,6 +109,9 @@ pub(super) const TALENT_LOCKED_BORDER: Color = Color::srgb(0.18, 0.18, 0.18);
 pub(super) const TALENT_UNLOCKED_BORDER: Color = Color::srgb(0.3, 0.3, 0.35);
 pub(super) const TALENT_TIER_LABEL_FONT: f32 = 10.0;
 pub(super) const TALENT_DESC_FONT: f32 = 11.0;
+pub(super) const TALENT_DESC_FONT_SMALL: f32 = 9.0;
+/// Character threshold above which talent/spell description text shrinks.
+pub(super) const DESC_SHRINK_THRESHOLD: usize = 80;
 
 // Spell icon
 pub(super) const SPELL_ICON_SIZE: f32 = 34.0;

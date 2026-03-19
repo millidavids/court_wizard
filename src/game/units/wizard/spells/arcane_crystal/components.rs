@@ -79,6 +79,18 @@ pub(crate) struct ArcaneCrystal {
     /// Active auto-cast disintegrate beam group + target pair (beam_entities, target_entity).
     /// Only used when remembered_spell is Disintegrate.
     pub auto_disintegrate_beam: Option<(Vec<Entity>, Entity)>,
+    /// Set to `true` on the frame a spell is absorbed; cleared each frame.
+    /// Used by Crystal Network to detect fresh absorptions without pulse_timer ambiguity.
+    pub just_absorbed: bool,
+    /// Talent: damage multiplier for sub-projectiles (Refined Facets).
+    pub damage_mult: f32,
+    /// Talent: count multiplier for sub-projectiles (Overcharged Matrix).
+    pub count_mult: f32,
+    /// Talent: whether Spell Echo is active (30% chance to duplicate absorptions).
+    pub spell_echo: bool,
+    /// Whether this crystal is permanent (Auto-Crystal talent turret).
+    /// Permanent crystals ignore lifetime, don't absorb spells, just fire magic missiles.
+    pub permanent: bool,
 }
 
 impl ArcaneCrystal {
@@ -105,12 +117,24 @@ impl ArcaneCrystal {
             remembered_spell: None,
             auto_cast_timer: 0.0,
             auto_disintegrate_beam: None,
+            just_absorbed: false,
+            damage_mult: 1.0,
+            count_mult: 1.0,
+            spell_echo: false,
+            permanent: false,
         }
     }
 
     /// Triggers pulse animation.
     pub fn trigger_pulse(&mut self) {
         self.pulse_timer = super::constants::PULSE_DURATION;
+    }
+
+    /// Marks a spell absorption: triggers pulse and sets the one-shot flag
+    /// consumed by Crystal Network chaining.
+    pub fn mark_absorption(&mut self) {
+        self.trigger_pulse();
+        self.just_absorbed = true;
     }
 }
 
@@ -120,6 +144,60 @@ pub(super) struct CrystalRangeIndicator {
     /// The crystal entity this indicator belongs to.
     pub crystal_entity: Entity,
 }
+
+/// Talent parameters computed at cast time from active talent selections.
+pub(crate) struct ArcaneCrystalTalentParams {
+    // Tier 1
+    pub damage_mult: f32,
+    pub range_mult: f32,
+    pub duration_mult: f32,
+    // Tier 2
+    pub count_mult: f32,
+    pub resonance_cascade: bool,
+    pub spell_echo: bool,
+    // Tier 3
+    pub crystal_network: bool,
+    pub prismatic_explosion: bool,
+    pub auto_crystal: bool,
+}
+
+impl Default for ArcaneCrystalTalentParams {
+    fn default() -> Self {
+        Self {
+            damage_mult: 1.0,
+            range_mult: 1.0,
+            duration_mult: 1.0,
+            count_mult: 1.0,
+            resonance_cascade: false,
+            spell_echo: false,
+            crystal_network: false,
+            prismatic_explosion: false,
+            auto_crystal: false,
+        }
+    }
+}
+
+/// Resonance Cascade tracker — counts absorptions and triggers burst at threshold.
+#[derive(Component)]
+pub(crate) struct ResonanceCascade {
+    /// Number of absorptions since last burst.
+    pub absorptions: u32,
+}
+
+/// Prismatic Explosion marker — crystal detonates on expiry.
+#[derive(Component)]
+pub(crate) struct PrismaticExplosion;
+
+/// Auto-Crystal timer — fires projectiles at nearby enemies periodically.
+#[derive(Component)]
+pub(crate) struct AutoCrystalTimer {
+    /// Seconds since last auto-fire.
+    pub timer: f32,
+}
+
+/// Crystal Network marker — allows multiple crystals and chaining.
+#[derive(Component)]
+pub(crate) struct CrystalNetwork;
 
 /// Marker component added to spell entities emitted by a crystal.
 ///

@@ -29,6 +29,7 @@ pub fn init_loading_progress(
     mut kill_stats: ResMut<KillStats>,
     config: Res<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
+    active_talents: Option<Res<crate::game::units::wizard::talents::resources::ActiveTalents>>,
 ) {
     // Sync CurrentLevel from GameConfig, but skip during time travel
     // (CurrentLevel was already overridden by the wizard tower hub)
@@ -57,6 +58,21 @@ pub fn init_loading_progress(
         queue.tasks.push(SpawnTask::PermanentWall {
             wall: saved_wall.clone(),
         });
+    }
+
+    // 3c. Permanent crystals from previous victories (after pathfinding grid)
+    if !config.saved_crystals.is_empty() {
+        let crystal_talent_params = crate::game::units::wizard::spells::arcane_crystal::systems::compute_talent_params(
+            active_talents.as_deref(),
+        );
+        for saved_crystal in &config.saved_crystals {
+            queue.tasks.push(SpawnTask::PermanentCrystal {
+                crystal: saved_crystal.clone(),
+                damage_mult: crystal_talent_params.damage_mult,
+                count_mult: crystal_talent_params.count_mult,
+                resonance_cascade: crystal_talent_params.resonance_cascade,
+            });
+        }
     }
 
     // 4. King (central defender)
@@ -401,6 +417,16 @@ pub fn process_spawn_queue(
                     &mut commands,
                     &shared_assets.1,
                     &wall,
+                );
+            }
+            SpawnTask::PermanentCrystal { crystal, damage_mult, count_mult, resonance_cascade } => {
+                crate::game::units::wizard::spells::arcane_crystal::systems::spawn_permanent_crystal(
+                    &mut commands,
+                    &shared_assets.1,
+                    &crystal,
+                    damage_mult,
+                    count_mult,
+                    resonance_cascade,
                 );
             }
             SpawnTask::UpgradeToCommander { entity, unit_type } => {

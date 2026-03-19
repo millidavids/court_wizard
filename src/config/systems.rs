@@ -81,6 +81,7 @@ pub(super) fn load_and_apply_config(
         show_level_clock: config_file.game.show_level_clock,
         urgent_mode: config_file.game.urgent_mode,
         saved_walls: Vec::new(),
+        saved_crystals: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed
     save_data::migrate_legacy_saves(&game_config);

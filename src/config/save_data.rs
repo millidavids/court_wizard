@@ -547,6 +547,7 @@ pub(crate) fn clear_progress() {
         wizard.efficiency_ratios.clear();
         wizard.action_bar_slots = [None; 5];
         wizard.saved_walls.clear();
+        wizard.saved_crystals.clear();
     }
 
     save_unified(&save_file);
@@ -562,6 +563,15 @@ pub(crate) struct SavedWall {
     pub(crate) forward_x: f32,
     pub(crate) forward_z: f32,
     pub(crate) height: f32,
+    pub(crate) empowerment: f32,
+}
+
+/// Serializable crystal placement data for permanent crystals (Auto-Crystal talent).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedCrystal {
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    pub(crate) range: f32,
     pub(crate) empowerment: f32,
 }
 
@@ -584,6 +594,8 @@ pub(crate) struct WizardSave {
     pub(crate) action_bar_slots: [Option<Spell>; 5],
     #[serde(default)]
     pub(crate) saved_walls: Vec<SavedWall>,
+    #[serde(default)]
+    pub(crate) saved_crystals: Vec<SavedCrystal>,
 }
 
 // ---------------------------------------------------------------------------
@@ -795,6 +807,7 @@ pub(crate) fn load_wizard_type_into_config(
     config.efficiency_ratios = wizard.efficiency_ratios.clone();
     config.action_bar_slots = wizard.action_bar_slots;
     config.saved_walls = wizard.saved_walls.clone();
+    config.saved_crystals = wizard.saved_crystals.clone();
 
     // Validate that all action bar slots contain unlocked spells
     validate_action_bar_slots(&mut config.action_bar_slots);
@@ -818,6 +831,7 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         efficiency_ratios: HashMap::new(),
         action_bar_slots: [None; 5],
         saved_walls: Vec::new(),
+        saved_crystals: Vec::new(),
     };
 
     let id = wizard.id.clone();
@@ -841,6 +855,7 @@ pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &Ac
         wizard.efficiency_ratios = config.efficiency_ratios.clone();
         wizard.action_bar_slots = config.action_bar_slots;
         wizard.saved_walls = config.saved_walls.clone();
+        wizard.saved_crystals = config.saved_crystals.clone();
         wizard.last_played_at = current_timestamp();
     }
 
@@ -1165,6 +1180,7 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             efficiency_ratios: old_data.efficiency_ratios.clone(),
             action_bar_slots: old_data.action_bar_slots,
             saved_walls: Vec::new(),
+            saved_crystals: Vec::new(),
         };
 
         let dominated = best_by_type

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::config::save_data::SavedWall;
+use crate::config::save_data::{SavedCrystal, SavedWall};
 
 /// Unit type enum for upgrade tasks.
 #[derive(Clone, Copy, Debug)]
@@ -62,6 +62,12 @@ pub enum SpawnTask {
     },
     PermanentWall {
         wall: SavedWall,
+    },
+    PermanentCrystal {
+        crystal: SavedCrystal,
+        damage_mult: f32,
+        count_mult: f32,
+        resonance_cascade: bool,
     },
 }
 

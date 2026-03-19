@@ -17,6 +17,7 @@ impl Plugin for GameOverPlugin {
                 send_battle_ended,
                 save_efficiency_to_config,
                 save_walls_on_victory,
+                save_crystals_on_victory,
                 setup_game_over_screen,
                 update_level_after_display,
             )

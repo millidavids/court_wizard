@@ -36,7 +36,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 26. [Berserker Rage](#26-berserker-rage)
 27. [Banishment](#27-banishment)
 28. [Polymorph](#28-polymorph)
-29. [Arcane Crystal](#29-arcane-crystal)
+29. [Arcane Crystal](#29-arcane-crystal) ✅
 30. [Dispel](#30-dispel)
 31. [Mind Control](#31-mind-control)
 
@@ -966,7 +966,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 
 ---
 
-## 29. Arcane Crystal
+## 29. Arcane Crystal [IMPLEMENTED]
 
 > Places a crystal that absorbs passing spells and re-emits them as scattered sub-projectiles toward units.
 
@@ -995,7 +995,7 @@ Every spell has a **talent tree** with **3 tiers** of **3 choices each** (9 tale
 |---|------|-------------|---------------------|
 | 1 | **Crystal Network** | Place up to 3 crystals. Spells chain between crystals, amplifying at each one. | "A network of crystals. The wizard built a magical internet. It runs on fireballs." |
 | 2 | **Prismatic Explosion** | Crystal explodes when it expires, dealing massive damage of every damage type in a large radius. | "The crystal goes out in a blaze of... every element. It's beautiful AND lethal." |
-| 3 | **Auto-Crystal** | Crystal automatically fires its own low-damage spell projectiles at nearby units every 2 seconds (no spell input needed). | "The crystal casts spells by itself. The wizard is being replaced by a ROCK." |
+| 3 | **Auto-Crystal** | Crystal becomes a permanent magic missile turret. One per level, persists between levels unless dispelled. No longer absorbs spells. | "The crystal casts spells by itself. The wizard is being replaced by a ROCK." |
 
 ---
 

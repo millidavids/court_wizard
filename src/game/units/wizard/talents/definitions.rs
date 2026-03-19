@@ -47,8 +47,7 @@ pub(crate) fn talent_definitions(spell: Spell) -> [[TalentDefinition; 3]; 3] {
         Spell::BerserkerRage => berserker_rage_talents(),
         Spell::Banishment => banishment_talents(),
         Spell::Dispel => dispel_talents(),
-        // All other spells get placeholder talents
-        _ => placeholder_talents(spell),
+        Spell::ArcaneCrystal => arcane_crystal_talents(),
     }
 }
 
@@ -2100,214 +2099,71 @@ fn dispel_talents() -> [[TalentDefinition; 3]; 3] {
     ]
 }
 
-fn placeholder_talents(spell: Spell) -> [[TalentDefinition; 3]; 3] {
-    // Generate thematic placeholder names based on spell type
-    let (t1, t2, t3) = placeholder_names(spell);
-
+fn arcane_crystal_talents() -> [[TalentDefinition; 3]; 3] {
     [
+        // Tier 1
         [
             TalentDefinition {
-                name: t1[0],
-                description: "Effect not yet implemented.",
-                locked_text: "Patience, young wizard. This talent is still being researched.",
-                implemented: false,
+                name: "Refined Facets",
+                description: "Sub-projectile damage increased by 25%.",
+                locked_text: "Sharper crystal, sharper projectiles. The wizard polished it. With magic, not a cloth.",
+                implemented: true,
             },
             TalentDefinition {
-                name: t1[1],
-                description: "Effect not yet implemented.",
-                locked_text: "The ancient texts are smudged. Check back later.",
-                implemented: false,
+                name: "Wider Prism",
+                description: "Crystal range increased by 40%.",
+                locked_text: "A bigger target to aim at. Even the wizard can hit it now.",
+                implemented: true,
             },
             TalentDefinition {
-                name: t1[2],
-                description: "Effect not yet implemented.",
-                locked_text: "The wizard council hasn't approved this one yet.",
-                implemented: false,
+                name: "Enduring Crystal",
+                description: "Crystal duration increased by 30%.",
+                locked_text: "The crystal lasts longer. It's the Energizer Bunny of magical artifacts.",
+                implemented: true,
             },
         ],
+        // Tier 2
         [
             TalentDefinition {
-                name: t2[0],
-                description: "Effect not yet implemented.",
-                locked_text: "This scroll is written in a language that hasn't been invented yet.",
-                implemented: false,
+                name: "Overcharged Matrix",
+                description: "Sub-projectile count increased by 50% (rounded up).",
+                locked_text: "More projectiles per spell. The crystal is an overachiever.",
+                implemented: true,
             },
             TalentDefinition {
-                name: t2[1],
-                description: "Effect not yet implemented.",
-                locked_text: "Coming soon to a wizard tower near you.",
-                implemented: false,
+                name: "Resonance Cascade",
+                description: "Crystal stores absorbed spell energy. After 3 absorptions, emits a powerful burst in all directions.",
+                locked_text: "Charge it up, let it rip. The crystal has been watching too many anime.",
+                implemented: true,
             },
             TalentDefinition {
-                name: t2[2],
-                description: "Effect not yet implemented.",
-                locked_text: "The enchantment is still cooling in the forge.",
-                implemented: false,
+                name: "Spell Echo",
+                description: "Crystal has a 30% chance to duplicate an absorbed spell entirely (full damage copy).",
+                locked_text: "Sometimes the crystal just... copies your homework. Magical plagiarism.",
+                implemented: true,
             },
         ],
+        // Tier 3
         [
             TalentDefinition {
-                name: t3[0],
-                description: "Effect not yet implemented.",
-                locked_text: "This power exists only in prophecy. For now.",
-                implemented: false,
+                name: "Crystal Network",
+                description: "Place up to 3 crystals. Spells chain between crystals, amplifying at each one.",
+                locked_text: "A network of crystals. The wizard built a magical internet. It runs on fireballs.",
+                implemented: true,
             },
             TalentDefinition {
-                name: t3[1],
-                description: "Effect not yet implemented.",
-                locked_text: "Even archmages need time to figure this one out.",
-                implemented: false,
+                name: "Prismatic Explosion",
+                description: "Crystal explodes when it expires, dealing massive damage of every damage type in a large radius.",
+                locked_text: "The crystal goes out in a blaze of... every element. It's beautiful AND lethal.",
+                implemented: true,
             },
             TalentDefinition {
-                name: t3[2],
-                description: "Effect not yet implemented.",
-                locked_text: "The universe isn't ready for this talent. Soon.",
-                implemented: false,
+                name: "Auto-Crystal",
+                description: "Crystal becomes a permanent magic missile turret. One per level, persists between levels unless dispelled. No longer absorbs spells.",
+                locked_text: "The crystal casts spells by itself. The wizard is being replaced by a ROCK.",
+                implemented: true,
             },
         ],
     ]
 }
 
-/// Returns themed placeholder talent names for unimplemented spells.
-fn placeholder_names(spell: Spell) -> ([&'static str; 3], [&'static str; 3], [&'static str; 3]) {
-    match spell {
-        // Disintegrate has real talent definitions — skip placeholder names
-        Spell::Disintegrate => (["", "", ""], ["", "", ""], ["", "", ""]),
-        Spell::ChainLightning => (
-            ["Extra Arc", "Charged Strike", "Quick Bolt"],
-            ["Storm Surge", "Forked Lightning", "Magnetic Pull"],
-            ["Thunderstorm", "Overload", "Zeus's Wrath"],
-        ),
-        Spell::FingerOfDeath => (
-            ["Extended Reach", "Corrupting Touch", "Swift Death"],
-            ["Soul Drain", "Spreading Decay", "Dark Power"],
-            ["Hand of Doom", "Death's Embrace", "Reaper's Call"],
-        ),
-        Spell::LightningRod => (
-            ["Taller Rod", "Rapid Strikes", "Wider Arc"],
-            ["Chain Reaction", "Magnetic Field", "Overcharge"],
-            ["Storm Spire", "Tesla Tower", "Lightning Nexus"],
-        ),
-        Spell::MeteorFall => (
-            ["Wider Impact", "Rapid Fall", "Burning Debris"],
-            ["Meteor Shower", "Seismic Impact", "Molten Rain"],
-            ["Extinction Event", "Star Fall", "Heaven's Fury"],
-        ),
-        Spell::MarkOfDeath => (
-            ["Deeper Mark", "Spreading Mark", "Quick Brand"],
-            ["Death Sentence", "Sympathetic Wounds", "Hunter's Mark"],
-            ["Doom Brand", "Marked for Extinction", "Final Judgment"],
-        ),
-        Spell::PlagueWind => (
-            ["Wider Cloud", "Lingering Toxin", "Swift Plague"],
-            ["Pandemic", "Toxic Eruption", "Poisoned Ground"],
-            ["Death Wind", "Blight Storm", "Corruption Wave"],
-        ),
-        Spell::BlackHole => (
-            ["Wider Pull", "Stronger Gravity", "Quick Collapse"],
-            ["Event Horizon", "Tidal Force", "Crushing Void"],
-            ["Singularity", "Dimensional Rift", "Oblivion"],
-        ),
-        Spell::WallOfStone => (
-            ["Longer Wall", "Reinforced Stone", "Quick Build"],
-            ["Fortress", "Maze Walls", "Crumbling Crush"],
-            ["Citadel", "Living Stone", "Mountain's Might"],
-        ),
-        Spell::WallOfFire => (
-            ["Longer Wall", "Hotter Flames", "Quick Ignition"],
-            ["Inferno Line", "Spreading Fire", "Magma Wall"],
-            ["Hell's Gate", "Eternal Flame", "Burning Fortress"],
-        ),
-        Spell::Entangle => (
-            ["Deep Roots", "Sprawling Thicket", "Efficient Growth"],
-            ["Thorny Vines", "Clinging Roots", "Nourishing Roots"],
-            ["Overgrowth", "Nature's Sanctuary", "Stranglehold"],
-        ),
-        Spell::SpikeGrowth => (
-            ["Wider Zone", "Sharper Spikes", "Quick Bloom"],
-            ["Thorn Maze", "Poisoned Spikes", "Quicksand"],
-            ["Death Garden", "Nature's Minefield", "Spike Storm"],
-        ),
-        Spell::Squall => (
-            ["Wider Storm", "Colder Winds", "Quick Gust"],
-            ["Blizzard", "Hailstorm", "Frozen Ground"],
-            ["Ice Age", "Polar Vortex", "Winter's Wrath"],
-        ),
-        Spell::Sleep => (
-            ["Deeper Sleep", "Wider Lullaby", "Quick Nap"],
-            ["Nightmare", "Sleepwalking", "Coma"],
-            ["Eternal Slumber", "Dream Prison", "Sandman's Curse"],
-        ),
-        Spell::Grease => (
-            ["Wider Puddle", "Stickier Grease", "Quick Slick"],
-            ["Oil Slick", "Banana Peel", "Tar Pit"],
-            ["Black Ice", "Grease Fire", "Slip 'n Slide"],
-        ),
-        Spell::Polymorph => (
-            ["Longer Duration", "Smaller Sheep", "Quick Morph"],
-            ["Mass Polymorph", "Angry Chicken", "Snail Form"],
-            ["Permanent Change", "Dragon Form", "Chaos Morph"],
-        ),
-        Spell::MindControl => (
-            ["Longer Control", "Stronger Will", "Quick Domination"],
-            ["Mass Suggestion", "Berserker Puppet", "Double Agent"],
-            ["Absolute Control", "Hivemind", "Puppet Master"],
-        ),
-        Spell::GuardianCircle => (
-            ["Wider Circle", "Stronger Shield", "Quick Ward"],
-            ["Regenerating Ward", "Reflective Shield", "Fortified Zone"],
-            ["Impenetrable Dome", "Guardian Angel", "Sanctuary"],
-        ),
-        Spell::Haste => (
-            ["Alacrity", "Extended Rush", "Quick Cast"],
-            ["Adrenaline Surge", "Momentum", "Fleet Feet"],
-            ["Time Warp", "Slow Zone", "Chain Haste"],
-        ),
-        Spell::Teleport => (
-            ["Wide Aperture", "Hasty Translocation", "Lingering Gate"],
-            ["Disorienting Arrival", "Swap", "Emergency Recall"],
-            ["Dimensional Rift", "Up", "Scatterport"],
-        ),
-        Spell::RaiseTheDead => (
-            ["More Corpses", "Stronger Undead", "Quick Raise"],
-            ["Skeletal Army", "Zombie Plague", "Death Knight"],
-            ["Necropolis", "Lich's Command", "Army of Darkness"],
-        ),
-        Spell::HealingPlume => (
-            ["Rejuvenating Mists", "Verdant Bloom", "Lasting Remedy"],
-            ["Cleansing Plume", "Overflow", "Triage Pulse"],
-            ["Font of Life", "Healing Rain", "Field Medic"],
-        ),
-        Spell::BerserkerRage => (
-            ["Longer Rage", "More Damage", "Wider Effect"],
-            ["Blood Frenzy", "Reckless Abandon", "Unstoppable Force"],
-            ["Wrath of Gods", "Berserker's Fury", "Primal Rage"],
-        ),
-        Spell::Telekinesis => (
-            ["Longer Range", "Multi-Grab", "Quick Pull"],
-            ["Magnetic Field", "Auto-Collect", "Treasure Sense"],
-            ["Gravity Well", "Telekinetic Storm", "Mind Over Matter"],
-        ),
-        Spell::Banishment => (
-            ["Longer Duration", "Multi-Target", "Quick Cast"],
-            ["Pocket Dimension", "Weakening Exile", "Delayed Return"],
-            ["Permanent Exile", "Void Prison", "Dimensional Lock"],
-        ),
-        Spell::ArcaneCrystal => (
-            ["Larger Crystal", "More Scatters", "Quick Charge"],
-            ["Prism Array", "Chain Refraction", "Crystal Shield"],
-            ["Crystal Cascade", "Arcane Nexus", "Infinity Crystal"],
-        ),
-        Spell::Dispel => (
-            ["Wider Wave", "Stronger Nullify", "Quick Shot"],
-            ["Chain Dispel", "Mana Drain", "Feedback Loop"],
-            ["Anti-Magic Zone", "Null Field", "Arcane Silence"],
-        ),
-        // Fallback for any spell not explicitly listed (shouldn't happen)
-        _ => (
-            ["Enhancement I", "Enhancement II", "Enhancement III"],
-            ["Augment I", "Augment II", "Augment III"],
-            ["Mastery I", "Mastery II", "Mastery III"],
-        ),
-    }
-}

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::{ArcaneCrystal, CrystalSpawn};
+use super::components::{ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalSpawn, ResonanceCascade};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
@@ -19,6 +19,8 @@ impl Plugin for ArcaneCrystalPlugin {
         app.add_systems(
             Update,
             (
+                // Clear one-shot absorption flags before detection runs
+                systems::clear_absorption_flags.run_if(any_with_component::<ArcaneCrystal>),
                 // Local wizard casting (mouse input)
                 systems::handle_arcane_crystal_casting
                     .run_if(spell_is_primed(Spell::ArcaneCrystal))
@@ -36,10 +38,18 @@ impl Plugin for ArcaneCrystalPlugin {
                 systems::detect_meteor_hits.run_if(any_with_component::<ArcaneCrystal>),
                 systems::detect_magic_missile_hits.run_if(any_with_component::<ArcaneCrystal>),
                 systems::detect_chain_lightning_hits.run_if(any_with_component::<ArcaneCrystal>),
+                // Talent: Resonance Cascade burst
+                systems::resonance_cascade_burst.run_if(any_with_component::<ResonanceCascade>),
+                // Talent: Crystal Network chaining
+                systems::crystal_network_chain.run_if(any_with_component::<CrystalNetwork>),
                 // Auto-casting
                 systems::auto_cast_remembered_spell.run_if(any_with_component::<ArcaneCrystal>),
+                // Talent: Auto-Crystal firing
+                systems::auto_crystal_fire.run_if(any_with_component::<AutoCrystalTimer>),
                 // Range-limiting & lifetime cleanup
                 systems::despawn_out_of_range_crystal_spawns
+                    .run_if(any_with_component::<CrystalSpawn>),
+                systems::cleanup_expired_crystal_visuals
                     .run_if(any_with_component::<CrystalSpawn>),
                 systems::cleanup_expired_crystal_beams.run_if(any_with_component::<CrystalSpawn>),
             )

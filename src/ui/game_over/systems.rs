@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::config::save_data::{SavedWall, load_unified_save};
+use crate::config::save_data::{SavedCrystal, SavedWall, load_unified_save};
 use crate::config::{ActiveSave, ConfigChanged, GameConfig, WizardType};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
@@ -10,6 +10,7 @@ use crate::game::resources::{
 };
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::wizard::archetypes::psychopath::constants::DEFENDER_KILL_THRESHOLD;
+use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
 use crate::ui::systems::spawn_button;
@@ -102,6 +103,31 @@ pub(super) fn save_walls_on_victory(
         .collect();
 
     config.saved_walls = saved;
+}
+
+/// Saves all permanent crystals on victory so they persist to the next level.
+pub(super) fn save_crystals_on_victory(
+    game_outcome: Res<GameOutcome>,
+    mut config: ResMut<GameConfig>,
+    crystals: Query<&ArcaneCrystal>,
+    time_travel: Option<Res<TimeTravelState>>,
+) {
+    if time_travel.is_some() || *game_outcome != GameOutcome::Victory {
+        return;
+    }
+
+    let saved: Vec<SavedCrystal> = crystals
+        .iter()
+        .filter(|c| c.permanent)
+        .map(|c| SavedCrystal {
+            x: c.position.x,
+            z: c.position.z,
+            range: c.range,
+            empowerment: c.empowerment,
+        })
+        .collect();
+
+    config.saved_crystals = saved;
 }
 
 pub(super) fn setup_game_over_screen(

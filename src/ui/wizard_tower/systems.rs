@@ -1419,9 +1419,15 @@ pub(super) fn update_study_detail_panel(
 
         // Description
         if unlocked || prereq_met || is_free {
+            let desc = spell.description();
+            let font_size = if desc.len() > DESC_SHRINK_THRESHOLD {
+                DETAIL_SMALL_FONT_SIZE - 2.0
+            } else {
+                DETAIL_SMALL_FONT_SIZE
+            };
             panel.spawn((
-                Text::new(spell.description()),
-                TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                Text::new(desc),
+                TextFont::from_font_size(font_size),
                 TextColor(TEXT_COLOR),
                 Node {
                     max_width: Val::Px(DETAIL_PANEL_WIDTH - DETAIL_PANEL_PADDING * 2.0),
@@ -1429,9 +1435,15 @@ pub(super) fn update_study_detail_panel(
                 },
             ));
         } else {
+            let desc = spell.locked_description();
+            let font_size = if desc.len() > DESC_SHRINK_THRESHOLD {
+                DETAIL_SMALL_FONT_SIZE - 2.0
+            } else {
+                DETAIL_SMALL_FONT_SIZE
+            };
             panel.spawn((
-                Text::new(spell.locked_description()),
-                TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                Text::new(desc),
+                TextFont::from_font_size(font_size),
                 TextColor(LOCKED_TEXT_COLOR),
             ));
         }
@@ -2083,7 +2095,7 @@ pub(super) fn handle_talent_card_clicks(
 /// Updates the talent description text when hovering over talent cards.
 pub(super) fn update_talent_hover_description(
     interaction_query: Query<(&Interaction, &TalentCard), Changed<Interaction>>,
-    mut desc_query: Query<(&mut Text, &mut TextColor), With<TalentDescriptionText>>,
+    mut desc_query: Query<(&mut Text, &mut TextFont, &mut TextColor), With<TalentDescriptionText>>,
 ) {
     use crate::config::save_data::get_spell_talent_progress;
     use crate::game::units::wizard::talents::{constants as talent_consts, definitions};
@@ -2099,12 +2111,25 @@ pub(super) fn update_talent_hover_description(
         let defs = definitions::talent_definitions(card.spell);
         let def = &defs[card.tier as usize][card.choice as usize];
 
-        for (mut text, mut color) in &mut desc_query {
+        for (mut text, mut font, mut color) in &mut desc_query {
             if tier_unlocked {
-                *text = Text::new(format!("{}: {}", def.name, def.description));
+                let desc = format!("{}: {}", def.name, def.description);
+                let font_size = if desc.len() > DESC_SHRINK_THRESHOLD {
+                    TALENT_DESC_FONT_SMALL
+                } else {
+                    TALENT_DESC_FONT
+                };
+                *text = Text::new(desc);
+                *font = TextFont::from_font_size(font_size);
                 *color = TextColor(TEXT_COLOR);
             } else {
+                let font_size = if def.locked_text.len() > DESC_SHRINK_THRESHOLD {
+                    TALENT_DESC_FONT_SMALL
+                } else {
+                    TALENT_DESC_FONT
+                };
                 *text = Text::new(def.locked_text);
+                *font = TextFont::from_font_size(font_size);
                 *color = TextColor(LOCKED_TEXT_COLOR);
             }
         }

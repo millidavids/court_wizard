@@ -103,3 +103,50 @@ pub const AUTO_CAST_MIN_INTERVAL: f32 = 1.5;
 
 /// Maximum auto-cast interval (ceiling, seconds).
 pub const AUTO_CAST_MAX_INTERVAL: f32 = 20.0;
+
+// ===== Talent Constants =====
+
+// --- Tier 1 ---
+
+/// Refined Facets: multiplier for sub-projectile damage.
+pub const REFINED_FACETS_DAMAGE_MULT: f32 = 1.25;
+
+/// Wider Prism: multiplier for crystal collision radius.
+pub const WIDER_PRISM_RANGE_MULT: f32 = 1.4;
+
+/// Enduring Crystal: multiplier for crystal duration.
+pub const ENDURING_CRYSTAL_DURATION_MULT: f32 = 1.3;
+
+// --- Tier 2 ---
+
+/// Overcharged Matrix: multiplier for sub-projectile count (rounded up).
+pub const OVERCHARGED_MATRIX_COUNT_MULT: f32 = 1.5;
+
+/// Resonance Cascade: number of absorptions needed before burst.
+pub const RESONANCE_CASCADE_THRESHOLD: u32 = 3;
+
+/// Resonance Cascade: damage dealt by the burst to each enemy in range.
+pub const RESONANCE_CASCADE_DAMAGE: f32 = 80.0;
+
+/// Resonance Cascade: burst radius (centered on crystal).
+pub const RESONANCE_CASCADE_RADIUS: f32 = 350.0;
+
+/// Spell Echo: chance to duplicate an absorbed spell (0.0 - 1.0).
+pub const SPELL_ECHO_CHANCE: f32 = 0.3;
+
+// --- Tier 3 ---
+
+/// Crystal Network: maximum number of crystals that can exist simultaneously.
+pub const CRYSTAL_NETWORK_MAX_CRYSTALS: usize = 3;
+
+/// Crystal Network: range for chaining spell absorptions between crystals.
+pub const CRYSTAL_NETWORK_CHAIN_RANGE: f32 = 400.0;
+
+/// Prismatic Explosion: damage dealt by expiry detonation.
+pub const PRISMATIC_EXPLOSION_DAMAGE: f32 = 150.0;
+
+/// Prismatic Explosion: radius of the detonation.
+pub const PRISMATIC_EXPLOSION_RADIUS: f32 = 300.0;
+
+/// Auto-Crystal: interval between magic missile shots (seconds).
+pub const AUTO_CRYSTAL_INTERVAL: f32 = 0.667;
