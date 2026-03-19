@@ -17,7 +17,7 @@ use crate::game::units::components::{
     SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, Teleportable,
     WalkingAnimation,
 };
-use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus};
+use crate::game::units::elite::{EliteAttackSpeedBonus, EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
 
 use super::resources::InfantryAssets;
@@ -516,5 +516,6 @@ pub(in crate::game) fn spawn_single_kings_guard(
             EliteHealthBonus(crate::game::units::elite::ELITE_HEALTH_BONUS),
             EliteDamageBonus(crate::game::units::elite::ELITE_DAMAGE_BONUS),
             EliteSpeedBonus(crate::game::units::elite::ELITE_SPEED_BONUS),
+            EliteAttackSpeedBonus(crate::game::units::elite::ELITE_ATTACK_SPEED_BONUS),
         ));
 }

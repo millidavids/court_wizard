@@ -469,6 +469,7 @@ pub fn check_bolt_collisions(
             &Team,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<crate::game::units::shielder::components::ShielderDamageReduction>,
         ),
         Without<Corpse>,
     >,
@@ -477,7 +478,7 @@ pub fn check_bolt_collisions(
     for (bolt_entity, bolt_transform, bolt) in &bolts {
         let bolt_pos = bolt_transform.translation;
 
-        for (target_transform, hitbox, team, mut health, mut temp_hp) in &mut targets {
+        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction) in &mut targets {
             // Skip same team
             if *team == bolt.source_team {
                 continue;
@@ -492,7 +493,11 @@ pub fn check_bolt_collisions(
             // Check collision
             let distance = bolt_pos.distance(target_transform.translation);
             if distance < hitbox.radius + BOLT_RADIUS {
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), bolt.damage);
+                let mut damage = bolt.damage;
+                if has_shielder_reduction {
+                    damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+                }
+                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
                 commands.entity(bolt_entity).try_despawn();
                 break;
             }

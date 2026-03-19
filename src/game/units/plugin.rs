@@ -16,6 +16,7 @@ use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
 use super::healer::HealerPlugin;
 use super::infantry::InfantryPlugin;
+use super::shielder::ShielderPlugin;
 use super::king::KingPlugin;
 use super::movement;
 use super::systems;
@@ -45,6 +46,7 @@ impl Plugin for UnitsPlugin {
             ArcherPlugin,
             DispellerPlugin,
             HealerPlugin,
+            ShielderPlugin,
             BrutePlugin,
             BossPlugin,
             KingPlugin,

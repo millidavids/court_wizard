@@ -6,25 +6,30 @@
 use bevy::prelude::*;
 
 use super::constants::*;
-use super::spawn_queue::UnitType;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::Hitbox;
-use crate::game::units::components::{Health, MovementSpeed};
-use crate::game::units::dispeller::DispellerAssets;
+use crate::game::units::components::{Health, MovementSpeed, UnitTypeGlow};
+use crate::game::units::constants::{
+    COMMANDER_GLOW_COLOR, DISPELLER_GLOW_COLOR, HEALER_GLOW_COLOR, SHIELDER_GLOW_COLOR,
+};
 use crate::game::units::dispeller::components::{Dispeller, DispellerAttackTimer};
 use crate::game::units::dispeller::constants::{
     DISPELLER_HEALTH, DISPELLER_MOVEMENT_SPEED, DISPELLER_RADIUS,
 };
 use crate::game::units::elite::{
-    ELITE_DAMAGE_BONUS, ELITE_HEALTH_BONUS, ELITE_SPEED_BONUS, EliteDamageBonus, EliteHealthBonus,
-    EliteSpeedBonus,
+    ELITE_ATTACK_SPEED_BONUS, ELITE_DAMAGE_BONUS, ELITE_HEALTH_BONUS, ELITE_SPEED_BONUS,
+    EliteAttackSpeedBonus, EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus,
 };
-use crate::game::units::healer::HealerAssets;
 use crate::game::units::healer::components::{Healer, HealerAttackTimer};
 use crate::game::units::healer::constants::{HEALER_HEALTH, HEALER_MOVEMENT_SPEED, HEALER_RADIUS};
+use crate::game::units::infantry::Infantry;
+use crate::game::units::shielder::components::Shielder;
+use crate::game::units::shielder::constants::{
+    SHIELDER_HEALTH, SHIELDER_MOVEMENT_SPEED, SHIELDER_RADIUS,
+};
 
 /// Applies elite upgrade to a unit entity.
 ///
@@ -33,33 +38,16 @@ use crate::game::units::healer::constants::{HEALER_HEALTH, HEALER_MOVEMENT_SPEED
 pub(super) fn apply_elite_upgrade(
     commands: &mut Commands,
     entity: Entity,
-    unit_type: UnitType,
-    materials: &mut Assets<StandardMaterial>,
     current_transform: &Transform,
     current_hitbox: &Hitbox,
 ) {
-    // Add elite components
+    // Add elite components (visual glow is handled by update_persistent_effect_visuals)
     commands.entity(entity).insert((
         EliteHealthBonus(ELITE_HEALTH_BONUS),
         EliteDamageBonus(ELITE_DAMAGE_BONUS),
         EliteSpeedBonus(ELITE_SPEED_BONUS),
+        EliteAttackSpeedBonus(ELITE_ATTACK_SPEED_BONUS),
     ));
-
-    // Swap material to elite color
-    let elite_color = match unit_type {
-        UnitType::Infantry => ELITE_INFANTRY_COLOR,
-        UnitType::Archer => ELITE_ARCHER_COLOR,
-    };
-
-    let elite_material = materials.add(StandardMaterial {
-        base_color: elite_color,
-        unlit: true,
-        ..default()
-    });
-
-    commands
-        .entity(entity)
-        .insert(MeshMaterial3d(elite_material));
 
     // Scale up the unit (preserving position)
     let mut new_transform = *current_transform;
@@ -76,18 +64,17 @@ pub(super) fn apply_elite_upgrade(
 
 /// Applies commander upgrade to a unit entity.
 ///
-/// Adds commander components (aura provider with buffs), swaps material
-/// to gold color, scales up the unit, and spawns a visible aura ring on the ground.
+/// Adds commander components (aura provider with buffs), scales up the unit,
+/// adds orange glow, and spawns a visible aura ring on the ground.
 pub(super) fn apply_commander_upgrade(
     commands: &mut Commands,
     entity: Entity,
-    unit_type: UnitType,
     materials: &mut Assets<StandardMaterial>,
     meshes: &mut Assets<Mesh>,
     current_transform: &Transform,
     current_hitbox: &Hitbox,
 ) {
-    // Add commander components
+    // Add commander components + orange glow
     commands.entity(entity).insert((
         Commander {
             aura_radius: ATTACKER_COMMANDER_AURA_RADIUS,
@@ -96,23 +83,10 @@ pub(super) fn apply_commander_upgrade(
         },
         AuraDamageBuff(ATTACKER_COMMANDER_DAMAGE_BUFF),
         AuraSpeedBuff(ATTACKER_COMMANDER_SPEED_BUFF),
+        UnitTypeGlow {
+            color: COMMANDER_GLOW_COLOR,
+        },
     ));
-
-    // Swap material to commander color
-    let commander_color = match unit_type {
-        UnitType::Infantry => COMMANDER_INFANTRY_COLOR,
-        UnitType::Archer => COMMANDER_ARCHER_COLOR,
-    };
-
-    let commander_material = materials.add(StandardMaterial {
-        base_color: commander_color,
-        unlit: true,
-        ..default()
-    });
-
-    commands
-        .entity(entity)
-        .insert(MeshMaterial3d(commander_material));
 
     // Scale up the unit (preserving position)
     let mut new_transform = *current_transform;
@@ -176,27 +150,21 @@ fn spawn_aura_ring(
 /// Applies dispeller upgrade to an archer entity.
 ///
 /// Converts an attacker archer into a dispeller by swapping components:
-/// removes archer-specific components, adds dispeller components, and
-/// updates mesh/material/stats to match dispeller configuration.
-pub(super) fn apply_dispeller_upgrade(
-    commands: &mut Commands,
-    entity: Entity,
-    dispeller_assets: &DispellerAssets,
-) {
+/// removes archer-specific components, adds dispeller components and white glow,
+/// and updates stats to match dispeller configuration.
+pub(super) fn apply_dispeller_upgrade(commands: &mut Commands, entity: Entity) {
     // Remove archer-specific components
     commands
         .entity(entity)
         .remove::<(Archer, AttackRange, ArcherMovementTimer)>();
 
-    // Add dispeller components
-    commands
-        .entity(entity)
-        .insert((Dispeller, DispellerAttackTimer::new()));
-
-    // Swap mesh and material to dispeller visuals
+    // Add dispeller components + white glow
     commands.entity(entity).insert((
-        Mesh3d(dispeller_assets.mesh.clone()),
-        MeshMaterial3d(dispeller_assets.attacker_material.clone()),
+        Dispeller,
+        DispellerAttackTimer::new(),
+        UnitTypeGlow {
+            color: DISPELLER_GLOW_COLOR,
+        },
     ));
 
     // Update stats to dispeller values
@@ -213,27 +181,21 @@ pub(super) fn apply_dispeller_upgrade(
 /// Applies healer upgrade to an archer entity.
 ///
 /// Converts an attacker archer into a healer by swapping components:
-/// removes archer-specific components, adds healer components, and
-/// updates mesh/material/stats to match healer configuration.
-pub(super) fn apply_healer_upgrade(
-    commands: &mut Commands,
-    entity: Entity,
-    healer_assets: &HealerAssets,
-) {
+/// removes archer-specific components, adds healer components and green glow,
+/// and updates stats to match healer configuration.
+pub(super) fn apply_healer_upgrade(commands: &mut Commands, entity: Entity) {
     // Remove archer-specific components
     commands
         .entity(entity)
         .remove::<(Archer, AttackRange, ArcherMovementTimer)>();
 
-    // Add healer components
-    commands
-        .entity(entity)
-        .insert((Healer, HealerAttackTimer::new()));
-
-    // Swap mesh and material to healer visuals
+    // Add healer components + green glow
     commands.entity(entity).insert((
-        Mesh3d(healer_assets.mesh.clone()),
-        MeshMaterial3d(healer_assets.attacker_material.clone()),
+        Healer,
+        HealerAttackTimer::new(),
+        UnitTypeGlow {
+            color: HEALER_GLOW_COLOR,
+        },
     ));
 
     // Update stats to healer values
@@ -242,6 +204,34 @@ pub(super) fn apply_healer_upgrade(
         MovementSpeed(HEALER_MOVEMENT_SPEED),
         Hitbox::new(
             HEALER_RADIUS,
+            crate::game::constants::ATTACKER_HITBOX_HEIGHT,
+        ),
+    ));
+}
+
+/// Applies shielder upgrade to an infantry entity.
+///
+/// Converts an attacker infantry into a shielder by swapping components:
+/// removes infantry-specific components, adds shielder components and purple glow,
+/// and updates stats to match shielder configuration.
+pub(super) fn apply_shielder_upgrade(commands: &mut Commands, entity: Entity) {
+    // Remove infantry-specific components
+    commands.entity(entity).remove::<Infantry>();
+
+    // Add shielder components + purple glow
+    commands.entity(entity).insert((
+        Shielder,
+        UnitTypeGlow {
+            color: SHIELDER_GLOW_COLOR,
+        },
+    ));
+
+    // Update stats to shielder values
+    commands.entity(entity).insert((
+        Health::new(SHIELDER_HEALTH),
+        MovementSpeed(SHIELDER_MOVEMENT_SPEED),
+        Hitbox::new(
+            SHIELDER_RADIUS,
             crate::game::constants::ATTACKER_HITBOX_HEIGHT,
         ),
     ));

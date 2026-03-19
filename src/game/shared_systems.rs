@@ -17,7 +17,7 @@ use super::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, CORPSE_MATERIAL_VARIANTS, Corpse, DamageMultiplier, Effectiveness,
-    EliteDamageBonus, Health, Hitbox, Invulnerable, MovementSpeed, ResidualFireDamaged,
+    EliteAttackSpeedBonus, EliteDamageBonus, Health, Hitbox, Invulnerable, MovementSpeed, ResidualFireDamaged,
     RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
     apply_damage_to_unit,
 };
@@ -417,6 +417,7 @@ pub fn combat(
                 Has<super::units::wizard::spells::berserker_rage::components::FrenzyActive>,
                 Option<&super::units::wizard::spells::berserker_rage::components::Bloodlust>,
                 Has<super::units::wizard::spells::berserker_rage::components::ContagiousRage>,
+                Option<&EliteAttackSpeedBonus>,
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -436,6 +437,7 @@ pub fn combat(
         Option<&super::units::components::AnthemResilience>,
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
         Option<&super::units::wizard::spells::haste::components::FleetFeet>,
+        Has<super::units::shielder::components::ShielderDamageReduction>,
     )>,
     // Fog Cloud talent zones
     disorienting_zones: Query<
@@ -493,7 +495,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage, elite_attack_speed),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, stunned, or retreating
@@ -530,11 +532,12 @@ pub fn combat(
             })
             .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
         {
-            // Calculate effective attack speed (BattleHymn + Haste + DisorientingHaste + Frenzy + cauldron buff for defenders)
+            // Calculate effective attack speed (BattleHymn + Haste + DisorientingHaste + Frenzy + Elite + cauldron buff for defenders)
             let mut attack_speed_bonus = battle_hymn.map_or(0.0, |b| b.attack_speed)
                 + haste_modifier.map_or(0.0, |h| h.attack_speed)
                 + disorienting_haste.map_or(0.0, |d| d.attack_speed)
-                + if has_frenzy_active { frenzy.map_or(0.0, |f| f.attack_speed_bonus) } else { 0.0 };
+                + if has_frenzy_active { frenzy.map_or(0.0, |f| f.attack_speed_bonus) } else { 0.0 }
+                + elite_attack_speed.map_or(0.0, |e| e.0);
             if *attacker_team == Team::Defenders {
                 let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
                 if cauldron_speed > 1.0 {
@@ -589,6 +592,7 @@ pub fn combat(
                     target_anthem_resilience,
                     guardian_circle_shielded,
                     target_fleet_feet,
+                    has_shielder_reduction,
                 )) = health_query.get_mut(actual_target)
             {
                 // Check fog evasion
@@ -647,6 +651,11 @@ pub fn combat(
                     && gc.sanctuary_reduction > 0.0
                 {
                     modified_damage *= 1.0 - gc.sanctuary_reduction;
+                }
+
+                // Apply Shielder damage reduction (20% less damage from melee)
+                if has_shielder_reduction {
+                    modified_damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
                 }
 
                 // Apply target's Mark of Death amplification
@@ -979,7 +988,9 @@ pub fn convert_dead_to_corpses(
                 .remove::<CauldronDamageResistance>()
                 .remove::<CauldronSpeedModifier>()
                 .remove::<super::units::components::WalkingAnimation>()
-                .remove::<super::units::components::FacingDirection>();
+                .remove::<super::units::components::FacingDirection>()
+                .remove::<super::units::king::components::SpellShield>()
+                .remove::<super::units::shielder::components::ShielderDamageReduction>();
         }
     }
 }

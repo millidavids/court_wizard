@@ -360,24 +360,48 @@ pub fn attach_king_spell_shield(
 
     for (entity, _transform) in &new_kings {
         commands.entity(entity).insert(SpellShield);
-
-        // Spawn translucent cross-plane sphere visual as child
-        let shield_visual = commands
-            .spawn((
-                Mesh3d(spell_assets.cross_plane_sphere.clone()),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: SPELL_SHIELD_COLOR,
-                    unlit: true,
-                    alpha_mode: bevy::prelude::AlphaMode::Blend,
-                    ..default()
-                })),
-                Transform::from_scale(Vec3::splat(SPELL_SHIELD_RADIUS)),
-                SpellShieldVisual,
-                OnGameplayScreen,
-            ))
-            .id();
-        commands.entity(entity).add_child(shield_visual);
+        spawn_spell_shield_visual(
+            &mut commands,
+            entity,
+            &spell_assets,
+            &mut materials,
+            SPELL_SHIELD_COLOR,
+            SPELL_SHIELD_RADIUS,
+            None,
+        );
     }
+}
+
+/// Spawns a translucent cross-plane sphere shield visual as a child of the given entity.
+/// If `emissive` is provided, the material will glow with that color.
+pub(in crate::game) fn spawn_spell_shield_visual(
+    commands: &mut Commands,
+    parent_entity: Entity,
+    spell_assets: &SpellVisualAssets,
+    materials: &mut Assets<StandardMaterial>,
+    color: Color,
+    radius: f32,
+    emissive: Option<LinearRgba>,
+) {
+    let mut mat = StandardMaterial {
+        base_color: color,
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        ..default()
+    };
+    if let Some(emissive_color) = emissive {
+        mat.emissive = emissive_color;
+    }
+    let shield_visual = commands
+        .spawn((
+            Mesh3d(spell_assets.cross_plane_sphere.clone()),
+            MeshMaterial3d(materials.add(mat)),
+            Transform::from_scale(Vec3::splat(radius)),
+            SpellShieldVisual,
+            OnGameplayScreen,
+        ))
+        .id();
+    commands.entity(parent_entity).add_child(shield_visual);
 }
 
 /// Removes the King's spell shield when fewer than 10% of non-King defenders remain.

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::constants::{MAX_COMMANDER_ARCHERS, MAX_COMMANDER_INFANTRY};
 use super::resources::LoadingProgress;
 use super::spawn_queue::{SpawnQueue, SpawnTask};
 use super::upgrade_selection;
@@ -15,8 +16,6 @@ use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{Hitbox, Team};
-use crate::game::units::dispeller::DispellerAssets;
-use crate::game::units::healer::HealerAssets;
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::systems as infantry_systems;
@@ -190,6 +189,9 @@ pub fn init_loading_progress(
     queue.tasks.push(SpawnTask::SelectArcherUpgrades);
     queue.tasks.push(SpawnTask::SelectDispellerUpgrades);
     queue.tasks.push(SpawnTask::SelectHealerUpgrades);
+    queue.tasks.push(SpawnTask::SelectShielderUpgrades);
+    // Elite pass runs LAST — any surviving attacker unit type can become elite
+    queue.tasks.push(SpawnTask::SelectEliteUpgrades);
 
     commands.insert_resource(queue);
 }
@@ -204,15 +206,9 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    unit_assets: (
-        Res<InfantryAssets>,
-        Res<ArcherAssets>,
-        Res<DispellerAssets>,
-        Res<HealerAssets>,
-    ),
+    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
-    attacker_assets: (
-        Res<crate::game::units::brute::resources::BruteAssets>,
+    boss_assets: (
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
         Res<crate::game::units::boss::hags::resources::HagAssets>,
     ),
@@ -278,10 +274,13 @@ pub fn process_spawn_queue(
                 );
             }
             SpawnTask::UpgradeToDispeller { entity } => {
-                upgrade_systems::apply_dispeller_upgrade(&mut commands, entity, &unit_assets.2);
+                upgrade_systems::apply_dispeller_upgrade(&mut commands, entity);
             }
             SpawnTask::UpgradeToHealer { entity } => {
-                upgrade_systems::apply_healer_upgrade(&mut commands, entity, &unit_assets.3);
+                upgrade_systems::apply_healer_upgrade(&mut commands, entity);
+            }
+            SpawnTask::UpgradeToShielder { entity } => {
+                upgrade_systems::apply_shielder_upgrade(&mut commands, entity);
             }
             SpawnTask::King => {
                 crate::game::units::king::systems::spawn_king(
@@ -303,20 +302,21 @@ pub fn process_spawn_queue(
             SpawnTask::Brute => {
                 crate::game::units::brute::systems::spawn_brute(
                     commands.reborrow(),
-                    Res::clone(&attacker_assets.0),
+                    Res::clone(&unit_assets.0),
+                    &mut materials,
                     Res::clone(&current_level),
                 );
             }
             SpawnTask::Ogre => {
                 crate::game::units::boss::ogre::systems::spawn_ogre(
                     commands.reborrow(),
-                    Res::clone(&attacker_assets.1),
+                    Res::clone(&boss_assets.0),
                 );
             }
             SpawnTask::Hags => {
                 crate::game::units::boss::hags::systems::spawn_hags(
                     commands.reborrow(),
-                    Res::clone(&attacker_assets.2),
+                    Res::clone(&boss_assets.1),
                 );
             }
             SpawnTask::Battlefield => {
@@ -369,12 +369,25 @@ pub fn process_spawn_queue(
             SpawnTask::SelectInfantryUpgrades => {
                 let level = current_level.0;
                 let upgrade_tasks =
-                    upgrade_selection::select_infantry_upgrades(&queries.p0(), level);
+                    upgrade_selection::select_commander_upgrades(
+                        &queries.p0(),
+                        level,
+                        MAX_COMMANDER_INFANTRY,
+                        1,
+                        "Infantry",
+                    );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
             SpawnTask::SelectArcherUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks = upgrade_selection::select_archer_upgrades(&queries.p1(), level);
+                let upgrade_tasks =
+                    upgrade_selection::select_commander_upgrades(
+                        &queries.p1(),
+                        level,
+                        MAX_COMMANDER_ARCHERS,
+                        997,
+                        "Archer",
+                    );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
             SpawnTask::SelectDispellerUpgrades => {
@@ -395,7 +408,39 @@ pub fn process_spawn_queue(
                 );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
-            SpawnTask::UpgradeToElite { entity, unit_type } => {
+            SpawnTask::SelectShielderUpgrades => {
+                let level = current_level.0;
+                let upgrade_tasks = upgrade_selection::select_shielder_upgrades(
+                    &queries.p0(),
+                    level,
+                    &spawn_queue.tasks,
+                );
+                spawn_queue.tasks.extend(upgrade_tasks);
+            }
+            SpawnTask::SelectEliteUpgrades => {
+                let level = current_level.0;
+                // Collect all attacker entities from both queries (ParamSet requires sequential access)
+                let mut all_attackers: Vec<Entity> = queries
+                    .p0()
+                    .iter()
+                    .filter(|(_, team)| **team == Team::Attackers)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                all_attackers.extend(
+                    queries
+                        .p1()
+                        .iter()
+                        .filter(|(_, team)| **team == Team::Attackers)
+                        .map(|(entity, _)| entity),
+                );
+                let upgrade_tasks = upgrade_selection::select_elite_upgrades(
+                    &all_attackers,
+                    level,
+                    &spawn_queue.tasks,
+                );
+                spawn_queue.tasks.extend(upgrade_tasks);
+            }
+            SpawnTask::UpgradeToElite { entity } => {
                 // Query the entity's current transform and hitbox (query separately to avoid double borrow)
                 if let Ok(transform) = queries.p2().get(entity) {
                     let transform = *transform; // Copy the transform
@@ -404,8 +449,6 @@ pub fn process_spawn_queue(
                         upgrade_systems::apply_elite_upgrade(
                             &mut commands,
                             entity,
-                            unit_type,
-                            &mut materials,
                             &transform,
                             &hitbox,
                         );
@@ -429,7 +472,7 @@ pub fn process_spawn_queue(
                     resonance_cascade,
                 );
             }
-            SpawnTask::UpgradeToCommander { entity, unit_type } => {
+            SpawnTask::UpgradeToCommander { entity } => {
                 // Query the entity's current transform and hitbox (query separately to avoid double borrow)
                 if let Ok(transform) = queries.p2().get(entity) {
                     let transform = *transform; // Copy the transform
@@ -438,7 +481,6 @@ pub fn process_spawn_queue(
                         upgrade_systems::apply_commander_upgrade(
                             &mut commands,
                             entity,
-                            unit_type,
                             &mut materials,
                             &mut meshes,
                             &transform,

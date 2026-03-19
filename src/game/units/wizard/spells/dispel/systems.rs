@@ -11,7 +11,8 @@ use crate::game::units::components::{
     MindControlled, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
-use crate::game::units::king::components::SpellShield;
+use crate::game::units::king::components::{SpellShield, SpellShieldVisual};
+use crate::game::units::shielder::components::ShielderDamageReduction;
 use crate::game::units::wizard::components::{LocalWizard, Mana, PrimedSpell, Spell, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, GreaseZone};
@@ -559,6 +560,20 @@ pub fn update_dispel_impacts(
         );
         dispelled_count += mc_freed;
 
+        // Strip spell shields from enemy units in range (shielder-applied shields)
+        let shields_stripped = strip_spell_shields_in_radius(
+            &mut commands,
+            impact_center,
+            radius,
+            unit_query.iter().filter_map(
+                |(entity, tf, team, _, _, has_shield, _, _, _, _, _)| {
+                    (has_shield && Team::Defenders.is_enemy(team))
+                        .then_some((entity, tf.translation))
+                },
+            ),
+        );
+        dispelled_count += shields_stripped;
+
         // Broad Spectrum: strip buffs from enemies in range
         if has_broad_spectrum {
             for (
@@ -823,6 +838,41 @@ fn remove_mind_control_in_radius(
 }
 
 // ===== Shared Helpers (moved from dispeller) =====
+
+/// Removes `SpellShield` and `ShielderDamageReduction` from all units
+/// within `radius` of `center`. The orphaned `SpellShieldVisual` children
+/// are cleaned up by `cleanup_orphaned_shield_visuals`.
+/// Returns the number of shields stripped.
+fn strip_spell_shields_in_radius(
+    commands: &mut Commands,
+    center: Vec3,
+    radius: f32,
+    shielded_units: impl Iterator<Item = (Entity, Vec3)>,
+) -> u32 {
+    let mut count = 0;
+    for (entity, position) in shielded_units {
+        if xz_distance(position, center) <= radius {
+            commands.entity(entity).remove::<SpellShield>();
+            commands.entity(entity).remove::<ShielderDamageReduction>();
+            count += 1;
+        }
+    }
+    count
+}
+
+/// Despawns `SpellShieldVisual` entities whose parent no longer has `SpellShield`.
+/// This cleans up shield visuals after shields are dispelled.
+pub fn cleanup_orphaned_shield_visuals(
+    mut commands: Commands,
+    shield_visuals: Query<(Entity, &ChildOf), With<SpellShieldVisual>>,
+    shielded_units: Query<(), With<SpellShield>>,
+) {
+    for (visual_entity, child_of) in &shield_visuals {
+        if shielded_units.get(child_of.parent()).is_err() {
+            commands.entity(visual_entity).try_despawn();
+        }
+    }
+}
 
 /// Returns true if the spell effect kind is dispellable.
 pub(crate) fn is_dispellable(kind: SpellEffectKind) -> bool {

@@ -500,13 +500,11 @@ fn spawn_crystal_entity<'a>(
 
     let crystal_entity = entity_commands.id();
 
-    // Spawn range indicator circle (via separate spawn since we can't nest)
-    // We need to reborrow commands through entity_commands
+    // Spawn glowing pink range ring (torus lies flat on ground by default)
     entity_commands.commands().spawn((
-        Mesh3d(assets.unit_circle.clone()),
+        Mesh3d(assets.crystal_range_torus.clone()),
         MeshMaterial3d(assets.crystal_range_indicator.clone()),
         Transform::from_translation(Vec3::new(position.x, RANGE_INDICATOR_Y, position.z))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(range)),
         CrystalRangeIndicator { crystal_entity },
         OnGameplayScreen,

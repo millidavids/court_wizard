@@ -10,22 +10,24 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 
-use super::resources::BruteAssets;
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
     Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier,
     FrozenSolidModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
-    SlowMovementModifier, TargetingVelocity, Team, Teleportable,
+    SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
 };
+use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::infantry::styles::ATTACKER_SPRITE_TINT;
 use crate::game::units::random_position_in_cell;
 
 /// Spawns a brute attacker.
 /// Brutes spawn in the archer row alongside archers.
 pub fn spawn_brute(
     mut commands: Commands,
-    brute_assets: Res<BruteAssets>,
+    infantry_assets: Res<InfantryAssets>,
+    materials: &mut Assets<StandardMaterial>,
     current_level: Res<CurrentLevel>,
 ) {
     let level = current_level.0;
@@ -61,7 +63,7 @@ pub fn spawn_brute(
     let hitbox = Hitbox::new(BRUTE_RADIUS, BRUTE_HITBOX_HEIGHT);
 
     // Position unit so bottom edge is 1 unit above battlefield (Y=0)
-    let spawn_y = hitbox.height / 2.0 + (BRUTE_ELLIPSE_DEPTH / 2.0) + 1.0;
+    let spawn_y = hitbox.height / 2.0 + 1.0;
 
     // Initial velocity toward castle (center)
     let to_center = Vec3::new(
@@ -71,12 +73,21 @@ pub fn spawn_brute(
     );
     let initial_velocity = to_center.normalize_or_zero() * BRUTE_MOVEMENT_SPEED;
 
+    // Use infantry sprite mesh but scaled larger
+    let anim = crate::game::units::components::WalkingAnimation::default();
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        infantry_assets.sprite_texture.clone(),
+        ATTACKER_SPRITE_TINT,
+    );
+
     commands
         .spawn((
-            // Rendering
-            Mesh3d(brute_assets.mesh.clone()),
-            MeshMaterial3d(brute_assets.material.clone()),
-            Transform::from_xyz(final_x, spawn_y, final_z),
+            // Rendering — infantry sprite, scaled up
+            Mesh3d(infantry_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(final_x, spawn_y, final_z)
+                .with_scale(Vec3::splat(BRUTE_SCALE)),
             // Physics
             Velocity {
                 x: initial_velocity.x,
@@ -97,6 +108,8 @@ pub fn spawn_brute(
             FlowFieldInfluence::Attacker,
         ))
         .insert((
+            anim,
+            crate::game::units::components::FacingDirection::default(),
             // Primary attack does no damage (-1.0 multiplier means 50 * (1.0 - 1.0) = 0)
             // All damage comes from AOE splash
             DamageMultiplier(-1.0),
@@ -107,6 +120,9 @@ pub fn spawn_brute(
             Teleportable,
             Billboard,
             OnGameplayScreen,
+            UnitTypeGlow {
+                color: crate::game::units::constants::BRUTE_GLOW_COLOR,
+            },
         ));
 }
 

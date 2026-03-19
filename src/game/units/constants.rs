@@ -123,3 +123,45 @@ pub const SICKENED_EFFECT_INTENSITY: f32 = 0.5;
 pub const BERSERKER_RAGE_EFFECT_COLOR: Color = Color::srgb(1.0, 0.15, 0.1);
 /// Blend strength for berserker rage tint (constant, no pulsing).
 pub const BERSERKER_RAGE_EFFECT_INTENSITY: f32 = 0.35;
+
+// ===== Elite Visual Tinting =====
+
+/// Color overlay for elite unit effect (deep red glow).
+pub const ELITE_EFFECT_COLOR: Color = Color::srgb(1.0, 0.15, 0.1);
+/// Pulse speed for elite glow (Hz-like).
+pub const ELITE_EFFECT_PULSE_SPEED: f32 = 1.8;
+/// Minimum blend intensity for elite glow.
+pub const ELITE_EFFECT_MIN_INTENSITY: f32 = 0.2;
+/// Maximum blend intensity for elite glow.
+pub const ELITE_EFFECT_MAX_INTENSITY: f32 = 0.45;
+
+// ===== Shield Buff Visual Tinting (applied to shielded units) =====
+
+/// Color overlay for shielder shield effect (warm gold).
+pub const SHIELD_EFFECT_COLOR: Color = Color::srgb(1.0, 0.85, 0.3);
+/// Pulse speed for shield glow (Hz-like, slower = gentler).
+pub const SHIELD_EFFECT_PULSE_SPEED: f32 = 2.5;
+/// Minimum blend intensity for shield glow.
+pub const SHIELD_EFFECT_MIN_INTENSITY: f32 = 0.7;
+/// Maximum blend intensity for shield glow.
+pub const SHIELD_EFFECT_MAX_INTENSITY: f32 = 1.0;
+
+// ===== Unit Type Glow Colors (applied to special unit types) =====
+
+/// Shared pulse speed for all unit type glows.
+pub const UNIT_TYPE_GLOW_PULSE_SPEED: f32 = 2.5;
+/// Shared min blend intensity for unit type glows.
+pub const UNIT_TYPE_GLOW_MIN_INTENSITY: f32 = 0.4;
+/// Shared max blend intensity for unit type glows.
+pub const UNIT_TYPE_GLOW_MAX_INTENSITY: f32 = 0.7;
+
+/// Dispeller glow color (white).
+pub const DISPELLER_GLOW_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
+/// Healer glow color (green).
+pub const HEALER_GLOW_COLOR: Color = Color::srgb(0.2, 1.0, 0.3);
+/// Shielder glow color (purple).
+pub const SHIELDER_GLOW_COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
+/// Commander glow color (orange).
+pub const COMMANDER_GLOW_COLOR: Color = Color::srgb(1.0, 0.6, 0.1);
+/// Brute glow color (purple).
+pub const BRUTE_GLOW_COLOR: Color = Color::srgb(0.7, 0.2, 1.0);

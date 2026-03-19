@@ -3,132 +3,78 @@
 //! This module handles querying spawned attacker units and randomly selecting
 //! which ones to upgrade to elites or commanders based on level-scaled probabilities.
 
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 use rand::prelude::*;
 
 use super::constants::*;
-use super::spawn_queue::{SpawnTask, UnitType};
+use super::spawn_queue::SpawnTask;
 use crate::game::units::archer::Archer;
 use crate::game::units::components::Team;
 use crate::game::units::dispeller::constants::calculate_attacker_dispellers;
 use crate::game::units::healer::constants::calculate_attacker_healers;
 use crate::game::units::infantry::Infantry;
+use crate::game::units::shielder::constants::calculate_attacker_shielders;
 
-/// Selects infantry units to upgrade to elites or commanders.
-///
-/// Queries all spawned attacker infantry, calculates upgrade counts based on
-/// level and probability formulas, then randomly selects entities using seeded RNG.
-///
-/// Returns a list of upgrade tasks to enqueue (spread across frames).
-pub(super) fn select_infantry_upgrades(
-    infantry_query: &Query<(Entity, &Team), With<Infantry>>,
-    level: u32,
-) -> Vec<SpawnTask> {
-    // Collect all attacker infantry entities
-    let attacker_infantry: Vec<Entity> = infantry_query
+/// Collects entities already targeted for upgrades in existing spawn tasks.
+/// Used by upgrade selection functions to avoid double-selecting units.
+fn collect_excluded_upgrade_entities(existing_tasks: &[SpawnTask]) -> HashSet<Entity> {
+    existing_tasks
         .iter()
-        .filter(|(_, team)| **team == Team::Attackers)
-        .map(|(entity, _)| entity)
-        .collect();
-
-    let total_count = attacker_infantry.len();
-    if total_count == 0 {
-        return Vec::new();
-    }
-
-    // Calculate upgrade counts
-    let (commander_count, elite_count) = calculate_upgrade_counts(
-        total_count,
-        level,
-        MAX_COMMANDER_INFANTRY,
-        MAX_ELITE_INFANTRY,
-    );
-
-    // Create seeded RNG for deterministic upgrades per level
-    let mut rng = StdRng::seed_from_u64(level as u64);
-
-    // Shuffle all entities
-    let mut shuffled = attacker_infantry.clone();
-    shuffled.shuffle(&mut rng);
-
-    // Select commanders first (they don't also get elite bonuses)
-    let mut tasks = Vec::new();
-    for entity in shuffled.iter().take(commander_count) {
-        tasks.push(SpawnTask::UpgradeToCommander {
-            entity: *entity,
-            unit_type: UnitType::Infantry,
-        });
-    }
-
-    // Select elites from remaining pool
-    for entity in shuffled.iter().skip(commander_count).take(elite_count) {
-        tasks.push(SpawnTask::UpgradeToElite {
-            entity: *entity,
-            unit_type: UnitType::Infantry,
-        });
-    }
-
-    info!(
-        "Infantry upgrades selected: {} commanders, {} elites (from {} total)",
-        commander_count, elite_count, total_count
-    );
-
-    tasks
+        .filter_map(|task| match task {
+            SpawnTask::UpgradeToElite { entity, .. }
+            | SpawnTask::UpgradeToCommander { entity, .. }
+            | SpawnTask::UpgradeToDispeller { entity }
+            | SpawnTask::UpgradeToHealer { entity }
+            | SpawnTask::UpgradeToShielder { entity } => Some(*entity),
+            _ => None,
+        })
+        .collect()
 }
 
-/// Selects archer units to upgrade to elites or commanders.
+/// Selects attacker units of a given type to upgrade to commanders.
 ///
-/// Queries all spawned attacker archers, calculates upgrade counts based on
-/// level and probability formulas, then randomly selects entities using seeded RNG.
+/// Queries all spawned attackers matching the component filter, calculates
+/// commander count based on level and probability, then randomly selects
+/// entities using a seeded RNG.
 ///
-/// Returns a list of upgrade tasks to enqueue (spread across frames).
-pub(super) fn select_archer_upgrades(
-    archer_query: &Query<(Entity, &Team), With<Archer>>,
+/// `seed_multiplier` ensures different unit types get different RNG sequences.
+pub(super) fn select_commander_upgrades<T: Component>(
+    query: &Query<(Entity, &Team), With<T>>,
     level: u32,
+    max_commanders: u32,
+    seed_multiplier: u64,
+    type_name: &str,
 ) -> Vec<SpawnTask> {
-    // Collect all attacker archer entities
-    let attacker_archers: Vec<Entity> = archer_query
+    let attackers: Vec<Entity> = query
         .iter()
         .filter(|(_, team)| **team == Team::Attackers)
         .map(|(entity, _)| entity)
         .collect();
 
-    let total_count = attacker_archers.len();
+    let total_count = attackers.len();
     if total_count == 0 {
         return Vec::new();
     }
 
-    // Calculate upgrade counts
-    let (commander_count, elite_count) =
-        calculate_upgrade_counts(total_count, level, MAX_COMMANDER_ARCHERS, MAX_ELITE_ARCHERS);
+    let commander_count = calculate_commander_count(total_count, level, max_commanders);
 
-    // Create seeded RNG for deterministic upgrades per level (offset seed to avoid same pattern as infantry)
-    let mut rng = StdRng::seed_from_u64((level as u64).wrapping_mul(997)); // Prime multiplier for different sequence
-
-    // Shuffle all entities
-    let mut shuffled = attacker_archers.clone();
+    let mut rng = StdRng::seed_from_u64((level as u64).wrapping_mul(seed_multiplier));
+    let mut shuffled = attackers;
     shuffled.shuffle(&mut rng);
 
-    // Select commanders first
-    let mut tasks = Vec::new();
-    for entity in shuffled.iter().take(commander_count) {
-        tasks.push(SpawnTask::UpgradeToCommander {
-            entity: *entity,
-            unit_type: UnitType::Archer,
-        });
-    }
-
-    // Select elites from remaining pool
-    for entity in shuffled.iter().skip(commander_count).take(elite_count) {
-        tasks.push(SpawnTask::UpgradeToElite {
-            entity: *entity,
-            unit_type: UnitType::Archer,
-        });
-    }
+    let tasks: Vec<SpawnTask> = shuffled
+        .into_iter()
+        .take(commander_count)
+        .map(|entity| SpawnTask::UpgradeToCommander { entity })
+        .collect();
 
     info!(
-        "Archer upgrades selected: {} commanders, {} elites (from {} total)",
-        commander_count, elite_count, total_count
+        "{} upgrades selected: {} commanders (from {} total)",
+        type_name,
+        tasks.len(),
+        total_count
     );
 
     tasks
@@ -150,16 +96,7 @@ pub(super) fn select_dispeller_upgrades(
         return Vec::new();
     }
 
-    // Collect entities already targeted for upgrades so we don't pick them
-    let excluded: Vec<Entity> = existing_tasks
-        .iter()
-        .filter_map(|task| match task {
-            SpawnTask::UpgradeToElite { entity, .. }
-            | SpawnTask::UpgradeToCommander { entity, .. }
-            | SpawnTask::UpgradeToHealer { entity } => Some(*entity),
-            _ => None,
-        })
-        .collect();
+    let excluded = collect_excluded_upgrade_entities(existing_tasks);
 
     // Collect all attacker archer entities not already selected for other upgrades
     let available_archers: Vec<Entity> = archer_query
@@ -211,17 +148,7 @@ pub(super) fn select_healer_upgrades(
         return Vec::new();
     }
 
-    // Collect entities already targeted for upgrades so we don't pick them
-    let excluded: Vec<Entity> = existing_tasks
-        .iter()
-        .filter_map(|task| match task {
-            SpawnTask::UpgradeToElite { entity, .. }
-            | SpawnTask::UpgradeToCommander { entity, .. }
-            | SpawnTask::UpgradeToDispeller { entity }
-            | SpawnTask::UpgradeToHealer { entity } => Some(*entity),
-            _ => None,
-        })
-        .collect();
+    let excluded = collect_excluded_upgrade_entities(existing_tasks);
 
     // Collect all attacker archer entities not already selected for other upgrades
     let available_archers: Vec<Entity> = archer_query
@@ -256,33 +183,130 @@ pub(super) fn select_healer_upgrades(
     tasks
 }
 
-/// Calculates how many units to upgrade to commanders and elites.
+/// Selects infantry units to upgrade to shielders.
 ///
-/// Uses probability formulas from constants, applies caps, and ensures
-/// commanders and elites don't overlap (commanders are selected first).
+/// Queries all spawned attacker infantry, excludes any already selected for other
+/// upgrades (elite/commander), then randomly selects entities to become shielders
+/// based on level scaling.
 ///
-/// Returns (commander_count, elite_count).
-fn calculate_upgrade_counts(
+/// Returns a list of upgrade tasks to enqueue (spread across frames).
+pub(super) fn select_shielder_upgrades(
+    infantry_query: &Query<(Entity, &Team), With<Infantry>>,
+    level: u32,
+    existing_tasks: &[SpawnTask],
+) -> Vec<SpawnTask> {
+    let shielder_count = calculate_attacker_shielders(level) as usize;
+    if shielder_count == 0 {
+        return Vec::new();
+    }
+
+    // Collect entities already targeted for upgrades so we don't pick them
+    let excluded = collect_excluded_upgrade_entities(existing_tasks);
+
+    // Collect all attacker infantry entities not already selected for other upgrades
+    let available_infantry: Vec<Entity> = infantry_query
+        .iter()
+        .filter(|(entity, team)| **team == Team::Attackers && !excluded.contains(entity))
+        .map(|(entity, _)| entity)
+        .collect();
+
+    if available_infantry.is_empty() {
+        return Vec::new();
+    }
+
+    let count = shielder_count.min(available_infantry.len());
+
+    // Create seeded RNG with unique seed for shielder selection
+    let mut rng = StdRng::seed_from_u64((level as u64).wrapping_mul(1019));
+
+    let mut shuffled = available_infantry;
+    shuffled.shuffle(&mut rng);
+
+    let tasks: Vec<SpawnTask> = shuffled
+        .into_iter()
+        .take(count)
+        .map(|entity| SpawnTask::UpgradeToShielder { entity })
+        .collect();
+
+    info!(
+        "Shielder upgrades selected: {} (from attacker infantry)",
+        tasks.len()
+    );
+
+    tasks
+}
+
+/// Selects attacker units of any type to upgrade to elites.
+///
+/// Takes pre-collected attacker entity lists from infantry and archer queries,
+/// excludes those already targeted for other upgrades, then randomly selects
+/// entities to become elites based on level scaling.
+///
+/// This runs AFTER all other upgrade passes (commander, dispeller, healer, shielder)
+/// so that any unit type can become elite.
+///
+/// Returns a list of upgrade tasks to enqueue (spread across frames).
+pub(super) fn select_elite_upgrades(
+    attacker_entities: &[Entity],
+    level: u32,
+    existing_tasks: &[SpawnTask],
+) -> Vec<SpawnTask> {
+    let elite_chance = calculate_elite_chance(level);
+    if elite_chance <= 0.0 {
+        return Vec::new();
+    }
+
+    let excluded = collect_excluded_upgrade_entities(existing_tasks);
+
+    // Filter out units already selected for other upgrades
+    let mut available: Vec<Entity> = attacker_entities
+        .iter()
+        .filter(|entity| !excluded.contains(entity))
+        .copied()
+        .collect();
+
+    if available.is_empty() {
+        return Vec::new();
+    }
+
+    let total_count = available.len();
+    let raw_elite_count = (total_count as f32 * elite_chance).round() as usize;
+    let elite_count = raw_elite_count.min(MAX_ELITES as usize).min(total_count);
+
+    if elite_count == 0 {
+        return Vec::new();
+    }
+
+    // Create seeded RNG with unique seed for elite selection
+    let mut rng = StdRng::seed_from_u64((level as u64).wrapping_mul(1031));
+    available.shuffle(&mut rng);
+
+    let tasks: Vec<SpawnTask> = available
+        .into_iter()
+        .take(elite_count)
+        .map(|entity| SpawnTask::UpgradeToElite { entity })
+        .collect();
+
+    info!(
+        "Elite upgrades selected: {} (from {} available attackers)",
+        tasks.len(),
+        total_count
+    );
+
+    tasks
+}
+
+/// Calculates how many units to upgrade to commanders.
+///
+/// Uses probability formulas from constants and applies caps.
+///
+/// Returns commander_count.
+fn calculate_commander_count(
     total_units: usize,
     level: u32,
     max_commanders: u32,
-    max_elites: u32,
-) -> (usize, usize) {
-    // Calculate raw counts based on probability
+) -> usize {
     let commander_chance = calculate_commander_chance(level);
-    let elite_chance = calculate_elite_chance(level);
-
     let raw_commander_count = (total_units as f32 * commander_chance).round() as usize;
-    let raw_elite_count = (total_units as f32 * elite_chance).round() as usize;
-
-    // Apply caps
-    let commander_count = raw_commander_count.min(max_commanders as usize);
-
-    // Elites selected from remaining pool (after commanders)
-    let remaining_for_elites = total_units.saturating_sub(commander_count);
-    let elite_count = raw_elite_count
-        .min(remaining_for_elites)
-        .min(max_elites as usize);
-
-    (commander_count, elite_count)
+    raw_commander_count.min(max_commanders as usize)
 }

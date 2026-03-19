@@ -7,7 +7,6 @@ use super::messages::WaveSpawnedMessage;
 use super::resources::{CurrentLevel, KillStats, WaveState};
 use super::units::archer::resources::ArcherAssets;
 use super::units::brute::constants::BRUTE_START_TIER;
-use super::units::brute::resources::BruteAssets;
 use super::units::infantry::resources::InfantryAssets;
 use super::units::{archer, brute, infantry};
 
@@ -20,7 +19,6 @@ pub fn tick_wave_timer(
     current_level: Res<CurrentLevel>,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
-    brute_assets: Res<BruteAssets>,
     mut kill_stats: ResMut<KillStats>,
     mut wave_events: MessageWriter<WaveSpawnedMessage>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -77,7 +75,8 @@ pub fn tick_wave_timer(
     if has_brute {
         brute::systems::spawn_brute(
             commands.reborrow(),
-            Res::clone(&brute_assets),
+            Res::clone(&infantry_assets),
+            &mut materials,
             Res::clone(&current_level),
         );
     }

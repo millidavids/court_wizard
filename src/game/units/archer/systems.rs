@@ -75,7 +75,7 @@ pub fn archer_melee_combat(
         (With<Archer>, Without<Corpse>),
     >,
     targets: Query<(Entity, &Transform, &Hitbox, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<crate::game::units::shielder::components::ShielderDamageReduction>)>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -126,10 +126,13 @@ pub fn archer_melee_combat(
         {
             // Attack if we're in the unit's attack window
             if attack_timing.can_attack(current_time, last_time)
-                && let Ok((mut target_health, mut temp_hp)) = health_query.get_mut(*target_entity)
+                && let Ok((mut target_health, mut temp_hp, has_shielder_reduction)) = health_query.get_mut(*target_entity)
             {
                 // Apply effectiveness multiplier to melee damage
-                let modified_damage = ARCHER_MELEE_DAMAGE * effectiveness.multiplier();
+                let mut modified_damage = ARCHER_MELEE_DAMAGE * effectiveness.multiplier();
+                if has_shielder_reduction {
+                    modified_damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+                }
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.last_attack_time = Some(current_time);
             }
@@ -430,6 +433,7 @@ pub fn check_arrow_collisions(
             &Team,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
+            Has<crate::game::units::shielder::components::ShielderDamageReduction>,
         ),
         Without<Corpse>,
     >,
@@ -459,7 +463,7 @@ pub fn check_arrow_collisions(
         }
 
         // Unit collision (skip friendly fire)
-        for (target_transform, hitbox, team, mut health, mut temp_hp) in &mut targets {
+        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction) in &mut targets {
             // Skip same team
             if *team == arrow.source_team {
                 continue;
@@ -474,7 +478,11 @@ pub fn check_arrow_collisions(
             // Check collision
             let distance = arrow_pos.distance(target_transform.translation);
             if distance < hitbox.radius + ARROW_WIDTH {
-                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), arrow.damage);
+                let mut damage = arrow.damage;
+                if has_shielder_reduction {
+                    damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+                }
+                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
                 commands.entity(arrow_entity).try_despawn();
                 break;
             }

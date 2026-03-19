@@ -66,6 +66,8 @@ pub struct SpellVisualAssets {
     pub shockwave_torus: Handle<Mesh>,
     /// Flat annulus ring for entangle vine arches.
     pub entangle_vine_ring: Handle<Mesh>,
+    /// Unit-scale torus for crystal range ring (thin ring, scaled by Transform).
+    pub crystal_range_torus: Handle<Mesh>,
     // ── Zone materials (semi-transparent ground circles) ──────────────────
     pub spike_growth_zone: Handle<StandardMaterial>,
     pub healing_plume_zone: Handle<StandardMaterial>,
@@ -257,6 +259,16 @@ pub fn init_spell_visual_assets(
         ..default()
     };
 
+    // Same as unlit_blend but with negative depth_bias so indicators render behind units
+    let indicator_mat = |color: Color| StandardMaterial {
+        base_color: color,
+        unlit: true,
+        alpha_mode: AlphaMode::Blend,
+        cull_mode: None,
+        depth_bias: -100.0,
+        ..default()
+    };
+
     commands.insert_resource(SpellVisualAssets {
         // Base meshes
         unit_circle: meshes.add(Circle::new(1.0)),
@@ -277,29 +289,29 @@ pub fn init_spell_visual_assets(
         spike_growth_spike: materials.add(unlit_blend(Color::srgba(0.5, 0.08, 0.08, 0.75))),
         spike_storm_projectile: materials.add(unlit_blend(Color::srgba(0.6, 0.1, 0.1, 0.9))),
 
-        // Casting indicator materials (translucent circles shown while aiming)
-        haste_indicator: materials.add(unlit_blend(Color::srgba(1.0, 0.85, 0.0, 0.3))),
-        battle_hymn_indicator: materials.add(unlit_blend(Color::srgba(1.0, 0.85, 0.0, 0.3))),
-        berserker_rage_indicator: materials.add(unlit_blend(Color::srgba(0.9, 0.15, 0.1, 0.3))),
-        sleep_indicator: materials.add(unlit_blend(Color::srgba(0.4, 0.3, 0.7, 0.3))),
-        guardian_circle_indicator: materials.add(unlit_blend(Color::srgba(0.0, 0.8, 1.0, 0.3))),
-        spike_growth_indicator: materials.add(unlit_blend(Color::srgba(0.2, 0.45, 0.1, 0.3))),
-        healing_plume_indicator: materials.add(unlit_blend(Color::srgba(0.2, 0.8, 0.3, 0.3))),
-        entangle_indicator: materials.add(unlit_blend(Color::srgba(0.1, 0.7, 0.2, 0.3))),
-        fog_cloud_indicator: materials.add(unlit_blend(Color::srgba(0.7, 0.75, 0.8, 0.3))),
-        grease_indicator: materials.add(unlit_blend(Color::srgba(0.25, 0.2, 0.05, 0.45))),
-        plague_wind_indicator: materials.add(unlit_blend(Color::srgba(0.3, 0.8, 0.1, 0.3))),
-        arcane_crystal_indicator: materials.add(unlit_blend(Color::srgba(0.5, 0.2, 0.8, 0.3))),
-        lightning_rod_indicator: materials.add(unlit_blend(Color::srgba(0.7, 0.85, 1.0, 0.4))),
-        meteor_fall_indicator: materials.add(unlit_blend(Color::srgba(0.9, 0.3, 0.1, 0.25))),
-        squall_indicator: materials.add(unlit_blend(Color::srgba(0.3, 0.8, 1.0, 0.4))),
-        fireball_indicator: materials.add(unlit_blend(Color::srgba(1.0, 0.4, 0.1, 0.3))),
-        black_hole_indicator: materials.add(unlit_blend(Color::srgba(0.4, 0.1, 0.6, 0.3))),
-        raise_the_dead_indicator: materials.add(unlit_blend(Color::srgba(0.3, 0.9, 0.2, 0.3))),
-        teleport_destination: materials.add(unlit_blend(Color::srgba(0.0, 0.6, 1.0, 0.25))),
-        teleport_source: materials.add(unlit_blend(Color::srgba(0.0, 0.8, 1.0, 0.35))),
-        telekinesis_indicator: materials.add(unlit_blend(Color::srgba(0.6, 0.9, 1.0, 0.7))),
-        mind_control_indicator: materials.add(unlit_blend(
+        // Casting indicator materials (translucent circles shown while aiming, depth_bias pushes behind units)
+        haste_indicator: materials.add(indicator_mat(Color::srgba(1.0, 0.85, 0.0, 0.3))),
+        battle_hymn_indicator: materials.add(indicator_mat(Color::srgba(1.0, 0.85, 0.0, 0.3))),
+        berserker_rage_indicator: materials.add(indicator_mat(Color::srgba(0.9, 0.15, 0.1, 0.3))),
+        sleep_indicator: materials.add(indicator_mat(Color::srgba(0.4, 0.3, 0.7, 0.3))),
+        guardian_circle_indicator: materials.add(indicator_mat(Color::srgba(0.0, 0.8, 1.0, 0.3))),
+        spike_growth_indicator: materials.add(indicator_mat(Color::srgba(0.2, 0.45, 0.1, 0.3))),
+        healing_plume_indicator: materials.add(indicator_mat(Color::srgba(0.2, 0.8, 0.3, 0.3))),
+        entangle_indicator: materials.add(indicator_mat(Color::srgba(0.1, 0.7, 0.2, 0.3))),
+        fog_cloud_indicator: materials.add(indicator_mat(Color::srgba(0.7, 0.75, 0.8, 0.3))),
+        grease_indicator: materials.add(indicator_mat(Color::srgba(0.25, 0.2, 0.05, 0.45))),
+        plague_wind_indicator: materials.add(indicator_mat(Color::srgba(0.3, 0.8, 0.1, 0.3))),
+        arcane_crystal_indicator: materials.add(indicator_mat(Color::srgba(0.5, 0.2, 0.8, 0.3))),
+        lightning_rod_indicator: materials.add(indicator_mat(Color::srgba(0.7, 0.85, 1.0, 0.4))),
+        meteor_fall_indicator: materials.add(indicator_mat(Color::srgba(0.9, 0.3, 0.1, 0.25))),
+        squall_indicator: materials.add(indicator_mat(Color::srgba(0.3, 0.8, 1.0, 0.4))),
+        fireball_indicator: materials.add(indicator_mat(Color::srgba(1.0, 0.4, 0.1, 0.3))),
+        black_hole_indicator: materials.add(indicator_mat(Color::srgba(0.4, 0.1, 0.6, 0.3))),
+        raise_the_dead_indicator: materials.add(indicator_mat(Color::srgba(0.3, 0.9, 0.2, 0.3))),
+        teleport_destination: materials.add(indicator_mat(Color::srgba(0.0, 0.6, 1.0, 0.25))),
+        teleport_source: materials.add(indicator_mat(Color::srgba(0.0, 0.8, 1.0, 0.35))),
+        telekinesis_indicator: materials.add(indicator_mat(Color::srgba(0.6, 0.9, 1.0, 0.7))),
+        mind_control_indicator: materials.add(indicator_mat(
             super::mind_control::constants::INDICATOR_COLOR,
         )),
 
@@ -666,7 +678,14 @@ pub fn init_spell_visual_assets(
 
         // Crystal mini-spell materials
         crystal_mini_missile: materials.add(unlit(Color::srgb(0.8, 0.3, 0.9))),
-        crystal_range_indicator: materials.add(unlit_blend(Color::srgba(0.5, 0.2, 0.8, 0.15))),
+        crystal_range_indicator: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.4, 0.7, 0.2),
+            emissive: LinearRgba::new(1.5, 0.4, 0.8, 1.0),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            depth_bias: -500.0,
+            ..default()
+        }),
 
         // Cross-plane sphere: 3 intersecting unit circles (XY, XZ, YZ), radius 1.0
         cross_plane_sphere: meshes.add(build_cross_plane_sphere(1.0)),
@@ -693,6 +712,13 @@ pub fn init_spell_visual_assets(
             Annulus::new(0.5, 1.0)
                 .mesh()
                 .resolution(16),
+        ),
+        // Thin torus ring for crystal range indicator (unit-scale, scaled by Transform)
+        crystal_range_torus: meshes.add(
+            Torus::new(1.0 - 0.005, 1.0 + 0.005)
+                .mesh()
+                .major_resolution(32)
+                .minor_resolution(6),
         ),
         // Special meshes (magic missile radius = 5.0)
         magic_missile_mesh: meshes.add(build_cross_plane_sphere(5.0)),

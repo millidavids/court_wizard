@@ -22,9 +22,13 @@ use super::constants::{
     FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
     MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY, POISON_DURATION, POISON_EFFECT_COLOR,
     POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
-    BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, SICKENED_DURATION,
-    SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD, SMELLY_DURATION,
-    SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY,
+    BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELITE_EFFECT_COLOR,
+    ELITE_EFFECT_MAX_INTENSITY, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_PULSE_SPEED,
+    SHIELD_EFFECT_COLOR, SHIELD_EFFECT_MAX_INTENSITY, SHIELD_EFFECT_MIN_INTENSITY,
+    SHIELD_EFFECT_PULSE_SPEED, UNIT_TYPE_GLOW_MAX_INTENSITY, UNIT_TYPE_GLOW_MIN_INTENSITY,
+    UNIT_TYPE_GLOW_PULSE_SPEED,
+    SICKENED_DURATION, SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD,
+    SMELLY_DURATION, SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY,
 };
 use super::damage::DamageType;
 use super::king::components::SpellShield;
@@ -699,6 +703,22 @@ pub fn update_electric_arc_visuals(
     }
 }
 
+/// Blends a pulsing color effect onto a linear color value.
+///
+/// Uses a sine wave to oscillate intensity between min and max bounds.
+fn blend_pulsing_effect(
+    result: &mut LinearRgba,
+    effect_color: &LinearRgba,
+    elapsed: f32,
+    pulse_speed: f32,
+    min_intensity: f32,
+    max_intensity: f32,
+) {
+    let pulse = (elapsed * pulse_speed).sin() * 0.5 + 0.5;
+    let intensity = min_intensity + pulse * (max_intensity - min_intensity);
+    *result = result.mix(effect_color, intensity);
+}
+
 /// Updates visual tinting on units affected by persistent damage effects.
 ///
 /// Considers both local effects (FireDoT, FrostEffectMarker, ElectricCharge) and
@@ -726,10 +746,15 @@ pub fn update_persistent_effect_visuals(
             Has<MindControlled>,
             Has<MassHysteriaTarget>,
             Option<&OriginalMaterial>,
-            Has<PoisonedModifier>,
-            Has<SickenedModifier>,
-            Has<SmellyModifier>,
-            Has<BerserkerRageModifier>,
+            (
+                Has<PoisonedModifier>,
+                Has<SickenedModifier>,
+                Has<SmellyModifier>,
+                Has<BerserkerRageModifier>,
+                Has<super::shielder::components::ShielderDamageReduction>,
+                Has<super::elite::EliteHealthBonus>,
+                Option<&super::components::UnitTypeGlow>,
+            ),
         ),
         Or<(
             With<FireDoT>,
@@ -745,6 +770,11 @@ pub fn update_persistent_effect_visuals(
             With<SickenedModifier>,
             With<SmellyModifier>,
             With<BerserkerRageModifier>,
+            Or<(
+                With<super::shielder::components::ShielderDamageReduction>,
+                With<super::elite::EliteHealthBonus>,
+                With<super::components::UnitTypeGlow>,
+            )>,
         )>,
     >,
 ) {
@@ -759,6 +789,8 @@ pub fn update_persistent_effect_visuals(
     let sickened_linear = SICKENED_EFFECT_COLOR.to_linear();
     let smelly_linear = SMELLY_EFFECT_COLOR.to_linear();
     let rage_linear = BERSERKER_RAGE_EFFECT_COLOR.to_linear();
+    let shield_linear = SHIELD_EFFECT_COLOR.to_linear();
+    let elite_linear = ELITE_EFFECT_COLOR.to_linear();
 
     for (
         entity,
@@ -772,10 +804,7 @@ pub fn update_persistent_effect_visuals(
         has_mind_control,
         has_mass_hysteria,
         original_mat,
-        has_poisoned,
-        has_sickened,
-        has_smelly,
-        has_rage,
+        (has_poisoned, has_sickened, has_smelly, has_rage, has_shield_glow, has_elite, unit_type_glow),
     ) in &query
     {
         let has_fire = fire.is_some() || remote_fire;
@@ -789,7 +818,10 @@ pub fn update_persistent_effect_visuals(
             || has_poisoned
             || has_sickened
             || has_smelly
-            || has_rage;
+            || has_rage
+            || has_shield_glow
+            || has_elite
+            || unit_type_glow.is_some();
 
         if has_any_effect && original_mat.is_none() {
             // Phase 1: First effect applied — clone the material and store original
@@ -818,10 +850,10 @@ pub fn update_persistent_effect_visuals(
             let mut result_linear = base_linear;
 
             if has_fire {
-                let pulse = (elapsed * FIRE_EFFECT_PULSE_SPEED).sin() * 0.5 + 0.5;
-                let intensity = FIRE_EFFECT_MIN_INTENSITY
-                    + pulse * (FIRE_EFFECT_MAX_INTENSITY - FIRE_EFFECT_MIN_INTENSITY);
-                result_linear = result_linear.mix(&fire_linear, intensity);
+                blend_pulsing_effect(
+                    &mut result_linear, &fire_linear, elapsed,
+                    FIRE_EFFECT_PULSE_SPEED, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_MAX_INTENSITY,
+                );
             }
 
             if has_frost {
@@ -829,10 +861,10 @@ pub fn update_persistent_effect_visuals(
             }
 
             if has_electric {
-                let flicker = (elapsed * ELECTRIC_EFFECT_FLICKER_SPEED).sin() * 0.5 + 0.5;
-                let intensity = ELECTRIC_EFFECT_MIN_INTENSITY
-                    + flicker * (ELECTRIC_EFFECT_MAX_INTENSITY - ELECTRIC_EFFECT_MIN_INTENSITY);
-                result_linear = result_linear.mix(&electric_linear, intensity);
+                blend_pulsing_effect(
+                    &mut result_linear, &electric_linear, elapsed,
+                    ELECTRIC_EFFECT_FLICKER_SPEED, ELECTRIC_EFFECT_MIN_INTENSITY, ELECTRIC_EFFECT_MAX_INTENSITY,
+                );
             }
 
             if has_mc_visual {
@@ -854,6 +886,28 @@ pub fn update_persistent_effect_visuals(
             if has_rage {
                 result_linear =
                     result_linear.mix(&rage_linear, BERSERKER_RAGE_EFFECT_INTENSITY);
+            }
+
+            if has_shield_glow {
+                blend_pulsing_effect(
+                    &mut result_linear, &shield_linear, elapsed,
+                    SHIELD_EFFECT_PULSE_SPEED, SHIELD_EFFECT_MIN_INTENSITY, SHIELD_EFFECT_MAX_INTENSITY,
+                );
+            }
+
+            if has_elite {
+                blend_pulsing_effect(
+                    &mut result_linear, &elite_linear, elapsed,
+                    ELITE_EFFECT_PULSE_SPEED, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_MAX_INTENSITY,
+                );
+            }
+
+            if let Some(glow) = unit_type_glow {
+                let glow_linear = glow.color.to_linear();
+                blend_pulsing_effect(
+                    &mut result_linear, &glow_linear, elapsed,
+                    UNIT_TYPE_GLOW_PULSE_SPEED, UNIT_TYPE_GLOW_MIN_INTENSITY, UNIT_TYPE_GLOW_MAX_INTENSITY,
+                );
             }
 
             if let Some(cloned_material) = materials.get_mut(material_handle) {

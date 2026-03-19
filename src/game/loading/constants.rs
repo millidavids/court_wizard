@@ -6,7 +6,7 @@
 use bevy::prelude::*;
 
 use crate::game::constants::{
-    ATTACKER_BASE, TINT_ORANGE, TINT_RED, get_tier, get_tier_level, tint,
+    get_tier, get_tier_level,
 };
 
 // ============================================================================
@@ -29,11 +29,8 @@ pub const ELITE_MAX_CHANCE: f32 = 0.15;
 // Elite Caps
 // ============================================================================
 
-/// Maximum number of elite infantry units that can spawn.
-pub const MAX_ELITE_INFANTRY: u32 = 60;
-
-/// Maximum number of elite archer units that can spawn.
-pub const MAX_ELITE_ARCHERS: u32 = 30;
+/// Maximum number of elite units (any type) that can spawn.
+pub const MAX_ELITES: u32 = 90;
 
 // ============================================================================
 // Commander Upgrade Probability
@@ -81,24 +78,12 @@ pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.6, 0.0, 0.0
 // Visual Differentiation - Elite Units
 // ============================================================================
 
-/// Color for elite infantry units (attacker base + subtle red tint).
-pub const ELITE_INFANTRY_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.3);
-
-/// Color for elite archer units (attacker base + red tint).
-pub const ELITE_ARCHER_COLOR: Color = tint(ATTACKER_BASE, TINT_RED, 0.3);
-
 /// Size multiplier for elite units (30% larger than normal).
 pub const ELITE_SIZE_MULTIPLIER: f32 = 1.3;
 
 // ============================================================================
 // Visual Differentiation - Commander Units
 // ============================================================================
-
-/// Color for commander infantry units (attacker base + subtle orange tint).
-pub const COMMANDER_INFANTRY_COLOR: Color = tint(ATTACKER_BASE, TINT_ORANGE, 0.3);
-
-/// Color for commander archer units (attacker base + orange tint).
-pub const COMMANDER_ARCHER_COLOR: Color = tint(ATTACKER_BASE, TINT_ORANGE, 0.3);
 
 /// Size multiplier for commander units (60% larger than normal).
 pub const COMMANDER_SIZE_MULTIPLIER: f32 = 1.6;

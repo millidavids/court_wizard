@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.484] - 2026-03-19
+
+### Changed
+- **Unit visuals overhaul** — special unit types (brutes, healers, dispellers, shielders, commanders) now keep their base soldier appearance instead of swapping to a different model, making them easier to recognize on the battlefield
+- **Colored glow effects** — special units now pulse with a distinctive color glow to show their role: healers glow green, dispellers glow white, shielders glow purple, commanders glow orange, and brutes glow purple
+- **Elite glow** — elite units now glow red with a pulsing effect instead of changing their model, and the glow stacks with their role color if they have one
+- **Brute appearance** — brutes now look like oversized infantry soldiers instead of a different shape, making them feel more like part of the army
+- **Elite upgrades** — any attacker unit type can now become elite (not just basic infantry and archers), so you may encounter elite healers, elite commanders, and other enhanced specialists
+- **Elite attack speed** — elite units now attack faster in addition to their existing health, damage, and movement bonuses
+- **Shielded unit protection** — units protected by a shielder's spell shield now take 20% less damage from all non-spell sources (melee attacks, arrows, ground effects)
+
+### Fixed
+- **Dispel vs shields** — the Dispel spell now properly removes spell shields from protected units
+
 ## [v0.4.454] - 2026-03-18
 
 ### Added

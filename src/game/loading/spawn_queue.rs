@@ -2,13 +2,6 @@ use bevy::prelude::*;
 
 use crate::config::save_data::{SavedCrystal, SavedWall};
 
-/// Unit type enum for upgrade tasks.
-#[derive(Clone, Copy, Debug)]
-pub enum UnitType {
-    Infantry,
-    Archer,
-}
-
 /// A task that spawns a single entity.
 /// Each plugin can enqueue tasks for the entities it needs to spawn.
 pub enum SpawnTask {
@@ -36,6 +29,9 @@ pub enum SpawnTask {
     UpgradeToHealer {
         entity: Entity,
     },
+    UpgradeToShielder {
+        entity: Entity,
+    },
     Brute,
     Ogre,
     Hags,
@@ -52,13 +48,13 @@ pub enum SpawnTask {
     SelectArcherUpgrades,
     SelectDispellerUpgrades,
     SelectHealerUpgrades,
+    SelectShielderUpgrades,
+    SelectEliteUpgrades,
     UpgradeToElite {
         entity: Entity,
-        unit_type: UnitType,
     },
     UpgradeToCommander {
         entity: Entity,
-        unit_type: UnitType,
     },
     PermanentWall {
         wall: SavedWall,

@@ -68,7 +68,7 @@ pub const MINI_METEOR_SPAWN_HEIGHT: f32 = 200.0;
 
 // ===== Visual =====
 
-/// Y position of the range indicator circle.
+/// Y position of the range indicator ring.
 pub const RANGE_INDICATOR_Y: f32 = 1.0;
 
 /// Rotation speed of the crystal (radians/sec).

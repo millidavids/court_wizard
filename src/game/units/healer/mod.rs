@@ -5,4 +5,3 @@ pub(in crate::game) mod resources;
 pub(in crate::game) mod systems;
 
 pub use plugin::HealerPlugin;
-pub use resources::HealerAssets;

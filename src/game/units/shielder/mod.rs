@@ -4,4 +4,4 @@ mod plugin;
 pub(in crate::game) mod resources;
 pub(in crate::game) mod systems;
 
-pub use plugin::DispellerPlugin;
+pub use plugin::ShielderPlugin;

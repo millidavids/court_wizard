@@ -97,6 +97,7 @@ fn spawn_range_circle(
         base_color: RANGE_DOT_COLOR.with_alpha(0.0), // Start at 0% opacity
         unlit: true,
         alpha_mode: AlphaMode::Blend,
+        depth_bias: -100.0,
         ..default()
     });
 
@@ -114,7 +115,7 @@ fn spawn_range_circle(
         MeshMaterial3d(material),
         // Torus is oriented around Y-axis by default, which is vertical
         // We want it flat on the ground (XZ plane), so no rotation needed
-        Transform::from_xyz(center_pos.x, 5.0, center_pos.z).with_scale(Vec3::splat(initial_scale)), // Apply initial scale
+        Transform::from_xyz(center_pos.x, 1.0, center_pos.z).with_scale(Vec3::splat(initial_scale)),
         SpellRangeCircle,
         OnGameplayScreen,
     ));

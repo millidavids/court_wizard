@@ -33,3 +33,15 @@ pub struct EliteDamageBonus(pub f32);
 /// ```
 #[derive(Component, Clone, Copy)]
 pub struct EliteSpeedBonus(pub f32);
+
+/// Elite attack speed bonus as a percentage.
+///
+/// Combat system applies this alongside other attack speed bonuses
+/// (BattleHymn, Haste, Frenzy, etc.).
+///
+/// # Example
+/// ```
+/// EliteAttackSpeedBonus(0.25) // +25% attack speed
+/// ```
+#[derive(Component, Clone, Copy)]
+pub struct EliteAttackSpeedBonus(pub f32);

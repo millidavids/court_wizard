@@ -1,11 +1,8 @@
-use bevy::prelude::*;
-
-use crate::game::constants::{ATTACKER_BASE, TINT_PURPLE, UNIT_SCALE, tint};
+use crate::game::constants::UNIT_SCALE;
 
 // Visual appearance
-pub const BRUTE_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.2); // Purple tint
-pub const BRUTE_ELLIPSE_WIDTH: f32 = 20.0 * UNIT_SCALE; // Ellipse width (X axis)
-pub const BRUTE_ELLIPSE_DEPTH: f32 = 30.0 * UNIT_SCALE; // Ellipse depth (Z axis) - longer oval
+/// Scale multiplier for brute (larger than normal infantry).
+pub const BRUTE_SCALE: f32 = 2.5;
 pub const BRUTE_RADIUS: f32 = 20.0 * UNIT_SCALE; // Horizontal radius for collision detection
 pub const BRUTE_HITBOX_HEIGHT: f32 = 60.0 * UNIT_SCALE; // Vertical height
 

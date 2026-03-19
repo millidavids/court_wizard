@@ -16,6 +16,7 @@ pub(crate) mod dispeller;
 pub(in crate::game) mod elite;
 pub(crate) mod healer;
 pub(in crate::game) mod infantry;
+pub(crate) mod shielder;
 pub(crate) mod king;
 pub(in crate::game) mod movement;
 pub(in crate::game) mod systems;

@@ -22,6 +22,7 @@ pub enum UnitType {
     Commander,
     Healer,
     Dispeller,
+    Shielder,
     // Bosses
     Hag,
     Ogre,
@@ -40,6 +41,7 @@ impl UnitType {
             UnitType::Commander,
             UnitType::Healer,
             UnitType::Dispeller,
+            UnitType::Shielder,
             UnitType::Hag,
             UnitType::Ogre,
         ]
@@ -57,6 +59,7 @@ impl UnitType {
             UnitType::Commander => "Commander",
             UnitType::Healer => "Healer",
             UnitType::Dispeller => "Dispeller",
+            UnitType::Shielder => "Shielder",
             UnitType::Hag => "Hag",
             UnitType::Ogre => "Ogre",
         }
@@ -74,6 +77,7 @@ impl UnitType {
             UnitType::Commander => "Officers that buff nearby allies with damage and speed auras.",
             UnitType::Healer => "Support units that restore health to wounded allies.",
             UnitType::Dispeller => "Anti-magic units that remove your spell effects.",
+            UnitType::Shielder => "Support units that shield allies from your spells.",
             UnitType::Hag => "Ancient witches with devastating magical abilities.",
             UnitType::Ogre => "A massive beast that grows stronger as the fight goes on.",
         }
@@ -99,6 +103,9 @@ impl UnitType {
             }
             UnitType::Healer => "The only unit the enemy army actually values. Unfortunately.",
             UnitType::Dispeller => "Your spells mean nothing to them. Take it personally.",
+            UnitType::Shielder => {
+                "Handing out magical umbrellas like party favors. How thoughtful."
+            }
             UnitType::Hag => "Three sisters who share one terrible disposition.",
             UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
         }
@@ -122,7 +129,8 @@ impl UnitType {
             | UnitType::Elite
             | UnitType::Commander
             | UnitType::Healer
-            | UnitType::Dispeller => "Attacker",
+            | UnitType::Dispeller
+            | UnitType::Shielder => "Attacker",
             UnitType::Hag | UnitType::Ogre => "Boss",
         }
     }
@@ -139,6 +147,7 @@ impl UnitType {
             UnitType::Commander => "Someone is giving orders out there.",
             UnitType::Healer => "The wounded keep getting back up.",
             UnitType::Dispeller => "Your magic feels weaker somehow.",
+            UnitType::Shielder => "Something is protecting the enemy.",
             UnitType::Hag => "Dark magic stirs in the distance.",
             UnitType::Ogre => "The ground trembles.",
         }
@@ -1623,4 +1632,13 @@ impl Knockback {
 
 // Re-export elite components
 #[allow(unused_imports)]
-pub use super::elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
+pub use super::elite::{EliteAttackSpeedBonus, EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
+
+/// Persistent color glow for special unit types (dispeller, healer, shielder, commander, brute).
+///
+/// The visual system uses this to apply a pulsing color tint to the unit's material.
+/// This is separate from elite glow and shield buff glow, allowing them to stack.
+#[derive(Component, Clone)]
+pub struct UnitTypeGlow {
+    pub color: Color,
+}
