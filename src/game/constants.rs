@@ -417,6 +417,25 @@ pub const fn calculate_total_archers(level: u32) -> u32 {
     BASE_ARCHER_COUNT + (tier_level - 1) * ARCHERS_PER_LEVEL
 }
 
+/// Base assassin count at tier_level 1 (when they first appear in tier 2).
+pub const BASE_ASSASSIN_COUNT: u32 = 8;
+
+/// Assassins added per tier_level after tier_level 1.
+pub const ASSASSINS_PER_LEVEL: u32 = 2;
+
+/// The tier at which assassins start spawning (tier 2, level 6+).
+pub const ASSASSIN_START_TIER: u32 = 1;
+
+/// Calculates total assassins for a given level.
+/// Assassins only spawn from tier 2 onward, scaling similarly to archers.
+pub const fn calculate_total_assassins(level: u32) -> u32 {
+    if get_tier(level) < ASSASSIN_START_TIER {
+        return 0;
+    }
+    let tier_level = get_tier_level(level);
+    BASE_ASSASSIN_COUNT + (tier_level - 1) * ASSASSINS_PER_LEVEL
+}
+
 /// Calculates the number of cells needed for a unit count (ceil division by MAX_UNITS_PER_CELL).
 pub const fn cells_needed(total_units: u32) -> u32 {
     total_units.div_ceil(MAX_UNITS_PER_CELL)

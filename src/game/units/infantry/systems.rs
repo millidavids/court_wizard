@@ -187,9 +187,16 @@ pub fn update_infantry_targeting(
             Without<crate::game::units::components::Corpse>,
         ),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<crate::game::units::assassin::Assassin>,
+        ),
+    >,
 ) {
-    // Collect snapshot of all unit positions
+    // Collect snapshot of all unit positions (excludes assassins — infantry ignores them)
     let unit_snapshot: Vec<_> = all_units
         .iter()
         .map(|(entity, transform, team)| (entity, transform.translation, *team))

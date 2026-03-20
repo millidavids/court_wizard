@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.510] - 2026-03-20
+
+### Added
+- **Assassin units** — a new fast-moving attacker unit type that flanks around infantry to hunt down archers, appearing from level 6 onward
+- **Assassin scaling** — assassin numbers increase as levels get harder, similar to how archer counts scale up
+
+### Changed
+- **Assassin flanking behavior** — assassins route around infantry formations to reach archers from the sides, but charge straight in when no archers remain
+- **Assassin combat** — assassins deal massive damage to archers, attack much faster than normal units, and pass through non-assassin units
+- **Assassin survivability** — assassins take less damage from archers but more damage from infantry, and are ignored by infantry and the King
+- **Smoother pathfinding** — all unit navigation fields now update continuously in the background instead of on a delay, resulting in more responsive movement
+
 ## [v0.4.484] - 2026-03-19
 
 ### Changed

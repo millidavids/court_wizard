@@ -15,6 +15,8 @@ use crate::game::resources::{
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
+use crate::game::units::assassin::systems as assassin_systems;
+use crate::game::units::assassin::AssassinAssets;
 use crate::game::units::components::{Hitbox, Team};
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -140,6 +142,15 @@ pub fn init_loading_progress(
             });
         }
 
+        // 8b. Attacker Assassins (wave 1) — start spawning at tier 2
+        let total_assassins = calculate_total_assassins(level);
+        for i in 0..total_assassins {
+            queue.tasks.push(SpawnTask::AttackerAssassin {
+                unit_index: i,
+                level,
+            });
+        }
+
         // 9. Brute (if tier qualifies, wave 1)
         let has_brute = get_tier(level) >= BRUTE_START_TIER;
         if has_brute {
@@ -147,7 +158,7 @@ pub fn init_loading_progress(
         }
 
         // Record total attackers spawned across ALL waves for score screen
-        let per_wave = total_attackers + total_attacker_archers + if has_brute { 1 } else { 0 };
+        let per_wave = total_attackers + total_attacker_archers + total_assassins + if has_brute { 1 } else { 0 };
         kill_stats.total_attackers_spawned = per_wave * wave_count;
 
         // Initialize wave state
@@ -206,7 +217,7 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>),
+    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<AssassinAssets>),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     boss_assets: (
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
@@ -268,6 +279,15 @@ pub fn process_spawn_queue(
                 archer_systems::spawn_single_attacker_archer(
                     &mut commands,
                     &unit_assets.1,
+                    &mut materials,
+                    unit_index,
+                    level,
+                );
+            }
+            SpawnTask::AttackerAssassin { unit_index, level } => {
+                assassin_systems::spawn_single_attacker_assassin(
+                    &mut commands,
+                    &unit_assets.2,
                     &mut materials,
                     unit_index,
                     level,

@@ -127,6 +127,7 @@ pub fn apply_separation(
             Option<&super::units::components::FlockingModifier>,
             Has<super::units::boss::components::Boss>,
             Has<super::units::components::SmellyModifier>,
+            Has<super::units::assassin::Assassin>,
         ),
         Without<Corpse>,
     >,
@@ -137,7 +138,7 @@ pub fn apply_separation(
     let unit_data: Vec<_> = units
         .iter()
         .map(
-            |(entity, transform, velocity, _, hitbox, team, _, _, has_smelly)| {
+            |(entity, transform, velocity, _, hitbox, team, _, _, has_smelly, is_assassin)| {
                 (
                     entity,
                     transform.translation,
@@ -145,25 +146,28 @@ pub fn apply_separation(
                     *hitbox,
                     *team,
                     has_smelly,
+                    is_assassin,
                 )
             },
         )
         .collect();
 
     // Pre-check: are there any smelly units on the field?
-    let any_smelly = unit_data.iter().any(|(_, _, _, _, _, smelly)| *smelly);
+    let any_smelly = unit_data.iter().any(|(_, _, _, _, _, smelly, _)| *smelly);
 
     // First pass: enforce hard collision constraint (no overlap allowed)
     // Use multiple iterations to resolve stacked collisions
     for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
-            .map(|(entity, transform, _, _, hitbox, _, _, _, _)| {
-                (entity, transform.translation, *hitbox)
+            .map(|(entity, transform, _, _, hitbox, _, _, _, _, is_assassin)| {
+                (entity, transform.translation, *hitbox, is_assassin)
             })
             .collect();
 
-        for (entity, mut transform, _, _, hitbox, _, _, is_boss, _) in units.iter_mut() {
+        for (entity, mut transform, _, _, hitbox, _, _, is_boss, _, is_assassin) in
+            units.iter_mut()
+        {
             // Boss is immovable — other units get pushed away from it, not the other way around
             if is_boss {
                 continue;
@@ -172,8 +176,13 @@ pub fn apply_separation(
             let mut total_correction = Vec3::ZERO;
             let mut overlap_count = 0;
 
-            for (other_entity, other_pos, other_hitbox) in &current_positions {
+            for (other_entity, other_pos, other_hitbox, other_is_assassin) in &current_positions {
                 if entity == *other_entity {
+                    continue;
+                }
+
+                // Assassins pass through non-assassin units (only collide with other assassins)
+                if is_assassin != *other_is_assassin {
                     continue;
                 }
 
@@ -209,7 +218,7 @@ pub fn apply_separation(
     }
 
     // Second pass: calculate flocking velocity (separation, alignment, cohesion)
-    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _, _) in
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _, _, is_assassin) in
         units.iter_mut()
     {
         // Defenders have alignment/cohesion disabled when not activated
@@ -224,10 +233,15 @@ pub fn apply_separation(
         let mut neighbor_count = 0;
 
         // Calculate forces from all neighbors
-        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly) in
+        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly, other_is_assassin) in
             &unit_data
         {
             if entity == *other_entity {
+                continue;
+            }
+
+            // Assassins only flock with other assassins
+            if is_assassin != *other_is_assassin {
                 continue;
             }
 
@@ -418,6 +432,11 @@ pub fn combat(
                 Option<&super::units::wizard::spells::berserker_rage::components::Bloodlust>,
                 Has<super::units::wizard::spells::berserker_rage::components::ContagiousRage>,
                 Option<&EliteAttackSpeedBonus>,
+                (
+                    Has<super::units::archer::Archer>,
+                    Has<super::units::infantry::Infantry>,
+                    Has<super::units::assassin::Assassin>,
+                ),
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -438,6 +457,8 @@ pub fn combat(
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
         Option<&super::units::wizard::spells::haste::components::FleetFeet>,
         Has<super::units::shielder::components::ShielderDamageReduction>,
+        Has<super::units::assassin::Assassin>,
+        Has<super::units::archer::Archer>,
     )>,
     // Fog Cloud talent zones
     disorienting_zones: Query<
@@ -495,7 +516,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage, elite_attack_speed),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage, elite_attack_speed, (attacker_is_archer, attacker_is_infantry, attacker_is_assassin)),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, stunned, or retreating
@@ -537,7 +558,8 @@ pub fn combat(
                 + haste_modifier.map_or(0.0, |h| h.attack_speed)
                 + disorienting_haste.map_or(0.0, |d| d.attack_speed)
                 + if has_frenzy_active { frenzy.map_or(0.0, |f| f.attack_speed_bonus) } else { 0.0 }
-                + elite_attack_speed.map_or(0.0, |e| e.0);
+                + elite_attack_speed.map_or(0.0, |e| e.0)
+                + if attacker_is_assassin { crate::game::units::assassin::constants::ASSASSIN_ATTACK_SPEED_BONUS } else { 0.0 };
             if *attacker_team == Team::Defenders {
                 let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
                 if cauldron_speed > 1.0 {
@@ -593,6 +615,8 @@ pub fn combat(
                     guardian_circle_shielded,
                     target_fleet_feet,
                     has_shielder_reduction,
+                    target_is_assassin,
+                    target_is_archer,
                 )) = health_query.get_mut(actual_target)
             {
                 // Check fog evasion
@@ -656,6 +680,22 @@ pub fn combat(
                 // Apply Shielder damage reduction (20% less damage from melee)
                 if has_shielder_reduction {
                     modified_damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+                }
+
+                // Apply Assassin damage modifiers (defensive)
+                if target_is_assassin {
+                    if attacker_is_archer {
+                        // Assassins take 50% less damage from archers
+                        modified_damage *= crate::game::units::assassin::constants::ARCHER_DAMAGE_REDUCTION;
+                    } else if attacker_is_infantry {
+                        // Assassins take 20% more damage from infantry
+                        modified_damage *= crate::game::units::assassin::constants::INFANTRY_DAMAGE_INCREASE;
+                    }
+                }
+
+                // Apply Assassin damage bonus (offensive)
+                if attacker_is_assassin && target_is_archer {
+                    modified_damage *= crate::game::units::assassin::constants::ASSASSIN_VS_ARCHER_DAMAGE;
                 }
 
                 // Apply target's Mark of Death amplification

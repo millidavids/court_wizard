@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
 use super::archer::ArcherPlugin;
+use super::assassin::AssassinPlugin;
 use super::boss::BossPlugin;
 use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
@@ -44,6 +45,7 @@ impl Plugin for UnitsPlugin {
             WizardPlugin,
             InfantryPlugin,
             ArcherPlugin,
+            AssassinPlugin,
             DispellerPlugin,
             HealerPlugin,
             ShielderPlugin,

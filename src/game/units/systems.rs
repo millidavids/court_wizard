@@ -261,8 +261,12 @@ pub fn calculate_weighted_movement(
         desired_velocity.z - velocity.z,
     );
 
-    // Apply steering force, clamped to achieve max_speed over time without overshooting
-    let steering = velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier;
+    // Apply steering force, scaled by max_speed so faster units accelerate proportionally.
+    // Without this, the fixed STEERING_FORCE creates an equilibrium speed (due to damping)
+    // that caps all units at the same effective speed regardless of movement_speed.
+    let speed_scale = max_speed / (200.0 * GLOBAL_SPEED_MULTIPLIER);
+    let steering =
+        velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier * speed_scale;
     let steering_magnitude = steering.length();
     let max_steering = velocity_change_needed.length() / time.delta_secs();
 

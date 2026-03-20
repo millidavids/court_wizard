@@ -149,4 +149,4 @@ pub const PRISMATIC_EXPLOSION_DAMAGE: f32 = 150.0;
 pub const PRISMATIC_EXPLOSION_RADIUS: f32 = 300.0;
 
 /// Auto-Crystal: interval between magic missile shots (seconds).
-pub const AUTO_CRYSTAL_INTERVAL: f32 = 0.667;
+pub const AUTO_CRYSTAL_INTERVAL: f32 = 0.2;

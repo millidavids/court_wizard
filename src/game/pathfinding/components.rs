@@ -9,6 +9,9 @@ pub enum FlowFieldInfluence {
     Attacker,
     /// Defenders flow toward King's target when activated, or rally to spawn point when not.
     Defender { spawn_pos: Vec2 },
+    /// Assassins flow toward the center of mass of enemy archers,
+    /// routing around infantry formations.
+    Assassin,
 }
 
 /// Tracks whether a unit is stuck and triggers recovery nudges.

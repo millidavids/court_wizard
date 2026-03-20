@@ -32,6 +32,10 @@ pub enum SpawnTask {
     UpgradeToShielder {
         entity: Entity,
     },
+    AttackerAssassin {
+        unit_index: u32,
+        level: u32,
+    },
     Brute,
     Ogre,
     Hags,

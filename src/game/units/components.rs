@@ -23,6 +23,7 @@ pub enum UnitType {
     Healer,
     Dispeller,
     Shielder,
+    Assassin,
     // Bosses
     Hag,
     Ogre,
@@ -42,6 +43,7 @@ impl UnitType {
             UnitType::Healer,
             UnitType::Dispeller,
             UnitType::Shielder,
+            UnitType::Assassin,
             UnitType::Hag,
             UnitType::Ogre,
         ]
@@ -60,6 +62,7 @@ impl UnitType {
             UnitType::Healer => "Healer",
             UnitType::Dispeller => "Dispeller",
             UnitType::Shielder => "Shielder",
+            UnitType::Assassin => "Assassin",
             UnitType::Hag => "Hag",
             UnitType::Ogre => "Ogre",
         }
@@ -78,6 +81,7 @@ impl UnitType {
             UnitType::Healer => "Support units that restore health to wounded allies.",
             UnitType::Dispeller => "Anti-magic units that remove your spell effects.",
             UnitType::Shielder => "Support units that shield allies from your spells.",
+            UnitType::Assassin => "Fast flankers that slip past infantry to strike archers.",
             UnitType::Hag => "Ancient witches with devastating magical abilities.",
             UnitType::Ogre => "A massive beast that grows stronger as the fight goes on.",
         }
@@ -106,6 +110,9 @@ impl UnitType {
             UnitType::Shielder => {
                 "Handing out magical umbrellas like party favors. How thoughtful."
             }
+            UnitType::Assassin => {
+                "They don't fight fair. That's the whole point."
+            }
             UnitType::Hag => "Three sisters who share one terrible disposition.",
             UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
         }
@@ -130,7 +137,8 @@ impl UnitType {
             | UnitType::Commander
             | UnitType::Healer
             | UnitType::Dispeller
-            | UnitType::Shielder => "Attacker",
+            | UnitType::Shielder
+            | UnitType::Assassin => "Attacker",
             UnitType::Hag | UnitType::Ogre => "Boss",
         }
     }
@@ -148,6 +156,7 @@ impl UnitType {
             UnitType::Healer => "The wounded keep getting back up.",
             UnitType::Dispeller => "Your magic feels weaker somehow.",
             UnitType::Shielder => "Something is protecting the enemy.",
+            UnitType::Assassin => "Shadows move faster than they should.",
             UnitType::Hag => "Dark magic stirs in the distance.",
             UnitType::Ogre => "The ground trembles.",
         }
