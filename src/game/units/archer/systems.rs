@@ -10,8 +10,7 @@ use super::styles::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
-    calculate_total_archers, calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
+    calculate_defender_grid_position, cells_needed, distribute_units_to_cells, *,
 };
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
@@ -24,6 +23,7 @@ use crate::game::units::components::{
     TemporaryHitPoints, WalkingAnimation, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -71,6 +71,8 @@ pub fn archer_melee_combat(
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
             Has<crate::game::units::infantry::components::Retreating>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -96,8 +98,15 @@ pub fn archer_melee_combat(
         sleeping,
         banished,
         is_retreating,
+        has_staging,
+        has_wave_group,
     ) in &mut archers
     {
+        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
+        if crate::game::units::systems::is_staging_attacker(archer_team, has_staging, has_wave_group) {
+            continue;
+        }
+
         // Skip attack if sleeping, banished, or retreating
         if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
@@ -163,6 +172,8 @@ pub fn archer_ranged_combat(
             Option<&BanishedModifier>,
             Has<crate::game::units::infantry::components::Retreating>,
             Option<&crate::game::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -203,8 +214,15 @@ pub fn archer_ranged_combat(
         banished,
         is_retreating,
         blinding_mist,
+        has_staging,
+        has_wave_group,
     ) in archers.iter_mut()
     {
+        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
+        if crate::game::units::systems::is_staging_attacker(archer_team, has_staging, has_wave_group) {
+            continue;
+        }
+
         // Skip attack if sleeping, banished, or retreating
         if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
@@ -663,6 +681,9 @@ pub fn archer_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                &Team,
+                Has<StagingAttacker>,
+                Has<WaveGroup>,
             ),
         ),
         With<Archer>,
@@ -682,7 +703,7 @@ pub fn archer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
     ) in &mut archer_units
     {
         // CC'd units cannot move
@@ -722,10 +743,13 @@ pub fn archer_movement(
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee).
         // But keep moving if:
+        //  - staging (needs to follow flow field to staging point)
         //  - standing on hazardous terrain (fire, spikes)
         //  - no target in range (needs to follow flow field back to spawn)
         //  - path is fully blocked (wall-attack system needs velocity)
-        if in_melee.is_none()
+        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        if !is_staging
+            && in_melee.is_none()
             && flow_field_velocity.terrain_cost <= 1.0
             && !flow_field_velocity.pathfinding_distance.is_infinite()
             && targeting_velocity.distance_to_target < f32::MAX
@@ -827,71 +851,50 @@ pub(in crate::game) fn spawn_single_attacker_archer(
     archer_assets: &ArcherAssets,
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
-    level: u32,
+    _level: u32,
 ) {
-    let total_archers = calculate_total_archers(level);
-    let total_infantry = calculate_total_infantry(level);
-    let infantry_cells_needed = cells_needed(total_infantry);
-    let archer_cells_needed = cells_needed(total_archers);
+    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index);
+    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
-    let (_, archer_cells) = calculate_spawn_cells(infantry_cells_needed, archer_cells_needed);
-    let units_per_cell = distribute_units_to_cells(total_archers);
+    let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    // Calculate which cell this unit belongs to
-    let mut units_counted = 0;
-    for (cell_idx, (row, col)) in archer_cells.iter().enumerate() {
-        if cell_idx >= units_per_cell.len() {
-            break;
-        }
-        let units_in_this_cell = units_per_cell[cell_idx];
-        if unit_index < units_counted + units_in_this_cell {
-            // This unit goes in this cell
-            let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
-            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let anim = WalkingAnimation::default();
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        archer_assets.sprite_texture.clone(),
+        ATTACKER_SPRITE_TINT,
+    );
 
-            let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
-            let spawn_y = hitbox.height / 2.0 + 1.0;
-
-            let anim = WalkingAnimation::default();
-            let material = crate::game::units::systems::create_default_sprite_material(
-                materials,
-                archer_assets.sprite_texture.clone(),
-                ATTACKER_SPRITE_TINT,
-            );
-
-            commands
-                .spawn((
-                    Mesh3d(archer_assets.sprite_mesh.clone()),
-                    MeshMaterial3d(material),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
-                    Acceleration::new(),
-                    hitbox,
-                    Health::new(UNIT_HEALTH),
-                    MovementSpeed(ARCHER_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    Team::Attackers,
-                    Archer,
-                ))
-                .insert((
-                    anim,
-                    FacingDirection::default(),
-                    AttackRange {
-                        min_range: ARCHER_MIN_RANGE,
-                        max_range: ARCHER_MAX_RANGE,
-                    },
-                    ArcherMovementTimer::new(),
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    FlowFieldVelocity::default(),
-                    FlowFieldInfluence::Attacker,
-                    Teleportable,
-                    Billboard,
-                    OnGameplayScreen,
-                ));
-            return;
-        }
-        units_counted += units_in_this_cell;
-    }
+    commands
+        .spawn((
+            Mesh3d(archer_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(final_x, spawn_y, final_z),
+            Velocity::default(),
+            Acceleration::new(),
+            hitbox,
+            Health::new(UNIT_HEALTH),
+            MovementSpeed(ARCHER_MOVEMENT_SPEED),
+            AttackTiming::new(),
+            Effectiveness::new(),
+            Team::Attackers,
+            Archer,
+        ))
+        .insert((
+            anim,
+            FacingDirection::default(),
+            AttackRange {
+                min_range: ARCHER_MIN_RANGE,
+                max_range: ARCHER_MAX_RANGE,
+            },
+            ArcherMovementTimer::new(),
+            TargetingVelocity::default(),
+            FlockingVelocity::default(),
+            FlowFieldVelocity::default(),
+            FlowFieldInfluence::Attacker,
+            Teleportable,
+            Billboard,
+            OnGameplayScreen,
+        ));
 }

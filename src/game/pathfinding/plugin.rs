@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::debug::{self, FlowFieldDebugMode};
+use super::debug::{self, DebugBallActive, DebugBallLogTimer, FlowFieldDebugMode};
 use super::messages::ObstacleChanged;
 use super::resources::PathfindingGrid;
 use super::systems::*;
@@ -19,6 +19,8 @@ impl Plugin for PathfindingPlugin {
             .add_message::<ObstacleChanged>()
             // Debug visualization
             .init_resource::<FlowFieldDebugMode>()
+            // Wave staging timers (timeout-based force activation)
+            .init_resource::<WaveStagingTimers>()
             // Flow field management: continuously rebuild all fields in parallel.
             .add_systems(
                 Update,
@@ -33,6 +35,18 @@ impl Plugin for PathfindingPlugin {
                     handle_obstacle_events,
                     // Poll completed rebuilds and immediately spawn new ones
                     continuous_flow_field_rebuild,
+                )
+                    .chain()
+                    .run_if(resource_exists::<PathfindingGrid>)
+                    .run_if(is_gameplay_running),
+            )
+            // Wave activation: tag new attackers, check wave thresholds, manage speedup
+            .add_systems(
+                Update,
+                (
+                    tag_new_attackers,
+                    check_wave_activation,
+                    manage_staging_speedup,
                 )
                     .chain()
                     .run_if(resource_exists::<PathfindingGrid>)
@@ -57,6 +71,18 @@ impl Plugin for PathfindingPlugin {
                 (
                     debug::toggle_flow_field_debug,
                     debug::update_debug_visualization.run_if(resource_exists::<PathfindingGrid>),
+                )
+                    .run_if(is_gameplay_running),
+            )
+            // Debug ball (F4 toggle + arrow key movement + position logging)
+            .init_resource::<DebugBallActive>()
+            .init_resource::<DebugBallLogTimer>()
+            .add_systems(
+                Update,
+                (
+                    debug::toggle_debug_ball,
+                    debug::move_debug_ball,
+                    debug::log_debug_ball_position,
                 )
                     .run_if(is_gameplay_running),
             );

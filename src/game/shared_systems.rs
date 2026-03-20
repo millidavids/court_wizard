@@ -40,7 +40,11 @@ pub fn tick_attack_cycle(time: Res<Time>, mut attack_cycle: ResMut<GlobalAttackC
 }
 
 /// Ticks the elapsed game time for achievement tracking.
+/// Only starts counting after the first wave of attackers has been activated.
 pub fn tick_elapsed_time(time: Res<Time>, mut kill_stats: ResMut<super::resources::KillStats>) {
+    if !kill_stats.battle_started {
+        return;
+    }
     kill_stats.elapsed_time += time.delta_secs();
 }
 

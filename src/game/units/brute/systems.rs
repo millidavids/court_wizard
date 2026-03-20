@@ -28,44 +28,15 @@ pub fn spawn_brute(
     mut commands: Commands,
     infantry_assets: Res<InfantryAssets>,
     materials: &mut Assets<StandardMaterial>,
-    current_level: Res<CurrentLevel>,
+    _current_level: Res<CurrentLevel>,
 ) {
-    let level = current_level.0;
-
-    // Calculate spawn position in archer row
-    // Use the same logic as archers - spawn in the row behind infantry
-    let total_infantry = calculate_total_infantry(level);
-    let total_archers = calculate_total_archers(level);
-    let infantry_cells_needed = cells_needed(total_infantry);
-    let archer_cells_needed = cells_needed(total_archers);
-
-    let (infantry_cells, archer_cells) =
-        calculate_spawn_cells(infantry_cells_needed, archer_cells_needed);
-
-    // Find the archer row (one behind last infantry row)
-    let archer_row = if let Some(&(row, _)) = archer_cells.first() {
-        row
-    } else {
-        // Fallback if no archer cells (shouldn't happen)
-        let last_infantry_row = infantry_cells.iter().map(|&(r, _)| r).max().unwrap_or(0);
-        last_infantry_row + 1
-    };
-
-    // Brute spawns in first available column in archer row
-    // Use column 0 to keep it separate from main archer formation
-    let brute_col = 0;
-    let (spawn_x, spawn_z) = calculate_grid_cell_position(archer_row, brute_col);
-
-    // Randomly position near center of grid cell
+    // Brute spawns at one of the tunnel spawn points (use index 0 for bottom tunnel)
+    let (spawn_x, spawn_z) = attacker_spawn_position(0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
-    // Create hitbox
     let hitbox = Hitbox::new(BRUTE_RADIUS, BRUTE_HITBOX_HEIGHT);
-
-    // Position unit so bottom edge is 1 unit above battlefield (Y=0)
     let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    // Initial velocity toward castle (center)
     let to_center = Vec3::new(
         WIZARD_POSITION.x - final_x,
         0.0,

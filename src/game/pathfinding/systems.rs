@@ -3,7 +3,11 @@
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 
-use crate::game::constants::{BATTLEFIELD_SIZE, defender_spawn_center};
+use crate::game::constants::{
+    BATTLEFIELD_SIZE, PATHFINDING_X_EXTENSION, STAGING_ACTIVATION_RADIUS, STAGING_POINT,
+    STAGING_SATISFACTION_RADIUS, WAVE_ACTIVATION_THRESHOLD, WAVE_STAGING_TIMEOUT,
+    defender_spawn_center,
+};
 use crate::game::units::archer::Archer;
 use crate::game::units::assassin::Assassin;
 use crate::game::units::assassin::constants as assassin_constants;
@@ -14,7 +18,7 @@ use crate::game::units::king::components::King;
 
 use crate::game::components::Acceleration;
 
-use super::components::{FlowFieldInfluence, FlowFieldVelocity, StuckDetection};
+use super::components::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, StuckDetection, WaveGroup};
 use super::messages::{ObstacleChanged, ObstacleType};
 use super::resources::PathfindingGrid;
 
@@ -29,9 +33,11 @@ pub(crate) const OBSTACLE_BUFFER: f32 = CELL_SIZE;
 /// 200 units / 10 units per cell = 20 cells
 const DEFENDER_SPAWN_RALLY_RADIUS: usize = 20;
 
-/// Initializes the pathfinding grid resource.
+/// Initializes the pathfinding grid resource and registers static terrain obstacles
+/// (right wall barrier with tunnel gaps, lava hazard, water slow terrain).
 pub fn initialize_pathfinding(mut commands: Commands) {
-    let pathfinding = PathfindingGrid::new(BATTLEFIELD_SIZE, CELL_SIZE);
+    let mut pathfinding =
+        PathfindingGrid::new(BATTLEFIELD_SIZE, CELL_SIZE, PATHFINDING_X_EXTENSION);
 
     info!(
         "Pathfinding initialized: {}x{} grid ({} cells, {} bytes per field)",
@@ -41,7 +47,65 @@ pub fn initialize_pathfinding(mut commands: Commands) {
         pathfinding.grid_width * pathfinding.grid_height * std::mem::size_of::<Vec3>()
     );
 
+    // Register static terrain on the base costs directly (no need for messages
+    // since the grid isn't inserted yet — messages would be processed next frame).
+    register_static_terrain(&mut pathfinding);
+
+    // Build the staging flow field once (never changes — targets the staging point).
+    build_staging_field(&mut pathfinding);
+
     commands.insert_resource(pathfinding);
+}
+
+/// Builds the static staging flow field that guides unactivated attackers
+/// from the spawn area to the staging point.
+fn build_staging_field(pathfinding: &mut PathfindingGrid) {
+    let mut field = pathfinding.create_field_with_base_costs();
+    let world_min = pathfinding.world_min;
+    let cell_size = pathfinding.cell_size;
+
+    let goal_x = ((STAGING_POINT.0 - world_min.x) / cell_size).floor().max(0.0) as usize;
+    let goal_z = ((STAGING_POINT.1 - world_min.y) / cell_size).floor().max(0.0) as usize;
+
+    field.generate(goal_x, goal_z, STAGING_SATISFACTION_RADIUS);
+    pathfinding.staging_field = Some(field);
+    info!(
+        "Staging flow field built: goal=({}, {}), satisfaction_radius={}",
+        STAGING_POINT.0, STAGING_POINT.1, STAGING_SATISFACTION_RADIUS
+    );
+}
+
+/// Registers lava hazard and water slow terrain directly on the pathfinding
+/// grid's base costs. The right wall is purely visual (no flow field collision).
+fn register_static_terrain(pathfinding: &mut PathfindingGrid) {
+    use crate::game::battlefield::constants::{
+        LAVA_AVOIDANCE_RADIUS, LAVA_HAZARD_FLOW_COST, LAVA_POOL_POSITION, WATER_POOL_POSITION,
+        WATER_POOL_RADIUS, WATER_SLOW_FLOW_COST,
+    };
+
+    register_circular_terrain(pathfinding, LAVA_POOL_POSITION, LAVA_AVOIDANCE_RADIUS, LAVA_HAZARD_FLOW_COST, "Lava hazard");
+    register_circular_terrain(pathfinding, WATER_POOL_POSITION, WATER_POOL_RADIUS, WATER_SLOW_FLOW_COST, "Water slow terrain");
+}
+
+/// Registers a circular terrain hazard on the pathfinding grid's base costs.
+fn register_circular_terrain(
+    pathfinding: &mut PathfindingGrid,
+    position: Vec3,
+    radius: f32,
+    cost: f32,
+    label: &str,
+) {
+    let center = Vec2::new(position.x, position.z);
+    let shape = super::messages::ObstacleShape::circle(center, radius);
+    let bounds = Rect::new(
+        center.x - radius,
+        center.y - radius,
+        center.x + radius,
+        center.y + radius,
+    );
+    let cells = pathfinding.shape_filtered_cells(bounds, &shape);
+    pathfinding.set_terrain_cost(&cells, cost);
+    info!("{}: {} cells at cost {}", label, cells.len(), cost);
 }
 
 /// Polls a pending flow field rebuild task. If complete, stores the result
@@ -403,9 +467,18 @@ pub fn handle_obstacle_events(
 pub fn sample_flow_fields(
     pathfinding: Res<PathfindingGrid>,
     defenders_activated: Res<DefendersActivated>,
-    mut units_query: Query<(&Transform, &FlowFieldInfluence, &mut FlowFieldVelocity)>,
+    mut units_query: Query<(
+        &Transform,
+        &FlowFieldInfluence,
+        &mut FlowFieldVelocity,
+        Has<StagingAttacker>,
+        Has<WaveGroup>,
+        &Team,
+    )>,
 ) {
-    for (transform, influence, mut flow_velocity) in units_query.iter_mut() {
+    for (transform, influence, mut flow_velocity, has_staging, has_wave_group, team) in
+        units_query.iter_mut()
+    {
         let world_pos = transform.translation;
 
         // Sample terrain cost from base costs (always up-to-date)
@@ -414,8 +487,25 @@ pub fn sample_flow_fields(
         let wmin = pathfinding.world_min;
         let cs = pathfinding.cell_size;
 
+        // Attackers use the staging field until activated:
+        // - has StagingAttacker component, OR
+        // - doesn't have WaveGroup yet (1-frame command delay after spawn)
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+
         match influence {
+            FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin
+                if is_staging =>
+            {
+                // Staging: follow staging field toward the staging point
+                let (vel, dist) =
+                    sample_field_or_zero(&pathfinding.staging_field, world_pos, wmin, cs);
+                flow_velocity.velocity = vel;
+                flow_velocity.pathfinding_distance = dist;
+                flow_velocity.at_destination = vel == Vec3::ZERO;
+            }
             FlowFieldInfluence::Attacker => {
+                // Activated: follow attacker field toward King
                 flow_velocity.at_destination = false;
                 let (vel, dist) =
                     sample_field_or_zero(&pathfinding.attacker_field, world_pos, wmin, cs);
@@ -438,8 +528,8 @@ pub fn sample_flow_fields(
                 }
             }
             FlowFieldInfluence::Assassin => {
+                // Activated: follow assassin field, fall back to attacker field
                 flow_velocity.at_destination = false;
-                // Prefer assassin field, fall back to attacker field
                 let field_ref = if pathfinding.assassin_field.is_some() {
                     &pathfinding.assassin_field
                 } else {
@@ -508,6 +598,169 @@ pub fn generate_initial_fields(
     // Spawn initial attacker field rebuild
     spawn_attacker_field_rebuild(&mut pathfinding, king_pos);
     info!("Generating initial attacker flow field toward Defender King");
+}
+
+/// Auto-tags newly spawned attackers with `StagingAttacker` and `WaveGroup`.
+/// Detects entities with `FlowFieldInfluence::Attacker` that don't yet have a `WaveGroup`.
+pub fn tag_new_attackers(
+    mut commands: Commands,
+    wave_state: Option<Res<crate::game::resources::WaveState>>,
+    new_attackers: Query<
+        (Entity, &Team, &FlowFieldInfluence),
+        (Without<WaveGroup>, Without<Corpse>),
+    >,
+) {
+    let wave = wave_state.map(|w| w.current_wave).unwrap_or(0);
+
+    for (entity, team, influence) in &new_attackers {
+        if *team != Team::Attackers {
+            continue;
+        }
+        // Tag attackers and assassins (both use flow fields toward King/archers)
+        match influence {
+            FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin => {
+                commands
+                    .entity(entity)
+                    .insert((StagingAttacker, WaveGroup(wave)));
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Tracks how long each wave has been in staging, for timeout-based force activation.
+#[derive(Resource, Default)]
+pub struct WaveStagingTimers {
+    timers: std::collections::HashMap<u32, f32>,
+}
+
+/// Checks if 90% of a wave's living staging attackers are within the activation
+/// radius of the staging point. Also force-activates after a timeout to prevent stalling.
+/// Dead units (Corpse) are excluded so lava kills don't block activation.
+pub fn check_wave_activation(
+    mut commands: Commands,
+    time: Res<Time<Real>>,
+    mut kill_stats: ResMut<crate::game::resources::KillStats>,
+    mut staging_timers: ResMut<WaveStagingTimers>,
+    staging_query: Query<
+        (Entity, &WaveGroup, &Transform),
+        (With<StagingAttacker>, Without<Corpse>),
+    >,
+) {
+    use std::collections::HashMap;
+
+    let staging_pos = Vec2::new(STAGING_POINT.0, STAGING_POINT.1);
+    let activation_radius_sq = STAGING_ACTIVATION_RADIUS * STAGING_ACTIVATION_RADIUS;
+    // Use real time so 3x speedup doesn't shorten the timeout
+    let dt = time.delta_secs();
+
+    // Count total and arrived (within activation radius) per wave
+    let mut wave_counts: HashMap<u32, (u32, u32)> = HashMap::new();
+    for (_entity, wave_group, transform) in &staging_query {
+        let (total, arrived) = wave_counts.entry(wave_group.0).or_insert((0, 0));
+        *total += 1;
+        let unit_pos = Vec2::new(transform.translation.x, transform.translation.z);
+        if unit_pos.distance_squared(staging_pos) <= activation_radius_sq {
+            *arrived += 1;
+        }
+    }
+
+    // Check each wave
+    for (wave, (total, arrived)) in &wave_counts {
+        if *total == 0 {
+            continue;
+        }
+
+        // Tick staging timer for this wave
+        let elapsed = staging_timers.timers.entry(*wave).or_insert(0.0);
+        *elapsed += dt;
+
+        let ratio = *arrived as f32 / *total as f32;
+        let timed_out = *elapsed >= WAVE_STAGING_TIMEOUT;
+
+        if ratio >= WAVE_ACTIVATION_THRESHOLD || timed_out {
+            if timed_out {
+                info!(
+                    "Wave {} force-activated after {:.1}s timeout ({}/{} units within radius)",
+                    wave, elapsed, arrived, total
+                );
+            } else {
+                info!(
+                    "Wave {} activated! ({}/{} units within staging radius)",
+                    wave, arrived, total
+                );
+            }
+            // Mark battle as started (enables the game timer)
+            if !kill_stats.battle_started {
+                kill_stats.battle_started = true;
+                info!("Battle started — game timer running");
+            }
+            // Remove StagingAttacker from all units of this wave
+            for (entity, wave_group, _) in &staging_query {
+                if wave_group.0 == *wave {
+                    commands.entity(entity).remove::<StagingAttacker>();
+                }
+            }
+            staging_timers.timers.remove(wave);
+        }
+    }
+}
+
+/// Manages game speed: 3x when only staging (unactivated) attackers exist, 1x otherwise.
+pub fn manage_staging_speedup(
+    mut time: ResMut<Time<Virtual>>,
+    staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
+    activated_attackers: Query<
+        &Team,
+        (
+            With<WaveGroup>,
+            Without<StagingAttacker>,
+            Without<Corpse>,
+        ),
+    >,
+) {
+    let has_staging = !staging_query.is_empty();
+
+    // Check if any activated attackers exist (have WaveGroup, lost StagingAttacker)
+    let has_activated = activated_attackers
+        .iter()
+        .any(|team| *team == Team::Attackers);
+
+    // Speed up only when staging attackers are marching and no activated attackers are fighting
+    let should_speedup = has_staging && !has_activated;
+
+    let current_speed = time.relative_speed_f64();
+    let target_speed = if should_speedup {
+        crate::game::constants::STAGING_SPEEDUP
+    } else {
+        1.0
+    };
+
+    if (current_speed - target_speed).abs() > 0.01 {
+        time.set_relative_speed_f64(target_speed);
+        if target_speed > 1.0 {
+            info!("Staging speedup: {}x", target_speed);
+        } else {
+            info!("Normal speed restored");
+        }
+    }
+}
+
+/// Zeroes out targeting velocity for staging attackers so they only follow
+/// the staging flow field. Without this, targeting systems point them at
+/// enemies and the movement weighting lets targeting override the flow field.
+pub fn suppress_staging_targeting(
+    mut query: Query<
+        &mut crate::game::units::components::TargetingVelocity,
+        With<StagingAttacker>,
+    >,
+) {
+    for mut targeting in &mut query {
+        if targeting.velocity != Vec3::ZERO || targeting.distance_to_target != f32::MAX {
+            targeting.velocity = Vec3::ZERO;
+            targeting.distance_to_target = f32::MAX;
+        }
+    }
 }
 
 /// Auto-inserts `StuckDetection` on entities that have `FlowFieldVelocity` but

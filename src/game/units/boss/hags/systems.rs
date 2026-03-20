@@ -48,8 +48,8 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
 
     let mut spawned_entities = Vec::new();
 
-    for (identity, col, material) in hags {
-        let (spawn_x, spawn_z) = calculate_grid_cell_position(0, col);
+    for (idx, (identity, _col, material)) in hags.iter().enumerate() {
+        let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32);
         let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
         let hitbox = Hitbox::new(HAG_RADIUS, HAG_HITBOX_HEIGHT);
@@ -67,7 +67,7 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
             .spawn((
                 // Rendering
                 Mesh3d(hag_assets.mesh.clone()),
-                MeshMaterial3d(material.clone()),
+                MeshMaterial3d((*material).clone()),
                 Transform::from_xyz(final_x, spawn_y, final_z),
                 // Physics
                 Velocity {
@@ -84,7 +84,7 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
                 Team::Attackers,
                 Boss,
                 Hag,
-                identity,
+                *identity,
             ))
             .insert((
                 HagEyeState::new(),

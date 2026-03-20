@@ -5,10 +5,9 @@ use super::styles::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
-    calculate_total_archers, calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
+    calculate_defender_grid_position, cells_needed, distribute_units_to_cells, *,
 };
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
     EliteSpeedBonus, FacingDirection, FlockingVelocity, HasteModifier, Health, Hitbox, KingsGuard,
@@ -31,7 +30,7 @@ pub fn check_defender_activation(
     mut defenders_activated: ResMut<DefendersActivated>,
     retreat_state: Res<RetreatState>,
     defender_query: Query<(&Transform, &Team), (With<Infantry>, Without<Corpse>)>,
-    attacker_query: Query<(&Transform, &Team), Without<Corpse>>,
+    attacker_query: Query<(&Transform, &Team), (Without<Corpse>, Without<StagingAttacker>)>,
 ) {
     // During retreat, defenders are force-deactivated — skip all activation logic
     if retreat_state.is_active() {
@@ -405,70 +404,47 @@ pub(in crate::game) fn spawn_single_attacker(
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
-    level: u32,
+    _level: u32,
 ) {
-    let total_units = calculate_total_infantry(level);
-    let num_cells = cells_needed(total_units);
-    let units_per_cell = distribute_units_to_cells(total_units);
+    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index);
+    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
-    // Calculate spawn cells
-    let infantry_cells_needed = num_cells;
-    let total_archers = calculate_total_archers(level);
-    let archer_cells_needed = cells_needed(total_archers);
-    let (infantry_cells, _) = calculate_spawn_cells(infantry_cells_needed, archer_cells_needed);
+    let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    // Calculate which cell this unit belongs to
-    let mut units_counted = 0;
-    for (cell_idx, (row, col)) in infantry_cells.iter().enumerate() {
-        if cell_idx >= units_per_cell.len() {
-            break;
-        }
-        let units_in_this_cell = units_per_cell[cell_idx];
-        if unit_index < units_counted + units_in_this_cell {
-            // This unit goes in this cell
-            let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
-            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let anim = WalkingAnimation::default();
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        infantry_assets.sprite_texture.clone(),
+        ATTACKER_SPRITE_TINT,
+    );
 
-            let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
-            let spawn_y = hitbox.height / 2.0 + 1.0;
-
-            let anim = WalkingAnimation::default();
-            let material = crate::game::units::systems::create_default_sprite_material(
-                materials,
-                infantry_assets.sprite_texture.clone(),
-                ATTACKER_SPRITE_TINT,
-            );
-
-            commands
-                .spawn((
-                    Mesh3d(infantry_assets.sprite_mesh.clone()),
-                    MeshMaterial3d(material),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
-                    Acceleration::new(),
-                    hitbox,
-                    Health::new(UNIT_HEALTH),
-                    MovementSpeed(UNIT_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    Team::Attackers,
-                    Infantry,
-                ))
-                .insert((
-                    anim,
-                    FacingDirection::default(),
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    FlowFieldVelocity::default(),
-                    FlowFieldInfluence::Attacker,
-                    Teleportable,
-                    Billboard,
-                    OnGameplayScreen,
-                ));
-            return;
-        }
-        units_counted += units_in_this_cell;
-    }
+    commands
+        .spawn((
+            Mesh3d(infantry_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(final_x, spawn_y, final_z),
+            Velocity::default(),
+            Acceleration::new(),
+            hitbox,
+            Health::new(UNIT_HEALTH),
+            MovementSpeed(UNIT_MOVEMENT_SPEED),
+            AttackTiming::new(),
+            Effectiveness::new(),
+            Team::Attackers,
+            Infantry,
+        ))
+        .insert((
+            anim,
+            FacingDirection::default(),
+            TargetingVelocity::default(),
+            FlockingVelocity::default(),
+            FlowFieldVelocity::default(),
+            FlowFieldInfluence::Attacker,
+            Teleportable,
+            Billboard,
+            OnGameplayScreen,
+        ));
 }
 
 /// Spawns a single king's guard unit at a specific index.

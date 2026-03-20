@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.31] - 2026-03-20
+
+### Added
+- **Terrain hazards** — the lava pool on the battlefield now deals heavy damage to any unit that walks through it, and the water pool slows units down
+- **Hazard avoidance** — units intelligently path around the lava pool and avoid the water pool when possible, thanks to flow field integration
+- **Tunnel spawning** — attacker waves now spawn behind the right wall and march through the tunnel archways onto the battlefield, creating a more dramatic entrance
+- **Wave staging system** — each wave of attackers gathers at a rallying point before charging toward the castle, giving you a moment to prepare
+- **Staging speedup** — the game speeds up while attackers are marching to their rally point so you're not waiting around
+- **Right wall occlusion** — units are hidden behind the right wall until they emerge through the tunnels
+
+### Changed
+- **Wave timing** — the next wave won't begin spawning until the current wave has finished rallying and activated
+- **Battle timer** — the in-game timer doesn't start until the first wave of attackers activates, so marching time doesn't count against you
+- **Defender awareness** — defenders now ignore attackers that haven't activated yet, only springing into action once the assault begins
+- **Special unit behavior** — healers, shielders, dispellers, and archers on the attacker side won't use their abilities until their wave activates
+
 ## [v0.4.519] - 2026-03-20
 
 ### Added

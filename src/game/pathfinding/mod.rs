@@ -11,7 +11,7 @@ pub mod plugin;
 pub mod resources;
 pub mod systems;
 
-pub use components::{FlowFieldInfluence, FlowFieldVelocity};
+pub use components::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, WaveGroup};
 pub use messages::{ObstacleChanged, ObstacleShape, ObstacleType};
 pub use plugin::PathfindingPlugin;
 pub(crate) use systems::OBSTACLE_BUFFER;

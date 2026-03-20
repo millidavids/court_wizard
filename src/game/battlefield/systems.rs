@@ -57,7 +57,9 @@ pub fn setup_battlefield(
     );
 
     // Spawn wall backdrops (vertical walls get depth_bias so they render behind game entities)
-    spawn_wall_backdrop(
+    // Right wall uses Mask alpha so it occludes units spawning behind it;
+    // tunnel areas in the art are transparent and become real holes.
+    spawn_right_wall_backdrop(
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -67,8 +69,6 @@ pub fn setup_battlefield(
         Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(Quat::from_rotation_y(
             RIGHT_WALL_ROTATION_DEGREES.to_radians(),
         )),
-        RightWall,
-        -100.0,
     );
     spawn_wall_backdrop(
         &mut commands,
@@ -141,6 +141,36 @@ fn spawn_wall_backdrop<M: Component>(
     ));
 }
 
+/// Spawns the right wall with AlphaMode::Mask so it writes to the depth buffer,
+/// hiding units that spawn behind it. Tunnel areas in the art are transparent.
+fn spawn_right_wall_backdrop(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    texture: Handle<Image>,
+    width: f32,
+    height: f32,
+    transform: Transform,
+) {
+    let mesh = Rectangle::new(width, height);
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(texture),
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Mask(0.5),
+        unlit: true,
+        cull_mode: None,
+        depth_bias: 0.0,
+        ..default()
+    });
+    commands.spawn((
+        Mesh3d(meshes.add(mesh)),
+        MeshMaterial3d(material),
+        transform,
+        RightWall,
+        OnGameplayScreen,
+    ));
+}
+
 /// Spawns the castle wall as a textured plane at the given position.
 ///
 /// The plane uses the castle_wall.png image at its natural aspect ratio,
@@ -183,6 +213,7 @@ pub fn spawn_castle_wall<M: Component + Clone>(
 
 // ===== Environmental Effects =====
 
+use crate::game::units::components::{Corpse, Health, RoughTerrainModifier};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -318,6 +349,44 @@ pub fn update_water_ripples(
 
         if let Some(mat) = materials.get_mut(&mesh_material.0) {
             mat.base_color = Color::srgba(0.9, 0.95, 1.0, alpha);
+        }
+    }
+}
+
+// ===== Terrain Hazard Systems =====
+
+/// Deals damage to any living unit inside the lava pool.
+pub fn apply_lava_damage(
+    time: Res<Time>,
+    mut units: Query<(&Transform, &mut Health), Without<Corpse>>,
+) {
+    let damage = LAVA_DAMAGE_PER_SECOND * time.delta_secs();
+    let lava_xz = Vec2::new(LAVA_POOL_POSITION.x, LAVA_POOL_POSITION.z);
+    let radius_sq = LAVA_DAMAGE_RADIUS * LAVA_DAMAGE_RADIUS;
+
+    for (transform, mut health) in &mut units {
+        let unit_xz = Vec2::new(transform.translation.x, transform.translation.z);
+        if unit_xz.distance_squared(lava_xz) <= radius_sq {
+            health.take_damage(damage);
+        }
+    }
+}
+
+/// Applies a speed slow to units inside the water pool, removes it when they leave.
+pub fn apply_water_slow(
+    mut units: Query<(&Transform, &mut RoughTerrainModifier), Without<Corpse>>,
+) {
+    let water_xz = Vec2::new(WATER_POOL_POSITION.x, WATER_POOL_POSITION.z);
+    let radius_sq = WATER_POOL_RADIUS * WATER_POOL_RADIUS;
+
+    for (transform, mut terrain_mod) in &mut units {
+        let unit_xz = Vec2::new(transform.translation.x, transform.translation.z);
+        if unit_xz.distance_squared(water_xz) <= radius_sq {
+            if terrain_mod.0 != WATER_SPEED_MODIFIER {
+                terrain_mod.0 = WATER_SPEED_MODIFIER;
+            }
+        } else if terrain_mod.0 != 0.0 {
+            terrain_mod.0 = 0.0;
         }
     }
 }

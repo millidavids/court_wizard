@@ -73,6 +73,14 @@ pub fn is_cc_immobilized(
         || stunned.is_some()
 }
 
+/// Returns true if the unit is a staging attacker (not yet activated).
+/// Handles the 1-frame deferred command delay: units without WaveGroup yet
+/// are also considered staging (they haven't been tagged by `tag_new_attackers`).
+#[inline]
+pub fn is_staging_attacker(team: &Team, has_staging: bool, has_wave_group: bool) -> bool {
+    *team == Team::Attackers && (has_staging || !has_wave_group)
+}
+
 /// Generic targeting system for melee units.
 ///
 /// Finds the nearest enemy using team-based logic and updates targeting velocity.

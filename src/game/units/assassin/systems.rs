@@ -4,10 +4,7 @@ use super::components::Assassin;
 use super::constants::*;
 use super::resources::AssassinAssets;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
-use crate::game::constants::{
-    calculate_grid_cell_position, calculate_spawn_cells, calculate_total_assassins,
-    calculate_total_infantry, cells_needed, distribute_units_to_cells, ATTACKER_HITBOX_HEIGHT,
-};
+use crate::game::constants::{attacker_spawn_position, ATTACKER_HITBOX_HEIGHT};
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::archer::Archer;
 use crate::game::units::components::{
@@ -187,73 +184,46 @@ pub(in crate::game) fn spawn_single_attacker_assassin(
     assassin_assets: &AssassinAssets,
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
-    level: u32,
+    _level: u32,
 ) {
-    let total_infantry = calculate_total_infantry(level);
-    let infantry_cells_needed = cells_needed(total_infantry);
-    // Assassins need their own cells behind infantry
-    let assassin_cells_needed = cells_needed(calculate_total_assassins(level));
+    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index);
+    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
-    // Get infantry cell layout to find where to put assassins behind them
-    let (infantry_cells, _) = calculate_spawn_cells(infantry_cells_needed, 0);
-    let last_infantry_row = infantry_cells.iter().map(|&(r, _)| r).max().unwrap_or(0);
+    let hitbox = Hitbox::new(ASSASSIN_RADIUS, ATTACKER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    // Assassins spawn 2 rows behind the last infantry row
-    let assassin_row = last_infantry_row + 2;
-    let col_fill_order: [u32; 6] = [2, 3, 1, 4, 0, 5];
-    let units_per_cell = distribute_units_to_cells(calculate_total_assassins(level));
+    let anim = WalkingAnimation::default();
 
-    let mut units_counted = 0;
-    for cell_idx in 0..assassin_cells_needed.min(6) {
-        if cell_idx as usize >= units_per_cell.len() {
-            break;
-        }
-        let units_in_this_cell = units_per_cell[cell_idx as usize];
-        if unit_index < units_counted + units_in_this_cell {
-            let col = col_fill_order[cell_idx as usize];
-            let (spawn_x, spawn_z) = calculate_grid_cell_position(assassin_row, col);
-            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        assassin_assets.sprite_texture.clone(),
+        ASSASSIN_SPRITE_TINT,
+    );
 
-            let hitbox = Hitbox::new(ASSASSIN_RADIUS, ATTACKER_HITBOX_HEIGHT);
-            let spawn_y = hitbox.height / 2.0 + 1.0;
-
-            let anim = WalkingAnimation::default();
-
-            // Create translucent material using archer sprite (alpha in tint color)
-            let material = crate::game::units::systems::create_default_sprite_material(
-                materials,
-                assassin_assets.sprite_texture.clone(),
-                ASSASSIN_SPRITE_TINT,
-            );
-
-            commands
-                .spawn((
-                    Mesh3d(assassin_assets.sprite_mesh.clone()),
-                    MeshMaterial3d(material),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
-                    Acceleration::new(),
-                    hitbox,
-                    Health::new(ASSASSIN_HEALTH),
-                    MovementSpeed(ASSASSIN_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    Team::Attackers,
-                    Assassin,
-                ))
-                .insert((
-                    anim,
-                    FacingDirection::default(),
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    FlowFieldVelocity::default(),
-                    FlowFieldInfluence::Assassin,
-                    Teleportable,
-                    Billboard,
-                    OnGameplayScreen,
-                ));
-            return;
-        }
-        units_counted += units_in_this_cell;
-    }
+    commands
+        .spawn((
+            Mesh3d(assassin_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(final_x, spawn_y, final_z),
+            Velocity::default(),
+            Acceleration::new(),
+            hitbox,
+            Health::new(ASSASSIN_HEALTH),
+            MovementSpeed(ASSASSIN_MOVEMENT_SPEED),
+            AttackTiming::new(),
+            Effectiveness::new(),
+            Team::Attackers,
+            Assassin,
+        ))
+        .insert((
+            anim,
+            FacingDirection::default(),
+            TargetingVelocity::default(),
+            FlockingVelocity::default(),
+            FlowFieldVelocity::default(),
+            FlowFieldInfluence::Assassin,
+            Teleportable,
+            Billboard,
+            OnGameplayScreen,
+        ));
 }

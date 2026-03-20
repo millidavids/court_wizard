@@ -18,7 +18,7 @@ pub const INFANTRY_DAMAGE_INCREASE: f32 = 1.2;
 pub const ASSASSIN_VS_ARCHER_DAMAGE: f32 = 1000.0;
 
 /// Assassin attack speed bonus (2.0 = 3x attack speed).
-pub const ASSASSIN_ATTACK_SPEED_BONUS: f32 = 2.0;
+pub const ASSASSIN_ATTACK_SPEED_BONUS: f32 = 0.0;
 
 // ===== Health =====
 
@@ -54,4 +54,3 @@ pub const ASSASSIN_ALPHA: f32 = 0.7;
 pub const ASSASSIN_SPRITE_TINT: Color = Color::srgba(0.5, 0.4, 0.55, ASSASSIN_ALPHA);
 
 pub const ASSASSIN_RADIUS: f32 = 8.0 * UNIT_SCALE;
-

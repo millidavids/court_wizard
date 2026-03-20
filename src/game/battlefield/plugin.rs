@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::components::{BattlefieldAssets, LavaPool, WaterRipple, WaterRippleAssets};
 use super::systems;
+use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::run_conditions::{any_exist, is_gameplay_running};
 
 /// Plugin that handles battlefield and castle setup.
@@ -26,6 +27,16 @@ impl Plugin for BattlefieldPlugin {
                         .run_if(any_exist::<WaterRipple>()),
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Terrain hazard systems (lava damage, water slow)
+            .add_systems(
+                Update,
+                (
+                    systems::apply_lava_damage,
+                    systems::apply_water_slow,
+                )
+                    .run_if(is_gameplay_running)
+                    .run_if(resource_exists::<PathfindingGrid>),
             );
     }
 }

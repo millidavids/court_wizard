@@ -186,6 +186,8 @@ impl Plugin for GamePlugin {
                     // Runs after all targeting systems (VelocitySystemSet) so every
                     // unit — including the King — has its targeting suppressed.
                     shared_systems::suppress_targeting_through_walls,
+                    // Staging attackers must not target enemies — only follow staging flow field
+                    crate::game::pathfinding::systems::suppress_staging_targeting,
                     // Calculate effectiveness based on nearby allies/enemies
                     shared_systems::calculate_effectiveness,
                     // Apply rough terrain slowdown before movement

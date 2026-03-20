@@ -25,7 +25,6 @@ pub enum ObstacleType {
     Blocked,
     /// Cell has increased movement cost (mud, water).
     /// The f32 value is the cost multiplier (e.g., 3.0 = 3x slower).
-    #[allow(dead_code)]
     SlowTerrain(f32),
     /// Cell is a hazard (fire, poison) with increased movement cost.
     /// The f32 value is the cost multiplier — higher values make units avoid more strongly.

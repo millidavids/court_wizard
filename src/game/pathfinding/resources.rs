@@ -41,6 +41,10 @@ pub struct PathfindingGrid {
     /// Last known assassin target position (archer center of mass).
     pub last_assassin_target_pos: Vec2,
 
+    /// Flow field for staging attackers (flows toward the staging point).
+    /// Built once at initialization and never rebuilt.
+    pub staging_field: Option<FlowField>,
+
     /// Last known King position.
     pub last_king_pos: Vec2,
     /// King's current target entity (None = no enemies / not activated yet).
@@ -63,15 +67,16 @@ impl PathfindingGrid {
     ///
     /// # Arguments
     ///
-    /// * `battlefield_size` - Size of the battlefield (assuming square, centered at origin)
+    /// * `battlefield_size` - Size of the battlefield (square, centered at origin)
     /// * `cell_size` - Size of each grid cell in world units
-    pub fn new(battlefield_size: f32, cell_size: f32) -> Self {
+    /// * `x_extension` - Extra world units to extend in the +X direction (for spawn area behind wall)
+    pub fn new(battlefield_size: f32, cell_size: f32, x_extension: f32) -> Self {
         let half_size = battlefield_size / 2.0;
         let world_min = Vec2::new(-half_size, -half_size);
-        let world_max = Vec2::new(half_size, half_size);
+        let world_max = Vec2::new(half_size + x_extension, half_size);
 
-        let grid_width = (battlefield_size / cell_size).ceil() as usize;
-        let grid_height = grid_width; // Square grid
+        let grid_width = ((world_max.x - world_min.x) / cell_size).ceil() as usize;
+        let grid_height = ((world_max.y - world_min.y) / cell_size).ceil() as usize;
 
         let base_costs = vec![1.0; grid_width * grid_height];
 
@@ -88,6 +93,7 @@ impl PathfindingGrid {
             assassin_field: None,
             pending_assassin_rebuild: None,
             last_assassin_target_pos: Vec2::ZERO,
+            staging_field: None,
             last_king_pos: Vec2::ZERO,
             king_current_target: None,
             base_costs,
