@@ -5,6 +5,7 @@
 
 mod changelog;
 mod credits;
+mod game_mode_select;
 mod landing;
 mod multiplayer;
 mod plugin;

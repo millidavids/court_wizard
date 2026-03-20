@@ -15,6 +15,7 @@ impl Plugin for GameOverPlugin {
             OnEnter(InGameState::ScoreScreen),
             (
                 send_battle_ended,
+                accumulate_mode_level_stats,
                 save_efficiency_to_config,
                 save_walls_on_victory,
                 save_crystals_on_victory,

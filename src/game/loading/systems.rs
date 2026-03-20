@@ -31,6 +31,7 @@ pub fn init_loading_progress(
     config: Res<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
     active_talents: Option<Res<crate::game::units::wizard::talents::resources::ActiveTalents>>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
 ) {
     // Sync CurrentLevel from GameConfig, but skip during time travel
     // (CurrentLevel was already overridden by the wizard tower hub)
@@ -125,7 +126,10 @@ pub fn init_loading_progress(
         let wave_count = calculate_wave_count(level);
 
         // 7. Attacker Infantry (wave 1)
-        let total_attackers = calculate_total_infantry(level);
+        let is_endless = crate::game::game_mode::components::is_endless_mode(game_mode.as_deref());
+        let extra_infantry = if is_endless { crate::game::constants::endless_extra_infantry(level) } else { 0 };
+        let extra_archers = if is_endless { crate::game::constants::endless_extra_archers(level) } else { 0 };
+        let total_attackers = calculate_total_infantry(level) + extra_infantry;
         for i in 0..total_attackers {
             queue.tasks.push(SpawnTask::AttackerInfantry {
                 unit_index: i,
@@ -134,7 +138,7 @@ pub fn init_loading_progress(
         }
 
         // 8. Attacker Archers (wave 1)
-        let total_attacker_archers = calculate_total_archers(level);
+        let total_attacker_archers = calculate_total_archers(level) + extra_archers;
         for i in 0..total_attacker_archers {
             queue.tasks.push(SpawnTask::AttackerArcher {
                 unit_index: i,

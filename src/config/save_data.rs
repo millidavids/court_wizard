@@ -596,6 +596,43 @@ pub(crate) struct WizardSave {
     pub(crate) saved_walls: Vec<SavedWall>,
     #[serde(default)]
     pub(crate) saved_crystals: Vec<SavedCrystal>,
+    /// Roguelite run history (last 20 runs). Added in game mode update.
+    #[serde(default)]
+    pub(crate) roguelite: RogueliteData,
+    /// Best stats achieved per endless level. Added in game mode update.
+    #[serde(default)]
+    pub(crate) endless_best_stats: HashMap<String, EndlessLevelBest>,
+}
+
+/// Per-wizard roguelite data.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub(crate) struct RogueliteData {
+    pub(crate) run_history: Vec<RogueliteRun>,
+}
+
+/// A completed roguelite run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct RogueliteRun {
+    pub(crate) victory: bool,
+    pub(crate) levels_completed: u32,
+    pub(crate) started_at: u64,
+    pub(crate) ended_at: u64,
+    #[serde(default)]
+    pub(crate) wizard_type: crate::config::WizardType,
+    /// Whether this run is permanently saved (exempt from history trimming).
+    #[serde(default)]
+    pub(crate) saved: bool,
+    pub(crate) level_stats: Vec<crate::game::game_mode::components::LevelRunStats>,
+}
+
+/// Best stats achieved on a single endless level.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct EndlessLevelBest {
+    pub(crate) best_efficiency: f32,
+    pub(crate) attackers_killed: u32,
+    pub(crate) undead_killed: u32,
+    pub(crate) defenders_lost: u32,
+    pub(crate) elapsed_time: f32,
 }
 
 // ---------------------------------------------------------------------------
@@ -700,7 +737,7 @@ fn generate_id() -> String {
 }
 
 /// Get current Unix timestamp in seconds.
-fn current_timestamp() -> u64 {
+pub(crate) fn current_timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -832,6 +869,8 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         action_bar_slots: [None; 5],
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
+        roguelite: RogueliteData::default(),
+        endless_best_stats: HashMap::new(),
     };
 
     let id = wizard.id.clone();
@@ -841,7 +880,15 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
 }
 
 /// Save the current GameConfig back to the active wizard in the unified save.
-pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &ActiveSave) {
+///
+/// When `is_roguelite` is true, only action bar and timestamp are persisted —
+/// level progress, walls, crystals, and efficiency stay untouched so the
+/// wizard's Endless progress is never corrupted by a Roguelite run.
+pub(crate) fn save_config_to_active_wizard(
+    config: &GameConfig,
+    active_save: &ActiveSave,
+    is_roguelite: bool,
+) {
     let Some(wizard_id) = &active_save.0 else {
         return;
     };
@@ -850,16 +897,113 @@ pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &Ac
 
     if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
         wizard.wizard_type = config.wizard_type;
-        wizard.current_level = config.current_level;
-        wizard.highest_level_achieved = config.highest_level_achieved;
-        wizard.efficiency_ratios = config.efficiency_ratios.clone();
         wizard.action_bar_slots = config.action_bar_slots;
-        wizard.saved_walls = config.saved_walls.clone();
-        wizard.saved_crystals = config.saved_crystals.clone();
         wizard.last_played_at = current_timestamp();
+
+        if !is_roguelite {
+            wizard.current_level = config.current_level;
+            wizard.highest_level_achieved = config.highest_level_achieved;
+            wizard.efficiency_ratios = config.efficiency_ratios.clone();
+            wizard.saved_walls = config.saved_walls.clone();
+            wizard.saved_crystals = config.saved_crystals.clone();
+        }
     }
 
     save_file.metadata.last_active_wizard_id = Some(wizard_id.clone());
+    save_unified(&save_file);
+}
+
+/// Save a completed roguelite run to the wizard's run history.
+/// Caps at MAX_ROGUELITE_RUN_HISTORY entries (FIFO).
+pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
+    use crate::game::game_mode::components::MAX_ROGUELITE_RUN_HISTORY;
+
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        wizard.roguelite.run_history.push(run);
+        // Trim oldest unsaved runs when over limit (single pass)
+        let unsaved_count = wizard
+            .roguelite
+            .run_history
+            .iter()
+            .filter(|r| !r.saved)
+            .count();
+        if unsaved_count > MAX_ROGUELITE_RUN_HISTORY {
+            let excess = unsaved_count - MAX_ROGUELITE_RUN_HISTORY;
+            let mut removed = 0;
+            wizard
+                .roguelite
+                .run_history
+                .retain(|r| {
+                    if !r.saved && removed < excess {
+                        removed += 1;
+                        false
+                    } else {
+                        true
+                    }
+                });
+        }
+    }
+
+    save_unified(&save_file);
+}
+
+/// Toggle the saved status of a roguelite run identified by its `started_at` timestamp.
+pub(crate) fn toggle_roguelite_run_saved(started_at: u64) {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    for wizard in &mut save_file.wizards {
+        if let Some(run) = wizard
+            .roguelite
+            .run_history
+            .iter_mut()
+            .find(|r| r.started_at == started_at)
+        {
+            run.saved = !run.saved;
+            break;
+        }
+    }
+
+    save_unified(&save_file);
+}
+
+/// Update the best stats for an endless level if the current efficiency beats the stored best.
+pub(crate) fn update_endless_best_stats(
+    active_save: &ActiveSave,
+    stats: &crate::game::game_mode::components::LevelRunStats,
+) {
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        let key = stats.level.to_string();
+        let should_update = wizard
+            .endless_best_stats
+            .get(&key)
+            .map_or(true, |existing| stats.efficiency > existing.best_efficiency);
+
+        if should_update {
+            wizard.endless_best_stats.insert(
+                key,
+                EndlessLevelBest {
+                    best_efficiency: stats.efficiency,
+                    attackers_killed: stats.attackers_killed,
+                    undead_killed: stats.undead_killed,
+                    defenders_lost: stats.defenders_lost,
+                    elapsed_time: stats.elapsed_time,
+                },
+            );
+        }
+    }
+
     save_unified(&save_file);
 }
 
@@ -1181,6 +1325,8 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             action_bar_slots: old_data.action_bar_slots,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
+            roguelite: RogueliteData::default(),
+            endless_best_stats: HashMap::new(),
         };
 
         let dominated = best_by_type

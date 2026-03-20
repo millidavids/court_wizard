@@ -6,6 +6,7 @@ use bevy::prelude::*;
 
 use super::changelog::ChangelogPlugin;
 use super::credits::CreditsPlugin;
+use super::game_mode_select::GameModeSelectPlugin;
 use super::landing::plugin::LandingPlugin;
 use super::multiplayer::plugin::MultiplayerPlugin;
 use super::settings::plugin::SettingsPlugin;
@@ -27,6 +28,7 @@ impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             LandingPlugin,
+            GameModeSelectPlugin,
             SettingsPlugin,
             ChangelogPlugin,
             CreditsPlugin,

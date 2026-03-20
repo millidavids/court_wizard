@@ -130,11 +130,14 @@ pub(super) fn setup_wizard_tower_main(
     mut commands: Commands,
     current_level: Res<CurrentLevel>,
     config: Res<crate::config::GameConfig>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
 ) {
     let insight_balance = get_insight();
     commands.insert_resource(SelectedTimeTravelLevel::default());
 
-    let show_time_travel = config.highest_level_achieved > 1;
+    let is_roguelite =
+        crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    let show_time_travel = config.highest_level_achieved > 1 && !is_roguelite;
 
     commands
         .spawn((

@@ -386,6 +386,44 @@ pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     })
 }
 
+// ===== Endless Mode Scaling =====
+
+/// The last tier that introduces new unit types (tier 4, levels 21-25).
+pub const FINAL_INTRODUCTION_TIER: u32 = 4;
+
+/// The last level in the introduction tiers (after which endless scaling begins).
+pub const LAST_INTRODUCTION_LEVEL: u32 = (FINAL_INTRODUCTION_TIER + 1) * LEVELS_PER_TIER;
+
+/// Extra infantry per level past the final introduction tier in Endless mode.
+pub const ENDLESS_EXTRA_INFANTRY_PER_LEVEL: u32 = 3;
+
+/// Extra archers per level past the final introduction tier in Endless mode.
+pub const ENDLESS_EXTRA_ARCHERS_PER_LEVEL: u32 = 1;
+
+/// Cumulative effectiveness boost per level past the final introduction tier (2% per level).
+pub const ENDLESS_SCALING_PER_LEVEL: f32 = 0.02;
+
+/// Returns the number of levels past the introduction tiers, or 0 if still in them.
+fn levels_past_introduction(level: u32) -> u32 {
+    level.saturating_sub(LAST_INTRODUCTION_LEVEL)
+}
+
+/// Returns the cumulative effectiveness bonus for endless scaling.
+/// Returns 0.0 for levels within the introduction tiers.
+pub fn endless_effectiveness_bonus(level: u32) -> f32 {
+    levels_past_introduction(level) as f32 * ENDLESS_SCALING_PER_LEVEL
+}
+
+/// Returns extra infantry to add in Endless mode past the final introduction tier.
+pub fn endless_extra_infantry(level: u32) -> u32 {
+    levels_past_introduction(level) * ENDLESS_EXTRA_INFANTRY_PER_LEVEL
+}
+
+/// Returns extra archers to add in Endless mode past the final introduction tier.
+pub fn endless_extra_archers(level: u32) -> u32 {
+    levels_past_introduction(level) * ENDLESS_EXTRA_ARCHERS_PER_LEVEL
+}
+
 // ===== Level-Based Spawn Calculations =====
 
 /// Maximum units per grid cell before spilling to the next cell.

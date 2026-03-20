@@ -10,6 +10,7 @@ use super::cauldron::CauldronPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::crt_effect::CrtEffectPlugin;
 use super::drops::DropsPlugin;
+use super::game_mode::GameModePlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::{
@@ -111,6 +112,7 @@ impl Plugin for GamePlugin {
                 PathfindingPlugin,
                 AchievementsPlugin,
                 DropsPlugin,
+                GameModePlugin,
                 CrtEffectPlugin,
                 TalentsPlugin,
             ))

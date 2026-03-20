@@ -4,6 +4,10 @@ use crate::config::save_data::{SavedCrystal, SavedWall, load_unified_save};
 use crate::config::{ActiveSave, ConfigChanged, GameConfig, WizardType};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
+use crate::game::game_mode::components::{
+    format_time, is_roguelite_mode, GameMode, LevelRunStats, RogueliteRunState,
+    RunAggregateStats, ROGUELITE_MAX_LEVEL,
+};
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, TimeTravelState,
@@ -28,8 +32,13 @@ pub(super) fn save_efficiency_to_config(
     kill_stats: Res<KillStats>,
     mut config_events: MessageWriter<ConfigChanged>,
     time_travel: Option<Res<TimeTravelState>>,
+    game_mode: Option<Res<GameMode>>,
 ) {
     if time_travel.is_some() {
+        return;
+    }
+    // In Roguelite mode, efficiency is tracked in the run state, not in config
+    if is_roguelite_mode(game_mode.as_deref()) {
         return;
     }
     // Calculate efficiency ratio for this level
@@ -56,21 +65,23 @@ pub(super) fn update_level_after_display(
     game_outcome: Res<GameOutcome>,
     mut config_events: MessageWriter<ConfigChanged>,
     time_travel: Option<Res<TimeTravelState>>,
+    game_mode: Option<Res<GameMode>>,
 ) {
     if time_travel.is_some() {
         return;
     }
+    let is_roguelite = is_roguelite_mode(game_mode.as_deref());
     // Update level based on win/loss
     if *game_outcome == GameOutcome::Victory {
         current_level.0 += 1;
-        // Update highest level if surpassed
-        if current_level.0 > config.highest_level_achieved {
+        // Update highest level if surpassed (Endless only)
+        if !is_roguelite && current_level.0 > config.highest_level_achieved {
             config.highest_level_achieved = current_level.0;
         }
     }
     // Defeat: keep current level - player retries the same level
 
-    // Save current level to config
+    // Save current level to config (for next level in run or normal progression)
     config.current_level = current_level.0;
 
     // Trigger config save immediately
@@ -138,8 +149,13 @@ pub(super) fn setup_game_over_screen(
     config: Res<GameConfig>,
     battle_insight: Res<BattleInsightData>,
     time_travel: Option<Res<TimeTravelState>>,
+    game_mode: Option<Res<GameMode>>,
+    roguelite_run: Option<Res<RogueliteRunState>>,
 ) {
     let is_time_travel = time_travel.is_some();
+    let is_roguelite = matches!(game_mode.as_deref(), Some(&GameMode::Roguelite));
+    let is_roguelite_run_end = is_roguelite
+        && (game_outcome.is_defeat() || current_level.0 >= ROGUELITE_MAX_LEVEL);
     // Load lifetime stats (already accumulated by send_battle_ended)
     let save = load_unified_save();
     let lifetime_attackers = save
@@ -223,7 +239,23 @@ pub(super) fn setup_game_over_screen(
                         ));
                     }
 
-                    if is_time_travel {
+                    if is_roguelite_run_end {
+                        // Roguelite run ended (defeat or completed all levels)
+                        spawn_button(
+                            buttons,
+                            "End Run",
+                            GameOverButtonAction::EndRun,
+                            &BUTTON_STYLE,
+                        );
+                    } else if is_roguelite {
+                        // Roguelite mid-run victory — continue to next level
+                        spawn_button(
+                            buttons,
+                            "Continue",
+                            GameOverButtonAction::PlayAgain,
+                            &BUTTON_STYLE,
+                        );
+                    } else if is_time_travel {
                         // Time travel: victory shows only "Return to Tower"
                         // Defeat shows retry + return to tower
                         if game_outcome.is_defeat() {
@@ -242,7 +274,7 @@ pub(super) fn setup_game_over_screen(
                             &BUTTON_STYLE,
                         );
                     } else {
-                        // Normal flow
+                        // Normal Endless flow
                         let button_text = if game_outcome.is_defeat() {
                             format!("Time Rewind (Level {})", current_level.0)
                         } else {
@@ -359,51 +391,132 @@ pub(super) fn setup_game_over_screen(
                         TextColor(INSIGHT_COLOR),
                     ));
 
-                    // Past victory efficiency for current level (if exists)
-                    if let Some(past_efficiency) =
-                        config.efficiency_ratios.get(&current_level.0.to_string())
-                    {
+                    if !is_roguelite {
+                        // Past victory efficiency for current level (if exists)
+                        if let Some(past_efficiency) =
+                            config.efficiency_ratios.get(&current_level.0.to_string())
+                        {
+                            stats.spawn((
+                                Text::new("Past Victory:"),
+                                TextFont::from_font_size(24.0),
+                                TextColor(TEXT_COLOR),
+                            ));
+
+                            stats.spawn((
+                                Text::new(format!(
+                                    "  Level {}: {:.1}%",
+                                    current_level.0,
+                                    past_efficiency * 100.0
+                                )),
+                                TextFont::from_font_size(18.0),
+                                TextColor(TEXT_COLOR),
+                            ));
+                        }
+
+                        // Lifetime stats
                         stats.spawn((
-                            Text::new("Past Victory:"),
+                            Text::new("Lifetime:"),
                             TextFont::from_font_size(24.0),
                             TextColor(TEXT_COLOR),
                         ));
 
                         stats.spawn((
-                            Text::new(format!(
-                                "  Level {}: {:.1}%",
-                                current_level.0,
-                                past_efficiency * 100.0
-                            )),
-                            TextFont::from_font_size(18.0),
+                            Text::new(format!("  Attackers Killed: {}", lifetime_attackers)),
+                            TextFont::from_font_size(20.0),
+                            TextColor(TEXT_COLOR),
+                        ));
+
+                        stats.spawn((
+                            Text::new(format!("  Defenders Lost: {}", lifetime_defenders)),
+                            TextFont::from_font_size(20.0),
+                            TextColor(TEXT_COLOR),
+                        ));
+
+                        stats.spawn((
+                            Text::new(format!("  Undead Killed: {}", lifetime_undead)),
+                            TextFont::from_font_size(20.0),
                             TextColor(TEXT_COLOR),
                         ));
                     }
 
-                    // Lifetime stats
-                    stats.spawn((
-                        Text::new("Lifetime:"),
-                        TextFont::from_font_size(24.0),
-                        TextColor(TEXT_COLOR),
-                    ));
+                    // Roguelite run summary (on run end only)
+                    if is_roguelite_run_end {
+                        if let Some(ref run) = roguelite_run {
+                            stats.spawn((
+                                Text::new("Run Summary:"),
+                                TextFont::from_font_size(24.0),
+                                TextColor(TITLE_COLOR),
+                                Node {
+                                    margin: UiRect::top(Val::Px(10.0)),
+                                    ..default()
+                                },
+                            ));
 
-                    stats.spawn((
-                        Text::new(format!("  Attackers Killed: {}", lifetime_attackers)),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
-                    ));
+                            let agg = RunAggregateStats::from_level_stats(&run.level_stats);
 
-                    stats.spawn((
-                        Text::new(format!("  Defenders Lost: {}", lifetime_defenders)),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
-                    ));
+                            stats.spawn((
+                                Text::new(format!(
+                                    "  Levels Completed: {}",
+                                    run.level_stats.len()
+                                )),
+                                TextFont::from_font_size(18.0),
+                                TextColor(TEXT_COLOR),
+                            ));
+                            stats.spawn((
+                                Text::new(format!("  Total Kills: {}", agg.total_kills)),
+                                TextFont::from_font_size(18.0),
+                                TextColor(TEXT_COLOR),
+                            ));
+                            stats.spawn((
+                                Text::new(format!(
+                                    "  Avg Efficiency: {:.1}%",
+                                    agg.avg_efficiency * 100.0
+                                )),
+                                TextFont::from_font_size(18.0),
+                                TextColor(TEXT_COLOR),
+                            ));
+                            stats.spawn((
+                                Text::new(format!(
+                                    "  Total Time: {}",
+                                    format_time(agg.total_time)
+                                )),
+                                TextFont::from_font_size(18.0),
+                                TextColor(TEXT_COLOR),
+                            ));
 
-                    stats.spawn((
-                        Text::new(format!("  Undead Killed: {}", lifetime_undead)),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
-                    ));
+                            // Per-level breakdown (scrollable)
+                            stats.spawn((
+                                Text::new("  Per Level:"),
+                                TextFont::from_font_size(16.0),
+                                TextColor(INSIGHT_COLOR),
+                            ));
+
+                            stats
+                                .spawn(Node {
+                                    flex_direction: FlexDirection::Column,
+                                    max_height: Val::Px(150.0),
+                                    overflow: Overflow::scroll_y(),
+                                    row_gap: Val::Px(2.0),
+                                    padding: UiRect::left(Val::Px(20.0)),
+                                    ..default()
+                                })
+                                .with_children(|scroll| {
+                                    for level_stat in &run.level_stats {
+                                        scroll.spawn((
+                                            Text::new(format!(
+                                                "Lv{}: {:.0}% | {} kills | {}",
+                                                level_stat.level,
+                                                level_stat.efficiency * 100.0,
+                                                level_stat.total_kills(),
+                                                format_time(level_stat.elapsed_time),
+                                            )),
+                                            TextFont::from_font_size(12.0),
+                                            TextColor(TEXT_COLOR),
+                                        ));
+                                    }
+                                });
+                        }
+                    }
                 });
         });
 }
@@ -418,7 +531,9 @@ pub(super) fn handle_button_actions(
     mut current_level: ResMut<CurrentLevel>,
     mut kill_stats: ResMut<KillStats>,
     mut active_save: ResMut<ActiveSave>,
+    config: Res<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
+    roguelite_run: Option<Res<RogueliteRunState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -460,7 +575,71 @@ pub(super) fn handle_button_actions(
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
                 }
+                GameOverButtonAction::EndRun => {
+                    // Save roguelite run to history
+                    if let Some(ref run) = roguelite_run {
+                        let roguelite_run_data = crate::config::save_data::RogueliteRun {
+                            victory: !game_outcome.is_defeat(),
+                            levels_completed: run.level_stats.len() as u32,
+                            started_at: run.started_at,
+                            ended_at: crate::config::save_data::current_timestamp(),
+                            wizard_type: config.wizard_type,
+                            saved: false,
+                            level_stats: run.level_stats.clone(),
+                        };
+                        crate::config::save_data::save_roguelite_run(
+                            &active_save,
+                            roguelite_run_data,
+                        );
+                    }
+                    kill_stats.reset();
+                    commands.remove_resource::<RogueliteRunState>();
+                    active_save.0 = None;
+                    next_app_state.set(AppState::MainMenu);
+                }
             }
         }
+    }
+}
+
+/// Accumulates level stats into the roguelite run state after each battle.
+/// Also saves endless best stats when in Endless mode.
+pub(super) fn accumulate_mode_level_stats(
+    game_mode: Option<Res<GameMode>>,
+    mut roguelite_run: Option<ResMut<RogueliteRunState>>,
+    kill_stats: Res<KillStats>,
+    current_level: Res<CurrentLevel>,
+    game_outcome: Res<GameOutcome>,
+    active_save: Res<ActiveSave>,
+    time_travel: Option<Res<TimeTravelState>>,
+) {
+    let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
+    let efficiency = 1.0 - (kill_stats.defenders_killed as f32 / total_defenders);
+
+    let level_stats = LevelRunStats {
+        level: current_level.0,
+        efficiency,
+        attackers_killed: kill_stats.attackers_killed,
+        undead_killed: kill_stats.undead_killed,
+        defenders_lost: kill_stats.defenders_killed,
+        elapsed_time: kill_stats.elapsed_time,
+    };
+
+    match game_mode.as_deref() {
+        Some(&GameMode::Roguelite) => {
+            if let Some(ref mut run) = roguelite_run {
+                run.level_stats.push(level_stats);
+            }
+        }
+        Some(&GameMode::Endless) => {
+            // Save best stats for this level (only on victory, not during time travel)
+            if *game_outcome == GameOutcome::Victory && time_travel.is_none() {
+                crate::config::save_data::update_endless_best_stats(
+                    &active_save,
+                    &level_stats,
+                );
+            }
+        }
+        None => {}
     }
 }

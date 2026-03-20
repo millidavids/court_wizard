@@ -30,6 +30,7 @@ impl Plugin for MainMenuCompendiumPlugin {
                     handle_main_menu_back_button,
                     systems::handle_tab_click,
                     systems::handle_item_click,
+                    systems::handle_toggle_save_run,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Compendium)),
@@ -69,6 +70,7 @@ impl Plugin for PauseMenuCompendiumPlugin {
                 handle_pause_menu_back_button,
                 systems::handle_tab_click,
                 systems::handle_item_click,
+                systems::handle_toggle_save_run,
             )
                 .in_set(ButtonActionSet)
                 .run_if(in_state(PauseMenuState::Compendium)),
@@ -105,6 +107,7 @@ impl Plugin for MetaGameCompendiumPlugin {
                     handle_meta_game_back_button,
                     systems::handle_tab_click,
                     systems::handle_item_click,
+                    systems::handle_toggle_save_run,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MetaGameState::Compendium)),

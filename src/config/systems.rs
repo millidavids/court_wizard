@@ -216,6 +216,7 @@ pub(super) fn save_config_on_debounce_timer(
     mut debounce_timer: ResMut<SaveDebounceTimer>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if !debounce_timer.pending {
@@ -225,7 +226,14 @@ pub(super) fn save_config_on_debounce_timer(
     debounce_timer.timer.tick(time.delta());
 
     if debounce_timer.timer.is_finished() {
-        persist_config(&game_config, &active_save, get_window_position(&windows));
+        let is_roguelite =
+            crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+        persist_config(
+            &game_config,
+            &active_save,
+            get_window_position(&windows),
+            is_roguelite,
+        );
         debounce_timer.pending = false;
     }
 }
@@ -245,13 +253,21 @@ pub(super) fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigMessage>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if save_events.read().count() == 0 {
         return;
     }
 
-    persist_config(&game_config, &active_save, get_window_position(&windows));
+    let is_roguelite =
+        crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    persist_config(
+        &game_config,
+        &active_save,
+        get_window_position(&windows),
+        is_roguelite,
+    );
 }
 
 /// Saves current state to localStorage by reading from Bevy components.
@@ -270,7 +286,12 @@ pub(super) fn save_config_on_event(
 /// * `window_config` - Window configuration resource
 /// * `audio_config` - Audio configuration resource
 /// * `game_config` - Game configuration resource
-fn persist_config(game_config: &GameConfig, active_save: &ActiveSave, window_pos: Option<IVec2>) {
+fn persist_config(
+    game_config: &GameConfig,
+    active_save: &ActiveSave,
+    window_pos: Option<IVec2>,
+    is_roguelite: bool,
+) {
     // Build ConfigFile from current state
     let config_file = build_config_from_game_config(game_config, window_pos);
 
@@ -290,7 +311,7 @@ fn persist_config(game_config: &GameConfig, active_save: &ActiveSave, window_pos
     }
 
     // Save progress to the active wizard in the unified save file
-    save_data::save_config_to_active_wizard(game_config, active_save);
+    save_data::save_config_to_active_wizard(game_config, active_save, is_roguelite);
 }
 
 /// Builds ConfigFile from current GameConfig.

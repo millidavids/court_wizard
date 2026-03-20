@@ -95,7 +95,7 @@ pub fn button_action(
             channel_change.write(ChannelChangeMessage);
             match action {
                 MenuButtonAction::Play => {
-                    next_menu_state.set(MenuState::WizardSelect);
+                    next_menu_state.set(MenuState::GameModeSelect);
                 }
                 MenuButtonAction::Settings => {
                     next_menu_state.set(MenuState::Settings);

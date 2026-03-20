@@ -71,6 +71,9 @@ pub enum MenuState {
     /// Credits screen.
     Credits,
 
+    /// Game mode selection screen (Story, Roguelite, Endless, Multiplayer).
+    GameModeSelect,
+
     /// Wizard type selection screen for picking or creating a wizard.
     WizardSelect,
 

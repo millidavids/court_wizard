@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.519] - 2026-03-20
+
+### Added
+- **Game mode selection** — a new menu screen lets you choose between different game modes before picking your wizard
+- **Roguelite mode** — a fixed 25-level run where losing ends your attempt; you get a score screen with full run stats, then return to the main menu to try again
+- **Endless mode** — an infinitely scaling mode where your progress saves between sessions; pick up where you left off and face increasingly tougher enemies past the final tier
+- **Endless difficulty scaling** — beyond the last tier of unit introductions, attackers become progressively stronger and more numerous each level
+- **Per-wizard Endless progression** — each wizard type tracks its own Endless mode level progress independently
+- **Roguelite compendium tab** — view your recent runs and saved runs in the compendium, click any run to see a full level-by-level breakdown
+- **Endless compendium tab** — view your best stats per level for each wizard type in the compendium
+- **Save and unsave runs** — permanently save your favorite roguelite runs so they're never lost to history trimming
+- **Roguelite score screen** — when a roguelite run ends, see a summary of your run performance including kills, efficiency, and time per level
+- **Story and Multiplayer placeholders** — these game modes appear on the selection screen as "Coming Soon"
+
+### Changed
+- **CRT flash effect** — reduced the intensity of the screen flash during menu transitions for a subtler look
+- **Timewalking disabled in Roguelite** — you can't replay previous levels during a roguelite run
+- **Mode-aware saving** — roguelite runs don't overwrite your endless mode progress or vice versa
+
 ## [v0.4.510] - 2026-03-20
 
 ### Added
