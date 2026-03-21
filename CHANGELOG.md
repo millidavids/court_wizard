@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.34] - 2026-03-21
+
+### Fixed
+- **Smoother unit animations** — units no longer flicker between walking directions when moving diagonally; their facing direction stays stable until they clearly change course
+
 ## [v0.5.31] - 2026-03-20
 
 ### Added

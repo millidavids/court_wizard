@@ -3,8 +3,9 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, FacingDirection, SPRITE_FRAME_SIZE,
-    SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
+    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, DIRECTION_HYSTERESIS_FACTOR,
+    FacingDirection, SIGN_HYSTERESIS_THRESHOLD, SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT,
+    WalkingAnimation,
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
@@ -1231,16 +1232,39 @@ pub fn update_facing_direction(
         let forward_dot = vel_xz.dot(cam_forward_xz);
         let right_dot = vel_xz.dot(cam_right);
 
-        let new_facing = if forward_dot.abs() > right_dot.abs() {
-            if forward_dot < 0.0 {
-                FacingDirection::Back
-            } else {
-                FacingDirection::Forward
-            }
-        } else if right_dot > 0.0 {
-            FacingDirection::Right
+        // Apply hysteresis: boost the current direction's axis so it's "sticky"
+        let current_is_forward_back =
+            matches!(*facing, FacingDirection::Forward | FacingDirection::Back);
+        let (eff_fwd, eff_right) = if current_is_forward_back {
+            (forward_dot.abs() * DIRECTION_HYSTERESIS_FACTOR, right_dot.abs())
         } else {
-            FacingDirection::Left
+            (forward_dot.abs(), right_dot.abs() * DIRECTION_HYSTERESIS_FACTOR)
+        };
+
+        // Pick direction within the winning axis, with sign hysteresis:
+        // keep the current direction unless the dot clearly opposes it.
+        let new_facing = if eff_fwd > eff_right {
+            match *facing {
+                FacingDirection::Forward if forward_dot > -SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Forward
+                }
+                FacingDirection::Back if forward_dot < SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Back
+                }
+                _ if forward_dot < 0.0 => FacingDirection::Back,
+                _ => FacingDirection::Forward,
+            }
+        } else {
+            match *facing {
+                FacingDirection::Right if right_dot > -SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Right
+                }
+                FacingDirection::Left if right_dot < SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Left
+                }
+                _ if right_dot > 0.0 => FacingDirection::Right,
+                _ => FacingDirection::Left,
+            }
         };
 
         if *facing != new_facing {

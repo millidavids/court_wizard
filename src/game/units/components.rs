@@ -738,6 +738,16 @@ pub enum FacingDirection {
 /// Minimum velocity squared to count as "moving" for animation purposes (5.0 units/sec).
 pub const ANIMATION_MOVE_THRESHOLD_SQ: f32 = 25.0;
 
+/// Hysteresis factor for direction switching. The current direction's axis gets
+/// this multiplier bonus, preventing rapid flipping near diagonal angles.
+/// 1.3 ≈ 8° overlap per side around the 45° boundary.
+pub(super) const DIRECTION_HYSTERESIS_FACTOR: f32 = 1.3;
+
+/// Sign hysteresis threshold: within an axis, the dot product must cross this
+/// magnitude past zero before flipping direction (e.g., Forward→Back).
+/// Prevents flickering when velocity is nearly perpendicular to the axis.
+pub(super) const SIGN_HYSTERESIS_THRESHOLD: f32 = 2.0;
+
 // Combined sprite sheet constants (shared by infantry and archer sheets).
 pub const SPRITE_SHEET_IMAGE_WIDTH: f32 = 832.0;
 pub const SPRITE_SHEET_IMAGE_HEIGHT: f32 = 256.0;
