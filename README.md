@@ -27,6 +27,13 @@ Play as a powerful wizard defending your castle from waves of attackers.
 - Raise The Dead - Turn fallen enemies into undead allies
 - Teleport - Reposition the wizard
 
+**Save Data & Crash Logs:**
+- Windows: `%APPDATA%\court_wizard\`
+- Linux: `~/.local/share/court_wizard/`
+- macOS: `~/Library/Application Support/court_wizard/`
+
+If the game crashes, a `crash.log` file is written to the save data folder with details about what went wrong. Please include this file when reporting bugs.
+
 [View Changelog](CHANGELOG.md)
 
 ## Development

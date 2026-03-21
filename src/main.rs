@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, Window, WindowPlugin, WindowResolution};
 
 mod config;
+mod crash_handler;
 mod game;
 mod music;
 mod networking;
@@ -26,6 +27,8 @@ use ui::UiPlugin;
 /// The ConfigPlugin will load saved settings from localStorage at startup and
 /// apply them to the window.
 fn main() {
+    crash_handler::install();
+
     let mut app = App::new();
 
     app.add_plugins(

@@ -8,7 +8,7 @@ const UNIFIED_SAVE_FILENAME: &str = "saves_v2.json";
 const LAN_IP_FILENAME: &str = "lan_ip.txt";
 
 /// Returns the platform-appropriate data directory for Court Wizard.
-fn save_dir() -> ConfigResult<PathBuf> {
+pub(crate) fn save_dir() -> ConfigResult<PathBuf> {
     dirs::data_dir()
         .map(|d| d.join("court_wizard"))
         .ok_or_else(|| {

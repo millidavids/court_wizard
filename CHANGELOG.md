@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.43] - 2026-03-21
+
+### Added
+- **Crash reporting** — if the game crashes, a detailed crash log is now saved to your save data folder automatically, making it easier to report bugs
+- **Player readme** — game downloads now include a README file with info on where save data and crash logs are stored
+
 ## [v0.5.40] - 2026-03-21
 
 ### Added

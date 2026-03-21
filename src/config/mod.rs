@@ -4,7 +4,7 @@ mod plugin;
 pub(crate) mod progress;
 mod resources;
 pub(crate) mod save_data;
-mod storage;
+pub(crate) mod storage;
 mod systems;
 
 // Public API exports - only export what's actually used externally
