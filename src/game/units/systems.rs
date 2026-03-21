@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, DIRECTION_HYSTERESIS_FACTOR,
-    FacingDirection, SIGN_HYSTERESIS_THRESHOLD, SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT,
-    WalkingAnimation,
+    ANIMATION_MOVE_THRESHOLD_SQ, CombatAnimation, CORPSE_MATERIAL_VARIANTS,
+    DIRECTION_HYSTERESIS_FACTOR, DyingAnimation, FacingDirection, SIGN_HYSTERESIS_THRESHOLD,
+    SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
@@ -1090,6 +1090,7 @@ pub fn resurrect_corpse_as_infantry(
 }
 
 /// Advances walking animation frames and updates UV transforms.
+/// Skips entities with active combat or dying animations.
 pub fn update_walking_animation(
     time: Res<Time>,
     mut anim_query: Query<
@@ -1099,7 +1100,7 @@ pub fn update_walking_animation(
             &Velocity,
             &FacingDirection,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<CombatAnimation>, Without<DyingAnimation>),
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -1127,6 +1128,133 @@ pub fn update_walking_animation(
             mat.uv_transform = anim.uv_transform(*facing);
         }
     }
+}
+
+/// Advances one-shot combat animations (melee attack, ranged shooting).
+/// Swaps texture to the combat sheet on start, restores walking sheet when finished.
+pub fn update_combat_animation(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut anim_query: Query<
+        (
+            Entity,
+            &mut CombatAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+            &FacingDirection,
+        ),
+        Without<Corpse>,
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut anim, material_handle, facing) in &mut anim_query {
+        let Some(mat) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        // First frame: swap texture to combat sheet
+        if !anim.started {
+            anim.started = true;
+            mat.base_color_texture = Some(anim.combat_texture.clone());
+            mat.uv_transform = anim.uv_transform(*facing);
+        }
+
+        // Advance animation
+        if anim.tick(delta) {
+            if anim.finished() {
+                // Restore walking texture and remove component
+                mat.base_color_texture = Some(anim.walking_texture.clone());
+                mat.uv_transform = WalkingAnimation::idle_uv_transform(*facing);
+                commands.entity(entity).remove::<CombatAnimation>();
+            } else {
+                mat.uv_transform = anim.uv_transform(*facing);
+            }
+        }
+    }
+}
+
+/// Advances death animations and updates UV transforms.
+/// When the animation finishes, inserts `DeathAnimationFinished` marker.
+pub fn update_dying_animation(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut anim_query: Query<(
+        Entity,
+        &mut DyingAnimation,
+        &MeshMaterial3d<StandardMaterial>,
+    ), Without<super::components::DeathAnimationFinished>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut anim, material_handle) in &mut anim_query {
+        let Some(mat) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        // First frame: swap texture to death sheet
+        if !anim.started {
+            anim.started = true;
+            mat.base_color_texture = Some(anim.death_texture.clone());
+            mat.uv_transform = anim.uv_transform();
+        }
+
+        // Advance animation
+        if anim.tick(delta) {
+            mat.uv_transform = anim.uv_transform();
+            if anim.finished() {
+                commands.entity(entity).insert(super::components::DeathAnimationFinished);
+            }
+        }
+    }
+}
+
+/// Finalizes dying entities whose death animation has completed.
+/// Lays the corpse flat, applies corpse tint, and adds rough terrain.
+pub fn finalize_dying_to_corpse(
+    mut commands: Commands,
+    query: Query<(
+        Entity,
+        &DyingAnimation,
+        &Transform,
+        &Team,
+        &MeshMaterial3d<StandardMaterial>,
+    ), With<super::components::DeathAnimationFinished>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, anim, transform, team, material_handle) in &query {
+        // Apply corpse tint
+        if let Some(mat) = materials.get_mut(material_handle) {
+            use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
+            mat.base_color = match *team {
+                Team::Defenders => DEFENDER_CORPSE_COLOR,
+                Team::Attackers => ATTACKER_CORPSE_COLOR,
+                Team::Undead => UNDEAD_CORPSE_COLOR,
+            };
+            mat.uv_transform = anim.last_frame_uv_transform();
+        }
+
+        let mut entity_commands = commands.entity(entity);
+        lay_corpse_flat(&mut entity_commands, transform.translation);
+        entity_commands
+            .remove::<DyingAnimation>()
+            .remove::<super::components::DeathAnimationFinished>();
+    }
+}
+
+/// Lays a corpse entity flat on the ground. Shared between instant corpse swap
+/// and death animation finalization.
+pub fn lay_corpse_flat(entity_commands: &mut EntityCommands, position: Vec3) {
+    let corpse_transform = Transform::from_xyz(position.x, 1.0, position.z)
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
+
+    entity_commands
+        .insert(corpse_transform)
+        .insert(super::components::RoughTerrain {
+            slowdown_factor: 0.4,
+        })
+        .remove::<crate::game::components::Billboard>();
 }
 
 /// Ticks all knockback effects, applying decaying position offsets each frame.

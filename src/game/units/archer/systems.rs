@@ -59,7 +59,9 @@ pub fn update_archer_movement_timers(
 /// Archers deal reduced damage in melee compared to infantry.
 #[allow(clippy::type_complexity)]
 pub fn archer_melee_combat(
+    mut commands: Commands,
     attack_cycle: Res<GlobalAttackCycle>,
+    archer_assets: Res<ArcherAssets>,
     mut archers: Query<
         (
             Entity,
@@ -148,6 +150,14 @@ pub fn archer_melee_combat(
                 }
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.last_attack_time = Some(current_time);
+
+                // Trigger melee attack animation
+                commands.entity(archer_entity).insert(
+                    crate::game::units::components::CombatAnimation::new_attack(
+                        archer_assets.attacking_texture.clone(),
+                        archer_assets.sprite_texture.clone(),
+                    ),
+                );
             }
         }
     }
@@ -315,6 +325,14 @@ pub fn archer_ranged_combat(
             );
             // Reset attack cooldown
             movement_timer.time_since_last_attack = 0.0;
+
+            // Trigger shooting animation
+            commands.entity(archer_entity).insert(
+                crate::game::units::components::CombatAnimation::new_shooting(
+                    archer_assets.shooting_texture.clone(),
+                    archer_assets.sprite_texture.clone(),
+                ),
+            );
         }
     }
 }

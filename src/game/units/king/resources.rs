@@ -24,7 +24,7 @@ pub(super) fn preload_king_assets(
     asset_server: Res<AssetServer>,
 ) {
     // King reuses infantry sprite texture
-    let sprite_texture = asset_server.load("images/sprite_sheets/infantry-walking_8-frames.png");
+    let sprite_texture = asset_server.load("images/sprite_sheets/infantry-walking_9-frames.png");
 
     let corpse_materials =
         create_corpse_sprite_materials(&mut materials, sprite_texture.clone(), KING_CORPSE_COLOR);

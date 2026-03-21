@@ -752,10 +752,22 @@ pub(super) const SIGN_HYSTERESIS_THRESHOLD: f32 = 2.0;
 pub const SPRITE_SHEET_IMAGE_WIDTH: f32 = 832.0;
 pub const SPRITE_SHEET_IMAGE_HEIGHT: f32 = 256.0;
 pub const SPRITE_FRAME_SIZE: f32 = 64.0;
-pub const SPRITE_COLUMNS: usize = 8;
+pub const SPRITE_COLUMNS: usize = 9;
+pub const ATTACK_SPRITE_COLUMNS: usize = 6;
+pub const SHOOTING_SPRITE_COLUMNS: usize = 12;
+pub const DEATH_SPRITE_COLUMNS: usize = 6;
+pub const DEATH_SHEET_IMAGE_HEIGHT: f32 = 64.0;
 /// Maps FacingDirection [Forward, Back, Left, Right] to sprite sheet rows.
 /// Sheet row order: Away(0), Left(1), Forward(2), Right(3).
 pub const SPRITE_DIRECTION_ROWS: [usize; 4] = [0, 2, 1, 3];
+
+/// Calculates the UV size of a single frame within a sprite sheet.
+pub fn sprite_frame_uv(sheet_height: f32) -> Vec2 {
+    Vec2::new(
+        SPRITE_FRAME_SIZE / SPRITE_SHEET_IMAGE_WIDTH,
+        SPRITE_FRAME_SIZE / sheet_height,
+    )
+}
 
 /// Number of pre-generated corpse material variants per unit type/team.
 pub const CORPSE_MATERIAL_VARIANTS: usize = 3;
@@ -784,10 +796,7 @@ impl Default for WalkingAnimation {
             current_frame: 0,
             elapsed: rand::random::<f32>() * Self::FRAME_DURATION, // stagger
             columns: SPRITE_COLUMNS,
-            frame_uv: Vec2::new(
-                SPRITE_FRAME_SIZE / SPRITE_SHEET_IMAGE_WIDTH,
-                SPRITE_FRAME_SIZE / SPRITE_SHEET_IMAGE_HEIGHT,
-            ),
+            frame_uv: sprite_frame_uv(SPRITE_SHEET_IMAGE_HEIGHT),
             direction_rows: SPRITE_DIRECTION_ROWS,
         }
     }
@@ -820,7 +829,147 @@ impl WalkingAnimation {
     pub fn uv_transform(&self, facing: FacingDirection) -> Affine2 {
         Affine2::from_scale_angle_translation(self.frame_uv, 0.0, self.uv_offset(facing))
     }
+
+    /// UV transform for frame 0 in the given direction (idle/stationary pose).
+    pub fn idle_uv_transform(facing: FacingDirection) -> Affine2 {
+        let frame_uv = sprite_frame_uv(SPRITE_SHEET_IMAGE_HEIGHT);
+        let row = SPRITE_DIRECTION_ROWS[facing as usize] as f32;
+        let offset = Vec2::new(0.0, row * frame_uv.y);
+        Affine2::from_scale_angle_translation(frame_uv, 0.0, offset)
+    }
 }
+
+/// One-shot combat animation (melee attack or ranged shooting).
+/// Temporarily overrides the walking texture, then restores it when finished.
+#[derive(Component)]
+pub struct CombatAnimation {
+    pub current_frame: usize,
+    pub elapsed: f32,
+    pub columns: usize,
+    pub frame_uv: Vec2,
+    pub direction_rows: [usize; 4],
+    pub combat_texture: Handle<Image>,
+    pub walking_texture: Handle<Image>,
+    pub started: bool,
+}
+
+impl CombatAnimation {
+    const FRAME_DURATION: f32 = 0.1;
+
+    fn new(columns: usize, combat_texture: Handle<Image>, walking_texture: Handle<Image>) -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: 0.0,
+            columns,
+            frame_uv: sprite_frame_uv(SPRITE_SHEET_IMAGE_HEIGHT),
+            direction_rows: SPRITE_DIRECTION_ROWS,
+            combat_texture,
+            walking_texture,
+            started: false,
+        }
+    }
+
+    pub fn new_attack(combat_texture: Handle<Image>, walking_texture: Handle<Image>) -> Self {
+        Self::new(ATTACK_SPRITE_COLUMNS, combat_texture, walking_texture)
+    }
+
+    pub fn new_shooting(combat_texture: Handle<Image>, walking_texture: Handle<Image>) -> Self {
+        Self::new(SHOOTING_SPRITE_COLUMNS, combat_texture, walking_texture)
+    }
+
+    pub fn tick(&mut self, delta: f32) -> bool {
+        self.elapsed += delta;
+        if self.elapsed >= Self::FRAME_DURATION {
+            self.elapsed -= Self::FRAME_DURATION;
+            let old = self.current_frame;
+            self.current_frame += 1;
+            old != self.current_frame
+        } else {
+            false
+        }
+    }
+
+    pub fn finished(&self) -> bool {
+        self.current_frame >= self.columns
+    }
+
+    pub fn uv_offset(&self, facing: FacingDirection) -> Vec2 {
+        let col = self.current_frame.min(self.columns - 1) as f32;
+        let row = self.direction_rows[facing as usize] as f32;
+        Vec2::new(col * self.frame_uv.x, row * self.frame_uv.y)
+    }
+
+    pub fn uv_transform(&self, facing: FacingDirection) -> Affine2 {
+        Affine2::from_scale_angle_translation(self.frame_uv, 0.0, self.uv_offset(facing))
+    }
+}
+
+/// Death animation that plays when a unit dies. Non-directional single row.
+/// Freezes on the last frame, then the entity is converted to a permanent corpse.
+#[derive(Component)]
+pub struct DyingAnimation {
+    pub current_frame: usize,
+    pub elapsed: f32,
+    pub columns: usize,
+    pub frame_uv: Vec2,
+    pub death_texture: Handle<Image>,
+    pub started: bool,
+}
+
+impl DyingAnimation {
+    const FRAME_DURATION: f32 = 0.15;
+
+    pub fn new(death_texture: Handle<Image>) -> Self {
+        Self {
+            current_frame: 0,
+            elapsed: 0.0,
+            columns: DEATH_SPRITE_COLUMNS,
+            frame_uv: sprite_frame_uv(DEATH_SHEET_IMAGE_HEIGHT),
+            death_texture,
+            started: false,
+        }
+    }
+
+    pub fn tick(&mut self, delta: f32) -> bool {
+        if self.finished() {
+            return false;
+        }
+        self.elapsed += delta;
+        if self.elapsed >= Self::FRAME_DURATION {
+            self.elapsed -= Self::FRAME_DURATION;
+            let old = self.current_frame;
+            self.current_frame += 1;
+            old != self.current_frame
+        } else {
+            false
+        }
+    }
+
+    pub fn finished(&self) -> bool {
+        self.current_frame >= self.columns
+    }
+
+    pub fn uv_offset(&self) -> Vec2 {
+        let col = self.current_frame.min(self.columns - 1) as f32;
+        Vec2::new(col * self.frame_uv.x, 0.0)
+    }
+
+    pub fn uv_transform(&self) -> Affine2 {
+        Affine2::from_scale_angle_translation(self.frame_uv, 0.0, self.uv_offset())
+    }
+
+    /// UV transform for the final (last) frame, used for the permanent corpse.
+    pub fn last_frame_uv_transform(&self) -> Affine2 {
+        let col = (self.columns - 1) as f32;
+        let offset = Vec2::new(col * self.frame_uv.x, 0.0);
+        Affine2::from_scale_angle_translation(self.frame_uv, 0.0, offset)
+    }
+}
+
+/// Marker inserted when a `DyingAnimation` finishes, signaling
+/// `finalize_dying_to_corpse` to lay the corpse flat.
+#[derive(Component)]
+pub struct DeathAnimationFinished;
 
 /// Marker component for dead units (corpses).
 ///

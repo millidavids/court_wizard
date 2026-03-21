@@ -8,10 +8,10 @@ use super::boss::BossPlugin;
 use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
-    Airborne, BerserkerRageModifier, FacingDirection, FogEvasionModifier,
-    FrostEffectMarker, FrozenSolidModifier, HasteModifier, Knockback, MarkedForDeathModifier,
-    PoisonedModifier, RootedModifier, SickenedModifier, SlowMovementModifier,
-    SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
+    Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
+    FacingDirection, FogEvasionModifier, FrostEffectMarker, FrozenSolidModifier, HasteModifier,
+    Knockback, MarkedForDeathModifier, PoisonedModifier, RootedModifier, SickenedModifier,
+    SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
 };
 use super::dispeller::DispellerPlugin;
 use super::elite::ElitePlugin;
@@ -78,6 +78,15 @@ impl Plugin for UnitsPlugin {
                 systems::update_walking_animation
                     .after(ApplyTransformsSet)
                     .run_if(any_with_component::<WalkingAnimation>),
+                systems::update_combat_animation
+                    .after(ApplyTransformsSet)
+                    .run_if(any_with_component::<CombatAnimation>),
+                systems::update_dying_animation
+                    .after(ApplyTransformsSet)
+                    .run_if(any_with_component::<DyingAnimation>),
+                systems::finalize_dying_to_corpse
+                    .after(systems::update_dying_animation)
+                    .run_if(any_with_component::<DeathAnimationFinished>),
                 systems::update_facing_direction
                     .after(ApplyTransformsSet)
                     .run_if(any_with_component::<FacingDirection>),

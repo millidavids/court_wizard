@@ -471,6 +471,8 @@ pub fn combat(
     >,
     mut talent_progress: Option<ResMut<super::units::wizard::talents::resources::BattleTalentProgress>>,
     mut contagious_rage_events: MessageWriter<super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage>,
+    combat_infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
+    combat_assassin_assets: Res<super::units::assassin::resources::AssassinAssets>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -751,6 +753,27 @@ pub fn combat(
                 }
 
                 attack_timing.record_attack(current_time);
+
+                // Trigger melee attack animation.
+                // Archers handle their own animations in archer_melee_combat.
+                let attack_textures = if attacker_is_infantry {
+                    Some((
+                        combat_infantry_assets.attacking_texture.clone(),
+                        combat_infantry_assets.sprite_texture.clone(),
+                    ))
+                } else if attacker_is_assassin {
+                    Some((
+                        combat_assassin_assets.attacking_texture.clone(),
+                        combat_assassin_assets.sprite_texture.clone(),
+                    ))
+                } else {
+                    None
+                };
+                if let Some((attack_tex, walk_tex)) = attack_textures {
+                    commands.entity(attacker_entity).insert(
+                        super::units::components::CombatAnimation::new_attack(attack_tex, walk_tex),
+                    );
+                }
             }
             }
         }
@@ -829,6 +852,7 @@ pub fn convert_dead_to_corpses(
             &Transform,
             Option<&Infantry>,
             Option<&Archer>,
+            Option<&super::units::assassin::Assassin>,
             Option<&super::units::king::components::King>,
             Option<&Boss>,
             Option<&SpellDamaged>,
@@ -839,6 +863,7 @@ pub fn convert_dead_to_corpses(
     >,
     infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
     archer_assets: Res<super::units::archer::resources::ArcherAssets>,
+    assassin_assets: Res<super::units::assassin::resources::AssassinAssets>,
     king_assets: Res<super::units::king::resources::KingAssets>,
     mut velocity_query: Query<&mut Velocity>,
 ) {
@@ -849,6 +874,7 @@ pub fn convert_dead_to_corpses(
         transform,
         is_infantry,
         is_archer,
+        is_assassin,
         is_king,
         _is_boss,
         spell_damaged,
@@ -902,81 +928,69 @@ pub fn convert_dead_to_corpses(
                 marked_kill_events.write(super::achievements::messages::MarkedForDeathKillMessage);
             }
 
-            // Pick a random corpse material variant and appropriate mesh
-            let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
-
-            let (mat, mesh) = if is_king.is_some() {
-                (
-                    king_assets.corpse_materials[idx].clone(),
-                    king_assets.sprite_mesh.clone(),
-                )
-            } else if is_infantry.is_some() {
-                let mat = corpse_material_for_team(
-                    &infantry_assets.defender_corpse_materials,
-                    &infantry_assets.attacker_corpse_materials,
-                    &infantry_assets.undead_corpse_materials,
-                    *team,
-                    idx,
-                );
-                (mat, infantry_assets.sprite_mesh.clone())
+            // Determine if this unit type has a death animation sprite sheet
+            let death_texture = if is_infantry.is_some() {
+                Some(infantry_assets.death_texture.clone())
             } else if is_archer.is_some() {
-                let mat = corpse_material_for_team(
-                    &archer_assets.defender_corpse_materials,
-                    &archer_assets.attacker_corpse_materials,
-                    &archer_assets.undead_corpse_materials,
-                    *team,
-                    idx,
-                );
-                (mat, archer_assets.sprite_mesh.clone())
+                Some(archer_assets.death_texture.clone())
+            } else if is_assassin.is_some() {
+                Some(assassin_assets.death_texture.clone())
             } else {
-                // Boss and fallback use infantry corpse materials + circle mesh
-                let mat = corpse_material_for_team(
-                    &infantry_assets.defender_corpse_materials,
-                    &infantry_assets.attacker_corpse_materials,
-                    &infantry_assets.undead_corpse_materials,
-                    *team,
-                    idx,
-                );
-                (mat, infantry_assets.mesh.clone())
+                None
             };
 
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(mat))
-                .insert(Mesh3d(mesh));
-
-            // Create a new transform for the corpse: lay flat on ground at Y=1
-            // Rotate -90 degrees around X axis to make it face upward
-            let corpse_transform =
-                Transform::from_xyz(transform.translation.x, 1.0, transform.translation.z)
-                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
-
-            // Add corpse marker and rough terrain effect
             let mut entity_commands = commands.entity(entity);
-            entity_commands
-                .insert(Corpse)
-                .insert(corpse_transform)
-                .insert(RoughTerrain {
-                    slowdown_factor: 0.4,
-                }); // 60% speed reduction
+            entity_commands.insert(Corpse);
+
+            if let Some(death_tex) = death_texture {
+                // Unit has death animation: play it before laying flat
+                entity_commands
+                    .insert(super::units::components::DyingAnimation::new(death_tex))
+                    .remove::<super::units::components::CombatAnimation>();
+                // Billboard stays so sprite faces camera during death animation
+            } else {
+                // No death animation: instant corpse swap (king, boss, fallback)
+                let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
+
+                let (mat, mesh) = if is_king.is_some() {
+                    (
+                        king_assets.corpse_materials[idx].clone(),
+                        king_assets.sprite_mesh.clone(),
+                    )
+                } else {
+                    // Boss and fallback use infantry corpse materials + circle mesh
+                    let mat = corpse_material_for_team(
+                        &infantry_assets.defender_corpse_materials,
+                        &infantry_assets.attacker_corpse_materials,
+                        &infantry_assets.undead_corpse_materials,
+                        *team,
+                        idx,
+                    );
+                    (mat, infantry_assets.mesh.clone())
+                };
+
+                entity_commands
+                    .insert(MeshMaterial3d(mat))
+                    .insert(Mesh3d(mesh));
+
+                super::units::systems::lay_corpse_flat(&mut entity_commands, transform.translation);
+            }
 
             // Mark undead corpses as permanent (cannot be resurrected)
             if *team == Team::Undead {
                 entity_commands.insert(super::units::components::PermanentCorpse);
             }
 
-            // Keep Velocity and Acceleration so corpses can be affected by external forces (e.g., black hole)
-            // But reset velocity to zero so they don't continue moving from their death momentum
+            // Reset velocity so corpses don't continue moving
             if let Ok(mut velocity) = velocity_query.get_mut(entity) {
                 velocity.x = 0.0;
                 velocity.z = 0.0;
             }
 
             entity_commands
-                .remove::<MovementSpeed>() // Can't move on their own
-                .remove::<AttackTiming>() // Can't attack
-                .remove::<Hitbox>() // Remove collision
-                .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
+                .remove::<MovementSpeed>()
+                .remove::<AttackTiming>()
+                .remove::<Hitbox>()
                 .remove::<super::units::components::CommanderAuraSpeedModifier>()
                 .remove::<super::units::components::SlowMovementModifier>()
                 .remove::<super::units::components::FrostEffectMarker>()
@@ -987,7 +1001,6 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::PendingDamageEffect>()
                 .remove::<super::units::components::OriginalMaterial>()
                 .remove::<super::units::components::RoughTerrainModifier>()
-                // New spell modifiers
                 .remove::<super::units::components::MarkedForDeathModifier>()
                 .remove::<super::units::components::SleepModifier>()
                 .remove::<super::units::components::NightTerrors>()

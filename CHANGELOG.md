@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.40] - 2026-03-21
+
+### Added
+- **Death animations** — units now play a death animation when they fall in battle, ending on a final fallen pose instead of instantly swapping to a corpse sprite
+- **Melee attack animations** — infantry, archers, and assassins now visually swing when attacking in melee combat
+- **Ranged shooting animations** — archers play a shooting animation when firing arrows
+- **Assassin unique look** — assassins now have their own walking sprite instead of sharing the archer's appearance
+
+### Changed
+- **Smoother walking animations** — all unit walking animations now use updated 9-frame sprite sheets for more fluid movement
+- **Elite and commander sizing** — upgraded units that grow larger no longer clip into the ground; they properly float at the right height
+
 ## [v0.5.34] - 2026-03-21
 
 ### Fixed

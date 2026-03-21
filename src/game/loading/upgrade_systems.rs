@@ -31,6 +31,29 @@ use crate::game::units::shielder::constants::{
     SHIELDER_HEALTH, SHIELDER_MOVEMENT_SPEED, SHIELDER_RADIUS,
 };
 
+/// Scales a unit's transform and hitbox by a multiplier, adjusting Y position
+/// so the enlarged sprite sits correctly on the ground.
+fn apply_size_scaling(
+    commands: &mut Commands,
+    entity: Entity,
+    current_transform: &Transform,
+    current_hitbox: &Hitbox,
+    multiplier: f32,
+) {
+    let mut new_transform = *current_transform;
+    new_transform.scale *= multiplier;
+
+    let new_hitbox = Hitbox::new(
+        current_hitbox.radius * multiplier,
+        current_hitbox.height * multiplier,
+    );
+
+    new_transform.translation.y = new_hitbox.height / 2.0 + 1.0;
+
+    commands.entity(entity).insert(new_transform);
+    commands.entity(entity).insert(new_hitbox);
+}
+
 /// Applies elite upgrade to a unit entity.
 ///
 /// Adds elite components (health, damage, speed bonuses), swaps material
@@ -41,7 +64,6 @@ pub(super) fn apply_elite_upgrade(
     current_transform: &Transform,
     current_hitbox: &Hitbox,
 ) {
-    // Add elite components (visual glow is handled by update_persistent_effect_visuals)
     commands.entity(entity).insert((
         EliteHealthBonus(ELITE_HEALTH_BONUS),
         EliteDamageBonus(ELITE_DAMAGE_BONUS),
@@ -49,17 +71,7 @@ pub(super) fn apply_elite_upgrade(
         EliteAttackSpeedBonus(ELITE_ATTACK_SPEED_BONUS),
     ));
 
-    // Scale up the unit (preserving position)
-    let mut new_transform = *current_transform;
-    new_transform.scale *= ELITE_SIZE_MULTIPLIER;
-    commands.entity(entity).insert(new_transform);
-
-    // Scale hitbox to match new size
-    let new_hitbox = Hitbox::new(
-        current_hitbox.radius * ELITE_SIZE_MULTIPLIER,
-        current_hitbox.height * ELITE_SIZE_MULTIPLIER,
-    );
-    commands.entity(entity).insert(new_hitbox);
+    apply_size_scaling(commands, entity, current_transform, current_hitbox, ELITE_SIZE_MULTIPLIER);
 }
 
 /// Applies commander upgrade to a unit entity.
@@ -88,17 +100,7 @@ pub(super) fn apply_commander_upgrade(
         },
     ));
 
-    // Scale up the unit (preserving position)
-    let mut new_transform = *current_transform;
-    new_transform.scale *= COMMANDER_SIZE_MULTIPLIER;
-    commands.entity(entity).insert(new_transform);
-
-    // Scale hitbox to match new size
-    let new_hitbox = Hitbox::new(
-        current_hitbox.radius * COMMANDER_SIZE_MULTIPLIER,
-        current_hitbox.height * COMMANDER_SIZE_MULTIPLIER,
-    );
-    commands.entity(entity).insert(new_hitbox);
+    apply_size_scaling(commands, entity, current_transform, current_hitbox, COMMANDER_SIZE_MULTIPLIER);
 
     // Spawn visual aura ring on ground
     spawn_aura_ring(commands, entity, current_transform, materials, meshes);
