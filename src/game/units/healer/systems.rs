@@ -42,7 +42,7 @@ pub fn update_healer_targeting(
         ),
         (Without<Corpse>, Without<BanishedModifier>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     // Snapshot ally data for heal targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, f32, f32, u32)> = potential_targets

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.68] - 2026-03-22
+
+### Added
+- **Battlefield ground tiles** — the battlefield now has a textured ground made up of varied grass tiles instead of a flat solid color, giving the terrain more visual depth and personality
+
+### Fixed
+- **Defenders no longer chase inactive waves** — defenders will now correctly return to their positions and wait when the only attackers left on the field are still marching in and haven't entered battle yet
+- **Talent selection cleanup** — if a talent was somehow selected in a tier that hasn't been unlocked yet, it will now be automatically cleared when loading into a game
+
 ## [v0.5.60] - 2026-03-22
 
 ### Added

@@ -37,7 +37,7 @@ pub fn update_dispeller_targeting(
         (With<Dispeller>, Without<Corpse>),
     >,
     spell_effects: Query<(Entity, &Transform, &NetworkedSpellEffect)>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
     // Spell-specific queries for volume-aware distance
     wall_of_fire_query: Query<&WallOfFireEffect>,
     wall_of_stone_query: Query<&WallOfStone>,

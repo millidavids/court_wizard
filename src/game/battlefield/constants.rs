@@ -7,6 +7,28 @@ use crate::game::constants::*;
 /// Battlefield ground plane color (#346D54).
 pub(crate) const BATTLEFIELD_COLOR: Color = Color::srgb(0.204, 0.427, 0.329);
 
+// ===== Battlefield Tile Constants =====
+
+/// World size of each ground tile (square).
+pub(super) const TILE_WORLD_SIZE: f32 = 50.0;
+
+/// Number of tile variants in the sprite sheet.
+pub(super) const TILE_COUNT: usize = 10;
+
+/// Number of base (grass) tiles at the start of the sprite sheet.
+pub(super) const TILE_BASE_COUNT: usize = 5;
+
+/// Selection weight for base tiles (indices 0-4).
+pub(super) const TILE_BASE_WEIGHT: u32 = 40;
+
+/// Selection weight for flavor tiles (indices 5-9).
+pub(super) const TILE_FLAVOR_WEIGHT: u32 = 1;
+
+/// Total weight for weighted random tile selection.
+pub(super) const TILE_TOTAL_WEIGHT: u32 =
+    TILE_BASE_COUNT as u32 * TILE_BASE_WEIGHT
+        + (TILE_COUNT - TILE_BASE_COUNT) as u32 * TILE_FLAVOR_WEIGHT;
+
 // ===== Right Wall Constants =====
 
 /// The right wall image is 320x180 (16:9 aspect ratio).

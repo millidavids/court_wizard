@@ -9,7 +9,7 @@ use super::resources::{EyeTransferTimer, HagAssets, HagDeathTracker};
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
@@ -202,7 +202,7 @@ pub fn update_hag_targeting(
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()

@@ -1,4 +1,6 @@
+use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::{
     Battlefield, BattlefieldAssets, Castle, LavaPool, LeftWall, RightWall, WallFloor, WaterRipple,
@@ -28,22 +30,13 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn battlefield as ground plane at origin
-    let battlefield_mesh = Plane3d::default()
-        .mesh()
-        .size(BATTLEFIELD_SIZE, BATTLEFIELD_SIZE);
-
-    commands.spawn((
-        Mesh3d(meshes.add(battlefield_mesh)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: BATTLEFIELD_COLOR,
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 0.0, 0.0), // Centered at origin
-        Battlefield,
-        OnGameplayScreen,
-    ));
+    // Spawn battlefield as a grid of textured ground tiles
+    spawn_ground_tiles(
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+        &battlefield_assets,
+    );
 
     // Spawn castle wall as a textured plane the wizard stands on
     spawn_castle_wall(
@@ -209,6 +202,99 @@ pub fn spawn_castle_wall<M: Component + Clone>(
         Castle,
         screen_marker,
     ));
+}
+
+// ===== Ground Tile Spawning =====
+
+/// Creates a plane mesh with UVs that sample a specific tile from the sprite sheet.
+fn create_tile_mesh(tile_size: f32, tile_index: usize, total_tiles: usize) -> Mesh {
+    let half = tile_size / 2.0;
+    let u_min = tile_index as f32 / total_tiles as f32;
+    let u_max = (tile_index + 1) as f32 / total_tiles as f32;
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        vec![
+            [-half, 0.0, -half],
+            [half, 0.0, -half],
+            [half, 0.0, half],
+            [-half, 0.0, half],
+        ],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_NORMAL,
+        vec![
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_0,
+        vec![
+            [u_max, 0.0],
+            [u_min, 0.0],
+            [u_min, 1.0],
+            [u_max, 1.0],
+        ],
+    );
+    mesh.insert_indices(Indices::U32(vec![0, 2, 1, 0, 3, 2]));
+    mesh
+}
+
+/// Picks a weighted-random tile index. Base tiles are heavily favored over flavor tiles.
+fn pick_weighted_tile(rng: &mut impl Rng) -> usize {
+    let roll: u32 = rng.gen_range(0..TILE_TOTAL_WEIGHT);
+    let base_total = TILE_BASE_COUNT as u32 * TILE_BASE_WEIGHT;
+    if roll < base_total {
+        (roll / TILE_BASE_WEIGHT) as usize
+    } else {
+        TILE_BASE_COUNT + ((roll - base_total) / TILE_FLAVOR_WEIGHT) as usize
+    }
+}
+
+/// Spawns a grid of ground tiles covering the battlefield.
+fn spawn_ground_tiles(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    battlefield_assets: &BattlefieldAssets,
+) {
+    let half = BATTLEFIELD_SIZE / 2.0;
+    let tiles_per_side = (BATTLEFIELD_SIZE / TILE_WORLD_SIZE) as usize;
+
+    // Pre-create one mesh handle per tile variant (shared across all tiles of that type)
+    let tile_meshes: Vec<Handle<Mesh>> = (0..TILE_COUNT)
+        .map(|i| meshes.add(create_tile_mesh(TILE_WORLD_SIZE, i, TILE_COUNT)))
+        .collect();
+
+    // One shared material for all tiles
+    let tile_material = materials.add(StandardMaterial {
+        base_color_texture: Some(battlefield_assets.battlefield_tiles.clone()),
+        base_color: Color::WHITE,
+        unlit: true,
+        ..default()
+    });
+
+    let mut rng = rand::thread_rng();
+
+    for row in 0..tiles_per_side {
+        for col in 0..tiles_per_side {
+            let x = -half + TILE_WORLD_SIZE * (col as f32 + 0.5);
+            let z = -half + TILE_WORLD_SIZE * (row as f32 + 0.5);
+            let tile_index = pick_weighted_tile(&mut rng);
+
+            commands.spawn((
+                Mesh3d(tile_meshes[tile_index].clone()),
+                MeshMaterial3d(tile_material.clone()),
+                Transform::from_xyz(x, 0.0, z),
+                Battlefield,
+                OnGameplayScreen,
+            ));
+        }
+    }
 }
 
 // ===== Environmental Effects =====

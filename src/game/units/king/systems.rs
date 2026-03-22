@@ -6,7 +6,7 @@ use super::resources::KingAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::resources::InitialDefenderCount;
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::{
@@ -142,10 +142,11 @@ pub fn update_king_targeting(
             Without<Corpse>,
             Without<BanishedModifier>,
             Without<crate::game::units::assassin::Assassin>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
-    // Collect snapshot of all unit positions (excludes assassins — King ignores them)
+    // Collect snapshot of all unit positions (excludes assassins and staging attackers)
     let unit_snapshot: Vec<_> = all_units
         .iter()
         .map(|(entity, transform, team)| (entity, transform.translation, *team))

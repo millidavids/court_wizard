@@ -29,7 +29,7 @@ pub fn update_shielder_targeting(
         (Entity, &Transform, &Team, Has<SpellShield>),
         (Without<Corpse>, Without<BanishedModifier>, Without<Shielder>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     // Snapshot ally data for shield targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, bool)> = potential_targets

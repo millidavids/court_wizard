@@ -48,5 +48,6 @@ fn load_battlefield_assets(mut commands: Commands, asset_server: Res<AssetServer
         right_wall: asset_server.load("images/static_sprites/right_wall.png"),
         left_wall: asset_server.load("images/static_sprites/left_wall.png"),
         wall_floor: asset_server.load("images/static_sprites/wall_floor.png"),
+        battlefield_tiles: asset_server.load("images/sprite_sheets/battlefield_tiles.png"),
     });
 }

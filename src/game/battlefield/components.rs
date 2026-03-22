@@ -19,6 +19,8 @@ pub struct BattlefieldAssets {
     pub left_wall: Handle<Image>,
     /// Floor texture between the right and left walls.
     pub wall_floor: Handle<Image>,
+    /// Sprite sheet of 10 ground tile variants (160x16, ten 16x16 tiles).
+    pub battlefield_tiles: Handle<Image>,
 }
 
 /// Marker component for the right wall backdrop.

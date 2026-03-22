@@ -250,10 +250,12 @@ pub fn update_king_target(
         (
             Without<King>,
             Without<crate::game::units::components::Corpse>,
+            Without<StagingAttacker>,
         ),
     >,
 ) {
     if !defenders_activated.active {
+        pathfinding.king_current_target = None;
         return;
     }
 

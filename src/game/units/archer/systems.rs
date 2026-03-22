@@ -553,10 +553,10 @@ pub fn update_archer_targeting(
         ),
         (With<Archer>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
     walls: Query<&WallOfStone>,
 ) {
-    // Collect snapshot of all unit positions
+    // Collect snapshot of all unit positions (excludes staging attackers)
     let unit_snapshot: Vec<_> = all_units
         .iter()
         .map(|(entity, transform, team)| (entity, transform.translation, *team))

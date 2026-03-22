@@ -6,7 +6,7 @@ use super::resources::OgreAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
@@ -77,7 +77,7 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
 pub fn update_ogre_targeting(
     mut commands: Commands,
     mut bosses: Query<(Entity, &Transform, &Team, &mut TargetingVelocity), With<Boss>>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Boss>, Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Boss>, Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()

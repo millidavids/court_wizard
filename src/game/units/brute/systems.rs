@@ -8,7 +8,7 @@ use super::messages::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 
 use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{
@@ -110,7 +110,7 @@ pub fn update_brute_targeting(
         ),
         With<Brute>,
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
