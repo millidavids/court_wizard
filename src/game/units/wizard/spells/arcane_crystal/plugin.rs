@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::{ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalSpawn, ResonanceCascade};
+use super::components::{ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalRangeIndicator, CrystalSpawn, ResonanceCascade};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
@@ -29,7 +29,9 @@ impl Plugin for ArcaneCrystalPlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 // Crystal lifetime & visuals
                 systems::update_crystal_visuals.run_if(any_with_component::<ArcaneCrystal>),
-                systems::cleanup_expired_crystals.run_if(any_with_component::<ArcaneCrystal>),
+                systems::cleanup_expired_crystals.run_if(
+                    any_with_component::<ArcaneCrystal>.or(any_with_component::<CrystalRangeIndicator>)
+                ),
                 // Black hole interaction
                 systems::crystal_black_hole_interaction.run_if(any_with_component::<ArcaneCrystal>),
                 // Spell absorption

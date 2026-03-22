@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use super::messages::*;
-use super::resources::*;
+use super::components::SwordArcMaterial;
+use super::resources::{BattlemageAssets, BattlemagePhase, BattlemageState};
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::WIZARD_POSITION;
@@ -12,7 +13,6 @@ use crate::game::units::components::{
     apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
-use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::units::wizard::components::{Mana, Wizard};
@@ -166,6 +166,7 @@ pub(super) fn fire_missile(
     config: Res<GameConfig>,
     state: Res<BattlemageState>,
     mut wizard_query: Query<&mut Mana, With<Wizard>>,
+    battlemage_assets: Res<BattlemageAssets>,
 ) {
     if state.phase != BattlemagePhase::OnField {
         return;
@@ -245,6 +246,14 @@ pub(super) fn fire_missile(
         &sfx,
     );
 
+    // Trigger casting animation
+    commands.entity(avatar_entity).insert(
+        crate::game::units::components::CombatAnimation::new_casting(
+            battlemage_assets.casting_texture.clone(),
+            battlemage_assets.sprite_texture.clone(),
+        ),
+    );
+
     commands
         .entity(avatar_entity)
         .insert(BattlemageMissileCooldown {
@@ -271,6 +280,7 @@ pub(super) fn sword_swing(
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     state: Res<BattlemageState>,
+    battlemage_assets: Res<BattlemageAssets>,
 ) {
     if state.phase != BattlemagePhase::OnField {
         return;
@@ -352,6 +362,14 @@ pub(super) fn sword_swing(
     // Lunge the avatar toward the cursor via velocity impulse
     velocity.x += direction.x * SWORD_LUNGE_SPEED;
     velocity.z += direction.y * SWORD_LUNGE_SPEED;
+
+    // Trigger attack animation
+    commands.entity(avatar_entity).insert(
+        crate::game::units::components::CombatAnimation::new_attack(
+            battlemage_assets.attacking_texture.clone(),
+            battlemage_assets.sprite_texture.clone(),
+        ),
+    );
 
     commands
         .entity(avatar_entity)
@@ -602,7 +620,7 @@ pub(super) fn handle_location_click(
     mut state: ResMut<BattlemageState>,
     mut commands: Commands,
     mut wizard_query: Query<&mut Visibility, With<Wizard>>,
-    infantry_assets: Res<InfantryAssets>,
+    battlemage_assets: Res<BattlemageAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     sfx: Res<SpellSfxAssets>,
     config: Res<GameConfig>,
@@ -641,12 +659,12 @@ pub(super) fn handle_location_click(
 
     let material = create_default_sprite_material(
         &mut materials,
-        infantry_assets.sprite_texture.clone(),
+        battlemage_assets.sprite_texture.clone(),
         AVATAR_SPRITE_TINT,
     );
 
     commands.spawn((
-        Mesh3d(infantry_assets.sprite_mesh.clone()),
+        Mesh3d(battlemage_assets.sprite_mesh.clone()),
         MeshMaterial3d(material),
         Transform::from_xyz(world_pos.x, spawn_y, world_pos.z),
         Velocity::default(),

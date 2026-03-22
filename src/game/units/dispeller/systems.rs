@@ -280,6 +280,7 @@ pub fn dispeller_cast_dispel(
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    dispeller_assets: Res<DispellerAssets>,
     mut dispellers: Query<
         (Entity, &Transform, &Team, Option<&mut DispellerDispelCooldown>, Has<StagingAttacker>, Has<WaveGroup>),
         (With<Dispeller>, Without<Corpse>),
@@ -351,6 +352,14 @@ pub fn dispeller_cast_dispel(
                 transform.translation,
                 target_pos,
                 0.0,
+            );
+
+            // Trigger casting animation
+            commands.entity(entity).insert(
+                crate::game::units::components::CombatAnimation::new_casting(
+                    dispeller_assets.casting_texture.clone(),
+                    dispeller_assets.sprite_texture.clone(),
+                ),
             );
 
             // Set cooldown
@@ -458,6 +467,14 @@ pub fn dispeller_ranged_combat(
             ));
 
             attack_timer.time_since_last_attack = 0.0;
+
+            // Trigger attack animation
+            commands.entity(dispeller_entity).insert(
+                crate::game::units::components::CombatAnimation::new_attack(
+                    dispeller_assets.attacking_texture.clone(),
+                    dispeller_assets.sprite_texture.clone(),
+                ),
+            );
         }
     }
 }

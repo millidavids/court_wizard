@@ -221,7 +221,7 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<AssassinAssets>),
+    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<AssassinAssets>, Res<crate::game::units::dispeller::resources::DispellerAssets>),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     boss_assets: (
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
@@ -249,6 +249,11 @@ pub fn process_spawn_queue(
     )>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
+    let (infantry_assets, archer_assets, assassin_assets, dispeller_assets) = &unit_assets;
+    let (ogre_assets, hag_assets) = &boss_assets;
+    let (wizard_assets_opt, cauldron_assets_opt) = &optional_assets;
+    let (battlefield_assets, spell_visual_assets, asset_server) = &shared_assets;
+
     // Process exactly one task per frame for smooth, predictable loading
     let batch = spawn_queue.pop_batch(1);
 
@@ -257,7 +262,7 @@ pub fn process_spawn_queue(
             SpawnTask::DefenderInfantry { unit_index } => {
                 infantry_systems::spawn_single_defender(
                     &mut commands,
-                    &unit_assets.0,
+                    infantry_assets,
                     &mut materials,
                     unit_index,
                 );
@@ -265,7 +270,7 @@ pub fn process_spawn_queue(
             SpawnTask::AttackerInfantry { unit_index, level } => {
                 infantry_systems::spawn_single_attacker(
                     &mut commands,
-                    &unit_assets.0,
+                    infantry_assets,
                     &mut materials,
                     unit_index,
                     level,
@@ -274,7 +279,7 @@ pub fn process_spawn_queue(
             SpawnTask::DefenderArcher { unit_index } => {
                 archer_systems::spawn_single_defender_archer(
                     &mut commands,
-                    &unit_assets.1,
+                    archer_assets,
                     &mut materials,
                     unit_index,
                 );
@@ -282,7 +287,7 @@ pub fn process_spawn_queue(
             SpawnTask::AttackerArcher { unit_index, level } => {
                 archer_systems::spawn_single_attacker_archer(
                     &mut commands,
-                    &unit_assets.1,
+                    archer_assets,
                     &mut materials,
                     unit_index,
                     level,
@@ -291,14 +296,19 @@ pub fn process_spawn_queue(
             SpawnTask::AttackerAssassin { unit_index, level } => {
                 assassin_systems::spawn_single_attacker_assassin(
                     &mut commands,
-                    &unit_assets.2,
+                    assassin_assets,
                     &mut materials,
                     unit_index,
                     level,
                 );
             }
             SpawnTask::UpgradeToDispeller { entity } => {
-                upgrade_systems::apply_dispeller_upgrade(&mut commands, entity);
+                upgrade_systems::apply_dispeller_upgrade(
+                    &mut commands,
+                    entity,
+                    dispeller_assets,
+                    &mut materials,
+                );
             }
             SpawnTask::UpgradeToHealer { entity } => {
                 upgrade_systems::apply_healer_upgrade(&mut commands, entity);
@@ -318,7 +328,7 @@ pub fn process_spawn_queue(
             SpawnTask::KingsGuard { guard_index } => {
                 infantry_systems::spawn_single_kings_guard(
                     &mut commands,
-                    &unit_assets.0,
+                    infantry_assets,
                     &mut materials,
                     guard_index,
                 );
@@ -326,7 +336,7 @@ pub fn process_spawn_queue(
             SpawnTask::Brute => {
                 crate::game::units::brute::systems::spawn_brute(
                     commands.reborrow(),
-                    Res::clone(&unit_assets.0),
+                    Res::clone(infantry_assets),
                     &mut materials,
                     Res::clone(&current_level),
                 );
@@ -334,13 +344,13 @@ pub fn process_spawn_queue(
             SpawnTask::Ogre => {
                 crate::game::units::boss::ogre::systems::spawn_ogre(
                     commands.reborrow(),
-                    Res::clone(&boss_assets.0),
+                    Res::clone(ogre_assets),
                 );
             }
             SpawnTask::Hags => {
                 crate::game::units::boss::hags::systems::spawn_hags(
                     commands.reborrow(),
-                    Res::clone(&boss_assets.1),
+                    Res::clone(hag_assets),
                 );
             }
             SpawnTask::Battlefield => {
@@ -348,7 +358,7 @@ pub fn process_spawn_queue(
                     commands.reborrow(),
                     meshes,
                     materials,
-                    Res::clone(&shared_assets.0),
+                    Res::clone(battlefield_assets),
                 );
             }
             SpawnTask::Castle => {
@@ -357,11 +367,11 @@ pub fn process_spawn_queue(
             SpawnTask::LoadWizardAssets => {
                 crate::game::units::wizard::systems::load_wizard_assets(
                     commands.reborrow(),
-                    Res::clone(&shared_assets.2),
+                    Res::clone(asset_server),
                 );
             }
             SpawnTask::Wizard => {
-                if let Some(ref assets) = optional_assets.0 {
+                if let Some(assets) = wizard_assets_opt {
                     crate::game::units::wizard::systems::setup_wizard(
                         commands.reborrow(),
                         meshes,
@@ -374,11 +384,11 @@ pub fn process_spawn_queue(
             SpawnTask::LoadCauldronAssets => {
                 crate::game::cauldron::systems::load_cauldron_assets(
                     commands.reborrow(),
-                    Res::clone(&shared_assets.2),
+                    Res::clone(asset_server),
                 );
             }
             SpawnTask::Cauldron => {
-                if let Some(ref assets) = optional_assets.1 {
+                if let Some(assets) = cauldron_assets_opt {
                     crate::game::cauldron::systems::spawn_cauldron(
                         commands.reborrow(),
                         meshes,
@@ -482,14 +492,14 @@ pub fn process_spawn_queue(
             SpawnTask::PermanentWall { wall } => {
                 crate::game::units::wizard::spells::wall_of_stone::systems::spawn_permanent_wall(
                     &mut commands,
-                    &shared_assets.1,
+                    spell_visual_assets,
                     &wall,
                 );
             }
             SpawnTask::PermanentCrystal { crystal, damage_mult, count_mult, resonance_cascade } => {
                 crate::game::units::wizard::spells::arcane_crystal::systems::spawn_permanent_crystal(
                     &mut commands,
-                    &shared_assets.1,
+                    spell_visual_assets,
                     &crystal,
                     damage_mult,
                     count_mult,

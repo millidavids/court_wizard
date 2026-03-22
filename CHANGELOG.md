@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.55] - 2026-03-21
+
+### Added
+- **Unique unit sprites** — undead, dispellers, and the swordcerer now have their own distinct walking, attacking, and death animations instead of borrowing other units' appearances
+- **Dispeller casting animation** — dispellers now visually channel when casting their dispel ability
+- **Swordcerer combat animations** — the swordcerer plays a casting animation when firing missiles and an attack animation when swinging its sword
+- **Battle ambience** — a subtle sword-clashing sound plays during melee combat, growing louder as more units engage in close-quarters fighting
+
+### Changed
+- **Undead appearance** — undead units now have a more natural look with less purple tinting
+- **Swordcerer appearance** — the swordcerer avatar no longer has a blue hue, showing off its unique sprite sheet clearly
+
+### Fixed
+- **Arcane crystal range ring** — the range indicator ring around permanent arcane crystals now properly disappears when the crystal is dispelled
+
 ## [v0.5.43] - 2026-03-21
 
 ### Added

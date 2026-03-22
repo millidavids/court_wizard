@@ -446,7 +446,8 @@ pub fn font_of_life_resurrect(
                 resurrect_hp,
                 constants::FONT_OF_LIFE_RESURRECT_SPEED,
                 Color::srgba(0.3, 0.9, 0.3, 1.0), // Green tint for resurrected
-                &infantry_assets,
+                infantry_assets.sprite_texture.clone(),
+                infantry_assets.sprite_mesh.clone(),
                 &mut materials,
             );
 

@@ -153,8 +153,13 @@ fn spawn_aura_ring(
 ///
 /// Converts an attacker archer into a dispeller by swapping components:
 /// removes archer-specific components, adds dispeller components and white glow,
-/// and updates stats to match dispeller configuration.
-pub(super) fn apply_dispeller_upgrade(commands: &mut Commands, entity: Entity) {
+/// swaps to dispeller sprite sheet, and updates stats to match dispeller configuration.
+pub(super) fn apply_dispeller_upgrade(
+    commands: &mut Commands,
+    entity: Entity,
+    dispeller_assets: &crate::game::units::dispeller::resources::DispellerAssets,
+    materials: &mut Assets<StandardMaterial>,
+) {
     // Remove archer-specific components
     commands
         .entity(entity)
@@ -167,6 +172,18 @@ pub(super) fn apply_dispeller_upgrade(commands: &mut Commands, entity: Entity) {
         UnitTypeGlow {
             color: DISPELLER_GLOW_COLOR,
         },
+    ));
+
+    // Swap to dispeller sprite mesh and material
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        dispeller_assets.sprite_texture.clone(),
+        crate::game::units::dispeller::constants::DISPELLER_SPRITE_TINT,
+    );
+    commands.entity(entity).insert((
+        Mesh3d(dispeller_assets.sprite_mesh.clone()),
+        MeshMaterial3d(material),
+        crate::game::units::components::WalkingAnimation::default(),
     ));
 
     // Update stats to dispeller values

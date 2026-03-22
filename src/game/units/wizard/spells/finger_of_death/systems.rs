@@ -15,7 +15,6 @@ use crate::game::units::components::{
 };
 use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
 use crate::game::units::damage::DamageType;
-use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, get_cursor_world_position};
@@ -690,13 +689,13 @@ pub fn process_pending_undead_raises(
     mut commands: Commands,
     pending: Option<Res<PendingUndeadRaise>>,
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
-    infantry_assets: Option<Res<InfantryAssets>>,
+    undead_assets: Option<Res<crate::game::units::undead::resources::UndeadAssets>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let Some(pending) = pending else {
         return;
     };
-    let Some(infantry_assets) = infantry_assets else {
+    let Some(undead_assets) = undead_assets else {
         commands.remove_resource::<PendingUndeadRaise>();
         return;
     };
@@ -728,7 +727,8 @@ pub fn process_pending_undead_raises(
                 UNIT_HEALTH,
                 UNIT_MOVEMENT_SPEED * 0.5,
                 UNDEAD_SPRITE_TINT,
-                &infantry_assets,
+                undead_assets.sprite_texture.clone(),
+                undead_assets.sprite_mesh.clone(),
                 &mut materials,
             );
         }

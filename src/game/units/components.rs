@@ -755,6 +755,7 @@ pub const SPRITE_FRAME_SIZE: f32 = 64.0;
 pub const SPRITE_COLUMNS: usize = 9;
 pub const ATTACK_SPRITE_COLUMNS: usize = 6;
 pub const SHOOTING_SPRITE_COLUMNS: usize = 12;
+pub const CASTING_SPRITE_COLUMNS: usize = 7;
 pub const DEATH_SPRITE_COLUMNS: usize = 6;
 pub const DEATH_SHEET_IMAGE_HEIGHT: f32 = 64.0;
 /// Maps FacingDirection [Forward, Back, Left, Right] to sprite sheet rows.
@@ -875,6 +876,10 @@ impl CombatAnimation {
 
     pub fn new_shooting(combat_texture: Handle<Image>, walking_texture: Handle<Image>) -> Self {
         Self::new(SHOOTING_SPRITE_COLUMNS, combat_texture, walking_texture)
+    }
+
+    pub fn new_casting(combat_texture: Handle<Image>, walking_texture: Handle<Image>) -> Self {
+        Self::new(CASTING_SPRITE_COLUMNS, combat_texture, walking_texture)
     }
 
     pub fn tick(&mut self, delta: f32) -> bool {

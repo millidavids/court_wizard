@@ -1038,6 +1038,9 @@ pub fn archer_sprite_tint_for_team(team: Team) -> Color {
 ///
 /// Shared between Raise the Dead, Perpetual Unrest, and Font of Life.
 /// The caller should add any extra components (RaisedUndead, PermanentCorpse, etc.) afterward.
+///
+/// `sprite_texture` and `sprite_mesh` allow overriding the default infantry sprites
+/// (e.g. passing undead-specific textures for Team::Undead).
 #[allow(clippy::too_many_arguments)]
 pub fn resurrect_corpse_as_infantry(
     commands: &mut Commands,
@@ -1047,7 +1050,8 @@ pub fn resurrect_corpse_as_infantry(
     health: f32,
     speed: f32,
     tint: Color,
-    infantry_assets: &super::infantry::resources::InfantryAssets,
+    sprite_texture: Handle<Image>,
+    sprite_mesh: Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
     use super::components::{
@@ -1062,15 +1066,14 @@ pub fn resurrect_corpse_as_infantry(
     let upright_transform = Transform::from_xyz(position.x, spawn_y, position.z);
 
     let anim = WalkingAnimation::default();
-    let material =
-        create_default_sprite_material(materials, infantry_assets.sprite_texture.clone(), tint);
+    let material = create_default_sprite_material(materials, sprite_texture, tint);
 
     commands
         .entity(entity)
         .remove::<Corpse>()
         .remove::<RoughTerrain>()
         .insert(upright_transform)
-        .insert(Mesh3d(infantry_assets.sprite_mesh.clone()))
+        .insert(Mesh3d(sprite_mesh))
         .insert(MeshMaterial3d(material))
         .insert(anim)
         .insert(FacingDirection::default())

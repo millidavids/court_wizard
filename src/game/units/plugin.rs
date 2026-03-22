@@ -39,7 +39,8 @@ pub struct UnitsPlugin;
 
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
+        app.add_systems(Startup, super::undead::resources::preload_undead_assets)
+        .add_plugins((
             CommanderPlugin,
             ElitePlugin,
             WizardPlugin,

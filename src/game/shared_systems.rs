@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use bevy::audio::Volume;
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
@@ -17,9 +18,9 @@ use super::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, CORPSE_MATERIAL_VARIANTS, Corpse, DamageMultiplier, Effectiveness,
-    EliteAttackSpeedBonus, EliteDamageBonus, Health, Hitbox, Invulnerable, MovementSpeed, ResidualFireDamaged,
-    RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
-    apply_damage_to_unit,
+    EliteAttackSpeedBonus, EliteDamageBonus, Health, Hitbox, InMelee, Invulnerable, MovementSpeed,
+    ResidualFireDamaged, RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
 use super::units::constants::{SMELLY_SEPARATION_DISTANCE, SMELLY_SEPARATION_MULTIPLIER};
 use super::units::infantry::components::Infantry;
@@ -471,9 +472,13 @@ pub fn combat(
     >,
     mut talent_progress: Option<ResMut<super::units::wizard::talents::resources::BattleTalentProgress>>,
     mut contagious_rage_events: MessageWriter<super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage>,
-    combat_infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
-    combat_assassin_assets: Res<super::units::assassin::resources::AssassinAssets>,
+    combat_anim_assets: (
+        Res<super::units::infantry::resources::InfantryAssets>,
+        Res<super::units::assassin::resources::AssassinAssets>,
+        Res<super::units::undead::resources::UndeadAssets>,
+    ),
 ) {
+    let (combat_infantry_assets, combat_assassin_assets, combat_undead_assets) = &combat_anim_assets;
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
 
@@ -757,10 +762,17 @@ pub fn combat(
                 // Trigger melee attack animation.
                 // Archers handle their own animations in archer_melee_combat.
                 let attack_textures = if attacker_is_infantry {
-                    Some((
-                        combat_infantry_assets.attacking_texture.clone(),
-                        combat_infantry_assets.sprite_texture.clone(),
-                    ))
+                    if *attacker_team == Team::Undead {
+                        Some((
+                            combat_undead_assets.attacking_texture.clone(),
+                            combat_undead_assets.sprite_texture.clone(),
+                        ))
+                    } else {
+                        Some((
+                            combat_infantry_assets.attacking_texture.clone(),
+                            combat_infantry_assets.sprite_texture.clone(),
+                        ))
+                    }
                 } else if attacker_is_assassin {
                     Some((
                         combat_assassin_assets.attacking_texture.clone(),
@@ -853,6 +865,7 @@ pub fn convert_dead_to_corpses(
             Option<&Infantry>,
             Option<&Archer>,
             Option<&super::units::assassin::Assassin>,
+            Option<&super::units::dispeller::components::Dispeller>,
             Option<&super::units::king::components::King>,
             Option<&Boss>,
             Option<&SpellDamaged>,
@@ -861,12 +874,17 @@ pub fn convert_dead_to_corpses(
         ),
         (Without<Corpse>, Without<super::units::wizard::spells::fog_cloud::components::PhantomUnit>),
     >,
-    infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
-    archer_assets: Res<super::units::archer::resources::ArcherAssets>,
-    assassin_assets: Res<super::units::assassin::resources::AssassinAssets>,
-    king_assets: Res<super::units::king::resources::KingAssets>,
+    death_assets: (
+        Res<super::units::infantry::resources::InfantryAssets>,
+        Res<super::units::archer::resources::ArcherAssets>,
+        Res<super::units::assassin::resources::AssassinAssets>,
+        Res<super::units::dispeller::resources::DispellerAssets>,
+        Res<super::units::undead::resources::UndeadAssets>,
+        Res<super::units::king::resources::KingAssets>,
+    ),
     mut velocity_query: Query<&mut Velocity>,
 ) {
+    let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, undead_assets, king_assets) = &death_assets;
     for (
         entity,
         health,
@@ -875,6 +893,7 @@ pub fn convert_dead_to_corpses(
         is_infantry,
         is_archer,
         is_assassin,
+        is_dispeller,
         is_king,
         _is_boss,
         spell_damaged,
@@ -928,9 +947,16 @@ pub fn convert_dead_to_corpses(
                 marked_kill_events.write(super::achievements::messages::MarkedForDeathKillMessage);
             }
 
-            // Determine if this unit type has a death animation sprite sheet
-            let death_texture = if is_infantry.is_some() {
-                Some(infantry_assets.death_texture.clone())
+            // Determine if this unit type has a death animation sprite sheet.
+            // Undead infantry use undead-specific death texture.
+            let death_texture = if is_dispeller.is_some() {
+                Some(dispeller_assets.death_texture.clone())
+            } else if is_infantry.is_some() {
+                if *team == Team::Undead {
+                    Some(undead_assets.death_texture.clone())
+                } else {
+                    Some(infantry_assets.death_texture.clone())
+                }
             } else if is_archer.is_some() {
                 Some(archer_assets.death_texture.clone())
             } else if is_assassin.is_some() {
@@ -1386,4 +1412,82 @@ pub fn track_wizard_enemy_damage(
 /// Run condition: returns true when no wizard spell has damaged enemies yet this battle.
 pub fn wizard_has_not_damaged_enemies(kill_stats: Res<super::resources::KillStats>) -> bool {
     !kill_stats.wizard_damaged_enemies
+}
+
+// ===== Battle Ambience =====
+
+/// Number of units in melee at which the battle sound reaches full intensity.
+const BATTLE_AMBIENCE_MAX_UNITS: f32 = 40.0;
+
+/// Overall volume scale for battle ambience (kept subtle so it doesn't overpower spells/music).
+const BATTLE_AMBIENCE_VOLUME_SCALE: f32 = 0.15;
+
+/// Maximum distance for battle ambience attenuation (same as spell SFX).
+const BATTLE_AMBIENCE_MAX_DISTANCE: f32 = 10000.0;
+
+/// Pre-loaded battle ambience audio.
+#[derive(Resource)]
+pub struct BattleAmbienceAssets {
+    pub audio: Handle<AudioSource>,
+}
+
+/// Marker component for the battle ambience audio entity.
+#[derive(Component)]
+pub(crate) struct BattleAmbienceEntity;
+
+/// Loads the battle ambience audio asset at startup.
+pub fn load_battle_ambience_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(BattleAmbienceAssets {
+        audio: asset_server.load("audio/sound_effects/battle.ogg"),
+    });
+}
+
+/// Scales the looping battle ambience volume based on how many units are in melee combat.
+/// Uses distance attenuation from the average melee position to the wizard, so battles
+/// closer to the castle sound louder than distant skirmishes.
+pub fn update_battle_ambience(
+    mut commands: Commands,
+    melee_query: Query<(&InMelee, &Transform)>,
+    mut ambience_query: Query<(Entity, Option<&mut AudioSink>), With<BattleAmbienceEntity>>,
+    ambience_assets: Res<BattleAmbienceAssets>,
+    game_config: Res<GameConfig>,
+) {
+    let melee_count = melee_query.iter().count() as f32;
+    let sfx_volume = game_config.effective_sfx_volume();
+
+    if melee_count > 0.0 && sfx_volume > 0.0 {
+        // Compute average position of all melee units for distance attenuation
+        let avg_pos = melee_query
+            .iter()
+            .fold(Vec3::ZERO, |acc, (_, t)| acc + t.translation)
+            / melee_count;
+        let distance = avg_pos.distance(SPELL_ORIGIN);
+        let linear = (1.0 - distance / BATTLE_AMBIENCE_MAX_DISTANCE).clamp(0.0, 1.0);
+        let attenuation = linear * linear * linear;
+
+        let intensity = (melee_count / BATTLE_AMBIENCE_MAX_UNITS).clamp(0.0, 1.0);
+        let volume = sfx_volume * intensity * attenuation * BATTLE_AMBIENCE_VOLUME_SCALE;
+
+        if volume <= 0.0 {
+            if let Ok((entity, _)) = ambience_query.single() {
+                commands.entity(entity).try_despawn();
+            }
+            return;
+        }
+
+        if let Ok((_entity, sink)) = ambience_query.single_mut() {
+            if let Some(mut sink) = sink {
+                sink.set_volume(Volume::Linear(volume));
+            }
+        } else {
+            commands.spawn((
+                AudioPlayer::new(ambience_assets.audio.clone()),
+                PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
+                BattleAmbienceEntity,
+                super::components::OnGameplayScreen,
+            ));
+        }
+    } else if let Ok((entity, _)) = ambience_query.single() {
+        commands.entity(entity).try_despawn();
+    }
 }
