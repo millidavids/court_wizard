@@ -201,8 +201,13 @@ pub(super) fn apply_dispeller_upgrade(
 ///
 /// Converts an attacker archer into a healer by swapping components:
 /// removes archer-specific components, adds healer components and green glow,
-/// and updates stats to match healer configuration.
-pub(super) fn apply_healer_upgrade(commands: &mut Commands, entity: Entity) {
+/// swaps to healer sprite sheet, and updates stats to match healer configuration.
+pub(super) fn apply_healer_upgrade(
+    commands: &mut Commands,
+    entity: Entity,
+    healer_assets: &crate::game::units::healer::resources::HealerAssets,
+    materials: &mut Assets<StandardMaterial>,
+) {
     // Remove archer-specific components
     commands
         .entity(entity)
@@ -215,6 +220,18 @@ pub(super) fn apply_healer_upgrade(commands: &mut Commands, entity: Entity) {
         UnitTypeGlow {
             color: HEALER_GLOW_COLOR,
         },
+    ));
+
+    // Swap to healer sprite mesh and material
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        healer_assets.sprite_texture.clone(),
+        crate::game::units::healer::constants::HEALER_SPRITE_TINT,
+    );
+    commands.entity(entity).insert((
+        Mesh3d(healer_assets.sprite_mesh.clone()),
+        MeshMaterial3d(material),
+        crate::game::units::components::WalkingAnimation::default(),
     ));
 
     // Update stats to healer values
@@ -232,8 +249,13 @@ pub(super) fn apply_healer_upgrade(commands: &mut Commands, entity: Entity) {
 ///
 /// Converts an attacker infantry into a shielder by swapping components:
 /// removes infantry-specific components, adds shielder components and purple glow,
-/// and updates stats to match shielder configuration.
-pub(super) fn apply_shielder_upgrade(commands: &mut Commands, entity: Entity) {
+/// swaps to shielder sprite sheet, and updates stats to match shielder configuration.
+pub(super) fn apply_shielder_upgrade(
+    commands: &mut Commands,
+    entity: Entity,
+    shielder_assets: &crate::game::units::shielder::resources::ShielderAssets,
+    materials: &mut Assets<StandardMaterial>,
+) {
     // Remove infantry-specific components
     commands.entity(entity).remove::<Infantry>();
 
@@ -243,6 +265,18 @@ pub(super) fn apply_shielder_upgrade(commands: &mut Commands, entity: Entity) {
         UnitTypeGlow {
             color: SHIELDER_GLOW_COLOR,
         },
+    ));
+
+    // Swap to shielder sprite mesh and material
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        shielder_assets.sprite_texture.clone(),
+        crate::game::units::shielder::constants::SHIELDER_SPRITE_TINT,
+    );
+    commands.entity(entity).insert((
+        Mesh3d(shielder_assets.sprite_mesh.clone()),
+        MeshMaterial3d(material),
+        crate::game::units::components::WalkingAnimation::default(),
     ));
 
     // Update stats to shielder values

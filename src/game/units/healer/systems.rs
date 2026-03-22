@@ -367,6 +367,14 @@ pub fn healer_fire_heal_bolt(
             ));
 
             attack_timer.time_since_last_attack = 0.0;
+
+            // Trigger casting animation
+            commands.entity(healer_entity).insert(
+                crate::game::units::components::CombatAnimation::new_casting(
+                    healer_assets.casting_texture.clone(),
+                    healer_assets.sprite_texture.clone(),
+                ),
+            );
         }
     }
 }

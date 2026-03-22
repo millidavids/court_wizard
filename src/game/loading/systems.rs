@@ -221,7 +221,14 @@ pub fn process_spawn_queue(
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
     config: Res<GameConfig>,
-    unit_assets: (Res<InfantryAssets>, Res<ArcherAssets>, Res<AssassinAssets>, Res<crate::game::units::dispeller::resources::DispellerAssets>),
+    unit_assets: (
+        Res<InfantryAssets>,
+        Res<ArcherAssets>,
+        Res<AssassinAssets>,
+        Res<crate::game::units::dispeller::resources::DispellerAssets>,
+        Res<crate::game::units::shielder::resources::ShielderAssets>,
+        Res<crate::game::units::healer::resources::HealerAssets>,
+    ),
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     boss_assets: (
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
@@ -249,7 +256,7 @@ pub fn process_spawn_queue(
     )>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
-    let (infantry_assets, archer_assets, assassin_assets, dispeller_assets) = &unit_assets;
+    let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, shielder_assets, healer_assets) = &unit_assets;
     let (ogre_assets, hag_assets) = &boss_assets;
     let (wizard_assets_opt, cauldron_assets_opt) = &optional_assets;
     let (battlefield_assets, spell_visual_assets, asset_server) = &shared_assets;
@@ -311,10 +318,20 @@ pub fn process_spawn_queue(
                 );
             }
             SpawnTask::UpgradeToHealer { entity } => {
-                upgrade_systems::apply_healer_upgrade(&mut commands, entity);
+                upgrade_systems::apply_healer_upgrade(
+                    &mut commands,
+                    entity,
+                    healer_assets,
+                    &mut materials,
+                );
             }
             SpawnTask::UpgradeToShielder { entity } => {
-                upgrade_systems::apply_shielder_upgrade(&mut commands, entity);
+                upgrade_systems::apply_shielder_upgrade(
+                    &mut commands,
+                    entity,
+                    shielder_assets,
+                    &mut materials,
+                );
             }
             SpawnTask::King => {
                 crate::game::units::king::systems::spawn_king(

@@ -1,21 +1,29 @@
 use bevy::prelude::*;
 
 use crate::game::constants::{
-    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_BASE, UNDEAD_CORPSE_COLOR,
+    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
 };
-
-use super::constants::*;
+use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
+use crate::game::units::constants::{DEFAULT_SPRITE_HEIGHT, DEFAULT_SPRITE_WIDTH};
+use crate::game::units::systems::create_corpse_sprite_materials;
 
 /// Pre-loaded meshes and materials for shielder units.
 #[derive(Resource)]
 #[allow(dead_code)]
 pub struct ShielderAssets {
-    pub mesh: Handle<Mesh>,
-    pub attacker_material: Handle<StandardMaterial>,
-    pub defender_corpse_material: Handle<StandardMaterial>,
-    pub attacker_corpse_material: Handle<StandardMaterial>,
-    pub undead_corpse_material: Handle<StandardMaterial>,
-    pub undead_material: Handle<StandardMaterial>,
+    /// Rectangle mesh for sprite rendering.
+    pub sprite_mesh: Handle<Mesh>,
+    /// Shielder walking sprite sheet texture.
+    pub sprite_texture: Handle<Image>,
+    /// Attack animation sprite sheet.
+    pub attacking_texture: Handle<Image>,
+    /// Casting animation sprite sheet (shield ability).
+    pub casting_texture: Handle<Image>,
+    /// Death animation sprite sheet.
+    pub death_texture: Handle<Image>,
+    pub defender_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
 }
 
 /// System to pre-load shielder assets at startup.
@@ -23,37 +31,39 @@ pub(super) fn preload_shielder_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
+    let sprite_texture = asset_server.load("images/sprite_sheets/shielder-walking_9-frames.png");
+    let attacking_texture =
+        asset_server.load("images/sprite_sheets/shielder-attacking_6-frames.png");
+    let casting_texture = asset_server.load("images/sprite_sheets/shielder-casting_7-frames.png");
+    let death_texture = asset_server.load("images/sprite_sheets/shielder-death_6-frames.png");
+
+    let defender_corpse_materials = create_corpse_sprite_materials(
+        &mut materials,
+        sprite_texture.clone(),
+        DEFENDER_CORPSE_COLOR,
+    );
+    let attacker_corpse_materials = create_corpse_sprite_materials(
+        &mut materials,
+        sprite_texture.clone(),
+        ATTACKER_CORPSE_COLOR,
+    );
+    let undead_corpse_materials = create_corpse_sprite_materials(
+        &mut materials,
+        sprite_texture.clone(),
+        UNDEAD_CORPSE_COLOR,
+    );
+
     let assets = ShielderAssets {
-        mesh: meshes.add(Circle::new(SHIELDER_RADIUS)),
-        attacker_material: materials.add(StandardMaterial {
-            base_color: ATTACKER_SHIELDER_COLOR,
-            unlit: true,
-            ..default()
-        }),
-        defender_corpse_material: materials.add(StandardMaterial {
-            base_color: DEFENDER_CORPSE_COLOR,
-            unlit: true,
-            alpha_mode: AlphaMode::Blend,
-            ..default()
-        }),
-        attacker_corpse_material: materials.add(StandardMaterial {
-            base_color: ATTACKER_CORPSE_COLOR,
-            unlit: true,
-            alpha_mode: AlphaMode::Blend,
-            ..default()
-        }),
-        undead_corpse_material: materials.add(StandardMaterial {
-            base_color: UNDEAD_CORPSE_COLOR,
-            unlit: true,
-            alpha_mode: AlphaMode::Blend,
-            ..default()
-        }),
-        undead_material: materials.add(StandardMaterial {
-            base_color: UNDEAD_BASE,
-            unlit: true,
-            ..default()
-        }),
+        sprite_mesh: meshes.add(Rectangle::new(DEFAULT_SPRITE_WIDTH, DEFAULT_SPRITE_HEIGHT)),
+        sprite_texture,
+        attacking_texture,
+        casting_texture,
+        death_texture,
+        defender_corpse_materials,
+        attacker_corpse_materials,
+        undead_corpse_materials,
     };
 
     commands.insert_resource(assets);

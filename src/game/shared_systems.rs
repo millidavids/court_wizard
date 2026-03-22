@@ -866,6 +866,8 @@ pub fn convert_dead_to_corpses(
             Option<&Archer>,
             Option<&super::units::assassin::Assassin>,
             Option<&super::units::dispeller::components::Dispeller>,
+            Option<&super::units::shielder::components::Shielder>,
+            Option<&super::units::healer::components::Healer>,
             Option<&super::units::king::components::King>,
             Option<&Boss>,
             Option<&SpellDamaged>,
@@ -882,9 +884,14 @@ pub fn convert_dead_to_corpses(
         Res<super::units::undead::resources::UndeadAssets>,
         Res<super::units::king::resources::KingAssets>,
     ),
+    death_assets_2: (
+        Res<super::units::shielder::resources::ShielderAssets>,
+        Res<super::units::healer::resources::HealerAssets>,
+    ),
     mut velocity_query: Query<&mut Velocity>,
 ) {
     let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, undead_assets, king_assets) = &death_assets;
+    let (shielder_assets, healer_assets) = &death_assets_2;
     for (
         entity,
         health,
@@ -894,6 +901,8 @@ pub fn convert_dead_to_corpses(
         is_archer,
         is_assassin,
         is_dispeller,
+        is_shielder,
+        is_healer,
         is_king,
         _is_boss,
         spell_damaged,
@@ -951,6 +960,10 @@ pub fn convert_dead_to_corpses(
             // Undead infantry use undead-specific death texture.
             let death_texture = if is_dispeller.is_some() {
                 Some(dispeller_assets.death_texture.clone())
+            } else if is_shielder.is_some() {
+                Some(shielder_assets.death_texture.clone())
+            } else if is_healer.is_some() {
+                Some(healer_assets.death_texture.clone())
             } else if is_infantry.is_some() {
                 if *team == Team::Undead {
                     Some(undead_assets.death_texture.clone())
@@ -1425,20 +1438,32 @@ const BATTLE_AMBIENCE_VOLUME_SCALE: f32 = 0.15;
 /// Maximum distance for battle ambience attenuation (same as spell SFX).
 const BATTLE_AMBIENCE_MAX_DISTANCE: f32 = 10000.0;
 
+/// Overall volume scale for the crowd ambience loop.
+const CROWD_AMBIENCE_VOLUME_SCALE: f32 = 0.12;
+
+/// Position of the battlefield center for crowd sound attenuation (XZ from staging point).
+const BATTLEFIELD_CENTER: Vec3 = Vec3::new(STAGING_POINT.0, 0.0, STAGING_POINT.1);
+
 /// Pre-loaded battle ambience audio.
 #[derive(Resource)]
 pub struct BattleAmbienceAssets {
-    pub audio: Handle<AudioSource>,
+    pub battle_audio: Handle<AudioSource>,
+    pub crowd_audio: Handle<AudioSource>,
 }
 
-/// Marker component for the battle ambience audio entity.
+/// Marker component for the melee battle ambience audio entity.
 #[derive(Component)]
 pub(crate) struct BattleAmbienceEntity;
 
-/// Loads the battle ambience audio asset at startup.
+/// Marker component for the crowd ambience audio entity.
+#[derive(Component)]
+pub(crate) struct CrowdAmbienceEntity;
+
+/// Loads the battle ambience audio assets at startup.
 pub fn load_battle_ambience_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(BattleAmbienceAssets {
-        audio: asset_server.load("audio/sound_effects/battle.ogg"),
+        battle_audio: asset_server.load("audio/sound_effects/battle.ogg"),
+        crowd_audio: asset_server.load("audio/sound_effects/angry_crowd.ogg"),
     });
 }
 
@@ -1481,13 +1506,47 @@ pub fn update_battle_ambience(
             }
         } else {
             commands.spawn((
-                AudioPlayer::new(ambience_assets.audio.clone()),
+                AudioPlayer::new(ambience_assets.battle_audio.clone()),
                 PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
                 BattleAmbienceEntity,
                 super::components::OnGameplayScreen,
             ));
         }
     } else if let Ok((entity, _)) = ambience_query.single() {
+        commands.entity(entity).try_despawn();
+    }
+}
+
+/// Plays a muffled crowd loop throughout the battle, attenuated from the battlefield center.
+/// Spawns on first run, despawns when SFX is muted.
+pub fn update_crowd_ambience(
+    mut commands: Commands,
+    mut crowd_query: Query<(Entity, Option<&mut AudioSink>), With<CrowdAmbienceEntity>>,
+    ambience_assets: Res<BattleAmbienceAssets>,
+    game_config: Res<GameConfig>,
+) {
+    let sfx_volume = game_config.effective_sfx_volume();
+
+    // Distance from battlefield center to wizard
+    let distance = BATTLEFIELD_CENTER.distance(SPELL_ORIGIN);
+    let linear = (1.0 - distance / BATTLE_AMBIENCE_MAX_DISTANCE).clamp(0.0, 1.0);
+    let attenuation = linear * linear * linear;
+    let volume = sfx_volume * attenuation * CROWD_AMBIENCE_VOLUME_SCALE;
+
+    if volume > 0.0 {
+        if let Ok((_entity, sink)) = crowd_query.single_mut() {
+            if let Some(mut sink) = sink {
+                sink.set_volume(Volume::Linear(volume));
+            }
+        } else {
+            commands.spawn((
+                AudioPlayer::new(ambience_assets.crowd_audio.clone()),
+                PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
+                CrowdAmbienceEntity,
+                super::components::OnGameplayScreen,
+            ));
+        }
+    } else if let Ok((entity, _)) = crowd_query.single() {
         commands.entity(entity).try_despawn();
     }
 }

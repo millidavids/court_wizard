@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{
-    ATTACKER_BASE, TINT_GREEN, UNIT_SCALE, get_tier, get_tier_level, tint,
-};
+use crate::game::constants::{UNIT_SCALE, get_tier, get_tier_level};
 
 // ===== Visual =====
-pub const ATTACKER_HEALER_COLOR: Color = tint(ATTACKER_BASE, TINT_GREEN, 0.6);
 pub const HEALER_RADIUS: f32 = 8.0 * UNIT_SCALE;
+
+/// Sprite tint for healers.
+pub const HEALER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);
 
 // ===== Movement =====
 pub const HEALER_MOVEMENT_SPEED: f32 = 110.0;

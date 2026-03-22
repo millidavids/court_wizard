@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.60] - 2026-03-22
+
+### Added
+- **Shielder animations** — shielders now have unique walking, attacking, casting, and death animations with dedicated sprite sheets
+- **Healer animations** — healers now have unique walking, attacking, casting, and death animations with dedicated sprite sheets
+- **Crowd ambience** — a muffled crowd sound plays throughout battles, adding to the atmosphere of the battlefield
+
 ## [v0.5.55] - 2026-03-21
 
 ### Added

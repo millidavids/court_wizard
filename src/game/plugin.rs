@@ -221,9 +221,13 @@ impl Plugin for GamePlugin {
                     .run_if(shared_systems::wizard_has_not_damaged_enemies),
             )
             // Battle ambience — scales looping sword-clash sound with melee unit count
+            // Crowd ambience — muffled crowd loop throughout battle
             .add_systems(
                 Update,
-                shared_systems::update_battle_ambience
+                (
+                    shared_systems::update_battle_ambience,
+                    shared_systems::update_crowd_ambience,
+                )
                     .run_if(is_gameplay_running),
             )
             // Billboard rotation is a visual-only system that must run for both

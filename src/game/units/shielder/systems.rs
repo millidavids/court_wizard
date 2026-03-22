@@ -249,6 +249,7 @@ pub fn shielder_movement(
 pub fn shielder_apply_shield(
     mut commands: Commands,
     time: Res<Time>,
+    shielder_assets: Res<super::resources::ShielderAssets>,
     mut shielders: Query<
         (
             Entity,
@@ -322,6 +323,14 @@ pub fn shielder_apply_shield(
             commands
                 .entity(target_entity)
                 .insert((SpellShield, ShielderDamageReduction));
+
+            // Trigger casting animation
+            commands.entity(entity).insert(
+                crate::game::units::components::CombatAnimation::new_casting(
+                    shielder_assets.casting_texture.clone(),
+                    shielder_assets.sprite_texture.clone(),
+                ),
+            );
 
             // Set cooldown
             commands.entity(entity).insert(ShielderShieldCooldown {
