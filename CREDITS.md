@@ -32,14 +32,20 @@ This project uses the following open-source libraries (via Cargo dependencies):
 
 For complete license information, see the `Cargo.lock` file which lists all dependencies and their versions.
 
+## Sprite Art
+
+All character and unit sprites are from the **Liberated Pixel Cup (LPC)** project on OpenGameArt.org.
+
+- **Source**: http://opengameart.org/content/lpc-collection
+- **Licenses**: OGA-BY 3.0, CC-BY-SA 3.0, GPL 3.0
+- **Full attribution**: See `SPRITE_CREDITS.csv` in the game directory for detailed per-file credits listing all contributing artists.
+
 ## Special Thanks
 
 - **Anthropic** and **Claude** for AI-assisted development and code generation
 - The Bevy community for their excellent documentation and examples
 - The Rust community for creating an amazing language and ecosystem
-- Sprites contributed as part of the Liberated Pixel Cup project from OpenGameArt.org: http://opengameart.org/content/lpc-collection
-License: Creative Commons Attribution-ShareAlike 3.0 (CC-BY-SA 3.0) http://creativecommons.org/licenses/by-sa/3.0/
-Detailed credits: [credits.csv](credits/SPRITE_CREDITS.csv)
+- The LPC community and all contributing sprite artists on OpenGameArt.org
 
 ---
 

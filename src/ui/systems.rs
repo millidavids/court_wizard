@@ -107,14 +107,43 @@ pub fn button_interaction(
 // Page container (shared by settings, progress, instructions)
 // ---------------------------------------------------------------------------
 
-/// Dark opaque background for page content containers.
-const PAGE_CONTENT_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+/// Translucent background for the outer page content container.
+const PAGE_CONTENT_BG: Color = Color::hsla(220.0, 0.08, 0.08, 0.55);
 
 /// Subtle border for page content containers.
-const PAGE_CONTENT_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 1.0);
+const PAGE_CONTENT_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 0.4);
 
-/// Semi-transparent overlay behind the content container.
-const PAGE_OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
+/// Semi-transparent overlay behind the content container to darken the background.
+const PAGE_OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.5);
+
+/// Background for inner scrollable areas within page containers.
+const SCROLL_AREA_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.3);
+
+/// Border for inner scrollable areas within page containers.
+const SCROLL_AREA_BORDER: Color = Color::hsla(0.0, 0.0, 0.25, 0.5);
+
+/// Shadow color for elevated UI panels.
+const SHADOW_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.5);
+
+/// Shadow color for inner scroll areas (slightly lighter than outer panels).
+const SCROLL_SHADOW_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.4);
+
+/// Returns the shared styling bundle for inner scrollable areas.
+/// Callers should also add `ScrollPosition::default()` and their marker component.
+pub(crate) fn scroll_area_style() -> (BackgroundColor, BorderColor, BorderRadius, BoxShadow) {
+    (
+        BackgroundColor(SCROLL_AREA_BG),
+        BorderColor::all(SCROLL_AREA_BORDER),
+        BorderRadius::all(Val::Px(4.0)),
+        BoxShadow::new(
+            SCROLL_SHADOW_COLOR,
+            Val::Px(0.0),
+            Val::Px(2.0),
+            Val::Px(2.0),
+            Val::Px(8.0),
+        ),
+    )
+}
 
 /// Spawns a full-screen page with a semi-transparent overlay and a dark opaque
 /// content container inside it. Returns the content container entity so the
@@ -163,6 +192,13 @@ pub fn spawn_page_container<M: Component>(
             BackgroundColor(PAGE_CONTENT_BG),
             BorderColor::all(PAGE_CONTENT_BORDER),
             BorderRadius::all(Val::Px(6.0)),
+            BoxShadow::new(
+                SHADOW_COLOR,
+                Val::Px(0.0),
+                Val::Px(4.0),
+                Val::Px(4.0),
+                Val::Px(12.0),
+            ),
         ))
         .id();
 

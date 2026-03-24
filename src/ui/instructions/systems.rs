@@ -4,12 +4,9 @@ use bevy::prelude::*;
 
 use super::components::{BackButton, OnInstructionsScreen, ScrollableInstructionsContainer};
 use super::constants::INSTRUCTIONS_TEXT;
-use crate::ui::components::ButtonColors;
+use crate::ui::main_menu::BACK_BUTTON_STYLE;
 
-// UI colors for instructions screen
 const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
-const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-const BUTTON_BORDER_COLOR: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
 
 /// Spawns the instructions screen UI.
 pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
@@ -42,8 +39,11 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::scroll_y(),
+                    margin: UiRect::bottom(Val::Px(20.0)),
+                    border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
+                crate::ui::systems::scroll_area_style(),
                 ScrollPosition::default(),
                 ScrollableInstructionsContainer,
             ))
@@ -66,34 +66,7 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
             });
 
         // Back button
-        parent
-            .spawn((
-                Button,
-                Node {
-                    width: Val::Px(200.0),
-                    height: Val::Px(60.0),
-                    border: UiRect::all(Val::Px(3.0)),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    margin: UiRect::top(Val::Px(20.0)),
-                    ..default()
-                },
-                BorderColor::all(BUTTON_BORDER_COLOR),
-                BorderRadius::all(Val::Px(8.0)),
-                BackgroundColor(BUTTON_COLOR),
-                ButtonColors {
-                    background: BUTTON_COLOR,
-                    border: BUTTON_BORDER_COLOR,
-                },
-                BackButton,
-            ))
-            .with_children(|btn| {
-                btn.spawn((
-                    Text::new("Back"),
-                    TextFont::from_font_size(32.0),
-                    TextColor(TEXT_COLOR),
-                ));
-            });
+        crate::ui::systems::spawn_button(parent, "Back", BackButton, &BACK_BUTTON_STYLE);
     });
 }
 

@@ -10,4 +10,4 @@ mod systems;
 // Public API exports - only export what's actually used externally
 pub use messages::ConfigChanged;
 pub use plugin::ConfigPlugin;
-pub use resources::{ActiveSave, Difficulty, GameConfig, VsyncMode, WizardType};
+pub use resources::{ActiveSave, DisplayMode, GameConfig, VsyncMode, WizardType};

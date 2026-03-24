@@ -8,9 +8,9 @@ use bevy::prelude::*;
 use crate::state::PauseMenuState;
 use crate::ui::main_menu::settings::components::ScrollableContainer;
 use crate::ui::main_menu::settings::systems::{
-    button_hover, button_press, option_button_action, pause_settings_button_action,
-    setup_pause_menu, slider_button_action, slider_interaction, update_selected_options,
-    update_slider_text, update_sliders,
+    button_hover, button_press, handle_confirmation_popup, option_button_action,
+    pause_settings_button_action, setup_pause_menu, slider_button_action, slider_interaction,
+    update_selected_options, update_slider_text, update_sliders,
 };
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::{escape_to_pause_main, handle_scroll};
@@ -52,6 +52,7 @@ impl Plugin for PauseSettingsPlugin {
                     update_slider_text,
                     update_sliders,
                     update_selected_options,
+                    handle_confirmation_popup,
                 )
                     .run_if(in_state(PauseMenuState::Settings)),
             );

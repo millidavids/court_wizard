@@ -16,10 +16,7 @@ impl Plugin for CreditsPlugin {
         app.add_systems(OnEnter(MenuState::Credits), systems::setup)
             .add_systems(
                 Update,
-                (
-                    handle_back_to_landing,
-                    systems::handle_sprite_credits_button,
-                )
+                handle_back_to_landing
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Credits)),
             )

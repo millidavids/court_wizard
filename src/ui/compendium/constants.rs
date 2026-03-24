@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
-
 // Colors
 pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 pub(super) const UNLOCKED_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
@@ -45,17 +43,3 @@ pub(super) const COLUMN_GAP: f32 = 12.0;
 pub(super) const TAB_HEIGHT: f32 = 36.0;
 pub(super) const TAB_PADDING_H: f32 = 14.0;
 pub(super) const DETAIL_ICON_SIZE: f32 = 64.0;
-
-// Button style
-pub(super) const BUTTON_COLOR: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-pub(super) const BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
-
-pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 200.0,
-    height: 50.0,
-    border_width: 3.0,
-    font_size: 24.0,
-    background: BUTTON_COLOR,
-    border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
-};

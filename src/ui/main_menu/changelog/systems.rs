@@ -33,8 +33,11 @@ pub(super) fn setup(mut commands: Commands) {
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::scroll_y(),
+                    margin: UiRect::bottom(Val::Px(20.0)),
+                    border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
+                crate::ui::systems::scroll_area_style(),
                 ScrollPosition::default(),
                 ScrollableChangelogContainer,
             ))

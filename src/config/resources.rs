@@ -8,8 +8,8 @@ use crate::game::units::wizard::components::Spell;
 /// Temporary structure for TOML serialization only.
 ///
 /// This is NOT a runtime resource. It only exists during:
-/// 1. Startup: Load from localStorage → apply to Bevy components
-/// 2. Save: Read from Bevy components → serialize to localStorage
+/// 1. Startup: Load from disk → apply to Bevy components
+/// 2. Save: Read from Bevy components → serialize to disk
 ///
 /// During runtime, Bevy components are the single source of truth.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -34,10 +34,17 @@ pub enum VsyncMode {
     Adaptive,
 }
 
+/// Display mode options for the game window.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum DisplayMode {
+    /// Standard windowed mode with title bar and borders
+    #[default]
+    Windowed,
+    /// Borderless fullscreen (covers the screen without exclusive mode)
+    BorderlessFullscreen,
+}
+
 /// Window settings for serialization to/from TOML.
-///
-/// For WASM builds, window size is controlled by the browser canvas via
-/// `fit_canvas_to_parent: true`. Only VSync and scale factor are configurable.
 ///
 /// During runtime, Bevy's `Window` component is the source of truth.
 /// This struct is only used for persistence to/from the config file.
@@ -45,6 +52,9 @@ pub enum VsyncMode {
 pub(crate) struct WindowConfig {
     /// VSync mode (on, off, or adaptive)
     pub vsync: VsyncMode,
+    /// Display mode (windowed or borderless fullscreen)
+    #[serde(default)]
+    pub display_mode: DisplayMode,
     /// Scale factor override (None uses OS default)
     pub scale_factor: Option<f64>,
     /// Saved window X position in physical pixels (None = let OS decide)
@@ -53,17 +63,49 @@ pub(crate) struct WindowConfig {
     /// Saved window Y position in physical pixels (None = let OS decide)
     #[serde(default)]
     pub position_y: Option<i32>,
+    /// Saved windowed mode width in logical pixels
+    #[serde(default = "default_windowed_width")]
+    pub windowed_width: f32,
+    /// Saved windowed mode height in logical pixels
+    #[serde(default = "default_windowed_height")]
+    pub windowed_height: f32,
+}
+
+const DEFAULT_WINDOWED_WIDTH: f32 = 1920.0;
+const DEFAULT_WINDOWED_HEIGHT: f32 = 1080.0;
+
+fn default_windowed_width() -> f32 {
+    DEFAULT_WINDOWED_WIDTH
+}
+fn default_windowed_height() -> f32 {
+    DEFAULT_WINDOWED_HEIGHT
 }
 
 impl Default for WindowConfig {
     fn default() -> Self {
         Self {
             vsync: VsyncMode::default(),
+            display_mode: DisplayMode::default(),
             scale_factor: Some(1.0),
             position_x: None,
             position_y: None,
+            windowed_width: DEFAULT_WINDOWED_WIDTH,
+            windowed_height: DEFAULT_WINDOWED_HEIGHT,
         }
     }
+}
+
+/// Runtime resource tracking the last windowed-mode size and position.
+/// Saved before entering fullscreen/borderless so we can restore when switching back.
+#[derive(Resource, Debug, Clone)]
+pub(crate) struct SavedWindowedGeometry {
+    pub width: f32,
+    pub height: f32,
+    pub position: Option<IVec2>,
+    /// When set, apply this display mode change on the next frame.
+    /// Deferred by one frame to avoid scissor rect / render target size mismatch
+    /// when the window mode and resolution change in the same frame.
+    pub pending_mode_change: Option<DisplayMode>,
 }
 
 /// Audio settings for serialization to/from TOML.
@@ -318,8 +360,7 @@ where
 /// - Game difficulty
 /// - Global brightness
 ///
-/// Window size/mode is NOT included as it's managed by the browser canvas.
-/// Changes to this resource are automatically persisted to localStorage.
+/// Changes to this resource are automatically persisted to disk.
 ///
 /// # Examples
 ///
@@ -329,13 +370,16 @@ where
 ///
 /// fn change_difficulty(mut config: ResMut<GameConfig>) {
 ///     config.difficulty = Difficulty::Hard;
-///     // Automatically persists to localStorage
+///     // Automatically persists to disk
 /// }
 /// ```
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GameConfig {
     /// VSync mode (on, off, or adaptive)
     pub vsync: VsyncMode,
+    /// Display mode (windowed or borderless fullscreen)
+    #[serde(default)]
+    pub display_mode: DisplayMode,
     /// Master volume level (0.0 = muted, 1.0 = full volume)
     pub master_volume: f32,
     /// Music track volume level (0.0 = muted, 1.0 = full volume)
@@ -391,6 +435,7 @@ impl Default for GameConfig {
     fn default() -> Self {
         Self {
             vsync: VsyncMode::default(),
+            display_mode: DisplayMode::default(),
             master_volume: 1.0,
             music_volume: 0.3,
             sfx_volume: 0.8,

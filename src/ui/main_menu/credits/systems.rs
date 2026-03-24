@@ -2,25 +2,12 @@
 
 use bevy::prelude::*;
 
-use super::components::{OnCreditsScreen, ScrollableCreditsContainer, SpriteCreditsButton};
-use crate::game::input::messages::MouseClicked;
-use crate::ui::components::{BackButton, ButtonStyle};
-use crate::ui::main_menu::landing::constants::{
-    BACK_BUTTON_STYLE, BUTTON_BACKGROUND, BUTTON_BORDER, TEXT_COLOR,
-};
-use crate::ui::systems::{spawn_button, spawn_page_container};
+use super::components::{OnCreditsScreen, ScrollableCreditsContainer};
+use crate::ui::components::BackButton;
+use crate::ui::main_menu::landing::constants::{BACK_BUTTON_STYLE, TEXT_COLOR};
+use crate::ui::systems::spawn_page_container;
 
 const CREDITS_TEXT: &str = include_str!("../../../../CREDITS.md");
-
-const SPRITE_CREDITS_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 280.0,
-    height: 50.0,
-    border_width: 3.0,
-    font_size: 24.0,
-    background: BUTTON_BACKGROUND,
-    border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
-};
 
 /// Strips markdown link syntax `[text](url)` → `text` from the given string.
 fn strip_markdown_links(input: &str) -> String {
@@ -57,9 +44,7 @@ fn strip_markdown_links(input: &str) -> String {
 pub(super) fn setup(mut commands: Commands) {
     let content = spawn_page_container(&mut commands, OnCreditsScreen, false, Overflow::clip());
 
-    // Strip markdown links and the "Detailed credits: credits.csv" line for button replacement
-    let cleaned = strip_markdown_links(CREDITS_TEXT);
-    let display_text = cleaned.replace("Detailed credits: credits.csv\n", "");
+    let display_text = strip_markdown_links(CREDITS_TEXT);
 
     commands.entity(content).with_children(|parent| {
         // Title
@@ -81,8 +66,11 @@ pub(super) fn setup(mut commands: Commands) {
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::scroll_y(),
+                    margin: UiRect::bottom(Val::Px(20.0)),
+                    border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
+                crate::ui::systems::scroll_area_style(),
                 ScrollPosition::default(),
                 ScrollableCreditsContainer,
             ))
@@ -103,27 +91,7 @@ pub(super) fn setup(mut commands: Commands) {
                     });
             });
 
-        // View Sprite Credits button
-        spawn_button(
-            parent,
-            "View Sprite Credits",
-            SpriteCreditsButton,
-            &SPRITE_CREDITS_BUTTON_STYLE,
-        );
-
         // Back button
-        spawn_button(parent, "Back", BackButton, &BACK_BUTTON_STYLE);
+        crate::ui::systems::spawn_button(parent, "Back", BackButton, &BACK_BUTTON_STYLE);
     });
-}
-
-/// Handles sprite credits button — logs a message pointing to the CSV file.
-pub(super) fn handle_sprite_credits_button(
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&SpriteCreditsButton>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            info!("Sprite credits: see SPRITE_CREDITS.csv in the game directory");
-        }
-    }
 }

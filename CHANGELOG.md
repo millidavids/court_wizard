@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.121] - 2026-03-24
+
+### Added
+- **Windowed and fullscreen display modes** — you can now switch between windowed and fullscreen in the Settings menu under Graphics. Your window size and position are remembered when switching back to windowed mode
+- **Exit button** — the main menu now has an Exit button to close the game
+- **Confirmation popups** — the "Reset Tutorials" and "Clear Progress" buttons in Settings now show a confirmation popup before taking action, so you won't accidentally wipe your progress
+- **Scrollable settings** — the Settings page content is now inside a scrollable area with the title and back button always visible, matching the layout of other menu screens
+- **Compendium detail scrolling** — the left detail panel in the Compendium (e.g., endless wizard stats) is now scrollable when content overflows
+
+### Changed
+- **Main menu layout** — the main menu buttons are now on the left side of the screen with the game title displayed large on the right, with a drop shadow effect
+- **See-through menu overlays** — Settings, Instructions, Changelog, Credits, and Compendium screens now have translucent backgrounds so you can see the animated main menu scene behind them. Scrollable areas have their own slightly darker panel with a subtle shadow for contrast
+- **Consistent back buttons** — all menu screens now use the same back button size and style
+- **Volume sliders track the mouse accurately** — sliders now follow your cursor position directly instead of using mouse movement speed, which could feel too fast or too slow depending on your display settings
+- **Improved credits page** — sprite art attribution is now shown directly in the credits text, and the full artist credit file (SPRITE_CREDITS.csv) is included in the game directory
+- **Difficulty removed from Settings** — the difficulty option has been removed from the Settings menu since it wasn't being used
+
+### Fixed
+- **Display mode switching no longer crashes** — switching between windowed and fullscreen no longer causes rendering errors or freezes
+
 ## [v0.5.79] - 2026-03-23
 
 ### Added

@@ -24,7 +24,7 @@ pub const BACKGROUND: LayerConfig = LayerConfig {
 };
 
 pub const FOREGROUND: LayerConfig = LayerConfig {
-    speed: BASE_SPEED * 3,
+    speed: BASE_SPEED * 3.0,
     width: 3840.0,
     z_index: -1,
 };

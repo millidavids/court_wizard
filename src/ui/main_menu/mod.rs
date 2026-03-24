@@ -14,4 +14,5 @@ pub(crate) mod settings;
 mod wizard_select;
 mod wizard_select_shared;
 
+pub use landing::constants::BACK_BUTTON_STYLE;
 pub use plugin::MainMenuPlugin;

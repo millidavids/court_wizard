@@ -86,10 +86,19 @@ impl Plugin for ConfigPlugin {
                 detect_window_resize,
                 detect_window_move,
                 detect_game_config_changes,
+                // Reactive settings application
+                apply_display_mode
+                    .run_if(resource_changed::<super::resources::GameConfig>),
+                apply_deferred_mode_change.run_if(
+                    |geo: Res<super::resources::SavedWindowedGeometry>| {
+                        geo.pending_mode_change.is_some()
+                    },
+                ),
                 // Unified debounce trigger
                 mark_save_on_config_changed,
                 // Save systems
-                save_config_on_debounce_timer,
+                save_config_on_debounce_timer
+                    .run_if(|timer: Res<super::resources::SaveDebounceTimer>| timer.pending),
                 save_config_on_event,
             ),
         );

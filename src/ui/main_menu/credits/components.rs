@@ -9,7 +9,3 @@ pub(super) struct OnCreditsScreen;
 /// Marker component for the scrollable credits container.
 #[derive(Component)]
 pub(super) struct ScrollableCreditsContainer;
-
-/// Marker component for the sprite credits button that opens CSV in browser.
-#[derive(Component)]
-pub(super) struct SpriteCreditsButton;

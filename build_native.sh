@@ -92,6 +92,13 @@ else
     echo "Warning: $ASSET_SRC not found. Assets will be missing at runtime."
 fi
 
+# Copy SPRITE_CREDITS.csv alongside binary for attribution
+CREDITS_SRC="./credits/SPRITE_CREDITS.csv"
+if [ -f "$CREDITS_SRC" ]; then
+    cp "$CREDITS_SRC" "$BIN_DIR/"
+    echo "Sprite credits CSV copied."
+fi
+
 # Copy Steam redistributable DLLs/SOs alongside binary
 if [ -n "$TARGET" ]; then
     STEAM_SEARCH_DIR="./target/$TARGET"

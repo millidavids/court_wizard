@@ -65,7 +65,12 @@ fn setup(mut commands: Commands, pause_menu: bool) {
                 ..default()
             })
             .with_children(|row| {
-                spawn_button(row, "Back", BackButton, &BUTTON_STYLE);
+                spawn_button(
+                    row,
+                    "Back",
+                    BackButton,
+                    &crate::ui::main_menu::BACK_BUTTON_STYLE,
+                );
             });
     });
 }
