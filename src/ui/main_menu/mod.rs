@@ -3,6 +3,7 @@
 //! Contains the MainMenuPlugin which aggregates Landing, Settings, Changelog, Instructions,
 //! and WizardSelect screens.
 
+mod background;
 mod changelog;
 mod credits;
 mod game_mode_select;

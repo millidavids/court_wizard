@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 
+use super::background::BackgroundPlugin;
 use super::changelog::ChangelogPlugin;
 use super::credits::CreditsPlugin;
 use super::game_mode_select::GameModeSelectPlugin;
@@ -27,6 +28,7 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            BackgroundPlugin,
             LandingPlugin,
             GameModeSelectPlugin,
             SettingsPlugin,

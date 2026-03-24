@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.79] - 2026-03-23
+
+### Added
+- **Animated main menu background** — the main menu now features a layered parallax scene with a slowly drifting sky, passing clouds, and a castle tower in the foreground, giving the menu a more immersive feel
+
 ## [v0.5.72] - 2026-03-23
 
 ### Added
