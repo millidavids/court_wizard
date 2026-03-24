@@ -2,3 +2,4 @@
 /.claude/settings.local.json
 Screenshot*.png
 /**/*.zip
+steam_appid.txt

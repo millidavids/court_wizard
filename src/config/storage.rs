@@ -4,7 +4,7 @@ use super::error::ConfigResult;
 
 const CONFIG_FILENAME: &str = "config.toml";
 const PROGRESS_FILENAME: &str = "progress.dat";
-const UNIFIED_SAVE_FILENAME: &str = "saves_v2.json";
+pub(crate) const UNIFIED_SAVE_FILENAME: &str = "saves_v2.json";
 const LAN_IP_FILENAME: &str = "lan_ip.txt";
 
 /// Returns the platform-appropriate data directory for Court Wizard.

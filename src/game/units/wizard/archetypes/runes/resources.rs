@@ -35,10 +35,8 @@ impl RuneSequence {
     /// Adds a rune to the sequence and resets the idle timer.
     /// Prevents duplicate consecutive runes.
     pub fn push(&mut self, rune: Rune) {
-        if self.runes.last() != Some(&rune) {
-            self.runes.push(rune);
-            self.idle_timer = 0.0;
-        }
+        self.runes.push(rune);
+        self.idle_timer = 0.0;
     }
 
     /// Clears the sequence.

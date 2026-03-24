@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.72] - 2026-03-23
+
+### Added
+- **Steam integration** — the game now connects to Steam for achievement tracking and cloud saves, so your progress syncs across devices. If Steam isn't running, everything still works normally
+- **Rune combos for all spells** — every spell in the game now has a rune combination. Combos follow the spell web: spells closer to the center use fewer runes, and each combo starts with the branch's root rune (Q, W, E, or R). The deepest spells require 4-rune sequences
+
+### Changed
+- **Rune input** — you can now press the same rune key twice in a row, which is needed for some of the new spell combos
+
 ## [v0.5.68] - 2026-03-22
 
 ### Added

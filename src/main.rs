@@ -10,6 +10,7 @@ mod game;
 mod music;
 mod networking;
 mod state;
+mod steam;
 mod ui;
 
 use config::{ConfigPlugin, GameConfig};
@@ -19,6 +20,7 @@ use game::multiplayer::MultiplayerGamePlugin;
 use music::MusicPlugin;
 use networking::NetworkingPlugin;
 use state::StatePlugin;
+use steam::SteamPlugin;
 use ui::UiPlugin;
 
 /// Main entry point for the game.
@@ -30,6 +32,10 @@ fn main() {
     crash_handler::install();
 
     let mut app = App::new();
+
+    // SteamPlugin must be added before DefaultPlugins (before RenderPlugin).
+    // Initialization is graceful — if Steam isn't running, the game continues without it.
+    app.add_plugins(SteamPlugin);
 
     app.add_plugins(
         DefaultPlugins

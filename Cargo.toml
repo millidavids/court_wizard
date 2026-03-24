@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.5.68"
+version = "0.5.72"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -64,6 +64,7 @@ anyhow = "1.0"
 rand = "0.8"
 tracing = { version = "0.1", features = ["max_level_debug", "release_max_level_warn"] }
 dirs = "6.0"
+bevy-steamworks = "0.15"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bevy = { version = "0.17.3", default-features = false, features = ["x11", "wayland"] }

@@ -1,0 +1,66 @@
+use crate::config::save_data::AchievementId;
+
+/// Steam App ID for Court Wizard.
+/// Replace with the real App ID once obtained from Steamworks.
+pub(crate) const APP_ID: u32 = 4550880;
+
+/// Maps an in-game AchievementId to its Steam API name string.
+/// These names must match exactly what's configured in the Steamworks dashboard.
+pub(super) fn steam_api_name(id: AchievementId) -> &'static str {
+    match id {
+        // Victory & Progression
+        AchievementId::FirstVictory => "ACH_FIRST_VICTORY",
+        AchievementId::ChainReaction => "ACH_CHAIN_REACTION",
+        AchievementId::ApprenticeWizard => "ACH_APPRENTICE_WIZARD",
+        AchievementId::CourtWizard => "ACH_COURT_WIZARD",
+        AchievementId::Archmage => "ACH_ARCHMAGE",
+        AchievementId::LegendsSpeakYourName => "ACH_LEGENDS_SPEAK_YOUR_NAME",
+        AchievementId::Immortalized => "ACH_IMMORTALIZED",
+        AchievementId::TheGrindNeverStops => "ACH_THE_GRIND_NEVER_STOPS",
+        AchievementId::OneMoreLevel => "ACH_ONE_MORE_LEVEL",
+        AchievementId::IntoTheDeep => "ACH_INTO_THE_DEEP",
+        AchievementId::Absurdity => "ACH_ABSURDITY",
+        AchievementId::Level100 => "ACH_LEVEL_100",
+        AchievementId::Stubborn => "ACH_STUBBORN",
+        AchievementId::ExtremelyStubborn => "ACH_EXTREMELY_STUBBORN",
+
+        // Defeat & Failure
+        AchievementId::TacticalRetreat => "ACH_TACTICAL_RETREAT",
+        AchievementId::TheKingIsDead => "ACH_THE_KING_IS_DEAD",
+        AchievementId::TotalWipe => "ACH_TOTAL_WIPE",
+        AchievementId::SpeedrunWrongDirection => "ACH_SPEEDRUN_WRONG_DIRECTION",
+        AchievementId::PyrrhicDefeat => "ACH_PYRRHIC_DEFEAT",
+        AchievementId::ItWasGoingSoWell => "ACH_IT_WAS_GOING_SO_WELL",
+        AchievementId::FriendlyFireDepartment => "ACH_FRIENDLY_FIRE_DEPARTMENT",
+        AchievementId::AccidentalRegicide => "ACH_ACCIDENTAL_REGICIDE",
+
+        // Mid-battle
+        AchievementId::FriendlyFire => "ACH_FRIENDLY_FIRE",
+
+        // Meta / Unlocks
+        AchievementId::SliderFiddler => "ACH_SLIDER_FIDDLER",
+        AchievementId::RandomMagicSurge => "ACH_RANDOM_MAGIC_SURGE",
+        AchievementId::Qwer => "ACH_QWER",
+
+        // Unit Encounters
+        AchievementId::MeetTheBrute => "ACH_MEET_THE_BRUTE",
+        AchievementId::EliteForces => "ACH_ELITE_FORCES",
+        AchievementId::CommanderOnTheField => "ACH_COMMANDER_ON_THE_FIELD",
+        AchievementId::EnemyMedic => "ACH_ENEMY_MEDIC",
+        AchievementId::MagicNullifier => "ACH_MAGIC_NULLIFIER",
+        AchievementId::TheThreeHags => "ACH_THE_THREE_HAGS",
+        AchievementId::OgreWarlord => "ACH_OGRE_WARLORD",
+
+        // Spell Unlocks
+        AchievementId::OutOfRange => "ACH_OUT_OF_RANGE",
+        AchievementId::ScorchedEarth => "ACH_SCORCHED_EARTH",
+        AchievementId::ProtectiveInstincts => "ACH_PROTECTIVE_INSTINCTS",
+        AchievementId::FriendlyThorns => "ACH_FRIENDLY_THORNS",
+        AchievementId::SoiledSurprise => "ACH_SOILED_SURPRISE",
+        AchievementId::MasterBrewer => "ACH_MASTER_BREWER",
+        AchievementId::RightToBearArms => "ACH_RIGHT_TO_BEAR_ARMS",
+        AchievementId::CloseCall => "ACH_CLOSE_CALL",
+        AchievementId::Stormbringer => "ACH_STORMBRINGER",
+        AchievementId::Pacifist => "ACH_PACIFIST",
+    }
+}
