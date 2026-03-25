@@ -79,6 +79,7 @@ pub(super) fn load_and_apply_config(
         urgent_mode: config_file.game.urgent_mode,
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
+        saved_flora: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed
     save_data::migrate_legacy_saves(&game_config);

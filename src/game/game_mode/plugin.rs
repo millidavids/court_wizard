@@ -48,6 +48,7 @@ fn init_roguelite_run(
     current_level.0 = 1;
     config.saved_walls.clear();
     config.saved_crystals.clear();
+    config.saved_flora.clear();
     config.efficiency_ratios.clear();
 
     commands.insert_resource(RogueliteRunState {

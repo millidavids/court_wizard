@@ -14,10 +14,10 @@ use crate::game::constants::*;
 ///
 /// Spawns the battlefield ground plane, castle wall image, and point light in 3D space.
 pub fn setup_battlefield(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    battlefield_assets: Res<BattlefieldAssets>,
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    battlefield_assets: &BattlefieldAssets,
 ) {
     // Add a light source so we can see 3D objects
     commands.spawn((
@@ -31,19 +31,14 @@ pub fn setup_battlefield(
     ));
 
     // Spawn battlefield as a grid of textured ground tiles
-    spawn_ground_tiles(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &battlefield_assets,
-    );
+    spawn_ground_tiles(commands, meshes, materials, battlefield_assets);
 
     // Spawn castle wall as a textured plane the wizard stands on
     spawn_castle_wall(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &battlefield_assets,
+        commands,
+        meshes,
+        materials,
+        battlefield_assets,
         CASTLE_POSITION,
         CASTLE_ROTATION_DEGREES,
         OnGameplayScreen,
@@ -53,9 +48,9 @@ pub fn setup_battlefield(
     // Right wall uses Mask alpha so it occludes units spawning behind it;
     // tunnel areas in the art are transparent and become real holes.
     spawn_right_wall_backdrop(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
+        commands,
+        meshes,
+        materials,
         battlefield_assets.right_wall.clone(),
         RIGHT_WALL_WIDTH,
         RIGHT_WALL_HEIGHT,
@@ -64,9 +59,9 @@ pub fn setup_battlefield(
         )),
     );
     spawn_wall_backdrop(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
+        commands,
+        meshes,
+        materials,
         battlefield_assets.left_wall.clone(),
         LEFT_WALL_WIDTH,
         LEFT_WALL_HEIGHT,
@@ -77,9 +72,9 @@ pub fn setup_battlefield(
 
     // Spawn floor between the right and left walls (laid flat, facing up; negative depth bias so effects render on top)
     spawn_wall_backdrop(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
+        commands,
+        meshes,
+        materials,
         battlefield_assets.wall_floor.clone(),
         WALL_FLOOR_DEPTH,
         WALL_FLOOR_LENGTH,
@@ -106,8 +101,8 @@ pub fn setup_battlefield(
 #[allow(clippy::too_many_arguments)]
 fn spawn_wall_backdrop<M: Component>(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
     texture: Handle<Image>,
     width: f32,
     height: f32,
@@ -138,8 +133,8 @@ fn spawn_wall_backdrop<M: Component>(
 /// hiding units that spawn behind it. Tunnel areas in the art are transparent.
 fn spawn_right_wall_backdrop(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
     texture: Handle<Image>,
     width: f32,
     height: f32,
@@ -170,8 +165,8 @@ fn spawn_right_wall_backdrop(
 /// scaled to CASTLE_WIDTH wide. The wizard and cauldron stand on this plane.
 pub fn spawn_castle_wall<M: Component + Clone>(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
     battlefield_assets: &BattlefieldAssets,
     castle_position: Vec3,
     rotation_degrees: f32,
@@ -258,8 +253,8 @@ fn pick_weighted_tile(rng: &mut impl Rng) -> usize {
 /// Spawns a grid of ground tiles covering the battlefield.
 fn spawn_ground_tiles(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
     battlefield_assets: &BattlefieldAssets,
 ) {
     let half = BATTLEFIELD_SIZE / 2.0;

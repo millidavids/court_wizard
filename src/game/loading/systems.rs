@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use super::constants::{MAX_COMMANDER_ARCHERS, MAX_COMMANDER_INFANTRY};
-use super::resources::LoadingProgress;
 use super::spawn_queue::{SpawnQueue, SpawnTask};
 use super::upgrade_selection;
 use super::upgrade_systems;
@@ -28,7 +27,7 @@ pub fn init_loading_progress(
     mut commands: Commands,
     mut current_level: ResMut<CurrentLevel>,
     mut kill_stats: ResMut<KillStats>,
-    config: Res<GameConfig>,
+    mut config: ResMut<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
     active_talents: Option<Res<crate::game::units::wizard::talents::resources::ActiveTalents>>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
@@ -39,25 +38,23 @@ pub fn init_loading_progress(
         current_level.0 = config.current_level;
     }
 
-    commands.insert_resource(LoadingProgress::new());
-
     let mut queue = SpawnQueue::new();
     let level = current_level.0;
 
     // Spawn in intelligent order: Battlefield -> Castle -> Grid -> King -> Infantry -> Archers -> Brute/Ogre -> Wizard
 
     // 1. Battlefield (foundation)
-    queue.tasks.push(SpawnTask::Battlefield);
+    queue.tasks.push_back(SpawnTask::Battlefield);
 
     // 2. Castle (part of battlefield)
-    queue.tasks.push(SpawnTask::Castle);
+    queue.tasks.push_back(SpawnTask::Castle);
 
     // 3. Pathfinding Grid (needed for unit movement)
-    queue.tasks.push(SpawnTask::PathfindingGrid);
+    queue.tasks.push_back(SpawnTask::PathfindingGrid);
 
     // 3b. Permanent walls from previous victories (after pathfinding grid)
     for saved_wall in &config.saved_walls {
-        queue.tasks.push(SpawnTask::PermanentWall {
+        queue.tasks.push_back(SpawnTask::PermanentWall {
             wall: saved_wall.clone(),
         });
     }
@@ -68,7 +65,7 @@ pub fn init_loading_progress(
             active_talents.as_deref(),
         );
         for saved_crystal in &config.saved_crystals {
-            queue.tasks.push(SpawnTask::PermanentCrystal {
+            queue.tasks.push_back(SpawnTask::PermanentCrystal {
                 crystal: saved_crystal.clone(),
                 damage_mult: crystal_talent_params.damage_mult,
                 count_mult: crystal_talent_params.count_mult,
@@ -77,19 +74,27 @@ pub fn init_loading_progress(
         }
     }
 
+    // 3d. Battlefield flora (generate on first battle, then spawn from save)
+    if config.saved_flora.is_empty() {
+        crate::game::battlefield::flora::systems::generate_flora_positions(&mut config);
+    }
+    for flora in &config.saved_flora {
+        queue.tasks.push_back(SpawnTask::Flora { flora: flora.clone() });
+    }
+
     // 4. King (central defender)
-    queue.tasks.push(SpawnTask::King);
+    queue.tasks.push_back(SpawnTask::King);
 
     // 5. King's Guard (protect the king)
     for i in 0..KINGS_GUARD_COUNT {
-        queue.tasks.push(SpawnTask::KingsGuard { guard_index: i });
+        queue.tasks.push_back(SpawnTask::KingsGuard { guard_index: i });
     }
 
     // 6. Defender Infantry
     for i in 0..INITIAL_DEFENDER_COUNT {
         queue
             .tasks
-            .push(SpawnTask::DefenderInfantry { unit_index: i });
+            .push_back(SpawnTask::DefenderInfantry { unit_index: i });
     }
 
     // Check if this is a boss level (every 5th level starting at 5)
@@ -101,16 +106,16 @@ pub fn init_loading_progress(
         let tier = get_tier(level);
         match tier {
             0 => {
-                queue.tasks.push(SpawnTask::Ogre);
+                queue.tasks.push_back(SpawnTask::Ogre);
                 kill_stats.total_attackers_spawned = 1;
             }
             1 => {
-                queue.tasks.push(SpawnTask::Hags);
+                queue.tasks.push_back(SpawnTask::Hags);
                 kill_stats.total_attackers_spawned = 3;
             }
             _ => {
                 // Fallback: Ogre
-                queue.tasks.push(SpawnTask::Ogre);
+                queue.tasks.push_back(SpawnTask::Ogre);
                 kill_stats.total_attackers_spawned = 1;
             }
         }
@@ -131,7 +136,7 @@ pub fn init_loading_progress(
         let extra_archers = if is_endless { crate::game::constants::endless_extra_archers(level) } else { 0 };
         let total_attackers = calculate_total_infantry(level) + extra_infantry;
         for i in 0..total_attackers {
-            queue.tasks.push(SpawnTask::AttackerInfantry {
+            queue.tasks.push_back(SpawnTask::AttackerInfantry {
                 unit_index: i,
                 level,
             });
@@ -140,7 +145,7 @@ pub fn init_loading_progress(
         // 8. Attacker Archers (wave 1)
         let total_attacker_archers = calculate_total_archers(level) + extra_archers;
         for i in 0..total_attacker_archers {
-            queue.tasks.push(SpawnTask::AttackerArcher {
+            queue.tasks.push_back(SpawnTask::AttackerArcher {
                 unit_index: i,
                 level,
             });
@@ -149,7 +154,7 @@ pub fn init_loading_progress(
         // 8b. Attacker Assassins (wave 1) — start spawning at tier 2
         let total_assassins = calculate_total_assassins(level);
         for i in 0..total_assassins {
-            queue.tasks.push(SpawnTask::AttackerAssassin {
+            queue.tasks.push_back(SpawnTask::AttackerAssassin {
                 unit_index: i,
                 level,
             });
@@ -158,7 +163,7 @@ pub fn init_loading_progress(
         // 9. Brute (if tier qualifies, wave 1)
         let has_brute = get_tier(level) >= BRUTE_START_TIER;
         if has_brute {
-            queue.tasks.push(SpawnTask::Brute);
+            queue.tasks.push_back(SpawnTask::Brute);
         }
 
         // Record total attackers spawned across ALL waves for score screen
@@ -179,7 +184,7 @@ pub fn init_loading_progress(
     for i in 0..INITIAL_ARCHER_DEFENDER_COUNT {
         queue
             .tasks
-            .push(SpawnTask::DefenderArcher { unit_index: i });
+            .push_back(SpawnTask::DefenderArcher { unit_index: i });
     }
 
     // Track initial defender count for spell shield threshold (multiplayer)
@@ -188,25 +193,25 @@ pub fn init_loading_progress(
     ));
 
     // 11. Load wizard assets (sprite sheet texture)
-    queue.tasks.push(SpawnTask::LoadWizardAssets);
+    queue.tasks.push_back(SpawnTask::LoadWizardAssets);
 
     // 12. Wizard (controls spells)
-    queue.tasks.push(SpawnTask::Wizard);
+    queue.tasks.push_back(SpawnTask::Wizard);
 
     // 13. Load cauldron assets (texture for sprite sheet)
-    queue.tasks.push(SpawnTask::LoadCauldronAssets);
+    queue.tasks.push_back(SpawnTask::LoadCauldronAssets);
 
     // 13. Cauldron (next to wizard on castle wall)
-    queue.tasks.push(SpawnTask::Cauldron);
+    queue.tasks.push_back(SpawnTask::Cauldron);
 
     // 14. Select upgrades for attacker units (after all attackers spawn)
-    queue.tasks.push(SpawnTask::SelectInfantryUpgrades);
-    queue.tasks.push(SpawnTask::SelectArcherUpgrades);
-    queue.tasks.push(SpawnTask::SelectDispellerUpgrades);
-    queue.tasks.push(SpawnTask::SelectHealerUpgrades);
-    queue.tasks.push(SpawnTask::SelectShielderUpgrades);
+    queue.tasks.push_back(SpawnTask::SelectInfantryUpgrades);
+    queue.tasks.push_back(SpawnTask::SelectArcherUpgrades);
+    queue.tasks.push_back(SpawnTask::SelectDispellerUpgrades);
+    queue.tasks.push_back(SpawnTask::SelectHealerUpgrades);
+    queue.tasks.push_back(SpawnTask::SelectShielderUpgrades);
     // Elite pass runs LAST — any surviving attacker unit type can become elite
-    queue.tasks.push(SpawnTask::SelectEliteUpgrades);
+    queue.tasks.push_back(SpawnTask::SelectEliteUpgrades);
 
     commands.insert_resource(queue);
 }
@@ -216,7 +221,6 @@ pub fn init_loading_progress(
 #[allow(clippy::type_complexity)]
 pub fn process_spawn_queue(
     mut commands: Commands,
-    mut loading_progress: ResMut<LoadingProgress>,
     mut spawn_queue: ResMut<SpawnQueue>,
     mut next_state: ResMut<NextState<AppState>>,
     // Resources needed for spawning
@@ -237,7 +241,7 @@ pub fn process_spawn_queue(
     current_level: Res<CurrentLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
+    mut king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
     optional_assets: (
         Option<Res<crate::game::units::wizard::components::WizardAssets>>,
         Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
@@ -246,6 +250,7 @@ pub fn process_spawn_queue(
         Res<BattlefieldAssets>,
         Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
         Res<AssetServer>,
+        Res<crate::game::battlefield::flora::resources::FloraAssets>,
     ),
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
@@ -259,12 +264,26 @@ pub fn process_spawn_queue(
     let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, shielder_assets, healer_assets) = &unit_assets;
     let (ogre_assets, hag_assets) = &boss_assets;
     let (wizard_assets_opt, cauldron_assets_opt) = &optional_assets;
-    let (battlefield_assets, spell_visual_assets, asset_server) = &shared_assets;
+    let (battlefield_assets, spell_visual_assets, asset_server, flora_assets) = &shared_assets;
 
-    // Process exactly one task per frame for smooth, predictable loading
-    let batch = spawn_queue.pop_batch(1);
+    // Process tasks in bulk, breaking only when the next task needs deferred
+    // commands from this frame to be flushed first (e.g., Select* tasks need
+    // spawned entities to exist, Wizard needs WizardAssets resource).
+    // This completes loading in ~4 imperceptible frames instead of hundreds.
+    let mut created_deferred_state = false;
 
-    if let Some(task) = batch.into_iter().next() {
+    while !spawn_queue.is_complete() {
+        let task_ref = spawn_queue.tasks.front().expect("queue not empty");
+
+        // If the next task reads World state and we've written deferred state
+        // this frame, break so commands can flush before the next frame.
+        if task_ref.needs_command_flush() && created_deferred_state {
+            break;
+        }
+
+        let task = spawn_queue.tasks.pop_front().expect("queue not empty");
+        let creates_state = task.creates_deferred_state();
+
         match task {
             SpawnTask::DefenderInfantry { unit_index } => {
                 infantry_systems::spawn_single_defender(
@@ -335,11 +354,11 @@ pub fn process_spawn_queue(
             }
             SpawnTask::King => {
                 crate::game::units::king::systems::spawn_king(
-                    commands.reborrow(),
-                    Res::clone(&king_assets),
-                    meshes,
-                    materials,
-                    king_spawned,
+                    &mut commands,
+                    &king_assets,
+                    &mut meshes,
+                    &mut materials,
+                    &mut king_spawned,
                 );
             }
             SpawnTask::KingsGuard { guard_index } => {
@@ -372,10 +391,10 @@ pub fn process_spawn_queue(
             }
             SpawnTask::Battlefield => {
                 crate::game::battlefield::systems::setup_battlefield(
-                    commands.reborrow(),
-                    meshes,
-                    materials,
-                    Res::clone(battlefield_assets),
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    battlefield_assets,
                 );
             }
             SpawnTask::Castle => {
@@ -390,11 +409,11 @@ pub fn process_spawn_queue(
             SpawnTask::Wizard => {
                 if let Some(assets) = wizard_assets_opt {
                     crate::game::units::wizard::systems::setup_wizard(
-                        commands.reborrow(),
-                        meshes,
-                        materials,
-                        Res::clone(&config),
-                        Res::clone(assets),
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        &config,
+                        assets,
                     );
                 }
             }
@@ -407,10 +426,10 @@ pub fn process_spawn_queue(
             SpawnTask::Cauldron => {
                 if let Some(assets) = cauldron_assets_opt {
                     crate::game::cauldron::systems::spawn_cauldron(
-                        commands.reborrow(),
-                        meshes,
-                        materials,
-                        Res::clone(assets),
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        assets,
                     );
                 }
             }
@@ -446,7 +465,7 @@ pub fn process_spawn_queue(
                 let upgrade_tasks = upgrade_selection::select_dispeller_upgrades(
                     &queries.p1(),
                     level,
-                    &spawn_queue.tasks,
+                    spawn_queue.tasks.make_contiguous(),
                 );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
@@ -455,7 +474,7 @@ pub fn process_spawn_queue(
                 let upgrade_tasks = upgrade_selection::select_healer_upgrades(
                     &queries.p1(),
                     level,
-                    &spawn_queue.tasks,
+                    spawn_queue.tasks.make_contiguous(),
                 );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
@@ -464,7 +483,7 @@ pub fn process_spawn_queue(
                 let upgrade_tasks = upgrade_selection::select_shielder_upgrades(
                     &queries.p0(),
                     level,
-                    &spawn_queue.tasks,
+                    spawn_queue.tasks.make_contiguous(),
                 );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
@@ -487,7 +506,7 @@ pub fn process_spawn_queue(
                 let upgrade_tasks = upgrade_selection::select_elite_upgrades(
                     &all_attackers,
                     level,
-                    &spawn_queue.tasks,
+                    spawn_queue.tasks.make_contiguous(),
                 );
                 spawn_queue.tasks.extend(upgrade_tasks);
             }
@@ -540,21 +559,28 @@ pub fn process_spawn_queue(
                     }
                 }
             }
+            SpawnTask::Flora { flora } => {
+                crate::game::battlefield::flora::systems::spawn_single_flora(
+                    &mut commands,
+                    flora_assets,
+                    &flora,
+                );
+            }
+        }
+
+        if creates_state {
+            created_deferred_state = true;
         }
     }
 
-    // Advance to next frame
-    loading_progress.advance();
-
     // Transition to InGame when all tasks are complete
-    if spawn_queue.is_complete() && loading_progress.is_complete() {
+    if spawn_queue.is_complete() {
         channel_change.write(ChannelChangeMessage);
         next_state.set(AppState::InGame);
     }
 }
 
-/// Cleans up the loading progress resource when exiting loading state.
+/// Cleans up loading resources when exiting loading state.
 pub fn cleanup_loading_progress(mut commands: Commands) {
-    commands.remove_resource::<LoadingProgress>();
     commands.remove_resource::<SpawnQueue>();
 }

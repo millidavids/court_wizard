@@ -567,6 +567,7 @@ pub(crate) fn clear_progress() {
         wizard.action_bar_slots = [None; 5];
         wizard.saved_walls.clear();
         wizard.saved_crystals.clear();
+        wizard.saved_flora.clear();
     }
 
     save_unified(&save_file);
@@ -594,6 +595,15 @@ pub(crate) struct SavedCrystal {
     pub(crate) empowerment: f32,
 }
 
+/// Serializable flora placement data for battlefield flowers/plants.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedFlora {
+    pub(crate) id: u32,
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    pub(crate) sprite_index: u8,
+}
+
 /// Per-wizard save data. Exactly one per wizard type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct WizardSave {
@@ -615,6 +625,8 @@ pub(crate) struct WizardSave {
     pub(crate) saved_walls: Vec<SavedWall>,
     #[serde(default)]
     pub(crate) saved_crystals: Vec<SavedCrystal>,
+    #[serde(default)]
+    pub(crate) saved_flora: Vec<SavedFlora>,
     /// Roguelite run history (last 20 runs). Added in game mode update.
     #[serde(default)]
     pub(crate) roguelite: RogueliteData,
@@ -962,6 +974,7 @@ pub(crate) fn load_wizard_type_into_config(
     config.action_bar_slots = wizard.action_bar_slots;
     config.saved_walls = wizard.saved_walls.clone();
     config.saved_crystals = wizard.saved_crystals.clone();
+    config.saved_flora = wizard.saved_flora.clone();
 
     // Validate that all action bar slots contain unlocked spells
     validate_action_bar_slots(&mut config.action_bar_slots);
@@ -986,6 +999,7 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         action_bar_slots: [None; 5],
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
+        saved_flora: Vec::new(),
         roguelite: RogueliteData::default(),
         endless_best_stats: HashMap::new(),
     };
@@ -1023,6 +1037,7 @@ pub(crate) fn save_config_to_active_wizard(
             wizard.efficiency_ratios = config.efficiency_ratios.clone();
             wizard.saved_walls = config.saved_walls.clone();
             wizard.saved_crystals = config.saved_crystals.clone();
+            wizard.saved_flora = config.saved_flora.clone();
         }
     }
 
@@ -1442,6 +1457,7 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             action_bar_slots: old_data.action_bar_slots,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
+            saved_flora: Vec::new(),
             roguelite: RogueliteData::default(),
             endless_best_stats: HashMap::new(),
         };

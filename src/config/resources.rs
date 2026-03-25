@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::config::save_data::{SavedCrystal, SavedWall};
+use crate::config::save_data::{SavedCrystal, SavedFlora, SavedWall};
 use crate::game::units::wizard::components::Spell;
 
 /// Temporary structure for TOML serialization only.
@@ -429,6 +429,9 @@ pub struct GameConfig {
     /// Permanent crystals saved from previous victories (Auto-Crystal talent)
     #[serde(skip)]
     pub saved_crystals: Vec<SavedCrystal>,
+    /// Battlefield flora positions (persistent across battles, removed when trampled)
+    #[serde(skip)]
+    pub saved_flora: Vec<SavedFlora>,
 }
 
 impl Default for GameConfig {
@@ -452,6 +455,7 @@ impl Default for GameConfig {
             urgent_mode: true,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
+            saved_flora: Vec::new(),
         }
     }
 }

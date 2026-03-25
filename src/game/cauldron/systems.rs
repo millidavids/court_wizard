@@ -24,10 +24,10 @@ pub fn load_cauldron_assets(mut commands: Commands, asset_server: Res<AssetServe
 
 /// Spawns the cauldron entity as an animated sprite billboard.
 pub fn spawn_cauldron(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    cauldron_assets: Res<CauldronAssets>,
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    cauldron_assets: &CauldronAssets,
 ) {
     // Create a quad mesh for the billboard
     let quad_mesh = Rectangle::new(

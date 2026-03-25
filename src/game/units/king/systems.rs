@@ -25,11 +25,11 @@ use crate::networking::session::MultiplayerSession;
 /// King spawns in the center of the radial defender formation,
 /// positioned between the wizard and battlefield center.
 pub fn spawn_king(
-    mut commands: Commands,
-    king_assets: Res<KingAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut king_spawned: ResMut<KingSpawned>,
+    commands: &mut Commands,
+    king_assets: &KingAssets,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    king_spawned: &mut KingSpawned,
 ) {
     // King spawns at exact center of defender grid
     // Use center angle and base range (no row/col offsets)
@@ -49,7 +49,7 @@ pub fn spawn_king(
 
     let anim = WalkingAnimation::default();
     let king_material = create_default_sprite_material(
-        &mut materials,
+        materials,
         king_assets.sprite_texture.clone(),
         KING_SPRITE_TINT,
     );

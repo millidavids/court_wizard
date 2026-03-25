@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.142] - 2026-03-25
+
+### Added
+- **Battlefield flowers** — small flowers and plants now grow scattered across the battlefield, giving each map a more natural feel. They get permanently trampled when units walk over them
+
+### Changed
+- **No more loading screen** — battles now start almost instantly instead of showing a loading screen. All units and terrain spawn in the blink of an eye
+
 ## [v0.5.133] - 2026-03-25
 
 ### Changed
