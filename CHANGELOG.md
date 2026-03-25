@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.133] - 2026-03-25
+
+### Changed
+- **Faster saving and loading** — your progress is now kept in memory while you play, so saving and loading happens almost instantly instead of reading from disk every time
+- **Safer save files** — saves are now written using a crash-proof method. If something goes wrong mid-save, your previous save is preserved as a backup and restored automatically
+- **Save file integrity checks** — your save file now includes a signature that detects if it was corrupted or tampered with. If a problem is found, you'll see a warning but your save will still load
+
+### Fixed
+- **Cleaned up unused code** — removed leftover code that was no longer being used, keeping things tidy under the hood
+
 ## [v0.5.127] - 2026-03-25
 
 ### Added

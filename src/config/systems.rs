@@ -384,6 +384,22 @@ pub(super) fn save_config_on_event(
         get_window_position(&windows),
         is_roguelite,
     );
+
+    // Force-flush the save cache to disk immediately on manual save
+    save_data::flush_save_cache();
+}
+
+/// Periodically flushes the in-memory save cache to disk.
+/// Runs every 2 seconds when the cache has unflushed changes.
+pub(super) fn periodic_save_flush(
+    time: Res<Time>,
+    mut timer: Local<Option<Timer>>,
+) {
+    let timer = timer.get_or_insert_with(|| Timer::from_seconds(2.0, TimerMode::Repeating));
+    timer.tick(time.delta());
+    if timer.just_finished() {
+        save_data::flush_save_cache();
+    }
 }
 
 /// Builds a ConfigFile from current state, serializes to TOML, and saves to disk.

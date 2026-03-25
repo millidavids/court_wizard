@@ -11,7 +11,7 @@ use tracing::warn;
 
 use crate::networking::resources::ConnectionState;
 
-use super::codec::{self, DatagramReassembler, DATAGRAM_HEADER_SIZE};
+use super::codec::{self, DatagramReassembler};
 use super::runtime::{TransportCommand, TransportEvent};
 
 /// Application-Layer Protocol Negotiation identifier for Court Wizard P2P.

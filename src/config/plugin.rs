@@ -100,6 +100,9 @@ impl Plugin for ConfigPlugin {
                 save_config_on_debounce_timer
                     .run_if(|timer: Res<super::resources::SaveDebounceTimer>| timer.pending),
                 save_config_on_event,
+                // Periodic save cache flush (every 2s when dirty)
+                periodic_save_flush
+                    .run_if(super::save_data::save_cache_is_dirty),
             ),
         );
     }
