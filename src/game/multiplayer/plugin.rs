@@ -15,6 +15,7 @@ use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionState, NetworkConnection};
+use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::networking::session::{MultiplayerSession, is_multiplayer_guest, is_multiplayer_host};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
@@ -463,6 +464,7 @@ fn handle_mp_score_buttons(
     mut connection: ResMut<NetworkConnection>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut status_text: Query<&mut Text, With<RematchStatusText>>,
+    transport: Option<Res<TransportHandle>>,
     mut commands: Commands,
 ) {
     for event in button_clicked.read() {
@@ -484,7 +486,10 @@ fn handle_mp_score_buttons(
                     }
                 }
                 MpScoreButtonAction::Disconnect => {
-                    connection.state = ConnectionState::Disconnected;
+                    if let Some(ref transport) = transport {
+                        transport.send_command(TransportCommand::Disconnect);
+                    }
+                    connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
                 }
@@ -661,6 +666,7 @@ fn handle_mp_pause_buttons(
     mut connection: ResMut<NetworkConnection>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
+    transport: Option<Res<TransportHandle>>,
     mut commands: Commands,
 ) {
     for event in button_clicked.read() {
@@ -670,7 +676,10 @@ fn handle_mp_pause_buttons(
                     next_mp_state.set(MultiplayerGameState::Running);
                 }
                 MpPauseButtonAction::Disconnect => {
-                    connection.state = ConnectionState::Disconnected;
+                    if let Some(ref transport) = transport {
+                        transport.send_command(TransportCommand::Disconnect);
+                    }
+                    connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
                 }

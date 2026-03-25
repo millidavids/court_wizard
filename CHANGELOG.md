@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.127] - 2026-03-25
+
+### Added
+- **Multiplayer networking foundation** — behind-the-scenes groundwork for peer-to-peer multiplayer has been added. Two players will be able to connect directly without any servers by sharing a short connection code. This feature is not yet available in-game while it's being tested
+
 ## [v0.5.121] - 2026-03-24
 
 ### Added

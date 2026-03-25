@@ -1,0 +1,142 @@
+//! Bevy plugin that bridges the async transport runtime with the ECS.
+
+use std::sync::Arc;
+
+use bevy::prelude::*;
+use crossbeam_channel::unbounded;
+
+use crate::networking::protocol::NetworkMessage;
+use crate::networking::resources::NetworkConnection;
+
+use super::connection;
+use super::runtime::{TransportEvent, TransportHandle};
+
+/// Plugin that manages the P2P transport layer.
+///
+/// Spawns a tokio runtime in a background thread and registers a bridge system
+/// that syncs the async transport state with `NetworkConnection` each frame.
+pub(crate) struct TransportBridgePlugin;
+
+impl Plugin for TransportBridgePlugin {
+    fn build(&self, app: &mut App) {
+        // Command channel: Bevy → tokio (async-native, no blocking recv needed).
+        let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // Event channel: tokio → Bevy (crossbeam for sync try_recv on the Bevy side).
+        let (event_tx, event_rx) = unbounded();
+
+        // Data channels: Bevy → tokio (crossbeam, woken by Notify).
+        let (reliable_tx, reliable_rx) = unbounded();
+        let (unreliable_tx, unreliable_rx) = unbounded();
+
+        // Shared notify to wake send loops when Bevy pushes data.
+        let data_notify = Arc::new(tokio::sync::Notify::new());
+        let data_notify_transport = data_notify.clone();
+
+        // Spawn tokio runtime in a background thread.
+        std::thread::Builder::new()
+            .name("transport-runtime".into())
+            .spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Failed to create tokio runtime for transport");
+
+                rt.block_on(connection::run_transport(
+                    command_rx,
+                    event_tx,
+                    reliable_rx,
+                    unreliable_rx,
+                    data_notify_transport,
+                ));
+            })
+            .expect("Failed to spawn transport runtime thread");
+
+        app.insert_resource(TransportHandle {
+            command_tx,
+            event_rx,
+            reliable_tx,
+            unreliable_tx,
+            data_notify,
+        });
+
+        app.add_systems(PreUpdate, transport_bridge_system);
+    }
+}
+
+/// Bridge system: drains outgoing queues from `NetworkConnection` into the transport,
+/// and receives events from the transport to populate incoming queues and update state.
+///
+/// Uses read-only access first to avoid triggering Bevy change detection when idle.
+fn transport_bridge_system(
+    handle: Option<Res<TransportHandle>>,
+    mut connection: ResMut<NetworkConnection>,
+) {
+    let Some(handle) = handle else { return };
+
+    // Check if there's any work via immutable access (doesn't trigger change detection).
+    let has_outgoing =
+        !connection.outgoing_messages.is_empty() || !connection.outgoing_unreliable.is_empty();
+    let has_incoming = !handle.event_rx.is_empty();
+
+    if !has_outgoing && !has_incoming {
+        return;
+    }
+
+    // Send outgoing reliable messages.
+    let mut sent_data = false;
+    for msg in connection.outgoing_messages.drain(..) {
+        match bincode::serialize(&msg) {
+            Ok(data) => {
+                let _ = handle.reliable_tx.send(data);
+                sent_data = true;
+            }
+            Err(e) => {
+                warn!("Failed to serialize outgoing message: {e}");
+            }
+        }
+    }
+
+    // Send outgoing unreliable data.
+    for data in connection.outgoing_unreliable.drain(..) {
+        let _ = handle.unreliable_tx.send(data);
+        sent_data = true;
+    }
+
+    // Wake the async send loops if we pushed data.
+    if sent_data {
+        handle.data_notify.notify_one();
+    }
+
+    // Receive transport events.
+    while let Ok(event) = handle.event_rx.try_recv() {
+        match event {
+            TransportEvent::StateChanged(state) => {
+                connection.state = state;
+            }
+            TransportEvent::LocalCode(code) => {
+                connection.local_code = Some(code);
+            }
+            TransportEvent::ReliableMessage(data) => {
+                match bincode::deserialize::<NetworkMessage>(&data) {
+                    Ok(msg) => {
+                        connection.incoming_messages.push(msg);
+                    }
+                    Err(e) => {
+                        warn!("Failed to deserialize incoming message: {e}");
+                    }
+                }
+            }
+            TransportEvent::UnreliableData(data) => {
+                connection.incoming_unreliable.push(data);
+            }
+            TransportEvent::PingUpdate(ms) => {
+                connection.ping_ms = Some(ms);
+            }
+            TransportEvent::Error(msg) => {
+                error!("Transport error: {msg}");
+                connection.error = Some(msg);
+            }
+        }
+    }
+}
