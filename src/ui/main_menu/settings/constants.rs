@@ -2,8 +2,10 @@
 
 use bevy::prelude::*;
 
+use crate::ui::constants::{OVERLAY_BG, TEXT_PRIMARY};
+
 /// Text color for settings menu UI elements.
-pub const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
+pub const TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Font size for settings title text.
 pub const TITLE_FONT_SIZE: f32 = 32.0;
@@ -54,7 +56,7 @@ pub const DANGER_BUTTON_BACKGROUND: Color = Color::hsla(0.0, 0.7, 0.3, 1.0);
 pub const DANGER_BUTTON_BORDER: Color = Color::hsla(0.0, 0.8, 0.5, 1.0);
 
 /// Confirmation popup overlay background (semi-transparent black).
-pub const POPUP_OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.6);
+pub const POPUP_OVERLAY_BG: Color = OVERLAY_BG;
 
 /// Confirmation popup box background.
 pub const POPUP_BOX_BG: Color = Color::hsla(220.0, 0.08, 0.12, 1.0);

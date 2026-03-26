@@ -44,6 +44,7 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
             Velocity {
                 x: initial_velocity.x,
                 z: initial_velocity.z,
+                ..default()
             },
             Acceleration::new(),
             // Core

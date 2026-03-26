@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use crate::config::WizardType;
 use crate::ui::components::ButtonColors;
+use crate::ui::constants::{DETAIL_BG, DETAIL_BORDER, GOLD_ACCENT, TEXT_MUTED, TEXT_PRIMARY};
 use crate::ui::systems::spawn_title_with_shadow;
 
 // ===== Shared Components =====
@@ -40,10 +41,10 @@ pub(super) const TITLE_FONT_SIZE: f32 = 29.0;
 pub(super) const SUBTITLE_FONT_SIZE: f32 = 10.0;
 
 /// Primary text color.
-pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.92, 1.0);
+pub(super) const TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Subdued text color for secondary elements.
-pub(super) const SUBTITLE_COLOR: Color = Color::hsla(0.0, 0.0, 0.45, 1.0);
+pub(super) const SUBTITLE_COLOR: Color = TEXT_MUTED;
 
 /// Width of the left panel (title + detail + buttons).
 pub(super) const LEFT_PANEL_WIDTH: f32 = 300.0;
@@ -79,16 +80,16 @@ pub(super) const CARD_NAME_FONT_SIZE: f32 = 14.0;
 pub(super) const CARD_DESC_FONT_SIZE: f32 = 10.0;
 
 /// Background color for unlocked wizard cards.
-pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 1.0);
+pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
 
 /// Border color for unlocked wizard cards.
-pub(super) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 1.0);
+pub(super) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
 
 /// Border color for the selected/active wizard card — gold accent.
-pub(super) const CARD_BORDER_SELECTED: Color = Color::hsla(40.0, 0.50, 0.45, 1.0);
+pub(super) const CARD_BORDER_SELECTED: Color = GOLD_ACCENT;
 
 /// Color for wizard type short description text on cards.
-pub(super) const DESCRIPTION_COLOR: Color = Color::hsla(0.0, 0.0, 0.45, 1.0);
+pub(super) const DESCRIPTION_COLOR: Color = TEXT_MUTED;
 
 /// Accent color for wizard name text — slightly warm white.
 pub(super) const CARD_NAME_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
@@ -99,11 +100,11 @@ pub(super) const DETAIL_BORDER_WIDTH: f32 = 1.0;
 /// Detail panel border radius.
 pub(super) const DETAIL_BORDER_RADIUS: f32 = 6.0;
 
-/// Detail panel background color.
-pub(super) const DETAIL_BG: Color = Color::hsla(220.0, 0.08, 0.10, 1.0);
+/// Detail panel background color (from global palette).
+pub(super) const DETAIL_PANEL_BG: Color = DETAIL_BG;
 
-/// Detail panel border color — gold accent.
-pub(super) const DETAIL_BORDER: Color = Color::hsla(40.0, 0.35, 0.30, 1.0);
+/// Detail panel border color (from global palette).
+pub(super) const DETAIL_PANEL_BORDER: Color = DETAIL_BORDER;
 
 /// Font size for the wizard name in the detail panel.
 pub(super) const DETAIL_NAME_FONT_SIZE: f32 = 18.0;
@@ -118,10 +119,10 @@ pub(super) const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.58, 1.0);
 pub(super) const DETAIL_STATUS_FONT_SIZE: f32 = 10.0;
 
 /// Background color for locked (unavailable) wizard cards.
-pub(super) const LOCKED_CARD_BG: Color = Color::hsla(220.0, 0.05, 0.065, 1.0);
+pub(super) const LOCKED_CARD_BG: Color = Color::hsla(220.0, 0.05, 0.065, 0.6);
 
 /// Border color for locked wizard cards.
-pub(super) const LOCKED_CARD_BORDER: Color = Color::hsla(220.0, 0.05, 0.12, 1.0);
+pub(super) const LOCKED_CARD_BORDER: Color = Color::hsla(220.0, 0.05, 0.12, 0.5);
 
 /// Text color for locked wizard cards.
 pub(super) const LOCKED_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.20, 1.0);
@@ -292,8 +293,8 @@ pub(super) fn spawn_detail_panel_container(
                 border: UiRect::all(Val::Px(DETAIL_BORDER_WIDTH)),
                 ..default()
             },
-            BackgroundColor(DETAIL_BG),
-            BorderColor::all(DETAIL_BORDER),
+            BackgroundColor(DETAIL_PANEL_BG),
+            BorderColor::all(DETAIL_PANEL_BORDER),
             BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
         ))
         .with_children(build_contents);

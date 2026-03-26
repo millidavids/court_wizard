@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, INSIGHT_COLOR as GLOBAL_INSIGHT, TEXT_BODY, TEXT_PRIMARY};
 
-pub const BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
-pub const TITLE_COLOR: Color = Color::srgb(0.95, 0.95, 0.95);
-pub const TEXT_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
-pub const INSIGHT_COLOR: Color = Color::srgb(0.6, 0.8, 1.0);
+pub const TITLE_COLOR: Color = TEXT_PRIMARY;
+pub const TEXT_COLOR: Color = TEXT_BODY;
+pub const INSIGHT_COLOR: Color = GLOBAL_INSIGHT;
 pub const CARNAGE_MET_COLOR: Color = Color::srgb(0.8, 0.1, 0.1);
 pub const CARNAGE_UNMET_COLOR: Color = Color::srgb(0.6, 0.4, 0.1);
 
@@ -16,6 +16,6 @@ pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 20.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };

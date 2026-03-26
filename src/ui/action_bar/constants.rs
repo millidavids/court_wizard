@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{BUTTON_BG, BUTTON_BORDER, ButtonStyle};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER};
 
 /// Width of each action bar slot button.
 pub(super) const SLOT_WIDTH: f32 = 50.0;

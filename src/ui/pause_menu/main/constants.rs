@@ -2,10 +2,11 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
 
-/// Text color for the title and buttons.
-pub const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
+/// Text color (alias for global TEXT_PRIMARY).
+pub const TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Font size for the title text.
 pub const TITLE_FONT_SIZE: f32 = 40.0;
@@ -33,6 +34,6 @@ pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: BUTTON_FONT_SIZE,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };

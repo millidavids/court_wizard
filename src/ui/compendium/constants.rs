@@ -1,21 +1,25 @@
 use bevy::prelude::*;
 
+use crate::ui::constants::{
+    INSIGHT_COLOR as GLOBAL_INSIGHT, TEXT_BODY, TEXT_DISABLED, TEXT_MUTED, TEXT_PRIMARY,
+};
+
 // Colors
-pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
-pub(super) const UNLOCKED_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
-pub(super) const LOCKED_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
-pub(super) const DESCRIPTION_COLOR: Color = Color::srgb(0.6, 0.6, 0.6);
-pub(super) const INSIGHT_COLOR: Color = Color::srgb(0.5, 0.7, 1.0);
+pub(super) const TEXT_COLOR: Color = TEXT_PRIMARY;
+pub(super) const UNLOCKED_COLOR: Color = TEXT_BODY;
+pub(super) const LOCKED_COLOR: Color = TEXT_DISABLED;
+pub(super) const DESCRIPTION_COLOR: Color = TEXT_MUTED;
+pub(super) const INSIGHT_COLOR: Color = GLOBAL_INSIGHT;
 pub(super) const IN_PROGRESS_COLOR: Color = Color::srgb(0.5, 0.65, 0.9);
 pub(super) const SECTION_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.8);
-pub(super) const ACTIVE_TAB_BG: Color = Color::srgba(0.2, 0.2, 0.25, 1.0);
+pub(super) const ACTIVE_TAB_BG: Color = Color::srgba(0.2, 0.2, 0.25, 0.8);
 pub(super) const INACTIVE_TAB_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.6);
-pub(super) const TAB_BORDER: Color = Color::srgb(0.3, 0.3, 0.35);
-pub(super) const ACTIVE_TAB_BORDER: Color = Color::srgb(0.5, 0.5, 0.6);
+pub(super) const TAB_BORDER: Color = Color::srgba(0.3, 0.3, 0.35, 0.6);
+pub(super) const ACTIVE_TAB_BORDER: Color = Color::srgba(0.5, 0.5, 0.6, 0.8);
 pub(super) const DETAIL_BG: Color = Color::srgba(0.08, 0.08, 0.1, 0.9);
-pub(super) const DETAIL_BORDER: Color = Color::srgb(0.25, 0.25, 0.3);
-pub(super) const ITEM_BG: Color = Color::srgba(0.12, 0.12, 0.15, 0.8);
-pub(super) const ITEM_BORDER: Color = Color::srgb(0.2, 0.2, 0.25);
+pub(super) const DETAIL_BORDER: Color = Color::srgba(0.25, 0.25, 0.3, 0.8);
+pub(super) const ITEM_BG: Color = Color::srgba(0.12, 0.12, 0.15, 0.75);
+pub(super) const ITEM_BORDER: Color = Color::srgba(0.2, 0.2, 0.25, 0.6);
 pub(super) const TEAM_DEFENDER_COLOR: Color = Color::srgb(0.3, 0.6, 0.9);
 pub(super) const TEAM_ATTACKER_COLOR: Color = Color::srgb(0.9, 0.4, 0.3);
 pub(super) const TEAM_BOSS_COLOR: Color = Color::srgb(0.8, 0.3, 0.8);
@@ -29,7 +33,7 @@ pub(super) const DETAIL_CATEGORY_FONT_SIZE: f32 = 14.0;
 pub(super) const DETAIL_DESC_FONT_SIZE: f32 = 14.0;
 pub(super) const DETAIL_FLAVOR_FONT_SIZE: f32 = 13.0;
 pub(super) const STAT_VALUE_FONT_SIZE: f32 = 22.0;
-pub(super) const STAT_LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.55, 1.0);
+pub(super) const STAT_LABEL_COLOR: Color = TEXT_MUTED;
 pub(super) const STAT_SECTION_FONT_SIZE: f32 = 17.0;
 pub(super) const STAT_SECTION_COLOR: Color = Color::hsla(0.0, 0.0, 0.95, 1.0);
 

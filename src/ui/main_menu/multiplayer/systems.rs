@@ -14,7 +14,7 @@ use crate::networking::session::MultiplayerSession;
 use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_page_container};
 
 use super::super::wizard_select_shared::{self as shared};
 use super::components::{
@@ -105,20 +105,24 @@ pub fn setup(
 
     commands.insert_resource(LobbyPhase::Connection);
 
-    // Root container: two-column horizontal layout
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(MARGIN * 2.0)),
-                column_gap: Val::Px(MARGIN * 2.0),
-                ..default()
-            },
-            OnMultiplayerScreen,
-        ))
-        .with_children(|root| {
+    // Page container (standard overlay with content box)
+    let content = spawn_page_container(
+        &mut commands,
+        OnMultiplayerScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(MARGIN * 2.0)),
+            column_gap: Val::Px(MARGIN * 2.0),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+
+    commands.entity(content).with_children(|root| {
             // ── Left column: buttons ──
             root.spawn(Node {
                 width: Val::Px(CONN_LEFT_COLUMN_WIDTH),
@@ -417,20 +421,24 @@ fn spawn_wizard_select_screen(
 
     commands.insert_resource(SelectedWizardPreview(initial_wizard));
 
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(MARGIN * 1.5)),
-                column_gap: Val::Px(MARGIN * 1.5),
-                ..default()
-            },
-            OnMultiplayerScreen,
-            WizardSelectScreen,
-        ))
-        .with_children(|root| {
+    let ws_content = spawn_page_container(
+        commands,
+        OnMultiplayerScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(MARGIN * 1.5)),
+            column_gap: Val::Px(MARGIN * 1.5),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+    commands.entity(ws_content).insert(WizardSelectScreen);
+
+    commands.entity(ws_content).with_children(|root| {
             // ── Left panel ──────────────────────────────────────
             root.spawn(Node {
                 width: Val::Px(LEFT_PANEL_WIDTH),

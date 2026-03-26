@@ -24,7 +24,7 @@ fn setup(mut commands: Commands, pause_menu: bool) {
         &mut commands,
         OnCompendiumScreen,
         pause_menu,
-        Overflow::clip(),
+        crate::ui::systems::default_content_node(),
     );
 
     commands.entity(content).with_children(|parent| {

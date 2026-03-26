@@ -1,20 +1,22 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{
-    ButtonStyle, BUTTON_BG, BUTTON_BG_SUBTLE, BUTTON_BORDER, BUTTON_BORDER_SUBTLE,
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{
+    BUTTON_BG, BUTTON_BG_SUBTLE, BUTTON_BORDER, BUTTON_BORDER_SUBTLE, TEXT_DISABLED, TEXT_MUTED,
+    TEXT_PRIMARY,
 };
 
-/// Text color for the game mode select screen.
-pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
+/// Text color (alias for global TEXT_PRIMARY).
+pub(super) const TEXT_COLOR: Color = TEXT_PRIMARY;
+
+/// Subtitle color.
+pub(super) const SUBTITLE_COLOR: Color = TEXT_MUTED;
 
 /// Title font size.
 pub(super) const TITLE_FONT_SIZE: f32 = 36.0;
 
 /// Subtitle font size.
 pub(super) const SUBTITLE_FONT_SIZE: f32 = 12.0;
-
-/// Subtitle color.
-pub(super) const SUBTITLE_COLOR: Color = Color::hsla(0.0, 0.0, 0.5, 1.0);
 
 /// Margin between elements.
 pub(super) const MARGIN: f32 = 20.0;
@@ -30,7 +32,7 @@ pub(super) const MODE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 18.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
 
@@ -42,7 +44,7 @@ pub(super) const DISABLED_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 18.0,
     background: BUTTON_BG_SUBTLE,
     border: BUTTON_BORDER_SUBTLE,
-    text_color: Color::hsla(0.0, 0.0, 0.55, 1.0),
+    text_color: TEXT_DISABLED,
     text_shadow: true,
 };
 
@@ -54,6 +56,6 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 20.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: TEXT_COLOR,
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::{BUTTON_BG, BUTTON_BORDER};
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_MUTED, TEXT_PRIMARY};
 
 /// Golden glow color for highlighted elements.
 pub(super) const GLOW_COLOR: Color = Color::hsla(45.0, 1.0, 0.65, 1.0);
@@ -62,10 +62,10 @@ pub(super) const SKIP_BUTTON_BG: Color = BUTTON_BG;
 pub(super) const SKIP_BUTTON_BORDER: Color = BUTTON_BORDER;
 
 /// Text color.
-pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
+pub(super) const TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Muted text color for step counter.
-pub(super) const MUTED_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.6, 1.0);
+pub(super) const MUTED_TEXT_COLOR: Color = TEXT_MUTED;
 
 /// Glow animation speed (radians per second).
 pub(super) const GLOW_ANIMATION_SPEED: f32 = 3.0;

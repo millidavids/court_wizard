@@ -6,7 +6,7 @@ use crate::config::ActiveSave;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, PauseMenuState};
-use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
+use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_shadow};
 
 use super::components::{OnPauseMainScreen, PauseMenuButtonAction};
 use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
@@ -16,70 +16,71 @@ use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 /// Spawns the root UI node containing the title and menu buttons.
 /// All spawned entities are marked with `OnPauseMainScreen` for cleanup.
 pub fn setup(mut commands: Commands) {
-    // Root container - full screen, centered content in a column
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                row_gap: Val::Px(MARGIN),
-                ..default()
-            },
-            OnPauseMainScreen,
-            // Semi-transparent dark background to dim the game behind
-            BackgroundColor(Color::BLACK.with_alpha(0.7)),
-            GlobalZIndex(500), // Above game, below brightness overlay
-        ))
-        .with_children(|parent| {
-            // Title text
-            spawn_title_with_shadow(parent, "Paused", TITLE_FONT_SIZE, TEXT_COLOR, Node {
-                margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),
-                ..default()
-            });
+    let content = spawn_page_container(
+        &mut commands,
+        OnPauseMainScreen,
+        true,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            row_gap: Val::Px(MARGIN),
+            padding: UiRect::all(Val::Px(20.0)),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
 
-            // Continue button
-            spawn_button(
-                parent,
-                "Continue",
-                PauseMenuButtonAction::Continue,
-                &BUTTON_STYLE,
-            );
-
-            // Settings button
-            spawn_button(
-                parent,
-                "Settings",
-                PauseMenuButtonAction::Settings,
-                &BUTTON_STYLE,
-            );
-
-            // Instructions button
-            spawn_button(
-                parent,
-                "Instructions",
-                PauseMenuButtonAction::Instructions,
-                &BUTTON_STYLE,
-            );
-
-            // Compendium button
-            spawn_button(
-                parent,
-                "Compendium",
-                PauseMenuButtonAction::Compendium,
-                &BUTTON_STYLE,
-            );
-
-            // Exit button
-            spawn_button(
-                parent,
-                "Exit to Menu",
-                PauseMenuButtonAction::Exit,
-                &BUTTON_STYLE,
-            );
+    commands.entity(content).with_children(|parent| {
+        // Title text
+        spawn_title_with_shadow(parent, "Paused", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+            margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),
+            ..default()
         });
+
+        // Continue button
+        spawn_button(
+            parent,
+            "Continue",
+            PauseMenuButtonAction::Continue,
+            &BUTTON_STYLE,
+        );
+
+        // Settings button
+        spawn_button(
+            parent,
+            "Settings",
+            PauseMenuButtonAction::Settings,
+            &BUTTON_STYLE,
+        );
+
+        // Instructions button
+        spawn_button(
+            parent,
+            "Instructions",
+            PauseMenuButtonAction::Instructions,
+            &BUTTON_STYLE,
+        );
+
+        // Compendium button
+        spawn_button(
+            parent,
+            "Compendium",
+            PauseMenuButtonAction::Compendium,
+            &BUTTON_STYLE,
+        );
+
+        // Exit button
+        spawn_button(
+            parent,
+            "Exit to Menu",
+            PauseMenuButtonAction::Exit,
+            &BUTTON_STYLE,
+        );
+    });
 }
 
 /// Handles pause menu button actions.

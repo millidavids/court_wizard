@@ -293,6 +293,9 @@ pub fn calculate_weighted_movement(
         acceleration.add_force(smelly_force);
     }
 
+    // Store max_speed for velocity clamping in apply_unit_movement
+    velocity.max_speed = max_speed;
+
     // Apply damping to current velocity (allows external forces like black hole gravity)
     // Frame-rate independent: normalize to 60 FPS reference rate
     let damping = VELOCITY_DAMPING.powf(time.delta_secs() * 60.0);

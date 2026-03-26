@@ -13,7 +13,7 @@ use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::cauldron::resources::PhilosophersStoneUsed;
 use crate::game::input::messages::MouseClicked;
 use crate::state::InGameState;
-use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
+use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_shadow};
 
 /// Spawns the cauldron menu UI when entering the CauldronMenu state.
 pub(super) fn spawn_cauldron_menu_ui(
@@ -67,21 +67,24 @@ fn build_menu(
         .map(|s| s.player.unlocked_content.combos.clone())
         .unwrap_or_default();
 
-    // Root container (full screen, column layout)
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(LAYOUT_PADDING)),
-                row_gap: Val::Px(16.0),
-                ..default()
-            },
-            BackgroundColor(BACKGROUND_COLOR),
-            OnCauldronMenuScreen,
-        ))
-        .with_children(|root| {
+    // Page container (standard overlay with content box)
+    let content = spawn_page_container(
+        commands,
+        OnCauldronMenuScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(LAYOUT_PADDING)),
+            row_gap: Val::Px(16.0),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+
+    commands.entity(content).with_children(|root| {
             // Title
             spawn_title_with_shadow(root, "Cauldron", TITLE_FONT_SIZE, TITLE_COLOR, Node {
                 align_self: AlignSelf::Center,

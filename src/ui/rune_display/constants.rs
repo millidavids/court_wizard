@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{BUTTON_BG, BUTTON_BORDER, ButtonStyle};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
 
 /// Width of each rune button.
 pub(super) const RUNE_BUTTON_WIDTH: f32 = 50.0;
@@ -33,7 +34,7 @@ pub(super) const RUNE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
 };
 
 /// Text color for rune sequence display.
-pub(super) const SEQUENCE_TEXT_COLOR: Color = Color::srgba(0.9, 0.9, 1.0, 1.0);
+pub(super) const SEQUENCE_TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Duration in seconds for the spell name fade-out animation.
 pub(super) const SPELL_NAME_FADE_DURATION: f32 = 2.0;

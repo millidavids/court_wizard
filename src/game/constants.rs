@@ -190,7 +190,7 @@ pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
 
 /// Global multiplier applied to all unit movement speeds.
 /// 1.0 = normal speed, 0.8 = 20% slower, etc.
-pub const GLOBAL_SPEED_MULTIPLIER: f32 = 0.5;
+pub const GLOBAL_SPEED_MULTIPLIER: f32 = 0.55;
 
 /// Hitbox height for defender units.
 pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0 * UNIT_SCALE;

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_BODY};
 
 /// Screen margin for HUD elements (invisible padding from edges).
 pub const HUD_MARGIN: Val = Val::Px(20.0);
@@ -32,7 +33,7 @@ pub const BUTTON_HEIGHT: f32 = 50.0;
 pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
 
 /// Button text color.
-pub const BUTTON_TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
+pub const BUTTON_TEXT_COLOR: Color = TEXT_BODY;
 pub const BUTTON_FONT_SIZE: f32 = 9.0;
 
 /// Boss health bar dimensions.

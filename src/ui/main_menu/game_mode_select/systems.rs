@@ -5,7 +5,7 @@ use crate::game::game_mode::components::GameMode;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_title_with_shadow};
+use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_page_container, spawn_title_with_shadow};
 
 use super::components::{
     DisabledModeButton, GameModeButtonAction, OnGameModeSelectScreen,
@@ -14,20 +14,25 @@ use super::constants::*;
 
 /// Sets up the game mode selection screen UI.
 pub(super) fn setup(mut commands: Commands) {
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                row_gap: Val::Px(MARGIN),
-                ..default()
-            },
-            OnGameModeSelectScreen,
-        ))
-        .with_children(|parent| {
+    let content = spawn_page_container(
+        &mut commands,
+        OnGameModeSelectScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            row_gap: Val::Px(MARGIN),
+            padding: UiRect::all(Val::Px(20.0)),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+
+    commands.entity(content).with_children(|parent| {
             // Title
             spawn_title_with_shadow(parent, "Choose Your Path", TITLE_FONT_SIZE, TEXT_COLOR, Node {
                 margin: UiRect::bottom(Val::Px(MARGIN)),

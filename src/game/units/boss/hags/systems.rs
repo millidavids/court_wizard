@@ -73,6 +73,7 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
                 Velocity {
                     x: initial_velocity.x,
                     z: initial_velocity.z,
+                    ..default()
                 },
                 Acceleration::new(),
                 // Core

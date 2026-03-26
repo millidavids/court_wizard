@@ -43,7 +43,7 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
         &mut commands,
         OnSettingsScreen,
         pause_menu,
-        Overflow::clip(),
+        crate::ui::systems::default_content_node(),
     );
     commands.entity(content).with_children(|parent| {
         // Title

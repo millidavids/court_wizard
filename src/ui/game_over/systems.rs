@@ -17,7 +17,7 @@ use crate::game::units::wizard::archetypes::psychopath::constants::DEFENDER_KILL
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
-use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
+use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_shadow};
 
 use super::components::*;
 use super::styles::*;
@@ -175,23 +175,26 @@ pub(super) fn setup_game_over_screen(
     let defenders_lost = kill_stats.defenders_killed as f32;
     let current_efficiency = (1.0 - (defenders_lost / total_defenders)) * 100.0;
 
-    // Root container (fullscreen, horizontal layout)
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                column_gap: Val::Px(100.0),
-                padding: UiRect::all(Val::Px(40.0)),
-                ..default()
-            },
-            BackgroundColor(BACKGROUND_COLOR),
-            OnGameOverScreen,
-        ))
-        .with_children(|parent| {
+    // Page container (standard overlay with content box)
+    let content = spawn_page_container(
+        &mut commands,
+        OnGameOverScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(100.0),
+            padding: UiRect::all(Val::Px(40.0)),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+
+    commands.entity(content).with_children(|parent| {
             // Left column - Buttons
             parent
                 .spawn(Node {

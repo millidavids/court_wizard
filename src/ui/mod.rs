@@ -9,6 +9,7 @@ mod arcanorouter_display;
 mod cauldron_menu;
 mod compendium;
 pub(crate) mod components;
+pub(crate) mod constants;
 mod concentration;
 mod game_over;
 mod in_game;

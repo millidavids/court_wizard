@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.188] - 2026-03-26
+
+### Changed
+- **Unified UI look** — all menu screens and overlays (spell book, cauldron, pause menu, game over, wizard select, game mode select, multiplayer) now use the same styled container with a translucent bordered panel, matching the instructions and settings screens
+- **Semi-transparent panels** — detail panels, wizard cards, spell buttons, and list areas throughout the UI are now semi-transparent instead of solid black, letting the background show through for a more polished look
+- **Brighter labels and descriptions** — category headers, section labels, disabled text, and other secondary text across all screens have been brightened for better readability
+- **Consistent colors everywhere** — all UI screens now pull from a single shared color palette instead of each screen defining its own slightly different colors
+- **Faster units** — all units move 10% faster across the battlefield
+- **Tighter speed control** — units can no longer exceed their intended movement speed when grouped together
+
 ## [v0.5.176] - 2026-03-26
 
 ### Changed

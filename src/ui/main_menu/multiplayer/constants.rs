@@ -5,7 +5,12 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER, BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{
+    BUTTON_BG, BUTTON_BG_SUBTLE, BUTTON_BORDER, BUTTON_BORDER_SUBTLE,
+    ERROR_COLOR as GLOBAL_ERROR, SUCCESS_COLOR as GLOBAL_SUCCESS, TEXT_MUTED,
+    WARNING_COLOR as GLOBAL_WARNING,
+};
 
 // Re-export all shared constants for convenience.
 pub(super) use super::super::wizard_select_shared::*;
@@ -34,16 +39,16 @@ pub(super) const STATUS_FONT_SIZE: f32 = 18.0;
 pub(super) const CODE_FONT_SIZE: f32 = 12.0;
 
 /// Accent color for success/connected status.
-pub(super) const SUCCESS_COLOR: Color = Color::hsla(120.0, 0.6, 0.5, 1.0);
+pub(super) const SUCCESS_COLOR: Color = GLOBAL_SUCCESS;
 
 /// Accent color for error/failed status.
-pub(super) const ERROR_COLOR: Color = Color::hsla(0.0, 0.6, 0.5, 1.0);
+pub(super) const ERROR_COLOR: Color = GLOBAL_ERROR;
 
 /// Accent color for waiting/connecting status.
-pub(super) const WAITING_COLOR: Color = Color::hsla(45.0, 0.6, 0.5, 1.0);
+pub(super) const WAITING_COLOR: Color = GLOBAL_WARNING;
 
 /// Color for section divider labels ("Online" / "Local Network").
-pub(super) const SECTION_LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+pub(super) const SECTION_LABEL_COLOR: Color = TEXT_MUTED;
 
 /// Font size for section divider labels.
 pub(super) const SECTION_LABEL_FONT_SIZE: f32 = 14.0;

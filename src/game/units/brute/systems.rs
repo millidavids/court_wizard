@@ -63,6 +63,7 @@ pub fn spawn_brute(
             Velocity {
                 x: initial_velocity.x,
                 z: initial_velocity.z,
+                ..default()
             },
             Acceleration::new(),
             // Core

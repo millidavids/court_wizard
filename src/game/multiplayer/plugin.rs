@@ -19,7 +19,8 @@ use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::networking::session::{MultiplayerSession, is_multiplayer_guest, is_multiplayer_host};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
-use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::spawn_button;
 
@@ -363,7 +364,7 @@ const SCORE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 20.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
 
@@ -603,7 +604,7 @@ const PAUSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 20.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
 
@@ -630,7 +631,7 @@ fn setup_mp_pause_menu(mut commands: Commands) {
             parent.spawn((
                 Text::new("Menu"),
                 TextFont::from_font_size(40.0),
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(TEXT_PRIMARY),
                 Node {
                     margin: UiRect::bottom(Val::Px(20.0)),
                     ..default()

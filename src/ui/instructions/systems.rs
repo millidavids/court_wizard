@@ -7,7 +7,9 @@ use super::constants::INSTRUCTIONS_TEXT;
 use crate::ui::main_menu::BACK_BUTTON_STYLE;
 use crate::ui::systems::spawn_title_with_shadow;
 
-const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
+use crate::ui::constants::TEXT_PRIMARY;
+
+const TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Spawns the instructions screen UI.
 pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
@@ -17,7 +19,7 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
         &mut commands,
         OnInstructionsScreen,
         pause_menu,
-        Overflow::clip(),
+        crate::ui::systems::default_content_node(),
     );
 
     commands.entity(content).with_children(|parent| {

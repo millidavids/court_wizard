@@ -42,7 +42,7 @@ fn strip_markdown_links(input: &str) -> String {
 
 /// Spawns the credits screen UI.
 pub(super) fn setup(mut commands: Commands) {
-    let content = spawn_page_container(&mut commands, OnCreditsScreen, false, Overflow::clip());
+    let content = spawn_page_container(&mut commands, OnCreditsScreen, false, crate::ui::systems::default_content_node());
 
     let display_text = strip_markdown_links(CREDITS_TEXT);
 

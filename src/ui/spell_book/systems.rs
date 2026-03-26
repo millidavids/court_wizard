@@ -12,7 +12,7 @@ use crate::state::{InGameState, MultiplayerGameState};
 use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
 use crate::ui::concentration::ConcentrationUIRoot;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_page_container};
 
 /// Resource to track when we just entered the spell book.
 /// Prevents spell casting on the same frame as opening the spell book.
@@ -63,27 +63,30 @@ pub(super) fn spawn_spell_book_ui(
 
     commands.insert_resource(SelectedSpellPreview(initial_spell));
 
-    // Root container (full screen, two-column row layout)
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(LAYOUT_PADDING)),
-                column_gap: Val::Px(COLUMN_GAP),
-                ..default()
-            },
-            BackgroundColor(BACKGROUND_COLOR),
-            OnSpellBookScreen,
-        ))
-        .with_children(|root| {
-            // === Left panel: detail + buttons ===
-            spawn_detail_panel(root, initial_spell, &config);
+    // Page container (standard overlay with content box)
+    let content = spawn_page_container(
+        &mut commands,
+        OnSpellBookScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(LAYOUT_PADDING)),
+            column_gap: Val::Px(COLUMN_GAP),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
 
-            // === Right panel: categorized spell list ===
-            spawn_spell_list(root, initial_spell, &is_unlocked, &icon_assets);
-        });
+    commands.entity(content).with_children(|root| {
+        // === Left panel: detail + buttons ===
+        spawn_detail_panel(root, initial_spell, &config);
+
+        // === Right panel: categorized spell list ===
+        spawn_spell_list(root, initial_spell, &is_unlocked, &icon_assets);
+    });
 }
 
 /// Spawns the left detail panel showing spell info, hotkeys, and action buttons.

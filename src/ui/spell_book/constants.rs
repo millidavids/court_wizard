@@ -2,14 +2,16 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{
+    BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, DETAIL_BG as GLOBAL_DETAIL_BG,
+    DETAIL_BORDER as GLOBAL_DETAIL_BORDER, GOLD_ACCENT, LIST_BG as GLOBAL_LIST_BG,
+    LIST_BORDER as GLOBAL_LIST_BORDER, TEXT_BODY, TEXT_MUTED,
+};
 
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
-
-/// Semi-transparent background for the full-screen overlay.
-pub const BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
 
 /// Padding around the entire spell book layout.
 pub const LAYOUT_PADDING: f32 = 30.0;
@@ -25,10 +27,10 @@ pub const LEFT_PANEL_WIDTH: f32 = 300.0;
 // ---------------------------------------------------------------------------
 
 /// Detail panel background color.
-pub const DETAIL_BG: Color = Color::hsla(220.0, 0.08, 0.10, 1.0);
+pub const DETAIL_BG: Color = GLOBAL_DETAIL_BG;
 
 /// Detail panel border color — subtle gold.
-pub const DETAIL_BORDER: Color = Color::hsla(40.0, 0.35, 0.30, 1.0);
+pub const DETAIL_BORDER: Color = GLOBAL_DETAIL_BORDER;
 
 /// Detail panel border width.
 pub const DETAIL_BORDER_WIDTH: f32 = 1.0;
@@ -55,7 +57,7 @@ pub const DETAIL_TYPE_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
 pub const DETAIL_DESC_FONT_SIZE: f32 = 11.0;
 
 /// Color for description text.
-pub const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.65, 1.0);
+pub const DETAIL_DESC_COLOR: Color = TEXT_MUTED;
 
 /// Font size for instructions text.
 pub const DETAIL_INSTRUCTIONS_FONT_SIZE: f32 = 11.0;
@@ -77,13 +79,13 @@ pub const HOTKEY_BOX_GAP: f32 = 6.0;
 pub const HOTKEY_FONT_SIZE: f32 = 8.0;
 
 /// Background for inactive hotkey box.
-pub const HOTKEY_INACTIVE_BG: Color = Color::hsla(220.0, 0.08, 0.12, 1.0);
+pub const HOTKEY_INACTIVE_BG: Color = Color::hsla(220.0, 0.08, 0.12, 0.75);
 
 /// Border for inactive hotkey box.
-pub const HOTKEY_INACTIVE_BORDER: Color = Color::hsla(0.0, 0.0, 0.25, 1.0);
+pub const HOTKEY_INACTIVE_BORDER: Color = Color::hsla(0.0, 0.0, 0.25, 0.6);
 
 /// Text color for inactive hotkey.
-pub const HOTKEY_INACTIVE_TEXT: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+pub const HOTKEY_INACTIVE_TEXT: Color = TEXT_MUTED;
 
 /// Background for active hotkey box (this spell is assigned to this slot).
 pub const HOTKEY_ACTIVE_BG: Color = Color::hsla(40.0, 0.20, 0.18, 1.0);
@@ -99,10 +101,10 @@ pub const HOTKEY_ACTIVE_TEXT: Color = Color::hsla(40.0, 0.20, 0.85, 1.0);
 // ---------------------------------------------------------------------------
 
 /// Background for the spell list scroll area.
-pub const LIST_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+pub const LIST_BG: Color = GLOBAL_LIST_BG;
 
 /// Border for the spell list scroll area.
-pub const LIST_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 1.0);
+pub const LIST_BORDER: Color = GLOBAL_LIST_BORDER;
 
 /// Border width for the spell list.
 pub const LIST_BORDER_WIDTH: f32 = 1.0;
@@ -120,22 +122,22 @@ pub const LIST_ITEM_GAP: f32 = 16.0;
 pub const CATEGORY_FONT_SIZE: f32 = 9.0;
 
 /// Color for category header text.
-pub const CATEGORY_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+pub const CATEGORY_COLOR: Color = TEXT_MUTED;
 
 /// Height of spell buttons in the list.
 pub const SPELL_BUTTON_HEIGHT: f32 = 40.0;
 
 /// Background for spell buttons.
-pub const SPELL_BUTTON_BG: Color = Color::hsla(220.0, 0.08, 0.11, 1.0);
+pub const SPELL_BUTTON_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
 
 /// Border for spell buttons.
-pub const SPELL_BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 1.0);
+pub const SPELL_BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
 
 /// Border for the currently selected spell button — gold accent.
-pub const SPELL_BUTTON_SELECTED_BORDER: Color = Color::hsla(40.0, 0.50, 0.45, 1.0);
+pub const SPELL_BUTTON_SELECTED_BORDER: Color = GOLD_ACCENT;
 
 /// Text color for spell buttons.
-pub const SPELL_BUTTON_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.85, 1.0);
+pub const SPELL_BUTTON_TEXT_COLOR: Color = TEXT_BODY;
 
 /// Font size for spell button text.
 pub const SPELL_BUTTON_FONT_SIZE: f32 = 10.0;
@@ -154,7 +156,7 @@ pub const SPELL_ICON_SIZE: f32 = 24.0;
 pub const LABEL_FONT_SIZE: f32 = 7.0;
 
 /// Color for section labels.
-pub const LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+pub const LABEL_COLOR: Color = TEXT_MUTED;
 
 // ---------------------------------------------------------------------------
 // Buttons (Select / Close)
@@ -180,6 +182,6 @@ pub const CLOSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 7.0,
     background: BUTTON_BG_SUBTLE,
     border: BUTTON_BORDER_SUBTLE,
-    text_color: Color::hsla(0.0, 0.0, 0.70, 1.0),
+    text_color: TEXT_MUTED,
     text_shadow: true,
 };

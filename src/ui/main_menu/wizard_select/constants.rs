@@ -5,7 +5,8 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, TEXT_MUTED};
 
 // Re-export all shared constants for convenience.
 pub(super) use super::super::wizard_select_shared::*;
@@ -36,6 +37,6 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 10.0,
     background: BUTTON_BG_SUBTLE,
     border: BUTTON_BORDER_SUBTLE,
-    text_color: Color::hsla(0.0, 0.0, 0.70, 1.0),
+    text_color: TEXT_MUTED,
     text_shadow: true,
 };

@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
+use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{
+    BUTTON_BG, BUTTON_BORDER, INSIGHT_COLOR as GLOBAL_INSIGHT, TEXT_BODY, TEXT_DISABLED,
+    TEXT_PRIMARY,
+};
 
 // ---------------------------------------------------------------------------
 // Shared layout
@@ -13,10 +17,10 @@ pub(super) const INSIGHT_FONT_SIZE: f32 = 22.0;
 // ---------------------------------------------------------------------------
 // Shared colors
 // ---------------------------------------------------------------------------
-pub(super) const TITLE_COLOR: Color = Color::srgb(0.95, 0.95, 0.95);
-pub(super) const TEXT_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
-pub(super) const INSIGHT_COLOR: Color = Color::srgb(0.6, 0.8, 1.0);
-pub(super) const LOCKED_TEXT_COLOR: Color = Color::srgb(0.45, 0.45, 0.45);
+pub(super) const TITLE_COLOR: Color = TEXT_PRIMARY;
+pub(super) const TEXT_COLOR: Color = TEXT_BODY;
+pub(super) const INSIGHT_COLOR: Color = GLOBAL_INSIGHT;
+pub(super) const LOCKED_TEXT_COLOR: Color = TEXT_DISABLED;
 pub(super) const COMPLETED_COLOR: Color = Color::srgb(0.4, 0.9, 0.4);
 pub(super) const AFFINITY_COLOR: Color = Color::srgb(1.0, 0.85, 0.3);
 pub(super) const PENDING_COLOR: Color = Color::srgb(0.9, 0.7, 0.3);
@@ -126,7 +130,7 @@ pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 16.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
 
@@ -148,7 +152,7 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     font_size: 16.0,
     background: BUTTON_BG,
     border: BUTTON_BORDER,
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
 
