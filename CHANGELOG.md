@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.144] - 2026-03-25
+
+### Changed
+- **Attackers march in formation** — enemy units now approach the battlefield in proper military formation. Infantry and brutes lead the charge up front, archers follow behind, and sneaky units bring up the rear
+
 ## [v0.5.142] - 2026-03-25
 
 ### Added

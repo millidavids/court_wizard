@@ -20,7 +20,7 @@ use crate::game::units::random_position_in_cell;
 
 /// Spawns the ogre at one of the tunnel spawn points.
 pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
-    let (spawn_x, spawn_z) = attacker_spawn_position(0);
+    let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(OGRE_RADIUS, OGRE_HITBOX_HEIGHT);

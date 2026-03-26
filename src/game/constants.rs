@@ -317,6 +317,12 @@ pub const STAGING_SPEEDUP: f64 = 5.0;
 /// X coordinate for attacker spawn points (just beyond the right wall).
 pub const ATTACKER_SPAWN_X: f32 = 3100.0;
 
+/// Spawn depth offset for archers (behind infantry for formation ordering).
+pub const ARCHER_SPAWN_DEPTH_OFFSET: f32 = 400.0;
+
+/// Spawn depth offset for assassins (behind archers for formation ordering).
+pub const ASSASSIN_SPAWN_DEPTH_OFFSET: f32 = 700.0;
+
 /// The two static spawn points behind the right wall, aligned with tunnel archways.
 /// Units split evenly between these and path through the tunnels to the staging area.
 pub const ATTACKER_SPAWN_POINTS: [(f32, f32); 2] = [
@@ -325,8 +331,10 @@ pub const ATTACKER_SPAWN_POINTS: [(f32, f32); 2] = [
 ];
 
 /// Returns the spawn position for an attacker unit, alternating between the two tunnel spawn points.
-pub fn attacker_spawn_position(unit_index: u32) -> (f32, f32) {
-    ATTACKER_SPAWN_POINTS[(unit_index % 2) as usize]
+/// `depth_offset` pushes the unit further behind the wall for formation ordering.
+pub fn attacker_spawn_position(unit_index: u32, depth_offset: f32) -> (f32, f32) {
+    let (x, z) = ATTACKER_SPAWN_POINTS[(unit_index % 2) as usize];
+    (x + depth_offset, z)
 }
 
 // ===== Defender Spawn Grid Constants =====

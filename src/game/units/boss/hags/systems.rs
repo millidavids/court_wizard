@@ -49,7 +49,7 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
     let mut spawned_entities = Vec::new();
 
     for (idx, (identity, _col, material)) in hags.iter().enumerate() {
-        let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32);
+        let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32, 0.0);
         let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
         let hitbox = Hitbox::new(HAG_RADIUS, HAG_HITBOX_HEIGHT);

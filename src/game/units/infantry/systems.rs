@@ -407,7 +407,7 @@ pub(in crate::game) fn spawn_single_attacker(
     unit_index: u32,
     _level: u32,
 ) {
-    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index);
+    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, 0.0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);

@@ -30,8 +30,8 @@ pub fn spawn_brute(
     materials: &mut Assets<StandardMaterial>,
     _current_level: Res<CurrentLevel>,
 ) {
-    // Brute spawns at one of the tunnel spawn points (use index 0 for bottom tunnel)
-    let (spawn_x, spawn_z) = attacker_spawn_position(0);
+    // Brute spawns at the front with infantry
+    let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(BRUTE_RADIUS, BRUTE_HITBOX_HEIGHT);

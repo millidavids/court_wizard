@@ -4,7 +4,7 @@ use super::components::Assassin;
 use super::constants::*;
 use super::resources::AssassinAssets;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
-use crate::game::constants::{attacker_spawn_position, ATTACKER_HITBOX_HEIGHT};
+use crate::game::constants::{ASSASSIN_SPAWN_DEPTH_OFFSET, ATTACKER_HITBOX_HEIGHT, attacker_spawn_position};
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::archer::Archer;
 use crate::game::units::components::{
@@ -186,7 +186,7 @@ pub(in crate::game) fn spawn_single_attacker_assassin(
     unit_index: u32,
     _level: u32,
 ) {
-    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index);
+    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ASSASSIN_SPAWN_DEPTH_OFFSET);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(ASSASSIN_RADIUS, ATTACKER_HITBOX_HEIGHT);
