@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.207] - 2026-03-26
+
+### Added
+- **Ogre charge attack** — the Ogre boss now charges across the battlefield, targeting defenders at a distance. A pulsing red rectangle telegraph warns you where the charge will land, giving you a few seconds to move units out of the way. Units caught in the charge take heavy damage and get knocked sideways
+- **Ogre melee resistance** — the Ogre now shrugs off most damage from infantry and archers, taking only a fraction of their attacks. Spells remain fully effective against it
+
+### Changed
+- **Faster Ogre** — the Ogre boss moves faster across the battlefield
+- **Stronger enrage scaling** — the Ogre's enrage bonuses now ramp up more aggressively at each health threshold
+
 ## [v0.5.188] - 2026-03-26
 
 ### Changed

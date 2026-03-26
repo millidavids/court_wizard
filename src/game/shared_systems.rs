@@ -462,8 +462,11 @@ pub fn combat(
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
         Option<&super::units::wizard::spells::haste::components::FleetFeet>,
         Has<super::units::shielder::components::ShielderDamageReduction>,
-        Has<super::units::assassin::Assassin>,
-        Has<super::units::archer::Archer>,
+        (
+            Has<super::units::assassin::Assassin>,
+            Has<super::units::archer::Archer>,
+            Option<&super::units::boss::ogre::MeleeDamageReduction>,
+        ),
     )>,
     // Fog Cloud talent zones
     disorienting_zones: Query<
@@ -626,8 +629,7 @@ pub fn combat(
                     guardian_circle_shielded,
                     target_fleet_feet,
                     has_shielder_reduction,
-                    target_is_assassin,
-                    target_is_archer,
+                    (target_is_assassin, target_is_archer, melee_damage_reduction),
                 )) = health_query.get_mut(actual_target)
             {
                 // Check fog evasion
@@ -736,6 +738,11 @@ pub fn combat(
                     if !comatose_blocks_wake {
                         post_combat_removes.push((actual_target, PostCombatAction::RemoveSleep));
                     }
+                }
+
+                // Apply melee damage reduction (e.g. Ogre boss)
+                if let Some(reduction) = melee_damage_reduction {
+                    modified_damage *= reduction.multiplier;
                 }
 
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);

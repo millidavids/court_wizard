@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.5.188"
+version = "0.5.207"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -54,6 +54,9 @@ bevy = { version = "0.17.3", default-features = false, features = [
     "bevy_color",
     "bevy_log",
     "serialize",
+
+    # Debug (names in error messages, picking debug overlay)
+    "debug",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
