@@ -6,7 +6,7 @@ use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
 use crate::game::units::wizard::components::{Spell, SpellCategory};
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::*;
 use super::constants::*;
@@ -29,15 +29,10 @@ fn setup(mut commands: Commands, pause_menu: bool) {
 
     commands.entity(content).with_children(|parent| {
         // Title
-        parent.spawn((
-            Text::new("Compendium"),
-            TextFont::from_font_size(TITLE_FONT_SIZE),
-            TextColor(TEXT_COLOR),
-            Node {
-                margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
-                ..default()
-            },
-        ));
+        spawn_title_with_shadow(parent, "Compendium", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+            margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
+            ..default()
+        });
 
         // Main content: left detail + right tabbed panel
         parent

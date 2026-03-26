@@ -5,7 +5,7 @@ use crate::game::game_mode::components::GameMode;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::{scale_font_by_text_width, spawn_button};
+use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_title_with_shadow};
 
 use super::components::{
     DisabledModeButton, GameModeButtonAction, OnGameModeSelectScreen,
@@ -29,15 +29,10 @@ pub(super) fn setup(mut commands: Commands) {
         ))
         .with_children(|parent| {
             // Title
-            parent.spawn((
-                Text::new("Choose Your Path"),
-                TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TEXT_COLOR),
-                Node {
-                    margin: UiRect::bottom(Val::Px(MARGIN)),
-                    ..default()
-                },
-            ));
+            spawn_title_with_shadow(parent, "Choose Your Path", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+                margin: UiRect::bottom(Val::Px(MARGIN)),
+                ..default()
+            });
 
             // 2x2 button grid
             parent

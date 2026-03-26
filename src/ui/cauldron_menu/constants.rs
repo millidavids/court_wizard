@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, ButtonStyle};
 
 // ---------------------------------------------------------------------------
 // Layout (matching spell book)
@@ -147,9 +147,10 @@ pub const INGREDIENT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::hsla(220.0, 0.08, 0.11, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.20, 1.0),
+    background: Color::hsla(270.0, 0.12, 0.11, 0.75),
+    border: Color::hsla(270.0, 0.10, 0.20, 0.6),
     text_color: Color::hsla(0.0, 0.0, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for selected ingredient toggle.
@@ -158,9 +159,10 @@ pub const INGREDIENT_SELECTED_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.1, 0.25, 0.1),
+    background: Color::srgba(0.1, 0.25, 0.1, 0.75),
     border: Color::srgb(0.3, 0.7, 0.3),
     text_color: Color::srgb(0.7, 1.0, 0.7),
+    text_shadow: true,
 };
 
 /// Button style for disabled (at limit) ingredient toggle.
@@ -169,9 +171,10 @@ pub const INGREDIENT_DISABLED_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.06, 0.06, 0.06),
-    border: Color::srgb(0.15, 0.15, 0.15),
-    text_color: Color::srgb(0.3, 0.3, 0.3),
+    background: Color::srgba(0.06, 0.06, 0.06, 0.6),
+    border: Color::srgba(0.15, 0.15, 0.15, 0.5),
+    text_color: Color::srgb(0.55, 0.55, 0.55),
+    text_shadow: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -184,9 +187,10 @@ pub const STONE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.18, 0.15, 0.05),
+    background: Color::srgba(0.18, 0.15, 0.05, 0.75),
     border: Color::srgb(0.55, 0.45, 0.12),
     text_color: Color::srgb(0.85, 0.75, 0.2),
+    text_shadow: true,
 };
 
 /// Button style for the Philosopher's Stone (selected).
@@ -195,9 +199,10 @@ pub const STONE_SELECTED_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.25, 0.20, 0.05),
+    background: Color::srgba(0.25, 0.20, 0.05, 0.75),
     border: Color::srgb(0.85, 0.75, 0.2),
     text_color: Color::srgb(1.0, 0.9, 0.3),
+    text_shadow: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -210,9 +215,10 @@ pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 13.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 1.0),
+    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
     border: Color::hsla(40.0, 0.40, 0.35, 1.0),
     text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for the cancel brew button.
@@ -221,9 +227,10 @@ pub const CANCEL_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 11.0,
-    background: Color::srgb(0.25, 0.08, 0.08),
+    background: Color::srgba(0.25, 0.08, 0.08, 0.75),
     border: Color::srgb(0.5, 0.15, 0.15),
     text_color: Color::srgb(0.9, 0.4, 0.4),
+    text_shadow: true,
 };
 
 /// Button style for the close button.
@@ -232,7 +239,8 @@ pub const CLOSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 11.0,
-    background: Color::hsla(0.0, 0.0, 0.10, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.22, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.50, 1.0),
+    background: BUTTON_BG_SUBTLE,
+    border: BUTTON_BORDER_SUBTLE,
+    text_color: Color::hsla(0.0, 0.0, 0.70, 1.0),
+    text_shadow: true,
 };

@@ -13,7 +13,7 @@ use crate::game::cauldron::messages::{CancelBrewMessage, StartBrewMessage};
 use crate::game::cauldron::resources::PhilosophersStoneUsed;
 use crate::game::input::messages::MouseClicked;
 use crate::state::InGameState;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 /// Spawns the cauldron menu UI when entering the CauldronMenu state.
 pub(super) fn spawn_cauldron_menu_ui(
@@ -83,15 +83,10 @@ fn build_menu(
         ))
         .with_children(|root| {
             // Title
-            root.spawn((
-                Text::new("Cauldron"),
-                TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TITLE_COLOR),
-                Node {
-                    align_self: AlignSelf::Center,
-                    ..default()
-                },
-            ));
+            spawn_title_with_shadow(root, "Cauldron", TITLE_FONT_SIZE, TITLE_COLOR, Node {
+                align_self: AlignSelf::Center,
+                ..default()
+            });
 
             // Content area: two-panel row
             root.spawn(Node {

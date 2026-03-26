@@ -19,7 +19,7 @@ use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::networking::session::{MultiplayerSession, is_multiplayer_guest, is_multiplayer_host};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::spawn_button;
 
@@ -361,9 +361,10 @@ const SCORE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 65.0,
     border_width: 3.0,
     font_size: 20.0,
-    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
     text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_shadow: true,
 };
 
 // ── Score Screen Systems ──────────────────────────────────────────────
@@ -600,9 +601,10 @@ const PAUSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 65.0,
     border_width: 3.0,
     font_size: 20.0,
-    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
     text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    text_shadow: true,
 };
 
 /// Spawns the MP escape menu overlay.

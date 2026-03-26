@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{ButtonStyle, BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE};
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -166,9 +166,10 @@ pub const SELECT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 36.0,
     border_width: 1.0,
     font_size: 8.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 1.0),
+    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
     border: Color::hsla(40.0, 0.40, 0.35, 1.0),
     text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for the "Close" button.
@@ -177,7 +178,8 @@ pub const CLOSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 36.0,
     border_width: 1.0,
     font_size: 7.0,
-    background: Color::hsla(0.0, 0.0, 0.10, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.22, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.50, 1.0),
+    background: BUTTON_BG_SUBTLE,
+    border: BUTTON_BORDER_SUBTLE,
+    text_color: Color::hsla(0.0, 0.0, 0.70, 1.0),
+    text_shadow: true,
 };

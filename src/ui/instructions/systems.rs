@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use super::components::{BackButton, OnInstructionsScreen, ScrollableInstructionsContainer};
 use super::constants::INSTRUCTIONS_TEXT;
 use crate::ui::main_menu::BACK_BUTTON_STYLE;
+use crate::ui::systems::spawn_title_with_shadow;
 
 const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
 
@@ -21,15 +22,10 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
 
     commands.entity(content).with_children(|parent| {
         // Title
-        parent.spawn((
-            Text::new("Instructions"),
-            TextFont::from_font_size(48.0),
-            TextColor(TEXT_COLOR),
-            Node {
-                margin: UiRect::bottom(Val::Px(20.0)),
-                ..default()
-            },
-        ));
+        spawn_title_with_shadow(parent, "Instructions", 48.0, TEXT_COLOR, Node {
+            margin: UiRect::bottom(Val::Px(20.0)),
+            ..default()
+        });
 
         // Scrollable instructions content
         parent

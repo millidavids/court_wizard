@@ -8,6 +8,7 @@ use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
+use crate::ui::systems::spawn_title_with_shadow;
 
 use super::components::{
     ButtonColors, ConfirmationAction, ConfirmationPopup, OnSettingsScreen, OptionButtonValue,
@@ -46,15 +47,10 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
     );
     commands.entity(content).with_children(|parent| {
         // Title
-        parent.spawn((
-            Text::new("Settings"),
-            TextFont::from_font_size(TITLE_FONT_SIZE),
-            TextColor(TEXT_COLOR),
-            Node {
-                margin: UiRect::bottom(Val::Px(MARGIN)),
-                ..default()
-            },
-        ));
+        spawn_title_with_shadow(parent, "Settings", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+            margin: UiRect::bottom(Val::Px(MARGIN)),
+            ..default()
+        });
 
         // Scrollable settings content
         parent

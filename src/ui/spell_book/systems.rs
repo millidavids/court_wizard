@@ -1,4 +1,3 @@
-use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 
 use super::components::*;
@@ -452,7 +451,8 @@ pub(super) fn update_detail_panel(
         &mut BorderColor,
         &mut ButtonColors,
     )>,
-    mut hotkey_text_query: Query<(&ChildOf, &mut TextColor)>,
+    children_query: Query<&Children>,
+    mut hotkey_text_query: Query<&mut TextColor>,
     mut spell_list_query: Query<(&SpellListButton, &mut BorderColor), Without<HotkeySlotButton>>,
 ) {
     if !selected.is_changed() && !config.is_changed() {
@@ -495,11 +495,20 @@ pub(super) fn update_detail_panel(
         hotkey_text_updates.push((entity, new_text_color));
     }
 
-    // Apply text color updates to hotkey button children
+    // Apply text color updates to hotkey button descendants
     for (btn_entity, new_text_color) in &hotkey_text_updates {
-        for (child_of, mut text_color) in &mut hotkey_text_query {
-            if child_of.get() == *btn_entity {
-                text_color.0 = *new_text_color;
+        if let Ok(children) = children_query.get(*btn_entity) {
+            for child in children.iter() {
+                if let Ok(mut tc) = hotkey_text_query.get_mut(child) {
+                    tc.0 = *new_text_color;
+                }
+                if let Ok(grandchildren) = children_query.get(child) {
+                    for gc in grandchildren.iter() {
+                        if let Ok(mut tc) = hotkey_text_query.get_mut(gc) {
+                            tc.0 = *new_text_color;
+                        }
+                    }
+                }
             }
         }
     }

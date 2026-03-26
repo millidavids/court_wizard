@@ -17,7 +17,7 @@ use crate::game::units::wizard::archetypes::psychopath::constants::DEFENDER_KILL
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::*;
 use super::styles::*;
@@ -209,11 +209,7 @@ pub(super) fn setup_game_over_screen(
                         "VICTORY"
                     };
 
-                    buttons.spawn((
-                        Text::new(title_text),
-                        TextFont::from_font_size(60.0),
-                        TextColor(TITLE_COLOR),
-                    ));
+                    spawn_title_with_shadow(buttons, title_text, 60.0, TITLE_COLOR, Node::default());
 
                     // Subtext for King death
                     if *game_outcome == GameOutcome::DefeatKingDied {

@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use super::components::{OnCreditsScreen, ScrollableCreditsContainer};
 use crate::ui::components::BackButton;
 use crate::ui::main_menu::landing::constants::{BACK_BUTTON_STYLE, TEXT_COLOR};
-use crate::ui::systems::spawn_page_container;
+use crate::ui::systems::{spawn_page_container, spawn_title_with_shadow};
 
 const CREDITS_TEXT: &str = include_str!("../../../../CREDITS.md");
 
@@ -48,15 +48,10 @@ pub(super) fn setup(mut commands: Commands) {
 
     commands.entity(content).with_children(|parent| {
         // Title
-        parent.spawn((
-            Text::new("Credits"),
-            TextFont::from_font_size(48.0),
-            TextColor(TEXT_COLOR),
-            Node {
-                margin: UiRect::bottom(Val::Px(20.0)),
-                ..default()
-            },
-        ));
+        spawn_title_with_shadow(parent, "Credits", 48.0, TEXT_COLOR, Node {
+            margin: UiRect::bottom(Val::Px(20.0)),
+            ..default()
+        });
 
         // Scrollable credits content
         parent

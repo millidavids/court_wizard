@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use crate::config::WizardType;
 use crate::ui::components::ButtonColors;
+use crate::ui::systems::spawn_title_with_shadow;
 
 // ===== Shared Components =====
 
@@ -256,11 +257,7 @@ pub(super) fn spawn_title_group(parent: &mut ChildSpawnerCommands, title: &str, 
             ..default()
         })
         .with_children(|title_group| {
-            title_group.spawn((
-                Text::new(title.to_string()),
-                TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TEXT_COLOR),
-            ));
+            spawn_title_with_shadow(title_group, title, TITLE_FONT_SIZE, TEXT_COLOR, Node::default());
             title_group.spawn((
                 Text::new(subtitle.to_string()),
                 TextFont::from_font_size(SUBTITLE_FONT_SIZE),

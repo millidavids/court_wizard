@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.176] - 2026-03-26
+
+### Changed
+- **Refreshed button styling** — all buttons throughout the game now have a translucent purple tint that blends with the background, replacing the old flat dark look
+- **Text shadows everywhere** — all button text and page titles now have a subtle drop shadow that scales with the text size, making everything easier to read
+- **Brighter muted text** — buttons that were previously hard to read (like "Close" and "Back" buttons) now have brighter text
+
 ## [v0.5.144] - 2026-03-25
 
 ### Changed

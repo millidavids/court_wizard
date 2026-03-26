@@ -2,6 +2,8 @@
 
 use bevy::prelude::*;
 
+use crate::ui::components::{BUTTON_BG, BUTTON_BORDER};
+
 /// Golden glow color for highlighted elements.
 pub(super) const GLOW_COLOR: Color = Color::hsla(45.0, 1.0, 0.65, 1.0);
 
@@ -48,16 +50,16 @@ pub(super) const BUTTON_HEIGHT: f32 = 36.0;
 pub(super) const BUTTON_BORDER_WIDTH: f32 = 2.0;
 
 /// Next button background color.
-pub(super) const NEXT_BUTTON_BG: Color = Color::hsla(45.0, 0.7, 0.35, 1.0);
+pub(super) const NEXT_BUTTON_BG: Color = Color::hsla(45.0, 0.7, 0.35, 0.75);
 
 /// Next button border color.
 pub(super) const NEXT_BUTTON_BORDER: Color = Color::hsla(45.0, 0.8, 0.5, 1.0);
 
 /// Skip button background color.
-pub(super) const SKIP_BUTTON_BG: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
+pub(super) const SKIP_BUTTON_BG: Color = BUTTON_BG;
 
 /// Skip button border color.
-pub(super) const SKIP_BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.4, 1.0);
+pub(super) const SKIP_BUTTON_BORDER: Color = BUTTON_BORDER;
 
 /// Text color.
 pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);

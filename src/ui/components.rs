@@ -83,4 +83,18 @@ pub struct ButtonStyle {
     pub border: Color,
     /// Text color.
     pub text_color: Color,
+    /// Whether to render a drop shadow behind button text.
+    pub text_shadow: bool,
 }
+
+/// Standard button background color (semi-transparent dark purple).
+pub const BUTTON_BG: Color = Color::hsla(270.0, 0.15, 0.12, 0.75);
+
+/// Standard button border color (semi-transparent light purple).
+pub const BUTTON_BORDER: Color = Color::hsla(270.0, 0.15, 0.25, 0.6);
+
+/// Subtle/muted button background color.
+pub const BUTTON_BG_SUBTLE: Color = Color::hsla(270.0, 0.10, 0.08, 0.6);
+
+/// Subtle/muted button border color.
+pub const BUTTON_BORDER_SUBTLE: Color = Color::hsla(270.0, 0.10, 0.18, 0.5);

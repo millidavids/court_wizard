@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{
+    ButtonStyle, BUTTON_BG, BUTTON_BG_SUBTLE, BUTTON_BORDER, BUTTON_BORDER_SUBTLE,
+};
 
 /// Text color for the game mode select screen.
 pub(super) const TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.9, 1.0);
@@ -26,9 +28,10 @@ pub(super) const MODE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 80.0,
     border_width: 3.0,
     font_size: 18.0,
-    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
     text_color: TEXT_COLOR,
+    text_shadow: true,
 };
 
 /// Button style for disabled (coming soon) game modes.
@@ -37,9 +40,10 @@ pub(super) const DISABLED_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 80.0,
     border_width: 3.0,
     font_size: 18.0,
-    background: Color::hsla(0.0, 0.0, 0.08, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.18, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.35, 1.0),
+    background: BUTTON_BG_SUBTLE,
+    border: BUTTON_BORDER_SUBTLE,
+    text_color: Color::hsla(0.0, 0.0, 0.55, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for the back button.
@@ -48,7 +52,8 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 60.0,
     border_width: 3.0,
     font_size: 20.0,
-    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
     text_color: TEXT_COLOR,
+    text_shadow: true,
 };

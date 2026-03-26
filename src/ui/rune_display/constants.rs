@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{BUTTON_BG, BUTTON_BORDER, ButtonStyle};
 
 /// Width of each rune button.
 pub(super) const RUNE_BUTTON_WIDTH: f32 = 50.0;
@@ -26,9 +26,10 @@ pub(super) const RUNE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: RUNE_BUTTON_HEIGHT,
     border_width: 2.0,
     font_size: RUNE_LETTER_FONT_SIZE,
-    background: Color::srgba(0.15, 0.15, 0.15, 0.9),
-    border: Color::srgba(0.4, 0.4, 0.4, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
     text_color: Color::WHITE,
+    text_shadow: true,
 };
 
 /// Text color for rune sequence display.

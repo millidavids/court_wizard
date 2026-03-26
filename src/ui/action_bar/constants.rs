@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{BUTTON_BG, BUTTON_BORDER, ButtonStyle};
 
 /// Width of each action bar slot button.
 pub(super) const SLOT_WIDTH: f32 = 50.0;
@@ -24,9 +24,10 @@ pub(super) const SLOT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: SLOT_HEIGHT,
     border_width: 2.0,
     font_size: SPELL_NAME_FONT_SIZE,
-    background: Color::srgba(0.15, 0.15, 0.15, 0.9),
-    border: Color::srgba(0.4, 0.4, 0.4, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
     text_color: Color::WHITE,
+    text_shadow: true,
 };
 
 /// Bottom margin for the action bar from screen edge.

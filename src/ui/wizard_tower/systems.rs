@@ -18,7 +18,7 @@ use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
 use crate::state::{AppState, MetaGameState};
 use crate::ui::main_menu::settings::components::SliderAdjusted;
-use crate::ui::systems::{scale_font_by_text_width, spawn_button};
+use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_title_with_shadow};
 
 use super::components::*;
 use super::constants::*;
@@ -165,11 +165,7 @@ pub(super) fn setup_wizard_tower_main(
             })
             .with_children(|left| {
                 // Title
-                left.spawn((
-                    Text::new("Wizard's Tower"),
-                    TextFont::from_font_size(TITLE_FONT_SIZE),
-                    TextColor(TITLE_COLOR),
-                ));
+                spawn_title_with_shadow(left, "Wizard's Tower", TITLE_FONT_SIZE, TITLE_COLOR, Node::default());
 
                 // Level display
                 left.spawn((
@@ -432,6 +428,7 @@ pub(super) fn handle_time_travel_level_clicks(
     level_buttons: Query<&TimeTravelLevelButton>,
     mut selected: ResMut<SelectedTimeTravelLevel>,
     mut level_button_nodes: Query<(&TimeTravelLevelButton, &mut BackgroundColor, &Children)>,
+    grandchildren_query: Query<&Children>,
     mut text_queries: ParamSet<(
         Query<(&mut Text, &mut TextColor), With<TimeTravelSelectedDisplay>>,
         Query<&mut TextColor>,
@@ -448,21 +445,26 @@ pub(super) fn handle_time_travel_level_clicks(
                 color.0 = TIME_TRAVEL_SELECTED_TEXT;
             }
 
-            // Collect child updates needed (to avoid borrow conflicts)
-            let updates: Vec<(Entity, Color)> = level_button_nodes
-                .iter()
-                .flat_map(|(lb, _, children)| {
-                    let is_selected = lb.0 == selected_level;
-                    let color = if is_selected {
-                        TIME_TRAVEL_SELECTED_TEXT
-                    } else if boss_name_for_level(lb.0).is_some() {
-                        TIME_TRAVEL_BOSS_COLOR
-                    } else {
-                        TEXT_COLOR
-                    };
-                    children.iter().map(move |child| (child, color))
-                })
-                .collect();
+            // Collect descendant updates (children + grandchildren for shadow wrappers)
+            let mut updates: Vec<(Entity, Color)> = Vec::new();
+            for (lb, _, children) in &level_button_nodes {
+                let is_selected = lb.0 == selected_level;
+                let color = if is_selected {
+                    TIME_TRAVEL_SELECTED_TEXT
+                } else if boss_name_for_level(lb.0).is_some() {
+                    TIME_TRAVEL_BOSS_COLOR
+                } else {
+                    TEXT_COLOR
+                };
+                for child in children.iter() {
+                    updates.push((child, color));
+                    if let Ok(gcs) = grandchildren_query.get(child) {
+                        for gc in gcs.iter() {
+                            updates.push((gc, color));
+                        }
+                    }
+                }
+            }
 
             // Apply background highlights
             for (lb, mut bg, _) in &mut level_button_nodes {
@@ -907,11 +909,7 @@ fn spawn_study_screen(
                         BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
                     ))
                     .with_children(|header| {
-                        header.spawn((
-                            Text::new("Study Spells"),
-                            TextFont::from_font_size(TITLE_FONT_SIZE),
-                            TextColor(TITLE_COLOR),
-                        ));
+                        spawn_title_with_shadow(header, "Study Spells", TITLE_FONT_SIZE, TITLE_COLOR, Node::default());
 
                         header.spawn((
                             Text::new(format!("Arcane Insight: {}", insight_balance)),

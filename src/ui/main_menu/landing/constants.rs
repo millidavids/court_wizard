@@ -2,13 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
-
-/// Background color for landing screen buttons.
-pub const BUTTON_BACKGROUND: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-
-/// Border color for landing screen buttons.
-pub const BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
+use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
 
 /// Width for landing screen buttons in pixels.
 pub const BUTTON_WIDTH: f32 = 250.0;
@@ -34,21 +28,16 @@ pub const MARGIN: f32 = 20.0;
 /// Left padding for the button column on the landing screen.
 pub const BUTTONS_LEFT_PADDING: f32 = 80.0;
 
-/// Title text drop shadow color.
-pub const TITLE_SHADOW_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.5);
-
-/// Title text drop shadow offset in pixels (x and y).
-pub const TITLE_SHADOW_OFFSET: f32 = 4.0;
-
 /// Back button style shared across sub-screens (changelog, credits, etc.).
 pub const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     width: 150.0,
     height: 50.0,
     border_width: 2.0,
     font_size: 18.0,
-    background: BUTTON_BACKGROUND,
+    background: BUTTON_BG,
     border: BUTTON_BORDER,
     text_color: TEXT_COLOR,
+    text_shadow: true,
 };
 
 /// Button style configuration for the landing screen.
@@ -57,7 +46,8 @@ pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: BUTTON_BACKGROUND,
+    background: BUTTON_BG,
     border: BUTTON_BORDER,
     text_color: TEXT_COLOR,
+    text_shadow: true,
 };

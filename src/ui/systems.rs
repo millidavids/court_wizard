@@ -371,11 +371,67 @@ pub fn spawn_button(
             action,
         ))
         .with_children(|button| {
-            button.spawn((
+            if style.text_shadow {
+                spawn_shadowed_text(button, text, style.font_size, style.text_color, Node::default());
+            } else {
+                button.spawn((
+                    Text::new(text),
+                    TextFont::from_font_size(style.font_size),
+                    TextColor(style.text_color),
+                    TextLayout::new_with_justify(Justify::Center),
+                ));
+            }
+        });
+}
+
+const TEXT_SHADOW_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.5);
+
+/// Spawns text with a drop shadow inside the given parent.
+/// Uses a relative wrapper with an absolute-positioned shadow behind the main text.
+/// Offset scales with font size (font_size / 20).
+fn spawn_shadowed_text(
+    parent: &mut ChildSpawnerCommands,
+    text: &str,
+    font_size: f32,
+    text_color: Color,
+    node: Node,
+) {
+    let offset = font_size / 20.0;
+    parent
+        .spawn(Node {
+            position_type: PositionType::Relative,
+            ..node
+        })
+        .with_children(|wrapper| {
+            wrapper.spawn((
                 Text::new(text),
-                TextFont::from_font_size(style.font_size),
-                TextColor(style.text_color),
+                TextFont::from_font_size(font_size),
+                TextColor(TEXT_SHADOW_COLOR),
+                TextLayout::new_with_justify(Justify::Center),
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(offset),
+                    top: Val::Px(offset),
+                    width: Val::Percent(100.0),
+                    ..default()
+                },
+            ));
+            wrapper.spawn((
+                Text::new(text),
+                TextFont::from_font_size(font_size),
+                TextColor(text_color),
                 TextLayout::new_with_justify(Justify::Center),
             ));
         });
+}
+
+/// Spawns a title text with a drop shadow effect.
+pub fn spawn_title_with_shadow(
+    parent: &mut ChildSpawnerCommands,
+    text: &str,
+    font_size: f32,
+    text_color: Color,
+    node: Node,
+) {
+    spawn_shadowed_text(parent, text, font_size, text_color, node);
 }

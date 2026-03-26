@@ -6,7 +6,7 @@ use crate::config::ActiveSave;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, InGameState, PauseMenuState};
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::{OnPauseMainScreen, PauseMenuButtonAction};
 use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
@@ -35,15 +35,10 @@ pub fn setup(mut commands: Commands) {
         ))
         .with_children(|parent| {
             // Title text
-            parent.spawn((
-                Text::new("Paused"),
-                TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TEXT_COLOR),
-                Node {
-                    margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),
-                    ..default()
-                },
-            ));
+            spawn_title_with_shadow(parent, "Paused", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+                margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),
+                ..default()
+            });
 
             // Continue button
             spawn_button(

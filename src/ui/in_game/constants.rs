@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ButtonStyle;
+use crate::ui::components::{ButtonStyle, BUTTON_BG, BUTTON_BORDER};
 
 /// Screen margin for HUD elements (invisible padding from edges).
 pub const HUD_MARGIN: Val = Val::Px(20.0);
@@ -31,9 +31,7 @@ pub const BUTTON_WIDTH: f32 = 120.0;
 pub const BUTTON_HEIGHT: f32 = 50.0;
 pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
 
-/// Button colors.
-pub const BUTTON_BACKGROUND: Color = Color::srgb(0.15, 0.15, 0.15);
-pub const BUTTON_BORDER: Color = Color::srgb(0.4, 0.4, 0.4);
+/// Button text color.
 pub const BUTTON_TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
 pub const BUTTON_FONT_SIZE: f32 = 9.0;
 
@@ -145,7 +143,8 @@ pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: BUTTON_BACKGROUND,
+    background: BUTTON_BG,
     border: BUTTON_BORDER,
     text_color: BUTTON_TEXT_COLOR,
+    text_shadow: true,
 };

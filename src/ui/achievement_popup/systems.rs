@@ -238,13 +238,22 @@ pub(super) fn update_achievement_popups(
         border_srgba.alpha = opacity;
         *border = BorderColor::all(border_srgba);
 
-        // Fade all child text elements
+        // Fade all descendant text elements (children + grandchildren for shadow wrappers)
         if let Ok(children) = children_query.get(entity) {
             for child in children.iter() {
                 if let Ok(mut text_color) = text_color_query.get_mut(child) {
                     let mut c = text_color.0.to_srgba();
                     c.alpha = opacity;
                     text_color.0 = c.into();
+                }
+                if let Ok(grandchildren) = children_query.get(child) {
+                    for gc in grandchildren.iter() {
+                        if let Ok(mut text_color) = text_color_query.get_mut(gc) {
+                            let mut c = text_color.0.to_srgba();
+                            c.alpha = opacity;
+                            text_color.0 = c.into();
+                        }
+                    }
                 }
             }
         }

@@ -5,13 +5,10 @@ use bevy::prelude::*;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::{MenuButtonAction, OnLandingScreen};
-use super::constants::{
-    BUTTONS_LEFT_PADDING, BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE, TITLE_SHADOW_COLOR,
-    TITLE_SHADOW_OFFSET,
-};
+use super::constants::{BUTTONS_LEFT_PADDING, BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 
 /// Sets up the landing screen UI.
 pub fn setup(mut commands: Commands) {
@@ -81,34 +78,13 @@ pub fn setup(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|title_area| {
-                    // Wrapper for title + shadow (relative positioning anchor)
-                    title_area
-                        .spawn(Node {
-                            position_type: PositionType::Relative,
-                            ..default()
-                        })
-                        .with_children(|wrapper| {
-                            wrapper.spawn((
-                                Text::new("Court\nWizard"),
-                                TextFont::from_font_size(TITLE_FONT_SIZE),
-                                TextColor(TITLE_SHADOW_COLOR),
-                                TextLayout::new_with_justify(Justify::Center),
-                                Node {
-                                    position_type: PositionType::Absolute,
-                                    left: Val::Px(TITLE_SHADOW_OFFSET),
-                                    top: Val::Px(TITLE_SHADOW_OFFSET),
-                                    ..default()
-                                },
-                            ));
-
-                            // Main title text
-                            wrapper.spawn((
-                                Text::new("Court\nWizard"),
-                                TextFont::from_font_size(TITLE_FONT_SIZE),
-                                TextColor(TEXT_COLOR),
-                                TextLayout::new_with_justify(Justify::Center),
-                            ));
-                        });
+                    spawn_title_with_shadow(
+                        title_area,
+                        "Court\nWizard",
+                        TITLE_FONT_SIZE,
+                        TEXT_COLOR,
+                        Node::default(),
+                    );
                 });
         });
 }
