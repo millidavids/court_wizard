@@ -39,7 +39,7 @@ if [ "$NO_BUMP" = false ]; then
     PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
     NEW_PATCH=$((PATCH + 1))
     NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-    sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
+    sed -i '' "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
     echo "Version bumped: $CURRENT_VERSION -> $NEW_VERSION"
 fi
 
