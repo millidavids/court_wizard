@@ -52,10 +52,8 @@ pub const fn dim(base: Color, gray_strength: f32, alpha: f32) -> Color {
 // ===== Common Tint Colors =====
 
 pub const TINT_RED: Color = Color::srgb(1.0, 0.2, 0.2);
-pub const TINT_BLUE: Color = Color::srgb(0.2, 0.2, 1.0);
 pub const TINT_ORANGE: Color = Color::srgb(1.0, 0.6, 0.0);
 pub const TINT_PURPLE: Color = Color::srgb(0.5, 0.1, 0.8);
-pub const TINT_GREEN: Color = Color::srgb(0.2, 0.9, 0.3);
 // ===== Undead Color =====
 
 /// Base color for undead units (purple).
@@ -83,6 +81,9 @@ pub const KING_CORPSE_COLOR: Color = dim(
 
 /// Size of the battlefield (width and depth).
 pub const BATTLEFIELD_SIZE: f32 = 6000.0;
+
+/// Extra world units added to +X side of pathfinding grid for spawn area behind right wall.
+pub const PATHFINDING_X_EXTENSION: f32 = 2000.0;
 
 // ===== Castle Positioning =====
 
@@ -189,7 +190,7 @@ pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
 
 /// Global multiplier applied to all unit movement speeds.
 /// 1.0 = normal speed, 0.8 = 20% slower, etc.
-pub const GLOBAL_SPEED_MULTIPLIER: f32 = 0.5;
+pub const GLOBAL_SPEED_MULTIPLIER: f32 = 0.55;
 
 /// Hitbox height for defender units.
 pub const DEFENDER_HITBOX_HEIGHT: f32 = 25.0 * UNIT_SCALE;
@@ -282,19 +283,59 @@ pub const GRID_ROW_DEPTH: f32 = 300.0;
 
 // ===== Attacker Spawn Grid Constants =====
 
-/// Number of columns in the attacker spawn grid.
-pub const ATTACKER_GRID_COLS: u32 = 6;
+// ===== Staging Point =====
 
-/// Number of rows in the attacker spawn grid.
-pub const ATTACKER_GRID_ROWS: u32 = 6;
+/// The staging point where attackers gather before activating.
+/// Approximately the center of the old attacker spawn grid.
+pub const STAGING_POINT: (f32, f32) = (500.0, -300.0);
 
-/// Center angle from wizard toward attacker spawn area (radians).
-/// atan2(0 - 1550, 1200 - (-1425)) ≈ -0.53 rad
-pub const ATTACKER_GRID_CENTER_ANGLE: f32 = -0.70;
+/// Satisfaction radius for the staging flow field (in pathfinding grid cells).
+/// Units within this radius stop receiving flow directions and hold position.
+/// 50 cells = 500 world units.
+pub const STAGING_SATISFACTION_RADIUS: usize = 50;
 
-/// Ground-plane distance from wizard to attacker spawn grid.
-/// sqrt(3000² - 1230²) ≈ 2736, adjusted to 3236.
-pub const ATTACKER_GRID_GROUND_RANGE: f32 = 3236.0;
+/// Activation radius in world units. When 90% of a wave's living units
+/// are within this distance of the staging point, the wave activates.
+/// Must be >= satisfaction radius (in world units) so units that stop
+/// at the edge of the flow field dead zone still count as arrived.
+pub const STAGING_ACTIVATION_RADIUS: f32 = 600.0;
+
+/// Fraction of a wave's living units that must be within the activation
+/// radius before the wave activates. Dead units don't count against this.
+pub const WAVE_ACTIVATION_THRESHOLD: f32 = 0.9;
+
+/// Maximum seconds a wave can spend staging before force-activating.
+/// Prevents the game from stalling if too many units get stuck.
+pub const WAVE_STAGING_TIMEOUT: f32 = 15.0;
+
+/// Time scale multiplier when no activated attackers are on the field.
+/// Speeds up the march from spawn to staging area.
+pub const STAGING_SPEEDUP: f64 = 5.0;
+
+// ===== Attacker Tunnel Spawn Points =====
+
+/// X coordinate for attacker spawn points (just beyond the right wall).
+pub const ATTACKER_SPAWN_X: f32 = 3100.0;
+
+/// Spawn depth offset for archers (behind infantry for formation ordering).
+pub const ARCHER_SPAWN_DEPTH_OFFSET: f32 = 400.0;
+
+/// Spawn depth offset for assassins (behind archers for formation ordering).
+pub const ASSASSIN_SPAWN_DEPTH_OFFSET: f32 = 700.0;
+
+/// The two static spawn points behind the right wall, aligned with tunnel archways.
+/// Units split evenly between these and path through the tunnels to the staging area.
+pub const ATTACKER_SPAWN_POINTS: [(f32, f32); 2] = [
+    (ATTACKER_SPAWN_X, -375.0),  // Bottom tunnel
+    (ATTACKER_SPAWN_X, -1575.0), // Top tunnel
+];
+
+/// Returns the spawn position for an attacker unit, alternating between the two tunnel spawn points.
+/// `depth_offset` pushes the unit further behind the wall for formation ordering.
+pub fn attacker_spawn_position(unit_index: u32, depth_offset: f32) -> (f32, f32) {
+    let (x, z) = ATTACKER_SPAWN_POINTS[(unit_index % 2) as usize];
+    (x + depth_offset, z)
+}
 
 // ===== Defender Spawn Grid Constants =====
 
@@ -305,8 +346,7 @@ pub const DEFENDER_GRID_COLS: u32 = 5;
 pub const DEFENDER_GRID_ROWS: u32 = 4;
 
 /// Center angle from wizard toward defender spawn area (radians).
-/// Currently same as attackers - manually adjusted positioning.
-pub const DEFENDER_GRID_CENTER_ANGLE: f32 = ATTACKER_GRID_CENTER_ANGLE;
+pub const DEFENDER_GRID_CENTER_ANGLE: f32 = -0.70;
 
 /// Ground-plane distance from wizard to defender spawn grid.
 pub const DEFENDER_GRID_GROUND_RANGE: f32 = 200.0;
@@ -386,6 +426,44 @@ pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     })
 }
 
+// ===== Endless Mode Scaling =====
+
+/// The last tier that introduces new unit types (tier 4, levels 21-25).
+pub const FINAL_INTRODUCTION_TIER: u32 = 4;
+
+/// The last level in the introduction tiers (after which endless scaling begins).
+pub const LAST_INTRODUCTION_LEVEL: u32 = (FINAL_INTRODUCTION_TIER + 1) * LEVELS_PER_TIER;
+
+/// Extra infantry per level past the final introduction tier in Endless mode.
+pub const ENDLESS_EXTRA_INFANTRY_PER_LEVEL: u32 = 3;
+
+/// Extra archers per level past the final introduction tier in Endless mode.
+pub const ENDLESS_EXTRA_ARCHERS_PER_LEVEL: u32 = 1;
+
+/// Cumulative effectiveness boost per level past the final introduction tier (2% per level).
+pub const ENDLESS_SCALING_PER_LEVEL: f32 = 0.02;
+
+/// Returns the number of levels past the introduction tiers, or 0 if still in them.
+fn levels_past_introduction(level: u32) -> u32 {
+    level.saturating_sub(LAST_INTRODUCTION_LEVEL)
+}
+
+/// Returns the cumulative effectiveness bonus for endless scaling.
+/// Returns 0.0 for levels within the introduction tiers.
+pub fn endless_effectiveness_bonus(level: u32) -> f32 {
+    levels_past_introduction(level) as f32 * ENDLESS_SCALING_PER_LEVEL
+}
+
+/// Returns extra infantry to add in Endless mode past the final introduction tier.
+pub fn endless_extra_infantry(level: u32) -> u32 {
+    levels_past_introduction(level) * ENDLESS_EXTRA_INFANTRY_PER_LEVEL
+}
+
+/// Returns extra archers to add in Endless mode past the final introduction tier.
+pub fn endless_extra_archers(level: u32) -> u32 {
+    levels_past_introduction(level) * ENDLESS_EXTRA_ARCHERS_PER_LEVEL
+}
+
 // ===== Level-Based Spawn Calculations =====
 
 /// Maximum units per grid cell before spilling to the next cell.
@@ -415,6 +493,25 @@ pub const fn calculate_total_infantry(level: u32) -> u32 {
 pub const fn calculate_total_archers(level: u32) -> u32 {
     let tier_level = get_tier_level(level);
     BASE_ARCHER_COUNT + (tier_level - 1) * ARCHERS_PER_LEVEL
+}
+
+/// Base assassin count at tier_level 1 (when they first appear in tier 2).
+pub const BASE_ASSASSIN_COUNT: u32 = 8;
+
+/// Assassins added per tier_level after tier_level 1.
+pub const ASSASSINS_PER_LEVEL: u32 = 2;
+
+/// The tier at which assassins start spawning (tier 2, level 6+).
+pub const ASSASSIN_START_TIER: u32 = 1;
+
+/// Calculates total assassins for a given level.
+/// Assassins only spawn from tier 2 onward, scaling similarly to archers.
+pub const fn calculate_total_assassins(level: u32) -> u32 {
+    if get_tier(level) < ASSASSIN_START_TIER {
+        return 0;
+    }
+    let tier_level = get_tier_level(level);
+    BASE_ASSASSIN_COUNT + (tier_level - 1) * ASSASSINS_PER_LEVEL
 }
 
 /// Calculates the number of cells needed for a unit count (ceil division by MAX_UNITS_PER_CELL).
@@ -452,17 +549,6 @@ pub fn distribute_units_to_cells(total_units: u32) -> Vec<u32> {
 /// * `row` - Row index (0 = closest to wizard)
 /// * `col` - Column index (0-5, centered around center angle)
 ///
-/// # Returns
-/// Tuple of (x, z) world coordinates for the cell center
-pub fn calculate_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
-    let col_offset = col as f32 - 2.5; // centers 6 columns: -2.5 .. 2.5
-    let angle = ATTACKER_GRID_CENTER_ANGLE + col_offset * GRID_ANGULAR_SPACING;
-    let radius = ATTACKER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
-    let x = WIZARD_POSITION.x + radius * angle.cos();
-    let z = WIZARD_POSITION.z + radius * angle.sin();
-    (x, z)
-}
-
 /// Calculates the world position of a defender grid cell.
 ///
 /// The defender grid is a radial arc positioned opposite from attackers,
@@ -488,94 +574,3 @@ pub fn calculate_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
     (x, z)
 }
 
-/// Calculates the world position of a grid cell for the guest army (mirrored from Castle 2).
-///
-/// Uses the same radial grid layout as attacker spawns but centered on Wizard 2
-/// and pointing toward the center of the battlefield.
-///
-/// # Arguments
-/// * `row` - Row index (0 = closest to wizard)
-/// * `col` - Column index (0-5, centered around center angle)
-///
-/// # Returns
-/// Tuple of (x, z) world coordinates for the cell center
-#[allow(dead_code)]
-pub fn calculate_guest_grid_cell_position(row: u32, col: u32) -> (f32, f32) {
-    let col_offset = col as f32 - 2.5; // centers 6 columns: -2.5 .. 2.5
-    // Mirror the angle: point from Castle 2 toward battlefield center
-    let mirrored_angle = ATTACKER_GRID_CENTER_ANGLE + std::f32::consts::PI;
-    let angle = mirrored_angle + col_offset * GRID_ANGULAR_SPACING;
-    let radius = ATTACKER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
-    let x = WIZARD_2_POSITION.x + radius * angle.cos();
-    let z = WIZARD_2_POSITION.z + radius * angle.sin();
-    (x, z)
-}
-
-/// Calculates the world position of a guest defender grid cell (mirrored from Castle 2).
-#[allow(dead_code)]
-pub fn calculate_guest_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
-    let col_offset = col as f32 - (DEFENDER_GRID_COLS as f32 - 1.0) / 2.0;
-    let mirrored_angle = DEFENDER_GRID_CENTER_ANGLE + std::f32::consts::PI;
-    let angle = mirrored_angle + col_offset * GRID_ANGULAR_SPACING;
-    let radius = DEFENDER_GRID_GROUND_RANGE + GRID_ROW_DEPTH / 2.0 + row as f32 * GRID_ROW_DEPTH;
-    let x = WIZARD_2_POSITION.x + radius * angle.cos();
-    let z = WIZARD_2_POSITION.z + radius * angle.sin();
-    (x, z)
-}
-
-/// Computes Dijkstra distance for a cell from the bottom-center of the grid.
-/// Distance = row + |col - 2.5| rounded: min(|col - 2|, |col - 3|) + row
-fn grid_cell_distance(row: u32, col: u32) -> u32 {
-    let col_dist = if col <= 2 { 2 - col } else { col - 3 };
-    row + col_dist
-}
-
-/// Generates the ordered list of cells for infantry and archer spawns.
-///
-/// Infantry cells are sorted by Dijkstra distance from bottom-center (row 0, cols 2-3).
-/// Archers fill the row directly behind the last infantry row, in middle-out column order.
-///
-/// # Returns
-/// (infantry_cells, archer_cells) - each is a Vec of (row, col) tuples
-pub fn calculate_spawn_cells(
-    num_infantry_cells: u32,
-    num_archer_cells: u32,
-) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
-    // Build all cells sorted by distance, then by column proximity to center
-    let mut all_cells: Vec<(u32, u32, u32)> = Vec::new(); // (distance, row, col)
-    for row in 0..ATTACKER_GRID_ROWS {
-        for col in 0..ATTACKER_GRID_COLS {
-            all_cells.push((grid_cell_distance(row, col), row, col));
-        }
-    }
-    // Sort by distance, then by row (closer first), then by column proximity to center
-    all_cells.sort_by(|a, b| {
-        a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then({
-            // Tie-break: columns closer to center first
-            let a_col_dist = if a.2 <= 2 { 2 - a.2 } else { a.2 - 3 };
-            let b_col_dist = if b.2 <= 2 { 2 - b.2 } else { b.2 - 3 };
-            a_col_dist.cmp(&b_col_dist)
-        })
-    });
-
-    // Take infantry cells
-    let infantry_count = (num_infantry_cells as usize).min(all_cells.len());
-    let infantry_cells: Vec<(u32, u32)> = all_cells[..infantry_count]
-        .iter()
-        .map(|&(_, r, c)| (r, c))
-        .collect();
-
-    // Find the last infantry row
-    let last_infantry_row = infantry_cells.iter().map(|&(r, _)| r).max().unwrap_or(0);
-
-    // Archers go in the row directly behind the last infantry row
-    let archer_row = last_infantry_row + 1;
-    let col_fill_order: [u32; 6] = [2, 3, 1, 4, 0, 5];
-    let archer_cells: Vec<(u32, u32)> = col_fill_order
-        .iter()
-        .take(num_archer_cells as usize)
-        .map(|&col| (archer_row, col))
-        .collect();
-
-    (infantry_cells, archer_cells)
-}

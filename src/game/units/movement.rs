@@ -28,6 +28,17 @@ pub fn apply_unit_movement(
         velocity.x += acceleration.x * delta;
         velocity.z += acceleration.z * delta;
 
+        // Clamp velocity to max_speed so flocking/external forces can't boost beyond it
+        if velocity.max_speed > 0.0 {
+            let speed_sq = velocity.x * velocity.x + velocity.z * velocity.z;
+            let max_sq = velocity.max_speed * velocity.max_speed;
+            if speed_sq > max_sq {
+                let scale = velocity.max_speed / speed_sq.sqrt();
+                velocity.x *= scale;
+                velocity.z *= scale;
+            }
+        }
+
         // THEN: Apply velocity to position (only XZ plane - Y stays fixed at spawn height)
         transform.translation.x += velocity.x * delta;
         transform.translation.z += velocity.z * delta;

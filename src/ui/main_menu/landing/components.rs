@@ -31,4 +31,7 @@ pub(super) enum MenuButtonAction {
 
     /// Open the compendium screen, transitioning to `MenuState::Compendium`.
     Compendium,
+
+    /// Exit the application.
+    Exit,
 }

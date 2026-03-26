@@ -15,6 +15,10 @@ pub struct InfantryAssets {
     pub sprite_mesh: Handle<Mesh>,
     /// Combined sprite sheet texture (all directions in one image).
     pub sprite_texture: Handle<Image>,
+    /// Melee attack animation sprite sheet.
+    pub attacking_texture: Handle<Image>,
+    /// Death animation sprite sheet.
+    pub death_texture: Handle<Image>,
     pub defender_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
@@ -27,7 +31,9 @@ pub(super) fn preload_infantry_assets(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let sprite_texture = asset_server.load("images/sprite_sheets/infantry-walking_8-frames.png");
+    let sprite_texture = asset_server.load("images/sprite_sheets/infantry-walking_9-frames.png");
+    let attacking_texture = asset_server.load("images/sprite_sheets/infantry-attacking_6-frames.png");
+    let death_texture = asset_server.load("images/sprite_sheets/infantry-death_6-frames.png");
 
     let defender_corpse_materials = create_corpse_sprite_materials(
         &mut materials,
@@ -49,6 +55,8 @@ pub(super) fn preload_infantry_assets(
             INFANTRY_SPRITE_HEIGHT,
         )),
         sprite_texture,
+        attacking_texture,
+        death_texture,
         defender_corpse_materials,
         attacker_corpse_materials,
         undead_corpse_materials,

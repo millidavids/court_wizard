@@ -5,7 +5,7 @@ use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, MetaGameState, PauseMenuState};
 use crate::ui::plugin::ButtonActionSet;
 
-use super::components::{BackButton, CompendiumState, ScrollableCompendiumContainer};
+use super::components::{BackButton, CompendiumState, DetailPanel, ScrollableCompendiumContainer};
 use crate::ui::systems::{escape_to_landing, escape_to_pause_main, handle_scroll};
 
 use super::systems;
@@ -30,6 +30,7 @@ impl Plugin for MainMenuCompendiumPlugin {
                     handle_main_menu_back_button,
                     systems::handle_tab_click,
                     systems::handle_item_click,
+                    systems::handle_toggle_save_run,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Compendium)),
@@ -38,6 +39,7 @@ impl Plugin for MainMenuCompendiumPlugin {
                 Update,
                 (
                     handle_scroll::<ScrollableCompendiumContainer>,
+                    handle_scroll::<DetailPanel>,
                     escape_to_landing,
                     systems::rebuild_on_state_change,
                 )
@@ -69,6 +71,7 @@ impl Plugin for PauseMenuCompendiumPlugin {
                 handle_pause_menu_back_button,
                 systems::handle_tab_click,
                 systems::handle_item_click,
+                systems::handle_toggle_save_run,
             )
                 .in_set(ButtonActionSet)
                 .run_if(in_state(PauseMenuState::Compendium)),
@@ -77,6 +80,7 @@ impl Plugin for PauseMenuCompendiumPlugin {
             Update,
             (
                 handle_scroll::<ScrollableCompendiumContainer>,
+                handle_scroll::<DetailPanel>,
                 escape_to_pause_main,
                 systems::rebuild_on_state_change,
             )
@@ -105,6 +109,7 @@ impl Plugin for MetaGameCompendiumPlugin {
                     handle_meta_game_back_button,
                     systems::handle_tab_click,
                     systems::handle_item_click,
+                    systems::handle_toggle_save_run,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MetaGameState::Compendium)),
@@ -113,6 +118,7 @@ impl Plugin for MetaGameCompendiumPlugin {
                 Update,
                 (
                     handle_scroll::<ScrollableCompendiumContainer>,
+                    handle_scroll::<DetailPanel>,
                     escape_to_wizard_tower,
                     systems::rebuild_on_state_change,
                 )

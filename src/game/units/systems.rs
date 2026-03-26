@@ -3,8 +3,9 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, FacingDirection, SPRITE_FRAME_SIZE,
-    SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
+    ANIMATION_MOVE_THRESHOLD_SQ, CombatAnimation, CORPSE_MATERIAL_VARIANTS,
+    DIRECTION_HYSTERESIS_FACTOR, DyingAnimation, FacingDirection, SIGN_HYSTERESIS_THRESHOLD,
+    SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
@@ -71,6 +72,14 @@ pub fn is_cc_immobilized(
         || sickened.is_some()
         || frozen.is_some()
         || stunned.is_some()
+}
+
+/// Returns true if the unit is a staging attacker (not yet activated).
+/// Handles the 1-frame deferred command delay: units without WaveGroup yet
+/// are also considered staging (they haven't been tagged by `tag_new_attackers`).
+#[inline]
+pub fn is_staging_attacker(team: &Team, has_staging: bool, has_wave_group: bool) -> bool {
+    *team == Team::Attackers && (has_staging || !has_wave_group)
 }
 
 /// Generic targeting system for melee units.
@@ -261,8 +270,12 @@ pub fn calculate_weighted_movement(
         desired_velocity.z - velocity.z,
     );
 
-    // Apply steering force, clamped to achieve max_speed over time without overshooting
-    let steering = velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier;
+    // Apply steering force, scaled by max_speed so faster units accelerate proportionally.
+    // Without this, the fixed STEERING_FORCE creates an equilibrium speed (due to damping)
+    // that caps all units at the same effective speed regardless of movement_speed.
+    let speed_scale = max_speed / (200.0 * GLOBAL_SPEED_MULTIPLIER);
+    let steering =
+        velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier * speed_scale;
     let steering_magnitude = steering.length();
     let max_steering = velocity_change_needed.length() / time.delta_secs();
 
@@ -279,6 +292,9 @@ pub fn calculate_weighted_movement(
         let smelly_force = flocking_velocity.smelly_repulsion * max_speed;
         acceleration.add_force(smelly_force);
     }
+
+    // Store max_speed for velocity clamping in apply_unit_movement
+    velocity.max_speed = max_speed;
 
     // Apply damping to current velocity (allows external forces like black hole gravity)
     // Frame-rate independent: normalize to 60 FPS reference rate
@@ -1025,6 +1041,9 @@ pub fn archer_sprite_tint_for_team(team: Team) -> Color {
 ///
 /// Shared between Raise the Dead, Perpetual Unrest, and Font of Life.
 /// The caller should add any extra components (RaisedUndead, PermanentCorpse, etc.) afterward.
+///
+/// `sprite_texture` and `sprite_mesh` allow overriding the default infantry sprites
+/// (e.g. passing undead-specific textures for Team::Undead).
 #[allow(clippy::too_many_arguments)]
 pub fn resurrect_corpse_as_infantry(
     commands: &mut Commands,
@@ -1034,7 +1053,8 @@ pub fn resurrect_corpse_as_infantry(
     health: f32,
     speed: f32,
     tint: Color,
-    infantry_assets: &super::infantry::resources::InfantryAssets,
+    sprite_texture: Handle<Image>,
+    sprite_mesh: Handle<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
     use super::components::{
@@ -1049,15 +1069,14 @@ pub fn resurrect_corpse_as_infantry(
     let upright_transform = Transform::from_xyz(position.x, spawn_y, position.z);
 
     let anim = WalkingAnimation::default();
-    let material =
-        create_default_sprite_material(materials, infantry_assets.sprite_texture.clone(), tint);
+    let material = create_default_sprite_material(materials, sprite_texture, tint);
 
     commands
         .entity(entity)
         .remove::<Corpse>()
         .remove::<RoughTerrain>()
         .insert(upright_transform)
-        .insert(Mesh3d(infantry_assets.sprite_mesh.clone()))
+        .insert(Mesh3d(sprite_mesh))
         .insert(MeshMaterial3d(material))
         .insert(anim)
         .insert(FacingDirection::default())
@@ -1077,6 +1096,7 @@ pub fn resurrect_corpse_as_infantry(
 }
 
 /// Advances walking animation frames and updates UV transforms.
+/// Skips entities with active combat or dying animations.
 pub fn update_walking_animation(
     time: Res<Time>,
     mut anim_query: Query<
@@ -1086,7 +1106,7 @@ pub fn update_walking_animation(
             &Velocity,
             &FacingDirection,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<CombatAnimation>, Without<DyingAnimation>),
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -1114,6 +1134,133 @@ pub fn update_walking_animation(
             mat.uv_transform = anim.uv_transform(*facing);
         }
     }
+}
+
+/// Advances one-shot combat animations (melee attack, ranged shooting).
+/// Swaps texture to the combat sheet on start, restores walking sheet when finished.
+pub fn update_combat_animation(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut anim_query: Query<
+        (
+            Entity,
+            &mut CombatAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+            &FacingDirection,
+        ),
+        Without<Corpse>,
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut anim, material_handle, facing) in &mut anim_query {
+        let Some(mat) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        // First frame: swap texture to combat sheet
+        if !anim.started {
+            anim.started = true;
+            mat.base_color_texture = Some(anim.combat_texture.clone());
+            mat.uv_transform = anim.uv_transform(*facing);
+        }
+
+        // Advance animation
+        if anim.tick(delta) {
+            if anim.finished() {
+                // Restore walking texture and remove component
+                mat.base_color_texture = Some(anim.walking_texture.clone());
+                mat.uv_transform = WalkingAnimation::idle_uv_transform(*facing);
+                commands.entity(entity).remove::<CombatAnimation>();
+            } else {
+                mat.uv_transform = anim.uv_transform(*facing);
+            }
+        }
+    }
+}
+
+/// Advances death animations and updates UV transforms.
+/// When the animation finishes, inserts `DeathAnimationFinished` marker.
+pub fn update_dying_animation(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut anim_query: Query<(
+        Entity,
+        &mut DyingAnimation,
+        &MeshMaterial3d<StandardMaterial>,
+    ), Without<super::components::DeathAnimationFinished>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut anim, material_handle) in &mut anim_query {
+        let Some(mat) = materials.get_mut(material_handle) else {
+            continue;
+        };
+
+        // First frame: swap texture to death sheet
+        if !anim.started {
+            anim.started = true;
+            mat.base_color_texture = Some(anim.death_texture.clone());
+            mat.uv_transform = anim.uv_transform();
+        }
+
+        // Advance animation
+        if anim.tick(delta) {
+            mat.uv_transform = anim.uv_transform();
+            if anim.finished() {
+                commands.entity(entity).insert(super::components::DeathAnimationFinished);
+            }
+        }
+    }
+}
+
+/// Finalizes dying entities whose death animation has completed.
+/// Lays the corpse flat, applies corpse tint, and adds rough terrain.
+pub fn finalize_dying_to_corpse(
+    mut commands: Commands,
+    query: Query<(
+        Entity,
+        &DyingAnimation,
+        &Transform,
+        &Team,
+        &MeshMaterial3d<StandardMaterial>,
+    ), With<super::components::DeathAnimationFinished>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, anim, transform, team, material_handle) in &query {
+        // Apply corpse tint
+        if let Some(mat) = materials.get_mut(material_handle) {
+            use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
+            mat.base_color = match *team {
+                Team::Defenders => DEFENDER_CORPSE_COLOR,
+                Team::Attackers => ATTACKER_CORPSE_COLOR,
+                Team::Undead => UNDEAD_CORPSE_COLOR,
+            };
+            mat.uv_transform = anim.last_frame_uv_transform();
+        }
+
+        let mut entity_commands = commands.entity(entity);
+        lay_corpse_flat(&mut entity_commands, transform.translation);
+        entity_commands
+            .remove::<DyingAnimation>()
+            .remove::<super::components::DeathAnimationFinished>();
+    }
+}
+
+/// Lays a corpse entity flat on the ground. Shared between instant corpse swap
+/// and death animation finalization.
+pub fn lay_corpse_flat(entity_commands: &mut EntityCommands, position: Vec3) {
+    let corpse_transform = Transform::from_xyz(position.x, 1.0, position.z)
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
+
+    entity_commands
+        .insert(corpse_transform)
+        .insert(super::components::RoughTerrain {
+            slowdown_factor: 0.4,
+        })
+        .remove::<crate::game::components::Billboard>();
 }
 
 /// Ticks all knockback effects, applying decaying position offsets each frame.
@@ -1219,16 +1366,39 @@ pub fn update_facing_direction(
         let forward_dot = vel_xz.dot(cam_forward_xz);
         let right_dot = vel_xz.dot(cam_right);
 
-        let new_facing = if forward_dot.abs() > right_dot.abs() {
-            if forward_dot < 0.0 {
-                FacingDirection::Back
-            } else {
-                FacingDirection::Forward
-            }
-        } else if right_dot > 0.0 {
-            FacingDirection::Right
+        // Apply hysteresis: boost the current direction's axis so it's "sticky"
+        let current_is_forward_back =
+            matches!(*facing, FacingDirection::Forward | FacingDirection::Back);
+        let (eff_fwd, eff_right) = if current_is_forward_back {
+            (forward_dot.abs() * DIRECTION_HYSTERESIS_FACTOR, right_dot.abs())
         } else {
-            FacingDirection::Left
+            (forward_dot.abs(), right_dot.abs() * DIRECTION_HYSTERESIS_FACTOR)
+        };
+
+        // Pick direction within the winning axis, with sign hysteresis:
+        // keep the current direction unless the dot clearly opposes it.
+        let new_facing = if eff_fwd > eff_right {
+            match *facing {
+                FacingDirection::Forward if forward_dot > -SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Forward
+                }
+                FacingDirection::Back if forward_dot < SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Back
+                }
+                _ if forward_dot < 0.0 => FacingDirection::Back,
+                _ => FacingDirection::Forward,
+            }
+        } else {
+            match *facing {
+                FacingDirection::Right if right_dot > -SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Right
+                }
+                FacingDirection::Left if right_dot < SIGN_HYSTERESIS_THRESHOLD => {
+                    FacingDirection::Left
+                }
+                _ if right_dot > 0.0 => FacingDirection::Right,
+                _ => FacingDirection::Left,
+            }
         };
 
         if *facing != new_facing {

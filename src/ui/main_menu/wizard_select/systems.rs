@@ -8,7 +8,7 @@ use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_page_container};
 
 use super::super::wizard_select_shared::{self as shared, grid_container_node};
 use super::components::*;
@@ -50,19 +50,23 @@ fn spawn_wizard_type_screen(commands: &mut Commands, initial_wizard: WizardType)
         .map(|s| s.player.unlocked_content.wizard_types)
         .unwrap_or_default();
 
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(MARGIN * 1.5)),
-                column_gap: Val::Px(MARGIN * 1.5),
-                ..default()
-            },
-            OnWizardSelectScreen,
-        ))
-        .with_children(|root| {
+    let content = spawn_page_container(
+        commands,
+        OnWizardSelectScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(MARGIN * 1.5)),
+            column_gap: Val::Px(MARGIN * 1.5),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+
+    commands.entity(content).with_children(|root| {
             // ── Left panel ──────────────────────────────────────
             root.spawn(Node {
                 width: Val::Px(LEFT_PANEL_WIDTH),

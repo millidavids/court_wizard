@@ -14,7 +14,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::OBSTACLE_BUFFER;
-use crate::game::pathfinding::resources::{PathfindingGrid, RebuildTarget};
+use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
     Health, Knockback, Team, TemporaryHitPoints, apply_spell_damage,
@@ -833,11 +833,7 @@ pub(super) fn check_meteor_collisions(
                 let cells = pathfinding.shape_filtered_cells(bounds, &shape);
                 pathfinding.set_terrain_cost(&cells, 8.0);
 
-                // Extinction fire is large enough to warrant a full flow field recalc
-                if projectile.is_extinction {
-                    pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
-                    pathfinding.enqueue_rebuild(RebuildTarget::Defender);
-                }
+                // Continuous flow field rebuilds will pick up the cost change automatically
             }
 
             // Despawn the projectile
@@ -1084,11 +1080,7 @@ pub(super) fn cleanup_ground_fire(
             let cells = pathfinding.shape_filtered_cells(bounds, &shape);
             pathfinding.set_terrain_cost(&cells, 1.0);
 
-            // Extinction fire removal warrants a full flow field recalc
-            if fire.is_extinction {
-                pathfinding.enqueue_rebuild(RebuildTarget::Attacker);
-                pathfinding.enqueue_rebuild(RebuildTarget::Defender);
-            }
+            // Continuous flow field rebuilds will pick up the cost change automatically
 
             commands.entity(entity).try_despawn();
         }

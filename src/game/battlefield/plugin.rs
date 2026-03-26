@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
 use super::components::{BattlefieldAssets, LavaPool, WaterRipple, WaterRippleAssets};
+use super::flora::FloraPlugin;
 use super::systems;
+use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::run_conditions::{any_exist, is_gameplay_running};
 
 /// Plugin that handles battlefield and castle setup.
@@ -11,7 +13,8 @@ pub struct BattlefieldPlugin;
 
 impl Plugin for BattlefieldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_battlefield_assets)
+        app.add_plugins(FloraPlugin)
+            .add_systems(Startup, load_battlefield_assets)
             .add_systems(
                 Update,
                 (
@@ -26,6 +29,16 @@ impl Plugin for BattlefieldPlugin {
                         .run_if(any_exist::<WaterRipple>()),
                 )
                     .run_if(is_gameplay_running),
+            )
+            // Terrain hazard systems (lava damage, water slow)
+            .add_systems(
+                Update,
+                (
+                    systems::apply_lava_damage,
+                    systems::apply_water_slow,
+                )
+                    .run_if(is_gameplay_running)
+                    .run_if(resource_exists::<PathfindingGrid>),
             );
     }
 }
@@ -37,5 +50,6 @@ fn load_battlefield_assets(mut commands: Commands, asset_server: Res<AssetServer
         right_wall: asset_server.load("images/static_sprites/right_wall.png"),
         left_wall: asset_server.load("images/static_sprites/left_wall.png"),
         wall_floor: asset_server.load("images/static_sprites/wall_floor.png"),
+        battlefield_tiles: asset_server.load("images/sprite_sheets/battlefield_tiles.png"),
     });
 }

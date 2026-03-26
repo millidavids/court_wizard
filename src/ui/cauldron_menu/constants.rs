@@ -1,13 +1,16 @@
 use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{
+    BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, DETAIL_BG as GLOBAL_DETAIL_BG,
+    DETAIL_BORDER as GLOBAL_DETAIL_BORDER, LIST_BG as GLOBAL_LIST_BG,
+    LIST_BORDER as GLOBAL_LIST_BORDER, TEXT_BODY, TEXT_DISABLED, TEXT_MUTED,
+    TEXT_PLACEHOLDER,
+};
 
 // ---------------------------------------------------------------------------
 // Layout (matching spell book)
 // ---------------------------------------------------------------------------
-
-/// Semi-transparent background for the full-screen overlay.
-pub const BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
 
 /// Padding around the entire layout.
 pub const LAYOUT_PADDING: f32 = 30.0;
@@ -29,10 +32,10 @@ pub const TITLE_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
 // ---------------------------------------------------------------------------
 
 /// Detail panel background color.
-pub const DETAIL_BG: Color = Color::hsla(220.0, 0.08, 0.10, 1.0);
+pub const DETAIL_BG: Color = GLOBAL_DETAIL_BG;
 
 /// Detail panel border color — subtle gold.
-pub const DETAIL_BORDER: Color = Color::hsla(40.0, 0.35, 0.30, 1.0);
+pub const DETAIL_BORDER: Color = GLOBAL_DETAIL_BORDER;
 
 /// Detail panel border width.
 pub const DETAIL_BORDER_WIDTH: f32 = 1.0;
@@ -74,10 +77,10 @@ pub const BREWING_STATUS_FONT_SIZE: f32 = 13.0;
 pub const BREWING_STATUS_COLOR: Color = Color::srgb(0.9, 0.7, 0.3);
 
 /// Disabled/dimmed text color.
-pub const DISABLED_TEXT_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
+pub const DISABLED_TEXT_COLOR: Color = TEXT_DISABLED;
 
 /// Placeholder text color for empty detail panel.
-pub const PLACEHOLDER_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.35, 1.0);
+pub const PLACEHOLDER_TEXT_COLOR: Color = TEXT_PLACEHOLDER;
 
 /// Font size for combo bonus text.
 pub const COMBO_FONT_SIZE: f32 = 11.0;
@@ -90,10 +93,10 @@ pub const COMBO_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
 // ---------------------------------------------------------------------------
 
 /// Background for the ingredient list area.
-pub const LIST_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+pub const LIST_BG: Color = GLOBAL_LIST_BG;
 
 /// Border for the ingredient list area.
-pub const LIST_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 1.0);
+pub const LIST_BORDER: Color = GLOBAL_LIST_BORDER;
 
 /// Border width for the list.
 pub const LIST_BORDER_WIDTH: f32 = 1.0;
@@ -114,7 +117,7 @@ pub const CATEGORY_GAP: f32 = 16.0;
 pub const CATEGORY_FONT_SIZE: f32 = 13.0;
 
 /// Color for category header text.
-pub const CATEGORY_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+pub const CATEGORY_COLOR: Color = TEXT_MUTED;
 
 // ---------------------------------------------------------------------------
 // Ingredient buttons
@@ -136,7 +139,7 @@ pub const BUTTON_FONT_SIZE: f32 = 11.0;
 pub const DESCRIPTION_FONT_SIZE: f32 = 9.0;
 
 /// General text color.
-pub const TEXT_COLOR: Color = Color::srgb(0.9, 0.9, 0.9);
+pub const TEXT_COLOR: Color = TEXT_BODY;
 
 /// Maximum number of ingredients allowed in a single brew.
 pub const MAX_INGREDIENTS: usize = 3;
@@ -147,9 +150,10 @@ pub const INGREDIENT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::hsla(220.0, 0.08, 0.11, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.20, 1.0),
+    background: Color::hsla(270.0, 0.12, 0.11, 0.75),
+    border: Color::hsla(270.0, 0.10, 0.20, 0.6),
     text_color: Color::hsla(0.0, 0.0, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for selected ingredient toggle.
@@ -158,9 +162,10 @@ pub const INGREDIENT_SELECTED_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.1, 0.25, 0.1),
+    background: Color::srgba(0.1, 0.25, 0.1, 0.75),
     border: Color::srgb(0.3, 0.7, 0.3),
     text_color: Color::srgb(0.7, 1.0, 0.7),
+    text_shadow: true,
 };
 
 /// Button style for disabled (at limit) ingredient toggle.
@@ -169,9 +174,10 @@ pub const INGREDIENT_DISABLED_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.06, 0.06, 0.06),
-    border: Color::srgb(0.15, 0.15, 0.15),
-    text_color: Color::srgb(0.3, 0.3, 0.3),
+    background: Color::srgba(0.06, 0.06, 0.06, 0.6),
+    border: Color::srgba(0.15, 0.15, 0.15, 0.5),
+    text_color: Color::srgb(0.55, 0.55, 0.55),
+    text_shadow: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -184,9 +190,10 @@ pub const STONE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.18, 0.15, 0.05),
+    background: Color::srgba(0.18, 0.15, 0.05, 0.75),
     border: Color::srgb(0.55, 0.45, 0.12),
     text_color: Color::srgb(0.85, 0.75, 0.2),
+    text_shadow: true,
 };
 
 /// Button style for the Philosopher's Stone (selected).
@@ -195,9 +202,10 @@ pub const STONE_SELECTED_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: Color::srgb(0.25, 0.20, 0.05),
+    background: Color::srgba(0.25, 0.20, 0.05, 0.75),
     border: Color::srgb(0.85, 0.75, 0.2),
     text_color: Color::srgb(1.0, 0.9, 0.3),
+    text_shadow: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -210,9 +218,10 @@ pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 13.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 1.0),
+    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
     border: Color::hsla(40.0, 0.40, 0.35, 1.0),
     text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for the cancel brew button.
@@ -221,9 +230,10 @@ pub const CANCEL_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 11.0,
-    background: Color::srgb(0.25, 0.08, 0.08),
+    background: Color::srgba(0.25, 0.08, 0.08, 0.75),
     border: Color::srgb(0.5, 0.15, 0.15),
     text_color: Color::srgb(0.9, 0.4, 0.4),
+    text_shadow: true,
 };
 
 /// Button style for the close button.
@@ -232,7 +242,8 @@ pub const CLOSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 11.0,
-    background: Color::hsla(0.0, 0.0, 0.10, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.22, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.50, 1.0),
+    background: BUTTON_BG_SUBTLE,
+    border: BUTTON_BORDER_SUBTLE,
+    text_color: TEXT_MUTED,
+    text_shadow: true,
 };

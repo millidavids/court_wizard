@@ -2,6 +2,196 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.207] - 2026-03-26
+
+### Added
+- **Ogre charge attack** — the Ogre boss now charges across the battlefield, targeting defenders at a distance. A pulsing red rectangle telegraph warns you where the charge will land, giving you a few seconds to move units out of the way. Units caught in the charge take heavy damage and get knocked sideways
+- **Ogre melee resistance** — the Ogre now shrugs off most damage from infantry and archers, taking only a fraction of their attacks. Spells remain fully effective against it
+
+### Changed
+- **Faster Ogre** — the Ogre boss moves faster across the battlefield
+- **Stronger enrage scaling** — the Ogre's enrage bonuses now ramp up more aggressively at each health threshold
+
+## [v0.5.188] - 2026-03-26
+
+### Changed
+- **Unified UI look** — all menu screens and overlays (spell book, cauldron, pause menu, game over, wizard select, game mode select, multiplayer) now use the same styled container with a translucent bordered panel, matching the instructions and settings screens
+- **Semi-transparent panels** — detail panels, wizard cards, spell buttons, and list areas throughout the UI are now semi-transparent instead of solid black, letting the background show through for a more polished look
+- **Brighter labels and descriptions** — category headers, section labels, disabled text, and other secondary text across all screens have been brightened for better readability
+- **Consistent colors everywhere** — all UI screens now pull from a single shared color palette instead of each screen defining its own slightly different colors
+- **Faster units** — all units move 10% faster across the battlefield
+- **Tighter speed control** — units can no longer exceed their intended movement speed when grouped together
+
+## [v0.5.176] - 2026-03-26
+
+### Changed
+- **Refreshed button styling** — all buttons throughout the game now have a translucent purple tint that blends with the background, replacing the old flat dark look
+- **Text shadows everywhere** — all button text and page titles now have a subtle drop shadow that scales with the text size, making everything easier to read
+- **Brighter muted text** — buttons that were previously hard to read (like "Close" and "Back" buttons) now have brighter text
+
+## [v0.5.144] - 2026-03-25
+
+### Changed
+- **Attackers march in formation** — enemy units now approach the battlefield in proper military formation. Infantry and brutes lead the charge up front, archers follow behind, and sneaky units bring up the rear
+
+## [v0.5.142] - 2026-03-25
+
+### Added
+- **Battlefield flowers** — small flowers and plants now grow scattered across the battlefield, giving each map a more natural feel. They get permanently trampled when units walk over them
+
+### Changed
+- **No more loading screen** — battles now start almost instantly instead of showing a loading screen. All units and terrain spawn in the blink of an eye
+
+## [v0.5.133] - 2026-03-25
+
+### Changed
+- **Faster saving and loading** — your progress is now kept in memory while you play, so saving and loading happens almost instantly instead of reading from disk every time
+- **Safer save files** — saves are now written using a crash-proof method. If something goes wrong mid-save, your previous save is preserved as a backup and restored automatically
+- **Save file integrity checks** — your save file now includes a signature that detects if it was corrupted or tampered with. If a problem is found, you'll see a warning but your save will still load
+
+### Fixed
+- **Cleaned up unused code** — removed leftover code that was no longer being used, keeping things tidy under the hood
+
+## [v0.5.127] - 2026-03-25
+
+### Added
+- **Multiplayer networking foundation** — behind-the-scenes groundwork for peer-to-peer multiplayer has been added. Two players will be able to connect directly without any servers by sharing a short connection code. This feature is not yet available in-game while it's being tested
+
+## [v0.5.121] - 2026-03-24
+
+### Added
+- **Windowed and fullscreen display modes** — you can now switch between windowed and fullscreen in the Settings menu under Graphics. Your window size and position are remembered when switching back to windowed mode
+- **Exit button** — the main menu now has an Exit button to close the game
+- **Confirmation popups** — the "Reset Tutorials" and "Clear Progress" buttons in Settings now show a confirmation popup before taking action, so you won't accidentally wipe your progress
+- **Scrollable settings** — the Settings page content is now inside a scrollable area with the title and back button always visible, matching the layout of other menu screens
+- **Compendium detail scrolling** — the left detail panel in the Compendium (e.g., endless wizard stats) is now scrollable when content overflows
+
+### Changed
+- **Main menu layout** — the main menu buttons are now on the left side of the screen with the game title displayed large on the right, with a drop shadow effect
+- **See-through menu overlays** — Settings, Instructions, Changelog, Credits, and Compendium screens now have translucent backgrounds so you can see the animated main menu scene behind them. Scrollable areas have their own slightly darker panel with a subtle shadow for contrast
+- **Consistent back buttons** — all menu screens now use the same back button size and style
+- **Volume sliders track the mouse accurately** — sliders now follow your cursor position directly instead of using mouse movement speed, which could feel too fast or too slow depending on your display settings
+- **Improved credits page** — sprite art attribution is now shown directly in the credits text, and the full artist credit file (SPRITE_CREDITS.csv) is included in the game directory
+- **Difficulty removed from Settings** — the difficulty option has been removed from the Settings menu since it wasn't being used
+
+### Fixed
+- **Display mode switching no longer crashes** — switching between windowed and fullscreen no longer causes rendering errors or freezes
+
+## [v0.5.79] - 2026-03-23
+
+### Added
+- **Animated main menu background** — the main menu now features a layered parallax scene with a slowly drifting sky, passing clouds, and a castle tower in the foreground, giving the menu a more immersive feel
+
+## [v0.5.72] - 2026-03-23
+
+### Added
+- **Steam integration** — the game now connects to Steam for achievement tracking and cloud saves, so your progress syncs across devices. If Steam isn't running, everything still works normally
+- **Rune combos for all spells** — every spell in the game now has a rune combination. Combos follow the spell web: spells closer to the center use fewer runes, and each combo starts with the branch's root rune (Q, W, E, or R). The deepest spells require 4-rune sequences
+
+### Changed
+- **Rune input** — you can now press the same rune key twice in a row, which is needed for some of the new spell combos
+
+## [v0.5.68] - 2026-03-22
+
+### Added
+- **Battlefield ground tiles** — the battlefield now has a textured ground made up of varied grass tiles instead of a flat solid color, giving the terrain more visual depth and personality
+
+### Fixed
+- **Defenders no longer chase inactive waves** — defenders will now correctly return to their positions and wait when the only attackers left on the field are still marching in and haven't entered battle yet
+- **Talent selection cleanup** — if a talent was somehow selected in a tier that hasn't been unlocked yet, it will now be automatically cleared when loading into a game
+
+## [v0.5.60] - 2026-03-22
+
+### Added
+- **Shielder animations** — shielders now have unique walking, attacking, casting, and death animations with dedicated sprite sheets
+- **Healer animations** — healers now have unique walking, attacking, casting, and death animations with dedicated sprite sheets
+- **Crowd ambience** — a muffled crowd sound plays throughout battles, adding to the atmosphere of the battlefield
+
+## [v0.5.55] - 2026-03-21
+
+### Added
+- **Unique unit sprites** — undead, dispellers, and the swordcerer now have their own distinct walking, attacking, and death animations instead of borrowing other units' appearances
+- **Dispeller casting animation** — dispellers now visually channel when casting their dispel ability
+- **Swordcerer combat animations** — the swordcerer plays a casting animation when firing missiles and an attack animation when swinging its sword
+- **Battle ambience** — a subtle sword-clashing sound plays during melee combat, growing louder as more units engage in close-quarters fighting
+
+### Changed
+- **Undead appearance** — undead units now have a more natural look with less purple tinting
+- **Swordcerer appearance** — the swordcerer avatar no longer has a blue hue, showing off its unique sprite sheet clearly
+
+### Fixed
+- **Arcane crystal range ring** — the range indicator ring around permanent arcane crystals now properly disappears when the crystal is dispelled
+
+## [v0.5.43] - 2026-03-21
+
+### Added
+- **Crash reporting** — if the game crashes, a detailed crash log is now saved to your save data folder automatically, making it easier to report bugs
+- **Player readme** — game downloads now include a README file with info on where save data and crash logs are stored
+
+## [v0.5.40] - 2026-03-21
+
+### Added
+- **Death animations** — units now play a death animation when they fall in battle, ending on a final fallen pose instead of instantly swapping to a corpse sprite
+- **Melee attack animations** — infantry, archers, and assassins now visually swing when attacking in melee combat
+- **Ranged shooting animations** — archers play a shooting animation when firing arrows
+- **Assassin unique look** — assassins now have their own walking sprite instead of sharing the archer's appearance
+
+### Changed
+- **Smoother walking animations** — all unit walking animations now use updated 9-frame sprite sheets for more fluid movement
+- **Elite and commander sizing** — upgraded units that grow larger no longer clip into the ground; they properly float at the right height
+
+## [v0.5.34] - 2026-03-21
+
+### Fixed
+- **Smoother unit animations** — units no longer flicker between walking directions when moving diagonally; their facing direction stays stable until they clearly change course
+
+## [v0.5.31] - 2026-03-20
+
+### Added
+- **Terrain hazards** — the lava pool on the battlefield now deals heavy damage to any unit that walks through it, and the water pool slows units down
+- **Hazard avoidance** — units intelligently path around the lava pool and avoid the water pool when possible, thanks to flow field integration
+- **Tunnel spawning** — attacker waves now spawn behind the right wall and march through the tunnel archways onto the battlefield, creating a more dramatic entrance
+- **Wave staging system** — each wave of attackers gathers at a rallying point before charging toward the castle, giving you a moment to prepare
+- **Staging speedup** — the game speeds up while attackers are marching to their rally point so you're not waiting around
+- **Right wall occlusion** — units are hidden behind the right wall until they emerge through the tunnels
+
+### Changed
+- **Wave timing** — the next wave won't begin spawning until the current wave has finished rallying and activated
+- **Battle timer** — the in-game timer doesn't start until the first wave of attackers activates, so marching time doesn't count against you
+- **Defender awareness** — defenders now ignore attackers that haven't activated yet, only springing into action once the assault begins
+- **Special unit behavior** — healers, shielders, dispellers, and archers on the attacker side won't use their abilities until their wave activates
+
+## [v0.4.519] - 2026-03-20
+
+### Added
+- **Game mode selection** — a new menu screen lets you choose between different game modes before picking your wizard
+- **Roguelite mode** — a fixed 25-level run where losing ends your attempt; you get a score screen with full run stats, then return to the main menu to try again
+- **Endless mode** — an infinitely scaling mode where your progress saves between sessions; pick up where you left off and face increasingly tougher enemies past the final tier
+- **Endless difficulty scaling** — beyond the last tier of unit introductions, attackers become progressively stronger and more numerous each level
+- **Per-wizard Endless progression** — each wizard type tracks its own Endless mode level progress independently
+- **Roguelite compendium tab** — view your recent runs and saved runs in the compendium, click any run to see a full level-by-level breakdown
+- **Endless compendium tab** — view your best stats per level for each wizard type in the compendium
+- **Save and unsave runs** — permanently save your favorite roguelite runs so they're never lost to history trimming
+- **Roguelite score screen** — when a roguelite run ends, see a summary of your run performance including kills, efficiency, and time per level
+- **Story and Multiplayer placeholders** — these game modes appear on the selection screen as "Coming Soon"
+
+### Changed
+- **CRT flash effect** — reduced the intensity of the screen flash during menu transitions for a subtler look
+- **Timewalking disabled in Roguelite** — you can't replay previous levels during a roguelite run
+- **Mode-aware saving** — roguelite runs don't overwrite your endless mode progress or vice versa
+
+## [v0.4.510] - 2026-03-20
+
+### Added
+- **Assassin units** — a new fast-moving attacker unit type that flanks around infantry to hunt down archers, appearing from level 6 onward
+- **Assassin scaling** — assassin numbers increase as levels get harder, similar to how archer counts scale up
+
+### Changed
+- **Assassin flanking behavior** — assassins route around infantry formations to reach archers from the sides, but charge straight in when no archers remain
+- **Assassin combat** — assassins deal massive damage to archers, attack much faster than normal units, and pass through non-assassin units
+- **Assassin survivability** — assassins take less damage from archers but more damage from infantry, and are ignored by infantry and the King
+- **Smoother pathfinding** — all unit navigation fields now update continuously in the background instead of on a delay, resulting in more responsive movement
+
 ## [v0.4.484] - 2026-03-19
 
 ### Changed

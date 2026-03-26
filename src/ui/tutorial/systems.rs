@@ -272,6 +272,7 @@ pub(super) fn spawn_tutorial_overlay(
                                     background: SKIP_BUTTON_BG,
                                     border: SKIP_BUTTON_BORDER,
                                     text_color: TEXT_COLOR,
+                                    text_shadow: true,
                                 },
                             );
 
@@ -287,6 +288,7 @@ pub(super) fn spawn_tutorial_overlay(
                                     background: NEXT_BUTTON_BG,
                                     border: NEXT_BUTTON_BORDER,
                                     text_color: TEXT_COLOR,
+                                    text_shadow: true,
                                 },
                             );
                         });
@@ -523,6 +525,14 @@ pub(super) fn update_tutorial_content(
             for child in children.iter() {
                 if let Ok(mut text) = all_text.get_mut(child) {
                     **text = next_label.to_string();
+                }
+                // Walk grandchildren for shadow-wrapped buttons
+                if let Ok(grandchildren) = children_query.get(child) {
+                    for gc in grandchildren.iter() {
+                        if let Ok(mut text) = all_text.get_mut(gc) {
+                            **text = next_label.to_string();
+                        }
+                    }
                 }
             }
         }

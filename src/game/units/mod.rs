@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use rand::Rng;
 
 pub(crate) mod archer;
+pub(crate) mod assassin;
 pub(crate) mod boss;
 pub(crate) mod brute;
 pub(in crate::game) mod commander;
@@ -18,6 +19,7 @@ pub(crate) mod healer;
 pub(in crate::game) mod infantry;
 pub(crate) mod shielder;
 pub(crate) mod king;
+pub(crate) mod undead;
 pub(in crate::game) mod movement;
 pub(in crate::game) mod systems;
 pub(crate) mod wizard;

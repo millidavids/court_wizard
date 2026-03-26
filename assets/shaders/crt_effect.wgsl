@@ -205,11 +205,11 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         // C) Rolling bright horizontal bar sweeping down.
         let bar_pos = fract(settings.channel_change_time * 2.5);
         let bar_dist = abs(safe_local.y - bar_pos);
-        let bar = smoothstep(0.05, 0.0, bar_dist) * cc * 0.5 * screen_mask;
+        let bar = smoothstep(0.05, 0.0, bar_dist) * cc * 0.25 * screen_mask;
         color = vec4<f32>(color.rgb + vec3<f32>(bar), 1.0);
 
         // D) Brief brightness flash (strongest at peak intensity).
-        let flash = cc * cc * 0.15 * screen_mask;
+        let flash = cc * cc * 0.05 * screen_mask;
         color = vec4<f32>(color.rgb + vec3<f32>(flash), 1.0);
     }
 

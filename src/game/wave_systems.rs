@@ -4,13 +4,16 @@ use bevy::prelude::*;
 
 use super::constants::*;
 use super::messages::WaveSpawnedMessage;
+use super::pathfinding::StagingAttacker;
 use super::resources::{CurrentLevel, KillStats, WaveState};
+use super::units::components::Corpse;
 use super::units::archer::resources::ArcherAssets;
 use super::units::brute::constants::BRUTE_START_TIER;
 use super::units::infantry::resources::InfantryAssets;
 use super::units::{archer, brute, infantry};
 
 /// Ticks the wave timer and spawns the next wave when it expires.
+/// Does not tick while staging attackers exist (current wave hasn't activated yet).
 #[allow(clippy::too_many_arguments)]
 pub fn tick_wave_timer(
     time: Res<Time>,
@@ -22,8 +25,14 @@ pub fn tick_wave_timer(
     mut kill_stats: ResMut<KillStats>,
     mut wave_events: MessageWriter<WaveSpawnedMessage>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
 ) {
     if wave_state.waves_complete {
+        return;
+    }
+
+    // Don't tick wave timer while living staging attackers exist — wait for current wave to activate
+    if !staging_query.is_empty() {
         return;
     }
 

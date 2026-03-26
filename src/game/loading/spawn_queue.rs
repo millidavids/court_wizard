@@ -1,6 +1,8 @@
+use std::collections::VecDeque;
+
 use bevy::prelude::*;
 
-use crate::config::save_data::{SavedCrystal, SavedWall};
+use crate::config::save_data::{SavedCrystal, SavedFlora, SavedWall};
 
 /// A task that spawns a single entity.
 /// Each plugin can enqueue tasks for the entities it needs to spawn.
@@ -31,6 +33,10 @@ pub enum SpawnTask {
     },
     UpgradeToShielder {
         entity: Entity,
+    },
+    AttackerAssassin {
+        unit_index: u32,
+        level: u32,
     },
     Brute,
     Ogre,
@@ -65,24 +71,66 @@ pub enum SpawnTask {
         count_mult: f32,
         resonance_cascade: bool,
     },
+    Flora {
+        flora: SavedFlora,
+    },
+}
+
+impl SpawnTask {
+    /// Returns true if this task reads entities or resources from the World
+    /// that may have been created by deferred commands earlier in the queue.
+    /// When true, a command flush (frame boundary) is needed before this task
+    /// if any spawn tasks ran in the current frame.
+    pub fn needs_command_flush(&self) -> bool {
+        matches!(
+            self,
+            SpawnTask::Wizard
+                | SpawnTask::Cauldron
+                | SpawnTask::SelectInfantryUpgrades
+                | SpawnTask::SelectArcherUpgrades
+                | SpawnTask::SelectDispellerUpgrades
+                | SpawnTask::SelectHealerUpgrades
+                | SpawnTask::SelectShielderUpgrades
+                | SpawnTask::SelectEliteUpgrades
+                | SpawnTask::UpgradeToElite { .. }
+                | SpawnTask::UpgradeToCommander { .. }
+        )
+    }
+
+    /// Returns true if this task creates new entities or inserts resources
+    /// via deferred commands (i.e., it produces World state that later tasks
+    /// might need to read).
+    pub fn creates_deferred_state(&self) -> bool {
+        !matches!(
+            self,
+            SpawnTask::SelectInfantryUpgrades
+                | SpawnTask::SelectArcherUpgrades
+                | SpawnTask::SelectDispellerUpgrades
+                | SpawnTask::SelectHealerUpgrades
+                | SpawnTask::SelectShielderUpgrades
+                | SpawnTask::SelectEliteUpgrades
+                | SpawnTask::UpgradeToElite { .. }
+                | SpawnTask::UpgradeToCommander { .. }
+                | SpawnTask::UpgradeToDispeller { .. }
+                | SpawnTask::UpgradeToHealer { .. }
+                | SpawnTask::UpgradeToShielder { .. }
+        )
+    }
 }
 
 /// Resource that holds the queue of spawn tasks.
+///
+/// Uses `VecDeque` for O(1) front removal during batch processing.
 #[derive(Resource)]
 pub struct SpawnQueue {
-    pub tasks: Vec<SpawnTask>,
+    pub tasks: VecDeque<SpawnTask>,
 }
 
 impl SpawnQueue {
     pub fn new() -> Self {
-        Self { tasks: Vec::new() }
-    }
-
-    /// Returns the next task to process (processes one task per frame).
-    /// Always drains from the front since the vector shrinks as we process.
-    pub fn pop_batch(&mut self, count: usize) -> Vec<SpawnTask> {
-        let to_take = count.min(self.tasks.len());
-        self.tasks.drain(0..to_take).collect()
+        Self {
+            tasks: VecDeque::new(),
+        }
     }
 
     /// Returns true if all tasks have been processed.

@@ -1,30 +1,13 @@
 use bevy::prelude::*;
-use bevy::window::{PresentMode, PrimaryWindow, Window as BevyWindow, WindowMoved, WindowPosition, WindowResized};
+use bevy::window::{MonitorSelection, PresentMode, PrimaryWindow, Window as BevyWindow, WindowMode, WindowMoved, WindowPosition, WindowResized};
 
 use super::messages::*;
 use super::resources::*;
 use super::save_data;
 use super::storage;
 
-/// System that loads configuration from localStorage at startup and applies settings.
-///
-/// This system runs during the `Startup` schedule and performs the following:
-/// 1. Loads the configuration from browser localStorage (or uses defaults if missing/invalid)
-/// 2. Applies window settings to Bevy's `Window` component
-/// 3. Inserts `GameConfig` as a Bevy resource for runtime access
-///
-/// After this system runs, ConfigFile is discarded. Bevy components are the single
-/// source of truth during runtime.
-///
-/// # Arguments
-///
-/// * `commands` - Bevy command buffer for inserting resources
-/// * `windows` - Query for the primary window
-///
-/// # Error Handling
-///
-/// This system is designed to never fail. If the config cannot be loaded
-/// or parsed, it falls back to sensible defaults and logs a warning.
+/// Loads configuration from disk at startup and applies settings.
+/// Falls back to sensible defaults if the config file is missing or invalid.
 pub(super) fn load_and_apply_config(
     mut commands: Commands,
     mut windows: Query<&mut BevyWindow, With<PrimaryWindow>>,
@@ -32,7 +15,7 @@ pub(super) fn load_and_apply_config(
     let config_file = match storage::load_config() {
         Ok(contents) => match toml::from_str::<ConfigFile>(&contents) {
             Ok(config) => {
-                info!("Loaded config from localStorage");
+                info!("Loaded config from disk");
                 config
             }
             Err(e) => {
@@ -41,9 +24,9 @@ pub(super) fn load_and_apply_config(
             }
         },
         Err(_) => {
-            info!("No config in localStorage, using defaults");
+            info!("No config file found, using defaults");
             let config = ConfigFile::default();
-            // Save defaults to localStorage
+            // Save defaults to disk
             if let Ok(toml_string) = toml::to_string_pretty(&config) {
                 let _ = storage::save_config(&toml_string);
             }
@@ -57,6 +40,19 @@ pub(super) fn load_and_apply_config(
         return;
     };
     apply_vsync_config(config_file.window.vsync, &mut window);
+    apply_display_mode_to_window(config_file.window.display_mode, &mut window);
+
+    // Initialize saved windowed geometry from config
+    let saved_pos = match (config_file.window.position_x, config_file.window.position_y) {
+        (Some(x), Some(y)) => Some(IVec2::new(x, y)),
+        _ => None,
+    };
+    commands.insert_resource(SavedWindowedGeometry {
+        width: config_file.window.windowed_width,
+        height: config_file.window.windowed_height,
+        position: saved_pos,
+        pending_mode_change: None,
+    });
 
     // Restore saved window position
     if let (Some(x), Some(y)) = (config_file.window.position_x, config_file.window.position_y) {
@@ -66,6 +62,7 @@ pub(super) fn load_and_apply_config(
     // Create GameConfig resource from config file
     let mut game_config = GameConfig {
         vsync: config_file.window.vsync,
+        display_mode: config_file.window.display_mode,
         master_volume: config_file.audio.master_volume,
         music_volume: config_file.audio.music_volume,
         sfx_volume: config_file.audio.sfx_volume,
@@ -82,6 +79,7 @@ pub(super) fn load_and_apply_config(
         urgent_mode: config_file.game.urgent_mode,
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
+        saved_flora: Vec::new(),
     };
     // Migrate legacy saves into unified save file if needed
     save_data::migrate_legacy_saves(&game_config);
@@ -111,6 +109,121 @@ fn apply_vsync_config(vsync: VsyncMode, window: &mut BevyWindow) {
     };
 
     info!("Applied VSync config: {:?}", vsync);
+}
+
+/// Applies display mode configuration to Bevy's Window component.
+fn apply_display_mode_to_window(display_mode: DisplayMode, window: &mut BevyWindow) {
+    window.mode = match display_mode {
+        DisplayMode::Windowed => WindowMode::Windowed,
+        DisplayMode::BorderlessFullscreen => {
+            WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+        }
+    };
+    info!("Applied display mode: {:?}", display_mode);
+}
+
+/// Reactively applies vsync and display mode when the relevant fields change.
+///
+/// Tracks the previous values to avoid redundant Window mutations (which would
+/// cause unnecessary logging and potential flicker) when unrelated GameConfig
+/// fields change (e.g. volume sliders).
+pub(super) fn apply_display_mode(
+    game_config: Res<GameConfig>,
+    mut windows: Query<&mut BevyWindow, With<PrimaryWindow>>,
+    mut saved_geometry: ResMut<SavedWindowedGeometry>,
+    mut last_vsync: Local<Option<VsyncMode>>,
+    mut last_display_mode: Local<Option<DisplayMode>>,
+) {
+    let vsync_changed = *last_vsync != Some(game_config.vsync);
+    let display_changed = *last_display_mode != Some(game_config.display_mode);
+
+    if !vsync_changed && !display_changed {
+        return;
+    }
+
+    // VSync can be applied immediately (no render target size change)
+    if vsync_changed && !display_changed {
+        if let Ok(mut window) = windows.single_mut() {
+            apply_vsync_config(game_config.vsync, &mut window);
+        }
+        *last_vsync = Some(game_config.vsync);
+    }
+
+    if display_changed {
+        let was_windowed = matches!(
+            last_display_mode.as_ref(),
+            Some(DisplayMode::Windowed) | None
+        );
+
+        // Save current windowed geometry before switching away from windowed mode
+        if was_windowed && game_config.display_mode != DisplayMode::Windowed {
+            if let Ok(window) = windows.single() {
+                saved_geometry.width = window.resolution.width();
+                saved_geometry.height = window.resolution.height();
+                saved_geometry.position = match window.position {
+                    WindowPosition::At(pos) => Some(pos),
+                    _ => None,
+                };
+                info!(
+                    "Saved windowed geometry: {}x{} at {:?}",
+                    saved_geometry.width, saved_geometry.height, saved_geometry.position
+                );
+            }
+        }
+
+        // Defer the actual mode change to the next frame to avoid wgpu
+        // scissor rect / render target size mismatch crashes.
+        saved_geometry.pending_mode_change = Some(game_config.display_mode);
+        *last_vsync = Some(game_config.vsync);
+        *last_display_mode = Some(game_config.display_mode);
+    }
+}
+
+/// Applies deferred display mode changes one frame after they were requested.
+///
+/// This avoids wgpu validation errors where the scissor rect from the previous
+/// frame's resolution doesn't fit the new render target size.
+pub(super) fn apply_deferred_mode_change(
+    mut saved_geometry: ResMut<SavedWindowedGeometry>,
+    game_config: Res<GameConfig>,
+    mut windows: Query<&mut BevyWindow, With<PrimaryWindow>>,
+    mut cameras: Query<&mut Camera, With<Camera3d>>,
+) {
+    let Some(new_mode) = saved_geometry.pending_mode_change.take() else {
+        return;
+    };
+
+    let Ok(mut window) = windows.single_mut() else {
+        return;
+    };
+
+    // Clear the camera viewport before ANY mode change. The OS resizes
+    // the window surface asynchronously, so enforce_aspect_ratio may see
+    // stale dimensions and set a viewport that doesn't match the actual
+    // render target, causing a wgpu scissor rect crash. Setting viewport
+    // to None lets the camera use the full surface for one frame until
+    // enforce_aspect_ratio recomputes with correct dimensions.
+    for mut camera in &mut cameras {
+        camera.viewport = None;
+    }
+
+    apply_display_mode_to_window(new_mode, &mut window);
+
+    if new_mode == DisplayMode::Windowed {
+        window
+            .resolution
+            .set(saved_geometry.width, saved_geometry.height);
+        if let Some(pos) = saved_geometry.position {
+            window.position = WindowPosition::At(pos);
+        }
+        info!(
+            "Restored windowed geometry: {}x{} at {:?}",
+            saved_geometry.width, saved_geometry.height, saved_geometry.position
+        );
+    }
+
+    // Always apply current vsync when changing mode
+    apply_vsync_config(game_config.vsync, &mut window);
 }
 
 /// Detects window resize events and triggers config save.
@@ -199,11 +312,11 @@ pub(super) fn mark_save_on_config_changed(
     debounce_timer.pending = true;
 }
 
-/// Ticks debounce timer and saves to localStorage when expired.
+/// Ticks debounce timer and saves to disk when expired.
 ///
 /// This system runs every frame during the `Update` schedule. When the
 /// debounce timer expires (0.5s of no config changes), it reads the current
-/// state from Bevy components and saves to localStorage.
+/// state from Bevy components and saves to disk.
 ///
 /// # Arguments
 ///
@@ -216,6 +329,8 @@ pub(super) fn save_config_on_debounce_timer(
     mut debounce_timer: ResMut<SaveDebounceTimer>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
+    saved_geometry: Res<SavedWindowedGeometry>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if !debounce_timer.pending {
@@ -225,7 +340,15 @@ pub(super) fn save_config_on_debounce_timer(
     debounce_timer.timer.tick(time.delta());
 
     if debounce_timer.timer.is_finished() {
-        persist_config(&game_config, &active_save, get_window_position(&windows));
+        let is_roguelite =
+            crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+        persist_config(
+            &game_config,
+            &active_save,
+            &saved_geometry,
+            get_window_position(&windows),
+            is_roguelite,
+        );
         debounce_timer.pending = false;
     }
 }
@@ -233,7 +356,7 @@ pub(super) fn save_config_on_debounce_timer(
 /// Manual save trigger (bypasses debounce).
 ///
 /// This system listens for SaveConfigMessage messages and immediately
-/// saves the current state to localStorage, bypassing the debounce timer.
+/// saves the current state to disk, bypassing the debounce timer.
 /// Useful for critical saves (e.g., on app quit).
 ///
 /// # Arguments
@@ -245,40 +368,57 @@ pub(super) fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigMessage>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
+    saved_geometry: Res<SavedWindowedGeometry>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if save_events.read().count() == 0 {
         return;
     }
 
-    persist_config(&game_config, &active_save, get_window_position(&windows));
+    let is_roguelite =
+        crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    persist_config(
+        &game_config,
+        &active_save,
+        &saved_geometry,
+        get_window_position(&windows),
+        is_roguelite,
+    );
+
+    // Force-flush the save cache to disk immediately on manual save
+    save_data::flush_save_cache();
 }
 
-/// Saves current state to localStorage by reading from Bevy components.
-///
-/// This function reads the current state from:
-/// - Bevy's Window component (window settings)
-/// - WindowConfig resource (window mode and vsync settings)
-/// - AudioConfig resource (volume settings)
-/// - GameConfig resource (game settings)
-///
-/// Then builds a temporary ConfigFile, serializes to TOML, and saves to localStorage.
-///
-/// # Arguments
-///
-/// * `windows` - Query for the primary window
-/// * `window_config` - Window configuration resource
-/// * `audio_config` - Audio configuration resource
-/// * `game_config` - Game configuration resource
-fn persist_config(game_config: &GameConfig, active_save: &ActiveSave, window_pos: Option<IVec2>) {
+/// Periodically flushes the in-memory save cache to disk.
+/// Runs every 2 seconds when the cache has unflushed changes.
+pub(super) fn periodic_save_flush(
+    time: Res<Time>,
+    mut timer: Local<Option<Timer>>,
+) {
+    let timer = timer.get_or_insert_with(|| Timer::from_seconds(2.0, TimerMode::Repeating));
+    timer.tick(time.delta());
+    if timer.just_finished() {
+        save_data::flush_save_cache();
+    }
+}
+
+/// Builds a ConfigFile from current state, serializes to TOML, and saves to disk.
+fn persist_config(
+    game_config: &GameConfig,
+    active_save: &ActiveSave,
+    saved_geometry: &SavedWindowedGeometry,
+    window_pos: Option<IVec2>,
+    is_roguelite: bool,
+) {
     // Build ConfigFile from current state
-    let config_file = build_config_from_game_config(game_config, window_pos);
+    let config_file = build_config_from_game_config(game_config, saved_geometry, window_pos);
 
     // Serialize and save
     match toml::to_string_pretty(&config_file) {
         Ok(toml_string) => match storage::save_config(&toml_string) {
             Ok(_) => {
-                info!("Config saved to localStorage");
+                info!("Config saved to disk");
             }
             Err(e) => {
                 error!("Failed to save config: {}", e);
@@ -290,36 +430,23 @@ fn persist_config(game_config: &GameConfig, active_save: &ActiveSave, window_pos
     }
 
     // Save progress to the active wizard in the unified save file
-    save_data::save_config_to_active_wizard(game_config, active_save);
+    save_data::save_config_to_active_wizard(game_config, active_save, is_roguelite);
 }
 
-/// Builds ConfigFile from current GameConfig.
-///
-/// This function constructs a temporary ConfigFile for serialization.
-/// The ConfigFile is immediately discarded after serialization - it's not kept in memory.
-///
-/// # Arguments
-///
-/// * `game_config` - Reference to the GameConfig resource
-///
-/// # Returns
-///
-/// A ConfigFile struct populated with current settings
-fn build_config_from_game_config(game_config: &GameConfig, window_pos: Option<IVec2>) -> ConfigFile {
-    // Load existing config to preserve window settings we don't modify
-    let existing_window = match storage::load_config() {
-        Ok(contents) => toml::from_str::<ConfigFile>(&contents)
-            .map(|c| c.window)
-            .unwrap_or_default(),
-        Err(_) => WindowConfig::default(),
-    };
-
-    // Update VSync and window position, preserve everything else
+/// Builds a temporary ConfigFile from current GameConfig for serialization.
+fn build_config_from_game_config(
+    game_config: &GameConfig,
+    saved_geometry: &SavedWindowedGeometry,
+    window_pos: Option<IVec2>,
+) -> ConfigFile {
     let window_config = WindowConfig {
         vsync: game_config.vsync,
-        position_x: window_pos.map(|p| p.x).or(existing_window.position_x),
-        position_y: window_pos.map(|p| p.y).or(existing_window.position_y),
-        ..existing_window
+        display_mode: game_config.display_mode,
+        position_x: window_pos.map(|p| p.x),
+        position_y: window_pos.map(|p| p.y),
+        windowed_width: saved_geometry.width,
+        windowed_height: saved_geometry.height,
+        ..WindowConfig::default()
     };
 
     let audio_config = AudioConfig {

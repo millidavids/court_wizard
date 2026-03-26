@@ -30,7 +30,7 @@ pub(super) const DEFAULT_CORNER_RADIUS: f32 = 0.14;
 pub(super) const DEFAULT_GLOW_INTENSITY: f32 = 0.2;
 
 /// Duration of the channel-change flicker effect in seconds.
-pub(super) const CHANNEL_CHANGE_DURATION: f32 = 0.4;
+pub(super) const CHANNEL_CHANGE_DURATION: f32 = 0.3;
 
 /// Duration of the screen desaturation pulse in seconds.
 pub(super) const DESATURATION_DURATION: f32 = 0.15;

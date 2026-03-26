@@ -1,4 +1,6 @@
+use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::{
     Battlefield, BattlefieldAssets, Castle, LavaPool, LeftWall, RightWall, WallFloor, WaterRipple,
@@ -12,10 +14,10 @@ use crate::game::constants::*;
 ///
 /// Spawns the battlefield ground plane, castle wall image, and point light in 3D space.
 pub fn setup_battlefield(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    battlefield_assets: Res<BattlefieldAssets>,
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    battlefield_assets: &BattlefieldAssets,
 ) {
     // Add a light source so we can see 3D objects
     commands.spawn((
@@ -28,52 +30,38 @@ pub fn setup_battlefield(
         OnGameplayScreen,
     ));
 
-    // Spawn battlefield as ground plane at origin
-    let battlefield_mesh = Plane3d::default()
-        .mesh()
-        .size(BATTLEFIELD_SIZE, BATTLEFIELD_SIZE);
-
-    commands.spawn((
-        Mesh3d(meshes.add(battlefield_mesh)),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: BATTLEFIELD_COLOR,
-            unlit: true,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 0.0, 0.0), // Centered at origin
-        Battlefield,
-        OnGameplayScreen,
-    ));
+    // Spawn battlefield as a grid of textured ground tiles
+    spawn_ground_tiles(commands, meshes, materials, battlefield_assets);
 
     // Spawn castle wall as a textured plane the wizard stands on
     spawn_castle_wall(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &battlefield_assets,
+        commands,
+        meshes,
+        materials,
+        battlefield_assets,
         CASTLE_POSITION,
         CASTLE_ROTATION_DEGREES,
         OnGameplayScreen,
     );
 
     // Spawn wall backdrops (vertical walls get depth_bias so they render behind game entities)
-    spawn_wall_backdrop(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
+    // Right wall uses Mask alpha so it occludes units spawning behind it;
+    // tunnel areas in the art are transparent and become real holes.
+    spawn_right_wall_backdrop(
+        commands,
+        meshes,
+        materials,
         battlefield_assets.right_wall.clone(),
         RIGHT_WALL_WIDTH,
         RIGHT_WALL_HEIGHT,
         Transform::from_translation(RIGHT_WALL_POSITION).with_rotation(Quat::from_rotation_y(
             RIGHT_WALL_ROTATION_DEGREES.to_radians(),
         )),
-        RightWall,
-        -100.0,
     );
     spawn_wall_backdrop(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
+        commands,
+        meshes,
+        materials,
         battlefield_assets.left_wall.clone(),
         LEFT_WALL_WIDTH,
         LEFT_WALL_HEIGHT,
@@ -84,9 +72,9 @@ pub fn setup_battlefield(
 
     // Spawn floor between the right and left walls (laid flat, facing up; negative depth bias so effects render on top)
     spawn_wall_backdrop(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
+        commands,
+        meshes,
+        materials,
         battlefield_assets.wall_floor.clone(),
         WALL_FLOOR_DEPTH,
         WALL_FLOOR_LENGTH,
@@ -113,8 +101,8 @@ pub fn setup_battlefield(
 #[allow(clippy::too_many_arguments)]
 fn spawn_wall_backdrop<M: Component>(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
     texture: Handle<Image>,
     width: f32,
     height: f32,
@@ -141,14 +129,44 @@ fn spawn_wall_backdrop<M: Component>(
     ));
 }
 
+/// Spawns the right wall with AlphaMode::Mask so it writes to the depth buffer,
+/// hiding units that spawn behind it. Tunnel areas in the art are transparent.
+fn spawn_right_wall_backdrop(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    texture: Handle<Image>,
+    width: f32,
+    height: f32,
+    transform: Transform,
+) {
+    let mesh = Rectangle::new(width, height);
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(texture),
+        base_color: Color::WHITE,
+        alpha_mode: AlphaMode::Mask(0.5),
+        unlit: true,
+        cull_mode: None,
+        depth_bias: 0.0,
+        ..default()
+    });
+    commands.spawn((
+        Mesh3d(meshes.add(mesh)),
+        MeshMaterial3d(material),
+        transform,
+        RightWall,
+        OnGameplayScreen,
+    ));
+}
+
 /// Spawns the castle wall as a textured plane at the given position.
 ///
 /// The plane uses the castle_wall.png image at its natural aspect ratio,
 /// scaled to CASTLE_WIDTH wide. The wizard and cauldron stand on this plane.
 pub fn spawn_castle_wall<M: Component + Clone>(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
     battlefield_assets: &BattlefieldAssets,
     castle_position: Vec3,
     rotation_degrees: f32,
@@ -181,8 +199,102 @@ pub fn spawn_castle_wall<M: Component + Clone>(
     ));
 }
 
+// ===== Ground Tile Spawning =====
+
+/// Creates a plane mesh with UVs that sample a specific tile from the sprite sheet.
+fn create_tile_mesh(tile_size: f32, tile_index: usize, total_tiles: usize) -> Mesh {
+    let half = tile_size / 2.0;
+    let u_min = tile_index as f32 / total_tiles as f32;
+    let u_max = (tile_index + 1) as f32 / total_tiles as f32;
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        vec![
+            [-half, 0.0, -half],
+            [half, 0.0, -half],
+            [half, 0.0, half],
+            [-half, 0.0, half],
+        ],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_NORMAL,
+        vec![
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_0,
+        vec![
+            [u_max, 0.0],
+            [u_min, 0.0],
+            [u_min, 1.0],
+            [u_max, 1.0],
+        ],
+    );
+    mesh.insert_indices(Indices::U32(vec![0, 2, 1, 0, 3, 2]));
+    mesh
+}
+
+/// Picks a weighted-random tile index. Base tiles are heavily favored over flavor tiles.
+fn pick_weighted_tile(rng: &mut impl Rng) -> usize {
+    let roll: u32 = rng.gen_range(0..TILE_TOTAL_WEIGHT);
+    let base_total = TILE_BASE_COUNT as u32 * TILE_BASE_WEIGHT;
+    if roll < base_total {
+        (roll / TILE_BASE_WEIGHT) as usize
+    } else {
+        TILE_BASE_COUNT + ((roll - base_total) / TILE_FLAVOR_WEIGHT) as usize
+    }
+}
+
+/// Spawns a grid of ground tiles covering the battlefield.
+fn spawn_ground_tiles(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    battlefield_assets: &BattlefieldAssets,
+) {
+    let half = BATTLEFIELD_SIZE / 2.0;
+    let tiles_per_side = (BATTLEFIELD_SIZE / TILE_WORLD_SIZE) as usize;
+
+    // Pre-create one mesh handle per tile variant (shared across all tiles of that type)
+    let tile_meshes: Vec<Handle<Mesh>> = (0..TILE_COUNT)
+        .map(|i| meshes.add(create_tile_mesh(TILE_WORLD_SIZE, i, TILE_COUNT)))
+        .collect();
+
+    // One shared material for all tiles
+    let tile_material = materials.add(StandardMaterial {
+        base_color_texture: Some(battlefield_assets.battlefield_tiles.clone()),
+        base_color: Color::WHITE,
+        unlit: true,
+        ..default()
+    });
+
+    let mut rng = rand::thread_rng();
+
+    for row in 0..tiles_per_side {
+        for col in 0..tiles_per_side {
+            let x = -half + TILE_WORLD_SIZE * (col as f32 + 0.5);
+            let z = -half + TILE_WORLD_SIZE * (row as f32 + 0.5);
+            let tile_index = pick_weighted_tile(&mut rng);
+
+            commands.spawn((
+                Mesh3d(tile_meshes[tile_index].clone()),
+                MeshMaterial3d(tile_material.clone()),
+                Transform::from_xyz(x, 0.0, z),
+                Battlefield,
+                OnGameplayScreen,
+            ));
+        }
+    }
+}
+
 // ===== Environmental Effects =====
 
+use crate::game::units::components::{Corpse, Health, RoughTerrainModifier};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -318,6 +430,44 @@ pub fn update_water_ripples(
 
         if let Some(mat) = materials.get_mut(&mesh_material.0) {
             mat.base_color = Color::srgba(0.9, 0.95, 1.0, alpha);
+        }
+    }
+}
+
+// ===== Terrain Hazard Systems =====
+
+/// Deals damage to any living unit inside the lava pool.
+pub fn apply_lava_damage(
+    time: Res<Time>,
+    mut units: Query<(&Transform, &mut Health), Without<Corpse>>,
+) {
+    let damage = LAVA_DAMAGE_PER_SECOND * time.delta_secs();
+    let lava_xz = Vec2::new(LAVA_POOL_POSITION.x, LAVA_POOL_POSITION.z);
+    let radius_sq = LAVA_DAMAGE_RADIUS * LAVA_DAMAGE_RADIUS;
+
+    for (transform, mut health) in &mut units {
+        let unit_xz = Vec2::new(transform.translation.x, transform.translation.z);
+        if unit_xz.distance_squared(lava_xz) <= radius_sq {
+            health.take_damage(damage);
+        }
+    }
+}
+
+/// Applies a speed slow to units inside the water pool, removes it when they leave.
+pub fn apply_water_slow(
+    mut units: Query<(&Transform, &mut RoughTerrainModifier), Without<Corpse>>,
+) {
+    let water_xz = Vec2::new(WATER_POOL_POSITION.x, WATER_POOL_POSITION.z);
+    let radius_sq = WATER_POOL_RADIUS * WATER_POOL_RADIUS;
+
+    for (transform, mut terrain_mod) in &mut units {
+        let unit_xz = Vec2::new(transform.translation.x, transform.translation.z);
+        if unit_xz.distance_squared(water_xz) <= radius_sq {
+            if terrain_mod.0 != WATER_SPEED_MODIFIER {
+                terrain_mod.0 = WATER_SPEED_MODIFIER;
+            }
+        } else if terrain_mod.0 != 0.0 {
+            terrain_mod.0 = 0.0;
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use super::components::*;
@@ -6,7 +8,7 @@ use super::resources::OgreAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
@@ -18,10 +20,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::random_position_in_cell;
 
-/// Spawns the ogre at the center of the attacker grid.
+/// Spawns the ogre at one of the tunnel spawn points.
 pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
-    // Spawn at center of attacker grid (row 0, col ~3)
-    let (spawn_x, spawn_z) = calculate_grid_cell_position(0, 3);
+    let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(OGRE_RADIUS, OGRE_HITBOX_HEIGHT);
@@ -45,6 +46,7 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
             Velocity {
                 x: initial_velocity.x,
                 z: initial_velocity.z,
+                ..default()
             },
             Acceleration::new(),
             // Core
@@ -59,6 +61,12 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
         .insert((
             OgreEnrageState::new(),
             OgreAttackCooldown::new(),
+            OgreChargeState::Idle {
+                cooldown: OGRE_CHARGE_COOLDOWN,
+            },
+            MeleeDamageReduction {
+                multiplier: OGRE_MELEE_DAMAGE_REDUCTION,
+            },
             // Movement systems
             TargetingVelocity::default(),
             FlowFieldVelocity::default(),
@@ -78,7 +86,7 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
 pub fn update_ogre_targeting(
     mut commands: Commands,
     mut bosses: Query<(Entity, &Transform, &Team, &mut TargetingVelocity), With<Boss>>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Boss>, Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Boss>, Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
@@ -105,7 +113,7 @@ pub fn ogre_combat(
     time: Res<Time>,
     mut commands: Commands,
     mut bosses: Query<
-        (Entity, &Transform, &Hitbox, &Team, &mut OgreAttackCooldown),
+        (Entity, &Transform, &Hitbox, &Team, &mut OgreAttackCooldown, &OgreChargeState),
         (With<Boss>, Without<Corpse>),
     >,
     mut targets: Query<
@@ -122,7 +130,12 @@ pub fn ogre_combat(
 ) {
     let delta = time.delta_secs();
 
-    for (boss_entity, boss_transform, boss_hitbox, boss_team, mut attack_cooldown) in &mut bosses {
+    for (boss_entity, boss_transform, boss_hitbox, boss_team, mut attack_cooldown, charge_state) in &mut bosses {
+        // Skip normal melee attacks during charge
+        if charge_state.is_movement_locked() {
+            continue;
+        }
+
         attack_cooldown.tick(delta);
 
         if !attack_cooldown.is_ready() {
@@ -214,6 +227,7 @@ pub fn ogre_movement(
             &FlockingVelocity,
             &FlowFieldVelocity,
             &OgreEnrageState,
+            &OgreChargeState,
             Option<&InMelee>,
             Option<&CommanderAuraSpeedModifier>,
             Option<&RoughTerrainModifier>,
@@ -246,6 +260,7 @@ pub fn ogre_movement(
         flocking_velocity,
         flow_field_velocity,
         enrage_state,
+        charge_state,
         in_melee,
         aura_modifier,
         terrain_modifier,
@@ -254,6 +269,16 @@ pub fn ogre_movement(
         (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
     ) in &mut bosses
     {
+        // Freeze normal movement during charge phases; also zero acceleration
+        // so external forces (e.g. black hole gravity) don't drift the ogre off course
+        if charge_state.is_movement_locked() {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            acceleration.x = 0.0;
+            acceleration.z = 0.0;
+            continue;
+        }
+
         // CC'd units cannot move
         if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
             velocity.x = 0.0;
@@ -365,5 +390,298 @@ pub fn update_enrage_state(
                 mesh_material.0 = phase_material;
             }
         }
+    }
+}
+
+/// Ogre charge ability — state machine handling targeting, telegraph, dash, and recovery.
+#[allow(clippy::type_complexity)]
+pub fn ogre_charge_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    ogre_assets: Res<OgreAssets>,
+    mut bosses: Query<
+        (
+            Entity,
+            &mut Transform,
+            &Team,
+            &mut OgreChargeState,
+            (
+                Option<&RootedModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
+                Option<&BanishedModifier>,
+                Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
+            ),
+        ),
+        (With<Boss>, Without<Corpse>),
+    >,
+    potential_targets: Query<
+        (Entity, &Transform, &Team),
+        (Without<Boss>, Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>, Without<OgreChargeIndicator>),
+    >,
+    mut charge_targets: Query<
+        (Entity, &Transform, &Hitbox, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (Without<Boss>, Without<Corpse>, Without<BanishedModifier>, Without<OgreChargeIndicator>),
+    >,
+    mut indicator_query: Query<
+        &mut Transform,
+        (With<OgreChargeIndicator>, Without<Boss>),
+    >,
+) {
+    let delta = time.delta_secs();
+
+    for (
+        _boss_entity,
+        mut boss_transform,
+        boss_team,
+        mut charge_state,
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned),
+    ) in &mut bosses
+    {
+        match charge_state.as_mut() {
+            OgreChargeState::Idle { cooldown } => {
+                *cooldown -= delta;
+                if *cooldown <= 0.0 {
+                    *charge_state = OgreChargeState::Targeting;
+                }
+            }
+
+            OgreChargeState::Targeting => {
+                let boss_pos = boss_transform.translation;
+
+                let mut best_target: Option<(Vec3, f32)> = None;
+                for (_entity, target_transform, target_team) in &potential_targets {
+                    if !boss_team.is_enemy(target_team) {
+                        continue;
+                    }
+                    let dx = target_transform.translation.x - boss_pos.x;
+                    let dz = target_transform.translation.z - boss_pos.z;
+                    let distance = (dx * dx + dz * dz).sqrt();
+
+                    if distance < OGRE_CHARGE_TARGET_MIN_DISTANCE
+                        || distance > OGRE_CHARGE_TARGET_MAX_DISTANCE
+                    {
+                        continue;
+                    }
+
+                    if best_target.map_or(true, |(_, d)| distance < d) {
+                        best_target = Some((target_transform.translation, distance));
+                    }
+                }
+
+                if let Some((target_pos, _)) = best_target {
+                    let direction = Vec3::new(
+                        target_pos.x - boss_pos.x,
+                        0.0,
+                        target_pos.z - boss_pos.z,
+                    )
+                    .normalize_or_zero();
+
+                    let charge_distance = OGRE_CHARGE_MAX_DISTANCE;
+                    let rotation = indicator_rotation(direction);
+                    let perp = Vec3::new(-direction.z, 0.0, direction.x);
+                    let lane_center = Vec3::new(
+                        boss_pos.x + direction.x * (charge_distance / 2.0),
+                        OGRE_CHARGE_INDICATOR_Y,
+                        boss_pos.z + direction.z * (charge_distance / 2.0),
+                    );
+                    let half_width = OGRE_CHARGE_LANE_WIDTH / 2.0;
+
+                    let mesh = ogre_assets.charge_rect_mesh.clone();
+                    let mat = ogre_assets.charge_line_material.clone();
+
+                    // Spawn outline: left, right, near (at ogre), far (at end)
+                    let spawn_line = |cmds: &mut Commands, pos: Vec3, sx: f32, sy: f32| {
+                        cmds.spawn((
+                            Mesh3d(mesh.clone()),
+                            MeshMaterial3d(mat.clone()),
+                            Transform::from_translation(pos)
+                                .with_rotation(rotation)
+                                .with_scale(Vec3::new(sx, sy, 1.0)),
+                            OgreChargeIndicator,
+                            OnGameplayScreen,
+                        )).id()
+                    };
+                    let t = OGRE_CHARGE_LINE_THICKNESS;
+                    let left = spawn_line(&mut commands, lane_center + perp * half_width, t, charge_distance);
+                    let right = spawn_line(&mut commands, lane_center - perp * half_width, t, charge_distance);
+                    let near = spawn_line(&mut commands, boss_pos.with_y(OGRE_CHARGE_INDICATOR_Y), OGRE_CHARGE_LANE_WIDTH, t);
+                    let far_pos = boss_pos + direction * charge_distance;
+                    let far = spawn_line(&mut commands, far_pos.with_y(OGRE_CHARGE_INDICATOR_Y), OGRE_CHARGE_LANE_WIDTH, t);
+
+                    // Fill rectangle that grows outward from the ogre
+                    let fill = commands
+                        .spawn((
+                            Mesh3d(ogre_assets.charge_rect_mesh.clone()),
+                            MeshMaterial3d(ogre_assets.charge_fill_material.clone()),
+                            Transform::from_translation(boss_pos.with_y(OGRE_CHARGE_INDICATOR_Y))
+                                .with_rotation(rotation)
+                                .with_scale(Vec3::new(OGRE_CHARGE_LANE_WIDTH, 1.0, 1.0)),
+                            OgreChargeIndicator,
+                            OnGameplayScreen,
+                        ))
+                        .id();
+
+                    *charge_state = OgreChargeState::Telegraphing {
+                        elapsed: 0.0,
+                        direction,
+                        target_distance: charge_distance,
+                        indicators: ChargeIndicators { left, right, near, far, fill },
+                    };
+                } else {
+                    *charge_state = OgreChargeState::Idle { cooldown: 2.0 };
+                }
+            }
+
+            OgreChargeState::Telegraphing {
+                elapsed,
+                direction,
+                target_distance,
+                indicators,
+            } => {
+                if crate::game::units::systems::is_cc_immobilized(
+                    rooted,
+                    sleeping,
+                    sleepwalking,
+                    banished,
+                    sickened,
+                    frozen,
+                    stunned,
+                ) {
+                    despawn_indicators(&mut commands, &indicators.all());
+                    *charge_state = OgreChargeState::Idle {
+                        cooldown: OGRE_CHARGE_COOLDOWN / 2.0,
+                    };
+                    continue;
+                }
+
+                *elapsed += delta;
+                let progress = (*elapsed / OGRE_CHARGE_TELEGRAPH_DURATION).min(1.0);
+                let current_length = *target_distance * progress;
+                let pulse = 1.0
+                    + (*elapsed * OGRE_CHARGE_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
+                        * OGRE_CHARGE_PULSE_AMPLITUDE;
+
+                let boss_pos = boss_transform.translation;
+                let dir = *direction;
+                let pulsed_thickness = OGRE_CHARGE_LINE_THICKNESS * pulse;
+
+                for &entity in &indicators.side_lines() {
+                    if let Ok(mut t) = indicator_query.get_mut(entity) {
+                        t.scale.x = pulsed_thickness;
+                    }
+                }
+                for &entity in &indicators.end_lines() {
+                    if let Ok(mut t) = indicator_query.get_mut(entity) {
+                        t.scale.y = pulsed_thickness;
+                    }
+                }
+
+                if let Ok(mut fill_transform) = indicator_query.get_mut(indicators.fill) {
+                    fill_transform.scale.x = OGRE_CHARGE_LANE_WIDTH * pulse;
+                    fill_transform.scale.y = current_length.max(1.0);
+
+                    let half_length = current_length / 2.0;
+                    fill_transform.translation = Vec3::new(
+                        boss_pos.x + dir.x * half_length,
+                        OGRE_CHARGE_INDICATOR_Y,
+                        boss_pos.z + dir.z * half_length,
+                    );
+                }
+
+                if *elapsed >= OGRE_CHARGE_TELEGRAPH_DURATION {
+                    despawn_indicators(&mut commands, &indicators.all());
+                    *charge_state = OgreChargeState::Charging {
+                        direction: dir,
+                        distance_traveled: 0.0,
+                        max_distance: *target_distance,
+                        hit_entities: HashSet::new(),
+                    };
+                }
+            }
+
+            OgreChargeState::Charging {
+                direction,
+                distance_traveled,
+                max_distance,
+                hit_entities,
+            } => {
+                let move_delta = OGRE_CHARGE_SPEED * delta;
+                boss_transform.translation.x += direction.x * move_delta;
+                boss_transform.translation.z += direction.z * move_delta;
+                *distance_traveled += move_delta;
+
+                let boss_pos = boss_transform.translation;
+                let dir = *direction;
+
+                for (entity, target_transform, target_hitbox, target_team, mut health, temp_hp) in
+                    &mut charge_targets
+                {
+                    if !boss_team.is_enemy(target_team) {
+                        continue;
+                    }
+                    if hit_entities.contains(&entity) {
+                        continue;
+                    }
+
+                    let dx = target_transform.translation.x - boss_pos.x;
+                    let dz = target_transform.translation.z - boss_pos.z;
+                    let distance = (dx * dx + dz * dz).sqrt();
+                    let hit_range = OGRE_RADIUS + target_hitbox.radius + OGRE_CHARGE_HIT_EXTRA;
+
+                    if distance > hit_range {
+                        continue;
+                    }
+
+                    apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), OGRE_CHARGE_DAMAGE);
+                    hit_entities.insert(entity);
+
+                    // Knock units away perpendicular to the charge direction
+                    let perp = Vec3::new(-dir.z, 0.0, dir.x);
+                    let to_unit = Vec3::new(dx, 0.0, dz).normalize_or_zero();
+                    let side = to_unit.dot(perp);
+                    let knockback_dir = if side.abs() > 0.01 {
+                        perp * side.signum()
+                    } else {
+                        perp
+                    };
+
+                    commands.entity(entity).insert(Knockback::new(
+                        knockback_dir,
+                        OGRE_CHARGE_KNOCKBACK_SPEED,
+                        OGRE_CHARGE_KNOCKBACK_DURATION,
+                    ));
+                }
+
+                if *distance_traveled >= *max_distance {
+                    *charge_state = OgreChargeState::Recovery {
+                        timer: OGRE_CHARGE_RECOVERY_DURATION,
+                    };
+                }
+            }
+
+            OgreChargeState::Recovery { timer } => {
+                *timer -= delta;
+                if *timer <= 0.0 {
+                    *charge_state = OgreChargeState::Idle {
+                        cooldown: OGRE_CHARGE_COOLDOWN,
+                    };
+                }
+            }
+        }
+    }
+}
+
+/// Lay a rectangle flat on the XZ plane with its long axis aligned to `direction`.
+fn indicator_rotation(direction: Vec3) -> Quat {
+    let angle = (-direction.x).atan2(-direction.z);
+    Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2) * Quat::from_rotation_z(angle)
+}
+
+fn despawn_indicators(commands: &mut Commands, entities: &[Entity]) {
+    for &entity in entities {
+        commands.entity(entity).try_despawn();
     }
 }

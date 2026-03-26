@@ -10,6 +10,7 @@ use super::cauldron::CauldronPlugin;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::crt_effect::CrtEffectPlugin;
 use super::drops::DropsPlugin;
+use super::game_mode::GameModePlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::{
@@ -111,9 +112,11 @@ impl Plugin for GamePlugin {
                 PathfindingPlugin,
                 AchievementsPlugin,
                 DropsPlugin,
+                GameModePlugin,
                 CrtEffectPlugin,
                 TalentsPlugin,
             ))
+            .add_systems(Startup, shared_systems::load_battle_ambience_assets)
             .add_systems(
                 OnEnter(AppState::MetaGame),
                 shared_systems::init_level_from_config,
@@ -184,6 +187,8 @@ impl Plugin for GamePlugin {
                     // Runs after all targeting systems (VelocitySystemSet) so every
                     // unit — including the King — has its targeting suppressed.
                     shared_systems::suppress_targeting_through_walls,
+                    // Staging attackers must not target enemies — only follow staging flow field
+                    crate::game::pathfinding::systems::suppress_staging_targeting,
                     // Calculate effectiveness based on nearby allies/enemies
                     shared_systems::calculate_effectiveness,
                     // Apply rough terrain slowdown before movement
@@ -214,6 +219,16 @@ impl Plugin for GamePlugin {
                 shared_systems::track_wizard_enemy_damage
                     .after(PostCombatSet)
                     .run_if(shared_systems::wizard_has_not_damaged_enemies),
+            )
+            // Battle ambience — scales looping sword-clash sound with melee unit count
+            // Crowd ambience — muffled crowd loop throughout battle
+            .add_systems(
+                Update,
+                (
+                    shared_systems::update_battle_ambience,
+                    shared_systems::update_crowd_ambience,
+                )
+                    .run_if(is_gameplay_running),
             )
             // Billboard rotation is a visual-only system that must run for both
             // SP host AND MP guest (ghost entities need billboard facing too).

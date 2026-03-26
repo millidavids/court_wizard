@@ -92,6 +92,39 @@ else
     echo "Warning: $ASSET_SRC not found. Assets will be missing at runtime."
 fi
 
+# Copy SPRITE_CREDITS.csv alongside binary for attribution
+CREDITS_SRC="./credits/SPRITE_CREDITS.csv"
+if [ -f "$CREDITS_SRC" ]; then
+    cp "$CREDITS_SRC" "$BIN_DIR/"
+    echo "Sprite credits CSV copied."
+fi
+
+# Copy Steam redistributable DLLs/SOs alongside binary
+if [ -n "$TARGET" ]; then
+    STEAM_SEARCH_DIR="./target/$TARGET"
+else
+    STEAM_SEARCH_DIR="./target"
+fi
+STEAM_BUILD_DIR=$(find "$STEAM_SEARCH_DIR" -path "*/build/steamworks-sys-*/out" -type d 2>/dev/null | head -1)
+if [ -n "$STEAM_BUILD_DIR" ]; then
+    case "$TARGET" in
+        *windows*)
+            STEAM_DLL="$STEAM_BUILD_DIR/steam_api64.dll"
+            if [ -f "$STEAM_DLL" ]; then
+                cp "$STEAM_DLL" "$BIN_DIR/"
+                echo "Steam API DLL copied."
+            fi
+            ;;
+        *)
+            STEAM_SO="$STEAM_BUILD_DIR/libsteam_api.so"
+            if [ -f "$STEAM_SO" ]; then
+                cp "$STEAM_SO" "$BIN_DIR/"
+                echo "Steam API shared library copied."
+            fi
+            ;;
+    esac
+fi
+
 echo ""
 echo "To run:"
 if [[ "$TARGET" == *"windows"* ]]; then

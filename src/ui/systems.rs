@@ -7,6 +7,10 @@ use bevy::prelude::*;
 use bevy::ui::ComputedNode;
 
 use super::components::{ButtonColors, ButtonStyle};
+use super::constants::{
+    CONTENT_BG, CONTENT_BORDER, OVERLAY_BG, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
+    SHADOW_COLOR, TEXT_SHADOW_COLOR,
+};
 use super::styles::{item_hovered, item_pressed};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::MouseButtonState;
@@ -104,21 +108,48 @@ pub fn button_interaction(
 }
 
 // ---------------------------------------------------------------------------
-// Page container (shared by settings, progress, instructions)
+// Page container (shared by settings, progress, instructions, and overlays)
 // ---------------------------------------------------------------------------
 
-/// Dark opaque background for page content containers.
-const PAGE_CONTENT_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+/// Returns the shared styling bundle for inner scrollable areas.
+/// Callers should also add `ScrollPosition::default()` and their marker component.
+pub(crate) fn scroll_area_style() -> (BackgroundColor, BorderColor, BorderRadius, BoxShadow) {
+    (
+        BackgroundColor(SCROLL_BG),
+        BorderColor::all(SCROLL_BORDER),
+        BorderRadius::all(Val::Px(4.0)),
+        BoxShadow::new(
+            SCROLL_SHADOW_COLOR,
+            Val::Px(0.0),
+            Val::Px(2.0),
+            Val::Px(2.0),
+            Val::Px(8.0),
+        ),
+    )
+}
 
-/// Subtle border for page content containers.
-const PAGE_CONTENT_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 1.0);
+/// Standard content node for page containers (column, centered, with scroll clipping).
+pub fn default_content_node() -> Node {
+    Node {
+        width: Val::Percent(100.0),
+        height: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        align_items: AlignItems::Center,
+        padding: UiRect::all(Val::Px(20.0)),
+        border: UiRect::all(Val::Px(1.0)),
+        overflow: Overflow::clip(),
+        ..default()
+    }
+}
 
-/// Semi-transparent overlay behind the content container.
-const PAGE_OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.85);
-
-/// Spawns a full-screen page with a semi-transparent overlay and a dark opaque
+/// Spawns a full-screen page with a semi-transparent overlay and a styled
 /// content container inside it. Returns the content container entity so the
-/// caller can add children and extra components.
+/// caller can add children.
+///
+/// `content_node` controls the inner container layout (flex direction, padding,
+/// gaps, overflow, etc.). Use `default_content_node()` for the standard look.
+/// The border color, background, border-radius, and shadow are applied
+/// automatically.
 ///
 /// When `pause_menu` is true, `GlobalZIndex(500)` is added so the page
 /// renders above in-game UI.
@@ -126,7 +157,7 @@ pub fn spawn_page_container<M: Component>(
     commands: &mut Commands,
     screen_marker: M,
     pause_menu: bool,
-    content_overflow: Overflow,
+    content_node: Node,
 ) -> Entity {
     let mut root = commands.spawn((
         Node {
@@ -138,7 +169,7 @@ pub fn spawn_page_container<M: Component>(
             padding: UiRect::all(Val::Px(20.0)),
             ..default()
         },
-        BackgroundColor(PAGE_OVERLAY_BG),
+        BackgroundColor(OVERLAY_BG),
         screen_marker,
     ));
 
@@ -150,19 +181,17 @@ pub fn spawn_page_container<M: Component>(
 
     let content_id = commands
         .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(20.0)),
-                border: UiRect::all(Val::Px(1.0)),
-                overflow: content_overflow,
-                ..default()
-            },
-            BackgroundColor(PAGE_CONTENT_BG),
-            BorderColor::all(PAGE_CONTENT_BORDER),
+            content_node,
+            BackgroundColor(CONTENT_BG),
+            BorderColor::all(CONTENT_BORDER),
             BorderRadius::all(Val::Px(6.0)),
+            BoxShadow::new(
+                SHADOW_COLOR,
+                Val::Px(0.0),
+                Val::Px(4.0),
+                Val::Px(4.0),
+                Val::Px(12.0),
+            ),
         ))
         .id();
 
@@ -335,11 +364,65 @@ pub fn spawn_button(
             action,
         ))
         .with_children(|button| {
-            button.spawn((
+            if style.text_shadow {
+                spawn_shadowed_text(button, text, style.font_size, style.text_color, Node::default());
+            } else {
+                button.spawn((
+                    Text::new(text),
+                    TextFont::from_font_size(style.font_size),
+                    TextColor(style.text_color),
+                    TextLayout::new_with_justify(Justify::Center),
+                ));
+            }
+        });
+}
+
+/// Spawns text with a drop shadow inside the given parent.
+/// Uses a relative wrapper with an absolute-positioned shadow behind the main text.
+/// Offset scales with font size (font_size / 20).
+fn spawn_shadowed_text(
+    parent: &mut ChildSpawnerCommands,
+    text: &str,
+    font_size: f32,
+    text_color: Color,
+    node: Node,
+) {
+    let offset = font_size / 20.0;
+    parent
+        .spawn(Node {
+            position_type: PositionType::Relative,
+            ..node
+        })
+        .with_children(|wrapper| {
+            wrapper.spawn((
                 Text::new(text),
-                TextFont::from_font_size(style.font_size),
-                TextColor(style.text_color),
+                TextFont::from_font_size(font_size),
+                TextColor(TEXT_SHADOW_COLOR),
+                TextLayout::new_with_justify(Justify::Center),
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(offset),
+                    top: Val::Px(offset),
+                    width: Val::Percent(100.0),
+                    ..default()
+                },
+            ));
+            wrapper.spawn((
+                Text::new(text),
+                TextFont::from_font_size(font_size),
+                TextColor(text_color),
                 TextLayout::new_with_justify(Justify::Center),
             ));
         });
+}
+
+/// Spawns a title text with a drop shadow effect.
+pub fn spawn_title_with_shadow(
+    parent: &mut ChildSpawnerCommands,
+    text: &str,
+    font_size: f32,
+    text_color: Color,
+    node: Node,
+) {
+    spawn_shadowed_text(parent, text, font_size, text_color, node);
 }

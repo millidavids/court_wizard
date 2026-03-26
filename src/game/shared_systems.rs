@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use bevy::audio::Volume;
 use bevy::prelude::*;
 
 use crate::config::GameConfig;
@@ -17,9 +18,9 @@ use super::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, CORPSE_MATERIAL_VARIANTS, Corpse, DamageMultiplier, Effectiveness,
-    EliteAttackSpeedBonus, EliteDamageBonus, Health, Hitbox, Invulnerable, MovementSpeed, ResidualFireDamaged,
-    RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints,
-    apply_damage_to_unit,
+    EliteAttackSpeedBonus, EliteDamageBonus, Health, Hitbox, InMelee, Invulnerable, MovementSpeed,
+    ResidualFireDamaged, RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
+    TemporaryHitPoints, apply_damage_to_unit,
 };
 use super::units::constants::{SMELLY_SEPARATION_DISTANCE, SMELLY_SEPARATION_MULTIPLIER};
 use super::units::infantry::components::Infantry;
@@ -40,7 +41,11 @@ pub fn tick_attack_cycle(time: Res<Time>, mut attack_cycle: ResMut<GlobalAttackC
 }
 
 /// Ticks the elapsed game time for achievement tracking.
+/// Only starts counting after the first wave of attackers has been activated.
 pub fn tick_elapsed_time(time: Res<Time>, mut kill_stats: ResMut<super::resources::KillStats>) {
+    if !kill_stats.battle_started {
+        return;
+    }
     kill_stats.elapsed_time += time.delta_secs();
 }
 
@@ -127,6 +132,7 @@ pub fn apply_separation(
             Option<&super::units::components::FlockingModifier>,
             Has<super::units::boss::components::Boss>,
             Has<super::units::components::SmellyModifier>,
+            Has<super::units::assassin::Assassin>,
         ),
         Without<Corpse>,
     >,
@@ -137,7 +143,7 @@ pub fn apply_separation(
     let unit_data: Vec<_> = units
         .iter()
         .map(
-            |(entity, transform, velocity, _, hitbox, team, _, _, has_smelly)| {
+            |(entity, transform, velocity, _, hitbox, team, _, _, has_smelly, is_assassin)| {
                 (
                     entity,
                     transform.translation,
@@ -145,25 +151,28 @@ pub fn apply_separation(
                     *hitbox,
                     *team,
                     has_smelly,
+                    is_assassin,
                 )
             },
         )
         .collect();
 
     // Pre-check: are there any smelly units on the field?
-    let any_smelly = unit_data.iter().any(|(_, _, _, _, _, smelly)| *smelly);
+    let any_smelly = unit_data.iter().any(|(_, _, _, _, _, smelly, _)| *smelly);
 
     // First pass: enforce hard collision constraint (no overlap allowed)
     // Use multiple iterations to resolve stacked collisions
     for _iteration in 0..COLLISION_ITERATIONS {
         let current_positions: Vec<_> = units
             .iter()
-            .map(|(entity, transform, _, _, hitbox, _, _, _, _)| {
-                (entity, transform.translation, *hitbox)
+            .map(|(entity, transform, _, _, hitbox, _, _, _, _, is_assassin)| {
+                (entity, transform.translation, *hitbox, is_assassin)
             })
             .collect();
 
-        for (entity, mut transform, _, _, hitbox, _, _, is_boss, _) in units.iter_mut() {
+        for (entity, mut transform, _, _, hitbox, _, _, is_boss, _, is_assassin) in
+            units.iter_mut()
+        {
             // Boss is immovable — other units get pushed away from it, not the other way around
             if is_boss {
                 continue;
@@ -172,8 +181,13 @@ pub fn apply_separation(
             let mut total_correction = Vec3::ZERO;
             let mut overlap_count = 0;
 
-            for (other_entity, other_pos, other_hitbox) in &current_positions {
+            for (other_entity, other_pos, other_hitbox, other_is_assassin) in &current_positions {
                 if entity == *other_entity {
+                    continue;
+                }
+
+                // Assassins pass through non-assassin units (only collide with other assassins)
+                if is_assassin != *other_is_assassin {
                     continue;
                 }
 
@@ -209,7 +223,7 @@ pub fn apply_separation(
     }
 
     // Second pass: calculate flocking velocity (separation, alignment, cohesion)
-    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _, _) in
+    for (entity, transform, _velocity, mut flocking_velocity, hitbox, team, flock_mod, _, _, is_assassin) in
         units.iter_mut()
     {
         // Defenders have alignment/cohesion disabled when not activated
@@ -224,10 +238,15 @@ pub fn apply_separation(
         let mut neighbor_count = 0;
 
         // Calculate forces from all neighbors
-        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly) in
+        for (other_entity, other_pos, other_velocity, other_hitbox, other_team, other_smelly, other_is_assassin) in
             &unit_data
         {
             if entity == *other_entity {
+                continue;
+            }
+
+            // Assassins only flock with other assassins
+            if is_assassin != *other_is_assassin {
                 continue;
             }
 
@@ -418,6 +437,11 @@ pub fn combat(
                 Option<&super::units::wizard::spells::berserker_rage::components::Bloodlust>,
                 Has<super::units::wizard::spells::berserker_rage::components::ContagiousRage>,
                 Option<&EliteAttackSpeedBonus>,
+                (
+                    Has<super::units::archer::Archer>,
+                    Has<super::units::infantry::Infantry>,
+                    Has<super::units::assassin::Assassin>,
+                ),
             ),
         ),
         (Without<Corpse>, Without<Boss>),
@@ -438,6 +462,11 @@ pub fn combat(
         Option<&super::units::wizard::spells::guardian_circle::components::GuardianCircleShielded>,
         Option<&super::units::wizard::spells::haste::components::FleetFeet>,
         Has<super::units::shielder::components::ShielderDamageReduction>,
+        (
+            Has<super::units::assassin::Assassin>,
+            Has<super::units::archer::Archer>,
+            Option<&super::units::boss::ogre::MeleeDamageReduction>,
+        ),
     )>,
     // Fog Cloud talent zones
     disorienting_zones: Query<
@@ -446,7 +475,13 @@ pub fn combat(
     >,
     mut talent_progress: Option<ResMut<super::units::wizard::talents::resources::BattleTalentProgress>>,
     mut contagious_rage_events: MessageWriter<super::units::wizard::spells::berserker_rage::messages::ContagiousRageKillMessage>,
+    combat_anim_assets: (
+        Res<super::units::infantry::resources::InfantryAssets>,
+        Res<super::units::assassin::resources::AssassinAssets>,
+        Res<super::units::undead::resources::UndeadAssets>,
+    ),
 ) {
+    let (combat_infantry_assets, combat_assassin_assets, combat_undead_assets) = &combat_anim_assets;
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
 
@@ -495,7 +530,7 @@ pub fn combat(
         battle_hymn,
         berserker_rage_attacker,
         frozen_solid,
-        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage, elite_attack_speed),
+        (retaliation, guardian_circle_attacker, is_retreating, has_mass_hysteria, haste_modifier, momentum_buff, stunned, disorienting_haste, blinding_mist_debuff, frenzy, has_frenzy_active, bloodlust, has_contagious_rage, elite_attack_speed, (attacker_is_archer, attacker_is_infantry, attacker_is_assassin)),
     ) in &mut all_units
     {
         // Skip attack if sleeping, banished, frozen, stunned, or retreating
@@ -537,7 +572,8 @@ pub fn combat(
                 + haste_modifier.map_or(0.0, |h| h.attack_speed)
                 + disorienting_haste.map_or(0.0, |d| d.attack_speed)
                 + if has_frenzy_active { frenzy.map_or(0.0, |f| f.attack_speed_bonus) } else { 0.0 }
-                + elite_attack_speed.map_or(0.0, |e| e.0);
+                + elite_attack_speed.map_or(0.0, |e| e.0)
+                + if attacker_is_assassin { crate::game::units::assassin::constants::ASSASSIN_ATTACK_SPEED_BONUS } else { 0.0 };
             if *attacker_team == Team::Defenders {
                 let cauldron_speed = cauldron_buffs.attack_speed_multiplier();
                 if cauldron_speed > 1.0 {
@@ -593,6 +629,7 @@ pub fn combat(
                     guardian_circle_shielded,
                     target_fleet_feet,
                     has_shielder_reduction,
+                    (target_is_assassin, target_is_archer, melee_damage_reduction),
                 )) = health_query.get_mut(actual_target)
             {
                 // Check fog evasion
@@ -658,6 +695,22 @@ pub fn combat(
                     modified_damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
                 }
 
+                // Apply Assassin damage modifiers (defensive)
+                if target_is_assassin {
+                    if attacker_is_archer {
+                        // Assassins take 50% less damage from archers
+                        modified_damage *= crate::game::units::assassin::constants::ARCHER_DAMAGE_REDUCTION;
+                    } else if attacker_is_infantry {
+                        // Assassins take 20% more damage from infantry
+                        modified_damage *= crate::game::units::assassin::constants::INFANTRY_DAMAGE_INCREASE;
+                    }
+                }
+
+                // Apply Assassin damage bonus (offensive)
+                if attacker_is_assassin && target_is_archer {
+                    modified_damage *= crate::game::units::assassin::constants::ASSASSIN_VS_ARCHER_DAMAGE;
+                }
+
                 // Apply target's Mark of Death amplification
                 if let Some(mark) = marked_for_death {
                     modified_damage *= 1.0 + mark.damage_amplification;
@@ -687,6 +740,11 @@ pub fn combat(
                     }
                 }
 
+                // Apply melee damage reduction (e.g. Ogre boss)
+                if let Some(reduction) = melee_damage_reduction {
+                    modified_damage *= reduction.multiplier;
+                }
+
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
 
                 // Bloodlust: heal attacker for a fraction of damage dealt
@@ -707,6 +765,34 @@ pub fn combat(
                 }
 
                 attack_timing.record_attack(current_time);
+
+                // Trigger melee attack animation.
+                // Archers handle their own animations in archer_melee_combat.
+                let attack_textures = if attacker_is_infantry {
+                    if *attacker_team == Team::Undead {
+                        Some((
+                            combat_undead_assets.attacking_texture.clone(),
+                            combat_undead_assets.sprite_texture.clone(),
+                        ))
+                    } else {
+                        Some((
+                            combat_infantry_assets.attacking_texture.clone(),
+                            combat_infantry_assets.sprite_texture.clone(),
+                        ))
+                    }
+                } else if attacker_is_assassin {
+                    Some((
+                        combat_assassin_assets.attacking_texture.clone(),
+                        combat_assassin_assets.sprite_texture.clone(),
+                    ))
+                } else {
+                    None
+                };
+                if let Some((attack_tex, walk_tex)) = attack_textures {
+                    commands.entity(attacker_entity).insert(
+                        super::units::components::CombatAnimation::new_attack(attack_tex, walk_tex),
+                    );
+                }
             }
             }
         }
@@ -785,6 +871,10 @@ pub fn convert_dead_to_corpses(
             &Transform,
             Option<&Infantry>,
             Option<&Archer>,
+            Option<&super::units::assassin::Assassin>,
+            Option<&super::units::dispeller::components::Dispeller>,
+            Option<&super::units::shielder::components::Shielder>,
+            Option<&super::units::healer::components::Healer>,
             Option<&super::units::king::components::King>,
             Option<&Boss>,
             Option<&SpellDamaged>,
@@ -793,11 +883,22 @@ pub fn convert_dead_to_corpses(
         ),
         (Without<Corpse>, Without<super::units::wizard::spells::fog_cloud::components::PhantomUnit>),
     >,
-    infantry_assets: Res<super::units::infantry::resources::InfantryAssets>,
-    archer_assets: Res<super::units::archer::resources::ArcherAssets>,
-    king_assets: Res<super::units::king::resources::KingAssets>,
+    death_assets: (
+        Res<super::units::infantry::resources::InfantryAssets>,
+        Res<super::units::archer::resources::ArcherAssets>,
+        Res<super::units::assassin::resources::AssassinAssets>,
+        Res<super::units::dispeller::resources::DispellerAssets>,
+        Res<super::units::undead::resources::UndeadAssets>,
+        Res<super::units::king::resources::KingAssets>,
+    ),
+    death_assets_2: (
+        Res<super::units::shielder::resources::ShielderAssets>,
+        Res<super::units::healer::resources::HealerAssets>,
+    ),
     mut velocity_query: Query<&mut Velocity>,
 ) {
+    let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, undead_assets, king_assets) = &death_assets;
+    let (shielder_assets, healer_assets) = &death_assets_2;
     for (
         entity,
         health,
@@ -805,6 +906,10 @@ pub fn convert_dead_to_corpses(
         transform,
         is_infantry,
         is_archer,
+        is_assassin,
+        is_dispeller,
+        is_shielder,
+        is_healer,
         is_king,
         _is_boss,
         spell_damaged,
@@ -858,81 +963,80 @@ pub fn convert_dead_to_corpses(
                 marked_kill_events.write(super::achievements::messages::MarkedForDeathKillMessage);
             }
 
-            // Pick a random corpse material variant and appropriate mesh
-            let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
-
-            let (mat, mesh) = if is_king.is_some() {
-                (
-                    king_assets.corpse_materials[idx].clone(),
-                    king_assets.sprite_mesh.clone(),
-                )
+            // Determine if this unit type has a death animation sprite sheet.
+            // Undead infantry use undead-specific death texture.
+            let death_texture = if is_dispeller.is_some() {
+                Some(dispeller_assets.death_texture.clone())
+            } else if is_shielder.is_some() {
+                Some(shielder_assets.death_texture.clone())
+            } else if is_healer.is_some() {
+                Some(healer_assets.death_texture.clone())
             } else if is_infantry.is_some() {
-                let mat = corpse_material_for_team(
-                    &infantry_assets.defender_corpse_materials,
-                    &infantry_assets.attacker_corpse_materials,
-                    &infantry_assets.undead_corpse_materials,
-                    *team,
-                    idx,
-                );
-                (mat, infantry_assets.sprite_mesh.clone())
+                if *team == Team::Undead {
+                    Some(undead_assets.death_texture.clone())
+                } else {
+                    Some(infantry_assets.death_texture.clone())
+                }
             } else if is_archer.is_some() {
-                let mat = corpse_material_for_team(
-                    &archer_assets.defender_corpse_materials,
-                    &archer_assets.attacker_corpse_materials,
-                    &archer_assets.undead_corpse_materials,
-                    *team,
-                    idx,
-                );
-                (mat, archer_assets.sprite_mesh.clone())
+                Some(archer_assets.death_texture.clone())
+            } else if is_assassin.is_some() {
+                Some(assassin_assets.death_texture.clone())
             } else {
-                // Boss and fallback use infantry corpse materials + circle mesh
-                let mat = corpse_material_for_team(
-                    &infantry_assets.defender_corpse_materials,
-                    &infantry_assets.attacker_corpse_materials,
-                    &infantry_assets.undead_corpse_materials,
-                    *team,
-                    idx,
-                );
-                (mat, infantry_assets.mesh.clone())
+                None
             };
 
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(mat))
-                .insert(Mesh3d(mesh));
-
-            // Create a new transform for the corpse: lay flat on ground at Y=1
-            // Rotate -90 degrees around X axis to make it face upward
-            let corpse_transform =
-                Transform::from_xyz(transform.translation.x, 1.0, transform.translation.z)
-                    .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
-
-            // Add corpse marker and rough terrain effect
             let mut entity_commands = commands.entity(entity);
-            entity_commands
-                .insert(Corpse)
-                .insert(corpse_transform)
-                .insert(RoughTerrain {
-                    slowdown_factor: 0.4,
-                }); // 60% speed reduction
+            entity_commands.insert(Corpse);
+
+            if let Some(death_tex) = death_texture {
+                // Unit has death animation: play it before laying flat
+                entity_commands
+                    .insert(super::units::components::DyingAnimation::new(death_tex))
+                    .remove::<super::units::components::CombatAnimation>();
+                // Billboard stays so sprite faces camera during death animation
+            } else {
+                // No death animation: instant corpse swap (king, boss, fallback)
+                let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
+
+                let (mat, mesh) = if is_king.is_some() {
+                    (
+                        king_assets.corpse_materials[idx].clone(),
+                        king_assets.sprite_mesh.clone(),
+                    )
+                } else {
+                    // Boss and fallback use infantry corpse materials + circle mesh
+                    let mat = corpse_material_for_team(
+                        &infantry_assets.defender_corpse_materials,
+                        &infantry_assets.attacker_corpse_materials,
+                        &infantry_assets.undead_corpse_materials,
+                        *team,
+                        idx,
+                    );
+                    (mat, infantry_assets.mesh.clone())
+                };
+
+                entity_commands
+                    .insert(MeshMaterial3d(mat))
+                    .insert(Mesh3d(mesh));
+
+                super::units::systems::lay_corpse_flat(&mut entity_commands, transform.translation);
+            }
 
             // Mark undead corpses as permanent (cannot be resurrected)
             if *team == Team::Undead {
                 entity_commands.insert(super::units::components::PermanentCorpse);
             }
 
-            // Keep Velocity and Acceleration so corpses can be affected by external forces (e.g., black hole)
-            // But reset velocity to zero so they don't continue moving from their death momentum
+            // Reset velocity so corpses don't continue moving
             if let Ok(mut velocity) = velocity_query.get_mut(entity) {
                 velocity.x = 0.0;
                 velocity.z = 0.0;
             }
 
             entity_commands
-                .remove::<MovementSpeed>() // Can't move on their own
-                .remove::<AttackTiming>() // Can't attack
-                .remove::<Hitbox>() // Remove collision
-                .remove::<crate::game::components::Billboard>() // Remove billboard so corpse stays flat
+                .remove::<MovementSpeed>()
+                .remove::<AttackTiming>()
+                .remove::<Hitbox>()
                 .remove::<super::units::components::CommanderAuraSpeedModifier>()
                 .remove::<super::units::components::SlowMovementModifier>()
                 .remove::<super::units::components::FrostEffectMarker>()
@@ -943,7 +1047,6 @@ pub fn convert_dead_to_corpses(
                 .remove::<super::units::components::PendingDamageEffect>()
                 .remove::<super::units::components::OriginalMaterial>()
                 .remove::<super::units::components::RoughTerrainModifier>()
-                // New spell modifiers
                 .remove::<super::units::components::MarkedForDeathModifier>()
                 .remove::<super::units::components::SleepModifier>()
                 .remove::<super::units::components::NightTerrors>()
@@ -1329,4 +1432,128 @@ pub fn track_wizard_enemy_damage(
 /// Run condition: returns true when no wizard spell has damaged enemies yet this battle.
 pub fn wizard_has_not_damaged_enemies(kill_stats: Res<super::resources::KillStats>) -> bool {
     !kill_stats.wizard_damaged_enemies
+}
+
+// ===== Battle Ambience =====
+
+/// Number of units in melee at which the battle sound reaches full intensity.
+const BATTLE_AMBIENCE_MAX_UNITS: f32 = 40.0;
+
+/// Overall volume scale for battle ambience (kept subtle so it doesn't overpower spells/music).
+const BATTLE_AMBIENCE_VOLUME_SCALE: f32 = 0.15;
+
+/// Maximum distance for battle ambience attenuation (same as spell SFX).
+const BATTLE_AMBIENCE_MAX_DISTANCE: f32 = 10000.0;
+
+/// Overall volume scale for the crowd ambience loop.
+const CROWD_AMBIENCE_VOLUME_SCALE: f32 = 0.12;
+
+/// Position of the battlefield center for crowd sound attenuation (XZ from staging point).
+const BATTLEFIELD_CENTER: Vec3 = Vec3::new(STAGING_POINT.0, 0.0, STAGING_POINT.1);
+
+/// Pre-loaded battle ambience audio.
+#[derive(Resource)]
+pub struct BattleAmbienceAssets {
+    pub battle_audio: Handle<AudioSource>,
+    pub crowd_audio: Handle<AudioSource>,
+}
+
+/// Marker component for the melee battle ambience audio entity.
+#[derive(Component)]
+pub(crate) struct BattleAmbienceEntity;
+
+/// Marker component for the crowd ambience audio entity.
+#[derive(Component)]
+pub(crate) struct CrowdAmbienceEntity;
+
+/// Loads the battle ambience audio assets at startup.
+pub fn load_battle_ambience_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(BattleAmbienceAssets {
+        battle_audio: asset_server.load("audio/sound_effects/battle.ogg"),
+        crowd_audio: asset_server.load("audio/sound_effects/angry_crowd.ogg"),
+    });
+}
+
+/// Scales the looping battle ambience volume based on how many units are in melee combat.
+/// Uses distance attenuation from the average melee position to the wizard, so battles
+/// closer to the castle sound louder than distant skirmishes.
+pub fn update_battle_ambience(
+    mut commands: Commands,
+    melee_query: Query<(&InMelee, &Transform)>,
+    mut ambience_query: Query<(Entity, Option<&mut AudioSink>), With<BattleAmbienceEntity>>,
+    ambience_assets: Res<BattleAmbienceAssets>,
+    game_config: Res<GameConfig>,
+) {
+    let melee_count = melee_query.iter().count() as f32;
+    let sfx_volume = game_config.effective_sfx_volume();
+
+    if melee_count > 0.0 && sfx_volume > 0.0 {
+        // Compute average position of all melee units for distance attenuation
+        let avg_pos = melee_query
+            .iter()
+            .fold(Vec3::ZERO, |acc, (_, t)| acc + t.translation)
+            / melee_count;
+        let distance = avg_pos.distance(SPELL_ORIGIN);
+        let linear = (1.0 - distance / BATTLE_AMBIENCE_MAX_DISTANCE).clamp(0.0, 1.0);
+        let attenuation = linear * linear * linear;
+
+        let intensity = (melee_count / BATTLE_AMBIENCE_MAX_UNITS).clamp(0.0, 1.0);
+        let volume = sfx_volume * intensity * attenuation * BATTLE_AMBIENCE_VOLUME_SCALE;
+
+        if volume <= 0.0 {
+            if let Ok((entity, _)) = ambience_query.single() {
+                commands.entity(entity).try_despawn();
+            }
+            return;
+        }
+
+        if let Ok((_entity, sink)) = ambience_query.single_mut() {
+            if let Some(mut sink) = sink {
+                sink.set_volume(Volume::Linear(volume));
+            }
+        } else {
+            commands.spawn((
+                AudioPlayer::new(ambience_assets.battle_audio.clone()),
+                PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
+                BattleAmbienceEntity,
+                super::components::OnGameplayScreen,
+            ));
+        }
+    } else if let Ok((entity, _)) = ambience_query.single() {
+        commands.entity(entity).try_despawn();
+    }
+}
+
+/// Plays a muffled crowd loop throughout the battle, attenuated from the battlefield center.
+/// Spawns on first run, despawns when SFX is muted.
+pub fn update_crowd_ambience(
+    mut commands: Commands,
+    mut crowd_query: Query<(Entity, Option<&mut AudioSink>), With<CrowdAmbienceEntity>>,
+    ambience_assets: Res<BattleAmbienceAssets>,
+    game_config: Res<GameConfig>,
+) {
+    let sfx_volume = game_config.effective_sfx_volume();
+
+    // Distance from battlefield center to wizard
+    let distance = BATTLEFIELD_CENTER.distance(SPELL_ORIGIN);
+    let linear = (1.0 - distance / BATTLE_AMBIENCE_MAX_DISTANCE).clamp(0.0, 1.0);
+    let attenuation = linear * linear * linear;
+    let volume = sfx_volume * attenuation * CROWD_AMBIENCE_VOLUME_SCALE;
+
+    if volume > 0.0 {
+        if let Ok((_entity, sink)) = crowd_query.single_mut() {
+            if let Some(mut sink) = sink {
+                sink.set_volume(Volume::Linear(volume));
+            }
+        } else {
+            commands.spawn((
+                AudioPlayer::new(ambience_assets.crowd_audio.clone()),
+                PlaybackSettings::LOOP.with_volume(Volume::Linear(volume)),
+                CrowdAmbienceEntity,
+                super::components::OnGameplayScreen,
+            ));
+        }
+    } else if let Ok((entity, _)) = crowd_query.single() {
+        commands.entity(entity).try_despawn();
+    }
 }

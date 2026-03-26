@@ -24,11 +24,11 @@ pub fn load_wizard_assets(mut commands: Commands, asset_server: Res<AssetServer>
 ///
 /// Spawns the wizard entity as an animated sprite billboard on the castle platform.
 pub fn setup_wizard(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    config: Res<GameConfig>,
-    wizard_assets: Res<WizardAssets>,
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    config: &GameConfig,
+    wizard_assets: &WizardAssets,
 ) {
     let hitbox = Hitbox::new(constants::HITBOX_RADIUS, constants::HITBOX_HEIGHT);
 

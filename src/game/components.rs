@@ -30,6 +30,9 @@ pub struct Billboard;
 pub struct Velocity {
     pub x: f32,
     pub z: f32,
+    /// Maximum allowed speed magnitude. Set by the movement system each frame.
+    /// When > 0, velocity is clamped to this magnitude after acceleration integration.
+    pub max_speed: f32,
 }
 
 /// Acceleration component for units using boids flocking.

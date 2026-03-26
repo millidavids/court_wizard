@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::debug::{self, FlowFieldDebugMode};
+use super::debug::{self, DebugBallActive, DebugBallLogTimer, FlowFieldDebugMode};
 use super::messages::ObstacleChanged;
 use super::resources::PathfindingGrid;
 use super::systems::*;
@@ -19,28 +19,34 @@ impl Plugin for PathfindingPlugin {
             .add_message::<ObstacleChanged>()
             // Debug visualization
             .init_resource::<FlowFieldDebugMode>()
-            // Note: initialize_pathfinding is now called via the loading spawn queue
-            // Flow field management: only the host needs to generate/rebuild fields.
-            // Gated by is_gameplay_running so they run for both SP and MP host.
+            // Wave staging timers (timeout-based force activation)
+            .init_resource::<WaveStagingTimers>()
+            // Flow field management: continuously rebuild all fields in parallel.
             .add_systems(
                 Update,
                 (
                     // Generate initial fields when Defender King spawns
                     generate_initial_fields,
-                    // Track King movement for attacker field
-                    update_king_position,
-                    // Update King's target for defender field
+                    // Track King's closest enemy target for defender field
                     update_king_target,
                     // Tick defender rally delay (no-enemies → spawn center)
                     tick_defender_rally_delay,
-                    // Handle obstacle changes (updates costs, starts debounce timer)
+                    // Handle obstacle changes (updates base_costs)
                     handle_obstacle_events,
-                    // Flush debounced rebuilds after the batching window expires
-                    flush_debounced_rebuilds,
-                    // Process rebuild queue (one rebuild per frame max)
-                    process_rebuild_queue,
-                    // Apply completed async rebuilds
-                    apply_completed_rebuilds,
+                    // Poll completed rebuilds and immediately spawn new ones
+                    continuous_flow_field_rebuild,
+                )
+                    .chain()
+                    .run_if(resource_exists::<PathfindingGrid>)
+                    .run_if(is_gameplay_running),
+            )
+            // Wave activation: tag new attackers, check wave thresholds, manage speedup
+            .add_systems(
+                Update,
+                (
+                    tag_new_attackers,
+                    check_wave_activation,
+                    manage_staging_speedup,
                 )
                     .chain()
                     .run_if(resource_exists::<PathfindingGrid>)
@@ -65,6 +71,18 @@ impl Plugin for PathfindingPlugin {
                 (
                     debug::toggle_flow_field_debug,
                     debug::update_debug_visualization.run_if(resource_exists::<PathfindingGrid>),
+                )
+                    .run_if(is_gameplay_running),
+            )
+            // Debug ball (F4 toggle + arrow key movement + position logging)
+            .init_resource::<DebugBallActive>()
+            .init_resource::<DebugBallLogTimer>()
+            .add_systems(
+                Update,
+                (
+                    debug::toggle_debug_ball,
+                    debug::move_debug_ball,
+                    debug::log_debug_ball_position,
                 )
                     .run_if(is_gameplay_running),
             );

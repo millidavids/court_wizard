@@ -83,4 +83,7 @@ pub struct ButtonStyle {
     pub border: Color,
     /// Text color.
     pub text_color: Color,
+    /// Whether to render a drop shadow behind button text.
+    pub text_shadow: bool,
 }
+

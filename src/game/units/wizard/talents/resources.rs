@@ -5,6 +5,8 @@ use bevy::prelude::*;
 use crate::config::save_data;
 use crate::game::units::wizard::components::Spell;
 
+use super::constants::tier_thresholds;
+
 /// Tracks which talents the player has selected for each spell.
 /// Loaded from save data on entering relevant states.
 #[derive(Resource, Default)]
@@ -13,15 +15,54 @@ pub(crate) struct ActiveTalents {
 }
 
 impl ActiveTalents {
-    /// Load talent selections from save data.
+    /// Load talent selections from save data, clearing any selections
+    /// in tiers the player hasn't actually unlocked yet.
     pub fn from_save() -> Self {
+        // Load save file once for validation; only write back if we fix anything
+        let mut save_file = save_data::load_unified_save();
+        let mut save_dirty = false;
+
         let mut selections = HashMap::new();
         for spell in Spell::all() {
-            let sel = save_data::get_spell_talent_selections(*spell);
+            let mut sel = save_data::get_spell_talent_selections(*spell);
+            let progress = save_data::get_spell_talent_progress(*spell);
+            let thresholds = tier_thresholds(*spell);
+
+            // Clear selections in locked tiers
+            for (tier, slot) in sel.iter_mut().enumerate() {
+                if slot.is_some() && progress < thresholds[tier] {
+                    warn!(
+                        "Clearing invalid talent selection for {:?} tier {} \
+                         (progress {} < threshold {})",
+                        spell, tier, progress, thresholds[tier]
+                    );
+                    *slot = None;
+
+                    // Fix in the loaded save file (batched write at end)
+                    if let Some(ref mut sf) = save_file {
+                        let name = format!("{:?}", spell);
+                        if let Some(entry) = sf.player.spell_talent_selections.get_mut(&name) {
+                            if tier < entry.len() {
+                                entry[tier] = -1;
+                                save_dirty = true;
+                            }
+                        }
+                    }
+                }
+            }
+
             if sel.iter().any(|s| s.is_some()) {
                 selections.insert(*spell, sel);
             }
         }
+
+        // Single write if any selections were cleaned up
+        if save_dirty {
+            if let Some(ref sf) = save_file {
+                save_data::save_unified(sf);
+            }
+        }
+
         Self { selections }
     }
 

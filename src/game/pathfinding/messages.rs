@@ -12,8 +12,9 @@ pub struct ObstacleChanged {
     /// Actual shape for per-cell narrowphase testing.
     /// When `None`, every cell in `bounds` is affected (legacy AABB behavior).
     pub shape: Option<ObstacleShape>,
-    /// When true, triggers a full async flow field rebuild even for non-Blocked obstacles.
-    /// Use for hazards that should cause units to reroute (e.g. Wall of Fire).
+    /// Previously used to trigger immediate rebuilds for hazards.
+    /// With continuous rebuilding, this is no longer needed but kept for API compatibility.
+    #[allow(dead_code)]
     pub rebuild: bool,
 }
 
@@ -24,7 +25,6 @@ pub enum ObstacleType {
     Blocked,
     /// Cell has increased movement cost (mud, water).
     /// The f32 value is the cost multiplier (e.g., 3.0 = 3x slower).
-    #[allow(dead_code)]
     SlowTerrain(f32),
     /// Cell is a hazard (fire, poison) with increased movement cost.
     /// The f32 value is the cost multiplier — higher values make units avoid more strongly.

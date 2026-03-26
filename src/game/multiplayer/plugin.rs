@@ -15,10 +15,12 @@ use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionState, NetworkConnection};
+use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::networking::session::{MultiplayerSession, is_multiplayer_guest, is_multiplayer_host};
 use crate::networking::snapshot::SnapshotTick;
 use crate::state::{AppState, MultiplayerGameState};
 use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
 use crate::ui::plugin::ButtonActionSet;
 use crate::ui::systems::spawn_button;
 
@@ -360,9 +362,10 @@ const SCORE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 65.0,
     border_width: 3.0,
     font_size: 20.0,
-    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
+    text_color: TEXT_PRIMARY,
+    text_shadow: true,
 };
 
 // ── Score Screen Systems ──────────────────────────────────────────────
@@ -463,6 +466,7 @@ fn handle_mp_score_buttons(
     mut connection: ResMut<NetworkConnection>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut status_text: Query<&mut Text, With<RematchStatusText>>,
+    transport: Option<Res<TransportHandle>>,
     mut commands: Commands,
 ) {
     for event in button_clicked.read() {
@@ -484,7 +488,10 @@ fn handle_mp_score_buttons(
                     }
                 }
                 MpScoreButtonAction::Disconnect => {
-                    connection.state = ConnectionState::Disconnected;
+                    if let Some(ref transport) = transport {
+                        transport.send_command(TransportCommand::Disconnect);
+                    }
+                    connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
                 }
@@ -595,9 +602,10 @@ const PAUSE_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 65.0,
     border_width: 3.0,
     font_size: 20.0,
-    background: Color::hsla(0.0, 0.0, 0.15, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.3, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.9, 1.0),
+    background: BUTTON_BG,
+    border: BUTTON_BORDER,
+    text_color: TEXT_PRIMARY,
+    text_shadow: true,
 };
 
 /// Spawns the MP escape menu overlay.
@@ -623,7 +631,7 @@ fn setup_mp_pause_menu(mut commands: Commands) {
             parent.spawn((
                 Text::new("Menu"),
                 TextFont::from_font_size(40.0),
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(TEXT_PRIMARY),
                 Node {
                     margin: UiRect::bottom(Val::Px(20.0)),
                     ..default()
@@ -661,6 +669,7 @@ fn handle_mp_pause_buttons(
     mut connection: ResMut<NetworkConnection>,
     mut next_mp_state: ResMut<NextState<MultiplayerGameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
+    transport: Option<Res<TransportHandle>>,
     mut commands: Commands,
 ) {
     for event in button_clicked.read() {
@@ -670,7 +679,10 @@ fn handle_mp_pause_buttons(
                     next_mp_state.set(MultiplayerGameState::Running);
                 }
                 MpPauseButtonAction::Disconnect => {
-                    connection.state = ConnectionState::Disconnected;
+                    if let Some(ref transport) = transport {
+                        transport.send_command(TransportCommand::Disconnect);
+                    }
+                    connection.reset();
                     commands.remove_resource::<MultiplayerSession>();
                     next_app_state.set(AppState::MainMenu);
                 }

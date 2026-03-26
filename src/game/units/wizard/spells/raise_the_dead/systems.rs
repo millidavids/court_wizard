@@ -16,8 +16,8 @@ use crate::game::units::components::{
 use crate::game::units::constants::{
     POISON_DURATION, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
 };
-use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
+use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::utils::{
@@ -130,7 +130,7 @@ pub fn handle_raise_the_dead_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
-    infantry_assets: Res<InfantryAssets>,
+    undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
@@ -221,7 +221,7 @@ pub fn handle_raise_the_dead_casting(
         &mut commands,
         wizard_entity,
         &corpse_query,
-        &infantry_assets,
+        &undead_assets,
         &mut materials,
         &sfx,
         &game_config,
@@ -245,7 +245,7 @@ fn raise_the_dead_casting_logic(
     commands: &mut Commands,
     wizard_entity: Entity,
     corpse_query: &Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
-    infantry_assets: &InfantryAssets,
+    undead_assets: &UndeadAssets,
     materials: &mut Assets<StandardMaterial>,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
@@ -282,7 +282,7 @@ fn raise_the_dead_casting_logic(
                             commands,
                             cursor_pos,
                             corpse_query,
-                            infantry_assets,
+                            undead_assets,
                             materials,
                             primed_spell.empowerment,
                             talent_params,
@@ -313,7 +313,7 @@ fn raise_the_dead_casting_logic(
                             commands,
                             cursor_pos,
                             corpse_query,
-                            infantry_assets,
+                            undead_assets,
                             materials,
                             primed_spell.empowerment,
                             talent_params,
@@ -370,7 +370,7 @@ fn raise_corpse_as_undead(
     speed: f32,
     talent_params: &RaiseTheDeadTalentParams,
     empowerment: f32,
-    infantry_assets: &InfantryAssets,
+    undead_assets: &UndeadAssets,
     materials: &mut Assets<StandardMaterial>,
     talent_progress: Option<&mut BattleTalentProgress>,
 ) {
@@ -382,7 +382,8 @@ fn raise_corpse_as_undead(
         health,
         speed,
         UNDEAD_SPRITE_TINT,
-        infantry_assets,
+        undead_assets.sprite_texture.clone(),
+        undead_assets.sprite_mesh.clone(),
         materials,
     );
 
@@ -401,7 +402,7 @@ fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
     corpse_query: &Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
-    infantry_assets: &InfantryAssets,
+    undead_assets: &UndeadAssets,
     materials: &mut Assets<StandardMaterial>,
     empowerment: f32,
     talent_params: &RaiseTheDeadTalentParams,
@@ -435,7 +436,7 @@ fn resurrect_nearest_corpse(
         speed,
         talent_params,
         empowerment,
-        infantry_assets,
+        undead_assets,
         materials,
         talent_progress,
     );
@@ -643,7 +644,7 @@ pub fn handle_perpetual_unrest(
         (&Transform, &PerpetualUnrest),
         (With<RaisedUndead>, Without<Corpse>),
     >,
-    infantry_assets: Res<InfantryAssets>,
+    undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -677,7 +678,7 @@ pub fn handle_perpetual_unrest(
                 UNIT_MOVEMENT_SPEED * 0.5,
                 &talent_params,
                 1.0,
-                &infantry_assets,
+                &undead_assets,
                 &mut materials,
                 talent_progress.as_deref_mut(),
             );
@@ -697,7 +698,7 @@ pub fn tick_revenant_raise(
         (Entity, &Transform),
         (With<Corpse>, Without<PermanentCorpse>),
     >,
-    infantry_assets: Res<InfantryAssets>,
+    undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -727,7 +728,7 @@ pub fn tick_revenant_raise(
                 UNIT_MOVEMENT_SPEED * 0.5,
                 &minion_params,
                 1.0,
-                &infantry_assets,
+                &undead_assets,
                 &mut materials,
                 talent_progress.as_deref_mut(),
             );

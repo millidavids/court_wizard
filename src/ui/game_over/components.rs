@@ -10,4 +10,6 @@ pub(super) enum GameOverButtonAction {
     PlayAgain,
     ReturnToTower,
     ReturnToMenu,
+    /// End a roguelite run — saves run stats and returns to main menu.
+    EndRun,
 }

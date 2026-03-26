@@ -9,6 +9,9 @@ pub enum FlowFieldInfluence {
     Attacker,
     /// Defenders flow toward King's target when activated, or rally to spawn point when not.
     Defender { spawn_pos: Vec2 },
+    /// Assassins flow toward the center of mass of enemy archers,
+    /// routing around infantry formations.
+    Assassin,
 }
 
 /// Tracks whether a unit is stuck and triggers recovery nudges.
@@ -35,6 +38,17 @@ impl Default for StuckDetection {
         }
     }
 }
+
+/// Marker component for attackers that are still marching to the staging area.
+/// Removed when the wave activates (90% of wave units reach the staging point).
+/// While present, units follow the staging flow field instead of the attacker field,
+/// and defenders ignore them for activation purposes.
+#[derive(Component)]
+pub struct StagingAttacker;
+
+/// Tracks which wave an attacker belongs to.
+#[derive(Component)]
+pub struct WaveGroup(pub u32);
 
 /// Flow field velocity calculated from sampling the flow field.
 ///

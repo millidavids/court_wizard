@@ -16,6 +16,7 @@ impl Plugin for OgrePlugin {
                 Update,
                 (
                     update_ogre_targeting.in_set(VelocitySystemSet),
+                    ogre_charge_system.before(ogre_movement),
                     ogre_movement.in_set(MovementCalculationSet),
                     ogre_combat.in_set(MovementCalculationSet),
                 )

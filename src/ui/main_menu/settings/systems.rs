@@ -1,25 +1,26 @@
 //! Settings menu systems.
 
-use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::{Difficulty, GameConfig, VsyncMode};
+use crate::config::{DisplayMode, GameConfig, VsyncMode};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
 use crate::ui::styles::{item_hovered, item_pressed};
+use crate::ui::systems::spawn_title_with_shadow;
 
 use super::components::{
-    ButtonColors, OnSettingsScreen, OptionButtonValue, ScrollableContainer, SelectedOption,
-    SettingsButtonAction, SliderAdjusted, SliderDownButton, SliderFill, SliderHandle, SliderText,
-    SliderTrack, SliderUpButton, SliderValue,
+    ButtonColors, ConfirmationAction, ConfirmationPopup, OnSettingsScreen, OptionButtonValue,
+    ScrollableContainer, SelectedOption, SettingsButtonAction, SliderAdjusted, SliderDownButton,
+    SliderFill, SliderHandle, SliderText, SliderTrack, SliderUpButton, SliderValue,
 };
 use super::constants::{
-    BACK_BUTTON_HEIGHT, BACK_BUTTON_WIDTH, BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
+    BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
     BUTTON_FONT_SIZE, DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, LABEL_FONT_SIZE, MARGIN,
-    MARGIN_SMALL, OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, SECTION_FONT_SIZE,
-    SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE, VOLUME_BUTTON_SIZE,
+    MARGIN_SMALL, OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, POPUP_BOX_BG, POPUP_OVERLAY_BG,
+    SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE,
+    VOLUME_BUTTON_SIZE,
 };
 
 /// Sets up the settings menu UI.
@@ -42,25 +43,36 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
         &mut commands,
         OnSettingsScreen,
         pause_menu,
-        Overflow::scroll_y(),
+        crate::ui::systems::default_content_node(),
     );
-    commands
-        .entity(content)
-        .insert(ScrollableContainer)
-        .with_children(|parent| {
-            // Title
-            parent.spawn((
-                Text::new("Settings"),
-                TextFont::from_font_size(TITLE_FONT_SIZE),
-                TextColor(TEXT_COLOR),
+    commands.entity(content).with_children(|parent| {
+        // Title
+        spawn_title_with_shadow(parent, "Settings", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+            margin: UiRect::bottom(Val::Px(MARGIN)),
+            ..default()
+        });
+
+        // Scrollable settings content
+        parent
+            .spawn((
                 Node {
+                    width: Val::Percent(100.0),
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    overflow: Overflow::scroll_y(),
                     margin: UiRect::bottom(Val::Px(MARGIN)),
+                    border: UiRect::all(Val::Px(1.0)),
+                    padding: UiRect::all(Val::Px(10.0)),
                     ..default()
                 },
-            ));
-
+                crate::ui::systems::scroll_area_style(),
+                ScrollPosition::default(),
+                ScrollableContainer,
+            ))
+            .with_children(|scroll| {
             // Graphics Settings Section
-            spawn_section(parent, "Graphics", |section| {
+            spawn_section(scroll, "Graphics", |section| {
                 // VSync Mode
                 spawn_option_row(section, "VSync:", |buttons| {
                     spawn_option_button(
@@ -82,10 +94,26 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
                         game_config.vsync == VsyncMode::Adaptive,
                     );
                 });
+
+                // Display Mode
+                spawn_option_row(section, "Display Mode:", |buttons| {
+                    spawn_option_button(
+                        buttons,
+                        "Windowed",
+                        OptionButtonValue::DisplayMode(DisplayMode::Windowed),
+                        game_config.display_mode == DisplayMode::Windowed,
+                    );
+                    spawn_option_button(
+                        buttons,
+                        "Fullscreen",
+                        OptionButtonValue::DisplayMode(DisplayMode::BorderlessFullscreen),
+                        game_config.display_mode == DisplayMode::BorderlessFullscreen,
+                    );
+                });
             });
 
             // Audio Settings Section
-            spawn_section(parent, "Audio", |section| {
+            spawn_section(scroll, "Audio", |section| {
                 spawn_slider_control(
                     section,
                     "Master Volume:",
@@ -102,7 +130,7 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
             });
 
             // Display Settings Section
-            spawn_section(parent, "Display", |section| {
+            spawn_section(scroll, "Display", |section| {
                 spawn_slider_control(
                     section,
                     "Brightness:",
@@ -112,28 +140,7 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
             });
 
             // Game Settings Section
-            spawn_section(parent, "Game", |section| {
-                spawn_option_row(section, "Difficulty:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "Easy",
-                        OptionButtonValue::Difficulty(Difficulty::Easy),
-                        game_config.difficulty == Difficulty::Easy,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Normal",
-                        OptionButtonValue::Difficulty(Difficulty::Normal),
-                        game_config.difficulty == Difficulty::Normal,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Hard",
-                        OptionButtonValue::Difficulty(Difficulty::Hard),
-                        game_config.difficulty == Difficulty::Hard,
-                    );
-                });
-
+            spawn_section(scroll, "Game", |section| {
                 spawn_option_row(section, "Skip Splash:", |buttons| {
                     spawn_option_button(
                         buttons,
@@ -288,36 +295,36 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
                         });
                     });
             });
+            }); // end scrollable container
 
-            // Back button
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(BACK_BUTTON_WIDTH),
-                        height: Val::Px(BACK_BUTTON_HEIGHT),
-                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        margin: UiRect::top(Val::Px(MARGIN)),
-                        ..default()
-                    },
-                    BorderColor::all(BUTTON_BORDER),
-                    BorderRadius::all(Val::Px(8.0)),
-                    BackgroundColor(BUTTON_BACKGROUND),
-                    ButtonColors {
-                        background: BUTTON_BACKGROUND,
-                    },
-                    SettingsButtonAction::Back,
-                ))
-                .with_children(|button| {
-                    button.spawn((
-                        Text::new("Back"),
-                        TextFont::from_font_size(BUTTON_FONT_SIZE),
-                        TextColor(TEXT_COLOR),
-                    ));
-                });
-        });
+        // Back button (outside scroll area)
+        parent
+            .spawn((
+                Button,
+                Node {
+                    width: Val::Px(150.0),
+                    height: Val::Px(50.0),
+                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BorderColor::all(BUTTON_BORDER),
+                BorderRadius::all(Val::Px(8.0)),
+                BackgroundColor(BUTTON_BACKGROUND),
+                ButtonColors {
+                    background: BUTTON_BACKGROUND,
+                },
+                SettingsButtonAction::Back,
+            ))
+            .with_children(|button| {
+                button.spawn((
+                    Text::new("Back"),
+                    TextFont::from_font_size(18.0),
+                    TextColor(TEXT_COLOR),
+                ));
+            });
+    });
 }
 
 /// Spawns settings with opaque background (for main menu).
@@ -433,9 +440,17 @@ fn spawn_option_button(
     }
 
     entity.with_children(|button| {
+        // Shrink font for longer labels that don't fit the button width
+        let font_size = crate::ui::systems::scale_font_by_text_width(
+            text.len() as f32,
+            6.0,  // up to 6 chars fits comfortably at full size
+            12.0, // 12+ chars gets minimum scale
+            0.7,  // minimum 70% of base font
+            BUTTON_FONT_SIZE,
+        );
         button.spawn((
             Text::new(text),
-            TextFont::from_font_size(BUTTON_FONT_SIZE),
+            TextFont::from_font_size(font_size),
             TextColor(TEXT_COLOR),
         ));
     });
@@ -724,15 +739,159 @@ pub fn button_press(
     }
 }
 
-/// Handles settings button actions when clicked from main menu.
-pub fn settings_button_action(
+/// Spawns a confirmation popup overlay in the center of the screen.
+fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonAction, message: &str) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                position_type: PositionType::Absolute,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(POPUP_OVERLAY_BG),
+            GlobalZIndex(600),
+            ConfirmationPopup,
+            OnSettingsScreen,
+        ))
+        .with_children(|overlay| {
+            overlay
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::all(Val::Px(30.0)),
+                        row_gap: Val::Px(20.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(POPUP_BOX_BG),
+                    BorderColor::all(DANGER_BUTTON_BORDER),
+                    BorderRadius::all(Val::Px(8.0)),
+                ))
+                .with_children(|popup| {
+                    popup.spawn((
+                        Text::new(message),
+                        TextFont::from_font_size(SECTION_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                    ));
+
+                    popup
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(MARGIN),
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            row.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(OPTION_BUTTON_WIDTH),
+                                    height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                BorderColor::all(DANGER_BUTTON_BORDER),
+                                BorderRadius::all(Val::Px(4.0)),
+                                BackgroundColor(DANGER_BUTTON_BACKGROUND),
+                                ButtonColors {
+                                    background: DANGER_BUTTON_BACKGROUND,
+                                },
+                                ConfirmationAction::Confirm(action),
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn((
+                                    Text::new("Confirm"),
+                                    TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                    TextColor(TEXT_COLOR),
+                                ));
+                            });
+
+                            row.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(OPTION_BUTTON_WIDTH),
+                                    height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                BorderColor::all(BUTTON_BORDER),
+                                BorderRadius::all(Val::Px(4.0)),
+                                BackgroundColor(BUTTON_BACKGROUND),
+                                ButtonColors {
+                                    background: BUTTON_BACKGROUND,
+                                },
+                                ConfirmationAction::Cancel,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn((
+                                    Text::new("Cancel"),
+                                    TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                    TextColor(TEXT_COLOR),
+                                ));
+                            });
+                        });
+                });
+        });
+}
+
+/// Handles confirm/cancel clicks on the confirmation popup.
+pub fn handle_confirmation_popup(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&SettingsButtonAction>,
-    mut next_menu_state: ResMut<NextState<MenuState>>,
-    mut channel_change: MessageWriter<ChannelChangeMessage>,
+    action_query: Query<&ConfirmationAction>,
+    popup_query: Query<Entity, With<ConfirmationPopup>>,
     mut tutorial_progress: ResMut<crate::ui::tutorial::resources::TutorialProgress>,
     mut popup_queue: ResMut<crate::ui::achievement_popup::PopupQueue>,
 ) {
+    for event in button_clicked.read() {
+        if let Ok(action) = action_query.get(event.button) {
+            if let ConfirmationAction::Confirm(settings_action) = action {
+                match settings_action {
+                    SettingsButtonAction::ResetTutorials => {
+                        tutorial_progress.reset();
+                        crate::ui::tutorial::systems::reset_tutorial_progress();
+                        popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                            message: "Tutorials have been reset.",
+                        });
+                    }
+                    SettingsButtonAction::ClearProgress => {
+                        crate::config::save_data::clear_progress();
+                        popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
+                            message: "All progress has been cleared.",
+                        });
+                    }
+                    _ => {}
+                }
+            }
+            // Despawn popup on either Confirm or Cancel
+            for entity in &popup_query {
+                commands.entity(entity).despawn();
+            }
+        }
+    }
+}
+
+/// Handles settings button actions when clicked from main menu.
+pub fn settings_button_action(
+    mut commands: Commands,
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&SettingsButtonAction>,
+    popup_query: Query<&ConfirmationPopup>,
+    mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
+) {
+    // Don't process settings buttons while a confirmation popup is open
+    if !popup_query.is_empty() {
+        button_clicked.read();
+        return;
+    }
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
@@ -741,17 +900,18 @@ pub fn settings_button_action(
                     next_menu_state.set(MenuState::Landing);
                 }
                 SettingsButtonAction::ResetTutorials => {
-                    tutorial_progress.reset();
-                    crate::ui::tutorial::systems::reset_tutorial_progress();
-                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
-                        message: "Tutorials have been reset.",
-                    });
+                    spawn_confirmation_popup(
+                        &mut commands,
+                        *action,
+                        "Reset all tutorials?",
+                    );
                 }
                 SettingsButtonAction::ClearProgress => {
-                    crate::config::save_data::clear_progress();
-                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
-                        message: "All progress has been cleared.",
-                    });
+                    spawn_confirmation_popup(
+                        &mut commands,
+                        *action,
+                        "Clear all progress? This cannot be undone.",
+                    );
                 }
             }
         }
@@ -760,12 +920,17 @@ pub fn settings_button_action(
 
 /// Handles settings button actions when clicked from pause menu.
 pub fn pause_settings_button_action(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&SettingsButtonAction>,
+    popup_query: Query<&ConfirmationPopup>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
-    mut tutorial_progress: ResMut<crate::ui::tutorial::resources::TutorialProgress>,
-    mut popup_queue: ResMut<crate::ui::achievement_popup::PopupQueue>,
 ) {
+    // Don't process settings buttons while a confirmation popup is open
+    if !popup_query.is_empty() {
+        button_clicked.read();
+        return;
+    }
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
@@ -773,17 +938,18 @@ pub fn pause_settings_button_action(
                     next_pause_menu_state.set(PauseMenuState::Main);
                 }
                 SettingsButtonAction::ResetTutorials => {
-                    tutorial_progress.reset();
-                    crate::ui::tutorial::systems::reset_tutorial_progress();
-                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
-                        message: "Tutorials have been reset.",
-                    });
+                    spawn_confirmation_popup(
+                        &mut commands,
+                        *action,
+                        "Reset all tutorials?",
+                    );
                 }
                 SettingsButtonAction::ClearProgress => {
-                    crate::config::save_data::clear_progress();
-                    popup_queue.push(crate::ui::achievement_popup::PopupEntry::Toast {
-                        message: "All progress has been cleared.",
-                    });
+                    spawn_confirmation_popup(
+                        &mut commands,
+                        *action,
+                        "Clear all progress? This cannot be undone.",
+                    );
                 }
             }
         }
@@ -876,36 +1042,29 @@ pub fn update_sliders(
 }
 
 /// Handles dragging slider handles and clicking on tracks.
+///
+/// Uses the track's `RelativeCursorPosition` for both click-to-jump and drag
+/// tracking. This is immune to scale factor, viewport, and CRT distortion
+/// differences between mouse motion units and logical UI pixels.
 pub fn slider_interaction(
     buttons: Res<ButtonInput<bevy::input::mouse::MouseButton>>,
-    mut mouse_motion: MessageReader<MouseMotion>,
     mut slider_handles: Query<(&Interaction, &mut SliderHandle)>,
     slider_tracks: Query<(&Interaction, &RelativeCursorPosition, &SliderTrack)>,
     mut game_config: ResMut<GameConfig>,
     mut slider_adjusted: MessageWriter<SliderAdjusted>,
 ) {
-    const SLIDER_WIDTH: f32 = 200.0;
+    // Stop dragging when mouse is released
+    if !buttons.pressed(bevy::input::mouse::MouseButton::Left) {
+        for (_interaction, mut slider_handle) in &mut slider_handles {
+            slider_handle.is_dragging = false;
+        }
+        return;
+    }
 
-    // Check if track was clicked (jump to position and start dragging)
+    // Check if track was clicked (start dragging)
     if buttons.just_pressed(bevy::input::mouse::MouseButton::Left) {
-        for (interaction, cursor_pos, track) in &slider_tracks {
-            // Check if track or its children are being interacted with
-            if matches!(*interaction, Interaction::Pressed | Interaction::Hovered)
-                && let Some(pos) = cursor_pos.normalized
-            {
-                // RelativeCursorPosition.normalized has center at (0,0)
-                // So left edge = -0.5, right edge = 0.5
-                // Convert to 0-1 range by adding 0.5
-                let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
-
-                // Scale to the appropriate range for this value
-                let min = track.value.min_value();
-                let max = track.value.max_value();
-                let range = max - min;
-                let new_value = (min + normalized * range).clamp(min, max);
-                track.value.set(&mut game_config, new_value);
-                slider_adjusted.write(SliderAdjusted);
-
+        for (interaction, _cursor_pos, track) in &slider_tracks {
+            if matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
                 // Start dragging the corresponding handle
                 for (_handle_interaction, mut slider_handle) in &mut slider_handles {
                     if slider_handle.value == track.value {
@@ -914,36 +1073,37 @@ pub fn slider_interaction(
                 }
             }
         }
-    }
 
-    // Track which handle is being dragged (for direct handle clicks)
-    for (interaction, mut slider_handle) in &mut slider_handles {
-        if *interaction == Interaction::Pressed
-            && buttons.pressed(bevy::input::mouse::MouseButton::Left)
-        {
-            slider_handle.is_dragging = true;
-        } else if !buttons.pressed(bevy::input::mouse::MouseButton::Left) {
-            slider_handle.is_dragging = false;
+        // Also start dragging if the handle itself was clicked
+        for (interaction, mut slider_handle) in &mut slider_handles {
+            if *interaction == Interaction::Pressed {
+                slider_handle.is_dragging = true;
+            }
         }
     }
 
-    // Apply mouse delta to dragging handles
-    let total_delta: f32 = mouse_motion.read().map(|motion| motion.delta.x).sum();
+    // While dragging, use the track's RelativeCursorPosition to set the value.
+    // This gives pixel-perfect tracking regardless of scale factor or viewport.
+    for (_interaction, cursor_pos, track) in &slider_tracks {
+        let is_dragging = slider_handles
+            .iter()
+            .any(|(_, h)| h.value == track.value && h.is_dragging);
 
-    if total_delta != 0.0 {
-        for (_interaction, slider_handle) in &slider_handles {
-            if slider_handle.is_dragging {
-                let current = slider_handle.value.get(&game_config);
-                let min = slider_handle.value.min_value();
-                let max = slider_handle.value.max_value();
+        if is_dragging {
+            if let Some(pos) = cursor_pos.normalized {
+                // RelativeCursorPosition.normalized: center at (0,0),
+                // left edge = -0.5, right edge = 0.5
+                let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
+
+                let min = track.value.min_value();
+                let max = track.value.max_value();
                 let range = max - min;
+                let new_value = (min + normalized * range).clamp(min, max);
 
-                // Convert delta pixels to value change
-                let value_delta = (total_delta / SLIDER_WIDTH) * range;
-                let new_value = (current + value_delta).clamp(min, max);
-
-                slider_handle.value.set(&mut game_config, new_value);
-                slider_adjusted.write(SliderAdjusted);
+                if (track.value.get(&game_config) - new_value).abs() > f32::EPSILON {
+                    track.value.set(&mut game_config, new_value);
+                    slider_adjusted.write(SliderAdjusted);
+                }
             }
         }
     }

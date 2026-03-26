@@ -1,12 +1,16 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{
-    ATTACKER_BASE, TINT_BLUE, UNIT_SCALE, get_tier, get_tier_level, tint,
-};
+use crate::game::constants::{UNIT_SCALE, get_tier, get_tier_level};
 
 // ===== Visual =====
-pub const ATTACKER_DISPELLER_COLOR: Color = tint(ATTACKER_BASE, TINT_BLUE, 0.6);
 pub const DISPELLER_RADIUS: f32 = 8.0 * UNIT_SCALE;
+
+// Sprite animation (re-export shared defaults)
+pub use crate::game::units::constants::DEFAULT_SPRITE_WIDTH as DISPELLER_SPRITE_WIDTH;
+pub use crate::game::units::constants::DEFAULT_SPRITE_HEIGHT as DISPELLER_SPRITE_HEIGHT;
+
+/// Sprite tint for attacker dispellers.
+pub const DISPELLER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);
 
 // ===== Movement =====
 pub const DISPELLER_MOVEMENT_SPEED: f32 = 120.0;

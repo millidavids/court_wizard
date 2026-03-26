@@ -6,7 +6,7 @@ use super::resources::KingAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::resources::InitialDefenderCount;
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
 use crate::game::units::components::{
@@ -25,11 +25,11 @@ use crate::networking::session::MultiplayerSession;
 /// King spawns in the center of the radial defender formation,
 /// positioned between the wizard and battlefield center.
 pub fn spawn_king(
-    mut commands: Commands,
-    king_assets: Res<KingAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut king_spawned: ResMut<KingSpawned>,
+    commands: &mut Commands,
+    king_assets: &KingAssets,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    king_spawned: &mut KingSpawned,
 ) {
     // King spawns at exact center of defender grid
     // Use center angle and base range (no row/col offsets)
@@ -49,7 +49,7 @@ pub fn spawn_king(
 
     let anim = WalkingAnimation::default();
     let king_material = create_default_sprite_material(
-        &mut materials,
+        materials,
         king_assets.sprite_texture.clone(),
         KING_SPRITE_TINT,
     );
@@ -136,9 +136,17 @@ pub fn update_king_targeting(
         ),
         (With<King>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<crate::game::units::assassin::Assassin>,
+            Without<StagingAttacker>,
+        ),
+    >,
 ) {
-    // Collect snapshot of all unit positions
+    // Collect snapshot of all unit positions (excludes assassins and staging attackers)
     let unit_snapshot: Vec<_> = all_units
         .iter()
         .map(|(entity, transform, team)| (entity, transform.translation, *team))

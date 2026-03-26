@@ -1,11 +1,11 @@
-use crate::game::constants::{
-    ATTACKER_BASE, TINT_PURPLE, UNIT_SCALE, get_tier, get_tier_level, tint,
-};
+use crate::game::constants::{UNIT_SCALE, get_tier, get_tier_level};
 use bevy::prelude::*;
 
 // ===== Visual =====
-pub const ATTACKER_SHIELDER_COLOR: Color = tint(ATTACKER_BASE, TINT_PURPLE, 0.6);
 pub const SHIELDER_RADIUS: f32 = 8.0 * UNIT_SCALE;
+
+/// Sprite tint for shielders.
+pub const SHIELDER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);
 
 
 // ===== Movement =====

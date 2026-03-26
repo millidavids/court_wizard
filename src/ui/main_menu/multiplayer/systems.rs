@@ -11,9 +11,10 @@ use crate::game::units::wizard::components::Spell;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionMode, ConnectionState, NetworkConnection, PeerRole};
 use crate::networking::session::MultiplayerSession;
+use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::spawn_button;
+use crate::ui::systems::{spawn_button, spawn_page_container};
 
 use super::super::wizard_select_shared::{self as shared};
 use super::components::{
@@ -100,35 +101,28 @@ pub fn setup(
         return;
     }
 
-    // Normal connection flow
-    connection.state = ConnectionState::Disconnected;
-    connection.role = None;
-    connection.mode = ConnectionMode::default();
-    connection.local_code = None;
-    connection.incoming_messages.clear();
-    connection.outgoing_messages.clear();
-    connection.incoming_unreliable.clear();
-    connection.outgoing_unreliable.clear();
-    connection.ping_ms = None;
-    connection.ping_timer = 0.0;
-    connection.error = None;
+    connection.reset();
 
     commands.insert_resource(LobbyPhase::Connection);
 
-    // Root container: two-column horizontal layout
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(MARGIN * 2.0)),
-                column_gap: Val::Px(MARGIN * 2.0),
-                ..default()
-            },
-            OnMultiplayerScreen,
-        ))
-        .with_children(|root| {
+    // Page container (standard overlay with content box)
+    let content = spawn_page_container(
+        &mut commands,
+        OnMultiplayerScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(MARGIN * 2.0)),
+            column_gap: Val::Px(MARGIN * 2.0),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+
+    commands.entity(content).with_children(|root| {
             // ── Left column: buttons ──
             root.spawn(Node {
                 width: Val::Px(CONN_LEFT_COLUMN_WIDTH),
@@ -378,7 +372,7 @@ pub fn setup(
                         );
                     });
 
-                // Paste Guest Code button (hidden initially, shown for host when code is ready)
+                // Paste Code button (hidden initially, shown for guest to paste host's code)
                 right
                     .spawn((
                         PasteResponseButton,
@@ -390,7 +384,7 @@ pub fn setup(
                     .with_children(|wrapper| {
                         spawn_button(
                             wrapper,
-                            "Paste Guest Code",
+                            "Paste Code",
                             MultiplayerButtonAction::PasteResponse,
                             &CONN_BUTTON_STYLE,
                         );
@@ -427,20 +421,24 @@ fn spawn_wizard_select_screen(
 
     commands.insert_resource(SelectedWizardPreview(initial_wizard));
 
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(MARGIN * 1.5)),
-                column_gap: Val::Px(MARGIN * 1.5),
-                ..default()
-            },
-            OnMultiplayerScreen,
-            WizardSelectScreen,
-        ))
-        .with_children(|root| {
+    let ws_content = spawn_page_container(
+        commands,
+        OnMultiplayerScreen,
+        false,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            padding: UiRect::all(Val::Px(MARGIN * 1.5)),
+            column_gap: Val::Px(MARGIN * 1.5),
+            border: UiRect::all(Val::Px(1.0)),
+            overflow: Overflow::clip(),
+            ..default()
+        },
+    );
+    commands.entity(ws_content).insert(WizardSelectScreen);
+
+    commands.entity(ws_content).with_children(|root| {
             // ── Left panel ──────────────────────────────────────
             root.spawn(Node {
                 width: Val::Px(LEFT_PANEL_WIDTH),
@@ -586,6 +584,7 @@ pub fn button_action(
     mut next_menu_state: ResMut<NextState<MenuState>>,
     mut connection: ResMut<NetworkConnection>,
     mut lobby_phase: ResMut<LobbyPhase>,
+    transport: Option<Res<TransportHandle>>,
     mut preview: Option<ResMut<SelectedWizardPreview>>,
     mut detail_name: Query<
         &mut Text,
@@ -606,24 +605,45 @@ pub fn button_action(
     mut card_borders: Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
+    let send_cmd = |cmd: TransportCommand| {
+        if let Some(ref transport) = transport {
+            transport.send_command(cmd);
+        }
+    };
+
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 MultiplayerButtonAction::HostGame => {
-                    connection.state = ConnectionState::Failed;
-                    connection.error =
-                        Some("Multiplayer only available in browser".to_string());
+                    send_cmd(TransportCommand::CreateHost { use_relay: true });
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    connection.role = Some(PeerRole::Host);
+                    connection.mode = ConnectionMode::Online;
                 }
                 MultiplayerButtonAction::JoinGame => {
-                    connection.state = ConnectionState::Failed;
-                    connection.error =
-                        Some("Multiplayer only available in browser".to_string());
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    connection.role = Some(PeerRole::Guest);
+                    connection.mode = ConnectionMode::Online;
                 }
                 MultiplayerButtonAction::CopyCode => {
-                    // No-op: clipboard access is no longer available
+                    if let Some(code) = &connection.local_code {
+                        if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                            let _ = clipboard.set_text(code.clone());
+                        }
+                    }
                 }
                 MultiplayerButtonAction::PasteResponse => {
-                    // No-op: clipboard/webrtc is no longer available
+                    match arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
+                        Ok(code) if !code.trim().is_empty() => {
+                            send_cmd(TransportCommand::ConnectToHost { ticket_code: code });
+                            connection.state = ConnectionState::Connecting;
+                        }
+                        _ => {
+                            connection.error =
+                                Some("Could not read code from clipboard".to_string());
+                            connection.state = ConnectionState::Failed;
+                        }
+                    }
                 }
                 MultiplayerButtonAction::PreviewWizard(wizard_type) => {
                     // Ignore wizard switches while readied — must unready first
@@ -669,34 +689,21 @@ pub fn button_action(
                     }
                 }
                 MultiplayerButtonAction::LanHost => {
-                    let saved_ip = save_data::load_lan_ip();
-                    *lobby_phase = LobbyPhase::LanIpEntry {
-                        role: PeerRole::Host,
-                        current_ip: saved_ip,
-                    };
+                    send_cmd(TransportCommand::CreateHost { use_relay: false });
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    connection.role = Some(PeerRole::Host);
+                    connection.mode = ConnectionMode::Lan;
                 }
                 MultiplayerButtonAction::LanJoin => {
-                    let saved_ip = save_data::load_lan_ip();
-                    *lobby_phase = LobbyPhase::LanIpEntry {
-                        role: PeerRole::Guest,
-                        current_ip: saved_ip,
-                    };
+                    connection.state = ConnectionState::WaitingForSignaling;
+                    connection.role = Some(PeerRole::Guest);
+                    connection.mode = ConnectionMode::Lan;
                 }
                 MultiplayerButtonAction::LanEditIp => {
-                    // No-op: IP editing via browser prompt is no longer available
+                    // Legacy LAN IP entry — no longer needed with ticket-based connection.
                 }
                 MultiplayerButtonAction::LanConfirmIp => {
-                    if let LobbyPhase::LanIpEntry { role: _, current_ip } = lobby_phase.clone()
-                        && let Some(ip) = &current_ip
-                    {
-                        // Save IP for future sessions
-                        save_data::save_lan_ip(ip);
-
-                        connection.state = ConnectionState::Failed;
-                        connection.error =
-                            Some("Multiplayer only available in browser".to_string());
-                        *lobby_phase = LobbyPhase::Connection;
-                    }
+                    // Legacy LAN IP confirm — no longer needed with ticket-based connection.
                 }
                 MultiplayerButtonAction::LanIpCancel => {
                     *lobby_phase = LobbyPhase::Connection;
@@ -704,58 +711,34 @@ pub fn button_action(
                 MultiplayerButtonAction::Retry => {
                     let role = connection.role;
                     let is_lan = connection.mode == ConnectionMode::Lan;
-                    // Clean up old connection
-                    connection.local_code = None;
-                    connection.ping_ms = None;
-                    connection.ping_timer = 0.0;
-                    connection.error = None;
-                    connection.incoming_messages.clear();
-                    connection.outgoing_messages.clear();
-                    connection.incoming_unreliable.clear();
-                    connection.outgoing_unreliable.clear();
+                    send_cmd(TransportCommand::Disconnect);
+                    connection.reset();
 
-                    if is_lan {
-                        // LAN retry goes back to IP entry with saved IP
-                        let saved_ip = save_data::load_lan_ip();
-                        connection.state = ConnectionState::Disconnected;
-                        *lobby_phase = LobbyPhase::LanIpEntry {
-                            role: role.unwrap_or(PeerRole::Host),
-                            current_ip: saved_ip,
-                        };
+                    // Restore role/mode and re-enter the appropriate state.
+                    connection.role = role;
+                    connection.mode = if is_lan {
+                        ConnectionMode::Lan
                     } else {
-                        match role {
-                            Some(PeerRole::Host) => {
-                                connection.state = ConnectionState::Failed;
-                                connection.error =
-                                    Some("Multiplayer only available in browser".to_string());
-                            }
-                            Some(PeerRole::Guest) => {
-                                connection.state = ConnectionState::Disconnected;
-                                connection.role = None;
-                            }
-                            None => {
-                                connection.state = ConnectionState::Disconnected;
-                            }
+                        ConnectionMode::Online
+                    };
+                    match role {
+                        Some(PeerRole::Host) => {
+                            send_cmd(TransportCommand::CreateHost { use_relay: !is_lan });
+                            connection.state = ConnectionState::WaitingForSignaling;
                         }
+                        Some(PeerRole::Guest) => {
+                            connection.state = ConnectionState::WaitingForSignaling;
+                        }
+                        None => {}
                     }
                 }
                 MultiplayerButtonAction::Cancel => {
-                    // Return to the base multiplayer connection screen
-                    connection.state = ConnectionState::Disconnected;
-                    connection.role = None;
-                    connection.mode = ConnectionMode::default();
-                    connection.local_code = None;
-                    connection.ping_ms = None;
-                    connection.error = None;
+                    send_cmd(TransportCommand::Disconnect);
+                    connection.reset();
                 }
                 MultiplayerButtonAction::Disconnect => {
-                    // Disconnect and return to the main menu
-                    connection.state = ConnectionState::Disconnected;
-                    connection.role = None;
-                    connection.mode = ConnectionMode::default();
-                    connection.local_code = None;
-                    connection.ping_ms = None;
-                    connection.error = None;
+                    send_cmd(TransportCommand::Disconnect);
+                    connection.reset();
                     channel_change.write(ChannelChangeMessage);
                     next_menu_state.set(MenuState::Landing);
                 }
@@ -1299,21 +1282,20 @@ pub fn update_ui_state(
                 color.0 = TEXT_COLOR;
             }
             ConnectionState::WaitingForSignaling => {
-                if connection.local_code.is_some() {
-                    match connection.role {
-                        Some(PeerRole::Host) => {
-                            **text = "Code ready! Copy it and send to your friend.".to_string();
-                        }
-                        Some(PeerRole::Guest) => {
-                            **text =
-                                "Response ready! Copy it and send back to the host.".to_string();
-                        }
-                        None => {
-                            **text = "Generating code...".to_string();
+                match connection.role {
+                    Some(PeerRole::Host) => {
+                        if connection.local_code.is_some() {
+                            **text = "Code ready! Copy it and send to your friend. Waiting for them to connect...".to_string();
+                        } else {
+                            **text = "Generating connection code...".to_string();
                         }
                     }
-                } else {
-                    **text = "Generating code...".to_string();
+                    Some(PeerRole::Guest) => {
+                        **text = "Copy the host's code to your clipboard, then click 'Paste Code'.".to_string();
+                    }
+                    None => {
+                        **text = "Generating code...".to_string();
+                    }
                 }
                 color.0 = WAITING_COLOR;
             }
@@ -1403,10 +1385,8 @@ pub fn update_ui_state(
     }
 
     if let Ok(mut node) = paste_query.single_mut() {
-        // Show paste button for host when code is ready (to paste guest's response)
-        let show_paste = show_signaling
-            && connection.local_code.is_some()
-            && connection.role == Some(PeerRole::Host);
+        // Show paste button for guest to paste the host's connection code.
+        let show_paste = show_signaling && connection.role == Some(PeerRole::Guest);
         node.display = if show_paste {
             Display::Flex
         } else {

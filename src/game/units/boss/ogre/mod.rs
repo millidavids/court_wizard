@@ -5,3 +5,4 @@ pub(in crate::game) mod resources;
 pub(in crate::game) mod systems;
 
 pub(super) use plugin::OgrePlugin;
+pub(crate) use components::MeleeDamageReduction;

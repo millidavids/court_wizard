@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::ui::constants::{TEXT_BODY, TEXT_MUTED};
+
 /// How long the popup stays at full opacity (seconds).
 pub(super) const DISPLAY_DURATION: f32 = 4.0;
 
@@ -16,10 +18,10 @@ pub(super) const BORDER_COLOR: Color = Color::srgb(0.85, 0.65, 0.13);
 pub(super) const TITLE_COLOR: Color = Color::srgb(0.95, 0.82, 0.30);
 
 /// Achievement description text color.
-pub(super) const DESCRIPTION_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
+pub(super) const DESCRIPTION_COLOR: Color = TEXT_BODY;
 
 /// "Achievement Unlocked" header color.
-pub(super) const HEADER_COLOR: Color = Color::srgb(0.70, 0.70, 0.70);
+pub(super) const HEADER_COLOR: Color = TEXT_MUTED;
 
 // ===== Ingredient Popup Colors =====
 

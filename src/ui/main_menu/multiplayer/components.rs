@@ -136,7 +136,8 @@ pub(super) enum LobbyPhase {
     #[default]
     Connection,
 
-    /// LAN IP entry phase — user is configuring their local IP before signaling.
+    /// LAN IP entry phase (legacy — ticket-based connection supersedes this).
+    #[allow(dead_code)]
     LanIpEntry {
         /// Whether the user intends to host or join.
         role: PeerRole,

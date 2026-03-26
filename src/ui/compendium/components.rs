@@ -22,6 +22,8 @@ pub(super) enum CompendiumTab {
     Wizards,
     Achievements,
     Stats,
+    Endless,
+    Roguelite,
 }
 
 impl CompendiumTab {
@@ -33,6 +35,8 @@ impl CompendiumTab {
             CompendiumTab::Wizards,
             CompendiumTab::Achievements,
             CompendiumTab::Stats,
+            CompendiumTab::Endless,
+            CompendiumTab::Roguelite,
         ]
     }
 
@@ -44,6 +48,8 @@ impl CompendiumTab {
             CompendiumTab::Wizards => "Wizards",
             CompendiumTab::Achievements => "Achievements",
             CompendiumTab::Stats => "Stats",
+            CompendiumTab::Endless => "Endless",
+            CompendiumTab::Roguelite => "Roguelite",
         }
     }
 }
@@ -64,6 +70,10 @@ pub(super) enum CompendiumItemId {
     Unit(String),
     Wizard(String),
     Achievement(String),
+    /// A roguelite run, identified by its `started_at` timestamp.
+    RogueliteRun(u64),
+    /// Endless stats for a specific wizard type (debug name).
+    EndlessWizardType(String),
 }
 
 /// Resource tracking the active tab and selected item.
@@ -114,3 +124,7 @@ pub(super) struct ItemsContainer;
 /// Marker for the level history container in the detail panel (stats tab).
 #[derive(Component)]
 pub(super) struct LevelHistoryContainer;
+
+/// Button to toggle save/unsave on a roguelite run. Stores the run's `started_at` timestamp.
+#[derive(Component)]
+pub(super) struct ToggleSaveRunButton(pub u64);

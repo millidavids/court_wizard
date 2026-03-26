@@ -45,6 +45,7 @@ trap 'rm -rf "$STAGING"' EXIT
 mkdir -p "$STAGING/court_wizard"
 cp "$BIN_DIR/court_wizard" "$STAGING/court_wizard/"
 cp -r "$BIN_DIR/assets" "$STAGING/court_wizard/"
+cp PLAYER_README.txt "$STAGING/court_wizard/README.txt"
 
 # Create zip
 if command -v zip &> /dev/null; then

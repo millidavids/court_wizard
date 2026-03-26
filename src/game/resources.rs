@@ -23,6 +23,9 @@ pub struct KillStats {
     pub king_killed_by_spell: bool,
     /// Whether any wizard spell dealt damage to an attacker or undead unit this battle.
     pub wizard_damaged_enemies: bool,
+    /// True once the first wave of attackers has been activated (reached staging point).
+    /// The elapsed game timer doesn't start until this is true.
+    pub battle_started: bool,
 }
 
 impl KillStats {
@@ -57,6 +60,7 @@ impl KillStats {
         self.first_defender_death_time = None;
         self.king_killed_by_spell = false;
         self.wizard_damaged_enemies = false;
+        self.battle_started = false;
     }
 }
 

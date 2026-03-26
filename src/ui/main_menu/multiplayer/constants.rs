@@ -6,17 +6,16 @@
 use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
+use crate::ui::constants::{
+    BUTTON_BG, BUTTON_BG_SUBTLE, BUTTON_BORDER, BUTTON_BORDER_SUBTLE,
+    ERROR_COLOR as GLOBAL_ERROR, SUCCESS_COLOR as GLOBAL_SUCCESS, TEXT_MUTED,
+    WARNING_COLOR as GLOBAL_WARNING,
+};
 
 // Re-export all shared constants for convenience.
 pub(super) use super::super::wizard_select_shared::*;
 
 // ===== Connection Phase Styling =====
-
-/// Background color for multiplayer screen buttons.
-const BUTTON_BACKGROUND: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
-
-/// Border color for multiplayer screen buttons.
-const BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.3, 1.0);
 
 /// Width for multiplayer screen buttons in pixels.
 const BUTTON_WIDTH: f32 = 250.0;
@@ -40,16 +39,16 @@ pub(super) const STATUS_FONT_SIZE: f32 = 18.0;
 pub(super) const CODE_FONT_SIZE: f32 = 12.0;
 
 /// Accent color for success/connected status.
-pub(super) const SUCCESS_COLOR: Color = Color::hsla(120.0, 0.6, 0.5, 1.0);
+pub(super) const SUCCESS_COLOR: Color = GLOBAL_SUCCESS;
 
 /// Accent color for error/failed status.
-pub(super) const ERROR_COLOR: Color = Color::hsla(0.0, 0.6, 0.5, 1.0);
+pub(super) const ERROR_COLOR: Color = GLOBAL_ERROR;
 
 /// Accent color for waiting/connecting status.
-pub(super) const WAITING_COLOR: Color = Color::hsla(45.0, 0.6, 0.5, 1.0);
+pub(super) const WAITING_COLOR: Color = GLOBAL_WARNING;
 
 /// Color for section divider labels ("Online" / "Local Network").
-pub(super) const SECTION_LABEL_COLOR: Color = Color::hsla(0.0, 0.0, 0.40, 1.0);
+pub(super) const SECTION_LABEL_COLOR: Color = TEXT_MUTED;
 
 /// Font size for section divider labels.
 pub(super) const SECTION_LABEL_FONT_SIZE: f32 = 14.0;
@@ -66,9 +65,10 @@ pub(super) const CONN_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: BUTTON_HEIGHT,
     border_width: BUTTON_BORDER_WIDTH,
     font_size: BUTTON_FONT_SIZE,
-    background: BUTTON_BACKGROUND,
+    background: BUTTON_BG,
     border: BUTTON_BORDER,
     text_color: TEXT_COLOR,
+    text_shadow: true,
 };
 
 // ===== Multiplayer-specific Wizard Select Styling =====
@@ -79,9 +79,10 @@ pub(super) const READY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 36.0,
     border_width: 1.0,
     font_size: 15.0,
-    background: Color::hsla(120.0, 0.30, 0.20, 1.0),
+    background: Color::hsla(120.0, 0.30, 0.20, 0.75),
     border: Color::hsla(120.0, 0.50, 0.35, 1.0),
     text_color: Color::hsla(120.0, 0.20, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for the Unready button in the detail panel.
@@ -90,9 +91,10 @@ pub(super) const UNREADY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 36.0,
     border_width: 1.0,
     font_size: 15.0,
-    background: Color::hsla(0.0, 0.30, 0.20, 1.0),
+    background: Color::hsla(0.0, 0.30, 0.20, 0.75),
     border: Color::hsla(0.0, 0.50, 0.35, 1.0),
     text_color: Color::hsla(0.0, 0.20, 0.85, 1.0),
+    text_shadow: true,
 };
 
 /// Button style for the Disconnect button in wizard select — minimal, unobtrusive.
@@ -101,7 +103,8 @@ pub(super) const DISCONNECT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 34.0,
     border_width: 1.0,
     font_size: 13.0,
-    background: Color::hsla(0.0, 0.0, 0.10, 1.0),
-    border: Color::hsla(0.0, 0.0, 0.22, 1.0),
-    text_color: Color::hsla(0.0, 0.0, 0.50, 1.0),
+    background: BUTTON_BG_SUBTLE,
+    border: BUTTON_BORDER_SUBTLE,
+    text_color: Color::hsla(0.0, 0.0, 0.70, 1.0),
+    text_shadow: true,
 };

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::config::{Difficulty, VsyncMode};
+use crate::config::{DisplayMode, VsyncMode};
 
 /// Marker component for entities that belong to the settings screen.
 ///
@@ -20,8 +20,8 @@ pub struct ScrollableContainer;
 pub enum OptionButtonValue {
     /// VSync mode option
     VsyncMode(VsyncMode),
-    /// Difficulty option
-    Difficulty(Difficulty),
+    /// Display mode option (windowed, fullscreen)
+    DisplayMode(DisplayMode),
     /// Skip splash screen toggle
     SkipSplash(bool),
     /// Tutorials enabled toggle
@@ -37,7 +37,7 @@ impl OptionButtonValue {
     pub fn is_selected(&self, config: &crate::config::GameConfig) -> bool {
         match self {
             OptionButtonValue::VsyncMode(mode) => config.vsync == *mode,
-            OptionButtonValue::Difficulty(difficulty) => config.difficulty == *difficulty,
+            OptionButtonValue::DisplayMode(mode) => config.display_mode == *mode,
             OptionButtonValue::SkipSplash(skip) => config.skip_splash == *skip,
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled == *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock == *show,
@@ -49,7 +49,7 @@ impl OptionButtonValue {
     pub fn apply(&self, config: &mut crate::config::GameConfig) {
         match self {
             OptionButtonValue::VsyncMode(mode) => config.vsync = *mode,
-            OptionButtonValue::Difficulty(difficulty) => config.difficulty = *difficulty,
+            OptionButtonValue::DisplayMode(mode) => config.display_mode = *mode,
             OptionButtonValue::SkipSplash(skip) => config.skip_splash = *skip,
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled = *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock = *show,
@@ -184,6 +184,19 @@ pub struct SliderHandle {
     pub value: SliderValue,
     /// Whether this handle is currently being dragged
     pub is_dragging: bool,
+}
+
+/// Marker for the confirmation popup overlay.
+#[derive(Component)]
+pub struct ConfirmationPopup;
+
+/// Identifies which action the confirmation popup will execute.
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub enum ConfirmationAction {
+    /// Confirm button — execute the pending action
+    Confirm(SettingsButtonAction),
+    /// Cancel button — dismiss the popup
+    Cancel,
 }
 
 /// Message sent when any slider is adjusted (buttons, drag, or track click).

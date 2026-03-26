@@ -14,7 +14,8 @@ pub(in crate::game) struct BattlemagePlugin;
 
 impl Plugin for BattlemagePlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<RetreatMessage>()
+        app.add_systems(Startup, super::resources::preload_battlemage_assets)
+            .add_message::<RetreatMessage>()
             // Initialize state and spawn Enter the Fray button on entering gameplay
             .add_systems(
                 OnEnter(InGameState::Running),

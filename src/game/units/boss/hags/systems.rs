@@ -9,7 +9,7 @@ use super::resources::{EyeTransferTimer, HagAssets, HagDeathTracker};
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
@@ -48,8 +48,8 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
 
     let mut spawned_entities = Vec::new();
 
-    for (identity, col, material) in hags {
-        let (spawn_x, spawn_z) = calculate_grid_cell_position(0, col);
+    for (idx, (identity, _col, material)) in hags.iter().enumerate() {
+        let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32, 0.0);
         let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
         let hitbox = Hitbox::new(HAG_RADIUS, HAG_HITBOX_HEIGHT);
@@ -67,12 +67,13 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
             .spawn((
                 // Rendering
                 Mesh3d(hag_assets.mesh.clone()),
-                MeshMaterial3d(material.clone()),
+                MeshMaterial3d((*material).clone()),
                 Transform::from_xyz(final_x, spawn_y, final_z),
                 // Physics
                 Velocity {
                     x: initial_velocity.x,
                     z: initial_velocity.z,
+                    ..default()
                 },
                 Acceleration::new(),
                 // Core
@@ -84,7 +85,7 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
                 Team::Attackers,
                 Boss,
                 Hag,
-                identity,
+                *identity,
             ))
             .insert((
                 HagEyeState::new(),
@@ -202,7 +203,7 @@ pub fn update_hag_targeting(
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()

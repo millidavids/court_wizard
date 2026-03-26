@@ -82,3 +82,22 @@ pub struct NetworkConnection {
     /// Connection mode (Online with STUN, or LAN without).
     pub mode: ConnectionMode,
 }
+
+impl NetworkConnection {
+    /// Reset all connection state to defaults.
+    ///
+    /// Call this when disconnecting or cancelling to ensure no stale state remains.
+    pub fn reset(&mut self) {
+        self.state = ConnectionState::Disconnected;
+        self.role = None;
+        self.local_code = None;
+        self.incoming_messages.clear();
+        self.outgoing_messages.clear();
+        self.incoming_unreliable.clear();
+        self.outgoing_unreliable.clear();
+        self.ping_ms = None;
+        self.ping_timer = 0.0;
+        self.error = None;
+        self.mode = ConnectionMode::default();
+    }
+}

@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -7,11 +9,24 @@ use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
 use crate::game::units::wizard::components::Spell;
 
-use super::progress::{keyed_hash, load_verified_progress};
+use super::progress::{keyed_hash, load_verified_progress, to_hex};
 use super::resources::{
     ActiveSave, GameConfig, WizardType, deserialize_action_bar, serialize_action_bar,
 };
 use super::storage;
+
+// ---------------------------------------------------------------------------
+// In-memory save cache
+// ---------------------------------------------------------------------------
+
+/// In-memory cache of the unified save file.
+/// Eliminates redundant disk I/O by caching the deserialized save data.
+/// All reads come from cache (loading from disk only on first access).
+/// All writes update the cache and mark it dirty for deferred flushing.
+static SAVE_CACHE: Mutex<Option<UnifiedSaveFile>> = Mutex::new(None);
+
+/// Whether the cache has been modified since the last disk flush.
+static SAVE_DIRTY: AtomicBool = AtomicBool::new(false);
 
 // ---------------------------------------------------------------------------
 // Unified save file structures
@@ -32,6 +47,10 @@ pub(crate) struct UnifiedSaveFile {
 pub(crate) struct SaveMetadata {
     pub(crate) version: u32,
     pub(crate) last_active_wizard_id: Option<String>,
+    /// Integrity signature (keyed hash over player + wizard data).
+    /// Empty for saves created before this feature was added.
+    #[serde(default)]
+    pub(crate) signature: String,
 }
 
 /// Player-level meta-progression (account-wide, not per-wizard).
@@ -548,6 +567,7 @@ pub(crate) fn clear_progress() {
         wizard.action_bar_slots = [None; 5];
         wizard.saved_walls.clear();
         wizard.saved_crystals.clear();
+        wizard.saved_flora.clear();
     }
 
     save_unified(&save_file);
@@ -575,6 +595,15 @@ pub(crate) struct SavedCrystal {
     pub(crate) empowerment: f32,
 }
 
+/// Serializable flora placement data for battlefield flowers/plants.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedFlora {
+    pub(crate) id: u32,
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    pub(crate) sprite_index: u8,
+}
+
 /// Per-wizard save data. Exactly one per wizard type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct WizardSave {
@@ -596,6 +625,45 @@ pub(crate) struct WizardSave {
     pub(crate) saved_walls: Vec<SavedWall>,
     #[serde(default)]
     pub(crate) saved_crystals: Vec<SavedCrystal>,
+    #[serde(default)]
+    pub(crate) saved_flora: Vec<SavedFlora>,
+    /// Roguelite run history (last 20 runs). Added in game mode update.
+    #[serde(default)]
+    pub(crate) roguelite: RogueliteData,
+    /// Best stats achieved per endless level. Added in game mode update.
+    #[serde(default)]
+    pub(crate) endless_best_stats: HashMap<String, EndlessLevelBest>,
+}
+
+/// Per-wizard roguelite data.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub(crate) struct RogueliteData {
+    pub(crate) run_history: Vec<RogueliteRun>,
+}
+
+/// A completed roguelite run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct RogueliteRun {
+    pub(crate) victory: bool,
+    pub(crate) levels_completed: u32,
+    pub(crate) started_at: u64,
+    pub(crate) ended_at: u64,
+    #[serde(default)]
+    pub(crate) wizard_type: crate::config::WizardType,
+    /// Whether this run is permanently saved (exempt from history trimming).
+    #[serde(default)]
+    pub(crate) saved: bool,
+    pub(crate) level_stats: Vec<crate::game::game_mode::components::LevelRunStats>,
+}
+
+/// Best stats achieved on a single endless level.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct EndlessLevelBest {
+    pub(crate) best_efficiency: f32,
+    pub(crate) attackers_killed: u32,
+    pub(crate) undead_killed: u32,
+    pub(crate) defenders_lost: u32,
+    pub(crate) elapsed_time: f32,
 }
 
 // ---------------------------------------------------------------------------
@@ -700,7 +768,7 @@ fn generate_id() -> String {
 }
 
 /// Get current Unix timestamp in seconds.
-fn current_timestamp() -> u64 {
+pub(crate) fn current_timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -717,14 +785,94 @@ pub(crate) fn new_unified_save() -> UnifiedSaveFile {
         metadata: SaveMetadata {
             version: 2,
             last_active_wizard_id: None,
+            signature: String::new(),
         },
         player: PlayerMetaProgress::default(),
         wizards: Vec::new(),
     }
 }
 
-/// Load the unified save file from localStorage.
+/// Load the unified save file, using the in-memory cache when available.
+/// Only reads from disk on the first call or after cache invalidation.
 pub(crate) fn load_unified_save() -> Option<UnifiedSaveFile> {
+    // Try cache first
+    match SAVE_CACHE.lock() {
+        Ok(cache) => {
+            if let Some(ref cached) = *cache {
+                return Some(cached.clone());
+            }
+        }
+        Err(e) => {
+            warn!("Save cache mutex poisoned on read, loading from disk: {e}");
+        }
+    }
+
+    // Cache miss — load from disk
+    let data = load_from_disk()?;
+
+    // Populate cache
+    match SAVE_CACHE.lock() {
+        Ok(mut cache) => *cache = Some(data.clone()),
+        Err(e) => warn!("Save cache mutex poisoned on populate: {e}"),
+    }
+
+    Some(data)
+}
+
+/// Save the unified save file to the in-memory cache.
+/// The data will be flushed to disk by the periodic flush system.
+pub(crate) fn save_unified(save_file: &UnifiedSaveFile) {
+    match SAVE_CACHE.lock() {
+        Ok(mut cache) => {
+            *cache = Some(save_file.clone());
+            SAVE_DIRTY.store(true, Ordering::Release);
+        }
+        Err(e) => warn!("Save cache mutex poisoned on write: {e}"),
+    }
+}
+
+/// Flush the in-memory cache to disk if dirty.
+/// Called by the periodic flush system and on app exit.
+pub(crate) fn flush_save_cache() {
+    if !SAVE_DIRTY.load(Ordering::Acquire) {
+        return;
+    }
+
+    let data = match SAVE_CACHE.lock() {
+        Ok(cache) => cache.clone(),
+        Err(e) => {
+            warn!("Save cache mutex poisoned on flush: {e}");
+            return;
+        }
+    };
+
+    if let Some(save_file) = data {
+        write_to_disk(save_file);
+        SAVE_DIRTY.store(false, Ordering::Release);
+    }
+}
+
+/// Check if the save cache has unflushed changes.
+pub(crate) fn save_cache_is_dirty() -> bool {
+    SAVE_DIRTY.load(Ordering::Acquire)
+}
+
+/// Invalidate the in-memory cache, forcing a disk read on next access.
+#[allow(dead_code)]
+pub(crate) fn invalidate_save_cache() {
+    match SAVE_CACHE.lock() {
+        Ok(mut cache) => *cache = None,
+        Err(e) => warn!("Save cache mutex poisoned on invalidate: {e}"),
+    }
+    SAVE_DIRTY.store(false, Ordering::Release);
+}
+
+// ---------------------------------------------------------------------------
+// Disk I/O (internal — all external access goes through the cache above)
+// ---------------------------------------------------------------------------
+
+/// Load the unified save file directly from disk.
+fn load_from_disk() -> Option<UnifiedSaveFile> {
     let encoded = storage::load_unified_save().ok()?;
     let obfuscated = from_base64(&encoded)?;
     let deobfuscated = deobfuscate(&obfuscated);
@@ -732,6 +880,12 @@ pub(crate) fn load_unified_save() -> Option<UnifiedSaveFile> {
 
     match toml::from_str::<UnifiedSaveFile>(&toml_string) {
         Ok(mut data) => {
+            // Verify integrity signature (warn but don't block — never lock player out)
+            let expected_sig = compute_save_signature(&data);
+            if !data.metadata.signature.is_empty() && data.metadata.signature != expected_sig {
+                warn!("Save file integrity check failed — data may have been tampered with");
+            }
+
             // Migrate: ensure default spells are always unlocked in existing saves
             for default_spell in UnlockedContent::default_spells() {
                 if !data.player.unlocked_content.spells.contains(&default_spell) {
@@ -747,9 +901,11 @@ pub(crate) fn load_unified_save() -> Option<UnifiedSaveFile> {
     }
 }
 
-/// Save the unified save file to localStorage.
-pub(crate) fn save_unified(save_file: &UnifiedSaveFile) {
-    match toml::to_string_pretty(save_file) {
+/// Write the unified save file directly to disk with integrity signature.
+fn write_to_disk(mut save_file: UnifiedSaveFile) {
+    save_file.metadata.signature = compute_save_signature(&save_file);
+
+    match toml::to_string_pretty(&save_file) {
         Ok(toml_string) => {
             let obfuscated = obfuscate(toml_string.as_bytes());
             let encoded = to_base64(&obfuscated);
@@ -761,6 +917,16 @@ pub(crate) fn save_unified(save_file: &UnifiedSaveFile) {
             error!("Failed to serialize unified save file: {}", e);
         }
     }
+}
+
+/// Compute an integrity signature over the player and wizard data.
+/// Uses the existing keyed_hash (SipHash-style) from progress.rs.
+fn compute_save_signature(save: &UnifiedSaveFile) -> String {
+    let player_toml = toml::to_string(&save.player).unwrap_or_default();
+    let wizards_toml = toml::to_string(&save.wizards).unwrap_or_default();
+    let combined = format!("{}{}", player_toml, wizards_toml);
+    let hash = keyed_hash(combined.as_bytes());
+    to_hex(hash)
 }
 
 /// Get the saved wizard for a specific wizard type (if one exists).
@@ -808,6 +974,7 @@ pub(crate) fn load_wizard_type_into_config(
     config.action_bar_slots = wizard.action_bar_slots;
     config.saved_walls = wizard.saved_walls.clone();
     config.saved_crystals = wizard.saved_crystals.clone();
+    config.saved_flora = wizard.saved_flora.clone();
 
     // Validate that all action bar slots contain unlocked spells
     validate_action_bar_slots(&mut config.action_bar_slots);
@@ -832,6 +999,9 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         action_bar_slots: [None; 5],
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
+        saved_flora: Vec::new(),
+        roguelite: RogueliteData::default(),
+        endless_best_stats: HashMap::new(),
     };
 
     let id = wizard.id.clone();
@@ -841,7 +1011,15 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
 }
 
 /// Save the current GameConfig back to the active wizard in the unified save.
-pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &ActiveSave) {
+///
+/// When `is_roguelite` is true, only action bar and timestamp are persisted —
+/// level progress, walls, crystals, and efficiency stay untouched so the
+/// wizard's Endless progress is never corrupted by a Roguelite run.
+pub(crate) fn save_config_to_active_wizard(
+    config: &GameConfig,
+    active_save: &ActiveSave,
+    is_roguelite: bool,
+) {
     let Some(wizard_id) = &active_save.0 else {
         return;
     };
@@ -850,16 +1028,114 @@ pub(crate) fn save_config_to_active_wizard(config: &GameConfig, active_save: &Ac
 
     if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
         wizard.wizard_type = config.wizard_type;
-        wizard.current_level = config.current_level;
-        wizard.highest_level_achieved = config.highest_level_achieved;
-        wizard.efficiency_ratios = config.efficiency_ratios.clone();
         wizard.action_bar_slots = config.action_bar_slots;
-        wizard.saved_walls = config.saved_walls.clone();
-        wizard.saved_crystals = config.saved_crystals.clone();
         wizard.last_played_at = current_timestamp();
+
+        if !is_roguelite {
+            wizard.current_level = config.current_level;
+            wizard.highest_level_achieved = config.highest_level_achieved;
+            wizard.efficiency_ratios = config.efficiency_ratios.clone();
+            wizard.saved_walls = config.saved_walls.clone();
+            wizard.saved_crystals = config.saved_crystals.clone();
+            wizard.saved_flora = config.saved_flora.clone();
+        }
     }
 
     save_file.metadata.last_active_wizard_id = Some(wizard_id.clone());
+    save_unified(&save_file);
+}
+
+/// Save a completed roguelite run to the wizard's run history.
+/// Caps at MAX_ROGUELITE_RUN_HISTORY entries (FIFO).
+pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
+    use crate::game::game_mode::components::MAX_ROGUELITE_RUN_HISTORY;
+
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        wizard.roguelite.run_history.push(run);
+        // Trim oldest unsaved runs when over limit (single pass)
+        let unsaved_count = wizard
+            .roguelite
+            .run_history
+            .iter()
+            .filter(|r| !r.saved)
+            .count();
+        if unsaved_count > MAX_ROGUELITE_RUN_HISTORY {
+            let excess = unsaved_count - MAX_ROGUELITE_RUN_HISTORY;
+            let mut removed = 0;
+            wizard
+                .roguelite
+                .run_history
+                .retain(|r| {
+                    if !r.saved && removed < excess {
+                        removed += 1;
+                        false
+                    } else {
+                        true
+                    }
+                });
+        }
+    }
+
+    save_unified(&save_file);
+}
+
+/// Toggle the saved status of a roguelite run identified by its `started_at` timestamp.
+pub(crate) fn toggle_roguelite_run_saved(started_at: u64) {
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    for wizard in &mut save_file.wizards {
+        if let Some(run) = wizard
+            .roguelite
+            .run_history
+            .iter_mut()
+            .find(|r| r.started_at == started_at)
+        {
+            run.saved = !run.saved;
+            break;
+        }
+    }
+
+    save_unified(&save_file);
+}
+
+/// Update the best stats for an endless level if the current efficiency beats the stored best.
+pub(crate) fn update_endless_best_stats(
+    active_save: &ActiveSave,
+    stats: &crate::game::game_mode::components::LevelRunStats,
+) {
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        let key = stats.level.to_string();
+        let should_update = wizard
+            .endless_best_stats
+            .get(&key)
+            .map_or(true, |existing| stats.efficiency > existing.best_efficiency);
+
+        if should_update {
+            wizard.endless_best_stats.insert(
+                key,
+                EndlessLevelBest {
+                    best_efficiency: stats.efficiency,
+                    attackers_killed: stats.attackers_killed,
+                    undead_killed: stats.undead_killed,
+                    defenders_lost: stats.defenders_lost,
+                    elapsed_time: stats.elapsed_time,
+                },
+            );
+        }
+    }
+
     save_unified(&save_file);
 }
 
@@ -1181,6 +1457,9 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             action_bar_slots: old_data.action_bar_slots,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
+            saved_flora: Vec::new(),
+            roguelite: RogueliteData::default(),
+            endless_best_stats: HashMap::new(),
         };
 
         let dominated = best_by_type
@@ -1223,16 +1502,3 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
     info!("Legacy save migration complete");
 }
 
-// ---------------------------------------------------------------------------
-// LAN IP persistence (plain string in localStorage)
-// ---------------------------------------------------------------------------
-
-/// Loads the saved LAN IP address from localStorage.
-pub(crate) fn load_lan_ip() -> Option<String> {
-    storage::load_lan_ip().ok()
-}
-
-/// Saves the LAN IP address to localStorage for future sessions.
-pub(crate) fn save_lan_ip(ip: &str) {
-    let _ = storage::save_lan_ip(ip);
-}

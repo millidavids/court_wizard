@@ -13,6 +13,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::SpellShield;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 
 /// Updates shielder targeting — seeks nearest same-team ally without a spell shield,
 /// or falls back to following the army toward nearest enemy.
@@ -28,7 +29,7 @@ pub fn update_shielder_targeting(
         (Entity, &Transform, &Team, Has<SpellShield>),
         (Without<Corpse>, Without<BanishedModifier>, Without<Shielder>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
 ) {
     // Snapshot ally data for shield targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, bool)> = potential_targets
@@ -161,6 +162,9 @@ pub fn shielder_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                &Team,
+                Has<StagingAttacker>,
+                Has<WaveGroup>,
             ),
         ),
         With<Shielder>,
@@ -179,7 +183,7 @@ pub fn shielder_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
     ) in &mut shielder_units
     {
         // CC'd units cannot move
@@ -226,7 +230,9 @@ pub fn shielder_movement(
         );
 
         // Stop completely when in optimal position (not in melee, not on hazard)
-        if in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
+        // Skip for staging units — they need to keep following the flow field
+        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        if !is_staging && in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
                 velocity.x = 0.0;
@@ -243,6 +249,7 @@ pub fn shielder_movement(
 pub fn shielder_apply_shield(
     mut commands: Commands,
     time: Res<Time>,
+    shielder_assets: Res<super::resources::ShielderAssets>,
     mut shielders: Query<
         (
             Entity,
@@ -251,6 +258,8 @@ pub fn shielder_apply_shield(
             Option<&mut ShielderShieldCooldown>,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
         ),
         (With<Shielder>, Without<Corpse>),
     >,
@@ -269,7 +278,12 @@ pub fn shielder_apply_shield(
         })
         .collect();
 
-    for (entity, transform, team, cooldown, sleeping, banished) in &mut shielders {
+    for (entity, transform, team, cooldown, sleeping, banished, has_staging, has_wave_group) in &mut shielders {
+        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
+        if crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group) {
+            continue;
+        }
+
         // Tick cooldown if present
         if let Some(mut cd) = cooldown {
             cd.remaining -= delta;
@@ -309,6 +323,14 @@ pub fn shielder_apply_shield(
             commands
                 .entity(target_entity)
                 .insert((SpellShield, ShielderDamageReduction));
+
+            // Trigger casting animation
+            commands.entity(entity).insert(
+                crate::game::units::components::CombatAnimation::new_casting(
+                    shielder_assets.casting_texture.clone(),
+                    shielder_assets.sprite_texture.clone(),
+                ),
+            );
 
             // Set cooldown
             commands.entity(entity).insert(ShielderShieldCooldown {

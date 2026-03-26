@@ -10,8 +10,7 @@ use super::styles::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    calculate_defender_grid_position, calculate_grid_cell_position, calculate_spawn_cells,
-    calculate_total_archers, calculate_total_infantry, cells_needed, distribute_units_to_cells, *,
+    calculate_defender_grid_position, cells_needed, distribute_units_to_cells, *,
 };
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::plugin::GlobalAttackCycle;
@@ -24,6 +23,7 @@ use crate::game::units::components::{
     TemporaryHitPoints, WalkingAnimation, apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -59,7 +59,9 @@ pub fn update_archer_movement_timers(
 /// Archers deal reduced damage in melee compared to infantry.
 #[allow(clippy::type_complexity)]
 pub fn archer_melee_combat(
+    mut commands: Commands,
     attack_cycle: Res<GlobalAttackCycle>,
+    archer_assets: Res<ArcherAssets>,
     mut archers: Query<
         (
             Entity,
@@ -71,11 +73,13 @@ pub fn archer_melee_combat(
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
             Has<crate::game::units::infantry::components::Retreating>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
     targets: Query<(Entity, &Transform, &Hitbox, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<crate::game::units::shielder::components::ShielderDamageReduction>)>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<crate::game::units::shielder::components::ShielderDamageReduction>, Has<crate::game::units::assassin::Assassin>)>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -96,8 +100,15 @@ pub fn archer_melee_combat(
         sleeping,
         banished,
         is_retreating,
+        has_staging,
+        has_wave_group,
     ) in &mut archers
     {
+        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
+        if crate::game::units::systems::is_staging_attacker(archer_team, has_staging, has_wave_group) {
+            continue;
+        }
+
         // Skip attack if sleeping, banished, or retreating
         if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
@@ -126,15 +137,27 @@ pub fn archer_melee_combat(
         {
             // Attack if we're in the unit's attack window
             if attack_timing.can_attack(current_time, last_time)
-                && let Ok((mut target_health, mut temp_hp, has_shielder_reduction)) = health_query.get_mut(*target_entity)
+                && let Ok((mut target_health, mut temp_hp, has_shielder_reduction, is_assassin)) = health_query.get_mut(*target_entity)
             {
                 // Apply effectiveness multiplier to melee damage
                 let mut modified_damage = ARCHER_MELEE_DAMAGE * effectiveness.multiplier();
                 if has_shielder_reduction {
                     modified_damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
                 }
+                // Assassins take 50% less damage from archers (melee)
+                if is_assassin {
+                    modified_damage *= crate::game::units::assassin::constants::ARCHER_DAMAGE_REDUCTION;
+                }
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.last_attack_time = Some(current_time);
+
+                // Trigger melee attack animation
+                commands.entity(archer_entity).insert(
+                    crate::game::units::components::CombatAnimation::new_attack(
+                        archer_assets.attacking_texture.clone(),
+                        archer_assets.sprite_texture.clone(),
+                    ),
+                );
             }
         }
     }
@@ -159,6 +182,8 @@ pub fn archer_ranged_combat(
             Option<&BanishedModifier>,
             Has<crate::game::units::infantry::components::Retreating>,
             Option<&crate::game::units::wizard::spells::fog_cloud::components::BlindingMistDebuff>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
         ),
         (With<Archer>, Without<Corpse>),
     >,
@@ -199,8 +224,15 @@ pub fn archer_ranged_combat(
         banished,
         is_retreating,
         blinding_mist,
+        has_staging,
+        has_wave_group,
     ) in archers.iter_mut()
     {
+        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
+        if crate::game::units::systems::is_staging_attacker(archer_team, has_staging, has_wave_group) {
+            continue;
+        }
+
         // Skip attack if sleeping, banished, or retreating
         if sleeping.is_some() || banished.is_some() || is_retreating {
             continue;
@@ -293,6 +325,14 @@ pub fn archer_ranged_combat(
             );
             // Reset attack cooldown
             movement_timer.time_since_last_attack = 0.0;
+
+            // Trigger shooting animation
+            commands.entity(archer_entity).insert(
+                crate::game::units::components::CombatAnimation::new_shooting(
+                    archer_assets.shooting_texture.clone(),
+                    archer_assets.sprite_texture.clone(),
+                ),
+            );
         }
     }
 }
@@ -434,6 +474,7 @@ pub fn check_arrow_collisions(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<crate::game::units::shielder::components::ShielderDamageReduction>,
+            Has<crate::game::units::assassin::Assassin>,
         ),
         Without<Corpse>,
     >,
@@ -463,7 +504,7 @@ pub fn check_arrow_collisions(
         }
 
         // Unit collision (skip friendly fire)
-        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction) in &mut targets {
+        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction, is_assassin) in &mut targets {
             // Skip same team
             if *team == arrow.source_team {
                 continue;
@@ -481,6 +522,10 @@ pub fn check_arrow_collisions(
                 let mut damage = arrow.damage;
                 if has_shielder_reduction {
                     damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+                }
+                // Assassins take 50% less damage from archers (arrows)
+                if is_assassin {
+                    damage *= crate::game::units::assassin::constants::ARCHER_DAMAGE_REDUCTION;
                 }
                 apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
                 commands.entity(arrow_entity).try_despawn();
@@ -508,10 +553,10 @@ pub fn update_archer_targeting(
         ),
         (With<Archer>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
     walls: Query<&WallOfStone>,
 ) {
-    // Collect snapshot of all unit positions
+    // Collect snapshot of all unit positions (excludes staging attackers)
     let unit_snapshot: Vec<_> = all_units
         .iter()
         .map(|(entity, transform, team)| (entity, transform.translation, *team))
@@ -654,6 +699,9 @@ pub fn archer_movement(
                 Option<&SickenedModifier>,
                 Option<&FrozenSolidModifier>,
                 Option<&crate::game::units::components::Stunned>,
+                &Team,
+                Has<StagingAttacker>,
+                Has<WaveGroup>,
             ),
         ),
         With<Archer>,
@@ -673,7 +721,7 @@ pub fn archer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
     ) in &mut archer_units
     {
         // CC'd units cannot move
@@ -713,10 +761,13 @@ pub fn archer_movement(
 
         // Archer-specific: Stop completely when in optimal shooting range (not in melee).
         // But keep moving if:
+        //  - staging (needs to follow flow field to staging point)
         //  - standing on hazardous terrain (fire, spikes)
         //  - no target in range (needs to follow flow field back to spawn)
         //  - path is fully blocked (wall-attack system needs velocity)
-        if in_melee.is_none()
+        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        if !is_staging
+            && in_melee.is_none()
             && flow_field_velocity.terrain_cost <= 1.0
             && !flow_field_velocity.pathfinding_distance.is_infinite()
             && targeting_velocity.distance_to_target < f32::MAX
@@ -818,71 +869,50 @@ pub(in crate::game) fn spawn_single_attacker_archer(
     archer_assets: &ArcherAssets,
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
-    level: u32,
+    _level: u32,
 ) {
-    let total_archers = calculate_total_archers(level);
-    let total_infantry = calculate_total_infantry(level);
-    let infantry_cells_needed = cells_needed(total_infantry);
-    let archer_cells_needed = cells_needed(total_archers);
+    let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ARCHER_SPAWN_DEPTH_OFFSET);
+    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
-    let (_, archer_cells) = calculate_spawn_cells(infantry_cells_needed, archer_cells_needed);
-    let units_per_cell = distribute_units_to_cells(total_archers);
+    let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    // Calculate which cell this unit belongs to
-    let mut units_counted = 0;
-    for (cell_idx, (row, col)) in archer_cells.iter().enumerate() {
-        if cell_idx >= units_per_cell.len() {
-            break;
-        }
-        let units_in_this_cell = units_per_cell[cell_idx];
-        if unit_index < units_counted + units_in_this_cell {
-            // This unit goes in this cell
-            let (spawn_x, spawn_z) = calculate_grid_cell_position(*row, *col);
-            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let anim = WalkingAnimation::default();
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        archer_assets.sprite_texture.clone(),
+        ATTACKER_SPRITE_TINT,
+    );
 
-            let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
-            let spawn_y = hitbox.height / 2.0 + 1.0;
-
-            let anim = WalkingAnimation::default();
-            let material = crate::game::units::systems::create_default_sprite_material(
-                materials,
-                archer_assets.sprite_texture.clone(),
-                ATTACKER_SPRITE_TINT,
-            );
-
-            commands
-                .spawn((
-                    Mesh3d(archer_assets.sprite_mesh.clone()),
-                    MeshMaterial3d(material),
-                    Transform::from_xyz(final_x, spawn_y, final_z),
-                    Velocity::default(),
-                    Acceleration::new(),
-                    hitbox,
-                    Health::new(UNIT_HEALTH),
-                    MovementSpeed(ARCHER_MOVEMENT_SPEED),
-                    AttackTiming::new(),
-                    Effectiveness::new(),
-                    Team::Attackers,
-                    Archer,
-                ))
-                .insert((
-                    anim,
-                    FacingDirection::default(),
-                    AttackRange {
-                        min_range: ARCHER_MIN_RANGE,
-                        max_range: ARCHER_MAX_RANGE,
-                    },
-                    ArcherMovementTimer::new(),
-                    TargetingVelocity::default(),
-                    FlockingVelocity::default(),
-                    FlowFieldVelocity::default(),
-                    FlowFieldInfluence::Attacker,
-                    Teleportable,
-                    Billboard,
-                    OnGameplayScreen,
-                ));
-            return;
-        }
-        units_counted += units_in_this_cell;
-    }
+    commands
+        .spawn((
+            Mesh3d(archer_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(final_x, spawn_y, final_z),
+            Velocity::default(),
+            Acceleration::new(),
+            hitbox,
+            Health::new(UNIT_HEALTH),
+            MovementSpeed(ARCHER_MOVEMENT_SPEED),
+            AttackTiming::new(),
+            Effectiveness::new(),
+            Team::Attackers,
+            Archer,
+        ))
+        .insert((
+            anim,
+            FacingDirection::default(),
+            AttackRange {
+                min_range: ARCHER_MIN_RANGE,
+                max_range: ARCHER_MAX_RANGE,
+            },
+            ArcherMovementTimer::new(),
+            TargetingVelocity::default(),
+            FlockingVelocity::default(),
+            FlowFieldVelocity::default(),
+            FlowFieldInfluence::Attacker,
+            Teleportable,
+            Billboard,
+            OnGameplayScreen,
+        ));
 }
