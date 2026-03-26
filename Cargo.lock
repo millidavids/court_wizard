@@ -1985,11 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "court_wizard"
-<<<<<<< HEAD
-version = "0.4.485"
-=======
 version = "0.5.207"
->>>>>>> origin
 dependencies = [
  "anyhow",
  "arboard",
