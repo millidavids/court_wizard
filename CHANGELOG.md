@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.235] - 2026-03-27
+
+### Added
+- **New enemy: Aerialist** — a flying attacker that soars above the battlefield, ignoring walls and obstacles. Aerialists swoop in wide arcs and attack from above with dive-bomb strikes. They appear starting at higher difficulty levels
+- **Archers can shoot flying enemies** — arrows now arc upward to reach airborne targets, with proper ballistic physics that account for height
+- **Unit shadows** — all units now cast a circular shadow on the ground beneath them, making it easier to track positions. Larger units have larger shadows, and flying units cast a slightly bigger shadow from their altitude
+
+### Changed
+- **Ground troops ignore flyers** — infantry, the King, and the King's Guard no longer try to chase enemies flying overhead. Only archers can engage airborne threats
+- **Flying units pass over walls** — airborne enemies fly right over Wall of Stone and other obstacles without being blocked or deflected
+
 ## [v0.5.207] - 2026-03-26
 
 ### Added

@@ -13,7 +13,6 @@ pub struct OgreAssets {
     pub material_phase3: Handle<StandardMaterial>,
     pub charge_rect_mesh: Handle<Mesh>,
     pub charge_line_material: Handle<StandardMaterial>,
-    pub charge_fill_material: Handle<StandardMaterial>,
 }
 
 /// System to pre-load ogre assets at startup.
@@ -47,12 +46,6 @@ pub(super) fn preload_ogre_assets(
         charge_rect_mesh: meshes.add(Rectangle::new(1.0, 1.0)),
         charge_line_material: materials.add(StandardMaterial {
             base_color: OGRE_CHARGE_LINE_COLOR,
-            alpha_mode: AlphaMode::Blend,
-            unlit: true,
-            ..default()
-        }),
-        charge_fill_material: materials.add(StandardMaterial {
-            base_color: OGRE_CHARGE_FILL_COLOR,
             alpha_mode: AlphaMode::Blend,
             unlit: true,
             ..default()

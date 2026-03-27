@@ -399,6 +399,7 @@ pub fn ogre_charge_system(
     time: Res<Time>,
     mut commands: Commands,
     ogre_assets: Res<OgreAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut bosses: Query<
         (
             Entity,
@@ -511,11 +512,19 @@ pub fn ogre_charge_system(
                     let far_pos = boss_pos + direction * charge_distance;
                     let far = spawn_line(&mut commands, far_pos.with_y(OGRE_CHARGE_INDICATOR_Y), OGRE_CHARGE_LANE_WIDTH, t);
 
-                    // Fill rectangle that grows outward from the ogre
+                    // Unique emissive material for the fill — pulsed each frame
+                    let fill_material = materials.add(StandardMaterial {
+                        base_color: OGRE_CHARGE_FILL_BASE_COLOR,
+                        emissive: bevy::color::LinearRgba::new(0.0, 0.0, 0.0, 1.0),
+                        alpha_mode: AlphaMode::Blend,
+                        unlit: false,
+                        ..default()
+                    });
+
                     let fill = commands
                         .spawn((
                             Mesh3d(ogre_assets.charge_rect_mesh.clone()),
-                            MeshMaterial3d(ogre_assets.charge_fill_material.clone()),
+                            MeshMaterial3d(fill_material.clone()),
                             Transform::from_translation(boss_pos.with_y(OGRE_CHARGE_INDICATOR_Y))
                                 .with_rotation(rotation)
                                 .with_scale(Vec3::new(OGRE_CHARGE_LANE_WIDTH, 1.0, 1.0)),
@@ -528,7 +537,7 @@ pub fn ogre_charge_system(
                         elapsed: 0.0,
                         direction,
                         target_distance: charge_distance,
-                        indicators: ChargeIndicators { left, right, near, far, fill },
+                        indicators: ChargeIndicators { left, right, near, far, fill, fill_material },
                     };
                 } else {
                     *charge_state = OgreChargeState::Idle { cooldown: 2.0 };
@@ -560,27 +569,12 @@ pub fn ogre_charge_system(
                 *elapsed += delta;
                 let progress = (*elapsed / OGRE_CHARGE_TELEGRAPH_DURATION).min(1.0);
                 let current_length = *target_distance * progress;
-                let pulse = 1.0
-                    + (*elapsed * OGRE_CHARGE_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
-                        * OGRE_CHARGE_PULSE_AMPLITUDE;
 
                 let boss_pos = boss_transform.translation;
                 let dir = *direction;
-                let pulsed_thickness = OGRE_CHARGE_LINE_THICKNESS * pulse;
 
-                for &entity in &indicators.side_lines() {
-                    if let Ok(mut t) = indicator_query.get_mut(entity) {
-                        t.scale.x = pulsed_thickness;
-                    }
-                }
-                for &entity in &indicators.end_lines() {
-                    if let Ok(mut t) = indicator_query.get_mut(entity) {
-                        t.scale.y = pulsed_thickness;
-                    }
-                }
-
+                // Grow the fill rectangle outward from the ogre
                 if let Ok(mut fill_transform) = indicator_query.get_mut(indicators.fill) {
-                    fill_transform.scale.x = OGRE_CHARGE_LANE_WIDTH * pulse;
                     fill_transform.scale.y = current_length.max(1.0);
 
                     let half_length = current_length / 2.0;
@@ -589,6 +583,24 @@ pub fn ogre_charge_system(
                         OGRE_CHARGE_INDICATOR_Y,
                         boss_pos.z + dir.z * half_length,
                     );
+                }
+
+                // Emissive glow: ramps up with progress, pulses ominously on top
+                if let Some(mat) = materials.get_mut(&indicators.fill_material) {
+                    let pulse = (*elapsed * OGRE_CHARGE_PULSE_FREQUENCY * std::f32::consts::TAU)
+                        .sin()
+                        * 0.5
+                        + 0.5; // 0..1 oscillation
+                    let intensity = progress * OGRE_CHARGE_EMISSIVE_MAX * (0.6 + 0.4 * pulse);
+                    mat.emissive = bevy::color::LinearRgba::new(
+                        intensity,
+                        intensity * 0.08,
+                        intensity * 0.02,
+                        1.0,
+                    );
+                    // Fade base color in with progress
+                    let alpha = 0.1 + progress * 0.4;
+                    mat.base_color = Color::srgba(0.6, 0.05, 0.02, alpha);
                 }
 
                 if *elapsed >= OGRE_CHARGE_TELEGRAPH_DURATION {

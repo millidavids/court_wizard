@@ -418,12 +418,23 @@ fn spawn_arrow(
     let angle_offset = rng.gen_range(-ARROW_ANGLE_VARIATION_DEGREES..ARROW_ANGLE_VARIATION_DEGREES);
     let launch_angle = (ARROW_LAUNCH_ANGLE_DEGREES + angle_offset).to_radians();
 
-    // Calculate velocity needed to hit target at launch angle (flat ground)
-    // Range = v^2 * sin(2*theta) / g
-    // Solving for v: v = sqrt(Range * g / sin(2*theta))
-    let sin_2theta = (2.0 * launch_angle).sin();
-    let required_speed =
-        ((horizontal_distance * ARROW_GRAVITY) / sin_2theta).sqrt() * power_multiplier;
+    // Calculate velocity needed to hit target at launch angle, accounting for height difference.
+    // Projectile equation: h = d*tan(θ) - g*d² / (2*v²*cos²(θ))
+    // Solving for v: v = (d/cos(θ)) * sqrt(g / (2*(d*tan(θ) - h)))
+    let height_diff = target.y - origin.y;
+    let tan_theta = launch_angle.tan();
+    let cos_theta = launch_angle.cos();
+    let denominator = 2.0 * (horizontal_distance * tan_theta - height_diff);
+
+    let required_speed = if denominator > 0.1 {
+        (horizontal_distance / cos_theta)
+            * (ARROW_GRAVITY / denominator).sqrt()
+            * power_multiplier
+    } else {
+        // Fallback for nearly-vertical or unreachable shots: use flat-ground formula
+        let sin_2theta = (2.0 * launch_angle).sin();
+        ((horizontal_distance * ARROW_GRAVITY) / sin_2theta).sqrt() * power_multiplier
+    };
 
     // Calculate velocity components
     let horizontal_velocity = horizontal_direction * required_speed * launch_angle.cos();
@@ -516,7 +527,7 @@ pub fn check_arrow_collisions(
                 continue;
             }
 
-            // Check collision
+            // Check collision (full 3D distance — arrows are true projectiles)
             let distance = arrow_pos.distance(target_transform.translation);
             if distance < hitbox.radius + ARROW_WIDTH {
                 let mut damage = arrow.damage;

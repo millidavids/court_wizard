@@ -57,10 +57,11 @@ pub const OGRE_CHARGE_RECOVERY_DURATION: f32 = 0.5;
 pub const OGRE_CHARGE_LANE_WIDTH: f32 = OGRE_ELLIPSE_WIDTH;
 pub const OGRE_CHARGE_LINE_THICKNESS: f32 = 4.0;
 pub const OGRE_CHARGE_INDICATOR_Y: f32 = 2.0;
-pub const OGRE_CHARGE_LINE_COLOR: Color = Color::srgba(0.9, 0.1, 0.1, 0.8);
-pub const OGRE_CHARGE_FILL_COLOR: Color = Color::srgba(0.9, 0.1, 0.1, 0.4);
-pub const OGRE_CHARGE_PULSE_FREQUENCY: f32 = 2.0;
-pub const OGRE_CHARGE_PULSE_AMPLITUDE: f32 = 0.3;
+pub const OGRE_CHARGE_LINE_COLOR: Color = Color::srgba(0.8, 0.1, 0.05, 0.25);
+pub const OGRE_CHARGE_FILL_BASE_COLOR: Color = Color::srgba(0.6, 0.05, 0.02, 0.15);
+pub const OGRE_CHARGE_PULSE_FREQUENCY: f32 = 2.5;
+/// Peak emissive intensity at full charge (linear RGB scale).
+pub const OGRE_CHARGE_EMISSIVE_MAX: f32 = 8.0;
 
 /// Fraction of melee damage the ogre actually takes (0.3 = 70% reduction).
 pub const OGRE_MELEE_DAMAGE_REDUCTION: f32 = 0.3;

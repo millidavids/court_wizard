@@ -7,10 +7,11 @@ use super::messages::WaveSpawnedMessage;
 use super::pathfinding::StagingAttacker;
 use super::resources::{CurrentLevel, KillStats, WaveState};
 use super::units::components::Corpse;
+use super::units::aerialist::resources::AerialistAssets;
 use super::units::archer::resources::ArcherAssets;
 use super::units::brute::constants::BRUTE_START_TIER;
 use super::units::infantry::resources::InfantryAssets;
-use super::units::{archer, brute, infantry};
+use super::units::{aerialist, archer, brute, infantry};
 
 /// Ticks the wave timer and spawns the next wave when it expires.
 /// Does not tick while staging attackers exist (current wave hasn't activated yet).
@@ -22,6 +23,7 @@ pub fn tick_wave_timer(
     current_level: Res<CurrentLevel>,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
+    aerialist_assets: Res<AerialistAssets>,
     mut kill_stats: ResMut<KillStats>,
     mut wave_events: MessageWriter<WaveSpawnedMessage>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -79,6 +81,18 @@ pub fn tick_wave_timer(
         );
     }
 
+    // Spawn aerialists for this wave (tier 2+)
+    let total_aerialists = calculate_total_aerialists(level);
+    for i in 0..total_aerialists {
+        aerialist::systems::spawn_single_attacker_aerialist(
+            &mut commands,
+            &aerialist_assets,
+            &mut materials,
+            i,
+            level,
+        );
+    }
+
     // Spawn brute if tier qualifies
     let has_brute = get_tier(level) >= BRUTE_START_TIER;
     if has_brute {
@@ -91,7 +105,7 @@ pub fn tick_wave_timer(
     }
 
     // Update kill stats with newly spawned attackers
-    let wave_attackers = total_infantry + total_archers + if has_brute { 1 } else { 0 };
+    let wave_attackers = total_infantry + total_archers + total_aerialists + if has_brute { 1 } else { 0 };
     kill_stats.total_attackers_spawned += wave_attackers;
 
     // Check if this was the last wave

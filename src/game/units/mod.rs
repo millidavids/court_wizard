@@ -5,6 +5,7 @@
 use bevy::prelude::*;
 use rand::Rng;
 
+pub(crate) mod aerialist;
 pub(crate) mod archer;
 pub(crate) mod assassin;
 pub(crate) mod boss;

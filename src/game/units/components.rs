@@ -24,6 +24,7 @@ pub enum UnitType {
     Dispeller,
     Shielder,
     Assassin,
+    Aerialist,
     // Bosses
     Hag,
     Ogre,
@@ -44,6 +45,7 @@ impl UnitType {
             UnitType::Dispeller,
             UnitType::Shielder,
             UnitType::Assassin,
+            UnitType::Aerialist,
             UnitType::Hag,
             UnitType::Ogre,
         ]
@@ -63,6 +65,7 @@ impl UnitType {
             UnitType::Dispeller => "Dispeller",
             UnitType::Shielder => "Shielder",
             UnitType::Assassin => "Assassin",
+            UnitType::Aerialist => "Aerialist",
             UnitType::Hag => "Hag",
             UnitType::Ogre => "Ogre",
         }
@@ -82,6 +85,7 @@ impl UnitType {
             UnitType::Dispeller => "Anti-magic units that remove your spell effects.",
             UnitType::Shielder => "Support units that shield allies from your spells.",
             UnitType::Assassin => "Fast flankers that slip past infantry to strike archers.",
+            UnitType::Aerialist => "Flying attackers that swoop over walls and strike from above.",
             UnitType::Hag => "Ancient witches with devastating magical abilities.",
             UnitType::Ogre => "A massive beast that grows stronger as the fight goes on.",
         }
@@ -113,6 +117,7 @@ impl UnitType {
             UnitType::Assassin => {
                 "They don't fight fair. That's the whole point."
             }
+            UnitType::Aerialist => "Death from above. Way, way above.",
             UnitType::Hag => "Three sisters who share one terrible disposition.",
             UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
         }
@@ -138,7 +143,8 @@ impl UnitType {
             | UnitType::Healer
             | UnitType::Dispeller
             | UnitType::Shielder
-            | UnitType::Assassin => "Attacker",
+            | UnitType::Assassin
+            | UnitType::Aerialist => "Attacker",
             UnitType::Hag | UnitType::Ogre => "Boss",
         }
     }
@@ -157,6 +163,7 @@ impl UnitType {
             UnitType::Dispeller => "Your magic feels weaker somehow.",
             UnitType::Shielder => "Something is protecting the enemy.",
             UnitType::Assassin => "Shadows move faster than they should.",
+            UnitType::Aerialist => "Something circles overhead.",
             UnitType::Hag => "Dark magic stirs in the distance.",
             UnitType::Ogre => "The ground trembles.",
         }
@@ -994,6 +1001,24 @@ pub struct PermanentCorpse;
 /// Applied to all combat units (defenders, attackers, undead) but not the wizard.
 #[derive(Component)]
 pub struct Teleportable;
+
+/// Marker component for flying units that render above the battlefield.
+///
+/// Flying units ignore wall obstacles (no wall avoidance, collision, or LOS suppression)
+/// and cannot be targeted by melee ground units (infantry, king, kingsguard).
+/// Archers can still target and hit flying units.
+#[derive(Component)]
+pub struct Flying;
+
+/// Shadow entity that tracks a unit's XZ position at ground level.
+#[derive(Component)]
+pub struct UnitShadow {
+    pub owner: Entity,
+}
+
+/// Marker on a unit that already has a shadow spawned for it.
+#[derive(Component)]
+pub struct HasShadow;
 
 /// Component that slows units walking over rough terrain (corpses).
 ///

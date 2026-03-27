@@ -514,6 +514,19 @@ pub const fn calculate_total_assassins(level: u32) -> u32 {
     BASE_ASSASSIN_COUNT + (tier_level - 1) * ASSASSINS_PER_LEVEL
 }
 
+/// Calculates total aerialists for a given level.
+/// Aerialists spawn from tier 2 onward (level 11+).
+pub const fn calculate_total_aerialists(level: u32) -> u32 {
+    use crate::game::units::aerialist::constants::{
+        AERIALIST_START_TIER, BASE_AERIALIST_COUNT, AERIALISTS_PER_LEVEL,
+    };
+    if get_tier(level) < AERIALIST_START_TIER {
+        return 0;
+    }
+    let tier_level = get_tier_level(level);
+    BASE_AERIALIST_COUNT + (tier_level - 1) * AERIALISTS_PER_LEVEL
+}
+
 /// Calculates the number of cells needed for a unit count (ceil division by MAX_UNITS_PER_CELL).
 pub const fn cells_needed(total_units: u32) -> u32 {
     total_units.div_ceil(MAX_UNITS_PER_CELL)

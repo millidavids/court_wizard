@@ -96,17 +96,10 @@ pub struct ChargeIndicators {
     pub near: Entity,
     pub far: Entity,
     pub fill: Entity,
+    pub fill_material: Handle<StandardMaterial>,
 }
 
 impl ChargeIndicators {
-    pub fn side_lines(&self) -> [Entity; 2] {
-        [self.left, self.right]
-    }
-
-    pub fn end_lines(&self) -> [Entity; 2] {
-        [self.near, self.far]
-    }
-
     pub fn all(&self) -> [Entity; 5] {
         [self.left, self.right, self.near, self.far, self.fill]
     }

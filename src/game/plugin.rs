@@ -116,7 +116,13 @@ impl Plugin for GamePlugin {
                 CrtEffectPlugin,
                 TalentsPlugin,
             ))
-            .add_systems(Startup, shared_systems::load_battle_ambience_assets)
+            .add_systems(
+                Startup,
+                (
+                    shared_systems::load_battle_ambience_assets,
+                    shared_systems::preload_shadow_assets,
+                ),
+            )
             .add_systems(
                 OnEnter(AppState::MetaGame),
                 shared_systems::init_level_from_config,
@@ -219,6 +225,16 @@ impl Plugin for GamePlugin {
                 shared_systems::track_wizard_enemy_damage
                     .after(PostCombatSet)
                     .run_if(shared_systems::wizard_has_not_damaged_enemies),
+            )
+            // Unit shadows — spawn and sync ground-level shadows under all units
+            .add_systems(
+                Update,
+                (
+                    shared_systems::spawn_unit_shadows,
+                    shared_systems::update_unit_shadows,
+                )
+                    .chain()
+                    .run_if(is_gameplay_running),
             )
             // Battle ambience — scales looping sword-clash sound with melee unit count
             // Crowd ambience — muffled crowd loop throughout battle

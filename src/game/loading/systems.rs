@@ -14,6 +14,8 @@ use crate::game::resources::{
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
+use crate::game::units::aerialist::systems as aerialist_systems;
+use crate::game::units::aerialist::AerialistAssets;
 use crate::game::units::assassin::systems as assassin_systems;
 use crate::game::units::assassin::AssassinAssets;
 use crate::game::units::components::{Hitbox, Team};
@@ -160,6 +162,15 @@ pub fn init_loading_progress(
             });
         }
 
+        // 8c. Attacker Aerialists (wave 1) — start spawning at tier 2
+        let total_aerialists = calculate_total_aerialists(level);
+        for i in 0..total_aerialists {
+            queue.tasks.push_back(SpawnTask::AttackerAerialist {
+                unit_index: i,
+                level,
+            });
+        }
+
         // 9. Brute (if tier qualifies, wave 1)
         let has_brute = get_tier(level) >= BRUTE_START_TIER;
         if has_brute {
@@ -167,7 +178,7 @@ pub fn init_loading_progress(
         }
 
         // Record total attackers spawned across ALL waves for score screen
-        let per_wave = total_attackers + total_attacker_archers + total_assassins + if has_brute { 1 } else { 0 };
+        let per_wave = total_attackers + total_attacker_archers + total_assassins + total_aerialists + if has_brute { 1 } else { 0 };
         kill_stats.total_attackers_spawned = per_wave * wave_count;
 
         // Initialize wave state
@@ -233,6 +244,7 @@ pub fn process_spawn_queue(
         Res<crate::game::units::shielder::resources::ShielderAssets>,
         Res<crate::game::units::healer::resources::HealerAssets>,
     ),
+    aerialist_assets: Res<AerialistAssets>,
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
     boss_assets: (
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
@@ -323,6 +335,15 @@ pub fn process_spawn_queue(
                 assassin_systems::spawn_single_attacker_assassin(
                     &mut commands,
                     assassin_assets,
+                    &mut materials,
+                    unit_index,
+                    level,
+                );
+            }
+            SpawnTask::AttackerAerialist { unit_index, level } => {
+                aerialist_systems::spawn_single_attacker_aerialist(
+                    &mut commands,
+                    &aerialist_assets,
                     &mut materials,
                     unit_index,
                     level,

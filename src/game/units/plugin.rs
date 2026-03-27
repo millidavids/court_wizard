@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
+use super::aerialist::AerialistPlugin;
 use super::archer::ArcherPlugin;
 use super::assassin::AssassinPlugin;
 use super::boss::BossPlugin;
@@ -46,6 +47,7 @@ impl Plugin for UnitsPlugin {
             WizardPlugin,
             InfantryPlugin,
             ArcherPlugin,
+            AerialistPlugin,
             AssassinPlugin,
             DispellerPlugin,
             HealerPlugin,

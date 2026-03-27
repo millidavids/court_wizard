@@ -18,9 +18,10 @@ use super::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use super::units::boss::components::Boss;
 use super::units::components::{
     AttackTiming, CORPSE_MATERIAL_VARIANTS, Corpse, DamageMultiplier, Effectiveness,
-    EliteAttackSpeedBonus, EliteDamageBonus, Health, Hitbox, InMelee, Invulnerable, MovementSpeed,
-    ResidualFireDamaged, RetaliationTarget, RoughTerrain, RoughTerrainModifier, SpellDamaged, Team,
-    TemporaryHitPoints, apply_damage_to_unit,
+    EliteAttackSpeedBonus, EliteDamageBonus, Flying, HasShadow, Health, Hitbox, InMelee,
+    Invulnerable, MovementSpeed, ResidualFireDamaged, RetaliationTarget, RoughTerrain,
+    RoughTerrainModifier, SpellDamaged, Team, TemporaryHitPoints, UnitShadow,
+    apply_damage_to_unit,
 };
 use super::units::constants::{SMELLY_SEPARATION_DISTANCE, SMELLY_SEPARATION_MULTIPLIER};
 use super::units::infantry::components::Infantry;
@@ -139,6 +140,10 @@ pub fn apply_separation(
 ) {
     // Separation parameters are defined in constants.rs
 
+    // Maximum Y difference for two units to interact via collision/flocking.
+    // Units at different altitudes (e.g. flying vs ground) ignore each other.
+    const MAX_Y_INTERACTION: f32 = 50.0;
+
     // Collect all unit data for comparison
     let unit_data: Vec<_> = units
         .iter()
@@ -188,6 +193,11 @@ pub fn apply_separation(
 
                 // Assassins pass through non-assassin units (only collide with other assassins)
                 if is_assassin != *other_is_assassin {
+                    continue;
+                }
+
+                // Units at different altitudes don't collide (flying vs ground)
+                if (transform.translation.y - other_pos.y).abs() > MAX_Y_INTERACTION {
                     continue;
                 }
 
@@ -247,6 +257,11 @@ pub fn apply_separation(
 
             // Assassins only flock with other assassins
             if is_assassin != *other_is_assassin {
+                continue;
+            }
+
+            // Units at different altitudes don't interact (flying vs ground)
+            if (transform.translation.y - other_pos.y).abs() > MAX_Y_INTERACTION {
                 continue;
             }
 
@@ -444,9 +459,10 @@ pub fn combat(
                 ),
             ),
         ),
-        (Without<Corpse>, Without<Boss>),
+        (Without<Corpse>, Without<Boss>, Without<Flying>),
     >,
     boss_units: Query<(Entity, &Transform, &Hitbox, &Team), (With<Boss>, Without<Corpse>)>,
+    flying_units: Query<Entity, With<Flying>>,
     mut health_query: Query<(
         &mut Health,
         Option<&mut TemporaryHitPoints>,
@@ -502,6 +518,9 @@ pub fn combat(
         units_snapshot.push((entity, transform.translation, *hitbox, *team));
     }
 
+    // Collect flying entity set for targeting restriction (only archers can melee-hit flying units)
+    let flying_set: std::collections::HashSet<Entity> = flying_units.iter().collect();
+
     // Collect fog cloud talent zone snapshots for combat checks
     let disorienting_snapshot: Vec<(Vec3, f32)> = disorienting_zones
         .iter()
@@ -544,6 +563,10 @@ pub fn combat(
         if let Some((target_entity, _, _)) = units_snapshot
             .iter()
             .filter(|(entity, _, _, team)| {
+                // Flying targets can only be hit by archers in melee combat
+                if flying_set.contains(entity) && !attacker_is_archer {
+                    return false;
+                }
                 *entity != attacker_entity
                     && (has_mass_hysteria
                         || retaliation_entity == Some(*entity)
@@ -878,8 +901,12 @@ pub fn convert_dead_to_corpses(
             Option<&super::units::king::components::King>,
             Option<&Boss>,
             Option<&SpellDamaged>,
-            Option<&ResidualFireDamaged>,
-            Option<&super::units::components::MarkedForDeathModifier>,
+            (
+                Option<&ResidualFireDamaged>,
+                Option<&super::units::components::MarkedForDeathModifier>,
+                Option<&super::units::aerialist::Aerialist>,
+                Has<Flying>,
+            ),
         ),
         (Without<Corpse>, Without<super::units::wizard::spells::fog_cloud::components::PhantomUnit>),
     >,
@@ -894,11 +921,12 @@ pub fn convert_dead_to_corpses(
     death_assets_2: (
         Res<super::units::shielder::resources::ShielderAssets>,
         Res<super::units::healer::resources::HealerAssets>,
+        Res<super::units::aerialist::resources::AerialistAssets>,
     ),
     mut velocity_query: Query<&mut Velocity>,
 ) {
     let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, undead_assets, king_assets) = &death_assets;
-    let (shielder_assets, healer_assets) = &death_assets_2;
+    let (shielder_assets, healer_assets, aerialist_assets) = &death_assets_2;
     for (
         entity,
         health,
@@ -913,8 +941,7 @@ pub fn convert_dead_to_corpses(
         is_king,
         _is_boss,
         spell_damaged,
-        residual_fire_damaged,
-        marked_for_death,
+        (residual_fire_damaged, marked_for_death, is_aerialist, is_flying),
     ) in &query
     {
         if health.is_dead() {
@@ -981,12 +1008,19 @@ pub fn convert_dead_to_corpses(
                 Some(archer_assets.death_texture.clone())
             } else if is_assassin.is_some() {
                 Some(assassin_assets.death_texture.clone())
+            } else if is_aerialist.is_some() {
+                Some(aerialist_assets.death_texture.clone())
             } else {
                 None
             };
 
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert(Corpse);
+
+            // Flying units drop to ground level on death
+            if is_flying {
+                entity_commands.remove::<Flying>();
+            }
 
             if let Some(death_tex) = death_texture {
                 // Unit has death animation: play it before laying flat
@@ -1143,7 +1177,7 @@ pub fn suppress_targeting_through_walls(
     walls: Query<&WallOfStone>,
     mut units: Query<
         (&Transform, &mut super::units::components::TargetingVelocity),
-        (Without<Corpse>, Without<Archer>),
+        (Without<Corpse>, Without<Archer>, Without<Flying>),
     >,
 ) {
     for (transform, mut targeting) in &mut units {
@@ -1172,7 +1206,7 @@ pub fn suppress_targeting_through_walls(
 /// and a proximity-based repulsion force to push units away from nearby walls.
 pub fn apply_wall_avoidance(
     walls: Query<&WallOfStone>,
-    mut units: Query<(&Transform, &Velocity, &mut Acceleration, &Hitbox), Without<Corpse>>,
+    mut units: Query<(&Transform, &Velocity, &mut Acceleration, &Hitbox), (Without<Corpse>, Without<Flying>)>,
 ) {
     const AVOIDANCE_DISTANCE: f32 = 80.0; // How far ahead units look for walls
     const AVOIDANCE_FORCE: f32 = 800.0; // Strength of the avoidance steering
@@ -1265,7 +1299,7 @@ pub fn enforce_wall_collision(
             Option<&mut super::components::Velocity>,
             Option<&super::units::components::TargetingVelocity>,
         ),
-        Without<Corpse>,
+        (Without<Corpse>, Without<Flying>),
     >,
 ) {
     const MAX_ITERATIONS: u32 = 4;
@@ -1555,5 +1589,92 @@ pub fn update_crowd_ambience(
         }
     } else if let Ok((entity, _)) = crowd_query.single() {
         commands.entity(entity).try_despawn();
+    }
+}
+
+// --- Unit shadow system ---
+
+/// Shared shadow mesh and material for all units.
+#[derive(Resource)]
+pub struct ShadowAssets {
+    pub mesh: Handle<Mesh>,
+    pub material: Handle<StandardMaterial>,
+}
+
+/// Base shadow circle radius (half of sprite width / 2).
+const SHADOW_BASE_RADIUS: f32 = super::units::constants::DEFAULT_SPRITE_WIDTH / 4.0;
+/// Extra scale factor for flying unit shadows (simulates height spreading the shadow).
+const FLYING_SHADOW_HEIGHT_SCALE: f32 = 1.3;
+/// Y position of the shadow (just above ground to avoid z-fighting).
+const SHADOW_Y: f32 = 1.5;
+
+pub fn preload_shadow_assets(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let mesh = meshes.add(Circle::new(SHADOW_BASE_RADIUS));
+    let material = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.0, 0.0, 0.0, 0.35),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        ..default()
+    });
+    commands.insert_resource(ShadowAssets { mesh, material });
+}
+
+/// Spawns shadow entities for any unit that doesn't have one yet.
+/// Shadow scale matches the unit's transform scale so larger units get larger shadows.
+/// Flying units get slightly larger shadows to simulate height spreading.
+pub fn spawn_unit_shadows(
+    mut commands: Commands,
+    shadow_assets: Res<ShadowAssets>,
+    units: Query<
+        (Entity, &Transform, Has<Flying>),
+        (
+            With<Team>,
+            With<Hitbox>,
+            Without<HasShadow>,
+            Without<Corpse>,
+        ),
+    >,
+) {
+    for (entity, transform, is_flying) in &units {
+        let mut shadow_scale = transform.scale.x.max(transform.scale.z);
+        if is_flying {
+            shadow_scale *= FLYING_SHADOW_HEIGHT_SCALE;
+        }
+        commands.spawn((
+            Mesh3d(shadow_assets.mesh.clone()),
+            MeshMaterial3d(shadow_assets.material.clone()),
+            Transform::from_xyz(transform.translation.x, SHADOW_Y, transform.translation.z)
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+                .with_scale(Vec3::splat(shadow_scale)),
+            super::components::OnGameplayScreen,
+            UnitShadow { owner: entity },
+        ));
+        commands.entity(entity).insert(HasShadow);
+    }
+}
+
+/// Syncs shadow positions to their owning unit's XZ, always at ground level.
+/// Despawns shadows whose owner no longer exists or is a corpse.
+pub fn update_unit_shadows(
+    mut commands: Commands,
+    mut shadows: Query<(Entity, &UnitShadow, &mut Transform)>,
+    units: Query<(&Transform, Has<Corpse>), (With<Team>, Without<UnitShadow>)>,
+) {
+    for (shadow_entity, shadow, mut shadow_transform) in &mut shadows {
+        if let Ok((unit_transform, is_corpse)) = units.get(shadow.owner) {
+            if is_corpse {
+                commands.entity(shadow_entity).try_despawn();
+                continue;
+            }
+            shadow_transform.translation.x = unit_transform.translation.x;
+            shadow_transform.translation.z = unit_transform.translation.z;
+            shadow_transform.translation.y = SHADOW_Y;
+        } else {
+            commands.entity(shadow_entity).try_despawn();
+        }
     }
 }
