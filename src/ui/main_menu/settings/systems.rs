@@ -20,7 +20,6 @@ use super::constants::{
     BUTTON_FONT_SIZE, DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, LABEL_FONT_SIZE, MARGIN,
     MARGIN_SMALL, OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, POPUP_BOX_BG, POPUP_OVERLAY_BG,
     SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE,
-    VOLUME_BUTTON_SIZE,
 };
 
 /// Sets up the settings menu UI.
@@ -456,208 +455,6 @@ fn spawn_option_button(
     });
 }
 
-/// Configuration for spawning a slider row.
-struct SliderRowConfig<'a, TText, TDownButton, TUpButton, TSliderTrack, TSliderFill, TSliderHandle>
-{
-    label: &'a str,
-    current_value: f32,
-    max_value: f32,
-    text_component: TText,
-    down_button: TDownButton,
-    up_button: TUpButton,
-    slider_track: TSliderTrack,
-    slider_fill: TSliderFill,
-    slider_handle: TSliderHandle,
-}
-
-/// Helper function to spawn a slider row with decrease/increase buttons, slider, and value display.
-fn spawn_slider_row<
-    TText: Component,
-    TDownButton: Component,
-    TUpButton: Component,
-    TSliderTrack: Component,
-    TSliderFill: Component,
-    TSliderHandle: Component,
->(
-    parent: &mut ChildSpawnerCommands,
-    config: SliderRowConfig<
-        '_,
-        TText,
-        TDownButton,
-        TUpButton,
-        TSliderTrack,
-        TSliderFill,
-        TSliderHandle,
-    >,
-) {
-    let SliderRowConfig {
-        label,
-        current_value,
-        max_value,
-        text_component,
-        down_button,
-        up_button,
-        slider_track,
-        slider_fill,
-        slider_handle,
-    } = config;
-    parent
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: Val::Px(MARGIN),
-            ..default()
-        })
-        .with_children(|row| {
-            // Label
-            row.spawn((
-                Text::new(label),
-                TextFont::from_font_size(LABEL_FONT_SIZE),
-                TextColor(TEXT_COLOR),
-                Node {
-                    width: Val::Px(200.0),
-                    ..default()
-                },
-            ));
-
-            // Controls
-            row.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                column_gap: Val::Px(MARGIN_SMALL),
-                ..default()
-            })
-            .with_children(|controls| {
-                // Decrease button
-                controls
-                    .spawn((
-                        Button,
-                        Node {
-                            width: Val::Px(VOLUME_BUTTON_SIZE),
-                            height: Val::Px(VOLUME_BUTTON_SIZE),
-                            border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BorderColor::all(BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(4.0)),
-                        BackgroundColor(BUTTON_BACKGROUND),
-                        ButtonColors {
-                            background: BUTTON_BACKGROUND,
-                        },
-                        down_button,
-                    ))
-                    .with_children(|button| {
-                        button.spawn((
-                            Text::new("-"),
-                            TextFont::from_font_size(BUTTON_FONT_SIZE),
-                            TextColor(TEXT_COLOR),
-                        ));
-                    });
-
-                // Slider track
-                controls
-                    .spawn((
-                        Node {
-                            width: Val::Px(200.0),
-                            height: Val::Px(12.0),
-                            border: UiRect::all(Val::Px(1.0)),
-                            justify_content: JustifyContent::FlexStart,
-                            align_items: AlignItems::Center,
-                            position_type: PositionType::Relative,
-                            ..default()
-                        },
-                        BorderColor::all(BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(6.0)),
-                        BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
-                        Interaction::default(),
-                        RelativeCursorPosition::default(),
-                        slider_track,
-                    ))
-                    .with_children(|track| {
-                        // Slider fill
-                        let normalized = current_value / max_value;
-                        track.spawn((
-                            Node {
-                                width: Val::Percent(normalized * 100.0),
-                                height: Val::Percent(100.0),
-                                ..default()
-                            },
-                            BorderRadius {
-                                top_left: Val::Px(6.0),
-                                bottom_left: Val::Px(6.0),
-                                top_right: Val::Px(0.0),
-                                bottom_right: Val::Px(0.0),
-                            },
-                            BackgroundColor(BUTTON_BORDER),
-                            slider_fill,
-                        ));
-
-                        // Slider handle (offset by -2px to center the 4px wide bar)
-                        track.spawn((
-                            Node {
-                                width: Val::Px(4.0),
-                                height: Val::Px(20.0),
-                                position_type: PositionType::Absolute,
-                                left: Val::Px(normalized * 200.0 - 2.0),
-                                top: Val::Px(-4.0),
-                                ..default()
-                            },
-                            BorderRadius::all(Val::Px(2.0)),
-                            BackgroundColor(Color::WHITE),
-                            BorderColor::all(BUTTON_BORDER),
-                            Interaction::default(),
-                            RelativeCursorPosition::default(),
-                            slider_handle,
-                        ));
-                    });
-
-                // Increase button
-                controls
-                    .spawn((
-                        Button,
-                        Node {
-                            width: Val::Px(VOLUME_BUTTON_SIZE),
-                            height: Val::Px(VOLUME_BUTTON_SIZE),
-                            border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        BorderColor::all(BUTTON_BORDER),
-                        BorderRadius::all(Val::Px(4.0)),
-                        BackgroundColor(BUTTON_BACKGROUND),
-                        ButtonColors {
-                            background: BUTTON_BACKGROUND,
-                        },
-                        up_button,
-                    ))
-                    .with_children(|button| {
-                        button.spawn((
-                            Text::new("+"),
-                            TextFont::from_font_size(BUTTON_FONT_SIZE),
-                            TextColor(TEXT_COLOR),
-                        ));
-                    });
-
-                // Value display
-                controls.spawn((
-                    Text::new(format!("{}%", (current_value * 100.0) as u8)),
-                    TextFont::from_font_size(LABEL_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    Node {
-                        width: Val::Px(60.0),
-                        justify_content: JustifyContent::Center,
-                        ..default()
-                    },
-                    text_component,
-                ));
-            });
-        });
-}
-
 /// Helper function to spawn a slider control row.
 fn spawn_slider_control(
     parent: &mut ChildSpawnerCommands,
@@ -666,14 +463,15 @@ fn spawn_slider_control(
     game_config: &GameConfig,
 ) {
     let current_value = slider_value.get(game_config);
-    let max_value = slider_value.max_value();
 
-    spawn_slider_row(
+    crate::ui::systems::spawn_slider_row(
         parent,
-        SliderRowConfig {
+        crate::ui::systems::SliderRowConfig {
             label,
             current_value,
-            max_value,
+            min_value: slider_value.min_value(),
+            max_value: slider_value.max_value(),
+            label_width: 200.0,
             text_component: SliderText {
                 value: slider_value,
             },
@@ -1034,9 +832,8 @@ pub fn update_sliders(
             let min = slider_handle.value.min_value();
             let max = slider_handle.value.max_value();
             let range = max - min;
-            // Center the handle on the position (200px track width, -2px offset for 4px handle)
             let normalized = (value - min) / range;
-            node.left = Val::Px(normalized * 200.0 - 2.0);
+            node.left = Val::Px(normalized * crate::ui::constants::SLIDER_TRACK_WIDTH - 2.0);
         }
     }
 }

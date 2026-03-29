@@ -10,6 +10,7 @@ mod game_mode_select;
 mod landing;
 mod multiplayer;
 mod plugin;
+mod roguelite_modifiers;
 pub(crate) mod settings;
 mod wizard_select;
 mod wizard_select_shared;

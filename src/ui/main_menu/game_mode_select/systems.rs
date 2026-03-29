@@ -216,7 +216,7 @@ pub(super) fn button_action(
             match action {
                 GameModeButtonAction::Roguelite => {
                     commands.insert_resource(GameMode::Roguelite);
-                    next_menu_state.set(MenuState::WizardSelect);
+                    next_menu_state.set(MenuState::RogueliteModifiers);
                 }
                 GameModeButtonAction::Endless => {
                     commands.insert_resource(GameMode::Endless);

@@ -110,6 +110,24 @@ achievement_resource!(CloseCallAchievement, AchievementId::CloseCall);
 achievement_resource!(StormbringerAchievement, AchievementId::Stormbringer);
 achievement_resource!(PacifistAchievement, AchievementId::Pacifist);
 
+// Roguelite Modifier Achievements
+achievement_resource!(ModWaveSpeedMinAch, AchievementId::ModWaveSpeedMin);
+achievement_resource!(ModWaveSpeed100Ach, AchievementId::ModWaveSpeed100);
+achievement_resource!(ModWaveSpeed200Ach, AchievementId::ModWaveSpeed200);
+achievement_resource!(ModWaveSpeed300Ach, AchievementId::ModWaveSpeed300);
+achievement_resource!(ModEnemyStrengthMinAch, AchievementId::ModEnemyStrengthMin);
+achievement_resource!(ModEnemyStrength100Ach, AchievementId::ModEnemyStrength100);
+achievement_resource!(ModEnemyStrength200Ach, AchievementId::ModEnemyStrength200);
+achievement_resource!(ModEnemyStrength300Ach, AchievementId::ModEnemyStrength300);
+achievement_resource!(ModEnemyCountMinAch, AchievementId::ModEnemyCountMin);
+achievement_resource!(ModEnemyCount100Ach, AchievementId::ModEnemyCount100);
+achievement_resource!(ModEnemyCount200Ach, AchievementId::ModEnemyCount200);
+achievement_resource!(ModEnemyCount300Ach, AchievementId::ModEnemyCount300);
+achievement_resource!(ModAllMinAch, AchievementId::ModAllMin);
+achievement_resource!(ModAll200Ach, AchievementId::ModAll200);
+achievement_resource!(ModAllMaxAch, AchievementId::ModAllMax);
+achievement_resource!(ModMixedExtremesAch, AchievementId::ModMixedExtremes);
+
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
     res.is_locked()
@@ -203,6 +221,22 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(CloseCallAchievement(false));
     commands.insert_resource(StormbringerAchievement(false));
     commands.insert_resource(PacifistAchievement(false));
+    commands.insert_resource(ModWaveSpeedMinAch(false));
+    commands.insert_resource(ModWaveSpeed100Ach(false));
+    commands.insert_resource(ModWaveSpeed200Ach(false));
+    commands.insert_resource(ModWaveSpeed300Ach(false));
+    commands.insert_resource(ModEnemyStrengthMinAch(false));
+    commands.insert_resource(ModEnemyStrength100Ach(false));
+    commands.insert_resource(ModEnemyStrength200Ach(false));
+    commands.insert_resource(ModEnemyStrength300Ach(false));
+    commands.insert_resource(ModEnemyCountMinAch(false));
+    commands.insert_resource(ModEnemyCount100Ach(false));
+    commands.insert_resource(ModEnemyCount200Ach(false));
+    commands.insert_resource(ModEnemyCount300Ach(false));
+    commands.insert_resource(ModAllMinAch(false));
+    commands.insert_resource(ModAll200Ach(false));
+    commands.insert_resource(ModAllMaxAch(false));
+    commands.insert_resource(ModMixedExtremesAch(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -263,4 +297,20 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(CloseCallAchievement);
     init!(StormbringerAchievement);
     init!(PacifistAchievement);
+    init!(ModWaveSpeedMinAch);
+    init!(ModWaveSpeed100Ach);
+    init!(ModWaveSpeed200Ach);
+    init!(ModWaveSpeed300Ach);
+    init!(ModEnemyStrengthMinAch);
+    init!(ModEnemyStrength100Ach);
+    init!(ModEnemyStrength200Ach);
+    init!(ModEnemyStrength300Ach);
+    init!(ModEnemyCountMinAch);
+    init!(ModEnemyCount100Ach);
+    init!(ModEnemyCount200Ach);
+    init!(ModEnemyCount300Ach);
+    init!(ModAllMinAch);
+    init!(ModAll200Ach);
+    init!(ModAllMaxAch);
+    init!(ModMixedExtremesAch);
 }

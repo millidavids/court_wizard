@@ -31,9 +31,6 @@ pub const OPTION_BUTTON_WIDTH: f32 = 120.0;
 /// Height of option buttons in pixels.
 pub const OPTION_BUTTON_HEIGHT: f32 = 40.0;
 
-/// Width of volume control buttons in pixels.
-pub const VOLUME_BUTTON_SIZE: f32 = 30.0;
-
 /// Border width for buttons in pixels.
 pub const BUTTON_BORDER_WIDTH: f32 = 2.0;
 

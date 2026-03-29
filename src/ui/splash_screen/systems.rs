@@ -140,16 +140,15 @@ pub(super) fn setup_engine(mut commands: Commands, splash_assets: Res<SplashAsse
         });
 }
 
-/// Studio substate: studio branding text with faint background image.
+/// Studio substate: studio branding image centered on black background.
 pub(super) fn setup_studio(mut commands: Commands, splash_assets: Res<SplashAssets>) {
     commands
         .spawn((
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                justify_content: JustifyContent::SpaceBetween,
+                justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                flex_direction: FlexDirection::Column,
                 ..default()
             },
             BackgroundColor(Color::BLACK),
@@ -159,38 +158,12 @@ pub(super) fn setup_studio(mut commands: Commands, splash_assets: Res<SplashAsse
             SplashTransition::MainMenu,
         ))
         .with_children(|parent| {
-            // Image wrapper — absolutely positioned, centered, full size
-            parent
-                .spawn(Node {
-                    position_type: PositionType::Absolute,
-                    width: Val::Percent(100.0),
+            parent.spawn((
+                ImageNode::new(splash_assets.studio_image.clone()),
+                Node {
                     height: Val::Percent(100.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
                     ..default()
-                })
-                .with_children(|wrapper| {
-                    wrapper.spawn((
-                        ImageNode::new(splash_assets.studio_image.clone())
-                            .with_color(Color::srgba(1.0, 1.0, 1.0, STUDIO_IMAGE_MAX_OPACITY)),
-                        Node {
-                            height: Val::Percent(100.0),
-                            ..default()
-                        },
-                    ));
-                });
-
-            // Text layer — centered on top of the image
-            parent.spawn((
-                Text::new("The Cult of"),
-                TextFont::from_font_size(TEXT_FONT_SIZE),
-                TextColor(STUDIO_TEXT_COLOR),
-            ));
-
-            parent.spawn((
-                Text::new("David"),
-                TextFont::from_font_size(DAVID_FONT_SIZE),
-                TextColor(STUDIO_TEXT_COLOR),
+                },
             ));
         });
 }

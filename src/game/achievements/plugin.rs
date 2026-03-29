@@ -253,6 +253,12 @@ impl Plugin for AchievementsPlugin {
                     .run_if(on_message::<BattleEndedMessage>)
                     .run_if(achievement_locked::<PacifistAchievement>),
             )
+            // Roguelite modifier achievements — checked on battle end
+            .add_systems(
+                Update,
+                systems::check_roguelite_modifier_achievements
+                    .run_if(on_message::<BattleEndedMessage>),
+            )
             // Reset all achievements when progress is cleared
             .add_systems(
                 Update,

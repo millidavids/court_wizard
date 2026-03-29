@@ -28,6 +28,7 @@ pub fn tick_wave_timer(
     mut wave_events: MessageWriter<WaveSpawnedMessage>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
+    roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
 ) {
     if wave_state.waves_complete {
         return;
@@ -56,9 +57,13 @@ pub fn tick_wave_timer(
     wave_state.wave_timer = wave_state.wave_interval;
 
     let level = current_level.0;
+    let count_mult = roguelite_modifiers
+        .as_ref()
+        .map(|m| m.enemy_count)
+        .unwrap_or(1.0);
 
     // Spawn infantry for this wave
-    let total_infantry = calculate_total_infantry(level);
+    let total_infantry = (calculate_total_infantry(level) as f32 * count_mult).round() as u32;
     for i in 0..total_infantry {
         infantry::systems::spawn_single_attacker(
             &mut commands,
@@ -70,7 +75,7 @@ pub fn tick_wave_timer(
     }
 
     // Spawn archers for this wave
-    let total_archers = calculate_total_archers(level);
+    let total_archers = (calculate_total_archers(level) as f32 * count_mult).round() as u32;
     for i in 0..total_archers {
         archer::systems::spawn_single_attacker_archer(
             &mut commands,
@@ -82,7 +87,7 @@ pub fn tick_wave_timer(
     }
 
     // Spawn aerialists for this wave (tier 2+)
-    let total_aerialists = calculate_total_aerialists(level);
+    let total_aerialists = (calculate_total_aerialists(level) as f32 * count_mult).round() as u32;
     for i in 0..total_aerialists {
         aerialist::systems::spawn_single_attacker_aerialist(
             &mut commands,

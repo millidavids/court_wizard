@@ -62,5 +62,23 @@ pub(super) fn steam_api_name(id: AchievementId) -> &'static str {
         AchievementId::CloseCall => "ACH_CLOSE_CALL",
         AchievementId::Stormbringer => "ACH_STORMBRINGER",
         AchievementId::Pacifist => "ACH_PACIFIST",
+
+        // Roguelite Modifier Achievements
+        AchievementId::ModWaveSpeedMin => "ACH_MOD_WAVE_SPEED_MIN",
+        AchievementId::ModWaveSpeed100 => "ACH_MOD_WAVE_SPEED_100",
+        AchievementId::ModWaveSpeed200 => "ACH_MOD_WAVE_SPEED_200",
+        AchievementId::ModWaveSpeed300 => "ACH_MOD_WAVE_SPEED_300",
+        AchievementId::ModEnemyStrengthMin => "ACH_MOD_ENEMY_STRENGTH_MIN",
+        AchievementId::ModEnemyStrength100 => "ACH_MOD_ENEMY_STRENGTH_100",
+        AchievementId::ModEnemyStrength200 => "ACH_MOD_ENEMY_STRENGTH_200",
+        AchievementId::ModEnemyStrength300 => "ACH_MOD_ENEMY_STRENGTH_300",
+        AchievementId::ModEnemyCountMin => "ACH_MOD_ENEMY_COUNT_MIN",
+        AchievementId::ModEnemyCount100 => "ACH_MOD_ENEMY_COUNT_100",
+        AchievementId::ModEnemyCount200 => "ACH_MOD_ENEMY_COUNT_200",
+        AchievementId::ModEnemyCount300 => "ACH_MOD_ENEMY_COUNT_300",
+        AchievementId::ModAllMin => "ACH_MOD_ALL_MIN",
+        AchievementId::ModAll200 => "ACH_MOD_ALL_200",
+        AchievementId::ModAllMax => "ACH_MOD_ALL_MAX",
+        AchievementId::ModMixedExtremes => "ACH_MOD_MIXED_EXTREMES",
     }
 }

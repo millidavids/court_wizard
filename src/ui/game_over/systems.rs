@@ -533,6 +533,7 @@ pub(super) fn handle_button_actions(
     config: Res<GameConfig>,
     time_travel: Option<Res<TimeTravelState>>,
     roguelite_run: Option<Res<RogueliteRunState>>,
+    roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -585,6 +586,7 @@ pub(super) fn handle_button_actions(
                             wizard_type: config.wizard_type,
                             saved: false,
                             level_stats: run.level_stats.clone(),
+                            modifiers: roguelite_modifiers.as_ref().map(|m| m.as_ref().clone()),
                         };
                         crate::config::save_data::save_roguelite_run(
                             &active_save,

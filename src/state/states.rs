@@ -74,6 +74,9 @@ pub enum MenuState {
     /// Game mode selection screen (Story, Roguelite, Endless, Multiplayer).
     GameModeSelect,
 
+    /// Roguelite modifier selection (game speed, enemy effectiveness, enemy count).
+    RogueliteModifiers,
+
     /// Wizard type selection screen for picking or creating a wizard.
     WizardSelect,
 

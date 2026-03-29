@@ -33,6 +33,7 @@ pub fn init_loading_progress(
     time_travel: Option<Res<TimeTravelState>>,
     active_talents: Option<Res<crate::game::units::wizard::talents::resources::ActiveTalents>>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
+    roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
 ) {
     // Sync CurrentLevel from GameConfig, but skip during time travel
     // (CurrentLevel was already overridden by the wizard tower hub)
@@ -132,11 +133,17 @@ pub fn init_loading_progress(
         // Normal level: spawn wave 1 infantry, archers, and possibly brute
         let wave_count = calculate_wave_count(level);
 
+        // Enemy count multiplier from roguelite modifiers (default 1.0)
+        let count_mult = roguelite_modifiers
+            .as_ref()
+            .map(|m| m.enemy_count)
+            .unwrap_or(1.0);
+
         // 7. Attacker Infantry (wave 1)
         let is_endless = crate::game::game_mode::components::is_endless_mode(game_mode.as_deref());
         let extra_infantry = if is_endless { crate::game::constants::endless_extra_infantry(level) } else { 0 };
         let extra_archers = if is_endless { crate::game::constants::endless_extra_archers(level) } else { 0 };
-        let total_attackers = calculate_total_infantry(level) + extra_infantry;
+        let total_attackers = ((calculate_total_infantry(level) + extra_infantry) as f32 * count_mult).round() as u32;
         for i in 0..total_attackers {
             queue.tasks.push_back(SpawnTask::AttackerInfantry {
                 unit_index: i,
@@ -145,7 +152,7 @@ pub fn init_loading_progress(
         }
 
         // 8. Attacker Archers (wave 1)
-        let total_attacker_archers = calculate_total_archers(level) + extra_archers;
+        let total_attacker_archers = ((calculate_total_archers(level) + extra_archers) as f32 * count_mult).round() as u32;
         for i in 0..total_attacker_archers {
             queue.tasks.push_back(SpawnTask::AttackerArcher {
                 unit_index: i,
@@ -154,7 +161,7 @@ pub fn init_loading_progress(
         }
 
         // 8b. Attacker Assassins (wave 1) — start spawning at tier 2
-        let total_assassins = calculate_total_assassins(level);
+        let total_assassins = (calculate_total_assassins(level) as f32 * count_mult).round() as u32;
         for i in 0..total_assassins {
             queue.tasks.push_back(SpawnTask::AttackerAssassin {
                 unit_index: i,
@@ -163,7 +170,7 @@ pub fn init_loading_progress(
         }
 
         // 8c. Attacker Aerialists (wave 1) — start spawning at tier 2
-        let total_aerialists = calculate_total_aerialists(level);
+        let total_aerialists = (calculate_total_aerialists(level) as f32 * count_mult).round() as u32;
         for i in 0..total_aerialists {
             queue.tasks.push_back(SpawnTask::AttackerAerialist {
                 unit_index: i,
@@ -181,12 +188,17 @@ pub fn init_loading_progress(
         let per_wave = total_attackers + total_attacker_archers + total_assassins + total_aerialists + if has_brute { 1 } else { 0 };
         kill_stats.total_attackers_spawned = per_wave * wave_count;
 
-        // Initialize wave state
+        // Initialize wave state (game_speed modifier scales wave interval)
+        let speed_mult = roguelite_modifiers
+            .as_ref()
+            .map(|m| m.game_speed)
+            .unwrap_or(1.0);
+        let wave_interval = WAVE_INTERVAL_SECONDS / speed_mult;
         commands.insert_resource(WaveState {
             current_wave: 0,
             total_waves: wave_count,
-            wave_timer: WAVE_INTERVAL_SECONDS,
-            wave_interval: WAVE_INTERVAL_SECONDS,
+            wave_timer: wave_interval,
+            wave_interval,
             waves_complete: wave_count <= 1,
         });
 

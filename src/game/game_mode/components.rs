@@ -93,6 +93,41 @@ pub(crate) fn format_time(seconds: f32) -> String {
     }
 }
 
+/// Player-chosen modifiers for a roguelite run.
+/// Inserted from the modifier selection screen; removed on return to main menu.
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct RogueliteModifiers {
+    /// Wave spawn frequency multiplier (0.2–3.0, default 1.0).
+    /// Higher values make waves arrive faster.
+    pub game_speed: f32,
+    /// Attacker base effectiveness multiplier (0.2–3.0, default 1.0).
+    /// Higher values make enemies hit harder and move faster.
+    pub enemy_effectiveness: f32,
+    /// Enemy count multiplier (0.2–3.0, default 1.0).
+    /// Higher values spawn more enemies per wave.
+    pub enemy_count: f32,
+}
+
+impl Default for RogueliteModifiers {
+    fn default() -> Self {
+        Self {
+            game_speed: 1.0,
+            enemy_effectiveness: 1.0,
+            enemy_count: 1.0,
+        }
+    }
+}
+
+impl RogueliteModifiers {
+    /// Returns true if all modifiers are at their default (100%) values.
+    #[allow(dead_code)]
+    pub fn is_default(&self) -> bool {
+        (self.game_speed - 1.0).abs() < 0.01
+            && (self.enemy_effectiveness - 1.0).abs() < 0.01
+            && (self.enemy_count - 1.0).abs() < 0.01
+    }
+}
+
 /// Last level of a roguelite run (tier 4 boss, level 25).
 pub(crate) const ROGUELITE_MAX_LEVEL: u32 = 25;
 

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.277] - 2026-03-29
+
+### Added
+- **Roguelite run modifiers** — before starting a roguelite run, you can now adjust three difficulty sliders: wave speed, enemy strength, and enemy count. Each ranges from 20% to 300%, letting you customize how hard (or easy) your run will be
+- **New achievements for modifier runs** — a collection of new achievements for completing roguelite runs at various modifier settings, including some for pushing every slider to the max
+- **New studio splash image** — updated the studio splash screen with a new image
+
+### Changed
+- **Game clock tracks real time** — the in-game clock now counts real seconds instead of speeding up during the between-wave fast-forward. Your battle times will be more accurate across all game modes
+- **Modifier stats saved to run history** — your chosen modifier settings are recorded with each roguelite run so you can see what difficulty you played at
+
+### Fixed
+- **Enemy count modifier applies to all waves** — the enemy count slider now correctly affects every wave in a battle, not just the first one
+
 ## [v0.5.266] - 2026-03-28
 
 ### Added

@@ -6,7 +6,9 @@ use crate::game::resources::CurrentLevel;
 use crate::game::units::components::{Effectiveness, Team};
 use crate::state::AppState;
 
-use super::components::{is_endless_mode, is_roguelite_mode, GameMode, RogueliteRunState};
+use super::components::{
+    is_endless_mode, is_roguelite_mode, GameMode, RogueliteModifiers, RogueliteRunState,
+};
 
 /// Plugin that manages game mode lifecycle.
 pub struct GameModePlugin;
@@ -18,13 +20,17 @@ impl Plugin for GameModePlugin {
                 OnEnter(AppState::MetaGame),
                 init_roguelite_run.after(crate::game::shared_systems::init_level_from_config),
             )
-            .add_systems(OnEnter(AppState::InGame), apply_endless_scaling);
+            .add_systems(
+                OnEnter(AppState::InGame),
+                (apply_endless_scaling, apply_roguelite_effectiveness),
+            );
     }
 }
 
 fn cleanup_game_mode(mut commands: Commands) {
     commands.remove_resource::<GameMode>();
     commands.remove_resource::<RogueliteRunState>();
+    commands.remove_resource::<RogueliteModifiers>();
 }
 
 /// Initializes a new roguelite run when entering MetaGame in Roguelite mode.
@@ -78,5 +84,26 @@ fn apply_endless_scaling(
         // Boost attacker base effectiveness — the recalculate system will
         // propagate this to `current` via the normal formula.
         eff.base += bonus;
+    }
+}
+
+/// Applies the roguelite enemy effectiveness modifier to all attacker units.
+/// Multiplies base effectiveness by the modifier value (1.0 = no change).
+fn apply_roguelite_effectiveness(
+    modifiers: Option<Res<RogueliteModifiers>>,
+    mut attackers: Query<(&mut Effectiveness, &Team)>,
+) {
+    let Some(modifiers) = modifiers else {
+        return;
+    };
+    let mult = modifiers.enemy_effectiveness;
+    if (mult - 1.0).abs() < f32::EPSILON {
+        return;
+    }
+    for (mut eff, team) in &mut attackers {
+        if *team != Team::Attackers {
+            continue;
+        }
+        eff.base *= mult;
     }
 }

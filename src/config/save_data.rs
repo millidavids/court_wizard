@@ -209,6 +209,23 @@ pub(crate) enum AchievementId {
     CloseCall,
     Stormbringer,
     Pacifist,
+    // Roguelite Modifier Achievements
+    ModWaveSpeedMin,
+    ModWaveSpeed100,
+    ModWaveSpeed200,
+    ModWaveSpeed300,
+    ModEnemyStrengthMin,
+    ModEnemyStrength100,
+    ModEnemyStrength200,
+    ModEnemyStrength300,
+    ModEnemyCountMin,
+    ModEnemyCount100,
+    ModEnemyCount200,
+    ModEnemyCount300,
+    ModAllMin,
+    ModAll200,
+    ModAllMax,
+    ModMixedExtremes,
 }
 
 impl AchievementId {
@@ -258,6 +275,23 @@ impl AchievementId {
             AchievementId::CloseCall,
             AchievementId::Stormbringer,
             AchievementId::Pacifist,
+            // Roguelite Modifier Achievements
+            AchievementId::ModWaveSpeedMin,
+            AchievementId::ModWaveSpeed100,
+            AchievementId::ModWaveSpeed200,
+            AchievementId::ModWaveSpeed300,
+            AchievementId::ModEnemyStrengthMin,
+            AchievementId::ModEnemyStrength100,
+            AchievementId::ModEnemyStrength200,
+            AchievementId::ModEnemyStrength300,
+            AchievementId::ModEnemyCountMin,
+            AchievementId::ModEnemyCount100,
+            AchievementId::ModEnemyCount200,
+            AchievementId::ModEnemyCount300,
+            AchievementId::ModAllMin,
+            AchievementId::ModAll200,
+            AchievementId::ModAllMax,
+            AchievementId::ModMixedExtremes,
         ]
     }
 
@@ -307,6 +341,22 @@ impl AchievementId {
             AchievementId::CloseCall => "close_call",
             AchievementId::Stormbringer => "stormbringer",
             AchievementId::Pacifist => "pacifist",
+            AchievementId::ModWaveSpeedMin => "mod_wave_speed_min",
+            AchievementId::ModWaveSpeed100 => "mod_wave_speed_100",
+            AchievementId::ModWaveSpeed200 => "mod_wave_speed_200",
+            AchievementId::ModWaveSpeed300 => "mod_wave_speed_300",
+            AchievementId::ModEnemyStrengthMin => "mod_enemy_strength_min",
+            AchievementId::ModEnemyStrength100 => "mod_enemy_strength_100",
+            AchievementId::ModEnemyStrength200 => "mod_enemy_strength_200",
+            AchievementId::ModEnemyStrength300 => "mod_enemy_strength_300",
+            AchievementId::ModEnemyCountMin => "mod_enemy_count_min",
+            AchievementId::ModEnemyCount100 => "mod_enemy_count_100",
+            AchievementId::ModEnemyCount200 => "mod_enemy_count_200",
+            AchievementId::ModEnemyCount300 => "mod_enemy_count_300",
+            AchievementId::ModAllMin => "mod_all_min",
+            AchievementId::ModAll200 => "mod_all_200",
+            AchievementId::ModAllMax => "mod_all_max",
+            AchievementId::ModMixedExtremes => "mod_mixed_extremes",
         }
     }
 
@@ -356,6 +406,22 @@ impl AchievementId {
             AchievementId::CloseCall => "Close Call",
             AchievementId::Stormbringer => "Stormbringer",
             AchievementId::Pacifist => "Pacifist",
+            AchievementId::ModWaveSpeedMin => "Leisurely Pace",
+            AchievementId::ModWaveSpeed100 => "Right On Time",
+            AchievementId::ModWaveSpeed200 => "Double Time",
+            AchievementId::ModWaveSpeed300 => "Blitz",
+            AchievementId::ModEnemyStrengthMin => "Mercy Rule",
+            AchievementId::ModEnemyStrength100 => "Fair Fight",
+            AchievementId::ModEnemyStrength200 => "Battle Hardened",
+            AchievementId::ModEnemyStrength300 => "Unstoppable Force",
+            AchievementId::ModEnemyCountMin => "Skeleton Crew",
+            AchievementId::ModEnemyCount100 => "Standard Forces",
+            AchievementId::ModEnemyCount200 => "Double Trouble",
+            AchievementId::ModEnemyCount300 => "Army of Darkness",
+            AchievementId::ModAllMin => "Minimalist",
+            AchievementId::ModAll200 => "Overachiever",
+            AchievementId::ModAllMax => "Absolute Madness",
+            AchievementId::ModMixedExtremes => "Glass Cannon",
         }
     }
 
@@ -384,6 +450,11 @@ impl AchievementId {
             AchievementId::Stormbringer => Some("Unlocks: Meteorologist wizard"),
             AchievementId::Pacifist => Some("Unlocks: Shepherd wizard"),
             AchievementId::AccidentalRegicide => Some("Unlocks: Psychopath wizard"),
+            AchievementId::ModWaveSpeed300 => Some("Grants: 25 Arcane Insight"),
+            AchievementId::ModEnemyStrength300 => Some("Grants: 25 Arcane Insight"),
+            AchievementId::ModEnemyCount300 => Some("Grants: 25 Arcane Insight"),
+            AchievementId::ModAll200 => Some("Grants: 50 Arcane Insight"),
+            AchievementId::ModAllMax => Some("Grants: 100 Arcane Insight"),
             _ => None,
         }
     }
@@ -403,6 +474,11 @@ impl AchievementId {
             AchievementId::ScorchedEarth => 15,
             AchievementId::ProtectiveInstincts => 15,
             AchievementId::FriendlyThorns => 15,
+            AchievementId::ModWaveSpeed300 => 25,
+            AchievementId::ModEnemyStrength300 => 25,
+            AchievementId::ModEnemyCount300 => 25,
+            AchievementId::ModAll200 => 50,
+            AchievementId::ModAllMax => 100,
             _ => 0,
         }
     }
@@ -476,6 +552,46 @@ impl AchievementId {
             }
             AchievementId::Pacifist => {
                 "You won without your spells hurting a single enemy. There is another way."
+            }
+            AchievementId::ModWaveSpeedMin => "Completed a roguelite run at the slowest wave speed.",
+            AchievementId::ModWaveSpeed100 => "Completed a roguelite run at normal wave speed.",
+            AchievementId::ModWaveSpeed200 => "Completed a roguelite run at double wave speed.",
+            AchievementId::ModWaveSpeed300 => {
+                "Completed a roguelite run at maximum wave speed. No breaks!"
+            }
+            AchievementId::ModEnemyStrengthMin => {
+                "Completed a roguelite run with enemies at their weakest."
+            }
+            AchievementId::ModEnemyStrength100 => {
+                "Completed a roguelite run with normal enemy strength."
+            }
+            AchievementId::ModEnemyStrength200 => {
+                "Completed a roguelite run with double-strength enemies."
+            }
+            AchievementId::ModEnemyStrength300 => {
+                "Completed a roguelite run with maximum-strength enemies."
+            }
+            AchievementId::ModEnemyCountMin => {
+                "Completed a roguelite run with a skeleton crew of enemies."
+            }
+            AchievementId::ModEnemyCount100 => {
+                "Completed a roguelite run with the standard enemy count."
+            }
+            AchievementId::ModEnemyCount200 => {
+                "Completed a roguelite run with double the enemies."
+            }
+            AchievementId::ModEnemyCount300 => {
+                "Completed a roguelite run against the maximum enemy horde."
+            }
+            AchievementId::ModAllMin => {
+                "Completed a roguelite run with every modifier at minimum."
+            }
+            AchievementId::ModAll200 => "Completed a roguelite run with everything doubled.",
+            AchievementId::ModAllMax => {
+                "Completed a roguelite run with every modifier maxed out. You're insane."
+            }
+            AchievementId::ModMixedExtremes => {
+                "Completed a roguelite run with one modifier maxed and another at minimum."
             }
         }
     }
@@ -654,6 +770,9 @@ pub(crate) struct RogueliteRun {
     #[serde(default)]
     pub(crate) saved: bool,
     pub(crate) level_stats: Vec<crate::game::game_mode::components::LevelRunStats>,
+    /// Player-chosen modifiers for this run (None for runs before modifiers existed).
+    #[serde(default)]
+    pub(crate) modifiers: Option<crate::game::game_mode::components::RogueliteModifiers>,
 }
 
 /// Best stats achieved on a single endless level.

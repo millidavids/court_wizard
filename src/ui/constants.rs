@@ -93,3 +93,29 @@ pub const LIST_BG: Color = Color::hsla(220.0, 0.08, 0.08, 0.75);
 
 /// List area border (dark gray).
 pub const LIST_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 0.8);
+
+// ── Shared Slider ─────────────────────────────────────────────────────────
+
+/// Width of slider +/- buttons.
+pub const SLIDER_BUTTON_SIZE: f32 = 30.0;
+
+/// Border width for slider +/- buttons.
+pub const SLIDER_BORDER_WIDTH: f32 = 2.0;
+
+/// Width of the slider track.
+pub const SLIDER_TRACK_WIDTH: f32 = 200.0;
+
+/// Slider control background color.
+pub const SLIDER_BUTTON_BG: Color = Color::hsla(0.0, 0.0, 0.15, 1.0);
+
+/// Slider control border color.
+pub const SLIDER_BUTTON_BORDER_COLOR: Color = Color::hsla(0.0, 0.0, 0.4, 1.0);
+
+/// Font size for slider labels.
+pub const SLIDER_LABEL_FONT_SIZE: f32 = 14.0;
+
+/// Font size for slider +/- button text.
+pub const SLIDER_BUTTON_FONT_SIZE: f32 = 13.0;
+
+/// Spacing between slider control elements.
+pub const SLIDER_GAP: f32 = 10.0;

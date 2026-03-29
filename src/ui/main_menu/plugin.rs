@@ -10,6 +10,7 @@ use super::credits::CreditsPlugin;
 use super::game_mode_select::GameModeSelectPlugin;
 use super::landing::plugin::LandingPlugin;
 use super::multiplayer::plugin::MultiplayerPlugin;
+use super::roguelite_modifiers::RogueliteModifiersPlugin;
 use super::settings::plugin::SettingsPlugin;
 use super::wizard_select::plugin::WizardSelectPlugin;
 use crate::ui::compendium::MainMenuCompendiumPlugin;
@@ -31,6 +32,7 @@ impl Plugin for MainMenuPlugin {
             BackgroundPlugin,
             LandingPlugin,
             GameModeSelectPlugin,
+            RogueliteModifiersPlugin,
             SettingsPlugin,
             ChangelogPlugin,
             CreditsPlugin,
