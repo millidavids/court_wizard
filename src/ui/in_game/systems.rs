@@ -15,6 +15,8 @@ use crate::game::messages::WaveSpawnedMessage;
 use crate::game::resources::{CurrentLevel, KillStats, WaveState};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::hags::components::{Hag, HagIdentity, PermanentlyDead};
+use crate::game::units::boss::lich::Lich;
+use crate::game::units::boss::lich::components::{LichPhase, SoulPower};
 use crate::game::units::components::{Corpse, Health, Team};
 use crate::game::units::king::components::King;
 use crate::game::units::wizard::archetypes::gunslinger::{GunState, GunType};
@@ -713,11 +715,13 @@ pub(super) fn spawn_boss_health_bar(
     mut commands: Commands,
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
     hag_query: Query<&HagIdentity, (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
+    lich_query: Query<&LichPhase, (With<Lich>, Without<Corpse>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
     let boss_exists = boss_query.iter().next().is_some();
     let bar_exists = bar_query.iter().next().is_some();
     let is_hags = hag_query.iter().next().is_some();
+    let is_lich = lich_query.iter().next().is_some();
 
     if boss_exists && !bar_exists {
         // Top-center absolute container
@@ -763,58 +767,93 @@ pub(super) fn spawn_boss_health_bar(
                                 spawn_hag_bar_section(bar_row, identity, name, color);
                             }
                         });
-                } else {
-                    // Original ogre boss bar
+                } else if is_lich {
+                    // Lich: starts as "Soul Power" bar, switches to HP in Phase 2
                     parent.spawn((
-                        Text::new("Ogre"),
-                        TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
-                        TextColor(Color::WHITE),
+                        Text::new("Soul Power"),
+                        TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                        TextColor(Color::srgba(0.6, 0.9, 0.4, 0.8)),
+                        LichBarLabel,
                     ));
-
-                    parent
-                        .spawn((
-                            Node {
-                                width: BOSS_HEALTH_BAR_WIDTH,
-                                height: BOSS_HEALTH_BAR_HEIGHT,
-                                border: UiRect::all(Val::Px(2.0)),
-                                ..default()
-                            },
-                            BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
-                            BorderColor::all(BOSS_HEALTH_BAR_BORDER_COLOR),
-                            BorderRadius::all(Val::Px(3.0)),
-                        ))
-                        .with_children(|bar| {
-                            bar.spawn((
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    ..default()
-                                },
-                                BackgroundColor(BOSS_HEALTH_BAR_FILL_COLOR),
-                                BorderRadius::all(Val::Px(2.0)),
-                                BossHealthBarFill,
-                            ));
-
-                            bar.spawn((Node {
-                                position_type: PositionType::Absolute,
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },))
-                                .with_children(|overlay| {
-                                    overlay.spawn((
-                                        Text::new("100%"),
-                                        TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
-                                        TextColor(Color::WHITE),
-                                        BossHealthBarText,
-                                    ));
-                                });
-                        });
+                    spawn_simple_boss_bar(
+                        parent,
+                        "The Lich",
+                        crate::game::units::boss::lich::constants::SOUL_POWER_BAR_BORDER_COLOR,
+                        crate::game::units::boss::lich::constants::SOUL_POWER_BAR_COLOR,
+                        0.0,
+                        "0%",
+                    );
+                } else {
+                    spawn_simple_boss_bar(
+                        parent,
+                        "Ogre",
+                        BOSS_HEALTH_BAR_BORDER_COLOR,
+                        BOSS_HEALTH_BAR_FILL_COLOR,
+                        100.0,
+                        "100%",
+                    );
                 }
             });
     }
+}
+
+/// Spawns a boss health bar with a title, colored fill, and percentage text.
+/// Used by Ogre and Lich (Hags use a separate three-section layout).
+fn spawn_simple_boss_bar(
+    parent: &mut ChildSpawnerCommands,
+    name: &str,
+    border_color: Color,
+    fill_color: Color,
+    initial_percent: f32,
+    initial_text: &str,
+) {
+    parent.spawn((
+        Text::new(name.to_string()),
+        TextFont::from_font_size(BOSS_NAME_FONT_SIZE),
+        TextColor(Color::WHITE),
+    ));
+
+    parent
+        .spawn((
+            Node {
+                width: BOSS_HEALTH_BAR_WIDTH,
+                height: BOSS_HEALTH_BAR_HEIGHT,
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BackgroundColor(BOSS_HEALTH_BAR_BG_COLOR),
+            BorderColor::all(border_color),
+            BorderRadius::all(Val::Px(3.0)),
+        ))
+        .with_children(|bar| {
+            bar.spawn((
+                Node {
+                    width: Val::Percent(initial_percent),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                BackgroundColor(fill_color),
+                BorderRadius::all(Val::Px(2.0)),
+                BossHealthBarFill,
+            ));
+
+            bar.spawn((Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },))
+                .with_children(|overlay| {
+                    overlay.spawn((
+                        Text::new(initial_text.to_string()),
+                        TextFont::from_font_size(BOSS_HEALTH_TEXT_FONT_SIZE),
+                        TextColor(Color::WHITE),
+                        BossHealthBarText,
+                    ));
+                });
+        });
 }
 
 /// Spawns a single hag health bar section within the three-part bar.
@@ -895,14 +934,20 @@ pub(super) fn update_boss_health_bar(
         (&HagIdentity, &Health),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
+    lich_query: Query<
+        (&Health, &SoulPower, &LichPhase),
+        (With<Lich>, Without<Corpse>),
+    >,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
-    mut fill_query: Query<&mut Node, With<BossHealthBarFill>>,
-    mut text_query: Query<&mut Text, With<BossHealthBarText>>,
+    mut fill_query: Query<&mut Node, (With<BossHealthBarFill>, Without<HagHealthBarFill>)>,
+    mut text_query: Query<&mut Text, (With<BossHealthBarText>, Without<HagHealthBarText>, Without<LichBarLabel>)>,
     mut hag_fill_query: Query<
         (&mut Node, &mut BackgroundColor, &HagHealthBarFill),
         Without<BossHealthBarFill>,
     >,
-    mut hag_text_query: Query<(&mut Text, &HagHealthBarText), Without<BossHealthBarText>>,
+    mut hag_text_query: Query<(&mut Text, &HagHealthBarText), (Without<BossHealthBarText>, Without<LichBarLabel>)>,
+    mut label_query: Query<&mut Text, (With<LichBarLabel>, Without<BossHealthBarText>, Without<HagHealthBarText>)>,
+    mut fill_bg_query: Query<&mut BackgroundColor, (With<BossHealthBarFill>, Without<HagHealthBarFill>)>,
 ) {
     // Build a fixed-size lookup of living hag health (no heap allocation)
     let mut living = [None::<f32>; 3]; // indexed: Justina=0, Martina=1, Josephina=2
@@ -949,6 +994,41 @@ pub(super) fn update_boss_health_bar(
         if living.iter().all(|h| h.is_none()) {
             for entity in &bar_query {
                 commands.entity(entity).try_despawn();
+            }
+        }
+    } else if let Ok((health, soul_power, phase)) = lich_query.single() {
+        // Lich: show soul power in Phase 1, HP in Phase 2
+        match phase {
+            LichPhase::Approaching | LichPhase::Summoning => {
+                // Soul power bar (filling from 0 to 100%)
+                let percent = soul_power.percent();
+                if let Ok(mut node) = fill_query.single_mut() {
+                    node.width = Val::Percent(percent);
+                }
+                if let Ok(mut text) = text_query.single_mut() {
+                    **text = format!("{:.0}%", percent);
+                }
+                if let Ok(mut label) = label_query.single_mut() {
+                    **label = "Soul Power".to_string();
+                }
+            }
+            LichPhase::Combat => {
+                // Switch to HP display
+                let hp_percent =
+                    (health.current / health.max * 100.0).clamp(0.0, 100.0);
+                if let Ok(mut node) = fill_query.single_mut() {
+                    node.width = Val::Percent(hp_percent);
+                }
+                if let Ok(mut text) = text_query.single_mut() {
+                    **text = format!("{:.0}%", hp_percent);
+                }
+                // Update label and bar color to HP mode
+                if let Ok(mut label) = label_query.single_mut() {
+                    **label = "Health".to_string();
+                }
+                if let Ok(mut bg) = fill_bg_query.single_mut() {
+                    bg.0 = BOSS_HEALTH_BAR_FILL_COLOR;
+                }
             }
         }
     } else if let Some(health) = boss_query.iter().next() {

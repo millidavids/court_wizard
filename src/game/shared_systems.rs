@@ -1624,23 +1624,29 @@ pub fn preload_shadow_assets(
 }
 
 /// Spawns shadow entities for any unit that doesn't have one yet.
-/// Shadow scale matches the unit's transform scale so larger units get larger shadows.
+/// Shadow scale is derived from the unit's hitbox radius so bosses (which use
+/// large meshes rather than large transform scales) get proportionally larger shadows.
 /// Flying units get slightly larger shadows to simulate height spreading.
 pub fn spawn_unit_shadows(
     mut commands: Commands,
     shadow_assets: Res<ShadowAssets>,
     units: Query<
-        (Entity, &Transform, Has<Flying>),
+        (Entity, &Transform, &Hitbox, Has<Flying>),
         (
             With<Team>,
-            With<Hitbox>,
             Without<HasShadow>,
             Without<Corpse>,
         ),
     >,
 ) {
-    for (entity, transform, is_flying) in &units {
-        let mut shadow_scale = transform.scale.x.max(transform.scale.z);
+    /// Default hitbox radius for regular infantry units.
+    const BASE_HITBOX_RADIUS: f32 = 8.0 * crate::game::constants::UNIT_SCALE;
+
+    for (entity, transform, hitbox, is_flying) in &units {
+        // Scale shadow proportionally to hitbox radius relative to a standard infantry unit.
+        // Also incorporate the entity's transform scale for sprite-based units.
+        let hitbox_ratio = hitbox.radius / BASE_HITBOX_RADIUS;
+        let mut shadow_scale = transform.scale.x.max(transform.scale.z) * hitbox_ratio;
         if is_flying {
             shadow_scale *= FLYING_SHADOW_HEIGHT_SCALE;
         }

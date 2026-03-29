@@ -720,6 +720,7 @@ pub fn manage_staging_speedup(
             Without<Corpse>,
         ),
     >,
+    wave_state: Option<Res<crate::game::resources::WaveState>>,
 ) {
     let has_staging = !staging_query.is_empty();
 
@@ -728,8 +729,15 @@ pub fn manage_staging_speedup(
         .iter()
         .any(|team| *team == Team::Attackers);
 
-    // Speed up only when staging attackers are marching and no activated attackers are fighting
-    let should_speedup = has_staging && !has_activated;
+    // Check if more waves are still coming
+    let waves_remaining = wave_state
+        .map(|w| !w.waves_complete)
+        .unwrap_or(false);
+
+    // Speed up when no activated attackers are on the field and the battle isn't over:
+    // - Staging attackers are marching in but none are fighting yet
+    // - All activated attackers died between waves and more waves are coming
+    let should_speedup = !has_activated && (has_staging || waves_remaining);
 
     let current_speed = time.relative_speed_f64();
     let target_speed = if should_speedup {
@@ -741,7 +749,7 @@ pub fn manage_staging_speedup(
     if (current_speed - target_speed).abs() > 0.01 {
         time.set_relative_speed_f64(target_speed);
         if target_speed > 1.0 {
-            info!("Staging speedup: {}x", target_speed);
+            info!("Speedup: {}x (waiting for next wave)", target_speed);
         } else {
             info!("Normal speed restored");
         }

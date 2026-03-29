@@ -1,5 +1,5 @@
 // Movement
-pub const ARCHER_MOVEMENT_SPEED: f32 = 100.0; // Significantly slower than infantry (200)
+pub const ARCHER_MOVEMENT_SPEED: f32 = 150.0;
 
 // Attack Range
 pub const ARCHER_MIN_RANGE: f32 = 150.0; // Optimal minimum distance

@@ -1075,6 +1075,27 @@ pub fn resurrect_corpse_as_infantry(
         .entity(entity)
         .remove::<Corpse>()
         .remove::<RoughTerrain>()
+        // Strip all non-infantry unit markers so resurrected units
+        // behave purely as infantry (melee only, no special pathing).
+        .remove::<super::archer::Archer>()
+        .remove::<super::archer::components::ArcherMovementTimer>()
+        .remove::<super::assassin::Assassin>()
+        .remove::<super::dispeller::components::Dispeller>()
+        .remove::<super::dispeller::components::DispellerAttackTimer>()
+        .remove::<super::dispeller::components::DispellerDispelCooldown>()
+        .remove::<super::shielder::components::Shielder>()
+        .remove::<super::shielder::components::ShielderShieldCooldown>()
+        .remove::<super::shielder::components::ShielderDamageReduction>()
+        .remove::<super::healer::components::Healer>()
+        .remove::<super::healer::components::HealerAttackTimer>()
+        .remove::<super::commander::components::Commander>()
+        .remove::<super::brute::components::Brute>()
+        .remove::<super::aerialist::Aerialist>()
+        .remove::<super::components::Flying>()
+        // Strip staging/wave components so resurrected undead don't
+        // trigger wave activation or get treated as staging attackers.
+        .remove::<crate::game::pathfinding::StagingAttacker>()
+        .remove::<crate::game::pathfinding::WaveGroup>()
         .insert(upright_transform)
         .insert(Mesh3d(sprite_mesh))
         .insert(MeshMaterial3d(material))
@@ -1092,7 +1113,9 @@ pub fn resurrect_corpse_as_infantry(
         .insert(Teleportable)
         .insert(Infantry)
         .insert(TargetingVelocity::default())
-        .insert(FlockingVelocity::default());
+        .insert(FlockingVelocity::default())
+        // Ensure resurrected units use the standard attacker flow field
+        .insert(crate::game::pathfinding::FlowFieldInfluence::Attacker);
 }
 
 /// Advances walking animation frames and updates UV transforms.

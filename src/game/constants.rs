@@ -381,9 +381,11 @@ pub const WAVE_INTERVAL_SECONDS: f32 = 60.0;
 pub const BASE_WAVE_COUNT: u32 = 2;
 
 /// Returns the number of waves for a given level.
-/// Boss levels have no waves (single Ogre). Normal levels get `BASE_WAVE_COUNT + tier`.
+/// Most boss levels have 1 wave (boss only). Lich tier (1) uses normal wave count
+/// since the Lich spawns mid-game alongside regular waves.
+/// Normal levels get `BASE_WAVE_COUNT + tier`.
 pub const fn calculate_wave_count(level: u32) -> u32 {
-    if is_boss_level(level) {
+    if is_boss_level(level) && !is_lich_level(level) {
         1
     } else {
         BASE_WAVE_COUNT + get_tier(level)
@@ -414,6 +416,12 @@ pub const fn is_boss_level(level: u32) -> bool {
     level >= LEVELS_PER_TIER && level.is_multiple_of(LEVELS_PER_TIER)
 }
 
+/// Returns true if this is the Lich tier boss level.
+/// Lich levels use normal waves with the Lich spawning mid-game after all waves.
+pub const fn is_lich_level(level: u32) -> bool {
+    is_boss_level(level) && get_tier(level) == 1
+}
+
 /// Returns the boss name for a given boss level, or None if not a boss level.
 pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     if !is_boss_level(level) {
@@ -421,7 +429,8 @@ pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     }
     Some(match get_tier(level) {
         0 => "Ogre",
-        1 => "Hags",
+        1 => "The Lich",
+        2 => "Hags",
         _ => "Ogre",
     })
 }

@@ -18,19 +18,33 @@ pub struct DefendersActivated {
 ///
 /// When the King gets too close to the wizard's max spell range,
 /// he sounds a retreat. Defenders disengage and fall back to spawn.
-/// Retreat can only trigger once per level.
-#[derive(Resource, Default)]
+/// Number of retreats per level equals `tier + 1`.
+#[derive(Resource)]
 pub struct RetreatState {
     /// Remaining retreat duration (seconds). Active when > 0.
     pub retreat_timer: f32,
-    /// Whether retreat has already been used this level.
-    pub used: bool,
+    /// Number of retreats remaining this level.
+    pub retreats_remaining: u32,
+}
+
+impl Default for RetreatState {
+    fn default() -> Self {
+        Self {
+            retreat_timer: 0.0,
+            retreats_remaining: 1,
+        }
+    }
 }
 
 impl RetreatState {
     /// Returns true if retreat is currently active.
     pub fn is_active(&self) -> bool {
         self.retreat_timer > 0.0
+    }
+
+    /// Returns true if the King has retreats available.
+    pub fn can_retreat(&self) -> bool {
+        self.retreats_remaining > 0
     }
 }
 

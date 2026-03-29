@@ -21,6 +21,7 @@ pub fn check_win_lose_conditions(
     wave_state: Res<WaveState>,
     config: Res<GameConfig>,
     kill_stats: Res<KillStats>,
+    lich_pending: Option<Res<super::units::boss::lich::components::LichSpawnPending>>,
 ) {
     // Check King death first (highest priority lose condition)
     // If a dead King corpse exists, the game is lost
@@ -46,6 +47,11 @@ pub fn check_win_lose_conditions(
     if defenders_alive == 0 {
         *game_outcome = GameOutcome::Defeat;
         next_state.set(InGameState::ScoreScreen);
+        return;
+    }
+
+    // Don't allow victory while the Lich boss is still pending spawn
+    if lich_pending.is_some() {
         return;
     }
 

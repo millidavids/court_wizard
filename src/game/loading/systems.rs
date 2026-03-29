@@ -101,17 +101,17 @@ pub fn init_loading_progress(
 
     // Check if this is a boss level (every 5th level starting at 5)
     use crate::game::constants::get_tier;
-    use crate::game::constants::is_boss_level;
+    use crate::game::constants::{is_boss_level, is_lich_level};
     use crate::game::units::brute::constants::BRUTE_START_TIER;
 
-    if is_boss_level(level) {
+    if is_boss_level(level) && !is_lich_level(level) {
         let tier = get_tier(level);
         match tier {
             0 => {
                 queue.tasks.push_back(SpawnTask::Ogre);
                 kill_stats.total_attackers_spawned = 1;
             }
-            1 => {
+            2 => {
                 queue.tasks.push_back(SpawnTask::Hags);
                 kill_stats.total_attackers_spawned = 3;
             }
@@ -188,6 +188,23 @@ pub fn init_loading_progress(
             wave_timer: WAVE_INTERVAL_SECONDS,
             wave_interval: WAVE_INTERVAL_SECONDS,
             waves_complete: wave_count <= 1,
+        });
+
+        // Lich levels: schedule the Lich to spawn after wave 3
+        if is_lich_level(level) {
+            commands.insert_resource(
+                crate::game::units::boss::lich::components::LichSpawnPending,
+            );
+        }
+    }
+
+    // Set retreat count for this level: tier + 1
+    {
+        let tier = get_tier(level);
+        let retreats = tier + 1;
+        commands.insert_resource(crate::game::units::infantry::components::RetreatState {
+            retreat_timer: 0.0,
+            retreats_remaining: retreats,
         });
     }
 

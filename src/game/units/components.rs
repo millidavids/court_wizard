@@ -28,6 +28,7 @@ pub enum UnitType {
     // Bosses
     Hag,
     Ogre,
+    Lich,
 }
 
 impl UnitType {
@@ -48,6 +49,7 @@ impl UnitType {
             UnitType::Aerialist,
             UnitType::Hag,
             UnitType::Ogre,
+            UnitType::Lich,
         ]
     }
 
@@ -68,6 +70,7 @@ impl UnitType {
             UnitType::Aerialist => "Aerialist",
             UnitType::Hag => "Hag",
             UnitType::Ogre => "Ogre",
+            UnitType::Lich => "Lich",
         }
     }
 
@@ -88,6 +91,7 @@ impl UnitType {
             UnitType::Aerialist => "Flying attackers that swoop over walls and strike from above.",
             UnitType::Hag => "Ancient witches with devastating magical abilities.",
             UnitType::Ogre => "A massive beast that grows stronger as the fight goes on.",
+            UnitType::Lich => "An undead sorcerer who grows stronger from death itself.",
         }
     }
 
@@ -120,6 +124,7 @@ impl UnitType {
             UnitType::Aerialist => "Death from above. Way, way above.",
             UnitType::Hag => "Three sisters who share one terrible disposition.",
             UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
+            UnitType::Lich => "Every fallen soldier is just another name on his roster.",
         }
     }
 
@@ -145,7 +150,7 @@ impl UnitType {
             | UnitType::Shielder
             | UnitType::Assassin
             | UnitType::Aerialist => "Attacker",
-            UnitType::Hag | UnitType::Ogre => "Boss",
+            UnitType::Hag | UnitType::Ogre | UnitType::Lich => "Boss",
         }
     }
 
@@ -166,6 +171,7 @@ impl UnitType {
             UnitType::Aerialist => "Something circles overhead.",
             UnitType::Hag => "Dark magic stirs in the distance.",
             UnitType::Ogre => "The ground trembles.",
+            UnitType::Lich => "The dead whisper of a master.",
         }
     }
 }

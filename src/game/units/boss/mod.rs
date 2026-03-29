@@ -1,5 +1,6 @@
 pub(crate) mod components;
 pub(crate) mod hags;
+pub(crate) mod lich;
 pub(in crate::game) mod ogre;
 mod plugin;
 

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.266] - 2026-03-28
+
+### Added
+- **New boss: The Lich** — an undead sorcerer who appears on level 10 as a surprise after the final wave of attackers is defeated. He marches to the battlefield and begins raising the dead from fallen soldiers. Kill enough of his undead to fill his soul power bar and he'll enter a devastating combat phase, firing Finger of Death beams at your defenders
+- **Lich raises the dead** — the Lich resurrects corpses from anywhere on the battlefield as undead infantry. If there aren't enough corpses, he'll summon fresh undead to fill out his army
+- **Finger of Undeath** — defenders killed by the Lich's death beam are raised as undead, turning your own fallen soldiers against you
+- **Multiple retreats per level** — the King can now call for retreat more than once per battle. Higher difficulty levels grant more retreats
+
+### Changed
+- **Faster archers** — archers now move 50% faster across the battlefield
+- **Bigger boss shadows** — boss unit shadows are now proportional to their actual size instead of being the same size as regular units
+- **Game speeds up between waves** — if all attackers from a wave are killed before the next wave arrives, the game speeds up so you're not waiting around
+- **Raised undead behave as infantry** — undead raised from archer, assassin, or other special unit corpses now fight as basic melee infantry instead of keeping their original abilities
+
+### Fixed
+- **Resurrected units no longer trigger wave activation** — undead raised from corpses no longer incorrectly cause wave activation messages
+
 ## [v0.5.235] - 2026-03-27
 
 ### Added

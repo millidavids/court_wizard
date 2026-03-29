@@ -67,6 +67,10 @@ pub(super) struct HagHealthBarText {
     pub identity: crate::game::units::boss::hags::components::HagIdentity,
 }
 
+/// Marker component for the Lich soul power / health bar label text.
+#[derive(Component)]
+pub(super) struct LichBarLabel;
+
 /// Marker component for the wave counter display text.
 #[derive(Component)]
 pub(crate) struct WaveDisplay;

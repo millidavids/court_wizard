@@ -111,8 +111,8 @@ pub fn check_retreat_trigger(
         return;
     }
 
-    // Already used this level — don't trigger again
-    if retreat_state.used {
+    // No retreats remaining — don't trigger
+    if !retreat_state.can_retreat() {
         return;
     }
 
@@ -147,7 +147,7 @@ pub fn check_retreat_trigger(
 
     if distance >= trigger_distance {
         // Trigger retreat
-        retreat_state.used = true;
+        retreat_state.retreats_remaining = retreat_state.retreats_remaining.saturating_sub(1);
         retreat_state.retreat_timer = RETREAT_DURATION_SECS;
 
         // Deactivate defenders — triggers flow field rally to spawn
