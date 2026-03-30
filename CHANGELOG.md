@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.294] - 2026-03-30
+
+### Added
+- **New boss: The Dark Mage** — a sinister spellcaster who appears on level 20. He walks onto the battlefield from the tunnels, then begins casting devastating area-of-effect spells at your defenders
+- **Telegraphed attacks** — every Dark Mage spell is preceded by a glowing red indicator on the ground, giving you time to move your units out of the way. Watch for the warning zones!
+- **Dark Meteor** — a massive fireball falls from the sky and explodes on impact, dealing heavy damage in a large area
+- **Shadow Lightning** — bolts of lightning strike down from above along a corridor, zapping everything in their path
+- **Plague Cloud** — a persistent poison cloud that lingers on the battlefield, dealing damage over time to any defenders caught inside. Your units will try to path around it
+- **Reactive teleportation** — when your defenders close in for melee, the Dark Mage teleports to a new position on the battlefield to keep his distance
+- **Boss rotation in endless mode** — bosses now cycle in sequence (Ogre, Lich, Hags, Dark Mage) as you progress through endless mode, instead of repeating the same boss
+
+### Changed
+- **Dark Mage takes reduced melee damage** — he's tough to take down up close, but his real danger is the spells he casts from range
+
 ## [v0.5.279] - 2026-03-29
 
 ### Fixed

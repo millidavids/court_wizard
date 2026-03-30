@@ -103,13 +103,13 @@ pub fn init_loading_progress(
     }
 
     // Check if this is a boss level (every 5th level starting at 5)
-    use crate::game::constants::get_tier;
+    use crate::game::constants::{get_tier, BOSS_CYCLE_LENGTH};
     use crate::game::constants::{is_boss_level, is_lich_level};
     use crate::game::units::brute::constants::BRUTE_START_TIER;
 
     if is_boss_level(level) && !is_lich_level(level) {
         let tier = get_tier(level);
-        match tier {
+        match tier % BOSS_CYCLE_LENGTH {
             0 => {
                 queue.tasks.push_back(SpawnTask::Ogre);
                 kill_stats.total_attackers_spawned = 1;
@@ -117,6 +117,10 @@ pub fn init_loading_progress(
             2 => {
                 queue.tasks.push_back(SpawnTask::Hags);
                 kill_stats.total_attackers_spawned = 3;
+            }
+            3 => {
+                queue.tasks.push_back(SpawnTask::DarkMage);
+                kill_stats.total_attackers_spawned = 1;
             }
             _ => {
                 // Fallback: Ogre
@@ -280,6 +284,7 @@ pub fn process_spawn_queue(
     boss_assets: (
         Res<crate::game::units::boss::ogre::resources::OgreAssets>,
         Res<crate::game::units::boss::hags::resources::HagAssets>,
+        Res<crate::game::units::boss::dark_mage::resources::DarkMageAssets>,
     ),
     current_level: Res<CurrentLevel>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -305,7 +310,7 @@ pub fn process_spawn_queue(
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, shielder_assets, healer_assets) = &unit_assets;
-    let (ogre_assets, hag_assets) = &boss_assets;
+    let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
     let (wizard_assets_opt, cauldron_assets_opt) = &optional_assets;
     let (battlefield_assets, spell_visual_assets, asset_server, flora_assets) = &shared_assets;
 
@@ -439,6 +444,12 @@ pub fn process_spawn_queue(
                 crate::game::units::boss::hags::systems::spawn_hags(
                     commands.reborrow(),
                     Res::clone(hag_assets),
+                );
+            }
+            SpawnTask::DarkMage => {
+                crate::game::units::boss::dark_mage::systems::spawn_dark_mage(
+                    commands.reborrow(),
+                    Res::clone(dark_mage_assets),
                 );
             }
             SpawnTask::Battlefield => {

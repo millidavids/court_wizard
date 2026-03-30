@@ -687,14 +687,4 @@ pub fn ogre_charge_system(
     }
 }
 
-/// Lay a rectangle flat on the XZ plane with its long axis aligned to `direction`.
-fn indicator_rotation(direction: Vec3) -> Quat {
-    let angle = (-direction.x).atan2(-direction.z);
-    Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2) * Quat::from_rotation_z(angle)
-}
-
-fn despawn_indicators(commands: &mut Commands, entities: &[Entity]) {
-    for &entity in entities {
-        commands.entity(entity).try_despawn();
-    }
-}
+use crate::game::units::boss::utils::{indicator_rotation, despawn_indicators};

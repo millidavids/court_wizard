@@ -716,12 +716,14 @@ pub(super) fn spawn_boss_health_bar(
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
     hag_query: Query<&HagIdentity, (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
     lich_query: Query<&LichPhase, (With<Lich>, Without<Corpse>)>,
+    dark_mage_query: Query<Entity, (With<crate::game::units::boss::dark_mage::DarkMage>, Without<Corpse>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
     let boss_exists = boss_query.iter().next().is_some();
     let bar_exists = bar_query.iter().next().is_some();
     let is_hags = hag_query.iter().next().is_some();
     let is_lich = lich_query.iter().next().is_some();
+    let is_dark_mage = dark_mage_query.iter().next().is_some();
 
     if boss_exists && !bar_exists {
         // Top-center absolute container
@@ -782,6 +784,15 @@ pub(super) fn spawn_boss_health_bar(
                         crate::game::units::boss::lich::constants::SOUL_POWER_BAR_COLOR,
                         0.0,
                         "0%",
+                    );
+                } else if is_dark_mage {
+                    spawn_simple_boss_bar(
+                        parent,
+                        "Dark Mage",
+                        BOSS_HEALTH_BAR_BORDER_COLOR,
+                        BOSS_HEALTH_BAR_FILL_COLOR,
+                        100.0,
+                        "100%",
                     );
                 } else {
                     spawn_simple_boss_bar(

@@ -416,22 +416,27 @@ pub const fn is_boss_level(level: u32) -> bool {
     level >= LEVELS_PER_TIER && level.is_multiple_of(LEVELS_PER_TIER)
 }
 
-/// Returns true if this is the Lich tier boss level.
+/// Returns true if this is a Lich boss level (tier 1, 5, 9, ... in the 4-boss cycle).
 /// Lich levels use normal waves with the Lich spawning mid-game after all waves.
 pub const fn is_lich_level(level: u32) -> bool {
-    is_boss_level(level) && get_tier(level) == 1
+    is_boss_level(level) && get_tier(level) % BOSS_CYCLE_LENGTH == 1
 }
+
+/// Number of unique boss types in the rotation cycle.
+pub const BOSS_CYCLE_LENGTH: u32 = 4;
 
 /// Returns the boss name for a given boss level, or None if not a boss level.
 pub fn boss_name_for_level(level: u32) -> Option<&'static str> {
     if !is_boss_level(level) {
         return None;
     }
-    Some(match get_tier(level) {
+    // Cycle through bosses: Ogre (0), Lich (1), Hags (2), Dark Mage (3), repeat
+    Some(match get_tier(level) % BOSS_CYCLE_LENGTH {
         0 => "Ogre",
         1 => "The Lich",
         2 => "Hags",
-        _ => "Ogre",
+        3 => "Dark Mage",
+        _ => unreachable!(),
     })
 }
 
