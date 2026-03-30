@@ -175,6 +175,11 @@ impl Plugin for GamePlugin {
             )
             .add_systems(
                 Update,
+                wave_systems::apply_wave_upgrades
+                    .run_if(resource_exists::<super::resources::PendingWaveUpgrades>),
+            )
+            .add_systems(
+                Update,
                 (
                     // Check if any defender is near an enemy to activate all defenders
                     shared_systems::activate_defenders_on_proximity,

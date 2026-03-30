@@ -147,3 +147,14 @@ impl Default for WaveState {
         }
     }
 }
+
+/// Holds entity IDs from a newly spawned wave, pending upgrade selection.
+/// Inserted by `tick_wave_timer` and consumed by `apply_wave_upgrades` on the
+/// next frame (after commands flush and entities materialize).
+#[derive(Resource)]
+pub struct PendingWaveUpgrades {
+    pub wave: u32,
+    pub infantry: Vec<Entity>,
+    pub archers: Vec<Entity>,
+    pub aerialists: Vec<Entity>,
+}

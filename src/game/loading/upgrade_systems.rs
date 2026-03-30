@@ -54,11 +54,23 @@ fn apply_size_scaling(
     commands.entity(entity).insert(new_hitbox);
 }
 
+/// Queries an entity's current Transform and Hitbox, returning copies if both exist.
+/// Used by elite and commander upgrades which need the current size for scaling.
+pub(in crate::game) fn get_transform_and_hitbox(
+    entity: Entity,
+    transform_query: &Query<&Transform>,
+    hitbox_query: &Query<&Hitbox>,
+) -> Option<(Transform, Hitbox)> {
+    let transform = *transform_query.get(entity).ok()?;
+    let hitbox = *hitbox_query.get(entity).ok()?;
+    Some((transform, hitbox))
+}
+
 /// Applies elite upgrade to a unit entity.
 ///
 /// Adds elite components (health, damage, speed bonuses), swaps material
 /// to brighter color, and scales up the unit's transform.
-pub(super) fn apply_elite_upgrade(
+pub(in crate::game) fn apply_elite_upgrade(
     commands: &mut Commands,
     entity: Entity,
     current_transform: &Transform,
@@ -78,7 +90,7 @@ pub(super) fn apply_elite_upgrade(
 ///
 /// Adds commander components (aura provider with buffs), scales up the unit,
 /// adds orange glow, and spawns a visible aura ring on the ground.
-pub(super) fn apply_commander_upgrade(
+pub(in crate::game) fn apply_commander_upgrade(
     commands: &mut Commands,
     entity: Entity,
     materials: &mut Assets<StandardMaterial>,
@@ -154,7 +166,7 @@ fn spawn_aura_ring(
 /// Converts an attacker archer into a dispeller by swapping components:
 /// removes archer-specific components, adds dispeller components and white glow,
 /// swaps to dispeller sprite sheet, and updates stats to match dispeller configuration.
-pub(super) fn apply_dispeller_upgrade(
+pub(in crate::game) fn apply_dispeller_upgrade(
     commands: &mut Commands,
     entity: Entity,
     dispeller_assets: &crate::game::units::dispeller::resources::DispellerAssets,
@@ -202,7 +214,7 @@ pub(super) fn apply_dispeller_upgrade(
 /// Converts an attacker archer into a healer by swapping components:
 /// removes archer-specific components, adds healer components and green glow,
 /// swaps to healer sprite sheet, and updates stats to match healer configuration.
-pub(super) fn apply_healer_upgrade(
+pub(in crate::game) fn apply_healer_upgrade(
     commands: &mut Commands,
     entity: Entity,
     healer_assets: &crate::game::units::healer::resources::HealerAssets,
@@ -250,7 +262,7 @@ pub(super) fn apply_healer_upgrade(
 /// Converts an attacker infantry into a shielder by swapping components:
 /// removes infantry-specific components, adds shielder components and purple glow,
 /// swaps to shielder sprite sheet, and updates stats to match shielder configuration.
-pub(super) fn apply_shielder_upgrade(
+pub(in crate::game) fn apply_shielder_upgrade(
     commands: &mut Commands,
     entity: Entity,
     shielder_assets: &crate::game::units::shielder::resources::ShielderAssets,

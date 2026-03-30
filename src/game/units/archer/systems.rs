@@ -881,7 +881,7 @@ pub(in crate::game) fn spawn_single_attacker_archer(
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
     _level: u32,
-) {
+) -> Entity {
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ARCHER_SPAWN_DEPTH_OFFSET);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
@@ -925,5 +925,6 @@ pub(in crate::game) fn spawn_single_attacker_archer(
             Teleportable,
             Billboard,
             OnGameplayScreen,
-        ));
+        ))
+        .id()
 }

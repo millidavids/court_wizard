@@ -1,16 +1,23 @@
 //! Wave spawning system — spawns attacker waves at intervals during gameplay.
 
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use super::constants::*;
+use super::loading::constants::{MAX_COMMANDER_ARCHERS, MAX_COMMANDER_INFANTRY};
+use super::loading::{upgrade_selection, upgrade_systems};
 use super::messages::WaveSpawnedMessage;
 use super::pathfinding::StagingAttacker;
-use super::resources::{CurrentLevel, KillStats, WaveState};
-use super::units::components::Corpse;
-use super::units::aerialist::resources::AerialistAssets;
+use super::resources::{CurrentLevel, KillStats, PendingWaveUpgrades, WaveState};
 use super::units::archer::resources::ArcherAssets;
 use super::units::brute::constants::BRUTE_START_TIER;
+use super::units::components::{Corpse, Hitbox};
+use super::units::dispeller::resources::DispellerAssets;
+use super::units::healer::resources::HealerAssets;
 use super::units::infantry::resources::InfantryAssets;
+use super::units::aerialist::resources::AerialistAssets;
+use super::units::shielder::resources::ShielderAssets;
 use super::units::{aerialist, archer, brute, infantry};
 
 /// Ticks the wave timer and spawns the next wave when it expires.
@@ -62,40 +69,46 @@ pub fn tick_wave_timer(
         .map(|m| m.enemy_count)
         .unwrap_or(1.0);
 
-    // Spawn infantry for this wave
+    // Spawn infantry for this wave, collecting entity IDs
     let total_infantry = (calculate_total_infantry(level) as f32 * count_mult).round() as u32;
+    let mut infantry_entities = Vec::with_capacity(total_infantry as usize);
     for i in 0..total_infantry {
-        infantry::systems::spawn_single_attacker(
+        let entity = infantry::systems::spawn_single_attacker(
             &mut commands,
             &infantry_assets,
             &mut materials,
             i,
             level,
         );
+        infantry_entities.push(entity);
     }
 
-    // Spawn archers for this wave
+    // Spawn archers for this wave, collecting entity IDs
     let total_archers = (calculate_total_archers(level) as f32 * count_mult).round() as u32;
+    let mut archer_entities = Vec::with_capacity(total_archers as usize);
     for i in 0..total_archers {
-        archer::systems::spawn_single_attacker_archer(
+        let entity = archer::systems::spawn_single_attacker_archer(
             &mut commands,
             &archer_assets,
             &mut materials,
             i,
             level,
         );
+        archer_entities.push(entity);
     }
 
-    // Spawn aerialists for this wave (tier 2+)
+    // Spawn aerialists for this wave (tier 2+), collecting entity IDs
     let total_aerialists = (calculate_total_aerialists(level) as f32 * count_mult).round() as u32;
+    let mut aerialist_entities = Vec::with_capacity(total_aerialists as usize);
     for i in 0..total_aerialists {
-        aerialist::systems::spawn_single_attacker_aerialist(
+        let entity = aerialist::systems::spawn_single_attacker_aerialist(
             &mut commands,
             &aerialist_assets,
             &mut materials,
             i,
             level,
         );
+        aerialist_entities.push(entity);
     }
 
     // Spawn brute if tier qualifies
@@ -118,8 +131,105 @@ pub fn tick_wave_timer(
         wave_state.waves_complete = true;
     }
 
+    // Store spawned entities for deferred upgrade processing (next frame)
+    commands.insert_resource(PendingWaveUpgrades {
+        wave: next_wave,
+        infantry: infantry_entities,
+        archers: archer_entities,
+        aerialists: aerialist_entities,
+    });
+
     // Notify UI
     wave_events.write(WaveSpawnedMessage {
         wave_number: next_wave + 1, // 1-indexed for display
     });
+}
+
+/// Applies elite, commander, dispeller, healer, and shielder upgrades to
+/// units from a newly spawned wave. Runs on the frame after wave spawning
+/// so that deferred commands have flushed and entities are queryable.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_wave_upgrades(
+    mut commands: Commands,
+    pending: Res<PendingWaveUpgrades>,
+    current_level: Res<CurrentLevel>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    dispeller_assets: Res<DispellerAssets>,
+    healer_assets: Res<HealerAssets>,
+    shielder_assets: Res<ShielderAssets>,
+    transform_query: Query<&Transform>,
+    hitbox_query: Query<&Hitbox>,
+) {
+    let level = current_level.0;
+    let wave = pending.wave;
+    // Use wave offset so each wave gets different RNG sequences
+    let seed_base = level as u64 + wave as u64 * 10000;
+
+    let mut excluded = HashSet::new();
+
+    let infantry_commanders = upgrade_selection::select_commander_entities(
+        &pending.infantry, level, MAX_COMMANDER_INFANTRY, seed_base, 1, "Infantry (wave)",
+    );
+    excluded.extend(&infantry_commanders);
+
+    let archer_commanders = upgrade_selection::select_commander_entities(
+        &pending.archers, level, MAX_COMMANDER_ARCHERS, seed_base, 997, "Archer (wave)",
+    );
+    excluded.extend(&archer_commanders);
+
+    let dispellers = upgrade_selection::select_dispeller_entities(
+        &pending.archers, level, &excluded, seed_base,
+    );
+    excluded.extend(&dispellers);
+
+    let healers = upgrade_selection::select_healer_entities(
+        &pending.archers, level, &excluded, seed_base,
+    );
+    excluded.extend(&healers);
+
+    let shielders = upgrade_selection::select_shielder_entities(
+        &pending.infantry, level, &excluded, seed_base,
+    );
+    excluded.extend(&shielders);
+
+    // Elites run last so all other upgrade types are excluded first
+    let mut all_wave_entities = Vec::with_capacity(
+        pending.infantry.len() + pending.archers.len() + pending.aerialists.len(),
+    );
+    all_wave_entities.extend(&pending.infantry);
+    all_wave_entities.extend(&pending.archers);
+    all_wave_entities.extend(&pending.aerialists);
+
+    let elites = upgrade_selection::select_elite_entities(
+        &all_wave_entities, level, &excluded, seed_base,
+    );
+
+    for entity in infantry_commanders.iter().chain(archer_commanders.iter()) {
+        if let Some((transform, hitbox)) = upgrade_systems::get_transform_and_hitbox(*entity, &transform_query, &hitbox_query) {
+            upgrade_systems::apply_commander_upgrade(
+                &mut commands, *entity, &mut materials, &mut meshes, &transform, &hitbox,
+            );
+        }
+    }
+
+    for entity in &dispellers {
+        upgrade_systems::apply_dispeller_upgrade(&mut commands, *entity, &dispeller_assets, &mut materials);
+    }
+
+    for entity in &healers {
+        upgrade_systems::apply_healer_upgrade(&mut commands, *entity, &healer_assets, &mut materials);
+    }
+
+    for entity in &shielders {
+        upgrade_systems::apply_shielder_upgrade(&mut commands, *entity, &shielder_assets, &mut materials);
+    }
+
+    for entity in &elites {
+        if let Some((transform, hitbox)) = upgrade_systems::get_transform_and_hitbox(*entity, &transform_query, &hitbox_query) {
+            upgrade_systems::apply_elite_upgrade(&mut commands, *entity, &transform, &hitbox);
+        }
+    }
+
+    commands.remove_resource::<PendingWaveUpgrades>();
 }

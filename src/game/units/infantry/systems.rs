@@ -407,7 +407,7 @@ pub(in crate::game) fn spawn_single_attacker(
     materials: &mut Assets<StandardMaterial>,
     unit_index: u32,
     _level: u32,
-) {
+) -> Entity {
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, 0.0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
@@ -446,7 +446,8 @@ pub(in crate::game) fn spawn_single_attacker(
             Teleportable,
             Billboard,
             OnGameplayScreen,
-        ));
+        ))
+        .id()
 }
 
 /// Spawns a single king's guard unit at a specific index.

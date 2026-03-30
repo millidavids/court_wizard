@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use super::constants::{MAX_COMMANDER_ARCHERS, MAX_COMMANDER_INFANTRY};
@@ -488,57 +490,110 @@ pub fn process_spawn_queue(
             }
             SpawnTask::SelectInfantryUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks =
-                    upgrade_selection::select_commander_upgrades(
-                        &queries.p0(),
-                        level,
-                        MAX_COMMANDER_INFANTRY,
-                        1,
-                        "Infantry",
-                    );
-                spawn_queue.tasks.extend(upgrade_tasks);
+                let seed_base = level as u64;
+                let infantry_attackers: Vec<Entity> = queries
+                    .p0()
+                    .iter()
+                    .filter(|(_, team)| **team == Team::Attackers)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                let selected = upgrade_selection::select_commander_entities(
+                    &infantry_attackers,
+                    level,
+                    MAX_COMMANDER_INFANTRY,
+                    seed_base,
+                    1,
+                    "Infantry",
+                );
+                spawn_queue.tasks.extend(
+                    selected.into_iter().map(|entity| SpawnTask::UpgradeToCommander { entity }),
+                );
             }
             SpawnTask::SelectArcherUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks =
-                    upgrade_selection::select_commander_upgrades(
-                        &queries.p1(),
-                        level,
-                        MAX_COMMANDER_ARCHERS,
-                        997,
-                        "Archer",
-                    );
-                spawn_queue.tasks.extend(upgrade_tasks);
+                let seed_base = level as u64;
+                let archer_attackers: Vec<Entity> = queries
+                    .p1()
+                    .iter()
+                    .filter(|(_, team)| **team == Team::Attackers)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                let selected = upgrade_selection::select_commander_entities(
+                    &archer_attackers,
+                    level,
+                    MAX_COMMANDER_ARCHERS,
+                    seed_base,
+                    997,
+                    "Archer",
+                );
+                spawn_queue.tasks.extend(
+                    selected.into_iter().map(|entity| SpawnTask::UpgradeToCommander { entity }),
+                );
             }
             SpawnTask::SelectDispellerUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks = upgrade_selection::select_dispeller_upgrades(
-                    &queries.p1(),
+                let seed_base = level as u64;
+                let excluded = collect_excluded_from_tasks(spawn_queue.tasks.make_contiguous());
+                let archer_attackers: Vec<Entity> = queries
+                    .p1()
+                    .iter()
+                    .filter(|(_, team)| **team == Team::Attackers)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                let selected = upgrade_selection::select_dispeller_entities(
+                    &archer_attackers,
                     level,
-                    spawn_queue.tasks.make_contiguous(),
+                    &excluded,
+                    seed_base,
                 );
-                spawn_queue.tasks.extend(upgrade_tasks);
+                spawn_queue.tasks.extend(
+                    selected.into_iter().map(|entity| SpawnTask::UpgradeToDispeller { entity }),
+                );
             }
             SpawnTask::SelectHealerUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks = upgrade_selection::select_healer_upgrades(
-                    &queries.p1(),
+                let seed_base = level as u64;
+                let excluded = collect_excluded_from_tasks(spawn_queue.tasks.make_contiguous());
+                let archer_attackers: Vec<Entity> = queries
+                    .p1()
+                    .iter()
+                    .filter(|(_, team)| **team == Team::Attackers)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                let selected = upgrade_selection::select_healer_entities(
+                    &archer_attackers,
                     level,
-                    spawn_queue.tasks.make_contiguous(),
+                    &excluded,
+                    seed_base,
                 );
-                spawn_queue.tasks.extend(upgrade_tasks);
+                spawn_queue.tasks.extend(
+                    selected.into_iter().map(|entity| SpawnTask::UpgradeToHealer { entity }),
+                );
             }
             SpawnTask::SelectShielderUpgrades => {
                 let level = current_level.0;
-                let upgrade_tasks = upgrade_selection::select_shielder_upgrades(
-                    &queries.p0(),
+                let seed_base = level as u64;
+                let excluded = collect_excluded_from_tasks(spawn_queue.tasks.make_contiguous());
+                let infantry_attackers: Vec<Entity> = queries
+                    .p0()
+                    .iter()
+                    .filter(|(_, team)| **team == Team::Attackers)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                let selected = upgrade_selection::select_shielder_entities(
+                    &infantry_attackers,
                     level,
-                    spawn_queue.tasks.make_contiguous(),
+                    &excluded,
+                    seed_base,
                 );
-                spawn_queue.tasks.extend(upgrade_tasks);
+                spawn_queue.tasks.extend(
+                    selected.into_iter().map(|entity| SpawnTask::UpgradeToShielder { entity }),
+                );
             }
             SpawnTask::SelectEliteUpgrades => {
                 let level = current_level.0;
+                let seed_base = level as u64;
+                let excluded = collect_excluded_from_tasks(spawn_queue.tasks.make_contiguous());
                 // Collect all attacker entities from both queries (ParamSet requires sequential access)
                 let mut all_attackers: Vec<Entity> = queries
                     .p0()
@@ -553,24 +608,24 @@ pub fn process_spawn_queue(
                         .filter(|(_, team)| **team == Team::Attackers)
                         .map(|(entity, _)| entity),
                 );
-                let upgrade_tasks = upgrade_selection::select_elite_upgrades(
+                let selected = upgrade_selection::select_elite_entities(
                     &all_attackers,
                     level,
-                    spawn_queue.tasks.make_contiguous(),
+                    &excluded,
+                    seed_base,
                 );
-                spawn_queue.tasks.extend(upgrade_tasks);
+                spawn_queue.tasks.extend(
+                    selected.into_iter().map(|entity| SpawnTask::UpgradeToElite { entity }),
+                );
             }
             SpawnTask::UpgradeToElite { entity } => {
-                // Query the entity's current transform and hitbox (query separately to avoid double borrow)
+                // ParamSet requires sequential access — copy transform before querying hitbox
                 if let Ok(transform) = queries.p2().get(entity) {
-                    let transform = *transform; // Copy the transform
+                    let transform = *transform;
                     if let Ok(hitbox) = queries.p3().get(entity) {
-                        let hitbox = *hitbox; // Copy the hitbox
+                        let hitbox = *hitbox;
                         upgrade_systems::apply_elite_upgrade(
-                            &mut commands,
-                            entity,
-                            &transform,
-                            &hitbox,
+                            &mut commands, entity, &transform, &hitbox,
                         );
                     }
                 }
@@ -593,18 +648,13 @@ pub fn process_spawn_queue(
                 );
             }
             SpawnTask::UpgradeToCommander { entity } => {
-                // Query the entity's current transform and hitbox (query separately to avoid double borrow)
+                // ParamSet requires sequential access — copy transform before querying hitbox
                 if let Ok(transform) = queries.p2().get(entity) {
-                    let transform = *transform; // Copy the transform
+                    let transform = *transform;
                     if let Ok(hitbox) = queries.p3().get(entity) {
-                        let hitbox = *hitbox; // Copy the hitbox
+                        let hitbox = *hitbox;
                         upgrade_systems::apply_commander_upgrade(
-                            &mut commands,
-                            entity,
-                            &mut materials,
-                            &mut meshes,
-                            &transform,
-                            &hitbox,
+                            &mut commands, entity, &mut materials, &mut meshes, &transform, &hitbox,
                         );
                     }
                 }
@@ -628,6 +678,22 @@ pub fn process_spawn_queue(
         channel_change.write(ChannelChangeMessage);
         next_state.set(AppState::InGame);
     }
+}
+
+/// Collects entities already targeted for upgrades in existing spawn tasks.
+/// Used to avoid double-selecting units across upgrade passes.
+fn collect_excluded_from_tasks(tasks: &[SpawnTask]) -> HashSet<Entity> {
+    tasks
+        .iter()
+        .filter_map(|task| match task {
+            SpawnTask::UpgradeToElite { entity, .. }
+            | SpawnTask::UpgradeToCommander { entity, .. }
+            | SpawnTask::UpgradeToDispeller { entity }
+            | SpawnTask::UpgradeToHealer { entity }
+            | SpawnTask::UpgradeToShielder { entity } => Some(*entity),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Cleans up loading resources when exiting loading state.

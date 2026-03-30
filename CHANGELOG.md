@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.279] - 2026-03-29
+
+### Fixed
+- **Elite and special enemies now appear in all waves** — previously, only the first wave of each level had elite, commander, dispeller, healer, and shielder enemies. Now every wave gets its own set of upgraded enemies based on the level's difficulty
+
 ## [v0.5.277] - 2026-03-29
 
 ### Added
