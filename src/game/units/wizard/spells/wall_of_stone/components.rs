@@ -324,33 +324,5 @@ pub(crate) struct DispelledWall {
     pub sink_duration: f32,
 }
 
-/// Health component for destructible walls.
-///
-/// When HP reaches 0, the wall enters its sinking phase and is removed.
-#[derive(Component)]
-pub struct WallHealth {
-    pub current: f32,
-    pub max: f32,
-}
-
-impl WallHealth {
-    pub fn new(max: f32) -> Self {
-        Self { current: max, max }
-    }
-
-    pub fn take_damage(&mut self, amount: f32) {
-        self.current = (self.current - amount).max(0.0);
-    }
-
-    pub fn is_dead(&self) -> bool {
-        self.current <= 0.0
-    }
-
-    /// Returns HP as a fraction (1.0 = full, 0.0 = dead).
-    pub fn fraction(&self) -> f32 {
-        if self.max <= 0.0 {
-            return 0.0;
-        }
-        self.current / self.max
-    }
-}
+/// Type alias for backward compatibility — walls use the shared ObstacleHealth.
+pub type WallHealth = crate::game::components::ObstacleHealth;

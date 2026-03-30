@@ -428,6 +428,7 @@ pub fn apply_finger_of_death_damage(
     >,
     mut wizard_query: Query<(Entity, &mut Mana, &mut CastingState), With<Wizard>>,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut desaturate: MessageWriter<ScreenDesaturateMessage>,
@@ -483,12 +484,19 @@ pub fn apply_finger_of_death_damage(
         beam_damage = beam.damage();
         beam_talent_params = beam.talent_params.clone();
 
-        // Find nearest wall intersection to limit beam reach
+        // Find nearest wall/rock intersection to limit beam reach
         let beam_end = beam.origin + beam.direction * beam.length;
         let mut max_t = 1.0_f32;
         for wall in &walls {
             if let Some(t) = wall.line_segment_intersects(beam.origin, beam_end) {
                 max_t = max_t.min(t);
+            }
+        }
+        for rock in &rocks {
+            if !rock.sinking {
+                if let Some(t) = rock.line_segment_intersects(beam.origin, beam_end) {
+                    max_t = max_t.min(t);
+                }
             }
         }
         let effective_length = beam.length * max_t;
@@ -946,6 +954,7 @@ pub fn update_reapers_scythe(
         Without<Wizard>,
     >,
     walls: Query<&crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    rocks_query: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -987,12 +996,19 @@ pub fn update_reapers_scythe(
             sweep.talent_params.clone(),
         );
 
-        // Find wall intersection
+        // Find wall/rock intersection
         let beam_end = sweep.origin + rotated_dir * sweep.length;
         let mut max_t = 1.0_f32;
         for wall in &walls {
             if let Some(t) = wall.line_segment_intersects(sweep.origin, beam_end) {
                 max_t = max_t.min(t);
+            }
+        }
+        for rock in &rocks_query {
+            if !rock.sinking {
+                if let Some(t) = rock.line_segment_intersects(sweep.origin, beam_end) {
+                    max_t = max_t.min(t);
+                }
             }
         }
         let effective_length = sweep.length * max_t;

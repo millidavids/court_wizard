@@ -83,13 +83,14 @@ pub fn update_aerialist_targeting(
 /// Aerialist combat: direct damage to ground enemies within very short range.
 #[allow(clippy::type_complexity)]
 pub fn aerialist_combat(
+    mut commands: Commands,
     attack_cycle: Res<GlobalAttackCycle>,
+    archer_assets: Res<crate::game::units::archer::resources::ArcherAssets>,
     mut aerialists: Query<
         (
             &Transform,
             &Team,
             &mut AttackTiming,
-            &Effectiveness,
             Has<SleepModifier>,
             Option<&BanishedModifier>,
             Option<&FrozenSolidModifier>,
@@ -97,13 +98,11 @@ pub fn aerialist_combat(
         ),
         (With<Aerialist>, Without<Corpse>),
     >,
-    mut targets: Query<
+    targets: Query<
         (
             Entity,
             &Transform,
             &Team,
-            &mut Health,
-            Option<&mut crate::game::units::components::TemporaryHitPoints>,
         ),
         (Without<Corpse>, Without<Flying>),
     >,
@@ -115,7 +114,6 @@ pub fn aerialist_combat(
         aerialist_transform,
         aerialist_team,
         mut attack_timing,
-        effectiveness,
         is_sleeping,
         banished,
         frozen,
@@ -133,30 +131,30 @@ pub fn aerialist_combat(
         // Find nearest enemy within attack range (full 3D distance — accounts for fly height)
         let nearest = targets
             .iter()
-            .filter(|(_, _, team, _, _)| aerialist_team.is_enemy(team))
-            .filter_map(|(entity, target_transform, _, _, _)| {
+            .filter(|(_, _, team)| aerialist_team.is_enemy(team))
+            .filter_map(|(entity, target_transform, _)| {
                 let distance = aerialist_transform
                     .translation
                     .distance(target_transform.translation);
                 if distance <= AERIALIST_ATTACK_RANGE {
-                    Some((entity, distance))
+                    Some((entity, target_transform.translation, distance))
                 } else {
                     None
                 }
             })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
-        if let Some((target_entity, _)) = nearest {
+        if let Some((_target_entity, target_pos, _)) = nearest {
             attack_timing.last_attack_time = Some(current_time);
 
-            if let Ok((_, _, _, mut health, mut temp_hp)) = targets.get_mut(target_entity) {
-                let damage = AERIALIST_ATTACK_DAMAGE * effectiveness.multiplier();
-                crate::game::units::components::apply_damage_to_unit(
-                    &mut health,
-                    temp_hp.as_deref_mut(),
-                    damage,
-                );
-            }
+            // Spawn an arrow projectile toward the target
+            crate::game::units::archer::systems::spawn_arrow(
+                &mut commands,
+                &archer_assets,
+                aerialist_transform.translation,
+                target_pos,
+                *aerialist_team,
+            );
         }
     }
 }

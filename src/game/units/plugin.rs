@@ -19,6 +19,7 @@ use super::elite::ElitePlugin;
 use super::healer::HealerPlugin;
 use super::infantry::InfantryPlugin;
 use super::shielder::ShielderPlugin;
+use super::thrown_rock::ThrownRockPlugin;
 use super::king::KingPlugin;
 use super::movement;
 use super::systems;
@@ -53,6 +54,7 @@ impl Plugin for UnitsPlugin {
             HealerPlugin,
             ShielderPlugin,
             BrutePlugin,
+            ThrownRockPlugin,
             BossPlugin,
             KingPlugin,
         ))

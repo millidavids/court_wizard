@@ -378,17 +378,25 @@ pub const RETREAT_DURATION_SECS: f32 = 15.0;
 pub const WAVE_INTERVAL_SECONDS: f32 = 60.0;
 
 /// Base number of waves at tier 0.
-pub const BASE_WAVE_COUNT: u32 = 2;
+pub const BASE_WAVE_COUNT: u32 = 1;
+
+/// Maximum number of waves per level (in endless mode tiers keep rising).
+pub const MAX_WAVE_COUNT: u32 = 6;
 
 /// Returns the number of waves for a given level.
 /// Most boss levels have 1 wave (boss only). Lich tier (1) uses normal wave count
 /// since the Lich spawns mid-game alongside regular waves.
-/// Normal levels get `BASE_WAVE_COUNT + tier`.
+/// Normal levels get `BASE_WAVE_COUNT + tier`, capped at `MAX_WAVE_COUNT`.
 pub const fn calculate_wave_count(level: u32) -> u32 {
     if is_boss_level(level) && !is_lich_level(level) {
         1
     } else {
-        BASE_WAVE_COUNT + get_tier(level)
+        let waves = BASE_WAVE_COUNT + get_tier(level);
+        if waves > MAX_WAVE_COUNT {
+            MAX_WAVE_COUNT
+        } else {
+            waves
+        }
     }
 }
 

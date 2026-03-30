@@ -453,6 +453,7 @@ pub(super) fn check_ice_projectile_collisions(
     visual_assets: Res<SpellVisualAssets>,
     projectiles: Query<(Entity, &Transform, &IceProjectile)>,
     walls: Query<&WallOfStone>,
+    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -488,6 +489,37 @@ pub(super) fn check_ice_projectile_collisions(
             }
         }
         if hit_wall {
+            continue;
+        }
+
+        // Check collision with rocks
+        let mut hit_rock = false;
+        for rock in &rocks {
+            if rock.blocks_projectile(projectile_pos) {
+                let explosion_pos = Vec3::new(projectile_pos.x, rock.height, projectile_pos.z);
+                spawn_ice_explosion(
+                    &mut commands,
+                    &visual_assets,
+                    explosion_pos,
+                    projectile.explosion_radius,
+                    projectile.damage,
+                    projectile.empowerment,
+                );
+                let sfx_scale = if projectile.is_hailstone { 0.5 } else { 0.3 };
+                audio::play_impact_sfx_scaled(
+                    &mut commands,
+                    &sfx.squall_impact,
+                    explosion_pos,
+                    &game_config,
+                    &sfx,
+                    sfx_scale,
+                );
+                commands.entity(entity).try_despawn();
+                hit_rock = true;
+                break;
+            }
+        }
+        if hit_rock {
             continue;
         }
 

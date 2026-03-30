@@ -19,6 +19,7 @@ impl Plugin for OgrePlugin {
                     ogre_charge_system.before(ogre_movement),
                     ogre_movement.in_set(MovementCalculationSet),
                     ogre_combat.in_set(MovementCalculationSet),
+                    ogre_rock_throw,
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Boss>),

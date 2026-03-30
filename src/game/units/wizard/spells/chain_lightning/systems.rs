@@ -479,6 +479,7 @@ pub fn process_chain_lightning_bounces(
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     walls: Query<&WallOfStone>,
+    rocks_query: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
@@ -531,6 +532,7 @@ pub fn process_chain_lightning_bounces(
 
         // Find up to split_count targets (units + lightning rods + crystals)
         let wall_snapshot: Vec<_> = walls.iter().collect();
+        let rock_snapshot: Vec<_> = rocks_query.iter().filter(|r| !r.sinking).collect();
         let targets = find_next_bounce_targets(
             snapshot.last_hit_position,
             &group.hit_entities,
@@ -540,6 +542,7 @@ pub fn process_chain_lightning_bounces(
             bounce_range,
             snapshot.split_count,
             &wall_snapshot,
+            &rock_snapshot,
         );
 
         for (target_entity, target_pos) in &targets {
@@ -761,7 +764,15 @@ fn find_next_bounce_targets(
     bounce_range: f32,
     max_targets: usize,
     walls: &[&WallOfStone],
+    rocks: &[&crate::game::units::thrown_rock::components::ThrownRock],
 ) -> Vec<(Entity, Vec3)> {
+    use crate::game::units::thrown_rock::components::ThrownRock;
+
+    let los_blocked = |from: Vec3, to: Vec3| -> bool {
+        WallOfStone::any_blocks_los(walls, from, to)
+            || ThrownRock::any_blocks_los(rocks, from, to)
+    };
+
     let mut candidates: Vec<(Entity, Vec3, f32)> = enemies
         .iter()
         // No team filter - spell damages ALL units indiscriminately
@@ -769,7 +780,7 @@ fn find_next_bounce_targets(
         .filter_map(|(entity, transform, _, _, _, _)| {
             let distance = origin.distance(transform.translation);
             if distance <= bounce_range
-                && !WallOfStone::any_blocks_los(walls, origin, transform.translation)
+                && !los_blocked(origin, transform.translation)
             {
                 Some((entity, transform.translation, distance))
             } else {
@@ -785,7 +796,7 @@ fn find_next_bounce_targets(
         }
         let distance = origin.distance(transform.translation);
         if distance <= bounce_range
-            && !WallOfStone::any_blocks_los(walls, origin, transform.translation)
+            && !los_blocked(origin, transform.translation)
         {
             candidates.push((entity, transform.translation, distance));
         }
@@ -798,7 +809,7 @@ fn find_next_bounce_targets(
         }
         let distance = origin.distance(transform.translation);
         if distance <= bounce_range
-            && !WallOfStone::any_blocks_los(walls, origin, transform.translation)
+            && !los_blocked(origin, transform.translation)
         {
             candidates.push((entity, transform.translation, distance));
         }

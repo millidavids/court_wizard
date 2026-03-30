@@ -20,6 +20,9 @@ use crate::game::units::components::{
     TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::random_position_in_cell;
+use crate::game::units::brute::components::RockThrowCooldown;
+use crate::game::units::thrown_rock::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
+use crate::game::units::thrown_rock::messages::RockThrownMessage;
 
 /// Spawns the ogre at one of the tunnel spawn points.
 pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
@@ -80,7 +83,8 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
             Teleportable,
             Billboard,
             OnGameplayScreen,
-        ));
+        ))
+        .insert(RockThrowCooldown::new(8.0));
 }
 
 /// Updates ogre targeting velocity toward nearest enemy.
@@ -683,6 +687,76 @@ pub fn ogre_charge_system(
                     };
                 }
             }
+        }
+    }
+}
+
+/// Ogre rock throw — picks a target enemy within range and throws a rock at them.
+/// Skipped during charge phases.
+#[allow(clippy::type_complexity)]
+pub fn ogre_rock_throw(
+    time: Res<Time>,
+    mut rock_events: MessageWriter<RockThrownMessage>,
+    mut bosses: Query<
+        (
+            &Transform,
+            &Team,
+            &OgreChargeState,
+            &mut RockThrowCooldown,
+            (
+                Option<&RootedModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
+                Option<&BanishedModifier>,
+                Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
+                Option<&PolymorphedModifier>,
+            ),
+        ),
+        (With<Boss>, Without<Corpse>),
+    >,
+    targets: Query<
+        (&Transform, &Team),
+        (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>),
+    >,
+) {
+    let delta = time.delta_secs();
+
+    for (
+        boss_transform,
+        boss_team,
+        charge_state,
+        mut cooldown,
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, polymorphed),
+    ) in &mut bosses
+    {
+        if charge_state.is_movement_locked() {
+            continue;
+        }
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned,
+        ) || polymorphed.is_some()
+        {
+            continue;
+        }
+
+        cooldown.tick(delta);
+        if !cooldown.is_ready() {
+            continue;
+        }
+
+        if let Some(target_pos) = crate::game::units::systems::find_closest_enemy_in_range(
+            boss_transform.translation,
+            boss_team,
+            ROCK_THROW_RANGE,
+            &targets,
+        ) {
+            rock_events.write(RockThrownMessage {
+                origin: boss_transform.translation,
+                target: target_pos,
+            });
+            cooldown.reset(ROCK_THROW_COOLDOWN);
         }
     }
 }

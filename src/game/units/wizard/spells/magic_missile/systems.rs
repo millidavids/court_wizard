@@ -665,6 +665,7 @@ pub fn check_magic_missile_collisions(
         (Without<MagicMissile>, Without<Corpse>),
     >,
     walls: Query<&WallOfStone>,
+    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
@@ -686,6 +687,20 @@ pub fn check_magic_missile_collisions(
             }
         }
         if hit_wall {
+            continue;
+        }
+
+        // Rock collision
+        let mut hit_rock = false;
+        for rock in &rocks {
+            if rock.blocks_projectile(missile_transform.translation)
+            {
+                commands.entity(missile_entity).try_despawn();
+                hit_rock = true;
+                break;
+            }
+        }
+        if hit_rock {
             continue;
         }
 

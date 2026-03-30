@@ -383,6 +383,7 @@ pub fn check_fireball_collisions(
     fireballs: Query<(Entity, &Transform, &Fireball, Option<&CrystalSpawn>)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
+    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -415,6 +416,20 @@ pub fn check_fireball_collisions(
             }
         }
         if hit_wall {
+            continue;
+        }
+
+        // Check collision with rocks
+        let mut hit_rock = false;
+        for rock in &rocks {
+            if rock.blocks_projectile(fireball_pos) {
+                explode_at(&mut commands, fireball_pos);
+                commands.entity(fireball_entity).try_despawn();
+                hit_rock = true;
+                break;
+            }
+        }
+        if hit_rock {
             continue;
         }
 

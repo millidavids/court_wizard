@@ -10,7 +10,8 @@ pub const AERIALIST_MIN_SPEED: f32 = 200.0;
 /// Lower = wider sweeping arcs. Infantry-style steering is ~instant.
 pub const AERIALIST_TURN_RATE: f32 = 1.5;
 
-// Combat
+// Combat (aerialists fire archer arrows, so damage comes from ARCHER_ATTACK_DAMAGE)
+#[allow(dead_code)]
 pub const AERIALIST_ATTACK_DAMAGE: f32 = 15.0;
 // 3D distance range — accounts for Y=144 fly height to ground (~124 Y gap).
 // At ground level this gives ~sqrt(150²-124²) ≈ 84 XZ units of reach.

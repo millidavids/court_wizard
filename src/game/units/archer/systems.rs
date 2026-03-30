@@ -199,12 +199,14 @@ pub fn archer_ranged_combat(
         (Without<Corpse>, Without<BanishedModifier>),
     >,
     walls: Query<&WallOfStone>,
+    rocks_query: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
     concealing_veil_zones: Query<
         &crate::game::units::wizard::spells::fog_cloud::components::FogCloudZone,
         With<crate::game::units::wizard::spells::fog_cloud::components::ConcealingVeilZone>,
     >,
 ) {
     let wall_snapshot: Vec<_> = walls.iter().collect();
+    let rock_snapshot: Vec<_> = rocks_query.iter().filter(|r| !r.sinking).collect();
 
     // Collect concealing veil zone snapshots for ranged targeting checks
     let concealing_veil_snapshot: Vec<(Vec3, f32)> = concealing_veil_zones
@@ -301,9 +303,14 @@ pub fn archer_ranged_combat(
                         return false;
                     }
                 }
-                // Skip targets blocked by walls
+                // Skip targets blocked by walls or rocks
                 !WallOfStone::any_blocks_los(
                     &wall_snapshot,
+                    archer_transform.translation,
+                    transform.translation,
+                )
+                && !crate::game::units::thrown_rock::components::ThrownRock::any_blocks_los(
+                    &rock_snapshot,
                     archer_transform.translation,
                     transform.translation,
                 )
@@ -390,7 +397,7 @@ fn wall_near_approach_path(walls: &[&WallOfStone], from: Vec3, to: Vec3) -> bool
 }
 
 /// Spawns an arrow projectile from archer toward target.
-fn spawn_arrow(
+pub(in crate::game) fn spawn_arrow(
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
     origin: Vec3,
@@ -490,6 +497,7 @@ pub fn check_arrow_collisions(
         Without<Corpse>,
     >,
     walls: Query<&WallOfStone>,
+    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
 ) {
     #[allow(clippy::significant_drop_in_scrutinee)]
     for (arrow_entity, arrow_transform, arrow) in &arrows {
@@ -505,6 +513,19 @@ pub fn check_arrow_collisions(
             }
         }
         if hit_wall {
+            continue;
+        }
+
+        // Rock collision
+        let mut hit_rock = false;
+        for rock in &rocks {
+            if rock.blocks_projectile(arrow_pos) {
+                commands.entity(arrow_entity).try_despawn();
+                hit_rock = true;
+                break;
+            }
+        }
+        if hit_rock {
             continue;
         }
 
@@ -566,6 +587,7 @@ pub fn update_archer_targeting(
     >,
     all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
     walls: Query<&WallOfStone>,
+    rocks_query2: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
 ) {
     // Collect snapshot of all unit positions (excludes staging attackers)
     let unit_snapshot: Vec<_> = all_units
@@ -573,8 +595,9 @@ pub fn update_archer_targeting(
         .map(|(entity, transform, team)| (entity, transform.translation, *team))
         .collect();
 
-    // Collect wall snapshot for line-of-sight checks
+    // Collect wall and rock snapshots for line-of-sight checks
     let wall_snapshot: Vec<_> = walls.iter().collect();
+    let rock_snapshot: Vec<_> = rocks_query2.iter().filter(|r| !r.sinking).collect();
 
     // Update each archer's targeting velocity
     for (entity, transform, team, attack_range, mut targeting_velocity) in &mut archers {
@@ -604,8 +627,10 @@ pub fn update_archer_targeting(
                 let dz = pos.z - target_pos.z;
                 let dist = (dx * dx + dz * dz).sqrt();
                 if dist >= attack_range.min_range && dist <= ARCHER_SEEK_RANGE {
-                    // Check line-of-sight: skip if any wall blocks the shot
-                    if WallOfStone::any_blocks_los(&wall_snapshot, pos, target_pos) {
+                    // Check line-of-sight: skip if any wall or rock blocks the shot
+                    if WallOfStone::any_blocks_los(&wall_snapshot, pos, target_pos)
+                        || crate::game::units::thrown_rock::components::ThrownRock::any_blocks_los(&rock_snapshot, pos, target_pos)
+                    {
                         None
                     } else {
                         Some((dist, target_pos))

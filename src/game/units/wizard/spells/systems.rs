@@ -37,6 +37,7 @@ pub fn check_projectile_collisions(
         With<Infantry>,
     >,
     walls: Query<&WallOfStone>,
+    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
 ) {
     for (projectile_entity, proj_transform, projectile) in &projectiles {
         // Check wall collision
@@ -51,6 +52,20 @@ pub fn check_projectile_collisions(
             }
         }
         if hit_wall {
+            continue;
+        }
+
+        // Check rock collision
+        let mut hit_rock = false;
+        for rock in &rocks {
+            if rock.blocks_projectile(proj_transform.translation)
+            {
+                commands.entity(projectile_entity).try_despawn();
+                hit_rock = true;
+                break;
+            }
+        }
+        if hit_rock {
             continue;
         }
 

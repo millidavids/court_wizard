@@ -1,10 +1,7 @@
-use std::cmp::Ordering;
-
 use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use super::messages::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
@@ -21,6 +18,8 @@ use crate::game::units::components::{
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::ATTACKER_SPRITE_TINT;
 use crate::game::units::random_position_in_cell;
+use crate::game::units::thrown_rock::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
+use crate::game::units::thrown_rock::messages::RockThrownMessage;
 
 /// Spawns a brute attacker.
 /// Brutes spawn in the archer row alongside archers.
@@ -82,9 +81,8 @@ pub fn spawn_brute(
         .insert((
             anim,
             crate::game::units::components::FacingDirection::default(),
-            // Primary attack does no damage (-1.0 multiplier means 50 * (1.0 - 1.0) = 0)
-            // All damage comes from AOE splash
-            DamageMultiplier(-1.0),
+            // Normal single-target melee damage
+            DamageMultiplier(0.0),
             FlockingVelocity::default(),
             FlockingModifier::new(1.0, 1.0, 1.0),
             CommanderAuraSpeedModifier(0.0),
@@ -95,6 +93,8 @@ pub fn spawn_brute(
             UnitTypeGlow {
                 color: crate::game::units::constants::BRUTE_GLOW_COLOR,
             },
+            // Rock throw with initial cooldown so brute doesn't throw immediately on spawn
+            RockThrowCooldown::new(5.0),
         ));
 }
 
@@ -219,75 +219,66 @@ pub fn brute_movement(
     }
 }
 
-/// Tracks the position of the brute's attack target before combat happens.
-/// Sends BruteAttackMessage when a brute is about to attack.
-pub fn track_brute_attack_target(
-    attack_cycle: Res<crate::game::plugin::GlobalAttackCycle>,
-    mut attack_events: MessageWriter<BruteAttackMessage>,
+/// Brute rock throw — picks a target enemy within range and throws a rock at them.
+#[allow(clippy::type_complexity)]
+pub fn brute_rock_throw(
+    time: Res<Time>,
+    mut rock_events: MessageWriter<RockThrownMessage>,
     mut brutes: Query<
-        (Entity, &Transform, &Hitbox, &Team, &mut AttackTiming),
+        (
+            &Transform,
+            &Team,
+            &mut RockThrowCooldown,
+            (
+                Option<&RootedModifier>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
+                Option<&BanishedModifier>,
+                Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
+                Option<&crate::game::units::components::Stunned>,
+                Option<&PolymorphedModifier>,
+            ),
+        ),
         (With<Brute>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Hitbox, &Team), Without<Corpse>>,
-) {
-    let current_time = attack_cycle.current_time;
-    let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
-
-    let units_snapshot: Vec<_> = all_units
-        .iter()
-        .map(|(entity, transform, hitbox, team)| (entity, transform.translation, *hitbox, *team))
-        .collect();
-
-    for (brute_entity, brute_transform, brute_hitbox, brute_team, mut attack_timing) in &mut brutes
-    {
-        if attack_timing.can_attack(current_time, last_time)
-            && let Some((_, target_pos, _)) = units_snapshot
-                .iter()
-                .filter(|(entity, _, _, team)| *entity != brute_entity && brute_team.is_enemy(team))
-                .filter_map(|(entity, target_pos, target_hitbox, _)| {
-                    let dx = brute_transform.translation.x - target_pos.x;
-                    let dz = brute_transform.translation.z - target_pos.z;
-                    let distance = (dx * dx + dz * dz).sqrt();
-                    let attack_range = (brute_hitbox.radius + target_hitbox.radius)
-                        * crate::game::constants::ATTACK_RANGE_MULTIPLIER;
-                    if distance <= attack_range {
-                        Some((entity, target_pos, distance))
-                    } else {
-                        None
-                    }
-                })
-                .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal))
-        {
-            attack_events.write(BruteAttackMessage {
-                target_position: *target_pos,
-                brute_team: *brute_team,
-            });
-            attack_timing.record_attack(current_time);
-        }
-    }
-}
-
-/// Applies AOE splash damage around the brute's attack target.
-pub fn brute_aoe_splash_damage(
-    mut attack_events: MessageReader<BruteAttackMessage>,
-    mut all_units: Query<
-        (&Transform, &Team, &Hitbox, &mut Health),
-        (Without<Brute>, Without<Corpse>),
+    targets: Query<
+        (&Transform, &Team),
+        (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>),
     >,
 ) {
-    for event in attack_events.read() {
-        for (unit_transform, unit_team, hitbox, mut health) in &mut all_units {
-            if *unit_team == event.brute_team {
-                continue;
-            }
+    let delta = time.delta_secs();
 
-            let dx = unit_transform.translation.x - event.target_position.x;
-            let dz = unit_transform.translation.z - event.target_position.z;
-            let distance_to_target = (dx * dx + dz * dz).sqrt();
+    for (
+        brute_transform,
+        brute_team,
+        mut cooldown,
+        (rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned, polymorphed),
+    ) in &mut brutes
+    {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned,
+        ) || polymorphed.is_some()
+        {
+            continue;
+        }
 
-            if distance_to_target <= BRUTE_AOE_RADIUS + hitbox.radius {
-                health.current -= BRUTE_AOE_DAMAGE;
-            }
+        cooldown.tick(delta);
+        if !cooldown.is_ready() {
+            continue;
+        }
+
+        if let Some(target_pos) = crate::game::units::systems::find_closest_enemy_in_range(
+            brute_transform.translation,
+            brute_team,
+            ROCK_THROW_RANGE,
+            &targets,
+        ) {
+            rock_events.write(RockThrownMessage {
+                origin: brute_transform.translation,
+                target: target_pos,
+            });
+            cooldown.reset(ROCK_THROW_COOLDOWN);
         }
     }
 }

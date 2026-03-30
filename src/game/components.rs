@@ -4,6 +4,34 @@ use bevy::prelude::*;
 #[derive(Component, Clone)]
 pub struct OnGameplayScreen;
 
+/// Health component for destructible obstacles (walls, rocks).
+#[derive(Component)]
+pub struct ObstacleHealth {
+    pub current: f32,
+    pub max: f32,
+}
+
+impl ObstacleHealth {
+    pub fn new(max: f32) -> Self {
+        Self { current: max, max }
+    }
+
+    pub fn take_damage(&mut self, amount: f32) {
+        self.current = (self.current - amount).max(0.0);
+    }
+
+    pub fn is_dead(&self) -> bool {
+        self.current <= 0.0
+    }
+
+    pub fn fraction(&self) -> f32 {
+        if self.max <= 0.0 {
+            return 0.0;
+        }
+        self.current / self.max
+    }
+}
+
 /// Marker component for spells that require concentration to maintain.
 ///
 /// When a spell with this component is active, the concentration UI will be shown

@@ -1432,3 +1432,28 @@ pub fn update_facing_direction(
         }
     }
 }
+
+/// Finds the closest enemy within range of a position. Shared by brute and ogre rock throw.
+pub fn find_closest_enemy_in_range(
+    origin: Vec3,
+    team: &Team,
+    range: f32,
+    targets: &Query<(&Transform, &Team), (Without<Corpse>, Without<super::components::BanishedModifier>, Without<crate::game::pathfinding::StagingAttacker>)>,
+) -> Option<Vec3> {
+    let mut best: Option<(Vec3, f32)> = None;
+    for (target_transform, target_team) in targets.iter() {
+        if !team.is_enemy(target_team) {
+            continue;
+        }
+        let dx = target_transform.translation.x - origin.x;
+        let dz = target_transform.translation.z - origin.z;
+        let distance = (dx * dx + dz * dz).sqrt();
+        if distance > range {
+            continue;
+        }
+        if best.map_or(true, |(_, d)| distance < d) {
+            best = Some((target_transform.translation, distance));
+        }
+    }
+    best.map(|(pos, _)| pos)
+}

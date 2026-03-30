@@ -906,6 +906,7 @@ pub fn convert_dead_to_corpses(
                 Option<&ResidualFireDamaged>,
                 Option<&super::units::components::MarkedForDeathModifier>,
                 Option<&super::units::aerialist::Aerialist>,
+                Option<&super::units::brute::components::Brute>,
                 Has<Flying>,
             ),
         ),
@@ -942,7 +943,7 @@ pub fn convert_dead_to_corpses(
         is_king,
         _is_boss,
         spell_damaged,
-        (residual_fire_damaged, marked_for_death, is_aerialist, is_flying),
+        (residual_fire_damaged, marked_for_death, is_aerialist, is_brute, is_flying),
     ) in &query
     {
         if health.is_dead() {
@@ -1011,6 +1012,8 @@ pub fn convert_dead_to_corpses(
                 Some(assassin_assets.death_texture.clone())
             } else if is_aerialist.is_some() {
                 Some(aerialist_assets.death_texture.clone())
+            } else if is_brute.is_some() {
+                Some(infantry_assets.death_texture.clone())
             } else {
                 None
             };
@@ -1286,13 +1289,14 @@ pub fn apply_wall_avoidance(
     }
 }
 
-/// Pushes units out of any active Wall of Stone entities.
+/// Pushes units out of any active Wall of Stone or ThrownRock entities.
 ///
-/// Runs after movement systems to ensure units cannot walk through walls.
-/// Uses multiple iterations so that wall intersections are resolved correctly —
-/// being pushed out of wall A won't leave the unit stuck in wall B.
+/// Runs after movement systems to ensure units cannot walk through walls or rocks.
+/// Uses multiple iterations so that obstacle intersections are resolved correctly —
+/// being pushed out of obstacle A won't leave the unit stuck in obstacle B.
 pub fn enforce_wall_collision(
     walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
+    rocks: Query<&super::units::thrown_rock::components::ThrownRock>,
     mut units: Query<
         (
             &mut Transform,
@@ -1318,7 +1322,7 @@ pub fn enforce_wall_collision(
         let mut had_collision = false;
 
         // Iterate multiple times to resolve intersections where pushing out of
-        // one wall lands the unit inside another
+        // one obstacle lands the unit inside another
         for _ in 0..MAX_ITERATIONS {
             let mut corrected_this_pass = false;
 
@@ -1326,6 +1330,25 @@ pub fn enforce_wall_collision(
                 if let Some(corrected) =
                     wall.push_out(transform.translation, hitbox.radius, desired_direction)
                 {
+                    let correction = Vec3::new(
+                        corrected.x - transform.translation.x,
+                        0.0,
+                        corrected.z - transform.translation.z,
+                    );
+
+                    transform.translation.x = corrected.x;
+                    transform.translation.z = corrected.z;
+                    total_correction += correction;
+                    corrected_this_pass = true;
+                    had_collision = true;
+                }
+            }
+
+            for rock in &rocks {
+                if rock.sinking {
+                    continue;
+                }
+                if let Some(corrected) = rock.push_out(transform.translation, hitbox.radius) {
                     let correction = Vec3::new(
                         corrected.x - transform.translation.x,
                         0.0,
@@ -1352,7 +1375,7 @@ pub fn enforce_wall_collision(
             let velocity_vec = Vec3::new(velocity.x, 0.0, velocity.z);
             let velocity_magnitude = velocity_vec.length();
 
-            // Remove velocity component going into walls, keep tangential
+            // Remove velocity component going into obstacles, keep tangential
             let perpendicular_component = velocity_vec.dot(correction_normal);
             if perpendicular_component < 0.0 {
                 let tangent_velocity = velocity_vec - correction_normal * perpendicular_component;
@@ -1645,9 +1668,11 @@ pub fn spawn_unit_shadows(
 
     for (entity, transform, hitbox, is_flying) in &units {
         // Scale shadow proportionally to hitbox radius relative to a standard infantry unit.
-        // Also incorporate the entity's transform scale for sprite-based units.
+        // Use the larger of transform scale or hitbox ratio to avoid double-counting
+        // (e.g. brute has both large scale AND large hitbox for the same size increase).
         let hitbox_ratio = hitbox.radius / BASE_HITBOX_RADIUS;
-        let mut shadow_scale = transform.scale.x.max(transform.scale.z) * hitbox_ratio;
+        let scale_factor = transform.scale.x.max(transform.scale.z);
+        let mut shadow_scale = hitbox_ratio.max(scale_factor);
         if is_flying {
             shadow_scale *= FLYING_SHADOW_HEIGHT_SCALE;
         }

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.305] - 2026-03-30
+
+### Added
+- **Brute throws boulders** — instead of a close-range area attack, the Brute now hurls massive rocks at your defenders from a distance. Boulders land permanently on the battlefield as obstacles that block movement and line of sight
+- **Ogre throws boulders too** — the Ogre boss now throws boulders between charges, littering the battlefield with obstacles
+- **Boulders block everything** — landed boulders block unit pathing, arrows, spells, and line of sight just like walls. If a boulder completely blocks a unit's path, that unit will attack the boulder to break through
+- **Spells can destroy boulders** — area-of-effect spells like Fireball, Meteor, and Squall deal damage to boulders, but Magic Missile won't target them
+- **Boulder impact sound** — a satisfying thud plays when a boulder crashes down onto the battlefield
+- **Aerialist arrow attacks** — flying units now fire visible arrow projectiles at ground targets instead of dealing invisible damage
+
+### Changed
+- **Brutes appear earlier** — Brutes now start showing up at level 11 instead of level 21
+- **Brutes move faster** — Brutes now move at the same speed as infantry
+- **Brute has normal melee** — when enemies get close, the Brute fights with standard single-target melee attacks
+- **Fewer waves per level** — each level now has one fewer wave than before, maxing out at 6 waves in endless mode
+- **Better brute shadows** — the Brute's shadow is now correctly sized to match its body instead of being oversized
+
 ## [v0.5.294] - 2026-03-30
 
 ### Added
