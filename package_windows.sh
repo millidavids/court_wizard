@@ -36,6 +36,14 @@ cp "$BIN_DIR/court_wizard.exe" "$STAGING/court_wizard/"
 cp -r "$BIN_DIR/assets" "$STAGING/court_wizard/"
 cp PLAYER_README.txt "$STAGING/court_wizard/README.txt"
 
+# Steam redistributable DLL
+if [ -f "$BIN_DIR/steam_api64.dll" ]; then
+    cp "$BIN_DIR/steam_api64.dll" "$STAGING/court_wizard/"
+    echo "Included steam_api64.dll"
+else
+    echo "Warning: steam_api64.dll not found in $BIN_DIR — Steam features will not work."
+fi
+
 # Create zip (use 7z if available, fall back to python zipfile)
 if command -v 7z &> /dev/null; then
     (cd "$STAGING" && 7z a -tzip -r "$OLDPWD/$ZIP_NAME" court_wizard) > /dev/null

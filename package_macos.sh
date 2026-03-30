@@ -47,6 +47,14 @@ cp "$BIN_DIR/court_wizard" "$STAGING/court_wizard/"
 cp -r "$BIN_DIR/assets" "$STAGING/court_wizard/"
 cp PLAYER_README.txt "$STAGING/court_wizard/README.txt"
 
+# Steam redistributable dylib
+if [ -f "$BIN_DIR/libsteam_api.dylib" ]; then
+    cp "$BIN_DIR/libsteam_api.dylib" "$STAGING/court_wizard/"
+    echo "Included libsteam_api.dylib"
+else
+    echo "Warning: libsteam_api.dylib not found in $BIN_DIR — Steam features will not work."
+fi
+
 # Create zip
 if command -v zip &> /dev/null; then
     (cd "$STAGING" && zip -r -q "$OLDPWD/$ZIP_NAME" court_wizard)
