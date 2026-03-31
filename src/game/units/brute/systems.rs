@@ -18,8 +18,8 @@ use crate::game::units::components::{
 use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::infantry::styles::ATTACKER_SPRITE_TINT;
 use crate::game::units::random_position_in_cell;
-use crate::game::units::thrown_rock::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
-use crate::game::units::thrown_rock::messages::RockThrownMessage;
+use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
+use crate::game::terrain::boulder::messages::BoulderThrownMessage;
 
 /// Spawns a brute attacker.
 /// Brutes spawn in the archer row alongside archers.
@@ -223,7 +223,7 @@ pub fn brute_movement(
 #[allow(clippy::type_complexity)]
 pub fn brute_rock_throw(
     time: Res<Time>,
-    mut rock_events: MessageWriter<RockThrownMessage>,
+    mut rock_events: MessageWriter<BoulderThrownMessage>,
     mut brutes: Query<
         (
             &Transform,
@@ -274,7 +274,7 @@ pub fn brute_rock_throw(
             ROCK_THROW_RANGE,
             &targets,
         ) {
-            rock_events.write(RockThrownMessage {
+            rock_events.write(BoulderThrownMessage {
                 origin: brute_transform.translation,
                 target: target_pos,
             });

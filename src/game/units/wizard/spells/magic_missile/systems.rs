@@ -668,7 +668,7 @@ pub fn check_magic_missile_collisions(
         (Without<MagicMissile>, Without<Corpse>),
     >,
     walls: Query<&WallOfStone>,
-    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,

@@ -199,7 +199,7 @@ pub fn archer_ranged_combat(
         (Without<Corpse>, Without<BanishedModifier>),
     >,
     walls: Query<&WallOfStone>,
-    rocks_query: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
     concealing_veil_zones: Query<
         &crate::game::units::wizard::spells::fog_cloud::components::FogCloudZone,
         With<crate::game::units::wizard::spells::fog_cloud::components::ConcealingVeilZone>,
@@ -309,7 +309,7 @@ pub fn archer_ranged_combat(
                     archer_transform.translation,
                     transform.translation,
                 )
-                && !crate::game::units::thrown_rock::components::ThrownRock::any_blocks_los(
+                && !crate::game::terrain::boulder::components::Boulder::any_blocks_los(
                     &rock_snapshot,
                     archer_transform.translation,
                     transform.translation,
@@ -497,7 +497,7 @@ pub fn check_arrow_collisions(
         Without<Corpse>,
     >,
     walls: Query<&WallOfStone>,
-    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
 ) {
     #[allow(clippy::significant_drop_in_scrutinee)]
     for (arrow_entity, arrow_transform, arrow) in &arrows {
@@ -587,7 +587,7 @@ pub fn update_archer_targeting(
     >,
     all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
     walls: Query<&WallOfStone>,
-    rocks_query2: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks_query2: Query<&crate::game::terrain::boulder::components::Boulder>,
 ) {
     // Collect snapshot of all unit positions (excludes staging attackers)
     let unit_snapshot: Vec<_> = all_units
@@ -629,7 +629,7 @@ pub fn update_archer_targeting(
                 if dist >= attack_range.min_range && dist <= ARCHER_SEEK_RANGE {
                     // Check line-of-sight: skip if any wall or rock blocks the shot
                     if WallOfStone::any_blocks_los(&wall_snapshot, pos, target_pos)
-                        || crate::game::units::thrown_rock::components::ThrownRock::any_blocks_los(&rock_snapshot, pos, target_pos)
+                        || crate::game::terrain::boulder::components::Boulder::any_blocks_los(&rock_snapshot, pos, target_pos)
                     {
                         None
                     } else {

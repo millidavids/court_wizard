@@ -37,7 +37,7 @@ pub fn check_projectile_collisions(
         With<Infantry>,
     >,
     walls: Query<&WallOfStone>,
-    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
 ) {
     for (projectile_entity, proj_transform, projectile) in &projectiles {
         // Check wall collision

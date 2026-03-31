@@ -5,4 +5,4 @@ mod plugin;
 pub(crate) mod resources;
 pub(crate) mod systems;
 
-pub(super) use plugin::ThrownRockPlugin;
+pub use plugin::BoulderPlugin;

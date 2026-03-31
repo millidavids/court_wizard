@@ -487,7 +487,7 @@ pub fn process_chain_lightning_bounces(
     mut rods: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     walls: Query<&WallOfStone>,
-    rocks_query: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
@@ -772,13 +772,13 @@ fn find_next_bounce_targets(
     bounce_range: f32,
     max_targets: usize,
     walls: &[&WallOfStone],
-    rocks: &[&crate::game::units::thrown_rock::components::ThrownRock],
+    rocks: &[&crate::game::terrain::boulder::components::Boulder],
 ) -> Vec<(Entity, Vec3)> {
-    use crate::game::units::thrown_rock::components::ThrownRock;
+    use crate::game::terrain::boulder::components::Boulder;
 
     let los_blocked = |from: Vec3, to: Vec3| -> bool {
         WallOfStone::any_blocks_los(walls, from, to)
-            || ThrownRock::any_blocks_los(rocks, from, to)
+            || Boulder::any_blocks_los(rocks, from, to)
     };
 
     let mut candidates: Vec<(Entity, Vec3, f32)> = enemies

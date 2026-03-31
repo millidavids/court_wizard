@@ -1289,14 +1289,14 @@ pub fn apply_wall_avoidance(
     }
 }
 
-/// Pushes units out of any active Wall of Stone or ThrownRock entities.
+/// Pushes units out of any active Wall of Stone or Boulder entities.
 ///
 /// Runs after movement systems to ensure units cannot walk through walls or rocks.
 /// Uses multiple iterations so that obstacle intersections are resolved correctly —
 /// being pushed out of obstacle A won't leave the unit stuck in obstacle B.
 pub fn enforce_wall_collision(
     walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
-    rocks: Query<&super::units::thrown_rock::components::ThrownRock>,
+    rocks: Query<&super::terrain::boulder::components::Boulder>,
     mut units: Query<
         (
             &mut Transform,

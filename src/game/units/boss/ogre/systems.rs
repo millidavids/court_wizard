@@ -21,8 +21,8 @@ use crate::game::units::components::{
 };
 use crate::game::units::random_position_in_cell;
 use crate::game::units::brute::components::RockThrowCooldown;
-use crate::game::units::thrown_rock::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
-use crate::game::units::thrown_rock::messages::RockThrownMessage;
+use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
+use crate::game::terrain::boulder::messages::BoulderThrownMessage;
 
 /// Spawns the ogre at one of the tunnel spawn points.
 pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
@@ -696,7 +696,7 @@ pub fn ogre_charge_system(
 #[allow(clippy::type_complexity)]
 pub fn ogre_rock_throw(
     time: Res<Time>,
-    mut rock_events: MessageWriter<RockThrownMessage>,
+    mut rock_events: MessageWriter<BoulderThrownMessage>,
     mut bosses: Query<
         (
             &Transform,
@@ -752,7 +752,7 @@ pub fn ogre_rock_throw(
             ROCK_THROW_RANGE,
             &targets,
         ) {
-            rock_events.write(RockThrownMessage {
+            rock_events.write(BoulderThrownMessage {
                 origin: boss_transform.translation,
                 target: target_pos,
             });

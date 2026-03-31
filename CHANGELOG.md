@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.402] - 2026-03-31
+
+### Added
+- **Trampled ground** — units marching across the battlefield gradually turn the grass into muddy brown trails. The more units walk over the same area, the darker and muddier it gets. Between battles, the grass slowly grows back
+- **Mud trails persist across levels** — trampled ground carries over between battles within the same run, so well-traveled routes stay visible throughout your campaign
+- **Boulders can be teleported** — use the Teleport spell to relocate boulders thrown by Brutes and Ogres, clearing blocked paths or repositioning them strategically
+
+### Changed
+- **Flying units don't trample ground** — aerialists hover above the battlefield and don't leave mud trails like ground units do
+
 ## [v0.5.337] - 2026-03-30
 
 ### Added

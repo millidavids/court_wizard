@@ -7,5 +7,6 @@ pub(in crate::game) mod constants;
 pub(in crate::game) mod flora;
 mod plugin;
 pub(in crate::game) mod systems;
+pub(in crate::game) mod trampling;
 
 pub use plugin::BattlefieldPlugin;

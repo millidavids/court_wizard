@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::config::save_data::{SavedCrystal, SavedFlora, SavedWall};
+use crate::config::save_data::{SavedCrystal, SavedFlora, SavedTrampling, SavedWall};
 use crate::game::units::wizard::components::Spell;
 
 /// Temporary structure for TOML serialization only.
@@ -432,6 +432,9 @@ pub struct GameConfig {
     /// Battlefield flora positions (persistent across battles, removed when trampled)
     #[serde(skip)]
     pub saved_flora: Vec<SavedFlora>,
+    /// Trampling grid state (mud trails on battlefield)
+    #[serde(skip)]
+    pub saved_trampling: SavedTrampling,
 }
 
 impl Default for GameConfig {
@@ -456,6 +459,7 @@ impl Default for GameConfig {
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
             saved_flora: Vec::new(),
+            saved_trampling: SavedTrampling::default(),
         }
     }
 }

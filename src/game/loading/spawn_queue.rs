@@ -79,6 +79,7 @@ pub enum SpawnTask {
     Flora {
         flora: SavedFlora,
     },
+    TramplingOverlay,
 }
 
 impl SpawnTask {

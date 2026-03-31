@@ -19,7 +19,6 @@ pub(in crate::game) mod elite;
 pub(crate) mod healer;
 pub(in crate::game) mod infantry;
 pub(crate) mod shielder;
-pub(crate) mod thrown_rock;
 pub(crate) mod king;
 pub(crate) mod undead;
 pub(in crate::game) mod movement;

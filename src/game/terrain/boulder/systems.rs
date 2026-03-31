@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use super::components::{RockProjectile, RockShadow, ThrownRock};
+use super::components::{BoulderProjectile, BoulderShadow, Boulder};
 use super::constants::*;
 use super::messages::*;
-use super::resources::ThrownRockAssets;
+use super::resources::BoulderAssets;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, ObstacleHealth, OnGameplayScreen};
 use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
@@ -12,7 +12,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Health, Hitbox, TemporaryHitPoints,
+    AttackTiming, Corpse, Health, Hitbox, Teleportable, TemporaryHitPoints,
 };
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion;
@@ -20,15 +20,15 @@ use crate::game::units::wizard::spells::squall::components::IceExplosion;
 
 pub fn spawn_rock_projectile(
     mut commands: Commands,
-    mut events: MessageReader<RockThrownMessage>,
-    rock_assets: Res<ThrownRockAssets>,
+    mut events: MessageReader<BoulderThrownMessage>,
+    rock_assets: Res<BoulderAssets>,
 ) {
     for event in events.read() {
         let start_y = 20.0; // Launch from unit height
         let start = Vec3::new(event.origin.x, start_y, event.origin.z);
         let target = Vec3::new(event.target.x, 0.0, event.target.z);
 
-        let projectile = RockProjectile {
+        let projectile = BoulderProjectile {
             start,
             target,
             duration: ROCK_PROJECTILE_DURATION,
@@ -49,16 +49,16 @@ pub fn spawn_rock_projectile(
     }
 }
 
-/// Animates rock projectiles along their parabolic arc and spawns landed rocks.
+/// Animates boulder projectiles along their parabolic arc and spawns landed boulders.
 pub fn animate_rock_projectiles(
     time: Res<Time>,
     mut commands: Commands,
-    rock_assets: Res<ThrownRockAssets>,
+    rock_assets: Res<BoulderAssets>,
     shadow_assets: Res<ShadowAssets>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    mut projectiles: Query<(Entity, &mut RockProjectile, &mut Transform)>,
-    existing_rocks: Query<&ThrownRock>,
+    mut projectiles: Query<(Entity, &mut BoulderProjectile, &mut Transform)>,
+    existing_rocks: Query<&Boulder>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     let delta = time.delta_secs();
@@ -72,14 +72,14 @@ pub fn animate_rock_projectiles(
             // Despawn the projectile
             commands.entity(entity).despawn();
 
-            // Determine landing position, resolving overlaps with existing rocks
+            // Determine landing position, resolving overlaps with existing boulders
             let mut land_pos = Vec3::new(projectile.target.x, 0.0, projectile.target.z);
             land_pos = resolve_overlap(land_pos, &existing_rocks);
 
             let rock_y = ROCK_HEIGHT / 2.0;
 
-            // Spawn the permanent rock obstacle
-            let rock = ThrownRock {
+            // Spawn the permanent boulder obstacle
+            let rock = Boulder {
                 center: Vec3::new(land_pos.x, 0.0, land_pos.z),
                 radius: ROCK_RADIUS,
                 height: ROCK_HEIGHT,
@@ -108,7 +108,7 @@ pub fn animate_rock_projectiles(
                 &sfx,
             );
 
-            // Spawn the permanent rock obstacle entity
+            // Spawn the permanent boulder obstacle entity
             let rock_entity = commands.spawn((
                 Mesh3d(rock_assets.mesh.clone()),
                 MeshMaterial3d(rock_assets.material.clone()),
@@ -116,28 +116,29 @@ pub fn animate_rock_projectiles(
                 rock,
                 ObstacleHealth::new(ROCK_HEALTH),
                 Billboard,
+                Teleportable,
                 OnGameplayScreen,
             )).id();
 
-            // Spawn a shadow under the rock
+            // Spawn a shadow under the boulder
             commands.spawn((
                 Mesh3d(shadow_assets.mesh.clone()),
                 MeshMaterial3d(shadow_assets.material.clone()),
                 Transform::from_xyz(land_pos.x, ROCK_SHADOW_Y, land_pos.z)
                     .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                     .with_scale(Vec3::splat(ROCK_SHADOW_SCALE)),
-                RockShadow { owner: rock_entity },
+                BoulderShadow { owner: rock_entity },
                 OnGameplayScreen,
             ));
         }
     }
 }
 
-/// Resolves overlap between a new rock landing position and existing rocks.
-/// Pushes the new rock outward so it sits adjacent to any overlapping rock.
+/// Resolves overlap between a new boulder landing position and existing boulders.
+/// Pushes the new boulder outward so it sits adjacent to any overlapping boulder.
 fn resolve_overlap(
     mut pos: Vec3,
-    existing_rocks: &Query<&ThrownRock>,
+    existing_rocks: &Query<&Boulder>,
 ) -> Vec3 {
     // Iterate a few times to resolve cascading overlaps
     for _ in 0..8 {
@@ -169,10 +170,10 @@ fn resolve_overlap(
     pos
 }
 
-/// Ticks rock lifetime and handles sinking animation.
+/// Ticks boulder lifetime and handles sinking animation.
 pub fn tick_rock_lifetime(
     time: Res<Time>,
-    mut rocks: Query<(&mut ThrownRock, &mut Transform)>,
+    mut rocks: Query<(&mut Boulder, &mut Transform)>,
 ) {
     let delta = time.delta_secs();
 
@@ -192,7 +193,7 @@ pub fn tick_rock_lifetime(
 
 pub fn cleanup_sunk_rocks(
     mut commands: Commands,
-    rocks: Query<(Entity, &ThrownRock)>,
+    rocks: Query<(Entity, &Boulder)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, rock) in &rocks {
@@ -213,7 +214,7 @@ pub fn cleanup_sunk_rocks(
     }
 }
 
-pub fn destroy_dead_rocks(mut rocks: Query<(&mut ThrownRock, &ObstacleHealth)>) {
+pub fn destroy_dead_rocks(mut rocks: Query<(&mut Boulder, &ObstacleHealth)>) {
     for (mut rock, health) in &mut rocks {
         if health.is_dead() && !rock.sinking {
             rock.sinking = true;
@@ -222,7 +223,7 @@ pub fn destroy_dead_rocks(mut rocks: Query<(&mut ThrownRock, &ObstacleHealth)>) 
     }
 }
 
-/// Units with no valid path attack nearby rocks (same pattern as wall of stone).
+/// Units with no valid path attack nearby boulders (same pattern as wall of stone).
 pub fn units_attack_blocking_rocks(
     attack_cycle: Res<GlobalAttackCycle>,
     mut blocked_units: Query<
@@ -234,22 +235,22 @@ pub fn units_attack_blocking_rocks(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<ThrownRock>),
+        (Without<Corpse>, Without<Boulder>),
     >,
-    mut rocks: Query<(Entity, &ThrownRock, &mut ObstacleHealth)>,
+    mut rocks: Query<(Entity, &Boulder, &mut ObstacleHealth)>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
 
     for (transform, hitbox, flow_vel, mut attack_timing, _health, _temp_hp) in &mut blocked_units {
-        // Only target rocks if this unit has no valid path
+        // Only target boulders if this unit has no valid path
         if !flow_vel.pathfinding_distance.is_infinite() {
             continue;
         }
 
         let unit_pos = transform.translation;
 
-        // Find nearest rock by distance to surface
+        // Find nearest boulder by distance to surface
         let mut nearest_rock_entity = None;
         let mut nearest_distance = f32::MAX;
 
@@ -264,7 +265,7 @@ pub fn units_attack_blocking_rocks(
             }
         }
 
-        // Deal damage if close enough to a rock
+        // Deal damage if close enough to a boulder
         let attack_range = hitbox.radius + ROCK_ATTACK_RANGE;
         if let Some(rock_entity) = nearest_rock_entity
             && nearest_distance <= attack_range
@@ -277,12 +278,12 @@ pub fn units_attack_blocking_rocks(
     }
 }
 
-/// Tints rock material from base color to damaged color based on remaining HP.
-/// Clones the shared material on first damage so tinting one rock doesn't affect others.
+/// Tints boulder material from base color to damaged color based on remaining HP.
+/// Clones the shared material on first damage so tinting one boulder doesn't affect others.
 pub fn update_rock_damage_tint(
-    mut rocks: Query<(&ObstacleHealth, &mut MeshMaterial3d<StandardMaterial>), With<ThrownRock>>,
+    mut rocks: Query<(&ObstacleHealth, &mut MeshMaterial3d<StandardMaterial>), With<Boulder>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    rock_assets: Res<ThrownRockAssets>,
+    rock_assets: Res<BoulderAssets>,
 ) {
     let base = ROCK_BASE_COLOR.to_srgba();
     let damaged = ROCK_DAMAGED_COLOR.to_srgba();
@@ -292,7 +293,7 @@ pub fn update_rock_damage_tint(
             continue;
         }
 
-        // Clone shared material into per-rock instance on first damage
+        // Clone shared material into per-boulder instance on first damage
         if material_handle.0 == rock_assets.material {
             let Some(shared_mat) = materials.get(&rock_assets.material) else {
                 continue;
@@ -315,8 +316,8 @@ pub fn update_rock_damage_tint(
 
 pub fn cleanup_rock_shadows(
     mut commands: Commands,
-    shadows: Query<(Entity, &RockShadow)>,
-    rocks: Query<Entity, With<ThrownRock>>,
+    shadows: Query<(Entity, &BoulderShadow)>,
+    rocks: Query<Entity, With<Boulder>>,
 ) {
     for (shadow_entity, shadow) in &shadows {
         if rocks.get(shadow.owner).is_err() {
@@ -325,12 +326,12 @@ pub fn cleanup_rock_shadows(
     }
 }
 
-/// Applies damage to rocks from spell AoE explosions (fireball, meteor, squall).
+/// Applies damage to boulders from spell AoE explosions (fireball, meteor, squall).
 pub fn apply_spell_damage_to_rocks(
     fireball_explosions: Query<&FireballExplosion>,
     meteor_explosions: Query<&MeteorExplosion>,
     ice_explosions: Query<&IceExplosion>,
-    mut rocks: Query<(&ThrownRock, &mut ObstacleHealth)>,
+    mut rocks: Query<(&Boulder, &mut ObstacleHealth)>,
 ) {
     let xz_distance = |a: Vec3, b: Vec3| -> f32 {
         let dx = a.x - b.x;
@@ -366,5 +367,46 @@ pub fn apply_spell_damage_to_rocks(
                 health.take_damage(explosion.damage);
             }
         }
+    }
+}
+
+/// Detects boulders whose Transform was moved externally (e.g. by teleport) and
+/// updates the Boulder.center + pathfinding grid to match.
+pub fn sync_teleported_rocks(
+    mut rocks: Query<(&mut Boulder, &Transform), Changed<Transform>>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
+) {
+    for (mut rock, transform) in &mut rocks {
+        let new_center = Vec3::new(transform.translation.x, 0.0, transform.translation.z);
+        if (rock.center - new_center).length_squared() < 0.01 {
+            continue;
+        }
+
+        // Remove obstacle at old position
+        let old_bounds = rock.obstacle_bounds();
+        obstacle_events.write(ObstacleChanged {
+            bounds: Rect::new(old_bounds[0], old_bounds[1], old_bounds[2], old_bounds[3]),
+            obstacle_type: ObstacleType::Removed,
+            shape: Some(ObstacleShape::circle(
+                Vec2::new(rock.center.x, rock.center.z),
+                rock.radius,
+            )),
+            rebuild: false,
+        });
+
+        // Update center
+        rock.center = new_center;
+
+        // Add obstacle at new position
+        let new_bounds = rock.obstacle_bounds();
+        obstacle_events.write(ObstacleChanged {
+            bounds: Rect::new(new_bounds[0], new_bounds[1], new_bounds[2], new_bounds[3]),
+            obstacle_type: ObstacleType::Blocked,
+            shape: Some(ObstacleShape::circle(
+                Vec2::new(rock.center.x, rock.center.z),
+                rock.radius,
+            )),
+            rebuild: false,
+        });
     }
 }

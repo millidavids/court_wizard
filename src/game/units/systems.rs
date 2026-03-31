@@ -960,7 +960,12 @@ pub fn create_corpse_sprite_materials(
         let col = frame % anim.columns;
         let row = frame / anim.columns;
         let uv_offset = Vec2::new(col as f32 * anim.frame_uv.x, row as f32 * anim.frame_uv.y);
-        create_sprite_material(materials, texture.clone(), tint, anim.frame_uv, uv_offset)
+        let handle = create_sprite_material(materials, texture.clone(), tint, anim.frame_uv, uv_offset);
+        // Corpses use semi-transparent alpha, so override to Blend
+        if let Some(mat) = materials.get_mut(&handle) {
+            mat.alpha_mode = AlphaMode::Blend;
+        }
+        handle
     })
 }
 
@@ -975,7 +980,7 @@ pub fn create_sprite_material(
     materials.add(StandardMaterial {
         base_color_texture: Some(texture),
         base_color: tint,
-        alpha_mode: AlphaMode::Blend,
+        alpha_mode: AlphaMode::Mask(0.5),
         unlit: true,
         cull_mode: None,
         uv_transform: Affine2::from_scale_angle_translation(uv_scale, 0.0, uv_offset),
@@ -1253,7 +1258,7 @@ pub fn finalize_dying_to_corpse(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, anim, transform, team, material_handle) in &query {
-        // Apply corpse tint
+        // Apply corpse tint and switch to Blend for semi-transparent rendering
         if let Some(mat) = materials.get_mut(material_handle) {
             use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
             mat.base_color = match *team {
@@ -1262,6 +1267,7 @@ pub fn finalize_dying_to_corpse(
                 Team::Undead => UNDEAD_CORPSE_COLOR,
             };
             mat.uv_transform = anim.last_frame_uv_transform();
+            mat.alpha_mode = AlphaMode::Blend;
         }
 
         let mut entity_commands = commands.entity(entity);

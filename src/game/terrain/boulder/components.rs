@@ -1,31 +1,31 @@
 use bevy::prelude::*;
 
-/// A landed rock obstacle on the battlefield. Blocks movement and pathfinding.
+/// A landed boulder obstacle on the battlefield. Blocks movement and pathfinding.
 #[derive(Component)]
-pub struct ThrownRock {
+pub struct Boulder {
     /// Center position in world space.
     pub center: Vec3,
     /// Collision radius on the XZ plane.
     pub radius: f32,
     /// Vertical extent for projectile collision checks.
     pub height: f32,
-    /// Whether the rock is currently sinking into the ground.
+    /// Whether the boulder is currently sinking into the ground.
     pub sinking: bool,
-    /// Time this rock has been alive (for sink timing).
+    /// Time this boulder has been alive (for sink timing).
     pub time_alive: f32,
-    /// When sinking starts, the time at which the rock should be despawned.
+    /// When sinking starts, the time at which the boulder should be despawned.
     pub sink_deadline: f32,
 }
 
-impl ThrownRock {
-    /// Checks if a point on the XZ plane is inside this rock's footprint.
+impl Boulder {
+    /// Checks if a point on the XZ plane is inside this boulder's footprint.
     pub fn contains_point_xz(&self, point: Vec3) -> bool {
         let dx = point.x - self.center.x;
         let dz = point.z - self.center.z;
         (dx * dx + dz * dz) <= self.radius * self.radius
     }
 
-    /// Checks if a line segment (on XZ plane) intersects this rock.
+    /// Checks if a line segment (on XZ plane) intersects this boulder.
     /// Returns the parametric t value (0..1) of the first intersection, if any.
     pub fn line_segment_intersects(&self, start: Vec3, end: Vec3) -> Option<f32> {
         let dx = end.x - start.x;
@@ -58,7 +58,7 @@ impl ThrownRock {
         }
     }
 
-    /// Pushes a point outside the rock if it overlaps.
+    /// Pushes a point outside the boulder if it overlaps.
     /// Returns the corrected position if the point was inside.
     pub fn push_out(&self, point: Vec3, unit_radius: f32) -> Option<Vec3> {
         let dx = point.x - self.center.x;
@@ -87,7 +87,7 @@ impl ThrownRock {
         ))
     }
 
-    /// Returns the XZ-plane distance from a point to the rock's surface.
+    /// Returns the XZ-plane distance from a point to the boulder's surface.
     pub fn distance_to_surface(&self, point: Vec3) -> f32 {
         let dx = point.x - self.center.x;
         let dz = point.z - self.center.z;
@@ -105,12 +105,12 @@ impl ThrownRock {
         ]
     }
 
-    /// Returns `true` if this rock would block a projectile at the given position.
+    /// Returns `true` if this boulder would block a projectile at the given position.
     pub fn blocks_projectile(&self, pos: Vec3) -> bool {
         !self.sinking && self.contains_point_xz(pos) && pos.y <= self.height
     }
 
-    /// Returns `true` if any rock in the slice blocks line-of-sight between two points.
+    /// Returns `true` if any boulder in the slice blocks line-of-sight between two points.
     pub fn any_blocks_los(rocks: &[&Self], from: Vec3, to: Vec3) -> bool {
         rocks
             .iter()
@@ -118,15 +118,15 @@ impl ThrownRock {
     }
 }
 
-/// Shadow entity that follows a rock. Despawned when the rock is destroyed.
+/// Shadow entity that follows a boulder. Despawned when the boulder is destroyed.
 #[derive(Component)]
-pub struct RockShadow {
+pub struct BoulderShadow {
     pub owner: Entity,
 }
 
-/// A rock projectile in flight (parabolic arc from thrower to target).
+/// A boulder projectile in flight (parabolic arc from thrower to target).
 #[derive(Component)]
-pub struct RockProjectile {
+pub struct BoulderProjectile {
     /// Starting position (thrower's position).
     pub start: Vec3,
     /// Target landing position.
@@ -139,7 +139,7 @@ pub struct RockProjectile {
     pub arc_height: f32,
 }
 
-impl RockProjectile {
+impl BoulderProjectile {
     /// Returns the current interpolated position along the parabolic arc.
     pub fn current_position(&self) -> Vec3 {
         let t = (self.elapsed / self.duration).clamp(0.0, 1.0);

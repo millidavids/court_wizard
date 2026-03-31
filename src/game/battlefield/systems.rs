@@ -67,22 +67,31 @@ pub fn setup_battlefield(
         LEFT_WALL_HEIGHT,
         Transform::from_translation(LEFT_WALL_POSITION),
         LeftWall,
-        -100.0,
+        0.0,
     );
 
-    // Spawn floor between the right and left walls (laid flat, facing up; negative depth bias so effects render on top)
-    spawn_wall_backdrop(
-        commands,
-        meshes,
-        materials,
-        battlefield_assets.wall_floor.clone(),
-        WALL_FLOOR_DEPTH,
-        WALL_FLOOR_LENGTH,
-        Transform::from_translation(WALL_FLOOR_POSITION)
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-        WallFloor,
-        -1000.0,
-    );
+    // Spawn floor between the right and left walls (laid flat, facing up).
+    // Uses AlphaMode::Mask so it renders in the opaque pass and writes depth,
+    // ensuring the trampling overlay (transparent) renders behind it.
+    {
+        let mesh = Rectangle::new(WALL_FLOOR_DEPTH, WALL_FLOOR_LENGTH);
+        let material = materials.add(StandardMaterial {
+            base_color_texture: Some(battlefield_assets.wall_floor.clone()),
+            base_color: Color::WHITE,
+            alpha_mode: AlphaMode::Mask(0.5),
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        });
+        commands.spawn((
+            Mesh3d(meshes.add(mesh)),
+            MeshMaterial3d(material),
+            Transform::from_translation(WALL_FLOOR_POSITION)
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            WallFloor,
+            OnGameplayScreen,
+        ));
+    }
 
     // Spawn lava pool marker (drives fire/smoke/spark effects)
     commands.spawn((
@@ -265,11 +274,12 @@ fn spawn_ground_tiles(
         .map(|i| meshes.add(create_tile_mesh(TILE_WORLD_SIZE, i, TILE_COUNT)))
         .collect();
 
-    // One shared material for all tiles
+    // One shared material for all tiles.
     let tile_material = materials.add(StandardMaterial {
         base_color_texture: Some(battlefield_assets.battlefield_tiles.clone()),
         base_color: Color::WHITE,
         unlit: true,
+        depth_bias: 0.0,
         ..default()
     });
 

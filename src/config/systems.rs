@@ -80,6 +80,7 @@ pub(super) fn load_and_apply_config(
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
         saved_flora: Vec::new(),
+        saved_trampling: Default::default(),
     };
     // Migrate legacy saves into unified save file if needed
     save_data::migrate_legacy_saves(&game_config);

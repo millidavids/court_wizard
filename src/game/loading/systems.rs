@@ -51,6 +51,9 @@ pub fn init_loading_progress(
     // 1. Battlefield (foundation)
     queue.tasks.push_back(SpawnTask::Battlefield);
 
+    // 1b. Trampling overlay (mud effect on top of ground tiles)
+    queue.tasks.push_back(SpawnTask::TramplingOverlay);
+
     // 2. Castle (part of battlefield)
     queue.tasks.push_back(SpawnTask::Castle);
 
@@ -293,12 +296,14 @@ pub fn process_spawn_queue(
     optional_assets: (
         Option<Res<crate::game::units::wizard::components::WizardAssets>>,
         Option<Res<crate::game::cauldron::resources::CauldronAssets>>,
+        ResMut<Assets<Image>>,
     ),
     shared_assets: (
         Res<BattlefieldAssets>,
         Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
         Res<AssetServer>,
         Res<crate::game::battlefield::flora::resources::FloraAssets>,
+        Res<crate::game::battlefield::trampling::resources::TramplingGrid>,
     ),
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
@@ -311,8 +316,8 @@ pub fn process_spawn_queue(
 ) {
     let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, shielder_assets, healer_assets) = &unit_assets;
     let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
-    let (wizard_assets_opt, cauldron_assets_opt) = &optional_assets;
-    let (battlefield_assets, spell_visual_assets, asset_server, flora_assets) = &shared_assets;
+    let (ref wizard_assets_opt, ref cauldron_assets_opt, mut images) = optional_assets;
+    let (battlefield_assets, spell_visual_assets, asset_server, flora_assets, trampling_grid) = &shared_assets;
 
     // Process tasks in bulk, breaking only when the next task needs deferred
     // commands from this frame to be flushed first (e.g., Select* tasks need
@@ -675,6 +680,15 @@ pub fn process_spawn_queue(
                     &mut commands,
                     flora_assets,
                     &flora,
+                );
+            }
+            SpawnTask::TramplingOverlay => {
+                crate::game::battlefield::trampling::systems::spawn_trampling_overlay(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    &mut images,
+                    &trampling_grid,
                 );
             }
         }

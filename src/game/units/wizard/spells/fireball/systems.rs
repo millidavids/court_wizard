@@ -384,7 +384,7 @@ pub fn check_fireball_collisions(
     fireballs: Query<(Entity, &Transform, &Fireball, Option<&CrystalSpawn>)>,
     targets: Query<(&Transform, &Team)>,
     walls: Query<&WallOfStone>,
-    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {

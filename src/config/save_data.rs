@@ -684,6 +684,7 @@ pub(crate) fn clear_progress() {
         wizard.saved_walls.clear();
         wizard.saved_crystals.clear();
         wizard.saved_flora.clear();
+        wizard.saved_trampling = SavedTrampling::default();
     }
 
     save_unified(&save_file);
@@ -709,6 +710,15 @@ pub(crate) struct SavedCrystal {
     pub(crate) z: f32,
     pub(crate) range: f32,
     pub(crate) empowerment: f32,
+}
+
+/// Sparse trampling grid data: (cell_index, intensity_0_255) pairs for non-zero cells.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub(crate) struct SavedTrampling {
+    /// Grid resolution (cells per side). Used to detect grid size changes.
+    pub(crate) grid_size: usize,
+    /// Non-zero cells as (flat_index, intensity_u8) pairs.
+    pub(crate) cells: Vec<(u32, u8)>,
 }
 
 /// Serializable flora placement data for battlefield flowers/plants.
@@ -743,6 +753,9 @@ pub(crate) struct WizardSave {
     pub(crate) saved_crystals: Vec<SavedCrystal>,
     #[serde(default)]
     pub(crate) saved_flora: Vec<SavedFlora>,
+    /// Trampling grid state (mud trails on battlefield). Persists across endless levels.
+    #[serde(default)]
+    pub(crate) saved_trampling: SavedTrampling,
     /// Roguelite run history (last 20 runs). Added in game mode update.
     #[serde(default)]
     pub(crate) roguelite: RogueliteData,
@@ -1094,6 +1107,7 @@ pub(crate) fn load_wizard_type_into_config(
     config.saved_walls = wizard.saved_walls.clone();
     config.saved_crystals = wizard.saved_crystals.clone();
     config.saved_flora = wizard.saved_flora.clone();
+    config.saved_trampling = wizard.saved_trampling.clone();
 
     // Validate that all action bar slots contain unlocked spells
     validate_action_bar_slots(&mut config.action_bar_slots);
@@ -1119,6 +1133,7 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
         saved_flora: Vec::new(),
+        saved_trampling: SavedTrampling::default(),
         roguelite: RogueliteData::default(),
         endless_best_stats: HashMap::new(),
     };
@@ -1157,6 +1172,7 @@ pub(crate) fn save_config_to_active_wizard(
             wizard.saved_walls = config.saved_walls.clone();
             wizard.saved_crystals = config.saved_crystals.clone();
             wizard.saved_flora = config.saved_flora.clone();
+            wizard.saved_trampling = config.saved_trampling.clone();
         }
     }
 
@@ -1577,6 +1593,7 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
             saved_flora: Vec::new(),
+            saved_trampling: SavedTrampling::default(),
             roguelite: RogueliteData::default(),
             endless_best_stats: HashMap::new(),
         };

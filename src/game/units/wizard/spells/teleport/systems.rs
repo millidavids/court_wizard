@@ -161,7 +161,7 @@ pub fn handle_teleport_casting(
         ),
     >,
     units_query: Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -432,7 +432,7 @@ fn teleport_casting_logic(
     caster: &mut TeleportCaster,
     commands: &mut Commands,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -640,7 +640,7 @@ fn execute_teleport(
     dest_center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -670,7 +670,7 @@ fn teleport_units_up(
     center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -708,7 +708,7 @@ pub(crate) fn teleport_units_with_radius(
     dest_center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -739,7 +739,7 @@ fn scatter_enemies(
     source_center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -776,7 +776,7 @@ fn swap_units(
     dest_center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -824,7 +824,7 @@ fn recall_allies(
     dest_center: Vec3,
     radius: f32,
     units_query: &Query<
-        (Entity, &Transform, &Team),
+        (Entity, &Transform, Option<&Team>),
         (
             With<Teleportable>,
             Without<TeleportDestinationCircle>,
@@ -838,8 +838,8 @@ fn recall_allies(
     let mut teleported = Vec::new();
 
     for (entity, transform, team) in units_query.iter() {
-        // Only recall defenders
-        if *team != Team::Defenders {
+        // Only recall defenders (skip entities without a team, like rocks)
+        if team != Some(&Team::Defenders) {
             continue;
         }
 

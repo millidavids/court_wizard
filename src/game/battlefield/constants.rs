@@ -25,9 +25,8 @@ pub(super) const TILE_BASE_WEIGHT: u32 = 40;
 pub(super) const TILE_FLAVOR_WEIGHT: u32 = 1;
 
 /// Total weight for weighted random tile selection.
-pub(super) const TILE_TOTAL_WEIGHT: u32 =
-    TILE_BASE_COUNT as u32 * TILE_BASE_WEIGHT
-        + (TILE_COUNT - TILE_BASE_COUNT) as u32 * TILE_FLAVOR_WEIGHT;
+pub(super) const TILE_TOTAL_WEIGHT: u32 = TILE_BASE_COUNT as u32 * TILE_BASE_WEIGHT
+    + (TILE_COUNT - TILE_BASE_COUNT) as u32 * TILE_FLAVOR_WEIGHT;
 
 // ===== Right Wall Constants =====
 
@@ -87,14 +86,14 @@ const WALL_FLOOR_IMAGE_WIDTH: f32 = 180.0;
 const WALL_FLOOR_IMAGE_HEIGHT: f32 = 320.0;
 
 /// The long dimension matches the right wall width (along Z).
-pub(super) const WALL_FLOOR_LENGTH: f32 = RIGHT_WALL_WIDTH; // 4000
+pub(crate) const WALL_FLOOR_LENGTH: f32 = RIGHT_WALL_WIDTH; // 4000
 /// The short dimension matches the right wall height (extends inward along X).
-pub(super) const WALL_FLOOR_DEPTH: f32 =
+pub(crate) const WALL_FLOOR_DEPTH: f32 =
     WALL_FLOOR_LENGTH * (WALL_FLOOR_IMAGE_WIDTH / WALL_FLOOR_IMAGE_HEIGHT);
 
 /// Position: lies flat in the corner where right wall and left wall meet.
 /// One long edge at X=BATTLEFIELD_HALF (right wall base), one short edge at Z=-BATTLEFIELD_HALF (left wall base).
-pub(super) const WALL_FLOOR_POSITION: Vec3 = Vec3::new(
+pub(crate) const WALL_FLOOR_POSITION: Vec3 = Vec3::new(
     BATTLEFIELD_HALF - WALL_FLOOR_DEPTH / 2.0,
     1.0,
     -BATTLEFIELD_HALF + WALL_FLOOR_LENGTH / 2.0,

@@ -455,7 +455,7 @@ pub(super) fn check_ice_projectile_collisions(
     visual_assets: Res<SpellVisualAssets>,
     projectiles: Query<(Entity, &Transform, &IceProjectile)>,
     walls: Query<&WallOfStone>,
-    rocks: Query<&crate::game::units::thrown_rock::components::ThrownRock>,
+    rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
