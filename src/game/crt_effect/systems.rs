@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings};
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer};
 use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH};
-use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
+use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
@@ -609,6 +609,82 @@ pub(super) fn update_teleport_distortion_positions(
         settings.strength = crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_RIPPLE_STRENGTH;
     } else {
         settings.strength = crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_STRENGTH;
+    }
+}
+
+/// Reads `ScreenFlashMessage` and starts the screen flash animation.
+pub(super) fn handle_screen_flash_message(
+    mut commands: Commands,
+    mut messages: MessageReader<ScreenFlashMessage>,
+    existing_timer: Option<Res<ScreenFlashTimer>>,
+) {
+    if let Some(msg) = messages.read().next() {
+        // Replace existing flash (new one takes priority)
+        if existing_timer.is_some() {
+            commands.remove_resource::<ScreenFlashTimer>();
+        }
+        commands.insert_resource(ScreenFlashTimer::new(msg.color, msg.duration, msg.intensity));
+    }
+}
+
+/// Ticks the screen flash timer, writes color/intensity to CrtEffectSettings.
+pub(super) fn animate_screen_flash(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<ScreenFlashTimer>,
+    mut query: Query<&mut CrtEffectSettings>,
+) {
+    timer.elapsed += time.delta_secs();
+    let intensity = timer.intensity();
+
+    for mut settings in &mut query {
+        settings.screen_flash_r = timer.color[0];
+        settings.screen_flash_g = timer.color[1];
+        settings.screen_flash_b = timer.color[2];
+        settings.screen_flash_intensity = intensity;
+    }
+
+    if timer.is_finished() {
+        for mut settings in &mut query {
+            settings.screen_flash_intensity = 0.0;
+        }
+        commands.remove_resource::<ScreenFlashTimer>();
+    }
+}
+
+/// Reads `VignettePulseMessage` and starts the vignette pulse animation.
+pub(super) fn handle_vignette_pulse_message(
+    mut commands: Commands,
+    mut messages: MessageReader<VignettePulseMessage>,
+    existing_timer: Option<Res<VignettePulseTimer>>,
+) {
+    if let Some(msg) = messages.read().next() {
+        if existing_timer.is_some() {
+            commands.remove_resource::<VignettePulseTimer>();
+        }
+        commands.insert_resource(VignettePulseTimer::new(msg.duration, msg.intensity));
+    }
+}
+
+/// Ticks the vignette pulse timer, writes intensity to CrtEffectSettings.
+pub(super) fn animate_vignette_pulse(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<VignettePulseTimer>,
+    mut query: Query<&mut CrtEffectSettings>,
+) {
+    timer.elapsed += time.delta_secs();
+    let intensity = timer.intensity();
+
+    for mut settings in &mut query {
+        settings.vignette_pulse = intensity;
+    }
+
+    if timer.is_finished() {
+        for mut settings in &mut query {
+            settings.vignette_pulse = 0.0;
+        }
+        commands.remove_resource::<VignettePulseTimer>();
     }
 }
 

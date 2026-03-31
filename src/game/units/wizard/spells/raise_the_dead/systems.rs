@@ -212,7 +212,7 @@ pub fn handle_raise_the_dead_casting(
         }
     }
 
-    raise_the_dead_casting_logic(
+    let completed = raise_the_dead_casting_logic(
         &input,
         &time,
         &mut casting_state,
@@ -228,6 +228,10 @@ pub fn handle_raise_the_dead_casting(
         &talent_params,
         talent_progress.as_deref_mut(),
     );
+
+    if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
+    }
 }
 
 /// Core Raise The Dead casting logic.
@@ -251,12 +255,12 @@ fn raise_the_dead_casting_logic(
     game_config: &GameConfig,
     talent_params: &RaiseTheDeadTalentParams,
     mut talent_progress: Option<&mut BattleTalentProgress>,
-) {
+) -> bool {
     // Check for release event
     if input.just_released {
         casting_state.cancel();
         commands.entity(wizard_entity).remove::<CorpseMagnetActive>();
-        return;
+        return false;
     }
 
     let mana_cost = constants::MANA_COST_PER_CORPSE * talent_params.mana_cost_mult;
@@ -329,6 +333,7 @@ fn raise_the_dead_casting_logic(
                             pull_speed: constants::CORPSE_MAGNET_PULL_SPEED,
                         });
                     }
+                    return true;
                 } else {
                     casting_state.cancel();
                 }
@@ -340,6 +345,8 @@ fn raise_the_dead_casting_logic(
             }
         }
     }
+
+    false
 }
 
 /// Finds the nearest corpse to a position within a given radius.

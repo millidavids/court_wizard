@@ -20,6 +20,7 @@ use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFir
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::utils::{get_cursor_world_position, xz_distance};
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants as vfx_constants;
 use crate::game::units::wizard::spells::vfx::systems::spawn_explosion_smoke;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -75,6 +76,7 @@ pub(crate) fn compute_talent_params(
 /// With Antimagic Pulse talent, skips the projectile and creates a wizard-centered pulse.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_dispel_casting(
+    time: Res<Time>,
     mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -121,6 +123,7 @@ pub fn handle_dispel_casting(
     }
 
     let origin = SPELL_ORIGIN;
+    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
     audio::play_sfx(&mut commands, &sfx.dispel_cast, origin, &game_config, &sfx);
 
     let cooldown_time = constants::COOLDOWN * talent_params.cooldown_mult;

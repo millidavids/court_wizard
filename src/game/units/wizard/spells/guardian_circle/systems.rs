@@ -17,6 +17,7 @@ use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 
@@ -148,6 +149,7 @@ pub fn handle_guardian_circle_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
         // Apply buff using indicator position
         if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity

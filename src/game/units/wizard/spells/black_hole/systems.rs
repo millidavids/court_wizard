@@ -26,6 +26,7 @@ use crate::game::units::wizard::spells::utils::{
     get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -249,6 +250,7 @@ pub(super) fn handle_black_hole_casting(
     );
 
     if cast_result.completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
         // Clean up indicator and SpellCaster
         if let Ok(caster) = caster_query.get(wizard_entity) {
             if let Some(indicator_entity) = caster.indicator_entity {

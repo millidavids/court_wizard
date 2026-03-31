@@ -14,6 +14,7 @@ use crate::game::units::wizard::spells::utils::{
     spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 
@@ -159,6 +160,7 @@ pub fn handle_battle_hymn_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
         if chorus_of_valor {
             // Chorus of Valor: no indicator, buff all defenders from wizard position
             apply_battle_hymn_buff(

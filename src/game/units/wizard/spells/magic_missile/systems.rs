@@ -81,6 +81,7 @@ fn compute_missile_params(talents: Option<&ActiveTalents>, wizard: &Wizard) -> M
 /// With Arcane Barrage talent, spawns a concentration entity instead.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_magic_missile_casting(
+    time: Res<Time>,
     mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
@@ -178,6 +179,8 @@ pub fn handle_magic_missile_casting(
     if !mana.consume(params.mana_cost) {
         return;
     }
+
+    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
 
     let spawn_origin = SPELL_ORIGIN;
 

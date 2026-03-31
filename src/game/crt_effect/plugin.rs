@@ -23,12 +23,14 @@ use bevy::{
     ui_render::graph::NodeUi,
 };
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings};
-use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage};
+use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer};
+use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage};
 use super::systems::{
     CorrectedCursorPosition, RawCursorPosition, animate_channel_change, animate_desaturation,
+    animate_screen_flash, animate_vignette_pulse,
     correct_cursor_for_barrel_distortion, correct_ui_interaction_for_barrel,
-    handle_channel_change_message, handle_desaturation_message, update_heat_distortion_positions,
+    handle_channel_change_message, handle_desaturation_message, handle_screen_flash_message,
+    handle_vignette_pulse_message, update_heat_distortion_positions,
     update_lensing_positions, update_teleport_distortion_positions,
 };
 use crate::state::AppState;
@@ -57,6 +59,8 @@ impl Plugin for CrtEffectPlugin {
         app.init_resource::<CorrectedCursorPosition>();
         app.add_message::<ChannelChangeMessage>();
         app.add_message::<ScreenDesaturateMessage>();
+        app.add_message::<ScreenFlashMessage>();
+        app.add_message::<VignettePulseMessage>();
 
         app.add_systems(Update, update_crt_time);
         app.add_systems(Update, handle_channel_change_message);
@@ -68,6 +72,16 @@ impl Plugin for CrtEffectPlugin {
         app.add_systems(
             Update,
             animate_desaturation.run_if(resource_exists::<DesaturationTimer>),
+        );
+        app.add_systems(Update, handle_screen_flash_message);
+        app.add_systems(
+            Update,
+            animate_screen_flash.run_if(resource_exists::<ScreenFlashTimer>),
+        );
+        app.add_systems(Update, handle_vignette_pulse_message);
+        app.add_systems(
+            Update,
+            animate_vignette_pulse.run_if(resource_exists::<VignettePulseTimer>),
         );
         app.add_systems(
             Update,
@@ -258,9 +272,13 @@ impl ViewNode for LensingNode {
         &self,
         _graph: &mut RenderGraphContext,
         render_context: &mut RenderContext,
-        (view_target, _settings, settings_index): QueryItem<Self::ViewQuery>,
+        (view_target, settings, settings_index): QueryItem<Self::ViewQuery>,
         world: &World,
     ) -> Result<(), NodeRunError> {
+        if settings.lensing_count < 0.5 {
+            return Ok(());
+        }
+
         let lensing_pipeline = world.resource::<LensingPipeline>();
         let pipeline_cache = world.resource::<PipelineCache>();
 

@@ -26,6 +26,7 @@ use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 
@@ -42,6 +43,7 @@ pub fn handle_mark_of_death_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
         With<LocalWizard>,
@@ -88,6 +90,7 @@ pub fn handle_mark_of_death_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
         if let Some(pos) = cursor_pos {
             audio::play_sfx(
                 &mut commands,

@@ -236,6 +236,48 @@ pub struct SpellVisualAssets {
     pub banishment_lens: Handle<StandardMaterial>,
     pub banishment_spark: Handle<StandardMaterial>,
     pub dispel_spark: Handle<StandardMaterial>,
+
+    // ── Cast flare materials (per spell school) ─────────────────────────
+    /// Bright orange/yellow glow for fire school spells.
+    pub flare_fire_glow: Handle<StandardMaterial>,
+    pub flare_fire_spark: Handle<StandardMaterial>,
+    /// White/electric blue for lightning school spells.
+    pub flare_lightning_glow: Handle<StandardMaterial>,
+    pub flare_lightning_spark: Handle<StandardMaterial>,
+    /// Purple/violet for arcane school spells.
+    pub flare_arcane_glow: Handle<StandardMaterial>,
+    pub flare_arcane_spark: Handle<StandardMaterial>,
+    /// Green for nature school spells.
+    pub flare_nature_glow: Handle<StandardMaterial>,
+    pub flare_nature_spark: Handle<StandardMaterial>,
+    /// Gold/white for holy/buff school spells.
+    pub flare_holy_glow: Handle<StandardMaterial>,
+    pub flare_holy_spark: Handle<StandardMaterial>,
+    /// Dark purple for dark school spells.
+    pub flare_dark_glow: Handle<StandardMaterial>,
+    pub flare_dark_spark: Handle<StandardMaterial>,
+    /// Light blue for force school spells.
+    pub flare_force_glow: Handle<StandardMaterial>,
+    pub flare_force_spark: Handle<StandardMaterial>,
+    /// Amber/brown for transmutation school spells.
+    pub flare_transmutation_glow: Handle<StandardMaterial>,
+    pub flare_transmutation_spark: Handle<StandardMaterial>,
+
+    // ── Floating mote materials ──────────────────────────────────────────
+    /// Soft blue/purple motes for sleep zones.
+    pub sleep_mote: Handle<StandardMaterial>,
+    /// Golden sparkle motes for healing zones.
+    pub healing_mote: Handle<StandardMaterial>,
+    /// Gold shimmer motes for buff zones (haste, guardian circle, battle hymn).
+    pub buff_mote: Handle<StandardMaterial>,
+    /// Green sparkle motes for entangle/nature zones.
+    pub nature_mote: Handle<StandardMaterial>,
+
+    // ── Smoke poof materials ─────────────────────────────────────────────
+    /// Amber/brown smoke for polymorph transformation.
+    pub polymorph_poof: Handle<StandardMaterial>,
+    /// Dark purple smoke for banishment void.
+    pub banishment_poof: Handle<StandardMaterial>,
 }
 
 /// Initializes the shared spell visual assets resource.
@@ -827,6 +869,42 @@ pub fn init_spell_visual_assets(
             emissive: bevy::color::LinearRgba::new(4.0, 4.0, 5.0, 1.0),
             ..default()
         }),
+
+        // ── Cast flare materials ──────────────────────────────────────
+        // Fire school (orange/yellow)
+        flare_fire_glow: materials.add(unlit_blend(Color::srgba(1.0, 0.7, 0.1, 0.6))),
+        flare_fire_spark: materials.add(unlit(Color::srgb(1.0, 0.6, 0.1))),
+        // Lightning school (white/electric blue)
+        flare_lightning_glow: materials.add(unlit_blend(Color::srgba(0.8, 0.9, 1.0, 0.7))),
+        flare_lightning_spark: materials.add(unlit(Color::srgb(0.8, 0.9, 1.0))),
+        // Arcane school (purple/violet)
+        flare_arcane_glow: materials.add(unlit_blend(Color::srgba(0.6, 0.2, 0.9, 0.6))),
+        flare_arcane_spark: materials.add(unlit(Color::srgb(0.6, 0.2, 0.9))),
+        // Nature school (green)
+        flare_nature_glow: materials.add(unlit_blend(Color::srgba(0.2, 0.8, 0.2, 0.6))),
+        flare_nature_spark: materials.add(unlit(Color::srgb(0.2, 0.8, 0.2))),
+        // Holy/buff school (gold/white)
+        flare_holy_glow: materials.add(unlit_blend(Color::srgba(1.0, 0.9, 0.4, 0.7))),
+        flare_holy_spark: materials.add(unlit(Color::srgb(1.0, 0.9, 0.4))),
+        // Dark school (dark purple)
+        flare_dark_glow: materials.add(unlit_blend(Color::srgba(0.3, 0.0, 0.4, 0.6))),
+        flare_dark_spark: materials.add(unlit(Color::srgb(0.4, 0.1, 0.5))),
+        // Force school (light blue)
+        flare_force_glow: materials.add(unlit_blend(Color::srgba(0.4, 0.7, 1.0, 0.6))),
+        flare_force_spark: materials.add(unlit(Color::srgb(0.4, 0.7, 1.0))),
+        // Transmutation school (amber/brown)
+        flare_transmutation_glow: materials.add(unlit_blend(Color::srgba(0.8, 0.5, 0.1, 0.6))),
+        flare_transmutation_spark: materials.add(unlit(Color::srgb(0.8, 0.5, 0.1))),
+
+        // ── Floating mote materials ───────────────────────────────────
+        sleep_mote: materials.add(unlit_blend(Color::srgba(0.5, 0.4, 0.9, 0.5))),
+        healing_mote: materials.add(unlit_blend(Color::srgba(1.0, 0.9, 0.3, 0.5))),
+        buff_mote: materials.add(unlit_blend(Color::srgba(1.0, 0.85, 0.2, 0.4))),
+        nature_mote: materials.add(unlit_blend(Color::srgba(0.3, 0.9, 0.3, 0.4))),
+
+        // ── Smoke poof materials ──────────────────────────────────────
+        polymorph_poof: materials.add(unlit_blend(Color::srgba(0.7, 0.5, 0.2, 0.6))),
+        banishment_poof: materials.add(unlit_blend(Color::srgba(0.2, 0.0, 0.3, 0.6))),
     });
 }
 
@@ -944,6 +1022,31 @@ impl SpellVisualAssets {
             &self.banishment_spark,
             // Dispel
             &self.dispel_spark,
+            // Cast flares
+            &self.flare_fire_glow,
+            &self.flare_fire_spark,
+            &self.flare_lightning_glow,
+            &self.flare_lightning_spark,
+            &self.flare_arcane_glow,
+            &self.flare_arcane_spark,
+            &self.flare_nature_glow,
+            &self.flare_nature_spark,
+            &self.flare_holy_glow,
+            &self.flare_holy_spark,
+            &self.flare_dark_glow,
+            &self.flare_dark_spark,
+            &self.flare_force_glow,
+            &self.flare_force_spark,
+            &self.flare_transmutation_glow,
+            &self.flare_transmutation_spark,
+            // Floating motes
+            &self.sleep_mote,
+            &self.healing_mote,
+            &self.buff_mote,
+            &self.nature_mote,
+            // Smoke poofs
+            &self.polymorph_poof,
+            &self.banishment_poof,
         ]
     }
 }

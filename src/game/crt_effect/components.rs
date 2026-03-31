@@ -48,6 +48,16 @@ pub struct CrtEffectSettings {
     pub viewport_w: f32,
     /// Viewport height in UV space (0.0–1.0). Used for 16:9 letterboxing.
     pub viewport_h: f32,
+    /// Screen flash red channel (0.0–1.0).
+    pub screen_flash_r: f32,
+    /// Screen flash green channel (0.0–1.0).
+    pub screen_flash_g: f32,
+    /// Screen flash blue channel (0.0–1.0).
+    pub screen_flash_b: f32,
+    /// Screen flash intensity (0.0 = off, 1.0 = full). Drives the blend strength.
+    pub screen_flash_intensity: f32,
+    /// Vignette pulse: temporary extra darkening at edges (0.0–1.0).
+    pub vignette_pulse: f32,
 }
 
 /// Settings component that controls the gravitational lensing post-processing effect.
@@ -119,6 +129,11 @@ impl Default for CrtEffectSettings {
             viewport_y: 0.0,
             viewport_w: 1.0,
             viewport_h: 1.0,
+            screen_flash_r: 0.0,
+            screen_flash_g: 0.0,
+            screen_flash_b: 0.0,
+            screen_flash_intensity: 0.0,
+            vignette_pulse: 0.0,
         }
     }
 }
@@ -322,6 +337,65 @@ impl ChannelChangeTimer {
     pub fn intensity(&self) -> f32 {
         let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
         (t * std::f32::consts::PI).sin()
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.elapsed >= self.duration
+    }
+}
+
+/// Timer resource that drives the screen flash animation.
+/// Inserted when a `ScreenFlashMessage` is received, removed when finished.
+#[derive(Resource)]
+pub(crate) struct ScreenFlashTimer {
+    pub elapsed: f32,
+    pub duration: f32,
+    pub color: [f32; 3],
+    pub peak_intensity: f32,
+}
+
+impl ScreenFlashTimer {
+    pub fn new(color: [f32; 3], duration: f32, peak_intensity: f32) -> Self {
+        Self {
+            elapsed: 0.0,
+            duration,
+            color,
+            peak_intensity,
+        }
+    }
+
+    /// Returns the current intensity (0→peak→0) using a sine curve.
+    pub fn intensity(&self) -> f32 {
+        let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
+        (t * std::f32::consts::PI).sin() * self.peak_intensity
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.elapsed >= self.duration
+    }
+}
+
+/// Timer resource that drives the vignette pulse animation.
+#[derive(Resource)]
+pub(crate) struct VignettePulseTimer {
+    pub elapsed: f32,
+    pub duration: f32,
+    pub peak_intensity: f32,
+}
+
+impl VignettePulseTimer {
+    pub fn new(duration: f32, peak_intensity: f32) -> Self {
+        Self {
+            elapsed: 0.0,
+            duration,
+            peak_intensity,
+        }
+    }
+
+    /// Returns the current intensity (0→peak→0) using a sine curve.
+    pub fn intensity(&self) -> f32 {
+        let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
+        (t * std::f32::consts::PI).sin() * self.peak_intensity
     }
 
     pub fn is_finished(&self) -> bool {

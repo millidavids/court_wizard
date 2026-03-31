@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.337] - 2026-03-30
+
+### Added
+- **Staff flare when casting spells** — every spell now produces a burst of colored light and sparks from the wizard's staff when cast. The color matches the spell's school of magic (fire spells glow orange, lightning spells flash white-blue, dark spells pulse purple, etc.)
+- **Screen flash on big impacts** — lightning strikes, meteor explosions, and chain lightning bolts now produce a subtle screen flash on impact
+- **Screen darkening on Finger of Death** — casting Finger of Death briefly darkens the edges of the screen for a more ominous feel
+- **Healing zone sparkles** — the Healing Plume zone now has golden motes rising from the ground while active
+- **Entangle zone particles** — entangled areas now have green nature particles drifting upward
+- **Polymorph smoke poof** — a puff of amber smoke appears when a unit is polymorphed into a sheep
+- **Banishment void effect** — dark purple smoke erupts from the spot where a banished unit disappears
+
 ## [v0.5.305] - 2026-03-30
 
 ### Added

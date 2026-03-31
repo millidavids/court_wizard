@@ -10,5 +10,7 @@ pub(crate) use components::LensingSettings;
 pub(crate) use components::TeleportDistortionSettings;
 pub(crate) use messages::ChannelChangeMessage;
 pub(crate) use messages::ScreenDesaturateMessage;
+pub(crate) use messages::ScreenFlashMessage;
+pub(crate) use messages::VignettePulseMessage;
 pub(crate) use plugin::CrtEffectPlugin;
 pub(crate) use systems::CorrectedCursorPosition;

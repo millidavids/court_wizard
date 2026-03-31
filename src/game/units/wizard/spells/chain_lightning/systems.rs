@@ -23,6 +23,7 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -141,7 +142,7 @@ pub fn handle_chain_lightning_casting(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
-    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    (mut talent_progress, mut screen_flash): (Option<ResMut<BattleTalentProgress>>, MessageWriter<crate::game::crt_effect::ScreenFlashMessage>),
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
@@ -180,6 +181,13 @@ pub fn handle_chain_lightning_casting(
     );
 
     if completed {
+        screen_flash.write(crate::game::crt_effect::ScreenFlashMessage {
+            color: [0.8, 0.9, 1.0],
+            duration: 0.1,
+            intensity: 0.02,
+        });
+
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Lightning, time.elapsed_secs());
         audio::play_sfx(
             &mut commands,
             &sfx.chain_lightning_cast,

@@ -151,3 +151,45 @@ pub(crate) const SHIMMER_SPREAD_SPEED: f32 = 15.0;
 pub(crate) const SHIMMER_SWAY_FREQUENCY: f32 = 3.0;
 /// Pixels of lateral sway.
 pub(crate) const SHIMMER_SWAY_AMPLITUDE: f32 = 5.0;
+
+// ── Cast flare (muzzle flash at wizard staff) ──────────────────────
+/// How long the cast flare glow lasts (seconds).
+pub(crate) const CAST_FLARE_LIFETIME: f32 = 0.35;
+/// Base radius of the expanding glow ring.
+pub(crate) const CAST_FLARE_SIZE: f32 = 12.0;
+/// Number of sparks emitted by a cast flare.
+pub(crate) const CAST_FLARE_SPARK_COUNT: usize = 10;
+/// Speed of cast flare sparks.
+pub(crate) const CAST_FLARE_SPARK_SPEED: f32 = 120.0;
+/// Lifetime of cast flare sparks (seconds).
+pub(crate) const CAST_FLARE_SPARK_LIFETIME: f32 = 0.3;
+/// Size of cast flare spark particles.
+pub(crate) const CAST_FLARE_SPARK_SIZE: f32 = 2.5;
+
+// ── Floating motes (ambient zone particles) ─────────────────────────
+/// How long each floating mote lives (seconds).
+pub(crate) const MOTE_LIFETIME: f32 = 1.8;
+/// Base size of each floating mote.
+pub(crate) const MOTE_SIZE: f32 = 2.5;
+/// Upward drift speed of motes.
+pub(crate) const MOTE_RISE_SPEED: f32 = 15.0;
+/// Lateral spread speed of motes.
+pub(crate) const MOTE_SPREAD_SPEED: f32 = 10.0;
+/// Lateral sway frequency (Hz) for motes.
+pub(crate) const MOTE_SWAY_FREQUENCY: f32 = 2.0;
+/// Lateral sway amplitude (world units) for motes.
+pub(crate) const MOTE_SWAY_AMPLITUDE: f32 = 4.0;
+/// Time between mote spawn batches (seconds).
+pub(crate) const MOTE_SPAWN_INTERVAL: f32 = 0.15;
+/// Number of motes per spawn batch.
+pub(crate) const MOTE_COUNT_PER_SPAWN: usize = 2;
+
+// ── Smoke poof (transformation/banishment effects) ──────────────────
+/// How long each smoke poof lives (seconds).
+pub(crate) const POOF_LIFETIME: f32 = 0.6;
+/// Base size of smoke poof particles.
+pub(crate) const POOF_SIZE: f32 = 8.0;
+/// Spread speed of poof particles.
+pub(crate) const POOF_SPREAD_SPEED: f32 = 40.0;
+/// Rise speed of poof particles.
+pub(crate) const POOF_RISE_SPEED: f32 = 20.0;

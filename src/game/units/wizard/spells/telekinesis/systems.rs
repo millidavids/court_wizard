@@ -18,6 +18,7 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -159,6 +160,7 @@ pub(super) fn handle_telekinesis_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
         mouse_state.left_consumed = true;
         if let Some(ref mut progress) = talent_progress {
             progress.increment(Spell::Telekinesis, 1);

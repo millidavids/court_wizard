@@ -24,6 +24,7 @@ use crate::game::units::wizard::spells::utils::{
     get_cursor_world_position, spawn_circle_indicator, xz_distance,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -181,6 +182,7 @@ pub fn handle_spike_growth_casting(
 
             if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(effective_mana_cost) {
+                    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Nature, time.elapsed_secs());
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {

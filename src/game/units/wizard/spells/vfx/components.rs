@@ -25,7 +25,7 @@ pub struct FireSmoke {
     pub base_size: f32,
 }
 
-/// Bright spark particle emitted on fire explosions.
+/// Bright spark particle emitted on explosions and cast flares.
 /// Independent entity that self-despawns.
 #[derive(Component)]
 pub struct FireSpark {
@@ -33,6 +33,12 @@ pub struct FireSpark {
     pub velocity: Vec3,
     /// Seconds since spawned.
     pub time_alive: f32,
+    /// Total lifetime before despawn.
+    pub lifetime: f32,
+    /// Base size of this spark.
+    pub base_size: f32,
+    /// Gravity strength (units/sec² applied over time).
+    pub gravity: f32,
 }
 
 /// Glow halo that follows a magic missile projectile.
@@ -95,5 +101,47 @@ pub struct MissileSparkle {
     /// Total lifetime before despawn.
     pub lifetime: f32,
     /// Base size of this sparkle particle.
+    pub base_size: f32,
+}
+
+/// Brief expanding glow + sparks at the wizard's staff when a spell is cast.
+/// Color varies by spell school.
+#[derive(Component)]
+pub struct CastFlare {
+    /// Seconds since spawned.
+    pub time_alive: f32,
+    /// Total lifetime before despawn.
+    pub lifetime: f32,
+    /// Base size of the expanding glow ring.
+    pub base_size: f32,
+}
+
+/// Floating mote particle for ambient spell zone effects (sleep, healing, etc.).
+/// Drifts upward with gentle sway, fading over its lifetime.
+#[derive(Component)]
+pub struct FloatingMote {
+    /// World-space velocity (primarily upward with lateral drift).
+    pub velocity: Vec3,
+    /// Seconds since spawned.
+    pub time_alive: f32,
+    /// Total lifetime before despawn.
+    pub lifetime: f32,
+    /// Base size of this mote particle.
+    pub base_size: f32,
+    /// Random phase offset for sway animation.
+    pub phase: f32,
+}
+
+/// Smoke poof particle for transformation effects (polymorph, banishment).
+/// Expands quickly then fades.
+#[derive(Component)]
+pub struct SmokePoof {
+    /// World-space velocity.
+    pub velocity: Vec3,
+    /// Seconds since spawned.
+    pub time_alive: f32,
+    /// Total lifetime before despawn.
+    pub lifetime: f32,
+    /// Base size of this poof particle.
     pub base_size: f32,
 }

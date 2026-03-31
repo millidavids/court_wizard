@@ -17,6 +17,7 @@ use crate::game::units::components::{
     Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
@@ -237,6 +238,7 @@ pub(super) fn handle_mind_control_casting(
 
             if casting_state.is_complete(cast_time) {
                 if mana.consume(mana_cost) {
+                    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
                     if talent_params.mass_hysteria {
                         // Mass Hysteria: apply chaos to all enemies in radius
                         if let Some(pos) = cursor_pos {

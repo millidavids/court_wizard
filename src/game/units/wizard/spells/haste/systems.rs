@@ -18,6 +18,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Computes talent parameters from active talent selections.
@@ -228,6 +229,7 @@ pub fn handle_haste_casting(
     }
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }

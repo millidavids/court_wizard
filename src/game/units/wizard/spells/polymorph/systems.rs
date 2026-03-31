@@ -19,6 +19,8 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::vfx;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::utils::{
     clamp_cursor_to_spell_range, get_cursor_world_position,
 };
@@ -99,7 +101,18 @@ fn apply_polymorph_to_target(
     duration: f32,
     talent_params: &PolymorphTalentParams,
     empowerment: f32,
+    position: Vec3,
+    visual_assets: &SpellVisualAssets,
+    time_secs: f32,
 ) {
+    vfx::systems::spawn_smoke_poof(
+        commands,
+        visual_assets,
+        &visual_assets.polymorph_poof,
+        position,
+        8,
+        time_secs,
+    );
     let original_material = target_material.0.clone();
 
     // Determine HP and color based on talents
@@ -164,6 +177,7 @@ pub fn handle_polymorph_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
@@ -218,9 +232,11 @@ pub fn handle_polymorph_casting(
         &mut materials,
         &targets_query,
         &talent_params,
+        &visual_assets,
     );
 
     if completed > 0 {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Transmutation, time.elapsed_secs());
         if let Some(pos) = cursor_pos {
             audio::play_sfx(&mut commands, &sfx.polymorph_cast, pos, &game_config, &sfx);
         }
@@ -252,7 +268,9 @@ fn polymorph_casting_logic(
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
     talent_params: &PolymorphTalentParams,
+    visual_assets: &SpellVisualAssets,
 ) -> u32 {
+    let time_secs = time.elapsed_secs();
     // Check for release event
     if input.just_released {
         casting_state.cancel();
@@ -292,7 +310,7 @@ fn polymorph_casting_logic(
                                 .collect();
 
                             for entity in &target_entities {
-                                if let Ok((_, _, health, material, team)) = targets_query.get(*entity) {
+                                if let Ok((_, transform, health, material, team)) = targets_query.get(*entity) {
                                     apply_polymorph_to_target(
                                         commands,
                                         materials,
@@ -303,19 +321,22 @@ fn polymorph_casting_logic(
                                         duration,
                                         talent_params,
                                         primed_spell.empowerment,
+                                        transform.translation,
+                                        visual_assets,
+                                        time_secs,
                                     );
                                     polymorphed_count += 1;
                                 }
                             }
                         } else {
                             // Single target: find nearest enemy in radius
-                            if let Some((target_entity, _, target_health, target_material, target_team)) =
+                            if let Some((target_entity, _, target_transform, target_health, target_material, target_team)) =
                                 targets_query
                                     .iter()
                                     .filter_map(|(entity, transform, health, material, team)| {
                                         let dist = transform.translation.distance(cursor_pos);
                                         if dist <= constants::TARGET_SEARCH_RADIUS {
-                                            Some((entity, dist, health, material, team))
+                                            Some((entity, dist, transform, health, material, team))
                                         } else {
                                             None
                                         }
@@ -334,6 +355,9 @@ fn polymorph_casting_logic(
                                     duration,
                                     talent_params,
                                     primed_spell.empowerment,
+                                    target_transform.translation,
+                                    visual_assets,
+                                    time_secs,
                                 );
                                 polymorphed_count += 1;
                             }
@@ -360,6 +384,7 @@ pub fn tick_polymorphed_units(
     mut commands: Commands,
     time: Res<Time>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     mut polymorphed: Query<(
@@ -401,11 +426,11 @@ pub fn tick_polymorphed_units(
                     .iter()
                     .map(|(e, t, h, m, team)| {
                         let dist = t.translation.distance(transform.translation);
-                        (e, dist, h, m, *team)
+                        (e, dist, t.translation, h, m, *team)
                     })
                     .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
 
-                if let Some((target_entity, _, target_health, target_material, target_team)) = nearest {
+                if let Some((target_entity, _, target_pos, target_health, target_material, target_team)) = nearest {
                     let empowerment = contagious.empowerment;
                     let talent_params = contagious.talent_params;
                     let duration = talent_params.duration * empowerment;
@@ -420,6 +445,9 @@ pub fn tick_polymorphed_units(
                         duration,
                         &talent_params,
                         empowerment,
+                        target_pos,
+                        &visual_assets,
+                        time.elapsed_secs(),
                     );
 
                     audio::play_sfx(&mut commands, &sfx.polymorph_cast, transform.translation, &game_config, &sfx);

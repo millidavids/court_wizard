@@ -20,6 +20,7 @@ use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{AttackTiming, Corpse, Hitbox, SlowMovementModifier, TargetingVelocity, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -98,6 +99,7 @@ struct CastResult {
 /// Local wizard Wall of Stone casting — reads mouse input, manages preview.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_wall_of_stone_casting(
+    time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut commands: Commands,
@@ -113,10 +115,12 @@ pub fn handle_wall_of_stone_casting(
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
-    active_talents: Option<Res<ActiveTalents>>,
-    mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    (sfx, game_config, active_talents, mut talent_progress): (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let released = mouse_left_released.read().next().is_some();
     let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
@@ -237,6 +241,7 @@ pub fn handle_wall_of_stone_casting(
     }
 
     if cast_result.completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
         // Track talent progress (count walls placed, not casts)
         let walls_placed: u32 = if talent_params.quick_foundations { 2 } else { 1 };
         if let Some(ref mut progress) = talent_progress {

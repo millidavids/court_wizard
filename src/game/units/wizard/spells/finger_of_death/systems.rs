@@ -18,6 +18,7 @@ use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, get_cursor_world_position};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -412,6 +413,7 @@ pub(crate) fn spawn_beam(
 /// Necrotic Explosion, Deathmark, and Reaper's Scythe initiation.
 #[allow(clippy::too_many_arguments)]
 pub fn apply_finger_of_death_damage(
+    time: Res<Time>,
     mut commands: Commands,
     mut mouse_state: ResMut<MouseButtonState>,
     mut beams: Query<&mut FingerOfDeathBeam>,
@@ -432,6 +434,7 @@ pub fn apply_finger_of_death_damage(
     visual_assets: Res<SpellVisualAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut desaturate: MessageWriter<ScreenDesaturateMessage>,
+    mut vignette_pulse: MessageWriter<crate::game::crt_effect::VignettePulseMessage>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
@@ -551,6 +554,12 @@ pub fn apply_finger_of_death_damage(
 
     // Play sound effect and drain mana
     if any_fired {
+        vignette_pulse.write(crate::game::crt_effect::VignettePulseMessage {
+            duration: 0.4,
+            intensity: 0.15,
+        });
+
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
         audio::play_sfx(
             &mut commands,
             &sfx.finger_of_death_cast,

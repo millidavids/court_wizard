@@ -196,6 +196,7 @@ pub(super) fn handle_meteor_fall_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Fire, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }
@@ -674,6 +675,7 @@ pub(super) fn check_meteor_collisions(
     mut pathfinding: ResMut<PathfindingGrid>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    mut screen_flash: MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     mut ground_fires: Query<&mut MeteorGroundFire>,
     mut units: Query<
         (
@@ -719,6 +721,11 @@ pub(super) fn check_meteor_collisions(
             // Heat shimmer burst at impact
             vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, pos, vfx::constants::EXPLOSION_SHIMMER_COUNT, t);
             vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, pos, t);
+            screen_flash.write(crate::game::crt_effect::ScreenFlashMessage {
+                color: [1.0, 0.5, 0.1],
+                duration: 0.2,
+                intensity: 0.03,
+            });
 
             // Impact sound (fireball explosion)
             audio::play_impact_sfx(&mut commands, &sfx.fireball_impact, pos, &game_config, &sfx);

@@ -84,6 +84,7 @@ pub fn handle_fireball_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Fire, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }

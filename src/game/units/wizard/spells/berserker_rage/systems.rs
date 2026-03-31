@@ -184,6 +184,7 @@ pub fn handle_berserker_rage_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Transmutation, time.elapsed_secs());
         // Apply buff using indicator position
         if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity

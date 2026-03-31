@@ -25,6 +25,7 @@ use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::utils::{
     RETICLE_Y, SpellCircleIndicator, clamp_to_spell_range_ground, get_cursor_world_position,
     indicator_pulse_scale, make_reticle_mesh, spawn_circle_indicator, xz_distance,
@@ -185,6 +186,7 @@ pub(super) fn handle_squall_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }

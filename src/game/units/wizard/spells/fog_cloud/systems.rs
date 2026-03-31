@@ -125,6 +125,7 @@ pub fn handle_fog_cloud_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }

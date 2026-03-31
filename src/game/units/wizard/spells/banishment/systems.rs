@@ -79,9 +79,19 @@ fn banish_target(
     params: &BanishmentTalentParams,
     health: &Health,
     visual_assets: &SpellVisualAssets,
+    time_secs: f32,
 ) {
     // Spawn shrinking lensing VFX at target position
     spawn_banishment_vfx(commands, target_pos, visual_assets);
+
+    vfx::systems::spawn_smoke_poof(
+        commands,
+        visual_assets,
+        &visual_assets.banishment_poof,
+        target_pos,
+        8,
+        time_secs,
+    );
 
     // One-Way Trip: if below HP threshold, mark for death on return
     if params.one_way_trip
@@ -206,9 +216,11 @@ pub fn handle_banishment_casting(
         &talent_params,
         spell_range,
         &visual_assets,
+        time.elapsed_secs(),
     );
 
     if banished_count > 0 {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
         progress.increment(Spell::Banishment, banished_count);
         audio::play_sfx(
             &mut commands,
@@ -241,6 +253,7 @@ fn banishment_casting_logic(
     params: &BanishmentTalentParams,
     spell_range: f32,
     visual_assets: &SpellVisualAssets,
+    time_secs: f32,
 ) -> u32 {
     // Check for release event
     if input.just_released {
@@ -276,6 +289,7 @@ fn banishment_casting_logic(
                             params,
                             spell_range,
                             visual_assets,
+                            time_secs,
                         )
                     } else {
                         cast_single_banishment(
@@ -287,6 +301,7 @@ fn banishment_casting_logic(
                             params,
                             spell_range,
                             visual_assets,
+                            time_secs,
                         )
                     };
                     casting_state.cancel();
@@ -328,6 +343,7 @@ fn cast_single_banishment(
     params: &BanishmentTalentParams,
     spell_range: f32,
     visual_assets: &SpellVisualAssets,
+    time_secs: f32,
 ) -> u32 {
     let duration = params.duration * empowerment;
     let mut banished_count = 0u32;
@@ -346,7 +362,7 @@ fn cast_single_banishment(
 
     // Banish first target (nearest to cursor)
     if let Some(&(target, _, pos, health)) = candidates.first() {
-        banish_target(commands, target, pos, duration, params, health, visual_assets);
+        banish_target(commands, target, pos, duration, params, health, visual_assets, time_secs);
         banished_count += 1;
     }
 
@@ -356,7 +372,7 @@ fn cast_single_banishment(
         let second_mana_cost = base_mana_cost * constants::DUAL_BANISHMENT_SECOND_MANA_MULT;
         if mana.consume(second_mana_cost) {
             let (target, _, pos, health) = candidates[1];
-            banish_target(commands, target, pos, duration, params, health, visual_assets);
+            banish_target(commands, target, pos, duration, params, health, visual_assets, time_secs);
             banished_count += 1;
         }
     }
@@ -381,6 +397,7 @@ fn cast_mass_banishment(
     params: &BanishmentTalentParams,
     spell_range: f32,
     visual_assets: &SpellVisualAssets,
+    time_secs: f32,
 ) -> u32 {
     let duration = constants::MASS_BANISHMENT_DURATION * empowerment;
     let mut banished_count = 0u32;
@@ -405,6 +422,7 @@ fn cast_mass_banishment(
             params,
             health,
             visual_assets,
+            time_secs,
         );
         banished_count += 1;
     }

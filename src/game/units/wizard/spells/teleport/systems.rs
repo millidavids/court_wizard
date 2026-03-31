@@ -20,6 +20,7 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{Airborne, Corpse, Stunned, Team, Teleportable};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position, xz_distance};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -312,6 +313,7 @@ pub fn handle_teleport_casting(
 
     // Cleanup circles on completion or first-phase release
     if cast_result.completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
         // Play sound at source position (where units teleport from)
         if let Some((source_x, source_z, _, _, _)) = cast_result.teleport_params {
             let source_pos = Vec3::new(source_x, 0.0, source_z);

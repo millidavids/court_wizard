@@ -208,6 +208,7 @@ pub fn handle_plague_wind_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Nature, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }

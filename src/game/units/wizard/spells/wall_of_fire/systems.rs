@@ -183,6 +183,7 @@ fn spawn_wall_vfx(
 /// Local wizard Wall of Fire casting — reads mouse input, manages preview.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_wall_of_fire_casting(
+    time: Res<Time>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut mouse_state: ResMut<MouseButtonState>,
     mut commands: Commands,
@@ -388,6 +389,7 @@ pub fn handle_wall_of_fire_casting(
     }
 
     if cast_result.completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Fire, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }

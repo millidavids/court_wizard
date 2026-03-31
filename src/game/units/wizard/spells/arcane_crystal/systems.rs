@@ -39,6 +39,7 @@ use crate::game::units::wizard::spells::utils::{
     xz_distance,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
     disintegrate_constants, finger_of_death_constants, fireball_constants, magic_missile_constants,
@@ -289,6 +290,7 @@ pub(super) fn handle_arcane_crystal_casting(
         arcane_crystal_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
         let talent_params = compute_talent_params(active_talents.as_deref());
 
         if talent_params.auto_crystal {

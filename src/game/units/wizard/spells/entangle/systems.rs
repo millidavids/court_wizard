@@ -18,6 +18,7 @@ use crate::game::units::wizard::spells::utils::{
     self, SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -178,6 +179,7 @@ pub fn handle_entangle_casting(
 
             if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(effective_mana_cost) {
+                    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Nature, time.elapsed_secs());
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
@@ -241,11 +243,33 @@ pub fn handle_entangle_casting(
 /// Ticks entangle ground effect timer and handles Overgrowth expansion.
 pub fn tick_entangle_ground_effect(
     time: Res<Time>,
+    mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
     mut effects: Query<&mut EntangleGroundEffect>,
 ) {
     let delta = time.delta_secs();
+    let mote_interval = vfx::constants::MOTE_SPAWN_INTERVAL;
+    let mote_count = vfx::constants::MOTE_COUNT_PER_SPAWN;
+
     for mut effect in &mut effects {
+        let prev_remaining = effect.time_remaining;
         effect.time_remaining -= delta;
+
+        let prev_elapsed = effect.duration - prev_remaining;
+        let curr_elapsed = effect.duration - effect.time_remaining;
+        if effect.time_remaining > 0.0
+            && (curr_elapsed / mote_interval).floor() != (prev_elapsed / mote_interval).floor()
+        {
+            vfx::systems::spawn_floating_motes(
+                &mut commands,
+                &visual_assets,
+                &visual_assets.nature_mote,
+                effect.center,
+                effect.current_radius,
+                mote_count,
+                time.elapsed_secs(),
+            );
+        }
 
         // Overgrowth: expand zone over its lifetime
         if effect.talent_params.overgrowth {

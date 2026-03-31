@@ -233,6 +233,7 @@ pub fn handle_disintegrate_casting(
             mut length,
             empowerment,
         } => {
+            vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
             // Annihilation Beam: shoot from the sky above the clamped target
             let mut annihilation_forward = Vec3::X;
             if talent_cfg.annihilation {

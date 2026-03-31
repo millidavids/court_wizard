@@ -25,6 +25,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -183,6 +184,7 @@ pub fn handle_healing_plume_casting(
         healing_plume_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
         // Spawn healing zone using indicator position
         if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity
@@ -288,14 +290,31 @@ pub fn apply_healing_plume_heal(
     >,
     mut commands: Commands,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
+    visual_assets: Res<SpellVisualAssets>,
 ) {
     use crate::game::units::wizard::archetypes::meteorologist::systems::apply_dry_healing_reduction;
 
     let delta = time.delta_secs();
 
+    let mote_interval = vfx::constants::MOTE_SPAWN_INTERVAL;
+    let mote_count = vfx::constants::MOTE_COUNT_PER_SPAWN;
+
     for (mut zone, has_overflow, has_triage) in &mut zones {
+        let prev_time = zone.time_alive;
         zone.time_alive += delta;
         zone.time_since_last_tick += delta;
+
+        if (zone.time_alive / mote_interval).floor() != (prev_time / mote_interval).floor() {
+            vfx::systems::spawn_floating_motes(
+                &mut commands,
+                &visual_assets,
+                &visual_assets.healing_mote,
+                zone.origin,
+                zone.radius,
+                mote_count,
+                time.elapsed_secs(),
+            );
+        }
 
         if zone.time_since_last_tick >= zone.tick_interval {
             zone.time_since_last_tick = 0.0;

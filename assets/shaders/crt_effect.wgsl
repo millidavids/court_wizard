@@ -36,6 +36,11 @@ struct CrtSettings {
     viewport_y: f32,
     viewport_w: f32,
     viewport_h: f32,
+    screen_flash_r: f32,
+    screen_flash_g: f32,
+    screen_flash_b: f32,
+    screen_flash_intensity: f32,
+    vignette_pulse: f32,
 }
 @group(0) @binding(2) var<uniform> settings: CrtSettings;
 
@@ -213,7 +218,21 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         color = vec4<f32>(color.rgb + vec3<f32>(flash), 1.0);
     }
 
-    // 16. Desaturation pulse: convert to luma, mix with desaturation factor.
+    // 16. Screen flash: additive color overlay that fades over time.
+    if (settings.screen_flash_intensity > 0.0) {
+        let flash_color = vec3<f32>(settings.screen_flash_r, settings.screen_flash_g, settings.screen_flash_b);
+        let screen_mask = inside * corner_mask;
+        color = vec4<f32>(color.rgb + flash_color * settings.screen_flash_intensity * screen_mask, 1.0);
+    }
+
+    // 17. Vignette pulse: temporary extra edge darkening.
+    if (settings.vignette_pulse > 0.0) {
+        let pulse_vignette = smoothstep(0.6, 0.1, center_dist);
+        let pulse_factor = mix(1.0, pulse_vignette, settings.vignette_pulse);
+        color = vec4<f32>(color.rgb * pulse_factor, 1.0);
+    }
+
+    // 18. Desaturation pulse: convert to luma, mix with desaturation factor.
     if (settings.desaturation > 0.0) {
         let luma = dot(color.rgb, vec3<f32>(0.299, 0.587, 0.114));
         color = vec4<f32>(mix(color.rgb, vec3<f32>(luma), settings.desaturation), 1.0);

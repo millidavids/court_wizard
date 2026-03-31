@@ -28,6 +28,7 @@ use crate::game::units::wizard::spells::utils::{
     spawn_circle_indicator,
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -205,6 +206,7 @@ pub(super) fn handle_lightning_rod_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Lightning, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }
@@ -439,6 +441,7 @@ pub(super) fn update_lightning_strikes(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut strikes: Query<(Entity, &mut Transform, &LightningStrike)>,
+    mut screen_flash: MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     mut units: Query<
         (
             Entity,
@@ -460,6 +463,12 @@ pub(super) fn update_lightning_strikes(
 
         // Check if bolt has reached the rod
         if transform.translation.y <= strike.target_pos.y {
+            screen_flash.write(crate::game::crt_effect::ScreenFlashMessage {
+                color: [1.0, 1.0, 1.0],
+                duration: 0.15,
+                intensity: 0.04,
+            });
+
             // Spawn arcs to nearby units
             let kills = spawn_arcs_to_nearby_units(
                 &mut commands,

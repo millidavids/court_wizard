@@ -10,6 +10,7 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Comatose, Corpse, Health, MovementSpeed, NarcolepticWave, NightTerrors, SleepModifier, Sleepwalking, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::utils::{
     SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
 };
@@ -135,6 +136,7 @@ pub fn handle_sleep_casting(
     );
 
     if completed {
+        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
         mouse_state.left_consumed = true;
     }
 }
