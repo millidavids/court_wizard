@@ -1,6 +1,5 @@
 //! Black Hole spell systems.
 
-use bevy::prelude::*;
 use super::components::{
     BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx, BlackHoleTalentParams,
     UnitInBlackHole,
@@ -9,6 +8,7 @@ use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::{Acceleration, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -22,14 +22,28 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    PendingDefenderHeal, SpellCircleIndicator, clamp_to_spell_range,
-    get_cursor_world_position, spawn_circle_indicator,
+    PendingDefenderHeal, SpellCircleIndicator, build_wizard_input, clamp_to_spell_range,
+    cleanup_spell_caster, spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
+
+type DimensionalRiftUnitData = (
+    Entity,
+    &'static mut Transform,
+    &'static mut Health,
+    Option<&'static mut TemporaryHitPoints>,
+    Has<SpellShield>,
+);
+type DimensionalRiftUnitFilter = (
+    With<Team>,
+    Without<Wizard>,
+    Without<Corpse>,
+    Without<BlackHole>,
+);
 
 /// Result from spell casting logic, used to communicate state back to the wrapper.
 struct CastResult {
@@ -152,14 +166,7 @@ pub(super) fn handle_black_hole_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell, wizard)) =
         wizard_query.single_mut()
@@ -186,18 +193,13 @@ pub(super) fn handle_black_hole_casting(
     let total_mana_cost = MANA_COST * mana_mult;
 
     // Clamp cursor to spell range for indicator positioning
-    let clamped_cursor = cursor_pos.map(|pos| {
-        clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range)
-    });
+    let clamped_cursor = input
+        .cursor_pos
+        .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
 
     // Handle release -- clean up indicator and SpellCaster
     if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
+        cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
     }
 
     // Manage indicator based on casting state
@@ -221,21 +223,12 @@ pub(super) fn handle_black_hole_casting(
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = clamped_cursor
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = clamped_cursor {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
         }
     }
 
@@ -250,14 +243,14 @@ pub(super) fn handle_black_hole_casting(
     );
 
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Arcane,
+            time.elapsed_secs(),
+        );
         // Clean up indicator and SpellCaster
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
+        cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
 
         if let Some(pos) = cast_result.cursor_pos {
             if t3 == Some(1) {
@@ -496,8 +489,7 @@ pub(super) fn apply_black_hole_damage(
                 // Event Horizon: double damage in inner zone
                 let event_horizon_mult = if black_hole.talent_params.event_horizon {
                     let dist = bh_pos.distance(unit_pos);
-                    let inner_radius =
-                        black_hole.current_radius * EVENT_HORIZON_INNER_FRACTION;
+                    let inner_radius = black_hole.current_radius * EVENT_HORIZON_INNER_FRACTION;
                     if dist <= inner_radius {
                         EVENT_HORIZON_DAMAGE_MULT
                     } else {
@@ -575,7 +567,9 @@ pub(super) fn apply_crushing_pressure(
     units: Query<(Entity, &Transform), (With<Team>, Without<Wizard>, Without<Corpse>)>,
 ) {
     // Only run if any black hole has crushing pressure
-    let has_crushing = black_holes.iter().any(|bh| bh.talent_params.crushing_pressure);
+    let has_crushing = black_holes
+        .iter()
+        .any(|bh| bh.talent_params.crushing_pressure);
     if !has_crushing {
         return;
     }
@@ -604,16 +598,7 @@ pub(super) fn apply_crushing_pressure(
 pub(super) fn apply_dimensional_rift(
     mut commands: Commands,
     mut black_holes: Query<&mut BlackHole>,
-    mut units: Query<
-        (
-            Entity,
-            &mut Transform,
-            &mut Health,
-            Option<&mut TemporaryHitPoints>,
-            Has<SpellShield>,
-        ),
-        (With<Team>, Without<Wizard>, Without<Corpse>, Without<BlackHole>),
-    >,
+    mut units: Query<DimensionalRiftUnitData, DimensionalRiftUnitFilter>,
 ) {
     for mut black_hole in black_holes.iter_mut() {
         if !black_hole.talent_params.dimensional_rift {
@@ -627,8 +612,7 @@ pub(super) fn apply_dimensional_rift(
         black_hole.time_since_rift_pulse = 0.0;
         let bh_pos = black_hole.position;
 
-        for (entity, mut transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut()
-        {
+        for (entity, mut transform, mut health, mut temp_hp, has_spell_shield) in units.iter_mut() {
             if has_spell_shield {
                 continue;
             }
@@ -708,13 +692,8 @@ pub(super) fn despawn_expired_black_holes(
         if black_hole.is_expired() {
             // Singularity: collapse damage to all units inside
             if black_hole.talent_params.singularity {
-                for (
-                    unit_entity,
-                    transform,
-                    mut health,
-                    mut temp_hp,
-                    has_spell_shield,
-                ) in units.iter_mut()
+                for (unit_entity, transform, mut health, mut temp_hp, has_spell_shield) in
+                    units.iter_mut()
                 {
                     if has_spell_shield {
                         continue;

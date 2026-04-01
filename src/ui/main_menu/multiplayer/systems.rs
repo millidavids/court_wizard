@@ -123,286 +123,286 @@ pub fn setup(
     );
 
     commands.entity(content).with_children(|root| {
-            // ── Left column: buttons ──
-            root.spawn(Node {
-                width: Val::Px(CONN_LEFT_COLUMN_WIDTH),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                row_gap: Val::Px(MARGIN * 0.5),
-                ..default()
-            })
-            .with_children(|left| {
-                // === Online section ===
-                left.spawn((
-                    InitialButtons,
-                    Node {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Stretch,
-                        row_gap: Val::Px(MARGIN * 0.5),
-                        ..default()
-                    },
-                ))
-                .with_children(|group| {
-                    // Section label
-                    group.spawn((
-                        Text::new("Online"),
-                        TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
-                        TextColor(SECTION_LABEL_COLOR),
-                    ));
-                    spawn_button(
-                        group,
-                        "Host Online Game",
-                        MultiplayerButtonAction::HostGame,
-                        &CONN_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        group,
-                        "Join Online Game",
-                        MultiplayerButtonAction::JoinGame,
-                        &CONN_BUTTON_STYLE,
-                    );
-                });
-
-                // === LAN section ===
-                left.spawn((
-                    LanButtons,
-                    Node {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Stretch,
-                        row_gap: Val::Px(MARGIN * 0.5),
-                        margin: UiRect::top(Val::Px(MARGIN * 0.5)),
-                        ..default()
-                    },
-                ))
-                .with_children(|group| {
-                    // Section label
-                    group.spawn((
-                        Text::new("Local Network"),
-                        TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
-                        TextColor(SECTION_LABEL_COLOR),
-                    ));
-                    spawn_button(
-                        group,
-                        "Host LAN Game",
-                        MultiplayerButtonAction::LanHost,
-                        &CONN_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        group,
-                        "Join LAN Game",
-                        MultiplayerButtonAction::LanJoin,
-                        &CONN_BUTTON_STYLE,
-                    );
-                });
-
-                // === Signaling buttons (Cancel) ===
-                left.spawn((
-                    SignalingButtons,
-                    Node {
-                        display: Display::None,
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Stretch,
-                        row_gap: Val::Px(MARGIN * 0.5),
-                        ..default()
-                    },
-                ))
-                .with_children(|group| {
-                    spawn_button(
-                        group,
-                        "Cancel",
-                        MultiplayerButtonAction::Cancel,
-                        &CONN_BUTTON_STYLE,
-                    );
-                });
-
-                // === Active connection buttons (Try Again / Cancel) ===
-                left.spawn((
-                    ActiveConnectionButtons,
-                    Node {
-                        display: Display::None,
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Stretch,
-                        row_gap: Val::Px(MARGIN * 0.5),
-                        ..default()
-                    },
-                ))
-                .with_children(|group| {
-                    spawn_button(
-                        group,
-                        "Try Again",
-                        MultiplayerButtonAction::Retry,
-                        &CONN_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        group,
-                        "Cancel",
-                        MultiplayerButtonAction::Cancel,
-                        &CONN_BUTTON_STYLE,
-                    );
-                });
-
-                // === LAN IP Entry buttons (hidden initially) ===
-                left.spawn((
-                    LanIpEntryButtons,
-                    Node {
-                        display: Display::None,
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Stretch,
-                        row_gap: Val::Px(MARGIN * 0.5),
-                        ..default()
-                    },
-                ))
-                .with_children(|group| {
-                    group.spawn((
-                        Text::new("LAN Setup"),
-                        TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
-                        TextColor(SECTION_LABEL_COLOR),
-                    ));
-                    spawn_button(
-                        group,
-                        "Change IP",
-                        MultiplayerButtonAction::LanEditIp,
-                        &CONN_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        group,
-                        "Confirm & Connect",
-                        MultiplayerButtonAction::LanConfirmIp,
-                        &CONN_BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        group,
-                        "Cancel",
-                        MultiplayerButtonAction::LanIpCancel,
-                        &CONN_BUTTON_STYLE,
-                    );
-                });
-
-                // Back button (visible on initial screen, hidden during connection)
-                left.spawn((BackButton, Node::default()))
-                    .with_children(|wrapper| {
-                        spawn_button(
-                            wrapper,
-                            "Back",
-                            MultiplayerButtonAction::Back,
-                            &CONN_BUTTON_STYLE,
-                        );
-                    });
+        // ── Left column: buttons ──
+        root.spawn(Node {
+            width: Val::Px(CONN_LEFT_COLUMN_WIDTH),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            row_gap: Val::Px(MARGIN * 0.5),
+            ..default()
+        })
+        .with_children(|left| {
+            // === Online section ===
+            left.spawn((
+                InitialButtons,
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    row_gap: Val::Px(MARGIN * 0.5),
+                    ..default()
+                },
+            ))
+            .with_children(|group| {
+                // Section label
+                group.spawn((
+                    Text::new("Online"),
+                    TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
+                    TextColor(SECTION_LABEL_COLOR),
+                ));
+                spawn_button(
+                    group,
+                    "Host Online Game",
+                    MultiplayerButtonAction::HostGame,
+                    &CONN_BUTTON_STYLE,
+                );
+                spawn_button(
+                    group,
+                    "Join Online Game",
+                    MultiplayerButtonAction::JoinGame,
+                    &CONN_BUTTON_STYLE,
+                );
             });
 
-            // ── Right column: info ──
-            root.spawn(Node {
-                flex_grow: 1.0,
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(MARGIN),
-                justify_content: JustifyContent::FlexStart,
-                ..default()
-            })
-            .with_children(|right| {
-                // Title (dynamically updated to show mode/role)
-                right.spawn((
-                    TitleText,
-                    Text::new("Multiplayer"),
-                    TextFont::from_font_size(MP_TITLE_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    Node {
-                        margin: UiRect::bottom(Val::Px(MARGIN)),
-                        ..default()
-                    },
+            // === LAN section ===
+            left.spawn((
+                LanButtons,
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    row_gap: Val::Px(MARGIN * 0.5),
+                    margin: UiRect::top(Val::Px(MARGIN * 0.5)),
+                    ..default()
+                },
+            ))
+            .with_children(|group| {
+                // Section label
+                group.spawn((
+                    Text::new("Local Network"),
+                    TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
+                    TextColor(SECTION_LABEL_COLOR),
                 ));
-
-                // Status text
-                right.spawn((
-                    StatusText,
-                    Text::new("Choose an option to get started"),
-                    TextFont::from_font_size(STATUS_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                ));
-
-                // IP display (hidden, shown during LAN IP entry)
-                right.spawn((
-                    IpDisplayText,
-                    Text::new(""),
-                    TextFont::from_font_size(IP_DISPLAY_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    Node {
-                        display: Display::None,
-                        ..default()
-                    },
-                ));
-
-                // Time limit hint
-                right.spawn((
-                    Text::new("Codes expire ~60 seconds after both are pasted — exchange quickly!"),
-                    TextFont::from_font_size(13.0),
-                    TextColor(Color::hsla(0.0, 0.0, 0.45, 1.0)),
-                ));
-
-                // Code display area (hidden initially)
-                right.spawn((
-                    CodeDisplayText,
-                    Text::new(""),
-                    TextFont::from_font_size(CODE_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
-                    Node {
-                        display: Display::None,
-                        max_width: Val::Percent(80.0),
-                        max_height: Val::Px(80.0),
-                        overflow: Overflow::clip(),
-                        ..default()
-                    },
-                ));
-
-                // Copy Code button (hidden initially, shown when code is ready)
-                right
-                    .spawn((
-                        CopyCodeButton,
-                        Node {
-                            display: Display::None,
-                            ..default()
-                        },
-                    ))
-                    .with_children(|wrapper| {
-                        spawn_button(
-                            wrapper,
-                            "Copy Code",
-                            MultiplayerButtonAction::CopyCode,
-                            &CONN_BUTTON_STYLE,
-                        );
-                    });
-
-                // Paste Code button (hidden initially, shown for guest to paste host's code)
-                right
-                    .spawn((
-                        PasteResponseButton,
-                        Node {
-                            display: Display::None,
-                            ..default()
-                        },
-                    ))
-                    .with_children(|wrapper| {
-                        spawn_button(
-                            wrapper,
-                            "Paste Code",
-                            MultiplayerButtonAction::PasteResponse,
-                            &CONN_BUTTON_STYLE,
-                        );
-                    });
-
-                // Ping display (hidden initially)
-                right.spawn((
-                    PingText,
-                    Text::new(""),
-                    TextFont::from_font_size(STATUS_FONT_SIZE),
-                    TextColor(SUCCESS_COLOR),
-                    Node {
-                        display: Display::None,
-                        ..default()
-                    },
-                ));
+                spawn_button(
+                    group,
+                    "Host LAN Game",
+                    MultiplayerButtonAction::LanHost,
+                    &CONN_BUTTON_STYLE,
+                );
+                spawn_button(
+                    group,
+                    "Join LAN Game",
+                    MultiplayerButtonAction::LanJoin,
+                    &CONN_BUTTON_STYLE,
+                );
             });
+
+            // === Signaling buttons (Cancel) ===
+            left.spawn((
+                SignalingButtons,
+                Node {
+                    display: Display::None,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    row_gap: Val::Px(MARGIN * 0.5),
+                    ..default()
+                },
+            ))
+            .with_children(|group| {
+                spawn_button(
+                    group,
+                    "Cancel",
+                    MultiplayerButtonAction::Cancel,
+                    &CONN_BUTTON_STYLE,
+                );
+            });
+
+            // === Active connection buttons (Try Again / Cancel) ===
+            left.spawn((
+                ActiveConnectionButtons,
+                Node {
+                    display: Display::None,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    row_gap: Val::Px(MARGIN * 0.5),
+                    ..default()
+                },
+            ))
+            .with_children(|group| {
+                spawn_button(
+                    group,
+                    "Try Again",
+                    MultiplayerButtonAction::Retry,
+                    &CONN_BUTTON_STYLE,
+                );
+                spawn_button(
+                    group,
+                    "Cancel",
+                    MultiplayerButtonAction::Cancel,
+                    &CONN_BUTTON_STYLE,
+                );
+            });
+
+            // === LAN IP Entry buttons (hidden initially) ===
+            left.spawn((
+                LanIpEntryButtons,
+                Node {
+                    display: Display::None,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    row_gap: Val::Px(MARGIN * 0.5),
+                    ..default()
+                },
+            ))
+            .with_children(|group| {
+                group.spawn((
+                    Text::new("LAN Setup"),
+                    TextFont::from_font_size(SECTION_LABEL_FONT_SIZE),
+                    TextColor(SECTION_LABEL_COLOR),
+                ));
+                spawn_button(
+                    group,
+                    "Change IP",
+                    MultiplayerButtonAction::LanEditIp,
+                    &CONN_BUTTON_STYLE,
+                );
+                spawn_button(
+                    group,
+                    "Confirm & Connect",
+                    MultiplayerButtonAction::LanConfirmIp,
+                    &CONN_BUTTON_STYLE,
+                );
+                spawn_button(
+                    group,
+                    "Cancel",
+                    MultiplayerButtonAction::LanIpCancel,
+                    &CONN_BUTTON_STYLE,
+                );
+            });
+
+            // Back button (visible on initial screen, hidden during connection)
+            left.spawn((BackButton, Node::default()))
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "Back",
+                        MultiplayerButtonAction::Back,
+                        &CONN_BUTTON_STYLE,
+                    );
+                });
         });
+
+        // ── Right column: info ──
+        root.spawn(Node {
+            flex_grow: 1.0,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(MARGIN),
+            justify_content: JustifyContent::FlexStart,
+            ..default()
+        })
+        .with_children(|right| {
+            // Title (dynamically updated to show mode/role)
+            right.spawn((
+                TitleText,
+                Text::new("Multiplayer"),
+                TextFont::from_font_size(MP_TITLE_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                Node {
+                    margin: UiRect::bottom(Val::Px(MARGIN)),
+                    ..default()
+                },
+            ));
+
+            // Status text
+            right.spawn((
+                StatusText,
+                Text::new("Choose an option to get started"),
+                TextFont::from_font_size(STATUS_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+            ));
+
+            // IP display (hidden, shown during LAN IP entry)
+            right.spawn((
+                IpDisplayText,
+                Text::new(""),
+                TextFont::from_font_size(IP_DISPLAY_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                Node {
+                    display: Display::None,
+                    ..default()
+                },
+            ));
+
+            // Time limit hint
+            right.spawn((
+                Text::new("Codes expire ~60 seconds after both are pasted — exchange quickly!"),
+                TextFont::from_font_size(13.0),
+                TextColor(Color::hsla(0.0, 0.0, 0.45, 1.0)),
+            ));
+
+            // Code display area (hidden initially)
+            right.spawn((
+                CodeDisplayText,
+                Text::new(""),
+                TextFont::from_font_size(CODE_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                TextLayout::new_with_linebreak(LineBreak::AnyCharacter),
+                Node {
+                    display: Display::None,
+                    max_width: Val::Percent(80.0),
+                    max_height: Val::Px(80.0),
+                    overflow: Overflow::clip(),
+                    ..default()
+                },
+            ));
+
+            // Copy Code button (hidden initially, shown when code is ready)
+            right
+                .spawn((
+                    CopyCodeButton,
+                    Node {
+                        display: Display::None,
+                        ..default()
+                    },
+                ))
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "Copy Code",
+                        MultiplayerButtonAction::CopyCode,
+                        &CONN_BUTTON_STYLE,
+                    );
+                });
+
+            // Paste Code button (hidden initially, shown for guest to paste host's code)
+            right
+                .spawn((
+                    PasteResponseButton,
+                    Node {
+                        display: Display::None,
+                        ..default()
+                    },
+                ))
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "Paste Code",
+                        MultiplayerButtonAction::PasteResponse,
+                        &CONN_BUTTON_STYLE,
+                    );
+                });
+
+            // Ping display (hidden initially)
+            right.spawn((
+                PingText,
+                Text::new(""),
+                TextFont::from_font_size(STATUS_FONT_SIZE),
+                TextColor(SUCCESS_COLOR),
+                Node {
+                    display: Display::None,
+                    ..default()
+                },
+            ));
+        });
+    });
 }
 
 /// Spawns the wizard select screen layout (mirrors single-player "Choose Your Path").
@@ -439,62 +439,62 @@ fn spawn_wizard_select_screen(
     commands.entity(ws_content).insert(WizardSelectScreen);
 
     commands.entity(ws_content).with_children(|root| {
-            // ── Left panel ──────────────────────────────────────
-            root.spawn(Node {
-                width: Val::Px(LEFT_PANEL_WIDTH),
+        // ── Left panel ──────────────────────────────────────
+        root.spawn(Node {
+            width: Val::Px(LEFT_PANEL_WIDTH),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(MARGIN),
+            ..default()
+        })
+        .with_children(|left| {
+            // Top group: title + detail card
+            left.spawn(Node {
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(MARGIN),
                 ..default()
             })
-            .with_children(|left| {
-                // Top group: title + detail card
-                left.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(MARGIN),
-                    ..default()
-                })
-                .with_children(|top| {
-                    shared::spawn_title_group(
-                        top,
-                        "Choose Your Path",
-                        "Select your wizard for this match",
-                    );
-
-                    // Detail card (multiplayer-specific bottom section)
-                    spawn_mp_detail_panel(top, initial_wizard, opponent_ready, my_ready);
-                });
-
-                // Bottom: disconnect button
-                spawn_button(
-                    left,
-                    "Disconnect",
-                    MultiplayerButtonAction::Disconnect,
-                    &DISCONNECT_BUTTON_STYLE,
+            .with_children(|top| {
+                shared::spawn_title_group(
+                    top,
+                    "Choose Your Path",
+                    "Select your wizard for this match",
                 );
+
+                // Detail card (multiplayer-specific bottom section)
+                spawn_mp_detail_panel(top, initial_wizard, opponent_ready, my_ready);
             });
 
-            // ── Right side: grid (reuses shared grid container + card helpers) ──
-            root.spawn(grid_container_node()).with_children(|grid| {
-                for slot in 0..GRID_SLOTS {
-                    if let Some(wizard_type) = wizard_types.get(slot) {
-                        let type_name = format!("{:?}", wizard_type);
-                        if unlocked_names.contains(&type_name) {
-                            let is_selected = *wizard_type == initial_wizard;
-                            shared::spawn_wizard_card(
-                                grid,
-                                *wizard_type,
-                                is_selected,
-                                MultiplayerButtonAction::PreviewWizard(*wizard_type),
-                            );
-                        } else {
-                            shared::spawn_locked_wizard_card(grid, *wizard_type);
-                        }
-                    } else {
-                        shared::spawn_locked_card(grid);
-                    }
-                }
-            });
+            // Bottom: disconnect button
+            spawn_button(
+                left,
+                "Disconnect",
+                MultiplayerButtonAction::Disconnect,
+                &DISCONNECT_BUTTON_STYLE,
+            );
         });
+
+        // ── Right side: grid (reuses shared grid container + card helpers) ──
+        root.spawn(grid_container_node()).with_children(|grid| {
+            for slot in 0..GRID_SLOTS {
+                if let Some(wizard_type) = wizard_types.get(slot) {
+                    let type_name = format!("{:?}", wizard_type);
+                    if unlocked_names.contains(&type_name) {
+                        let is_selected = *wizard_type == initial_wizard;
+                        shared::spawn_wizard_card(
+                            grid,
+                            *wizard_type,
+                            is_selected,
+                            MultiplayerButtonAction::PreviewWizard(*wizard_type),
+                        );
+                    } else {
+                        shared::spawn_locked_wizard_card(grid, *wizard_type);
+                    }
+                } else {
+                    shared::spawn_locked_card(grid);
+                }
+            }
+        });
+    });
 }
 
 /// Spawns the multiplayer detail panel (shared top + MP-specific bottom with opponent info + Ready).
@@ -626,10 +626,10 @@ pub fn button_action(
                     connection.mode = ConnectionMode::Online;
                 }
                 MultiplayerButtonAction::CopyCode => {
-                    if let Some(code) = &connection.local_code {
-                        if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                            let _ = clipboard.set_text(code.clone());
-                        }
+                    if let Some(code) = &connection.local_code
+                        && let Ok(mut clipboard) = arboard::Clipboard::new()
+                    {
+                        let _ = clipboard.set_text(code.clone());
                     }
                 }
                 MultiplayerButtonAction::PasteResponse => {
@@ -1291,7 +1291,8 @@ pub fn update_ui_state(
                         }
                     }
                     Some(PeerRole::Guest) => {
-                        **text = "Copy the host's code to your clipboard, then click 'Paste Code'.".to_string();
+                        **text = "Copy the host's code to your clipboard, then click 'Paste Code'."
+                            .to_string();
                     }
                     None => {
                         **text = "Generating code...".to_string();

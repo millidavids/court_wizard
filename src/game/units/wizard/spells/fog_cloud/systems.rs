@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
@@ -11,6 +10,7 @@ use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -21,13 +21,14 @@ use crate::game::units::infantry::resources::InfantryAssets;
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator, xz_distance,
+    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, handle_spell_release,
+    spawn_circle_indicator, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::talents::resources::ActiveTalents;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -86,14 +87,7 @@ pub fn handle_fog_cloud_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions already ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -125,7 +119,12 @@ pub fn handle_fog_cloud_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Force,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -151,14 +150,7 @@ fn fog_cloud_casting_logic(
 ) -> bool {
     let mut completed = false;
 
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -205,12 +197,12 @@ fn fog_cloud_casting_logic(
         }
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
+            update_indicator_position(
+                wizard_entity,
+                cursor_world_pos,
+                caster_query,
+                indicator_query,
+            );
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
                     if let Ok(caster) = caster_query.get(wizard_entity)
@@ -241,23 +233,13 @@ fn fog_cloud_casting_logic(
                     casting_state.cancel();
                     completed = true;
                 } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(commands, wizard_entity, caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }
@@ -298,10 +280,7 @@ pub fn apply_fog_cloud_evasion(
 pub fn apply_blinding_mist(
     mut commands: Commands,
     zones: Query<(&FogCloudZone, &BlindingMistZone)>,
-    mut targets: Query<
-        (Entity, &Transform, Option<&mut BlindingMistDebuff>),
-        Without<Corpse>,
-    >,
+    mut targets: Query<(Entity, &Transform, Option<&mut BlindingMistDebuff>), Without<Corpse>>,
 ) {
     for (zone, _) in &zones {
         for (entity, transform, existing_debuff) in &mut targets {
@@ -358,11 +337,7 @@ pub fn apply_choking_fog_damage(
 /// Tier 3: Rolling Fog — move the fog zone toward the nearest attacker approach direction.
 pub fn move_rolling_fog(
     time: Res<Time>,
-    mut zones: Query<(
-        &mut FogCloudZone,
-        &mut Transform,
-        &RollingFogZone,
-    )>,
+    mut zones: Query<(&mut FogCloudZone, &mut Transform, &RollingFogZone)>,
     units: Query<(&Transform, &Team), (Without<Corpse>, Without<FogCloudZone>)>,
 ) {
     let delta = time.delta_secs();
@@ -481,12 +456,17 @@ pub fn spawn_phantom_units(
             MeshMaterial3d(material),
             Transform::from_translation(Vec3::new(x, constants::PHANTOM_HITBOX_HEIGHT * 0.5, z)),
             Billboard,
-            Hitbox::new(constants::PHANTOM_HITBOX_RADIUS, constants::PHANTOM_HITBOX_HEIGHT),
+            Hitbox::new(
+                constants::PHANTOM_HITBOX_RADIUS,
+                constants::PHANTOM_HITBOX_HEIGHT,
+            ),
             Health::new(1.0),
             Team::Defenders,
             AttackTiming::new(),
             Effectiveness::new(),
-            Stunned { time_remaining: f32::MAX },
+            Stunned {
+                time_remaining: f32::MAX,
+            },
             PhantomUnit,
             OnGameplayScreen,
         ));
@@ -555,7 +535,9 @@ pub(crate) fn spawn_fog_cloud_zone(
         commands.entity(zone_entity).insert(DisorientingVaporsZone);
     }
     if talent_params.phantom_fog {
-        commands.entity(zone_entity).insert(PhantomFogZone { spawn_timer: 0.0 });
+        commands
+            .entity(zone_entity)
+            .insert(PhantomFogZone { spawn_timer: 0.0 });
     }
     if talent_params.choking_fog {
         commands.entity(zone_entity).insert(ChokingFogZone::new(
@@ -571,10 +553,7 @@ pub(crate) fn spawn_fog_cloud_zone(
 }
 
 /// Returns true if the given position is inside any fog cloud zone (given as origin/radius pairs).
-pub(crate) fn is_in_fog_zone(
-    pos: Vec3,
-    zones: &[(Vec3, f32)],
-) -> bool {
+pub(crate) fn is_in_fog_zone(pos: Vec3, zones: &[(Vec3, f32)]) -> bool {
     for &(origin, radius) in zones {
         if xz_distance(pos, origin) <= radius {
             return true;

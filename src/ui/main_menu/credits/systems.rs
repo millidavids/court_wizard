@@ -42,16 +42,27 @@ fn strip_markdown_links(input: &str) -> String {
 
 /// Spawns the credits screen UI.
 pub(super) fn setup(mut commands: Commands) {
-    let content = spawn_page_container(&mut commands, OnCreditsScreen, false, crate::ui::systems::default_content_node());
+    let content = spawn_page_container(
+        &mut commands,
+        OnCreditsScreen,
+        false,
+        crate::ui::systems::default_content_node(),
+    );
 
     let display_text = strip_markdown_links(CREDITS_TEXT);
 
     commands.entity(content).with_children(|parent| {
         // Title
-        spawn_title_with_shadow(parent, "Credits", 48.0, TEXT_COLOR, Node {
-            margin: UiRect::bottom(Val::Px(20.0)),
-            ..default()
-        });
+        spawn_title_with_shadow(
+            parent,
+            "Credits",
+            48.0,
+            TEXT_COLOR,
+            Node {
+                margin: UiRect::bottom(Val::Px(20.0)),
+                ..default()
+            },
+        );
 
         // Scrollable credits content
         parent

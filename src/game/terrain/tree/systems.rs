@@ -73,7 +73,9 @@ pub fn destroy_dead_trees(
 pub fn apply_spell_damage_to_trees(
     mut trees: Query<(&Tree, &mut ObstacleHealth)>,
     explosions: Query<&crate::game::units::wizard::spells::fireball::components::FireballExplosion>,
-    meteor_explosions: Query<&crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion>,
+    meteor_explosions: Query<
+        &crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion,
+    >,
 ) {
     let xz_distance = |a: Vec3, b: Vec3| -> f32 {
         let dx = a.x - b.x;
@@ -99,12 +101,10 @@ pub fn apply_spell_damage_to_trees(
         // Meteor explosions
         for explosion in &meteor_explosions {
             if !explosion.damage_applied
-                && xz_distance(explosion.origin, tree.center)
-                    <= explosion.max_radius + tree.radius
+                && xz_distance(explosion.origin, tree.center) <= explosion.max_radius + tree.radius
             {
                 health.take_damage(explosion.damage);
             }
         }
     }
 }
-

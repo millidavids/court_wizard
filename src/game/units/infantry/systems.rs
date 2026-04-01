@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use super::styles::*;
+use super::constants::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
@@ -10,11 +10,10 @@ use crate::game::constants::{
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FacingDirection, FlockingVelocity, HasteModifier, Health, Hitbox, KingsGuard,
-    FrozenSolidModifier, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
-    SickenedModifier,
-    SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, Teleportable,
-    WalkingAnimation,
+    EliteSpeedBonus, FacingDirection, FlockingVelocity, FrozenSolidModifier, HasteModifier, Health,
+    Hitbox, KingsGuard, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
+    SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
+    Teleportable, WalkingAnimation,
 };
 use crate::game::units::elite::{EliteAttackSpeedBonus, EliteDamageBonus, EliteHealthBonus};
 use crate::game::units::random_position_in_cell;
@@ -86,11 +85,18 @@ pub fn check_defender_activation(
 /// When the King reaches 90% of the wizard's ground-projected spell range,
 /// a retreat is triggered: defenders deactivate (stop targeting and attacking)
 /// and fall back to spawn via the flow field. Retreat can only happen once per level.
+#[allow(clippy::too_many_arguments)]
 pub fn check_retreat_trigger(
     mut retreat_state: ResMut<RetreatState>,
     mut defenders_activated: ResMut<DefendersActivated>,
     time: Res<Time>,
-    king_query: Query<(&Transform, &Team), (With<crate::game::units::king::components::King>, Without<Corpse>)>,
+    king_query: Query<
+        (&Transform, &Team),
+        (
+            With<crate::game::units::king::components::King>,
+            Without<Corpse>,
+        ),
+    >,
     wizard_query: Query<&crate::game::units::wizard::components::Wizard>,
     mut commands: Commands,
     defender_units: Query<(Entity, &Team), Without<Corpse>>,
@@ -286,7 +292,15 @@ pub fn infantry_movement(
     ) in &mut infantry_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, has_sleep, has_sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            has_sleep,
+            has_sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;

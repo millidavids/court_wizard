@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
@@ -6,6 +5,7 @@ use super::components::GuardianCircleShielded;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::GuardianCircleHitAttackerMessage;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
@@ -14,12 +14,13 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster,
+    handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
+use bevy::prelude::*;
 
 /// Local wizard Guardian Circle casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -48,14 +49,7 @@ pub fn handle_guardian_circle_casting(
     ),
 ) {
     let (mut talent_progress, active_talents) = talent_resources;
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -88,14 +82,13 @@ pub fn handle_guardian_circle_casting(
     );
 
     // Handle release -- clean up indicator and SpellCaster
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -120,21 +113,12 @@ pub fn handle_guardian_circle_casting(
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = clamped_cursor
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = clamped_cursor {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
         }
     }
 
@@ -149,15 +133,18 @@ pub fn handle_guardian_circle_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Holy,
+            time.elapsed_secs(),
+        );
         // Apply buff using indicator position
         if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                let radius = constants::CIRCLE_RADIUS
-                    * primed_spell.empowerment
-                    * radius_mult;
+                let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
 
                 audio::play_sfx(
                     &mut commands,
@@ -261,9 +248,9 @@ pub(crate) fn apply_guardian_circle_buff(
 
     // Tier 1 modifications
     match t1 {
-        Some(0) => scaled_temp_hp *= constants::REINFORCED_WARDS_MULT,   // +40% temp HP
+        Some(0) => scaled_temp_hp *= constants::REINFORCED_WARDS_MULT, // +40% temp HP
         Some(1) => scaled_duration *= constants::ENDURING_PROTECTION_MULT, // +60% duration
-        Some(2) => scaled_temp_hp *= constants::EXPANSIVE_AEGIS_HP_MULT,  // -15% temp HP
+        Some(2) => scaled_temp_hp *= constants::EXPANSIVE_AEGIS_HP_MULT, // -15% temp HP
         _ => {}
     }
 
@@ -439,10 +426,7 @@ pub fn retaliating_wards_check(
 /// Fires once then removes the marker from the corpse.
 pub fn martyrdom_on_death(
     mut commands: Commands,
-    dead_query: Query<
-        (Entity, &GuardianCircleShielded, &Transform, &Team),
-        With<Corpse>,
-    >,
+    dead_query: Query<(Entity, &GuardianCircleShielded, &Transform, &Team), With<Corpse>>,
     mut targets: Query<
         (
             Entity,
@@ -481,13 +465,14 @@ pub fn martyrdom_on_death(
 /// Fires once then removes the marker from the corpse.
 pub fn chain_ward_on_death(
     mut commands: Commands,
-    dead_query: Query<
-        (Entity, &GuardianCircleShielded, &Transform, &Team),
-        With<Corpse>,
-    >,
+    dead_query: Query<(Entity, &GuardianCircleShielded, &Transform, &Team), With<Corpse>>,
     alive_query: Query<
         (Entity, &Transform, &Team),
-        (Without<Corpse>, Without<GuardianCircleShielded>, Without<Wizard>),
+        (
+            Without<Corpse>,
+            Without<GuardianCircleShielded>,
+            Without<Wizard>,
+        ),
     >,
 ) {
     for (corpse_entity, shielded, transform, shielded_team) in &dead_query {
@@ -501,7 +486,9 @@ pub fn chain_ward_on_death(
             if *candidate_team != *shielded_team {
                 continue;
             }
-            let dist = candidate_transform.translation.distance(transform.translation);
+            let dist = candidate_transform
+                .translation
+                .distance(transform.translation);
             if nearest.is_none_or(|(_, d)| dist < d) {
                 nearest = Some((candidate, dist));
             }

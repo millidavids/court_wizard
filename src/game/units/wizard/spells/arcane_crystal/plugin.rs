@@ -2,13 +2,15 @@
 
 use bevy::prelude::*;
 
-use super::components::{ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalRangeIndicator, CrystalSpawn, ResonanceCascade};
+use super::components::{
+    ArcaneCrystal, AutoCrystalTimer, CrystalNetwork, CrystalRangeIndicator, CrystalSpawn,
+    ResonanceCascade,
+};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;
 use crate::game::units::wizard::spells::run_conditions::{
-    mouse_held_or_wizard_casting, mouse_left_not_consumed, spell_input_not_blocked,
-    spell_is_primed,
+    mouse_held_or_wizard_casting, mouse_left_not_consumed, spell_input_not_blocked, spell_is_primed,
 };
 
 /// Plugin for the Arcane Crystal spell.
@@ -30,7 +32,8 @@ impl Plugin for ArcaneCrystalPlugin {
                 // Crystal lifetime & visuals
                 systems::update_crystal_visuals.run_if(any_with_component::<ArcaneCrystal>),
                 systems::cleanup_expired_crystals.run_if(
-                    any_with_component::<ArcaneCrystal>.or(any_with_component::<CrystalRangeIndicator>)
+                    any_with_component::<ArcaneCrystal>
+                        .or(any_with_component::<CrystalRangeIndicator>),
                 ),
                 // Black hole interaction
                 systems::crystal_black_hole_interaction.run_if(any_with_component::<ArcaneCrystal>),
@@ -51,8 +54,7 @@ impl Plugin for ArcaneCrystalPlugin {
                 // Range-limiting & lifetime cleanup
                 systems::despawn_out_of_range_crystal_spawns
                     .run_if(any_with_component::<CrystalSpawn>),
-                systems::cleanup_expired_crystal_visuals
-                    .run_if(any_with_component::<CrystalSpawn>),
+                systems::cleanup_expired_crystal_visuals.run_if(any_with_component::<CrystalSpawn>),
                 systems::cleanup_expired_crystal_beams.run_if(any_with_component::<CrystalSpawn>),
             )
                 .chain()

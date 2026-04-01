@@ -5,19 +5,18 @@ use super::constants::*;
 use super::resources::DarkMageAssets;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness,
-    FlockingModifier, FlockingVelocity, FrozenSolidModifier, Health, Hitbox,
-    MovementSpeed, OriginalMaterial, RootedModifier, SickenedModifier, SleepModifier,
-    Sleepwalking, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
-    apply_spell_damage,
+    AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness, FlockingModifier,
+    FlockingVelocity, FrozenSolidModifier, Health, Hitbox, MovementSpeed, OriginalMaterial,
+    RootedModifier, SickenedModifier, SleepModifier, Sleepwalking, TargetingVelocity, Team,
+    Teleportable, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Spawns the Dark Mage at a tunnel spawn point (walks in like other bosses).
 pub fn spawn_dark_mage(mut commands: Commands, assets: Res<DarkMageAssets>) {
@@ -62,8 +61,8 @@ pub fn spawn_dark_mage(mut commands: Commands, assets: Res<DarkMageAssets>) {
             DarkMageState::Approaching,
             DarkMageSpellCooldowns::new(
                 METEOR_COOLDOWN * 0.3,    // First meteor comes relatively fast
-                LIGHTNING_COOLDOWN * 0.1,  // Lightning comes first
-                PLAGUE_COOLDOWN * 0.5,     // Plague a bit later
+                LIGHTNING_COOLDOWN * 0.1, // Lightning comes first
+                PLAGUE_COOLDOWN * 0.5,    // Plague a bit later
             ),
             DarkMageSpellQueue::new(),
             DarkMageTeleportTimer::new(TELEPORT_COOLDOWN),
@@ -160,7 +159,11 @@ pub fn dark_mage_movement(
 pub fn dark_mage_spell_queue(
     time: Res<Time>,
     mut bosses: Query<
-        (&mut DarkMageSpellCooldowns, &mut DarkMageSpellQueue, &DarkMageState),
+        (
+            &mut DarkMageSpellCooldowns,
+            &mut DarkMageSpellQueue,
+            &DarkMageState,
+        ),
         (With<DarkMage>, Without<Corpse>),
     >,
 ) {
@@ -189,7 +192,7 @@ pub fn dark_mage_spell_queue(
 }
 
 /// Main Dark Mage AI: processes the spell queue, manages telegraph → cast transitions.
-#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn dark_mage_ai(
     time: Res<Time>,
     mut commands: Commands,
@@ -220,7 +223,12 @@ pub fn dark_mage_ai(
     >,
     potential_targets: Query<
         (Entity, &Transform, &Team),
-        (Without<DarkMage>, Without<Corpse>, Without<Boss>, Without<BanishedModifier>),
+        (
+            Without<DarkMage>,
+            Without<Corpse>,
+            Without<Boss>,
+            Without<BanishedModifier>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -237,7 +245,13 @@ pub fn dark_mage_ai(
     {
         // CC'd bosses can't cast
         if crate::game::units::systems::is_cc_immobilized(
-            rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned,
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
         ) {
             // If telegraphing, cancel and go back to idle
             if let DarkMageState::Telegraphing { indicators, .. } = state.as_ref() {
@@ -306,10 +320,9 @@ pub fn dark_mage_ai(
 
                 // Animate indicator emissive glow
                 if let Some(mat) = materials.get_mut(&indicators.fill_material) {
-                    let pulse = (*elapsed * INDICATOR_PULSE_FREQUENCY * std::f32::consts::TAU)
-                        .sin()
-                        * 0.5
-                        + 0.5;
+                    let pulse =
+                        (*elapsed * INDICATOR_PULSE_FREQUENCY * std::f32::consts::TAU).sin() * 0.5
+                            + 0.5;
                     let intensity = progress * INDICATOR_EMISSIVE_MAX * (0.6 + 0.4 * pulse);
                     mat.emissive = bevy::color::LinearRgba::new(
                         intensity,
@@ -343,39 +356,35 @@ pub fn dark_mage_ai(
                 let tp = *target_pos;
                 match spell_type {
                     DarkMageSpellType::DarkMeteor => {
-                        spawn_meteor_explosion(
-                            &mut commands,
-                            &assets,
-                            &spell_assets,
-                            tp,
-                        );
+                        spawn_meteor_explosion(&mut commands, &assets, &spell_assets, tp);
                         crate::game::units::wizard::spells::audio::play_sfx_scaled(
-                            &mut commands, &sfx.fireball_impact, tp, &game_config, 1.0,
+                            &mut commands,
+                            &sfx.fireball_impact,
+                            tp,
+                            &game_config,
+                            1.0,
                         );
                     }
                     DarkMageSpellType::ShadowLightning => {
                         if let Some(dir) = direction {
-                            spawn_lightning_strike(
-                                &mut commands,
-                                &assets,
-                                &spell_assets,
-                                tp,
-                                *dir,
-                            );
+                            spawn_lightning_strike(&mut commands, &assets, &spell_assets, tp, *dir);
                         }
                         crate::game::units::wizard::spells::audio::play_sfx_scaled(
-                            &mut commands, &sfx.chain_lightning_cast, tp, &game_config, 1.0,
+                            &mut commands,
+                            &sfx.chain_lightning_cast,
+                            tp,
+                            &game_config,
+                            1.0,
                         );
                     }
                     DarkMageSpellType::PlagueCloud => {
-                        spawn_plague_cloud(
-                            &mut commands,
-                            &assets,
-                            &spell_assets,
-                            tp,
-                        );
+                        spawn_plague_cloud(&mut commands, &assets, &spell_assets, tp);
                         crate::game::units::wizard::spells::audio::play_sfx_scaled(
-                            &mut commands, &sfx.plague_wind_cast, tp, &game_config, 1.0,
+                            &mut commands,
+                            &sfx.plague_wind_cast,
+                            tp,
+                            &game_config,
+                            1.0,
                         );
                     }
                 }
@@ -411,7 +420,11 @@ pub fn dark_mage_teleport(
     >,
     nearby_units: Query<
         (&Transform, &Hitbox, &Team),
-        (Without<DarkMage>, Without<Corpse>, Without<BanishedModifier>),
+        (
+            Without<DarkMage>,
+            Without<Corpse>,
+            Without<BanishedModifier>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -430,7 +443,13 @@ pub fn dark_mage_teleport(
             continue;
         }
         if crate::game::units::systems::is_cc_immobilized(
-            rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned,
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
         ) {
             continue;
         }
@@ -478,8 +497,7 @@ pub fn dark_mage_teleport(
             let z = VISIBLE_MIN_Z + rand::random::<f32>() * (VISIBLE_MAX_Z - VISIBLE_MIN_Z);
             let candidate = Vec2::new(x, z);
 
-            let dist_from_current =
-                ((x - boss_pos.x).powi(2) + (z - boss_pos.z).powi(2)).sqrt();
+            let dist_from_current = ((x - boss_pos.x).powi(2) + (z - boss_pos.z).powi(2)).sqrt();
             let dist_from_castle = candidate.distance(castle_xz);
             let dist_from_wizard = candidate.distance(wizard_xz);
 
@@ -514,7 +532,11 @@ pub fn update_meteor_explosions(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>, Without<DarkMageMeteorExplosion>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<DarkMageMeteorExplosion>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -543,8 +565,15 @@ pub fn update_meteor_explosions(
             explosion.damage_applied = true;
             let center = transform.translation;
 
-            for (target_entity, target_transform, target_hitbox, team, mut health, temp_hp, has_shield) in
-                &mut targets
+            for (
+                target_entity,
+                target_transform,
+                target_hitbox,
+                team,
+                mut health,
+                temp_hp,
+                has_shield,
+            ) in &mut targets
             {
                 if *team != Team::Defenders {
                     continue;
@@ -579,10 +608,7 @@ pub fn update_meteor_explosions(
 pub fn update_lightning_strikes(
     time: Res<Time>,
     mut commands: Commands,
-    mut strikes: Query<
-        (Entity, &Transform, &mut DarkMageLightningStrike),
-        Without<DarkMage>,
-    >,
+    mut strikes: Query<(Entity, &Transform, &mut DarkMageLightningStrike), Without<DarkMage>>,
     mut targets: Query<
         (
             Entity,
@@ -593,7 +619,11 @@ pub fn update_lightning_strikes(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>, Without<DarkMageLightningStrike>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<DarkMageLightningStrike>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -608,8 +638,15 @@ pub fn update_lightning_strikes(
             let dir = strike.direction;
             let perp = Vec3::new(-dir.z, 0.0, dir.x);
 
-            for (target_entity, target_transform, target_hitbox, team, mut health, temp_hp, has_shield) in
-                &mut targets
+            for (
+                target_entity,
+                target_transform,
+                target_hitbox,
+                team,
+                mut health,
+                temp_hp,
+                has_shield,
+            ) in &mut targets
             {
                 if *team != Team::Defenders {
                     continue;
@@ -647,10 +684,7 @@ pub fn update_plague_clouds(
     time: Res<Time>,
     mut commands: Commands,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    mut clouds: Query<
-        (Entity, &Transform, &mut DarkMagePlagueCloud),
-        Without<DarkMage>,
-    >,
+    mut clouds: Query<(Entity, &Transform, &mut DarkMagePlagueCloud), Without<DarkMage>>,
     mut targets: Query<
         (
             Entity,
@@ -661,7 +695,11 @@ pub fn update_plague_clouds(
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
         ),
-        (Without<Corpse>, Without<BanishedModifier>, Without<DarkMagePlagueCloud>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<DarkMagePlagueCloud>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -675,8 +713,15 @@ pub fn update_plague_clouds(
 
             let center = cloud_transform.translation;
 
-            for (target_entity, target_transform, target_hitbox, team, mut health, temp_hp, has_shield) in
-                &mut targets
+            for (
+                target_entity,
+                target_transform,
+                target_hitbox,
+                team,
+                mut health,
+                temp_hp,
+                has_shield,
+            ) in &mut targets
             {
                 if *team != Team::Defenders {
                     continue;
@@ -702,15 +747,9 @@ pub fn update_plague_clouds(
 
         if cloud.lifetime <= 0.0 {
             // Remove hazard from flow field
-            let center_xz = Vec2::new(
-                cloud_transform.translation.x,
-                cloud_transform.translation.z,
-            );
+            let center_xz = Vec2::new(cloud_transform.translation.x, cloud_transform.translation.z);
             obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_size(
-                    center_xz,
-                    Vec2::splat(cloud.radius * 2.0),
-                ),
+                bounds: Rect::from_center_size(center_xz, Vec2::splat(cloud.radius * 2.0)),
                 obstacle_type: ObstacleType::Removed,
                 shape: Some(ObstacleShape::circle(center_xz, cloud.radius)),
                 rebuild: false,
@@ -800,7 +839,12 @@ fn find_spell_target(
     boss_team: &Team,
     targets: &Query<
         (Entity, &Transform, &Team),
-        (Without<DarkMage>, Without<Corpse>, Without<Boss>, Without<BanishedModifier>),
+        (
+            Without<DarkMage>,
+            Without<Corpse>,
+            Without<Boss>,
+            Without<BanishedModifier>,
+        ),
     >,
 ) -> Option<(Vec3, Option<Vec3>)> {
     // Collect enemy positions within spell range and visible area
@@ -811,8 +855,10 @@ fn find_spell_target(
         .filter(|pos| {
             let dist = ((*pos - boss_pos) * Vec3::new(1.0, 0.0, 1.0)).length();
             dist <= MAX_SPELL_RANGE
-                && pos.x >= VISIBLE_MIN_X && pos.x <= VISIBLE_MAX_X
-                && pos.z >= VISIBLE_MIN_Z && pos.z <= VISIBLE_MAX_Z
+                && pos.x >= VISIBLE_MIN_X
+                && pos.x <= VISIBLE_MAX_X
+                && pos.z >= VISIBLE_MIN_Z
+                && pos.z <= VISIBLE_MAX_Z
         })
         .collect();
 
@@ -1132,7 +1178,9 @@ fn spawn_plague_cloud(
             MeshMaterial3d(assets.plague_zone_material.clone()),
             Transform::from_translation(Vec3::new(px, py, pz))
                 .with_scale(Vec3::splat(40.0 + rand::random::<f32>() * 30.0)),
-            DarkMageVisualEffect { lifetime: PLAGUE_DURATION },
+            DarkMageVisualEffect {
+                lifetime: PLAGUE_DURATION,
+            },
             OnGameplayScreen,
         ));
     }
@@ -1238,11 +1286,13 @@ pub fn update_plague_particles(
                 MeshMaterial3d(assets.plague_zone_material.clone()),
                 Transform::from_translation(Vec3::new(px, py, pz))
                     .with_scale(Vec3::splat(30.0 + rand::random::<f32>() * 25.0)),
-                DarkMageVisualEffect { lifetime: 2.0 + rand::random::<f32>() * 1.5 },
+                DarkMageVisualEffect {
+                    lifetime: 2.0 + rand::random::<f32>() * 1.5,
+                },
                 OnGameplayScreen,
             ));
         }
     }
 }
 
-use crate::game::units::boss::utils::{indicator_rotation, despawn_indicators};
+use crate::game::units::boss::utils::{despawn_indicators, indicator_rotation};

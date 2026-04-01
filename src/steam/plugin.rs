@@ -30,14 +30,8 @@ impl Plugin for SteamPlugin {
                 );
 
                 // Sync save file to Steam Cloud at natural save checkpoints.
-                app.add_systems(
-                    OnEnter(AppState::MainMenu),
-                    sync_save_to_steam_cloud,
-                );
-                app.add_systems(
-                    OnEnter(AppState::MetaGame),
-                    sync_save_to_steam_cloud,
-                );
+                app.add_systems(OnEnter(AppState::MainMenu), sync_save_to_steam_cloud);
+                app.add_systems(OnEnter(AppState::MetaGame), sync_save_to_steam_cloud);
             }
             Err(e) => {
                 warn!("Steam initialization failed: {e}. Running without Steam features.");

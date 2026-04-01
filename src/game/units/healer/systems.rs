@@ -6,18 +6,17 @@ use super::resources::HealerAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::brute::components::Brute;
 use crate::game::units::commander::components::Commander;
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
-    FlockingVelocity, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    FrozenSolidModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
-    Sleepwalking, SlowMovementModifier,
-    TargetingVelocity, Team,
+    FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed,
+    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
 use crate::game::units::dispeller::components::Dispeller;
 use crate::game::units::infantry::components::DefendersActivated;
-use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 
 /// Updates healer targeting — seeks hurt same-team allies, or falls back to following army.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -42,7 +41,14 @@ pub fn update_healer_targeting(
         ),
         (Without<Corpse>, Without<BanishedModifier>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
+    >,
 ) {
     // Snapshot ally data for heal targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, f32, f32, u32)> = potential_targets
@@ -200,11 +206,30 @@ pub fn healer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
+        (
+            sleeping,
+            sleepwalking,
+            banished,
+            polymorphed,
+            sickened,
+            frozen,
+            stunned,
+            team,
+            has_staging,
+            has_wave_group,
+        ),
     ) in &mut healer_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -240,7 +265,8 @@ pub fn healer_movement(
 
         // Stop completely when in optimal position (not in melee, not on hazard)
         // Skip for staging units — they need to keep following the flow field
-        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
         if !is_staging && in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
@@ -313,11 +339,23 @@ pub fn healer_fire_heal_bolt(
         )
         .collect();
 
-    for (healer_entity, healer_transform, healer_team, mut attack_timer, sleeping, banished, has_staging, has_wave_group) in
-        &mut healers
+    for (
+        healer_entity,
+        healer_transform,
+        healer_team,
+        mut attack_timer,
+        sleeping,
+        banished,
+        has_staging,
+        has_wave_group,
+    ) in &mut healers
     {
         // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
-        if crate::game::units::systems::is_staging_attacker(healer_team, has_staging, has_wave_group) {
+        if crate::game::units::systems::is_staging_attacker(
+            healer_team,
+            has_staging,
+            has_wave_group,
+        ) {
             continue;
         }
         attack_timer.time_since_last_attack += delta;
@@ -410,7 +448,10 @@ pub fn move_heal_bolts(
 pub fn check_heal_bolt_arrivals(
     mut commands: Commands,
     bolts: Query<(Entity, &Transform, &HealBolt)>,
-    mut targets: Query<(&Transform, &Hitbox, &Team, &mut Health), (Without<Corpse>, Without<BanishedModifier>)>,
+    mut targets: Query<
+        (&Transform, &Hitbox, &Team, &mut Health),
+        (Without<Corpse>, Without<BanishedModifier>),
+    >,
 ) {
     for (bolt_entity, bolt_transform, bolt) in &bolts {
         let bolt_pos = bolt_transform.translation;

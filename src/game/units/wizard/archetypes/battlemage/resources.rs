@@ -26,8 +26,7 @@ pub(super) fn preload_battlemage_assets(
         sprite_texture: asset_server.load("images/sprite_sheets/swordcerer-walking_9-frames.png"),
         attacking_texture: asset_server
             .load("images/sprite_sheets/swordcerer-attacking_6-frames.png"),
-        casting_texture: asset_server
-            .load("images/sprite_sheets/swordcerer-casting_7-frames.png"),
+        casting_texture: asset_server.load("images/sprite_sheets/swordcerer-casting_7-frames.png"),
     };
 
     commands.insert_resource(assets);

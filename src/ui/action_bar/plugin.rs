@@ -24,8 +24,7 @@ impl Plugin for ActionBarPlugin {
             // SP spawn
             .add_systems(
                 OnEnter(InGameState::Running),
-                systems::spawn_action_bar
-                    .after(systems::clear_blocked_action_bar_spells),
+                systems::spawn_action_bar.after(systems::clear_blocked_action_bar_spells),
             )
             // MP spawn
             .add_systems(

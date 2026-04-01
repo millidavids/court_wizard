@@ -1,19 +1,19 @@
 use bevy::prelude::*;
 
-use super::components::{BoulderProjectile, BoulderShadow, Boulder};
+use super::components::{Boulder, BoulderProjectile, BoulderShadow};
 use super::constants::*;
 use super::messages::*;
 use super::resources::BoulderAssets;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, ObstacleHealth, OnGameplayScreen};
-use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
-use crate::game::shared_systems::ShadowAssets;
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::plugin::GlobalAttackCycle;
+use crate::game::shared_systems::ShadowAssets;
 use crate::game::units::components::{
     AttackTiming, Corpse, Health, Hitbox, Teleportable, TemporaryHitPoints,
 };
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion;
 use crate::game::units::wizard::spells::squall::components::IceExplosion;
@@ -50,6 +50,7 @@ pub fn spawn_rock_projectile(
 }
 
 /// Animates boulder projectiles along their parabolic arc and spawns landed boulders.
+#[allow(clippy::too_many_arguments)]
 pub fn animate_rock_projectiles(
     time: Res<Time>,
     mut commands: Commands,
@@ -109,16 +110,18 @@ pub fn animate_rock_projectiles(
             );
 
             // Spawn the permanent boulder obstacle entity
-            let rock_entity = commands.spawn((
-                Mesh3d(rock_assets.mesh.clone()),
-                MeshMaterial3d(rock_assets.material.clone()),
-                Transform::from_xyz(land_pos.x, rock_y, land_pos.z),
-                rock,
-                ObstacleHealth::new(ROCK_HEALTH),
-                Billboard,
-                Teleportable,
-                OnGameplayScreen,
-            )).id();
+            let rock_entity = commands
+                .spawn((
+                    Mesh3d(rock_assets.mesh.clone()),
+                    MeshMaterial3d(rock_assets.material.clone()),
+                    Transform::from_xyz(land_pos.x, rock_y, land_pos.z),
+                    rock,
+                    ObstacleHealth::new(ROCK_HEALTH),
+                    Billboard,
+                    Teleportable,
+                    OnGameplayScreen,
+                ))
+                .id();
 
             // Spawn a shadow under the boulder
             commands.spawn((
@@ -136,10 +139,7 @@ pub fn animate_rock_projectiles(
 
 /// Resolves overlap between a new boulder landing position and existing boulders.
 /// Pushes the new boulder outward so it sits adjacent to any overlapping boulder.
-fn resolve_overlap(
-    mut pos: Vec3,
-    existing_rocks: &Query<&Boulder>,
-) -> Vec3 {
+fn resolve_overlap(mut pos: Vec3, existing_rocks: &Query<&Boulder>) -> Vec3 {
     // Iterate a few times to resolve cascading overlaps
     for _ in 0..8 {
         let mut adjusted = false;
@@ -171,19 +171,16 @@ fn resolve_overlap(
 }
 
 /// Ticks boulder lifetime and handles sinking animation.
-pub fn tick_rock_lifetime(
-    time: Res<Time>,
-    mut rocks: Query<(&mut Boulder, &mut Transform)>,
-) {
+pub fn tick_rock_lifetime(time: Res<Time>, mut rocks: Query<(&mut Boulder, &mut Transform)>) {
     let delta = time.delta_secs();
 
     for (mut rock, mut transform) in &mut rocks {
         rock.time_alive += delta;
 
         if rock.sinking {
-            let sink_progress =
-                ((rock.time_alive - (rock.sink_deadline - ROCK_SINK_DURATION)) / ROCK_SINK_DURATION)
-                    .clamp(0.0, 1.0);
+            let sink_progress = ((rock.time_alive - (rock.sink_deadline - ROCK_SINK_DURATION))
+                / ROCK_SINK_DURATION)
+                .clamp(0.0, 1.0);
             // Sink from rock_y down to underground
             let rock_y = (ROCK_HEIGHT / 2.0) * (1.0 - sink_progress);
             transform.translation.y = rock_y;
@@ -346,7 +343,8 @@ pub fn apply_spell_damage_to_rocks(
 
         for explosion in &fireball_explosions {
             if explosion.damage_per_tick > 0.0
-                && xz_distance(explosion.origin, rock.center) <= explosion.current_radius() + rock.radius
+                && xz_distance(explosion.origin, rock.center)
+                    <= explosion.current_radius() + rock.radius
             {
                 health.take_damage(explosion.damage_per_tick);
             }
@@ -447,8 +445,7 @@ pub(in crate::game) fn spawn_terrain_boulder(
         .spawn((
             Mesh3d(rock_assets.mesh.clone()),
             MeshMaterial3d(rock_assets.material.clone()),
-            Transform::from_xyz(x, rock_y, z)
-                .with_scale(Vec3::splat(scale)),
+            Transform::from_xyz(x, rock_y, z).with_scale(Vec3::splat(scale)),
             rock,
             ObstacleHealth::new(ROCK_HEALTH * scale),
             Billboard,

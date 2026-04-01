@@ -8,6 +8,7 @@ use super::resources::{FlamethrowerSfx, GunState};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
@@ -17,7 +18,6 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::fireball::systems::spawn_fireball_entity;
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 const GUN_SPAWN_POS: Vec3 = Vec3::new(SPELL_ORIGIN.x, SPELL_ORIGIN.y + 30.0, SPELL_ORIGIN.z);

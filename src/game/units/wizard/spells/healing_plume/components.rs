@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use bevy::prelude::*;
+use std::collections::HashSet;
 
 /// Persistent healing zone that heals all units inside.
 #[derive(Component)]

@@ -13,13 +13,13 @@ use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::resources::{
     CurrentLevel, InitialDefenderCount, KillStats, TimeTravelState, WaveState,
 };
+use crate::game::units::aerialist::AerialistAssets;
+use crate::game::units::aerialist::systems as aerialist_systems;
 use crate::game::units::archer::constants::INITIAL_ARCHER_DEFENDER_COUNT;
 use crate::game::units::archer::systems as archer_systems;
 use crate::game::units::archer::{Archer, ArcherAssets};
-use crate::game::units::aerialist::systems as aerialist_systems;
-use crate::game::units::aerialist::AerialistAssets;
-use crate::game::units::assassin::systems as assassin_systems;
 use crate::game::units::assassin::AssassinAssets;
+use crate::game::units::assassin::systems as assassin_systems;
 use crate::game::units::components::{Hitbox, Team};
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -27,6 +27,7 @@ use crate::game::units::infantry::systems as infantry_systems;
 use crate::state::AppState;
 
 /// Initializes the loading progress tracker and spawn queue.
+#[allow(clippy::too_many_arguments)]
 pub fn init_loading_progress(
     mut commands: Commands,
     mut current_level: ResMut<CurrentLevel>,
@@ -69,9 +70,10 @@ pub fn init_loading_progress(
 
     // 3c. Permanent crystals from previous victories (after pathfinding grid)
     if !config.saved_crystals.is_empty() {
-        let crystal_talent_params = crate::game::units::wizard::spells::arcane_crystal::systems::compute_talent_params(
-            active_talents.as_deref(),
-        );
+        let crystal_talent_params =
+            crate::game::units::wizard::spells::arcane_crystal::systems::compute_talent_params(
+                active_talents.as_deref(),
+            );
         for saved_crystal in &config.saved_crystals {
             queue.tasks.push_back(SpawnTask::PermanentCrystal {
                 crystal: saved_crystal.clone(),
@@ -87,7 +89,9 @@ pub fn init_loading_progress(
         crate::game::terrain::flora::systems::generate_flora_positions(&mut config);
     }
     for flora in &config.saved_flora {
-        queue.tasks.push_back(SpawnTask::Flora { flora: flora.clone() });
+        queue.tasks.push_back(SpawnTask::Flora {
+            flora: flora.clone(),
+        });
     }
 
     // 3e. Terrain (trees, ponds, bushes, boulders) — generate on first battle, spawn from save
@@ -111,16 +115,24 @@ pub fn init_loading_progress(
         }
 
         for boulder in &config.saved_boulders {
-            queue.tasks.push_back(SpawnTask::TerrainBoulder { boulder: boulder.clone() });
+            queue.tasks.push_back(SpawnTask::TerrainBoulder {
+                boulder: boulder.clone(),
+            });
         }
         for tree in &config.saved_trees {
-            queue.tasks.push_back(SpawnTask::TerrainTree { tree: tree.clone() });
+            queue
+                .tasks
+                .push_back(SpawnTask::TerrainTree { tree: tree.clone() });
         }
         for pond in &config.saved_ponds {
-            queue.tasks.push_back(SpawnTask::TerrainPond { pond: pond.clone() });
+            queue
+                .tasks
+                .push_back(SpawnTask::TerrainPond { pond: pond.clone() });
         }
         for bush in &config.saved_bushes {
-            queue.tasks.push_back(SpawnTask::TerrainBush { bush: bush.clone() });
+            queue
+                .tasks
+                .push_back(SpawnTask::TerrainBush { bush: bush.clone() });
         }
     }
 
@@ -129,7 +141,9 @@ pub fn init_loading_progress(
 
     // 5. King's Guard (protect the king)
     for i in 0..KINGS_GUARD_COUNT {
-        queue.tasks.push_back(SpawnTask::KingsGuard { guard_index: i });
+        queue
+            .tasks
+            .push_back(SpawnTask::KingsGuard { guard_index: i });
     }
 
     // 6. Defender Infantry
@@ -140,7 +154,7 @@ pub fn init_loading_progress(
     }
 
     // Check if this is a boss level (every 5th level starting at 5)
-    use crate::game::constants::{get_tier, BOSS_CYCLE_LENGTH};
+    use crate::game::constants::{BOSS_CYCLE_LENGTH, get_tier};
     use crate::game::constants::{is_boss_level, is_lich_level};
     use crate::game::units::brute::constants::BRUTE_START_TIER;
 
@@ -184,9 +198,18 @@ pub fn init_loading_progress(
 
         // 7. Attacker Infantry (wave 1)
         let is_endless = crate::game::game_mode::components::is_endless_mode(game_mode.as_deref());
-        let extra_infantry = if is_endless { crate::game::constants::endless_extra_infantry(level) } else { 0 };
-        let extra_archers = if is_endless { crate::game::constants::endless_extra_archers(level) } else { 0 };
-        let total_attackers = ((calculate_total_infantry(level) + extra_infantry) as f32 * count_mult).round() as u32;
+        let extra_infantry = if is_endless {
+            crate::game::constants::endless_extra_infantry(level)
+        } else {
+            0
+        };
+        let extra_archers = if is_endless {
+            crate::game::constants::endless_extra_archers(level)
+        } else {
+            0
+        };
+        let total_attackers =
+            ((calculate_total_infantry(level) + extra_infantry) as f32 * count_mult).round() as u32;
         for i in 0..total_attackers {
             queue.tasks.push_back(SpawnTask::AttackerInfantry {
                 unit_index: i,
@@ -195,7 +218,8 @@ pub fn init_loading_progress(
         }
 
         // 8. Attacker Archers (wave 1)
-        let total_attacker_archers = ((calculate_total_archers(level) + extra_archers) as f32 * count_mult).round() as u32;
+        let total_attacker_archers =
+            ((calculate_total_archers(level) + extra_archers) as f32 * count_mult).round() as u32;
         for i in 0..total_attacker_archers {
             queue.tasks.push_back(SpawnTask::AttackerArcher {
                 unit_index: i,
@@ -213,7 +237,8 @@ pub fn init_loading_progress(
         }
 
         // 8c. Attacker Aerialists (wave 1) — start spawning at tier 2
-        let total_aerialists = (calculate_total_aerialists(level) as f32 * count_mult).round() as u32;
+        let total_aerialists =
+            (calculate_total_aerialists(level) as f32 * count_mult).round() as u32;
         for i in 0..total_aerialists {
             queue.tasks.push_back(SpawnTask::AttackerAerialist {
                 unit_index: i,
@@ -228,7 +253,11 @@ pub fn init_loading_progress(
         }
 
         // Record total attackers spawned across ALL waves for score screen
-        let per_wave = total_attackers + total_attacker_archers + total_assassins + total_aerialists + if has_brute { 1 } else { 0 };
+        let per_wave = total_attackers
+            + total_attacker_archers
+            + total_assassins
+            + total_aerialists
+            + if has_brute { 1 } else { 0 };
         kill_stats.total_attackers_spawned = per_wave * wave_count;
 
         // Initialize wave state (game_speed modifier scales wave interval)
@@ -247,9 +276,7 @@ pub fn init_loading_progress(
 
         // Lich levels: schedule the Lich to spawn after wave 3
         if is_lich_level(level) {
-            commands.insert_resource(
-                crate::game::units::boss::lich::components::LichSpawnPending,
-            );
+            commands.insert_resource(crate::game::units::boss::lich::components::LichSpawnPending);
         }
     }
 
@@ -356,10 +383,28 @@ pub fn process_spawn_queue(
         MessageWriter<crate::game::pathfinding::messages::ObstacleChanged>,
     ),
 ) {
-    let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, shielder_assets, healer_assets) = &unit_assets;
+    let (
+        infantry_assets,
+        archer_assets,
+        assassin_assets,
+        dispeller_assets,
+        shielder_assets,
+        healer_assets,
+    ) = &unit_assets;
     let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
     let (ref wizard_assets_opt, ref cauldron_assets_opt, mut images) = optional_assets;
-    let (battlefield_assets, spell_visual_assets, asset_server, flora_assets, trampling_grid, tree_assets, pond_assets, bush_assets, boulder_assets, shadow_assets) = &shared_assets;
+    let (
+        battlefield_assets,
+        spell_visual_assets,
+        asset_server,
+        flora_assets,
+        trampling_grid,
+        tree_assets,
+        pond_assets,
+        bush_assets,
+        boulder_assets,
+        shadow_assets,
+    ) = &shared_assets;
     let (mut channel_change, mut obstacle_events) = message_writers;
 
     // Process tasks in bulk, breaking only when the next task needs deferred
@@ -565,7 +610,9 @@ pub fn process_spawn_queue(
                     "Infantry",
                 );
                 spawn_queue.tasks.extend(
-                    selected.into_iter().map(|entity| SpawnTask::UpgradeToCommander { entity }),
+                    selected
+                        .into_iter()
+                        .map(|entity| SpawnTask::UpgradeToCommander { entity }),
                 );
             }
             SpawnTask::SelectArcherUpgrades => {
@@ -586,7 +633,9 @@ pub fn process_spawn_queue(
                     "Archer",
                 );
                 spawn_queue.tasks.extend(
-                    selected.into_iter().map(|entity| SpawnTask::UpgradeToCommander { entity }),
+                    selected
+                        .into_iter()
+                        .map(|entity| SpawnTask::UpgradeToCommander { entity }),
                 );
             }
             SpawnTask::SelectDispellerUpgrades => {
@@ -606,7 +655,9 @@ pub fn process_spawn_queue(
                     seed_base,
                 );
                 spawn_queue.tasks.extend(
-                    selected.into_iter().map(|entity| SpawnTask::UpgradeToDispeller { entity }),
+                    selected
+                        .into_iter()
+                        .map(|entity| SpawnTask::UpgradeToDispeller { entity }),
                 );
             }
             SpawnTask::SelectHealerUpgrades => {
@@ -626,7 +677,9 @@ pub fn process_spawn_queue(
                     seed_base,
                 );
                 spawn_queue.tasks.extend(
-                    selected.into_iter().map(|entity| SpawnTask::UpgradeToHealer { entity }),
+                    selected
+                        .into_iter()
+                        .map(|entity| SpawnTask::UpgradeToHealer { entity }),
                 );
             }
             SpawnTask::SelectShielderUpgrades => {
@@ -646,7 +699,9 @@ pub fn process_spawn_queue(
                     seed_base,
                 );
                 spawn_queue.tasks.extend(
-                    selected.into_iter().map(|entity| SpawnTask::UpgradeToShielder { entity }),
+                    selected
+                        .into_iter()
+                        .map(|entity| SpawnTask::UpgradeToShielder { entity }),
                 );
             }
             SpawnTask::SelectEliteUpgrades => {
@@ -674,7 +729,9 @@ pub fn process_spawn_queue(
                     seed_base,
                 );
                 spawn_queue.tasks.extend(
-                    selected.into_iter().map(|entity| SpawnTask::UpgradeToElite { entity }),
+                    selected
+                        .into_iter()
+                        .map(|entity| SpawnTask::UpgradeToElite { entity }),
                 );
             }
             SpawnTask::UpgradeToElite { entity } => {
@@ -684,7 +741,10 @@ pub fn process_spawn_queue(
                     if let Ok(hitbox) = queries.p3().get(entity) {
                         let hitbox = *hitbox;
                         upgrade_systems::apply_elite_upgrade(
-                            &mut commands, entity, &transform, &hitbox,
+                            &mut commands,
+                            entity,
+                            &transform,
+                            &hitbox,
                         );
                     }
                 }
@@ -696,7 +756,12 @@ pub fn process_spawn_queue(
                     &wall,
                 );
             }
-            SpawnTask::PermanentCrystal { crystal, damage_mult, count_mult, resonance_cascade } => {
+            SpawnTask::PermanentCrystal {
+                crystal,
+                damage_mult,
+                count_mult,
+                resonance_cascade,
+            } => {
                 crate::game::units::wizard::spells::arcane_crystal::systems::spawn_permanent_crystal(
                     &mut commands,
                     spell_visual_assets,
@@ -713,7 +778,12 @@ pub fn process_spawn_queue(
                     if let Ok(hitbox) = queries.p3().get(entity) {
                         let hitbox = *hitbox;
                         upgrade_systems::apply_commander_upgrade(
-                            &mut commands, entity, &mut materials, &mut meshes, &transform, &hitbox,
+                            &mut commands,
+                            entity,
+                            &mut materials,
+                            &mut meshes,
+                            &transform,
+                            &hitbox,
                         );
                     }
                 }
@@ -775,7 +845,7 @@ pub fn process_spawn_queue(
                     &mut meshes,
                     &mut materials,
                     &mut images,
-                    &trampling_grid,
+                    trampling_grid,
                 );
             }
         }

@@ -13,6 +13,7 @@ use super::units::wizard::archetypes::psychopath::constants::DEFENDER_KILL_THRES
 /// Win: All Attackers AND Undead are dead AND all waves have spawned
 /// Lose: All Defenders are dead OR King is dead
 /// Psychopath: Must also kill 80% of defenders to win
+#[allow(clippy::too_many_arguments)]
 pub fn check_win_lose_conditions(
     mut next_state: ResMut<NextState<InGameState>>,
     mut game_outcome: ResMut<GameOutcome>,

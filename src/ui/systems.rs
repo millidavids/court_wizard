@@ -369,7 +369,13 @@ pub fn spawn_button(
         ))
         .with_children(|button| {
             if style.text_shadow {
-                spawn_shadowed_text(button, text, style.font_size, style.text_color, Node::default());
+                spawn_shadowed_text(
+                    button,
+                    text,
+                    style.font_size,
+                    style.text_color,
+                    Node::default(),
+                );
             } else {
                 button.spawn((
                     Text::new(text),

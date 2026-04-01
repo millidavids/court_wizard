@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, WizardInput,
 };
@@ -8,6 +7,7 @@ use super::components::{
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::drops::components::{FlyingToWizard, IngredientDrop};
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -17,11 +17,13 @@ use crate::game::units::components::{
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
+use crate::game::units::wizard::spells::utils::{
+    build_wizard_input, cleanup_spell_caster, handle_spell_release,
+};
 use crate::game::units::wizard::spells::vfx;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
 
 /// Computed talent configuration for a single Telekinesis cast.
 struct TelekinesisConfig {
@@ -102,14 +104,7 @@ pub(super) fn handle_telekinesis_casting(
         Without<IngredientDrop>,
     >,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
@@ -160,7 +155,12 @@ pub(super) fn handle_telekinesis_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Force,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
         if let Some(ref mut progress) = talent_progress {
             progress.increment(Spell::Telekinesis, 1);
@@ -197,14 +197,7 @@ fn telekinesis_casting_logic(
     visual_assets: &SpellVisualAssets,
 ) -> bool {
     // Check for release event
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -289,23 +282,13 @@ fn telekinesis_casting_logic(
                 }
 
                 // Cleanup indicator and caster
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+                cleanup_spell_caster(commands, wizard_entity, caster_query);
                 casting_state.cancel();
             }
         }
         CastingState::Channeling { .. } => {
             // Telekinesis doesn't channel
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }

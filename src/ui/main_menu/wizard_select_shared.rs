@@ -258,7 +258,13 @@ pub(super) fn spawn_title_group(parent: &mut ChildSpawnerCommands, title: &str, 
             ..default()
         })
         .with_children(|title_group| {
-            spawn_title_with_shadow(title_group, title, TITLE_FONT_SIZE, TEXT_COLOR, Node::default());
+            spawn_title_with_shadow(
+                title_group,
+                title,
+                TITLE_FONT_SIZE,
+                TEXT_COLOR,
+                Node::default(),
+            );
             title_group.spawn((
                 Text::new(subtitle.to_string()),
                 TextFont::from_font_size(SUBTITLE_FONT_SIZE),

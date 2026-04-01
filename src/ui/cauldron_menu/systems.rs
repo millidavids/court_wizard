@@ -85,59 +85,65 @@ fn build_menu(
     );
 
     commands.entity(content).with_children(|root| {
-            // Title
-            spawn_title_with_shadow(root, "Cauldron", TITLE_FONT_SIZE, TITLE_COLOR, Node {
+        // Title
+        spawn_title_with_shadow(
+            root,
+            "Cauldron",
+            TITLE_FONT_SIZE,
+            TITLE_COLOR,
+            Node {
                 align_self: AlignSelf::Center,
                 ..default()
-            });
+            },
+        );
 
-            // Content area: two-panel row
-            root.spawn(Node {
-                flex_grow: 1.0,
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(COLUMN_GAP),
-                ..default()
-            })
-            .with_children(|content| {
-                // === Left panel: detail/preview ===
-                spawn_detail_panel(content, is_brewing, selection, &unlocked_combos, config);
+        // Content area: two-panel row
+        root.spawn(Node {
+            flex_grow: 1.0,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(COLUMN_GAP),
+            ..default()
+        })
+        .with_children(|content| {
+            // === Left panel: detail/preview ===
+            spawn_detail_panel(content, is_brewing, selection, &unlocked_combos, config);
 
-                // === Right panel: categorized ingredient grid ===
-                if !is_brewing {
-                    spawn_ingredient_list(
-                        content,
-                        selection,
-                        &unlocked_ingredients,
-                        config,
-                        stone_used,
-                    );
-                }
-            });
+            // === Right panel: categorized ingredient grid ===
+            if !is_brewing {
+                spawn_ingredient_list(
+                    content,
+                    selection,
+                    &unlocked_ingredients,
+                    config,
+                    stone_used,
+                );
+            }
+        });
 
-            // Bottom button row
-            root.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(10.0),
-                justify_content: JustifyContent::Center,
-                ..default()
-            })
-            .with_children(|buttons| {
-                if is_brewing {
-                    spawn_button(
-                        buttons,
-                        "Cancel Brew",
-                        CauldronMenuButtonAction::CancelBrew,
-                        &CANCEL_BUTTON_STYLE,
-                    );
-                }
+        // Bottom button row
+        root.spawn(Node {
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(10.0),
+            justify_content: JustifyContent::Center,
+            ..default()
+        })
+        .with_children(|buttons| {
+            if is_brewing {
                 spawn_button(
                     buttons,
-                    "Close",
-                    CauldronMenuButtonAction::Close,
-                    &CLOSE_BUTTON_STYLE,
+                    "Cancel Brew",
+                    CauldronMenuButtonAction::CancelBrew,
+                    &CANCEL_BUTTON_STYLE,
                 );
-            });
+            }
+            spawn_button(
+                buttons,
+                "Close",
+                CauldronMenuButtonAction::Close,
+                &CLOSE_BUTTON_STYLE,
+            );
         });
+    });
 }
 
 /// Spawns the left detail panel showing brew preview or brewing status.

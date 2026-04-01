@@ -209,7 +209,6 @@ pub(super) struct TalentSection;
 
 /// Marker for a clickable talent card.
 #[derive(Component)]
-#[allow(dead_code)]
 pub(super) struct TalentCard {
     pub spell: Spell,
     pub tier: u8,
@@ -218,14 +217,13 @@ pub(super) struct TalentCard {
 
 /// Marker for the talent progress bar fill.
 #[derive(Component)]
-#[allow(dead_code)]
 pub(super) struct TalentProgressBarFill {
+    #[allow(dead_code)]
     pub spell: Spell,
 }
 
 /// Marker for the talent description text area.
 #[derive(Component)]
-#[allow(dead_code)]
 pub(super) struct TalentDescriptionText;
 
 /// Resource tracking which talent card is hovered for description display.

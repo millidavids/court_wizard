@@ -3,9 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::super::utils::{AnimatedRingParticle, animate_ring_particles};
-use super::components::{
-    EntangleGroundEffect, EntangleRooted, EntangleVine, ThornyVines,
-};
+use super::components::{EntangleGroundEffect, EntangleRooted, EntangleVine, ThornyVines};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -29,15 +27,11 @@ impl Plugin for EntanglePlugin {
                     .chain()
                     .run_if(any_exist::<EntangleGroundEffect>()),
                 // Vine VFX: static arches + animated ring particles
-                systems::animate_entangle_vines
-                    .run_if(any_exist::<EntangleVine>()),
-                systems::emit_animated_vine_rings
-                    .run_if(any_exist::<EntangleGroundEffect>()),
-                animate_ring_particles
-                    .run_if(any_exist::<AnimatedRingParticle>()),
+                systems::animate_entangle_vines.run_if(any_exist::<EntangleVine>()),
+                systems::emit_animated_vine_rings.run_if(any_exist::<EntangleGroundEffect>()),
+                animate_ring_particles.run_if(any_exist::<AnimatedRingParticle>()),
                 // Thorny Vines: DPS to rooted enemies
-                systems::thorny_vines_tick
-                    .run_if(any_exist::<ThornyVines>()),
+                systems::thorny_vines_tick.run_if(any_exist::<ThornyVines>()),
                 // Other talent effects — only run when EntangleRooted units exist
                 (
                     systems::nourishing_roots_mana_regen,
@@ -45,8 +39,7 @@ impl Plugin for EntanglePlugin {
                 )
                     .run_if(any_exist::<EntangleRooted>()),
                 // Overgrowth — only run when ground effects exist
-                systems::overgrowth_root_new_units
-                    .run_if(any_exist::<EntangleGroundEffect>()),
+                systems::overgrowth_root_new_units.run_if(any_exist::<EntangleGroundEffect>()),
             )
                 .run_if(is_spell_effects_active),
         );

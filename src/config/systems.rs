@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use bevy::window::{MonitorSelection, PresentMode, PrimaryWindow, Window as BevyWindow, WindowMode, WindowMoved, WindowPosition, WindowResized};
+use bevy::window::{
+    MonitorSelection, PresentMode, PrimaryWindow, Window as BevyWindow, WindowMode, WindowMoved,
+    WindowPosition, WindowResized,
+};
 
 use super::messages::*;
 use super::resources::*;
@@ -162,19 +165,20 @@ pub(super) fn apply_display_mode(
         );
 
         // Save current windowed geometry before switching away from windowed mode
-        if was_windowed && game_config.display_mode != DisplayMode::Windowed {
-            if let Ok(window) = windows.single() {
-                saved_geometry.width = window.resolution.width();
-                saved_geometry.height = window.resolution.height();
-                saved_geometry.position = match window.position {
-                    WindowPosition::At(pos) => Some(pos),
-                    _ => None,
-                };
-                info!(
-                    "Saved windowed geometry: {}x{} at {:?}",
-                    saved_geometry.width, saved_geometry.height, saved_geometry.position
-                );
-            }
+        if was_windowed
+            && game_config.display_mode != DisplayMode::Windowed
+            && let Ok(window) = windows.single()
+        {
+            saved_geometry.width = window.resolution.width();
+            saved_geometry.height = window.resolution.height();
+            saved_geometry.position = match window.position {
+                WindowPosition::At(pos) => Some(pos),
+                _ => None,
+            };
+            info!(
+                "Saved windowed geometry: {}x{} at {:?}",
+                saved_geometry.width, saved_geometry.height, saved_geometry.position
+            );
         }
 
         // Defer the actual mode change to the next frame to avoid wgpu
@@ -382,8 +386,7 @@ pub(super) fn save_config_on_event(
         return;
     }
 
-    let is_roguelite =
-        crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    let is_roguelite = crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
     persist_config(
         &game_config,
         &active_save,
@@ -398,10 +401,7 @@ pub(super) fn save_config_on_event(
 
 /// Periodically flushes the in-memory save cache to disk.
 /// Runs every 2 seconds when the cache has unflushed changes.
-pub(super) fn periodic_save_flush(
-    time: Res<Time>,
-    mut timer: Local<Option<Timer>>,
-) {
+pub(super) fn periodic_save_flush(time: Res<Time>, mut timer: Local<Option<Timer>>) {
     let timer = timer.get_or_insert_with(|| Timer::from_seconds(2.0, TimerMode::Repeating));
     timer.tick(time.delta());
     if timer.just_finished() {

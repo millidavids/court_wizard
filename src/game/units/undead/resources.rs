@@ -7,7 +7,6 @@ use crate::game::units::systems::create_corpse_sprite_materials;
 
 /// Pre-loaded meshes and materials for undead units.
 #[derive(Resource)]
-#[allow(dead_code)]
 pub struct UndeadAssets {
     /// Rectangle mesh for sprite rendering (same size as infantry).
     pub sprite_mesh: Handle<Mesh>,
@@ -18,6 +17,7 @@ pub struct UndeadAssets {
     /// Death animation sprite sheet.
     pub death_texture: Handle<Image>,
     /// Undead corpse materials.
+    #[allow(dead_code)]
     pub corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
 }
 

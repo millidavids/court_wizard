@@ -153,12 +153,15 @@ impl DatagramReassembler {
 
         // All fragments received — reassemble.
         if self.received_count == self.expected_count {
-            let total_len: usize = self.fragments.iter().filter_map(|f| f.as_ref()).map(|f| f.len()).sum();
+            let total_len: usize = self
+                .fragments
+                .iter()
+                .filter_map(|f| f.as_ref())
+                .map(|f| f.len())
+                .sum();
             let mut result = Vec::with_capacity(total_len);
-            for frag in &self.fragments {
-                if let Some(data) = frag {
-                    result.extend_from_slice(data);
-                }
+            for data in self.fragments.iter().flatten() {
+                result.extend_from_slice(data);
             }
             // Advance sequence so duplicates are dropped.
             self.current_sequence = self.current_sequence.wrapping_add(1);

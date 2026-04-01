@@ -1,18 +1,18 @@
 use std::cmp::Ordering;
 
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
+use super::super::vfx;
 use super::components::{
     BanishmentTalentParams, BanishmentVfx, DimensionalShunt, Displacement, OneWayTrip,
     PainfulReturn,
 };
-use super::super::vfx;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::{BATTLEFIELD_SIZE, SPELL_ORIGIN};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
@@ -21,11 +21,11 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position, ground_projected_range,
+    build_wizard_input, clamp_cursor_to_spell_range, ground_projected_range,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::game::crt_effect::CorrectedCursorPosition;
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -71,6 +71,7 @@ pub(crate) fn compute_talent_params(
 
 /// Banishes a single target entity, applying talent components as needed.
 /// Also spawns the lensing VFX at the target's position.
+#[allow(clippy::too_many_arguments)]
 fn banish_target(
     commands: &mut Commands,
     target: Entity,
@@ -94,9 +95,7 @@ fn banish_target(
     );
 
     // One-Way Trip: if below HP threshold, mark for death on return
-    if params.one_way_trip
-        && health.current <= health.max * constants::ONE_WAY_TRIP_HP_THRESHOLD
-    {
+    if params.one_way_trip && health.current <= health.max * constants::ONE_WAY_TRIP_HP_THRESHOLD {
         commands.entity(target).insert((
             BanishedModifier::new(0.0), // Expires immediately next tick
             Visibility::Hidden,
@@ -182,8 +181,7 @@ pub fn handle_banishment_casting(
     mut progress: ResMut<BattleTalentProgress>,
     visual_assets: Res<SpellVisualAssets>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let raw_cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((_wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -195,13 +193,7 @@ pub fn handle_banishment_casting(
     }
 
     let spell_range = ground_projected_range(wizard.spell_range, SPELL_ORIGIN.y);
-    let cursor_pos = clamp_cursor_to_spell_range(raw_cursor_pos, wizard.spell_range, 0.0);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    input.cursor_pos = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, 0.0);
 
     let talent_params = compute_talent_params(active_talents.as_deref());
 
@@ -220,7 +212,12 @@ pub fn handle_banishment_casting(
     );
 
     if banished_count > 0 {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Force,
+            time.elapsed_secs(),
+        );
         progress.increment(Spell::Banishment, banished_count);
         audio::play_sfx(
             &mut commands,
@@ -362,7 +359,16 @@ fn cast_single_banishment(
 
     // Banish first target (nearest to cursor)
     if let Some(&(target, _, pos, health)) = candidates.first() {
-        banish_target(commands, target, pos, duration, params, health, visual_assets, time_secs);
+        banish_target(
+            commands,
+            target,
+            pos,
+            duration,
+            params,
+            health,
+            visual_assets,
+            time_secs,
+        );
         banished_count += 1;
     }
 
@@ -372,7 +378,16 @@ fn cast_single_banishment(
         let second_mana_cost = base_mana_cost * constants::DUAL_BANISHMENT_SECOND_MANA_MULT;
         if mana.consume(second_mana_cost) {
             let (target, _, pos, health) = candidates[1];
-            banish_target(commands, target, pos, duration, params, health, visual_assets, time_secs);
+            banish_target(
+                commands,
+                target,
+                pos,
+                duration,
+                params,
+                health,
+                visual_assets,
+                time_secs,
+            );
             banished_count += 1;
         }
     }
@@ -523,8 +538,7 @@ pub fn tick_banished_units(
         if let Some(displace) = displacement {
             let half = BATTLEFIELD_SIZE / 2.0;
             let angle = rand::random::<f32>() * std::f32::consts::TAU;
-            let dist =
-                displace.radius * 0.5 + rand::random::<f32>() * displace.radius * 0.5;
+            let dist = displace.radius * 0.5 + rand::random::<f32>() * displace.radius * 0.5;
             transform.translation.x =
                 (transform.translation.x + angle.cos() * dist).clamp(-half, half);
             transform.translation.z =
@@ -543,4 +557,3 @@ pub fn tick_banished_units(
             .insert(WasBanished);
     }
 }
-

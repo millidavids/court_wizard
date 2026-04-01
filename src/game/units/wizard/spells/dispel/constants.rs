@@ -93,7 +93,9 @@ pub fn spell_effect_mana_cost(kind: crate::networking::snapshot::SpellEffectKind
         SpellEffectKind::HealingPlumeZone => s::healing_plume::constants::MANA_COST,
         SpellEffectKind::EntangleGround => s::entangle::constants::MANA_COST,
         SpellEffectKind::FogCloudZone => s::fog_cloud::constants::MANA_COST,
-        SpellEffectKind::GreaseZone | SpellEffectKind::GreaseFire => s::grease::constants::MANA_COST,
+        SpellEffectKind::GreaseZone | SpellEffectKind::GreaseFire => {
+            s::grease::constants::MANA_COST
+        }
         SpellEffectKind::PlagueWindCloud => s::plague_wind::constants::MANA_COST,
         SpellEffectKind::MeteorGroundFire => s::meteor_fall::constants::MANA_COST,
         SpellEffectKind::BlackHole => s::black_hole::constants::MANA_COST,

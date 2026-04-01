@@ -108,4 +108,3 @@ impl LichFingerOfDeath {
         self.target = None;
     }
 }
-

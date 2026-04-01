@@ -226,7 +226,9 @@ pub(super) fn toggle_debug_ball(
     active.0 = !active.0;
 
     if active.0 {
-        info!("Debug ball: ON — use arrow keys to move, position logged every {DEBUG_BALL_LOG_INTERVAL}s");
+        info!(
+            "Debug ball: ON — use arrow keys to move, position logged every {DEBUG_BALL_LOG_INTERVAL}s"
+        );
         log_timer.0.reset();
 
         let mesh = meshes.add(Sphere::new(DEBUG_BALL_RADIUS));

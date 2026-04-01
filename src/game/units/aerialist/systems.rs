@@ -5,14 +5,14 @@ use super::constants::*;
 use super::resources::AerialistAssets;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
-    attacker_spawn_position, ARCHER_SPAWN_DEPTH_OFFSET, ATTACKER_HITBOX_HEIGHT,
+    ARCHER_SPAWN_DEPTH_OFFSET, ATTACKER_HITBOX_HEIGHT, attacker_spawn_position,
 };
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, WaveGroup};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, Corpse, Effectiveness, FacingDirection, FlockingVelocity,
-    Flying, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier, RootedModifier,
-    FrozenSolidModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
+    Flying, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
+    RootedModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
     TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::random_position_in_cell;
@@ -22,12 +22,7 @@ use crate::game::units::random_position_in_cell;
 #[allow(clippy::type_complexity)]
 pub fn update_aerialist_targeting(
     mut aerialists: Query<
-        (
-            Entity,
-            &Transform,
-            &Team,
-            &mut TargetingVelocity,
-        ),
+        (Entity, &Transform, &Team, &mut TargetingVelocity),
         (With<Aerialist>, Without<Corpse>),
     >,
     all_units: Query<
@@ -98,14 +93,7 @@ pub fn aerialist_combat(
         ),
         (With<Aerialist>, Without<Corpse>),
     >,
-    targets: Query<
-        (
-            Entity,
-            &Transform,
-            &Team,
-        ),
-        (Without<Corpse>, Without<Flying>),
-    >,
+    targets: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<Flying>)>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
@@ -207,11 +195,30 @@ pub fn aerialist_movement(
         targeting_velocity,
         flow_field_velocity,
         (rooted, haste_modifier, slow_modifier),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
+        (
+            sleeping,
+            sleepwalking,
+            banished,
+            polymorphed,
+            sickened,
+            frozen,
+            stunned,
+            team,
+            has_staging,
+            has_wave_group,
+        ),
     ) in &mut aerialist_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -227,7 +234,8 @@ pub fn aerialist_movement(
         }
 
         // Calculate desired direction from flow field + targeting blend
-        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
         let desired_dir = if is_staging {
             // While staging, follow the flow field directly
             flow_field_velocity.velocity
@@ -242,14 +250,13 @@ pub fn aerialist_movement(
                 0.2
             };
             let target_weight = 1.0 - flow_weight;
-            let blended = flow_field_velocity.velocity * flow_weight
-                + targeting_velocity.velocity * target_weight;
-            blended
+            flow_field_velocity.velocity * flow_weight + targeting_velocity.velocity * target_weight
         };
 
         // Calculate target speed with modifiers
         let eff_mult = effectiveness.multiplier().max(0.3);
-        let mut speed = movement_speed.0 * eff_mult * crate::game::constants::GLOBAL_SPEED_MULTIPLIER;
+        let mut speed =
+            movement_speed.0 * eff_mult * crate::game::constants::GLOBAL_SPEED_MULTIPLIER;
         if let Some(slow) = slow_modifier {
             speed *= slow.modifier;
         }

@@ -1,13 +1,13 @@
 //! Wizard archetype systems (RuneCaster, Randomancer, Arcanorouter, Gunslinger, Battlemage, Meteorologist, and Shepherd).
 
-pub mod arcanorouter;
-pub mod battlemage;
-pub mod gunslinger;
-pub mod meteorologist;
+pub(crate) mod arcanorouter;
+pub(crate) mod battlemage;
+pub(crate) mod gunslinger;
+pub(crate) mod meteorologist;
+pub(crate) mod psychopath;
 pub(crate) mod roulette;
 pub(crate) mod runes;
-pub mod psychopath;
-pub mod shepherd;
+pub(crate) mod shepherd;
 
 use bevy::prelude::*;
 

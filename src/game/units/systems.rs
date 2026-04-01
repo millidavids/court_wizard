@@ -3,33 +3,34 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    ANIMATION_MOVE_THRESHOLD_SQ, CombatAnimation, CORPSE_MATERIAL_VARIANTS,
+    ANIMATION_MOVE_THRESHOLD_SQ, CORPSE_MATERIAL_VARIANTS, CombatAnimation,
     DIRECTION_HYSTERESIS_FACTOR, DyingAnimation, FacingDirection, SIGN_HYSTERESIS_THRESHOLD,
     SPRITE_FRAME_SIZE, SPRITE_SHEET_IMAGE_HEIGHT, WalkingAnimation,
 };
 use super::components::{
-    Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FireDoT, FlockingVelocity,
-    FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled, OriginalMaterial,
-    PendingDamageEffect, PoisonedModifier, RemoteElectricEffect, RemoteFireEffect,
-    RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier, SmellyModifier,
-    Stunned, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier, apply_damage_to_unit,
-    FALL_DAMAGE_SCALE,
+    Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE, FireDoT,
+    FlockingVelocity, FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled,
+    OriginalMaterial, PendingDamageEffect, PoisonedModifier, RemoteElectricEffect,
+    RemoteFireEffect, RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier,
+    SmellyModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
+    apply_damage_to_unit,
 };
 use super::constants::{
-    ELECTRIC_ARC_COLOR, ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS,
-    ELECTRIC_ARC_RANGE, ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
-    ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, FIRE_EFFECT_COLOR,
-    FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_PULSE_SPEED,
-    FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK, WET_EFFECT_COLOR, WET_EFFECT_INTENSITY,
-    MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY, POISON_DURATION, POISON_EFFECT_COLOR,
-    POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
-    BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELITE_EFFECT_COLOR,
+    BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELECTRIC_ARC_COLOR,
+    ELECTRIC_ARC_DAMAGE, ELECTRIC_ARC_LIFETIME, ELECTRIC_ARC_MAX_TARGETS, ELECTRIC_ARC_RANGE,
+    ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
+    ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, ELITE_EFFECT_COLOR,
     ELITE_EFFECT_MAX_INTENSITY, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_PULSE_SPEED,
-    SHIELD_EFFECT_COLOR, SHIELD_EFFECT_MAX_INTENSITY, SHIELD_EFFECT_MIN_INTENSITY,
-    SHIELD_EFFECT_PULSE_SPEED, UNIT_TYPE_GLOW_MAX_INTENSITY, UNIT_TYPE_GLOW_MIN_INTENSITY,
-    UNIT_TYPE_GLOW_PULSE_SPEED,
-    SICKENED_DURATION, SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD,
-    SMELLY_DURATION, SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY,
+    FIRE_EFFECT_COLOR, FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY,
+    FIRE_EFFECT_PULSE_SPEED, FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION,
+    FROST_SLOW_PER_STACK, MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
+    POISON_DURATION, POISON_EFFECT_COLOR, POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP,
+    POISON_EFFECTIVENESS_PER_STACK, SHIELD_EFFECT_COLOR, SHIELD_EFFECT_MAX_INTENSITY,
+    SHIELD_EFFECT_MIN_INTENSITY, SHIELD_EFFECT_PULSE_SPEED, SICKENED_DURATION,
+    SICKENED_EFFECT_COLOR, SICKENED_EFFECT_INTENSITY, SICKENED_THRESHOLD, SMELLY_DURATION,
+    SMELLY_EFFECT_COLOR, SMELLY_EFFECT_INTENSITY, UNIT_TYPE_GLOW_MAX_INTENSITY,
+    UNIT_TYPE_GLOW_MIN_INTENSITY, UNIT_TYPE_GLOW_PULSE_SPEED, WET_EFFECT_COLOR,
+    WET_EFFECT_INTENSITY,
 };
 use super::damage::DamageType;
 use super::king::components::SpellShield;
@@ -42,7 +43,6 @@ use crate::game::constants::{
 };
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::units::components::BerserkerRageModifier;
-use crate::game::units::wizard::spells::mind_control::components::MassHysteriaTarget;
 use crate::game::units::wizard::archetypes::meteorologist::components::{
     BurningPatch, ChargedModifier, ColdModifier, DryModifier, WetModifier,
 };
@@ -52,6 +52,7 @@ use crate::game::units::wizard::archetypes::meteorologist::constants::{
     COLD_FROST_SLOW_MULTIPLIER, DRY_BURNING_PATCH_COUNT, DRY_BURNING_PATCH_SCATTER,
     WET_FIRE_DOT_MULTIPLIER,
 };
+use crate::game::units::wizard::spells::mind_control::components::MassHysteriaTarget;
 
 /// Returns true if the unit is immobilized by any crowd control effect.
 /// Centralizes CC checks so new CC types only need updating here.
@@ -274,8 +275,10 @@ pub fn calculate_weighted_movement(
     // Without this, the fixed STEERING_FORCE creates an equilibrium speed (due to damping)
     // that caps all units at the same effective speed regardless of movement_speed.
     let speed_scale = max_speed / (200.0 * GLOBAL_SPEED_MULTIPLIER);
-    let steering =
-        velocity_change_needed.normalize_or_zero() * STEERING_FORCE * speed_multiplier * speed_scale;
+    let steering = velocity_change_needed.normalize_or_zero()
+        * STEERING_FORCE
+        * speed_multiplier
+        * speed_scale;
     let steering_magnitude = steering.length();
     let max_steering = velocity_change_needed.length() / time.delta_secs();
 
@@ -372,15 +375,14 @@ pub fn process_pending_damage_effects(
                     let impact_pos = transform.translation;
                     let patch_mesh = burning_patch_mesh
                         .get_or_insert_with(|| meshes.add(Circle::new(BURNING_PATCH_RADIUS)));
-                    let patch_material =
-                        burning_patch_material.get_or_insert_with(|| {
-                            materials.add(StandardMaterial {
-                                base_color: BURNING_PATCH_COLOR,
-                                unlit: true,
-                                alpha_mode: AlphaMode::Blend,
-                                ..default()
-                            })
-                        });
+                    let patch_material = burning_patch_material.get_or_insert_with(|| {
+                        materials.add(StandardMaterial {
+                            base_color: BURNING_PATCH_COLOR,
+                            unlit: true,
+                            alpha_mode: AlphaMode::Blend,
+                            ..default()
+                        })
+                    });
                     for _ in 0..DRY_BURNING_PATCH_COUNT {
                         let offset_x =
                             rng.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
@@ -395,16 +397,13 @@ pub fn process_pending_damage_effects(
                             BurningPatch {
                                 lifetime: BURNING_PATCH_LIFETIME,
                                 radius: BURNING_PATCH_RADIUS,
-                                damage_per_tick: BURNING_PATCH_DPS
-                                    * BURNING_PATCH_TICK_INTERVAL,
+                                damage_per_tick: BURNING_PATCH_DPS * BURNING_PATCH_TICK_INTERVAL,
                                 tick_timer: BURNING_PATCH_TICK_INTERVAL,
                             },
                             Mesh3d(patch_mesh.clone()),
                             MeshMaterial3d(patch_material.clone()),
                             Transform::from_translation(patch_pos)
-                                .with_rotation(Quat::from_rotation_x(
-                                    -std::f32::consts::FRAC_PI_2,
-                                )),
+                                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
                             OnGameplayScreen,
                         ));
                     }
@@ -507,7 +506,11 @@ pub fn update_fire_dot(
             } else {
                 damage
             };
-            apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), effective_damage);
+            apply_damage_to_unit(
+                &mut health,
+                temp_hp.map(|t| t.into_inner()),
+                effective_damage,
+            );
         }
 
         if expired {
@@ -533,9 +536,25 @@ pub fn update_electric_charge(
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut charge_query: Query<(Entity, &mut ElectricCharge, &Transform, &Team, Has<ChargedModifier>), Without<Corpse>>,
+    mut charge_query: Query<
+        (
+            Entity,
+            &mut ElectricCharge,
+            &Transform,
+            &Team,
+            Has<ChargedModifier>,
+        ),
+        Without<Corpse>,
+    >,
     target_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<WetModifier>), Without<Corpse>>,
+    mut health_query: Query<
+        (
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<WetModifier>,
+        ),
+        Without<Corpse>,
+    >,
 ) {
     let delta = time.delta_secs();
     let mut rng = rand::thread_rng();
@@ -619,7 +638,8 @@ pub fn update_electric_charge(
         // Wet units take extra electric arc damage.
         if let Ok((mut health, mut temp_hp, is_wet)) = health_query.get_mut(target_entity) {
             let damage = if is_wet {
-                ELECTRIC_ARC_DAMAGE * crate::game::terrain::pond::constants::WET_ELECTRIC_DAMAGE_MULTIPLIER
+                ELECTRIC_ARC_DAMAGE
+                    * crate::game::terrain::pond::constants::WET_ELECTRIC_DAMAGE_MULTIPLIER
             } else {
                 ELECTRIC_ARC_DAMAGE
             };
@@ -829,7 +849,16 @@ pub fn update_persistent_effect_visuals(
         has_mind_control,
         has_mass_hysteria,
         original_mat,
-        (has_poisoned, has_sickened, has_smelly, has_rage, has_shield_glow, has_elite, unit_type_glow, has_wet),
+        (
+            has_poisoned,
+            has_sickened,
+            has_smelly,
+            has_rage,
+            has_shield_glow,
+            has_elite,
+            unit_type_glow,
+            has_wet,
+        ),
     ) in &query
     {
         let has_fire = fire.is_some() || remote_fire;
@@ -877,8 +906,12 @@ pub fn update_persistent_effect_visuals(
 
             if has_fire {
                 blend_pulsing_effect(
-                    &mut result_linear, &fire_linear, elapsed,
-                    FIRE_EFFECT_PULSE_SPEED, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_MAX_INTENSITY,
+                    &mut result_linear,
+                    &fire_linear,
+                    elapsed,
+                    FIRE_EFFECT_PULSE_SPEED,
+                    FIRE_EFFECT_MIN_INTENSITY,
+                    FIRE_EFFECT_MAX_INTENSITY,
                 );
             }
 
@@ -892,8 +925,12 @@ pub fn update_persistent_effect_visuals(
 
             if has_electric {
                 blend_pulsing_effect(
-                    &mut result_linear, &electric_linear, elapsed,
-                    ELECTRIC_EFFECT_FLICKER_SPEED, ELECTRIC_EFFECT_MIN_INTENSITY, ELECTRIC_EFFECT_MAX_INTENSITY,
+                    &mut result_linear,
+                    &electric_linear,
+                    elapsed,
+                    ELECTRIC_EFFECT_FLICKER_SPEED,
+                    ELECTRIC_EFFECT_MIN_INTENSITY,
+                    ELECTRIC_EFFECT_MAX_INTENSITY,
                 );
             }
 
@@ -914,29 +951,40 @@ pub fn update_persistent_effect_visuals(
             }
 
             if has_rage {
-                result_linear =
-                    result_linear.mix(&rage_linear, BERSERKER_RAGE_EFFECT_INTENSITY);
+                result_linear = result_linear.mix(&rage_linear, BERSERKER_RAGE_EFFECT_INTENSITY);
             }
 
             if has_shield_glow {
                 blend_pulsing_effect(
-                    &mut result_linear, &shield_linear, elapsed,
-                    SHIELD_EFFECT_PULSE_SPEED, SHIELD_EFFECT_MIN_INTENSITY, SHIELD_EFFECT_MAX_INTENSITY,
+                    &mut result_linear,
+                    &shield_linear,
+                    elapsed,
+                    SHIELD_EFFECT_PULSE_SPEED,
+                    SHIELD_EFFECT_MIN_INTENSITY,
+                    SHIELD_EFFECT_MAX_INTENSITY,
                 );
             }
 
             if has_elite {
                 blend_pulsing_effect(
-                    &mut result_linear, &elite_linear, elapsed,
-                    ELITE_EFFECT_PULSE_SPEED, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_MAX_INTENSITY,
+                    &mut result_linear,
+                    &elite_linear,
+                    elapsed,
+                    ELITE_EFFECT_PULSE_SPEED,
+                    ELITE_EFFECT_MIN_INTENSITY,
+                    ELITE_EFFECT_MAX_INTENSITY,
                 );
             }
 
             if let Some(glow) = unit_type_glow {
                 let glow_linear = glow.color.to_linear();
                 blend_pulsing_effect(
-                    &mut result_linear, &glow_linear, elapsed,
-                    UNIT_TYPE_GLOW_PULSE_SPEED, UNIT_TYPE_GLOW_MIN_INTENSITY, UNIT_TYPE_GLOW_MAX_INTENSITY,
+                    &mut result_linear,
+                    &glow_linear,
+                    elapsed,
+                    UNIT_TYPE_GLOW_PULSE_SPEED,
+                    UNIT_TYPE_GLOW_MIN_INTENSITY,
+                    UNIT_TYPE_GLOW_MAX_INTENSITY,
                 );
             }
 
@@ -974,7 +1022,8 @@ pub fn create_corpse_sprite_materials(
         let col = frame % anim.columns;
         let row = frame / anim.columns;
         let uv_offset = Vec2::new(col as f32 * anim.frame_uv.x, row as f32 * anim.frame_uv.y);
-        let handle = create_sprite_material(materials, texture.clone(), tint, anim.frame_uv, uv_offset);
+        let handle =
+            create_sprite_material(materials, texture.clone(), tint, anim.frame_uv, uv_offset);
         // Corpses use semi-transparent alpha, so override to Blend
         if let Some(mat) = materials.get_mut(&handle) {
             mat.alpha_mode = AlphaMode::Blend;
@@ -1037,7 +1086,9 @@ pub fn corpse_material_for_team(
 
 /// Returns the sprite tint color for a given team (infantry/generic).
 pub fn sprite_tint_for_team(team: Team) -> Color {
-    use super::infantry::styles::{ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT};
+    use super::infantry::constants::{
+        ATTACKER_SPRITE_TINT, DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT,
+    };
     match team {
         Team::Defenders => DEFENDER_SPRITE_TINT,
         Team::Attackers => ATTACKER_SPRITE_TINT,
@@ -1047,8 +1098,8 @@ pub fn sprite_tint_for_team(team: Team) -> Color {
 
 /// Returns the sprite tint color for archers (lighter attacker tint).
 pub fn archer_sprite_tint_for_team(team: Team) -> Color {
-    use super::archer::styles::ATTACKER_SPRITE_TINT as ARCHER_ATTACKER_TINT;
-    use super::infantry::styles::{DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT};
+    use super::archer::constants::ATTACKER_SPRITE_TINT as ARCHER_ATTACKER_TINT;
+    use super::infantry::constants::{DEFENDER_SPRITE_TINT, UNDEAD_SPRITE_TINT};
     match team {
         Team::Defenders => DEFENDER_SPRITE_TINT,
         Team::Attackers => ARCHER_ATTACKER_TINT,
@@ -1081,7 +1132,7 @@ pub fn resurrect_corpse_as_infantry(
         TargetingVelocity, Teleportable,
     };
     use super::infantry::components::Infantry;
-    use super::infantry::styles::UNIT_RADIUS;
+    use super::infantry::constants::UNIT_RADIUS;
 
     let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + 1.0;
@@ -1148,7 +1199,11 @@ pub fn update_walking_animation(
             &Velocity,
             &FacingDirection,
         ),
-        (Without<Corpse>, Without<CombatAnimation>, Without<DyingAnimation>),
+        (
+            Without<Corpse>,
+            Without<CombatAnimation>,
+            Without<DyingAnimation>,
+        ),
     >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -1227,11 +1282,14 @@ pub fn update_combat_animation(
 pub fn update_dying_animation(
     time: Res<Time>,
     mut commands: Commands,
-    mut anim_query: Query<(
-        Entity,
-        &mut DyingAnimation,
-        &MeshMaterial3d<StandardMaterial>,
-    ), Without<super::components::DeathAnimationFinished>>,
+    mut anim_query: Query<
+        (
+            Entity,
+            &mut DyingAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+        ),
+        Without<super::components::DeathAnimationFinished>,
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let delta = time.delta_secs();
@@ -1252,7 +1310,9 @@ pub fn update_dying_animation(
         if anim.tick(delta) {
             mat.uv_transform = anim.uv_transform();
             if anim.finished() {
-                commands.entity(entity).insert(super::components::DeathAnimationFinished);
+                commands
+                    .entity(entity)
+                    .insert(super::components::DeathAnimationFinished);
             }
         }
     }
@@ -1262,19 +1322,24 @@ pub fn update_dying_animation(
 /// Lays the corpse flat, applies corpse tint, and adds rough terrain.
 pub fn finalize_dying_to_corpse(
     mut commands: Commands,
-    query: Query<(
-        Entity,
-        &DyingAnimation,
-        &Transform,
-        &Team,
-        &MeshMaterial3d<StandardMaterial>,
-    ), With<super::components::DeathAnimationFinished>>,
+    query: Query<
+        (
+            Entity,
+            &DyingAnimation,
+            &Transform,
+            &Team,
+            &MeshMaterial3d<StandardMaterial>,
+        ),
+        With<super::components::DeathAnimationFinished>,
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (entity, anim, transform, team, material_handle) in &query {
         // Apply corpse tint and switch to Blend for semi-transparent rendering
         if let Some(mat) = materials.get_mut(material_handle) {
-            use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
+            use crate::game::constants::{
+                ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
+            };
             mat.base_color = match *team {
                 Team::Defenders => DEFENDER_CORPSE_COLOR,
                 Team::Attackers => ATTACKER_CORPSE_COLOR,
@@ -1413,9 +1478,15 @@ pub fn update_facing_direction(
         let current_is_forward_back =
             matches!(*facing, FacingDirection::Forward | FacingDirection::Back);
         let (eff_fwd, eff_right) = if current_is_forward_back {
-            (forward_dot.abs() * DIRECTION_HYSTERESIS_FACTOR, right_dot.abs())
+            (
+                forward_dot.abs() * DIRECTION_HYSTERESIS_FACTOR,
+                right_dot.abs(),
+            )
         } else {
-            (forward_dot.abs(), right_dot.abs() * DIRECTION_HYSTERESIS_FACTOR)
+            (
+                forward_dot.abs(),
+                right_dot.abs() * DIRECTION_HYSTERESIS_FACTOR,
+            )
         };
 
         // Pick direction within the winning axis, with sign hysteresis:
@@ -1458,7 +1529,14 @@ pub fn find_closest_enemy_in_range(
     origin: Vec3,
     team: &Team,
     range: f32,
-    targets: &Query<(&Transform, &Team), (Without<Corpse>, Without<super::components::BanishedModifier>, Without<crate::game::pathfinding::StagingAttacker>)>,
+    targets: &Query<
+        (&Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<super::components::BanishedModifier>,
+            Without<crate::game::pathfinding::StagingAttacker>,
+        ),
+    >,
 ) -> Option<Vec3> {
     let mut best: Option<(Vec3, f32)> = None;
     for (target_transform, target_team) in targets.iter() {
@@ -1471,7 +1549,7 @@ pub fn find_closest_enemy_in_range(
         if distance > range {
             continue;
         }
-        if best.map_or(true, |(_, d)| distance < d) {
+        if best.is_none_or(|(_, d)| distance < d) {
             best = Some((target_transform.translation, distance));
         }
     }

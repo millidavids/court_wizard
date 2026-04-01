@@ -9,7 +9,6 @@ pub struct PlagueWindIndicator {
     pub arrow_entity: Option<Entity>,
 }
 
-
 /// Pre-computed talent parameters for a plague wind cloud.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PlagueWindTalentParams {
@@ -63,6 +62,7 @@ pub struct PlagueWindCloud {
 }
 
 impl PlagueWindCloud {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         origin: Vec3,
         radius: f32,
@@ -124,4 +124,3 @@ pub(crate) struct ToxicWeaknessDebuff(pub f32);
 /// Prevents spawning multiple children from the same death.
 #[derive(Component)]
 pub(crate) struct PandemicProcessed;
-

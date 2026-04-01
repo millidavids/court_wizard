@@ -7,7 +7,7 @@ use crate::game::units::components::{Effectiveness, Team};
 use crate::state::AppState;
 
 use super::components::{
-    is_endless_mode, is_roguelite_mode, GameMode, RogueliteModifiers, RogueliteRunState,
+    GameMode, RogueliteModifiers, RogueliteRunState, is_endless_mode, is_roguelite_mode,
 };
 
 /// Plugin that manages game mode lifecycle.

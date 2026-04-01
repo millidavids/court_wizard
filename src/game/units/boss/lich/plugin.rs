@@ -13,10 +13,7 @@ impl Plugin for LichPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, resources::preload_lich_assets)
             // Mid-game spawn check runs even before the Lich exists
-            .add_systems(
-                Update,
-                check_lich_spawn.run_if(is_gameplay_running),
-            )
+            .add_systems(Update, check_lich_spawn.run_if(is_gameplay_running))
             .add_systems(
                 Update,
                 (
@@ -39,7 +36,6 @@ impl Plugin for LichPlugin {
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Lich>),
-            )
-            ;
+            );
     }
 }

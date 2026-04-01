@@ -32,10 +32,10 @@ fn calculate_action_bar_font_size(name: &str) -> f32 {
 pub(super) fn clear_blocked_action_bar_spells(mut config: ResMut<GameConfig>) {
     if config.wizard_type == WizardType::Shepherd {
         for slot in &mut config.action_bar_slots {
-            if let Some(spell) = slot {
-                if !spell.is_shepherd_allowed() {
-                    *slot = None;
-                }
+            if let Some(spell) = slot
+                && !spell.is_shepherd_allowed()
+            {
+                *slot = None;
             }
         }
     }

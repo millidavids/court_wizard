@@ -48,3 +48,6 @@ pub const DAMAGE_TYPE: DamageType = DamageType::Fire;
 /// Damage dealt per tick to units in the explosion.
 /// Calculated as TOTAL_DAMAGE / (EXPLOSION_DURATION / DAMAGE_TICK_INTERVAL)
 pub const DAMAGE_PER_TICK: f32 = TOTAL_DAMAGE / (EXPLOSION_DURATION / DAMAGE_TICK_INTERVAL);
+
+/// Radius of the fireball projectile mesh.
+pub const FIREBALL_RADIUS: f32 = 10.0;

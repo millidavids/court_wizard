@@ -2,7 +2,6 @@
 
 use bevy::prelude::*;
 
-
 /// The type of spell the crystal has most recently absorbed.
 /// Used for auto-casting on a timer.
 #[derive(Clone, Copy, PartialEq, Debug)]

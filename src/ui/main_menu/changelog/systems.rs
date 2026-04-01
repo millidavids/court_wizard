@@ -11,14 +11,25 @@ const CHANGELOG_TEXT: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Spawns the changelog screen UI.
 pub(super) fn setup(mut commands: Commands) {
-    let content = spawn_page_container(&mut commands, OnChangelogScreen, false, crate::ui::systems::default_content_node());
+    let content = spawn_page_container(
+        &mut commands,
+        OnChangelogScreen,
+        false,
+        crate::ui::systems::default_content_node(),
+    );
 
     commands.entity(content).with_children(|parent| {
         // Title
-        spawn_title_with_shadow(parent, "Changelog", 48.0, TEXT_COLOR, Node {
-            margin: UiRect::bottom(Val::Px(20.0)),
-            ..default()
-        });
+        spawn_title_with_shadow(
+            parent,
+            "Changelog",
+            48.0,
+            TEXT_COLOR,
+            Node {
+                margin: UiRect::bottom(Val::Px(20.0)),
+                ..default()
+            },
+        );
 
         // Scrollable changelog content
         parent

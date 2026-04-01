@@ -38,10 +38,10 @@ pub(crate) fn cleanup_rift_warp_effects(
     rifts: Query<Entity, With<DimensionalRift>>,
 ) {
     for (entity, warp) in effects.iter() {
-        if let Some(rift_entity) = warp.rift_entity {
-            if rifts.get(rift_entity).is_err() {
-                commands.entity(entity).try_despawn();
-            }
+        if let Some(rift_entity) = warp.rift_entity
+            && rifts.get(rift_entity).is_err()
+        {
+            commands.entity(entity).try_despawn();
         }
     }
 }

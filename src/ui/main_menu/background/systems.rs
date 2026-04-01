@@ -75,10 +75,10 @@ pub(super) fn scroll_parallax(
         }
 
         let new_left = Val::Px(-layer.offset);
-        if let Ok(mut node) = node_query.get_mut(layer.flex_row) {
-            if node.left != new_left {
-                node.left = new_left;
-            }
+        if let Ok(mut node) = node_query.get_mut(layer.flex_row)
+            && node.left != new_left
+        {
+            node.left = new_left;
         }
     }
 }

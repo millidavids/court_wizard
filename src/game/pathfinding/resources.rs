@@ -102,25 +102,6 @@ impl PathfindingGrid {
         }
     }
 
-    /// Converts a world position to grid coordinates.
-    ///
-    /// Returns None if the position is outside the grid bounds.
-    #[allow(dead_code)]
-    pub fn world_to_grid(&self, world_pos: Vec2) -> Option<(usize, usize)> {
-        let grid_x = ((world_pos.x - self.world_min.x) / self.cell_size).floor() as isize;
-        let grid_z = ((world_pos.y - self.world_min.y) / self.cell_size).floor() as isize;
-
-        if grid_x < 0
-            || grid_z < 0
-            || grid_x >= self.grid_width as isize
-            || grid_z >= self.grid_height as isize
-        {
-            return None;
-        }
-
-        Some((grid_x as usize, grid_z as usize))
-    }
-
     /// Converts a rectangular world bounds to a list of grid cells.
     ///
     /// Used for marking obstacles that span multiple cells.
@@ -318,5 +299,4 @@ impl PathfindingGrid {
             })
             .collect()
     }
-
 }

@@ -7,23 +7,28 @@ use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
 use super::components::{
-    DimensionalRift, DisorientingHaste, LingeringGateMarker, RiftCooldown,
-    TeleportCaster, TeleportDestinationCircle, TeleportSourceCircle, TeleportTalentParams,
+    DimensionalRift, DisorientingHaste, LingeringGateMarker, RiftCooldown, TeleportCaster,
+    TeleportDestinationCircle, TeleportSourceCircle, TeleportTalentParams,
 };
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::{BATTLEFIELD_SIZE, DEFENDER_GRID_CENTER_ANGLE, DEFENDER_GRID_GROUND_RANGE, SPELL_ORIGIN, WIZARD_POSITION};
+use crate::game::constants::{
+    BATTLEFIELD_SIZE, DEFENDER_GRID_CENTER_ANGLE, DEFENDER_GRID_GROUND_RANGE, SPELL_ORIGIN,
+    WIZARD_POSITION,
+};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::{MouseLeftReleased, MouseRightPressed};
 use crate::game::units::DamageType;
 use crate::game::units::components::{Airborne, Corpse, Stunned, Team, Teleportable};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position, xz_distance};
+use crate::game::units::wizard::spells::utils::{
+    build_wizard_input, clamp_to_spell_range, xz_distance,
+};
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::resources::NetworkConnection;
 
 /// Computes talent parameters from active talent selections.
@@ -177,14 +182,7 @@ pub fn handle_teleport_casting(
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -313,7 +311,12 @@ pub fn handle_teleport_casting(
 
     // Cleanup circles on completion or first-phase release
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Force,
+            time.elapsed_secs(),
+        );
         // Play sound at source position (where units teleport from)
         if let Some((source_x, source_z, _, _, _)) = cast_result.teleport_params {
             let source_pos = Vec3::new(source_x, 0.0, source_z);
@@ -328,10 +331,10 @@ pub fn handle_teleport_casting(
 
         // Track talent progress
         let teleported_count = cast_result.teleported_entities.len() as u32;
-        if teleported_count > 0 {
-            if let Some(progress) = talent_progress.as_deref_mut() {
-                progress.increment(Spell::Teleport, teleported_count);
-            }
+        if teleported_count > 0
+            && let Some(progress) = talent_progress.as_deref_mut()
+        {
+            progress.increment(Spell::Teleport, teleported_count);
         }
 
         // Apply post-teleport talent effects directly to teleported entities
@@ -375,7 +378,9 @@ pub fn handle_teleport_casting(
         if cast_result.keep_destination {
             // Don't despawn the destination circle — mark as lingering
             if let Some(dest_entity) = caster.destination_circle {
-                commands.entity(dest_entity).insert(LingeringGateMarker::new(LINGERING_GATE_DURATION));
+                commands
+                    .entity(dest_entity)
+                    .insert(LingeringGateMarker::new(LINGERING_GATE_DURATION));
             }
             caster.lingering_gate_active = true;
         } else {
@@ -723,7 +728,8 @@ pub(crate) fn teleport_units_with_radius(
 
     for (entity, transform, _team) in units_query.iter() {
         if xz_distance(transform.translation, source_center) <= radius {
-            let new_position = random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
+            let new_position =
+                random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
             let mut new_transform = *transform;
             new_transform.translation = new_position;
             commands.entity(entity).insert(new_transform);
@@ -804,14 +810,19 @@ fn swap_units(
     // Move source units to destination
     for (entity, original_pos) in &source_units {
         let new_position = random_position_in_circle(&mut rng, dest_center, radius, original_pos.y);
-        commands.entity(*entity).insert(Transform::from_translation(new_position));
+        commands
+            .entity(*entity)
+            .insert(Transform::from_translation(new_position));
         teleported.push(*entity);
     }
 
     // Move destination units to source
     for (entity, original_pos) in &dest_units {
-        let new_position = random_position_in_circle(&mut rng, source_center, radius, original_pos.y);
-        commands.entity(*entity).insert(Transform::from_translation(new_position));
+        let new_position =
+            random_position_in_circle(&mut rng, source_center, radius, original_pos.y);
+        commands
+            .entity(*entity)
+            .insert(Transform::from_translation(new_position));
         teleported.push(*entity);
     }
 
@@ -844,7 +855,8 @@ fn recall_allies(
         }
 
         if xz_distance(transform.translation, source_center) <= radius {
-            let new_position = random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
+            let new_position =
+                random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
             let mut new_transform = *transform;
             new_transform.translation = new_position;
             commands.entity(entity).insert(new_transform);
@@ -881,16 +893,18 @@ fn apply_post_teleport_effects(
 
     // Dimensional Rift: spawn persistent two-way portal
     if talent_params.dimensional_rift {
-        let rift_entity = commands.spawn((
-            DimensionalRift {
-                source_pos,
-                dest_pos,
-                walk_radius: DIMENSIONAL_RIFT_WALK_RADIUS,
-                time_remaining: DIMENSIONAL_RIFT_DURATION,
-                two_way: talent_params.swap_mode,
-            },
-            OnGameplayScreen,
-        )).id();
+        let rift_entity = commands
+            .spawn((
+                DimensionalRift {
+                    source_pos,
+                    dest_pos,
+                    walk_radius: DIMENSIONAL_RIFT_WALK_RADIUS,
+                    time_remaining: DIMENSIONAL_RIFT_DURATION,
+                    two_way: talent_params.swap_mode,
+                },
+                OnGameplayScreen,
+            ))
+            .id();
         return Some(rift_entity);
     }
 
@@ -928,24 +942,16 @@ pub fn tick_dimensional_rift(
 
             if xz_distance(pos, rift.source_pos) <= rift.walk_radius {
                 // Near source portal → teleport to destination
-                let new_pos = random_position_in_circle(
-                    &mut rng,
-                    rift.dest_pos,
-                    rift.walk_radius,
-                    pos.y,
-                );
+                let new_pos =
+                    random_position_in_circle(&mut rng, rift.dest_pos, rift.walk_radius, pos.y);
                 transform.translation = new_pos;
                 commands.entity(unit_entity).insert(RiftCooldown {
                     time_remaining: DIMENSIONAL_RIFT_UNIT_COOLDOWN,
                 });
             } else if rift.two_way && xz_distance(pos, rift.dest_pos) <= rift.walk_radius {
                 // Near destination portal → teleport to source (only with Swap talent)
-                let new_pos = random_position_in_circle(
-                    &mut rng,
-                    rift.source_pos,
-                    rift.walk_radius,
-                    pos.y,
-                );
+                let new_pos =
+                    random_position_in_circle(&mut rng, rift.source_pos, rift.walk_radius, pos.y);
                 transform.translation = new_pos;
                 commands.entity(unit_entity).insert(RiftCooldown {
                     time_remaining: DIMENSIONAL_RIFT_UNIT_COOLDOWN,
@@ -970,12 +976,12 @@ pub fn tick_lingering_gate(
             commands.entity(gate_entity).try_despawn();
 
             // Reset caster state when gate expires
-            if let Ok(mut caster) = caster_query.single_mut() {
-                if caster.destination_circle == Some(gate_entity) {
-                    caster.destination_circle = None;
-                    caster.destination_position = None;
-                    caster.lingering_gate_active = false;
-                }
+            if let Ok(mut caster) = caster_query.single_mut()
+                && caster.destination_circle == Some(gate_entity)
+            {
+                caster.destination_circle = None;
+                caster.destination_position = None;
+                caster.lingering_gate_active = false;
             }
         }
     }
@@ -1019,8 +1025,10 @@ fn random_position_in_circle(rng: &mut impl Rng, center: Vec3, radius: f32, y: f
     let angle = rng.gen_range(0.0..std::f32::consts::TAU);
     let random_radius = rng.gen_range(0.0..radius);
 
-    let new_x = (center.x + angle.cos() * random_radius).clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
-    let new_z = (center.z + angle.sin() * random_radius).clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
+    let new_x = (center.x + angle.cos() * random_radius)
+        .clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
+    let new_z = (center.z + angle.sin() * random_radius)
+        .clamp(-BATTLEFIELD_SIZE / 2.0, BATTLEFIELD_SIZE / 2.0);
 
     Vec3::new(new_x, y, new_z)
 }

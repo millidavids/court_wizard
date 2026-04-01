@@ -58,8 +58,7 @@ pub fn check_projectile_collisions(
         // Check rock collision
         let mut hit_rock = false;
         for rock in &rocks {
-            if rock.blocks_projectile(proj_transform.translation)
-            {
+            if rock.blocks_projectile(proj_transform.translation) {
                 commands.entity(projectile_entity).try_despawn();
                 hit_rock = true;
                 break;

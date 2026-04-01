@@ -83,7 +83,13 @@ pub(in crate::game) fn apply_elite_upgrade(
         EliteAttackSpeedBonus(ELITE_ATTACK_SPEED_BONUS),
     ));
 
-    apply_size_scaling(commands, entity, current_transform, current_hitbox, ELITE_SIZE_MULTIPLIER);
+    apply_size_scaling(
+        commands,
+        entity,
+        current_transform,
+        current_hitbox,
+        ELITE_SIZE_MULTIPLIER,
+    );
 }
 
 /// Applies commander upgrade to a unit entity.
@@ -112,7 +118,13 @@ pub(in crate::game) fn apply_commander_upgrade(
         },
     ));
 
-    apply_size_scaling(commands, entity, current_transform, current_hitbox, COMMANDER_SIZE_MULTIPLIER);
+    apply_size_scaling(
+        commands,
+        entity,
+        current_transform,
+        current_hitbox,
+        COMMANDER_SIZE_MULTIPLIER,
+    );
 
     // Spawn visual aura ring on ground
     spawn_aura_ring(commands, entity, current_transform, materials, meshes);

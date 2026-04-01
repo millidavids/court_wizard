@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
-use crate::ui::systems::scale_font_by_text_width;
 use crate::game::input::messages::MouseClicked;
 use crate::game::units::wizard::archetypes::meteorologist::constants::{
     BLIZZARD_COLOR, DROUGHT_COLOR, STORM_COLOR,
@@ -12,6 +11,7 @@ use crate::game::units::wizard::archetypes::meteorologist::messages::WeatherChan
 use crate::game::units::wizard::archetypes::meteorologist::resources::{WeatherState, WeatherType};
 use crate::game::units::wizard::archetypes::meteorologist::systems::try_switch_weather;
 use crate::game::units::wizard::components::Mana;
+use crate::ui::systems::scale_font_by_text_width;
 
 /// Returns the theme color for a weather type.
 fn weather_color(weather: &WeatherType) -> Color {
@@ -126,13 +126,8 @@ fn spawn_weather_button(parent: &mut ChildSpawnerCommands, weather: WeatherType)
 
             // Weather name (shrink font for long names)
             let name = weather.display_name();
-            let font_size = scale_font_by_text_width(
-                name.len() as f32,
-                7.0,
-                12.0,
-                0.65,
-                LABEL_FONT_SIZE,
-            );
+            let font_size =
+                scale_font_by_text_width(name.len() as f32, 7.0, 12.0, 0.65, LABEL_FONT_SIZE);
             btn.spawn((
                 Text::new(name),
                 TextFont::from_font_size(font_size),

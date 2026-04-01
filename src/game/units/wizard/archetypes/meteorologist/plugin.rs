@@ -57,10 +57,7 @@ impl Plugin for MeteorologistPlugin {
             // Burning patch systems
             .add_systems(
                 Update,
-                (
-                    update_burning_patches,
-                    update_burning_patch_visuals,
-                )
+                (update_burning_patches, update_burning_patch_visuals)
                     .run_if(is_gameplay_running)
                     .run_if(any_exist::<BurningPatch>()),
             )

@@ -1,25 +1,24 @@
-use bevy::prelude::*;
+use super::components::SwordArcMaterial;
 use super::components::*;
 use super::constants::*;
 use super::messages::*;
-use super::components::SwordArcMaterial;
 use super::resources::{BattlemageAssets, BattlemagePhase, BattlemageState};
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::WIZARD_POSITION;
+use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::units::components::{
     AttackTiming, Corpse, Effectiveness, FacingDirection, Health, Hitbox, MovementSpeed, Team,
-    TemporaryHitPoints, WalkingAnimation,
-    apply_spell_damage,
+    TemporaryHitPoints, WalkingAnimation, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::systems::create_default_sprite_material;
-use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::units::wizard::components::{Mana, Wizard};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use bevy::prelude::*;
 
 /// Initialize or reset the battlemage state resource and cached assets.
 pub(super) fn reset_battlemage_state(
@@ -289,8 +288,7 @@ pub(super) fn sword_swing(
         return;
     }
 
-    let Ok((avatar_entity, avatar_transform, mut velocity, cooldown)) =
-        avatar_query.single_mut()
+    let Ok((avatar_entity, avatar_transform, mut velocity, cooldown)) = avatar_query.single_mut()
     else {
         return;
     };

@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
@@ -9,6 +8,8 @@ use super::components::{
 use super::constants;
 use super::messages::ContagiousRageKillMessage;
 use crate::config::GameConfig;
+use crate::game::components::OnGameplayScreen;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{
@@ -17,14 +18,27 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
-    spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster,
+    handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::game::crt_effect::CorrectedCursorPosition;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::vfx;
-use crate::game::components::OnGameplayScreen;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
+
+type BerserkerCleanupFilter = (
+    Without<BerserkerRageModifier>,
+    Or<(
+        With<Bloodlust>,
+        With<Frenzy>,
+        With<FrenzyActive>,
+        With<UndyingFury>,
+        With<UndyingFuryActive>,
+        With<ContagiousRage>,
+        With<FinalStand>,
+    )>,
+    Without<Corpse>,
+);
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -88,7 +102,12 @@ pub fn handle_berserker_rage_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut targets_query: Query<
-        (Entity, &Transform, &Team, Option<&mut BerserkerRageModifier>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&mut BerserkerRageModifier>,
+        ),
         (Without<Wizard>, Without<Corpse>),
     >,
     sfx: Res<SpellSfxAssets>,
@@ -96,14 +115,7 @@ pub fn handle_berserker_rage_casting(
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -124,14 +136,13 @@ pub fn handle_berserker_rage_casting(
     );
 
     // Handle release -- clean up indicator and SpellCaster
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -156,21 +167,12 @@ pub fn handle_berserker_rage_casting(
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = clamped_cursor
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = clamped_cursor {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
         }
     }
 
@@ -184,7 +186,12 @@ pub fn handle_berserker_rage_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Transmutation, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Transmutation,
+            time.elapsed_secs(),
+        );
         // Apply buff using indicator position
         if let Ok(caster) = caster_query.get(wizard_entity)
             && let Some(indicator_entity) = caster.indicator_entity
@@ -207,10 +214,10 @@ pub fn handle_berserker_rage_casting(
                     &sfx,
                 );
                 // Track talent progress
-                if buffed_count > 0 {
-                    if let Some(ref mut progress) = talent_progress {
-                        progress.increment(Spell::BerserkerRage, buffed_count);
-                    }
+                if buffed_count > 0
+                    && let Some(ref mut progress) = talent_progress
+                {
+                    progress.increment(Spell::BerserkerRage, buffed_count);
                 }
             }
             commands.entity(indicator_entity).try_despawn();
@@ -271,7 +278,12 @@ pub(crate) fn apply_berserker_rage_buff(
     empowerment: f32,
     talent_params: &BerserkerRageTalentParams,
     targets: &mut Query<
-        (Entity, &Transform, &Team, Option<&mut BerserkerRageModifier>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&mut BerserkerRageModifier>,
+        ),
         (Without<Wizard>, Without<Corpse>),
     >,
 ) -> u32 {
@@ -299,9 +311,11 @@ pub(crate) fn apply_berserker_rage_buff(
                 buff.damage_vulnerability = vulnerability;
                 buff.refresh(duration);
             } else {
-                commands
-                    .entity(entity)
-                    .insert(BerserkerRageModifier::new(damage_bonus, vulnerability, duration));
+                commands.entity(entity).insert(BerserkerRageModifier::new(
+                    damage_bonus,
+                    vulnerability,
+                    duration,
+                ));
             }
 
             // Tier 2: behavioral components
@@ -410,7 +424,11 @@ pub fn contagious_rage_spread(
     killer_query: Query<(&Transform, &Team, &ContagiousRage), Without<Corpse>>,
     candidates: Query<
         (Entity, &Transform, &Team),
-        (Without<BerserkerRageModifier>, Without<Corpse>, Without<Wizard>),
+        (
+            Without<BerserkerRageModifier>,
+            Without<Corpse>,
+            Without<Wizard>,
+        ),
     >,
 ) {
     for event in kill_events.read() {
@@ -430,13 +448,14 @@ pub fn contagious_rage_spread(
 
         if let Some((target_entity, _, _)) = nearest {
             // Apply rage with reduced effectiveness
-            let effectiveness =
-                1.0 - constants::CONTAGIOUS_RAGE_EFFECTIVENESS_LOSS;
-            commands.entity(target_entity).insert(BerserkerRageModifier::new(
-                rage_params.damage_bonus * effectiveness,
-                rage_params.vulnerability * effectiveness,
-                rage_params.duration * effectiveness,
-            ));
+            let effectiveness = 1.0 - constants::CONTAGIOUS_RAGE_EFFECTIVENESS_LOSS;
+            commands
+                .entity(target_entity)
+                .insert(BerserkerRageModifier::new(
+                    rage_params.damage_bonus * effectiveness,
+                    rage_params.vulnerability * effectiveness,
+                    rage_params.duration * effectiveness,
+                ));
             // Spread the ContagiousRage component so kills by the new unit also spread
             commands.entity(target_entity).insert(ContagiousRage {
                 damage_bonus: rage_params.damage_bonus * effectiveness,
@@ -513,8 +532,19 @@ pub fn final_stand_explosion(
             time_secs,
         );
         vfx::systems::spawn_explosion_smoke(&mut commands, &visual_assets, position, time_secs);
-        vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, position, vfx::constants::EXPLOSION_SHIMMER_COUNT, time_secs);
-        vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, position, time_secs);
+        vfx::systems::spawn_heat_shimmer(
+            &mut commands,
+            &visual_assets,
+            position,
+            vfx::constants::EXPLOSION_SHIMMER_COUNT,
+            time_secs,
+        );
+        vfx::systems::spawn_explosion_dark_smoke(
+            &mut commands,
+            &visual_assets,
+            position,
+            time_secs,
+        );
 
         // One-shot: remove marker so explosion doesn't fire again
         commands.entity(corpse_entity).remove::<FinalStand>();
@@ -543,22 +573,7 @@ pub fn update_final_stand_vfx(
 /// This handles the case where the buff expires naturally.
 pub fn cleanup_berserker_rage_talents(
     mut commands: Commands,
-    query: Query<
-        Entity,
-        (
-            Without<BerserkerRageModifier>,
-            Or<(
-                With<Bloodlust>,
-                With<Frenzy>,
-                With<FrenzyActive>,
-                With<UndyingFury>,
-                With<UndyingFuryActive>,
-                With<ContagiousRage>,
-                With<FinalStand>,
-            )>,
-            Without<Corpse>,
-        ),
-    >,
+    query: Query<Entity, BerserkerCleanupFilter>,
 ) {
     for entity in &query {
         commands

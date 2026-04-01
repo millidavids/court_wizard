@@ -4,8 +4,7 @@ use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEA
 use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
 use crate::game::units::systems::create_corpse_sprite_materials;
 
-use super::constants::{ARROW_LENGTH, ARROW_WIDTH};
-use super::styles::*;
+use super::constants::*;
 
 /// Pre-loaded meshes and materials for archer units.
 #[derive(Resource)]

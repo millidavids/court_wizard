@@ -2,7 +2,6 @@
 
 use bevy::prelude::*;
 
-
 /// Pre-computed talent parameters for a lightning rod instance.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LightningRodTalentParams {
@@ -137,4 +136,3 @@ impl LightningRodArc {
         }
     }
 }
-

@@ -67,62 +67,58 @@ fn spawn_wizard_type_screen(commands: &mut Commands, initial_wizard: WizardType)
     );
 
     commands.entity(content).with_children(|root| {
-            // ── Left panel ──────────────────────────────────────
-            root.spawn(Node {
-                width: Val::Px(LEFT_PANEL_WIDTH),
+        // ── Left panel ──────────────────────────────────────
+        root.spawn(Node {
+            width: Val::Px(LEFT_PANEL_WIDTH),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(MARGIN),
+            ..default()
+        })
+        .with_children(|left| {
+            // Top group: title + detail card
+            left.spawn(Node {
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(MARGIN),
                 ..default()
             })
-            .with_children(|left| {
-                // Top group: title + detail card
-                left.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(MARGIN),
-                    ..default()
-                })
-                .with_children(|top| {
-                    shared::spawn_title_group(
-                        top,
-                        "Choose Your Path",
-                        "Select your wizard archetype",
-                    );
+            .with_children(|top| {
+                shared::spawn_title_group(top, "Choose Your Path", "Select your wizard archetype");
 
-                    // Detail card
-                    spawn_detail_panel(top, initial_wizard, &initial_save);
-                });
-
-                // Bottom: back button
-                spawn_button(
-                    left,
-                    "Back",
-                    WizardSelectButtonAction::Back,
-                    &BACK_BUTTON_STYLE,
-                );
+                // Detail card
+                spawn_detail_panel(top, initial_wizard, &initial_save);
             });
 
-            // ── Right side: grid ────────────────────────────────
-            root.spawn(grid_container_node()).with_children(|grid| {
-                for slot in 0..GRID_SLOTS {
-                    if let Some(wizard_type) = wizard_types.get(slot) {
-                        let type_name = format!("{:?}", wizard_type);
-                        if unlocked_wizard_types.contains(&type_name) {
-                            let is_selected = *wizard_type == initial_wizard;
-                            shared::spawn_wizard_card(
-                                grid,
-                                *wizard_type,
-                                is_selected,
-                                WizardSelectButtonAction::PreviewWizard(*wizard_type),
-                            );
-                        } else {
-                            shared::spawn_locked_wizard_card(grid, *wizard_type);
-                        }
-                    } else {
-                        shared::spawn_locked_card(grid);
-                    }
-                }
-            });
+            // Bottom: back button
+            spawn_button(
+                left,
+                "Back",
+                WizardSelectButtonAction::Back,
+                &BACK_BUTTON_STYLE,
+            );
         });
+
+        // ── Right side: grid ────────────────────────────────
+        root.spawn(grid_container_node()).with_children(|grid| {
+            for slot in 0..GRID_SLOTS {
+                if let Some(wizard_type) = wizard_types.get(slot) {
+                    let type_name = format!("{:?}", wizard_type);
+                    if unlocked_wizard_types.contains(&type_name) {
+                        let is_selected = *wizard_type == initial_wizard;
+                        shared::spawn_wizard_card(
+                            grid,
+                            *wizard_type,
+                            is_selected,
+                            WizardSelectButtonAction::PreviewWizard(*wizard_type),
+                        );
+                    } else {
+                        shared::spawn_locked_wizard_card(grid, *wizard_type);
+                    }
+                } else {
+                    shared::spawn_locked_card(grid);
+                }
+            }
+        });
+    });
 }
 
 /// Spawns the detail panel showing expanded info about the selected wizard.

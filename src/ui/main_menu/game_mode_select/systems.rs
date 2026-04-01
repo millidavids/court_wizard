@@ -5,11 +5,11 @@ use crate::game::game_mode::components::GameMode;
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::components::ButtonColors;
-use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_page_container, spawn_title_with_shadow};
-
-use super::components::{
-    DisabledModeButton, GameModeButtonAction, OnGameModeSelectScreen,
+use crate::ui::systems::{
+    scale_font_by_text_width, spawn_button, spawn_page_container, spawn_title_with_shadow,
 };
+
+use super::components::{DisabledModeButton, GameModeButtonAction, OnGameModeSelectScreen};
 use super::constants::*;
 
 /// Sets up the game mode selection screen UI.
@@ -33,72 +33,73 @@ pub(super) fn setup(mut commands: Commands) {
     );
 
     commands.entity(content).with_children(|parent| {
-            // Title
-            spawn_title_with_shadow(parent, "Choose Your Path", TITLE_FONT_SIZE, TEXT_COLOR, Node {
+        // Title
+        spawn_title_with_shadow(
+            parent,
+            "Choose Your Path",
+            TITLE_FONT_SIZE,
+            TEXT_COLOR,
+            Node {
                 margin: UiRect::bottom(Val::Px(MARGIN)),
                 ..default()
-            });
+            },
+        );
 
-            // 2x2 button grid
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(GRID_GAP),
+        // 2x2 button grid
+        parent
+            .spawn(Node {
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(GRID_GAP),
+                ..default()
+            })
+            .with_children(|grid| {
+                // Top row: Story, Roguelite
+                grid.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(GRID_GAP),
                     ..default()
                 })
-                .with_children(|grid| {
-                    // Top row: Story, Roguelite
-                    grid.spawn(Node {
-                        flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(GRID_GAP),
-                        ..default()
-                    })
-                    .with_children(|row| {
-                        spawn_disabled_button(
-                            row,
-                            "Story",
-                            GameModeButtonAction::Story,
-                            "Coming Soon",
-                        );
-                        spawn_mode_button(
-                            row,
-                            "Roguelite",
-                            GameModeButtonAction::Roguelite,
-                            "Fixed 25-level run",
-                        );
-                    });
-
-                    // Bottom row: Endless, Multiplayer
-                    grid.spawn(Node {
-                        flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(GRID_GAP),
-                        ..default()
-                    })
-                    .with_children(|row| {
-                        spawn_mode_button(
-                            row,
-                            "Endless",
-                            GameModeButtonAction::Endless,
-                            "Infinite scaling",
-                        );
-                        spawn_disabled_button(
-                            row,
-                            "Multiplayer",
-                            GameModeButtonAction::Multiplayer,
-                            "Coming Soon",
-                        );
-                    });
+                .with_children(|row| {
+                    spawn_disabled_button(row, "Story", GameModeButtonAction::Story, "Coming Soon");
+                    spawn_mode_button(
+                        row,
+                        "Roguelite",
+                        GameModeButtonAction::Roguelite,
+                        "Fixed 25-level run",
+                    );
                 });
 
-            // Back button
-            spawn_button(
-                parent,
-                "Back",
-                GameModeButtonAction::Back,
-                &BACK_BUTTON_STYLE,
-            );
-        });
+                // Bottom row: Endless, Multiplayer
+                grid.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(GRID_GAP),
+                    ..default()
+                })
+                .with_children(|row| {
+                    spawn_mode_button(
+                        row,
+                        "Endless",
+                        GameModeButtonAction::Endless,
+                        "Infinite scaling",
+                    );
+                    spawn_disabled_button(
+                        row,
+                        "Multiplayer",
+                        GameModeButtonAction::Multiplayer,
+                        "Coming Soon",
+                    );
+                });
+            });
+
+        // Back button
+        spawn_button(
+            parent,
+            "Back",
+            GameModeButtonAction::Back,
+            &BACK_BUTTON_STYLE,
+        );
+    });
 }
 
 /// Spawns an active mode button with a subtitle description.
@@ -231,4 +232,3 @@ pub(super) fn button_action(
         }
     }
 }
-

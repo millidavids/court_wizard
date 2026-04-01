@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -12,19 +11,22 @@ use crate::config::GameConfig;
 use crate::config::save_data::SavedWall;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{FlowFieldVelocity, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::plugin::GlobalAttackCycle;
-use crate::game::units::components::{AttackTiming, Corpse, Hitbox, SlowMovementModifier, TargetingVelocity, Team};
+use crate::game::units::components::{
+    AttackTiming, Corpse, Hitbox, SlowMovementModifier, TargetingVelocity, Team,
+};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{clamp_to_spell_range, get_cursor_world_position};
+use crate::game::units::wizard::spells::utils::{build_wizard_input, clamp_to_spell_range};
 use crate::game::units::wizard::spells::vfx;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -122,14 +124,7 @@ pub fn handle_wall_of_stone_casting(
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -241,9 +236,18 @@ pub fn handle_wall_of_stone_casting(
     }
 
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Force,
+            time.elapsed_secs(),
+        );
         // Track talent progress (count walls placed, not casts)
-        let walls_placed: u32 = if talent_params.quick_foundations { 2 } else { 1 };
+        let walls_placed: u32 = if talent_params.quick_foundations {
+            2
+        } else {
+            1
+        };
         if let Some(ref mut progress) = talent_progress {
             progress.increment(Spell::WallOfStone, walls_placed);
         }
@@ -288,7 +292,11 @@ fn wall_of_stone_casting_logic(
 
     let mana_cost = MANA_COST * talent_params.mana_mult;
     let max_length = MAX_WALL_LENGTH * talent_params.max_length_mult;
-    let wall_count = if talent_params.quick_foundations { 2u32 } else { 1 };
+    let wall_count = if talent_params.quick_foundations {
+        2u32
+    } else {
+        1
+    };
     let total_mana_cost = mana_cost * wall_count as f32;
 
     // Handle release — place wall or cancel
@@ -597,14 +605,22 @@ pub fn units_attack_blocking_walls(
         (Without<Corpse>, Without<WallOfStone>),
     >,
     king_query: Query<&Transform, With<crate::game::units::king::components::King>>,
-    mut walls: Query<(Entity, &WallOfStone, &mut WallHealth, Option<&WallTalents>, Option<&mut LivingStoneTracker>)>,
+    mut walls: Query<(
+        Entity,
+        &WallOfStone,
+        &mut WallHealth,
+        Option<&WallTalents>,
+        Option<&mut LivingStoneTracker>,
+    )>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - crate::game::constants::APPROX_FRAME_TIME).max(0.0);
 
     let king_pos = king_query.iter().next().map(|t| t.translation);
 
-    for (transform, hitbox, flow_vel, mut targeting_vel, mut attack_timing, mut health, temp_hp) in &mut blocked_units {
+    for (transform, hitbox, flow_vel, mut targeting_vel, mut attack_timing, mut health, temp_hp) in
+        &mut blocked_units
+    {
         // Only target walls if this unit has no valid path
         if !flow_vel.pathfinding_distance.is_infinite() {
             continue;
@@ -636,7 +652,8 @@ pub fn units_attack_blocking_walls(
         if let Some(wall_entity) = nearest_wall_entity
             && nearest_distance <= attack_range
             && attack_timing.can_attack(current_time, last_time)
-            && let Ok((_, _, mut wall_health, wall_talents, living_stone_tracker)) = walls.get_mut(wall_entity)
+            && let Ok((_, _, mut wall_health, wall_talents, living_stone_tracker)) =
+                walls.get_mut(wall_entity)
         {
             wall_health.take_damage(WALL_DAMAGE_PER_HIT);
             attack_timing.record_attack(current_time);
@@ -676,9 +693,7 @@ pub fn handle_dispelled_walls(
 }
 
 /// Destroys walls that have lost all HP by triggering the existing sink + cleanup pipeline.
-pub fn destroy_dead_walls(
-    mut walls: Query<(&mut WallOfStone, &WallHealth)>,
-) {
+pub fn destroy_dead_walls(mut walls: Query<(&mut WallOfStone, &WallHealth)>) {
     for (mut wall, wall_health) in &mut walls {
         if wall_health.is_dead() && !wall.sinking {
             // Enter sinking phase — existing tick_wall_lifetime + cleanup_expired_walls
@@ -739,12 +754,7 @@ pub fn apply_permafrost_aura(
     mut timer: ResMut<PermafrostAuraTimer>,
     walls: Query<(&WallOfStone, &WallTalents), Without<Corpse>>,
     mut enemies: Query<
-        (
-            &Transform,
-            &Team,
-            Option<&mut SlowMovementModifier>,
-            Entity,
-        ),
+        (&Transform, &Team, Option<&mut SlowMovementModifier>, Entity),
         Without<Corpse>,
     >,
     mut commands: Commands,
@@ -775,13 +785,11 @@ pub fn apply_permafrost_aura(
         }
 
         let pos = transform.translation;
-        let in_range = frost_walls
-            .iter()
-            .any(|center| {
-                let dx = pos.x - center.x;
-                let dz = pos.z - center.z;
-                dx * dx + dz * dz <= radius_sq
-            });
+        let in_range = frost_walls.iter().any(|center| {
+            let dx = pos.x - center.x;
+            let dz = pos.z - center.z;
+            dx * dx + dz * dz <= radius_sq
+        });
 
         if in_range {
             if let Some(mut existing) = slow_mod {
@@ -805,8 +813,7 @@ pub fn regenerate_living_stone(
     for (mut health, mut tracker) in &mut walls {
         tracker.time_since_last_damage += delta;
 
-        if tracker.time_since_last_damage >= LIVING_STONE_REGEN_DELAY
-            && health.current < health.max
+        if tracker.time_since_last_damage >= LIVING_STONE_REGEN_DELAY && health.current < health.max
         {
             let regen = health.max * LIVING_STONE_REGEN_FRACTION * delta;
             health.current = (health.current + regen).min(health.max);
@@ -860,9 +867,7 @@ pub fn collapsing_wall_explosion(
 
 /// Maze Architect: when 3+ walls exist, boost all wall max HP.
 /// Runs every frame to adjust wall health as walls are placed or destroyed.
-pub fn maze_architect_bonus(
-    mut walls: Query<(&WallTalents, &mut WallHealth), With<WallOfStone>>,
-) {
+pub fn maze_architect_bonus(mut walls: Query<(&WallTalents, &mut WallHealth), With<WallOfStone>>) {
     // Single pass: count walls and check for maze talent simultaneously
     let mut wall_count = 0usize;
     let mut has_maze = false;

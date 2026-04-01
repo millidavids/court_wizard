@@ -12,13 +12,15 @@ use crate::game::units::archer::Archer;
 use crate::game::units::assassin::Assassin;
 use crate::game::units::assassin::constants as assassin_constants;
 use crate::game::units::components::{Corpse, Team};
-use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::infantry::Infantry;
+use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::King;
 
 use crate::game::components::Acceleration;
 
-use super::components::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, StuckDetection, WaveGroup};
+use super::components::{
+    FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, StuckDetection, WaveGroup,
+};
 use super::messages::{ObstacleChanged, ObstacleType};
 use super::resources::PathfindingGrid;
 
@@ -64,8 +66,12 @@ fn build_staging_field(pathfinding: &mut PathfindingGrid) {
     let world_min = pathfinding.world_min;
     let cell_size = pathfinding.cell_size;
 
-    let goal_x = ((STAGING_POINT.0 - world_min.x) / cell_size).floor().max(0.0) as usize;
-    let goal_z = ((STAGING_POINT.1 - world_min.y) / cell_size).floor().max(0.0) as usize;
+    let goal_x = ((STAGING_POINT.0 - world_min.x) / cell_size)
+        .floor()
+        .max(0.0) as usize;
+    let goal_z = ((STAGING_POINT.1 - world_min.y) / cell_size)
+        .floor()
+        .max(0.0) as usize;
 
     field.generate(goal_x, goal_z, STAGING_SATISFACTION_RADIUS);
     pathfinding.staging_field = Some(field);
@@ -83,8 +89,20 @@ fn register_static_terrain(pathfinding: &mut PathfindingGrid) {
         WATER_POOL_RADIUS, WATER_SLOW_FLOW_COST,
     };
 
-    register_circular_terrain(pathfinding, LAVA_POOL_POSITION, LAVA_AVOIDANCE_RADIUS, LAVA_HAZARD_FLOW_COST, "Lava hazard");
-    register_circular_terrain(pathfinding, WATER_POOL_POSITION, WATER_POOL_RADIUS, WATER_SLOW_FLOW_COST, "Water slow terrain");
+    register_circular_terrain(
+        pathfinding,
+        LAVA_POOL_POSITION,
+        LAVA_AVOIDANCE_RADIUS,
+        LAVA_HAZARD_FLOW_COST,
+        "Lava hazard",
+    );
+    register_circular_terrain(
+        pathfinding,
+        WATER_POOL_POSITION,
+        WATER_POOL_RADIUS,
+        WATER_SLOW_FLOW_COST,
+        "Water slow terrain",
+    );
 }
 
 /// Registers a circular terrain hazard on the pathfinding grid's base costs.
@@ -138,9 +156,18 @@ pub fn continuous_flow_field_rebuild(
 ) {
     // --- Poll and apply completed rebuilds ---
 
-    poll_rebuild!(pathfinding.pending_attacker_rebuild, pathfinding.attacker_field);
-    poll_rebuild!(pathfinding.pending_defender_rebuild, pathfinding.defender_field);
-    poll_rebuild!(pathfinding.pending_assassin_rebuild, pathfinding.assassin_field);
+    poll_rebuild!(
+        pathfinding.pending_attacker_rebuild,
+        pathfinding.attacker_field
+    );
+    poll_rebuild!(
+        pathfinding.pending_defender_rebuild,
+        pathfinding.defender_field
+    );
+    poll_rebuild!(
+        pathfinding.pending_assassin_rebuild,
+        pathfinding.assassin_field
+    );
 
     // --- Spawn new rebuilds for any field not currently in flight ---
 
@@ -151,11 +178,11 @@ pub fn continuous_flow_field_rebuild(
         .map(|(t, _)| Vec2::new(t.translation.x, t.translation.z));
 
     // Attacker field: always rebuild toward King
-    if pathfinding.pending_attacker_rebuild.is_none() {
-        if let Some(pos) = king_pos {
-            pathfinding.last_king_pos = pos;
-            spawn_attacker_field_rebuild(&mut pathfinding, pos);
-        }
+    if pathfinding.pending_attacker_rebuild.is_none()
+        && let Some(pos) = king_pos
+    {
+        pathfinding.last_king_pos = pos;
+        spawn_attacker_field_rebuild(&mut pathfinding, pos);
     }
 
     // Defender field: rebuild toward current target or spawn center
@@ -386,31 +413,30 @@ fn spawn_assassin_field_rebuild(
 
     let task = task_pool.spawn(async move {
         // Mark infantry positions as high-cost terrain with team-specific radii
-        let mark_avoidance = |field: &mut super::flow_field::FlowField,
-                              positions: &[Vec2],
-                              radius: isize| {
-            for pos in positions {
-                let cx = ((pos.x - world_min.x) / cell_size).floor() as isize;
-                let cz = ((pos.y - world_min.y) / cell_size).floor() as isize;
+        let mark_avoidance =
+            |field: &mut super::flow_field::FlowField, positions: &[Vec2], radius: isize| {
+                for pos in positions {
+                    let cx = ((pos.x - world_min.x) / cell_size).floor() as isize;
+                    let cz = ((pos.y - world_min.y) / cell_size).floor() as isize;
 
-                for dz in -radius..=radius {
-                    for dx in -radius..=radius {
-                        let gx = cx + dx;
-                        let gz = cz + dz;
-                        if gx >= 0
-                            && gz >= 0
-                            && (gx as usize) < grid_width
-                            && (gz as usize) < grid_height
-                        {
-                            let idx = gz as usize * grid_width + gx as usize;
-                            if field.costs[idx] < avoidance_cost {
-                                field.costs[idx] = avoidance_cost;
+                    for dz in -radius..=radius {
+                        for dx in -radius..=radius {
+                            let gx = cx + dx;
+                            let gz = cz + dz;
+                            if gx >= 0
+                                && gz >= 0
+                                && (gx as usize) < grid_width
+                                && (gz as usize) < grid_height
+                            {
+                                let idx = gz as usize * grid_width + gx as usize;
+                                if field.costs[idx] < avoidance_cost {
+                                    field.costs[idx] = avoidance_cost;
+                                }
                             }
                         }
                     }
                 }
-            }
-        };
+            };
 
         mark_avoidance(&mut field, &attacker_pos, attacker_radius);
         mark_avoidance(&mut field, &defender_pos, defender_radius);
@@ -425,7 +451,6 @@ fn spawn_assassin_field_rebuild(
 
     pathfinding.pending_assassin_rebuild = Some(task);
 }
-
 
 /// Delay before rebuilding defender field toward spawn when all enemies die (seconds).
 /// Prevents oscillation when enemies die rapidly between waves.
@@ -496,9 +521,7 @@ pub fn sample_flow_fields(
             crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
 
         match influence {
-            FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin
-                if is_staging =>
-            {
+            FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin if is_staging => {
                 // Staging: follow staging field toward the staging point
                 let (vel, dist) =
                     sample_field_or_zero(&pathfinding.staging_field, world_pos, wmin, cs);
@@ -712,14 +735,7 @@ pub fn check_wave_activation(
 pub fn manage_staging_speedup(
     mut time: ResMut<Time<Virtual>>,
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
-    activated_attackers: Query<
-        &Team,
-        (
-            With<WaveGroup>,
-            Without<StagingAttacker>,
-            Without<Corpse>,
-        ),
-    >,
+    activated_attackers: Query<&Team, (With<WaveGroup>, Without<StagingAttacker>, Without<Corpse>)>,
     wave_state: Option<Res<crate::game::resources::WaveState>>,
 ) {
     let has_staging = !staging_query.is_empty();
@@ -730,9 +746,7 @@ pub fn manage_staging_speedup(
         .any(|team| *team == Team::Attackers);
 
     // Check if more waves are still coming
-    let waves_remaining = wave_state
-        .map(|w| !w.waves_complete)
-        .unwrap_or(false);
+    let waves_remaining = wave_state.map(|w| !w.waves_complete).unwrap_or(false);
 
     // Speed up when no activated attackers are on the field and the battle isn't over:
     // - Staging attackers are marching in but none are fighting yet
@@ -760,10 +774,7 @@ pub fn manage_staging_speedup(
 /// the staging flow field. Without this, targeting systems point them at
 /// enemies and the movement weighting lets targeting override the flow field.
 pub fn suppress_staging_targeting(
-    mut query: Query<
-        &mut crate::game::units::components::TargetingVelocity,
-        With<StagingAttacker>,
-    >,
+    mut query: Query<&mut crate::game::units::components::TargetingVelocity, With<StagingAttacker>>,
 ) {
     for mut targeting in &mut query {
         if targeting.velocity != Vec3::ZERO || targeting.distance_to_target != f32::MAX {

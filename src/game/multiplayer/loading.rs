@@ -14,18 +14,18 @@ use crate::game::constants::*;
 use crate::game::loading::resources::LoadingProgress;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
+use crate::game::units::archer::constants::ARCHER_RADIUS;
 use crate::game::units::archer::constants::{
     ARCHER_MAX_RANGE, ARCHER_MIN_RANGE, ARCHER_MOVEMENT_SPEED,
 };
-use crate::game::units::archer::styles::ARCHER_RADIUS;
 use crate::game::units::archer::{Archer, ArcherAssets};
 use crate::game::units::components::{
     AttackTiming, Effectiveness, FacingDirection, FlockingVelocity, Health, Hitbox, MovementSpeed,
     TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::infantry::Infantry;
+use crate::game::units::infantry::constants::UNIT_RADIUS;
 use crate::game::units::infantry::resources::InfantryAssets;
-use crate::game::units::infantry::styles::UNIT_RADIUS;
 use crate::game::units::king::components::KingSpawned;
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::components::*;
@@ -830,7 +830,7 @@ fn spawn_mp_kings_guard(
 ) {
     use crate::game::units::components::KingsGuard;
     use crate::game::units::elite::{EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
-    use crate::game::units::infantry::styles::KINGS_GUARD_SPRITE_TINT;
+    use crate::game::units::infantry::constants::KINGS_GUARD_SPRITE_TINT;
 
     // King's position: same calculation as spawn_mp_king
     let radius = MP_DEFENDER_GRID_GROUND_RANGE + 600.0;

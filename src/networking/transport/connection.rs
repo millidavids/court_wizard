@@ -1,7 +1,7 @@
 //! iroh connection management — endpoint creation, address exchange, and I/O loops.
 
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 
 use crossbeam_channel::{Receiver, Sender};
 use iroh::endpoint::Connection;
@@ -95,13 +95,12 @@ async fn handle_host(
     };
 
     // Wait for relay connectivity (online mode) with a timeout.
-    if use_relay {
-        if tokio::time::timeout(std::time::Duration::from_secs(10), ep.online())
+    if use_relay
+        && tokio::time::timeout(std::time::Duration::from_secs(10), ep.online())
             .await
             .is_err()
-        {
-            warn!("Timed out waiting for relay, proceeding with local addresses only");
-        }
+    {
+        warn!("Timed out waiting for relay, proceeding with local addresses only");
     }
 
     let addr = ep.addr();
@@ -149,7 +148,14 @@ async fn handle_host(
 
     // Host opens the bidirectional stream.
     run_connection_io(
-        conn, &ep, true, command_rx, event_tx, reliable_rx, unreliable_rx, data_notify,
+        conn,
+        &ep,
+        true,
+        command_rx,
+        event_tx,
+        reliable_rx,
+        unreliable_rx,
+        data_notify,
     )
     .await;
 
@@ -202,7 +208,14 @@ async fn handle_guest(
 
     // Guest accepts the bidirectional stream opened by host.
     run_connection_io(
-        conn, &ep, false, command_rx, event_tx, reliable_rx, unreliable_rx, data_notify,
+        conn,
+        &ep,
+        false,
+        command_rx,
+        event_tx,
+        reliable_rx,
+        unreliable_rx,
+        data_notify,
     )
     .await;
 

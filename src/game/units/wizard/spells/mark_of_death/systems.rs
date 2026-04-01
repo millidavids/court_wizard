@@ -18,16 +18,16 @@ use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    Corpse, Health, MarkedForDeathModifier, Team, TargetingVelocity, TemporaryHitPoints,
+    Corpse, Health, MarkedForDeathModifier, TargetingVelocity, Team, TemporaryHitPoints,
     apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::utils::build_wizard_input;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 
 /// Computes the mark indicator pulse scale factor based on elapsed time.
@@ -59,14 +59,8 @@ pub fn handle_mark_of_death_casting(
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let cursor_pos = input.cursor_pos;
 
     let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
@@ -90,7 +84,12 @@ pub fn handle_mark_of_death_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Dark,
+            time.elapsed_secs(),
+        );
         if let Some(pos) = cursor_pos {
             audio::play_sfx(
                 &mut commands,
@@ -140,9 +139,12 @@ fn mark_of_death_casting_logic(
                 if mana.consume(constants::MANA_COST) {
                     if let Some(cursor_pos) = input.cursor_pos {
                         // Read talent selections
-                        let t1 = active_talents.and_then(|t| t.get_selection(Spell::MarkOfDeath, 0));
-                        let t2 = active_talents.and_then(|t| t.get_selection(Spell::MarkOfDeath, 1));
-                        let t3 = active_talents.and_then(|t| t.get_selection(Spell::MarkOfDeath, 2));
+                        let t1 =
+                            active_talents.and_then(|t| t.get_selection(Spell::MarkOfDeath, 0));
+                        let t2 =
+                            active_talents.and_then(|t| t.get_selection(Spell::MarkOfDeath, 1));
+                        let t3 =
+                            active_talents.and_then(|t| t.get_selection(Spell::MarkOfDeath, 2));
 
                         // Tier 1: compute amplification and duration
                         let mut amplification = constants::DAMAGE_AMPLIFICATION;
@@ -274,15 +276,26 @@ pub fn tick_doom_marks(
 pub fn executioner_brand_check(
     mut commands: Commands,
     mut targets: Query<
-        (Entity, &mut Health, Option<&mut TemporaryHitPoints>, &MarkTalentFlags, Has<SpellShield>),
-        (With<MarkedForDeathModifier>, Without<ExecutionerTriggered>, Without<Corpse>),
+        (
+            Entity,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            &MarkTalentFlags,
+            Has<SpellShield>,
+        ),
+        (
+            With<MarkedForDeathModifier>,
+            Without<ExecutionerTriggered>,
+            Without<Corpse>,
+        ),
     >,
 ) {
     for (entity, mut health, mut temp_hp, flags, has_spell_shield) in &mut targets {
         if !flags.executioner_brand {
             continue;
         }
-        if health.current <= health.max * constants::EXECUTIONER_HP_THRESHOLD && health.current > 0.0
+        if health.current <= health.max * constants::EXECUTIONER_HP_THRESHOLD
+            && health.current > 0.0
         {
             apply_spell_damage(
                 &mut commands,
@@ -304,10 +317,7 @@ pub fn executioner_brand_check(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_marked_corpses(
     mut commands: Commands,
-    dead_marked: Query<
-        (Entity, &Health, &MarkTalentFlags, &Transform),
-        With<Corpse>,
-    >,
+    dead_marked: Query<(Entity, &Health, &MarkTalentFlags, &Transform), With<Corpse>>,
     alive_enemies: Query<
         (Entity, &Transform, &Team),
         (Without<Corpse>, Without<MarkedForDeathModifier>),
@@ -318,10 +328,10 @@ pub fn handle_marked_corpses(
 ) {
     for (entity, health, flags, transform) in &dead_marked {
         // Swift Hex: refund mana on death
-        if flags.swift_hex_refund > 0.0 {
-            if let Ok(mut mana) = wizard.single_mut() {
-                mana.current = (mana.current + flags.swift_hex_refund).min(mana.max);
-            }
+        if flags.swift_hex_refund > 0.0
+            && let Ok(mut mana) = wizard.single_mut()
+        {
+            mana.current = (mana.current + flags.swift_hex_refund).min(mana.max);
         }
 
         // Spreading Blight: jump mark to nearest unmarked enemy
@@ -565,4 +575,3 @@ pub fn update_mark_indicators(
         }
     }
 }
-

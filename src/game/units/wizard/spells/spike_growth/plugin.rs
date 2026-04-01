@@ -3,10 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::super::utils::{AnimatedRingParticle, animate_ring_particles};
-use super::components::{
-    SpikeGrowthLingeringPoison, SpikeGrowthZone,
-    SpikeStormProjectile,
-};
+use super::components::{SpikeGrowthLingeringPoison, SpikeGrowthZone, SpikeStormProjectile};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 
@@ -32,18 +29,13 @@ impl Plugin for SpikeGrowthPlugin {
                     .chain()
                     .run_if(any_exist::<SpikeGrowthZone>()),
                 // Lingering poison tick (runs independently of zones)
-                systems::tick_lingering_poison
-                    .run_if(any_exist::<SpikeGrowthLingeringPoison>()),
+                systems::tick_lingering_poison.run_if(any_exist::<SpikeGrowthLingeringPoison>()),
                 // VFX: animated ring particles
-                systems::emit_spike_growth_rings
-                    .run_if(any_exist::<SpikeGrowthZone>()),
-                animate_ring_particles
-                    .run_if(any_exist::<AnimatedRingParticle>()),
+                systems::emit_spike_growth_rings.run_if(any_exist::<SpikeGrowthZone>()),
+                animate_ring_particles.run_if(any_exist::<AnimatedRingParticle>()),
                 // Spike Storm: volley and projectile update
-                systems::spike_storm_volley
-                    .run_if(any_exist::<SpikeGrowthZone>()),
-                systems::update_spike_storm_projectiles
-                    .run_if(any_exist::<SpikeStormProjectile>()),
+                systems::spike_storm_volley.run_if(any_exist::<SpikeGrowthZone>()),
+                systems::update_spike_storm_projectiles.run_if(any_exist::<SpikeStormProjectile>()),
             )
                 .run_if(is_spell_effects_active),
         );

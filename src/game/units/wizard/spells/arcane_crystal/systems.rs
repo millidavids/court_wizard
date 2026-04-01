@@ -8,6 +8,7 @@ use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -35,10 +36,9 @@ use crate::game::units::wizard::spells::meteor_fall::components::MeteorProjectil
 use crate::game::units::wizard::spells::meteor_fall::systems as meteor_fall_systems;
 use crate::game::units::wizard::spells::meteor_fall::systems::MeteorProjectileTalentFlags;
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
-    xz_distance,
+    SpellCircleIndicator, build_wizard_input, clamp_to_spell_range, cleanup_spell_caster,
+    handle_spell_release, spawn_circle_indicator, update_indicator_position, xz_distance,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::{
@@ -212,14 +212,7 @@ pub(super) fn handle_arcane_crystal_casting(
     active_talents: Option<Res<ActiveTalents>>,
     existing_crystals: Query<(Entity, &ArcaneCrystal)>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -236,14 +229,13 @@ pub(super) fn handle_arcane_crystal_casting(
         .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
 
     // Handle release -- clean up indicator and SpellCaster
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -268,21 +260,12 @@ pub(super) fn handle_arcane_crystal_casting(
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = clamped_cursor
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = clamped_cursor {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
         }
     }
 
@@ -290,7 +273,12 @@ pub(super) fn handle_arcane_crystal_casting(
         arcane_crystal_casting_logic(&input, &time, &mut casting_state, &mut mana, primed_spell);
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Arcane,
+            time.elapsed_secs(),
+        );
         let talent_params = compute_talent_params(active_talents.as_deref());
 
         if talent_params.auto_crystal {
@@ -321,10 +309,10 @@ pub(super) fn handle_arcane_crystal_casting(
         } else {
             // Crystal Network: allow up to 3 crystals; despawn oldest if at limit
             let count = existing_crystals.iter().count();
-            if count >= CRYSTAL_NETWORK_MAX_CRYSTALS {
-                if let Some((oldest, _)) = existing_crystals.iter().next() {
-                    commands.entity(oldest).try_despawn();
-                }
+            if count >= CRYSTAL_NETWORK_MAX_CRYSTALS
+                && let Some((oldest, _)) = existing_crystals.iter().next()
+            {
+                commands.entity(oldest).try_despawn();
             }
         }
 
@@ -425,7 +413,8 @@ pub(crate) fn spawn_crystal(
         crystal.duration = f32::MAX;
     }
 
-    let mut entity_commands = spawn_crystal_entity(commands, assets, position, empowerment, crystal);
+    let mut entity_commands =
+        spawn_crystal_entity(commands, assets, position, empowerment, crystal);
 
     if is_turret {
         entity_commands.insert(AutoCrystalTimer { timer: 0.0 });
@@ -457,12 +446,19 @@ pub(crate) fn spawn_permanent_crystal(
     let empowerment = saved.empowerment;
     let collision_radius = CRYSTAL_COLLISION_RADIUS * empowerment;
 
-    let mut crystal = ArcaneCrystal::new(Vec3::ZERO, saved.range, f32::MAX, collision_radius, empowerment);
+    let mut crystal = ArcaneCrystal::new(
+        Vec3::ZERO,
+        saved.range,
+        f32::MAX,
+        collision_radius,
+        empowerment,
+    );
     crystal.permanent = true;
     crystal.damage_mult = damage_mult;
     crystal.count_mult = count_mult;
 
-    let mut entity_commands = spawn_crystal_entity(commands, assets, position, empowerment, crystal);
+    let mut entity_commands =
+        spawn_crystal_entity(commands, assets, position, empowerment, crystal);
     entity_commands.insert(AutoCrystalTimer { timer: 0.0 });
     if resonance_cascade {
         entity_commands.insert(ResonanceCascade { absorptions: 0 });
@@ -774,12 +770,8 @@ pub(super) fn detect_fireball_hits(
 
                 // Emit mini fireballs at random targets
                 let count = scaled_count(MINI_FB_COUNT, crystal.count_mult) * echo_mult;
-                let enemies = find_random_targets_in_range(
-                    crystal.position,
-                    crystal.range,
-                    count,
-                    &targets,
-                );
+                let enemies =
+                    find_random_targets_in_range(crystal.position, crystal.range, count, &targets);
 
                 let mini_radius =
                     fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
@@ -1168,12 +1160,8 @@ pub(super) fn detect_magic_missile_hits(
                 let count = scaled_count(MINI_MISSILE_COUNT, crystal.count_mult) * echo_mult;
 
                 // Emit mini missiles at random enemy targets (not defenders)
-                let targets = find_random_enemies_in_range(
-                    crystal.position,
-                    crystal.range,
-                    count,
-                    &enemies,
-                );
+                let targets =
+                    find_random_enemies_in_range(crystal.position, crystal.range, count, &enemies);
 
                 let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
@@ -1264,12 +1252,8 @@ pub(super) fn detect_chain_lightning_hits(
             let count = scaled_count(LIGHTNING_ARC_COUNT, crystal.count_mult) * echo_mult;
 
             // Emit arcs to random targets
-            let enemies = find_random_targets_in_range(
-                crystal.position,
-                crystal.range,
-                count,
-                &targets,
-            );
+            let enemies =
+                find_random_targets_in_range(crystal.position, crystal.range, count, &targets);
 
             let damage = bolt.current_damage * DAMAGE_SCALE * crystal.damage_mult;
 
@@ -1357,8 +1341,17 @@ pub(super) fn auto_cast_remembered_spell(
         })
         .collect();
 
-    for (entity, position, range, empowerment, remembered, timer, auto_beam, damage_mult, count_mult) in
-        crystal_data.into_iter()
+    for (
+        entity,
+        position,
+        range,
+        empowerment,
+        remembered,
+        timer,
+        auto_beam,
+        damage_mult,
+        count_mult,
+    ) in crystal_data.into_iter()
     {
         let Some(remembered) = remembered else {
             // No remembered spell — clean up any lingering auto-disintegrate beam
@@ -1413,38 +1406,24 @@ pub(super) fn auto_cast_remembered_spell(
                 crystal.trigger_pulse();
             }
 
+            let autocast = CrystalAutocastParams {
+                position,
+                range,
+                empowerment,
+                damage_mult,
+                count_mult,
+            };
+
             match remembered {
                 RememberedSpell::MagicMissile => {
-                    auto_cast_magic_missiles(
-                        position,
-                        range,
-                        empowerment,
-                        damage_mult,
-                        count_mult,
-                        &mut commands,
-                        &visual_assets,
-                        &enemies,
-                    );
+                    auto_cast_magic_missiles(&autocast, &mut commands, &visual_assets, &enemies);
                 }
                 RememberedSpell::Fireball => {
-                    auto_cast_fireballs(
-                        position,
-                        range,
-                        empowerment,
-                        damage_mult,
-                        count_mult,
-                        &mut commands,
-                        &visual_assets,
-                        &targets,
-                    );
+                    auto_cast_fireballs(&autocast, &mut commands, &visual_assets, &targets);
                 }
                 RememberedSpell::ChainLightning => {
                     auto_cast_chain_lightning(
-                        position,
-                        range,
-                        empowerment,
-                        damage_mult,
-                        count_mult,
+                        &autocast,
                         &mut commands,
                         &visual_assets,
                         &targets,
@@ -1452,24 +1431,11 @@ pub(super) fn auto_cast_remembered_spell(
                     );
                 }
                 RememberedSpell::Meteor => {
-                    auto_cast_meteors(
-                        position,
-                        range,
-                        empowerment,
-                        damage_mult,
-                        count_mult,
-                        &mut commands,
-                        &visual_assets,
-                        &targets,
-                    );
+                    auto_cast_meteors(&autocast, &mut commands, &visual_assets, &targets);
                 }
                 RememberedSpell::FingerOfDeath => {
                     auto_cast_fod_beams(
-                        position,
-                        range,
-                        empowerment,
-                        damage_mult,
-                        count_mult,
+                        &autocast,
                         &mut commands,
                         &visual_assets,
                         &targets,
@@ -1632,22 +1598,32 @@ fn spawn_crystal_disintegrate_beam(
     entities
 }
 
-/// Auto-casts mini magic missiles at random enemies (not defenders).
-fn auto_cast_magic_missiles(
+/// Shared parameters for crystal auto-cast helper functions.
+struct CrystalAutocastParams {
     position: Vec3,
     range: f32,
-    _empowerment: f32,
+    empowerment: f32,
     damage_mult: f32,
     count_mult: f32,
+}
+
+/// Auto-casts mini magic missiles at random enemies (not defenders).
+fn auto_cast_magic_missiles(
+    params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
 ) {
-    let targets = find_random_enemies_in_range(position, range, scaled_count(MINI_MISSILE_COUNT, count_mult), enemies);
+    let targets = find_random_enemies_in_range(
+        params.position,
+        params.range,
+        scaled_count(MINI_MISSILE_COUNT, params.count_mult),
+        enemies,
+    );
     let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
     for (target_entity, target_pos) in &targets {
-        let direction = (*target_pos - position).normalize();
+        let direction = (*target_pos - params.position).normalize();
         let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
         let initial_velocity = direction * speed;
 
@@ -1657,65 +1633,61 @@ fn auto_cast_magic_missiles(
         spawn_crystal_mini_missile(
             commands,
             assets,
-            position,
-            range,
+            params.position,
+            params.range,
             initial_velocity,
             wobble_offset,
             Some(*target_entity),
             mini_radius,
-            damage_mult,
+            params.damage_mult,
         );
     }
 }
 
 /// Auto-casts mini fireballs at random enemies.
 fn auto_cast_fireballs(
-    position: Vec3,
-    range: f32,
-    empowerment: f32,
-    damage_mult: f32,
-    count_mult: f32,
+    params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
-    let enemies = find_random_targets_in_range(position, range, scaled_count(MINI_FB_COUNT, count_mult), targets);
+    let enemies = find_random_targets_in_range(
+        params.position,
+        params.range,
+        scaled_count(MINI_FB_COUNT, params.count_mult),
+        targets,
+    );
     let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
 
     for (_, target_pos) in &enemies {
         let ground_target = Vec3::new(target_pos.x, 0.0, target_pos.z);
-        let direction = (ground_target - position).normalize();
+        let direction = (ground_target - params.position).normalize();
         let speed = fireball_constants::PROJECTILE_SPEED * SPEED_SCALE;
         let velocity = direction * speed;
 
         let entity = fireball_systems::spawn_fireball_entity(
             commands,
             assets,
-            position,
+            params.position,
             velocity,
-            fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE * damage_mult,
+            fireball_constants::DAMAGE_PER_TICK * DAMAGE_SCALE * params.damage_mult,
             fireball_constants::DAMAGE_TYPE,
             fireball_constants::EXPLOSION_RADIUS * SIZE_SCALE,
             fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE,
-            empowerment * DAMAGE_SCALE * damage_mult,
+            params.empowerment * DAMAGE_SCALE * params.damage_mult,
             mini_radius,
         );
         commands.entity(entity).insert(CrystalSpawn {
-            origin: position,
-            max_range: range,
+            origin: params.position,
+            max_range: params.range,
             lifetime: None,
         });
     }
 }
 
 /// Auto-casts chain lightning arcs at random enemies.
-#[allow(clippy::too_many_arguments)]
 fn auto_cast_chain_lightning(
-    position: Vec3,
-    range: f32,
-    empowerment: f32,
-    damage_mult: f32,
-    count_mult: f32,
+    params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
@@ -1725,8 +1697,14 @@ fn auto_cast_chain_lightning(
         Has<SpellShield>,
     )>,
 ) {
-    let enemies = find_random_targets_in_range(position, range, scaled_count(LIGHTNING_ARC_COUNT, count_mult), targets);
-    let damage = cl_constants::INITIAL_DAMAGE * DAMAGE_SCALE * empowerment * damage_mult;
+    let enemies = find_random_targets_in_range(
+        params.position,
+        params.range,
+        scaled_count(LIGHTNING_ARC_COUNT, params.count_mult),
+        targets,
+    );
+    let damage =
+        cl_constants::INITIAL_DAMAGE * DAMAGE_SCALE * params.empowerment * params.damage_mult;
 
     for (target_entity, target_pos) in &enemies {
         if let Ok((mut health, mut temp_hp, has_spell_shield)) =
@@ -1743,27 +1721,35 @@ fn auto_cast_chain_lightning(
             );
         }
 
-        chain_lightning_systems::spawn_arc(commands, assets, position, *target_pos, 0, empowerment);
+        chain_lightning_systems::spawn_arc(
+            commands,
+            assets,
+            params.position,
+            *target_pos,
+            0,
+            params.empowerment,
+        );
     }
 }
 
 /// Auto-casts mini meteors at random enemies.
 fn auto_cast_meteors(
-    position: Vec3,
-    range: f32,
-    empowerment: f32,
-    damage_mult: f32,
-    count_mult: f32,
+    params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
-    let enemies = find_random_targets_in_range(position, range, scaled_count(2, count_mult), targets);
+    let enemies = find_random_targets_in_range(
+        params.position,
+        params.range,
+        scaled_count(2, params.count_mult),
+        targets,
+    );
     let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
 
     for (_, target_pos) in &enemies {
         let spawn_pos = Vec3::new(target_pos.x, MINI_METEOR_SPAWN_HEIGHT, target_pos.z);
-        let damage = meteor_fall_constants::METEOR_DAMAGE * DAMAGE_SCALE * damage_mult;
+        let damage = meteor_fall_constants::METEOR_DAMAGE * DAMAGE_SCALE * params.damage_mult;
         let explosion_radius = meteor_fall_constants::EXPLOSION_RADIUS * SIZE_SCALE;
 
         let entity = meteor_fall_systems::spawn_meteor_projectile_entity(
@@ -1773,13 +1759,13 @@ fn auto_cast_meteors(
             Vec3::new(0.0, meteor_fall_constants::METEOR_INITIAL_VELOCITY, 0.0),
             damage,
             explosion_radius,
-            empowerment,
+            params.empowerment,
             mini_radius,
             MeteorProjectileTalentFlags::default(),
         );
         commands.entity(entity).insert(CrystalSpawn {
-            origin: position,
-            max_range: range,
+            origin: params.position,
+            max_range: params.range,
             lifetime: None,
         });
     }
@@ -1787,19 +1773,21 @@ fn auto_cast_meteors(
 
 /// Auto-casts Finger of Death beams at random enemies.
 fn auto_cast_fod_beams(
-    position: Vec3,
-    range: f32,
-    empowerment: f32,
-    damage_mult: f32,
-    count_mult: f32,
+    params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
     talent_cfg: &disintegrate_systems::TalentConfig,
 ) {
-    let enemies = find_random_targets_in_range(position, range, scaled_count(BEAM_COUNT, count_mult), targets);
-    let fod_damage_per_tick = finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE * damage_mult
-        / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
+    let enemies = find_random_targets_in_range(
+        params.position,
+        params.range,
+        scaled_count(BEAM_COUNT, params.count_mult),
+        targets,
+    );
+    let fod_damage_per_tick =
+        finger_of_death_constants::DAMAGE * BEAM_DAMAGE_SCALE * params.damage_mult
+            / (BEAM_DURATION / disintegrate_constants::DAMAGE_INTERVAL);
     let forked = talent_cfg.forked;
     let offsets: &[f32] = if forked {
         &[-FORKED_FAN_HALF_ANGLE, 0.0, FORKED_FAN_HALF_ANGLE]
@@ -1807,7 +1795,8 @@ fn auto_cast_fod_beams(
         &[0.0]
     };
     for (_, target_pos) in &enemies {
-        let (base_direction, length) = crystal_beam_geometry(position, *target_pos, range);
+        let (base_direction, length) =
+            crystal_beam_geometry(params.position, *target_pos, params.range);
         for &offset in offsets {
             let direction = if offset.abs() > 0.001 {
                 Quat::from_axis_angle(Vec3::Y, offset) * base_direction
@@ -1817,18 +1806,18 @@ fn auto_cast_fod_beams(
             let beam_entity = disintegrate_systems::spawn_beam_with_damage(
                 commands,
                 assets,
-                position,
+                params.position,
                 direction,
                 length,
-                empowerment,
+                params.empowerment,
                 fod_damage_per_tick,
                 Some(talent_cfg),
                 BEAM_DAMAGE_SCALE,
                 offset,
             );
             commands.entity(beam_entity).insert(CrystalSpawn {
-                origin: position,
-                max_range: range,
+                origin: params.position,
+                max_range: params.range,
                 lifetime: Some(BEAM_DURATION),
             });
         }
@@ -1922,6 +1911,7 @@ pub(super) fn resonance_cascade_burst(
 
 /// Shared AoE burst: damages all enemies in radius and spawns a visual ring.
 /// Returns the number of enemies hit.
+#[allow(clippy::too_many_arguments)]
 fn crystal_aoe_burst(
     commands: &mut Commands,
     visual_assets: &SpellVisualAssets,
@@ -1946,8 +1936,7 @@ fn crystal_aoe_burst(
             continue;
         }
 
-        if let Ok((mut health, mut temp_hp, has_spell_shield)) =
-            health_query.get_mut(target_entity)
+        if let Ok((mut health, mut temp_hp, has_spell_shield)) = health_query.get_mut(target_entity)
         {
             apply_spell_damage(
                 commands,
@@ -1989,7 +1978,11 @@ pub(super) fn auto_crystal_fire(
     time: Res<Time>,
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
-    mut crystals: Query<(&ArcaneCrystal, &mut AutoCrystalTimer, Option<&mut ResonanceCascade>)>,
+    mut crystals: Query<(
+        &ArcaneCrystal,
+        &mut AutoCrystalTimer,
+        Option<&mut ResonanceCascade>,
+    )>,
     enemies: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     mut progress: ResMut<BattleTalentProgress>,
 ) {
@@ -2006,8 +1999,7 @@ pub(super) fn auto_crystal_fire(
         timer.timer -= interval;
 
         // Find a random enemy in range
-        let targets =
-            find_random_enemies_in_range(crystal.position, crystal.range, 1, &enemies);
+        let targets = find_random_enemies_in_range(crystal.position, crystal.range, 1, &enemies);
 
         let Some((target_entity, target_pos)) = targets.first() else {
             continue;
@@ -2062,11 +2054,22 @@ pub(super) fn crystal_network_chain(
     // Collect crystal positions and remembered spells for chaining
     let crystal_data: Vec<(Entity, Vec3, f32, f32, Option<RememberedSpell>, bool)> = crystals
         .iter()
-        .map(|(e, c)| (e, c.position, c.range, c.empowerment, c.remembered_spell, c.just_absorbed))
+        .map(|(e, c)| {
+            (
+                e,
+                c.position,
+                c.range,
+                c.empowerment,
+                c.remembered_spell,
+                c.just_absorbed,
+            )
+        })
         .collect();
 
     // For each crystal that just pulsed, check if nearby crystals should chain
-    for (source_entity, source_pos, _source_range, _source_emp, source_spell, source_pulsed) in &crystal_data {
+    for (source_entity, source_pos, _source_range, _source_emp, source_spell, source_pulsed) in
+        &crystal_data
+    {
         if !source_pulsed {
             continue;
         }
@@ -2074,7 +2077,9 @@ pub(super) fn crystal_network_chain(
             continue;
         };
 
-        for (target_entity, target_pos, _target_range, _target_emp, _target_spell, target_pulsed) in &crystal_data {
+        for (target_entity, target_pos, _target_range, _target_emp, _target_spell, target_pulsed) in
+            &crystal_data
+        {
             if source_entity == target_entity || *target_pulsed {
                 continue;
             }
@@ -2093,7 +2098,8 @@ pub(super) fn crystal_network_chain(
                 let chain_damage_scale = DAMAGE_SCALE * target_crystal.damage_mult * 0.5;
                 match remembered {
                     RememberedSpell::MagicMissile => {
-                        let count = scaled_count(MINI_MISSILE_COUNT / 2 + 1, target_crystal.count_mult);
+                        let count =
+                            scaled_count(MINI_MISSILE_COUNT / 2 + 1, target_crystal.count_mult);
                         let mini_targets = find_random_enemies_in_range(
                             target_crystal.position,
                             target_crystal.range,
@@ -2128,11 +2134,13 @@ pub(super) fn crystal_network_chain(
                             count,
                             &targets,
                         );
-                        let mini_radius = fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
+                        let mini_radius =
+                            fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
                         for (_, tp) in &fire_targets {
                             let ground = Vec3::new(tp.x, 0.0, tp.z);
                             let direction = (ground - target_crystal.position).normalize();
-                            let velocity = direction * fireball_constants::PROJECTILE_SPEED * SPEED_SCALE;
+                            let velocity =
+                                direction * fireball_constants::PROJECTILE_SPEED * SPEED_SCALE;
                             let entity = fireball_systems::spawn_fireball_entity(
                                 &mut commands,
                                 &visual_assets,

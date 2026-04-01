@@ -199,7 +199,6 @@ pub struct SpellVisualAssets {
     // ── Fog smoke material (gray fog cloud puffs) ──────────────────
     pub fog_smoke: Handle<StandardMaterial>,
 
-
     // ── Snow particle material (squall storm) ─────────────────────────
     pub snow_particle: Handle<StandardMaterial>,
 
@@ -597,7 +596,6 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
-
         // Snow particle (white translucent swirling flakes)
         snow_particle: materials.add(StandardMaterial {
             base_color: Color::srgba(0.9, 0.95, 1.0, 0.4),
@@ -750,11 +748,7 @@ pub fn init_spell_visual_assets(
                 .minor_resolution(8),
         ),
         // Flat annulus ring for entangle vine arches (inner 0.5, outer 1.0 = 50% ring width)
-        entangle_vine_ring: meshes.add(
-            Annulus::new(0.5, 1.0)
-                .mesh()
-                .resolution(16),
-        ),
+        entangle_vine_ring: meshes.add(Annulus::new(0.5, 1.0).mesh().resolution(16)),
         // Thin torus ring for crystal range indicator (unit-scale, scaled by Transform)
         crystal_range_torus: meshes.add(
             Torus::new(1.0 - 0.005, 1.0 + 0.005)
@@ -1114,8 +1108,10 @@ pub fn refresh_spell_visuals_for_wizard(
     if let Some(mat) = fire_explosion_materials.get_mut(&assets.fireball_explosion) {
         if is_excremage {
             let brown = EXCREMAGE_BROWN.to_linear();
-            mat.inner_color = LinearRgba::new(brown.red * 3.0, brown.green * 3.0, brown.blue * 1.5, 1.0);
-            mat.outer_color = LinearRgba::new(brown.red * 2.0, brown.green * 0.5, brown.blue * 0.1, 1.0);
+            mat.inner_color =
+                LinearRgba::new(brown.red * 3.0, brown.green * 3.0, brown.blue * 1.5, 1.0);
+            mat.outer_color =
+                LinearRgba::new(brown.red * 2.0, brown.green * 0.5, brown.blue * 0.1, 1.0);
         } else {
             mat.inner_color = FIRE_EXPLOSION_INNER_COLOR;
             mat.outer_color = FIRE_EXPLOSION_OUTER_COLOR;

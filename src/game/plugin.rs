@@ -7,6 +7,7 @@ use super::run_conditions::is_gameplay_running;
 use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
 use super::cauldron::CauldronPlugin;
+use super::combat_systems;
 use super::constants::ATTACK_CYCLE_DURATION;
 use super::crt_effect::CrtEffectPlugin;
 use super::drops::DropsPlugin;
@@ -14,14 +15,15 @@ use super::game_mode::GameModePlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::{
-    AchievementUnlockedMessage, IngredientCollectedMessage, RetreatMessage,
-    SpellResearchedMessage, WaveSpawnedMessage,
+    AchievementUnlockedMessage, IngredientCollectedMessage, RetreatMessage, SpellResearchedMessage,
+    WaveSpawnedMessage,
 };
+use super::movement_systems;
 use super::pathfinding::PathfindingPlugin;
-use super::seeded_rng::SeededRngPlugin;
 use super::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
 };
+use super::seeded_rng::SeededRngPlugin;
 use super::shared_systems;
 use super::systems;
 use super::units::UnitsPlugin;
@@ -187,8 +189,8 @@ impl Plugin for GamePlugin {
                     shared_systems::activate_defenders_on_proximity,
                     // Separation adds flocking forces (immutable queries)
                     // Unit-specific targeting systems registered in their respective plugins
-                    shared_systems::apply_separation,
-                    shared_systems::apply_wall_avoidance,
+                    movement_systems::apply_separation,
+                    movement_systems::apply_wall_avoidance,
                 )
                     .chain()
                     .in_set(VelocitySystemSet),
@@ -199,13 +201,13 @@ impl Plugin for GamePlugin {
                     // Zero out targeting when a wall blocks line to target
                     // Runs after all targeting systems (VelocitySystemSet) so every
                     // unit — including the King — has its targeting suppressed.
-                    shared_systems::suppress_targeting_through_walls,
+                    movement_systems::suppress_targeting_through_walls,
                     // Staging attackers must not target enemies — only follow staging flow field
                     crate::game::pathfinding::systems::suppress_staging_targeting,
                     // Calculate effectiveness based on nearby allies/enemies
                     shared_systems::calculate_effectiveness,
                     // Apply rough terrain slowdown before movement
-                    shared_systems::apply_rough_terrain_slowdown,
+                    movement_systems::apply_rough_terrain_slowdown,
                 )
                     .chain()
                     .run_if(is_gameplay_running)
@@ -215,12 +217,12 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 (
-                    shared_systems::enforce_wall_collision,
-                    shared_systems::combat,
-                    shared_systems::enforce_invulnerability,
+                    movement_systems::enforce_wall_collision,
+                    combat_systems::combat,
+                    combat_systems::enforce_invulnerability,
                     super::units::wizard::spells::berserker_rage::systems::undying_fury_trigger,
                     hags_systems::resurrect_eyed_hags,
-                    shared_systems::convert_dead_to_corpses,
+                    combat_systems::convert_dead_to_corpses,
                 )
                     .chain()
                     .in_set(PostCombatSet),

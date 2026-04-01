@@ -65,9 +65,7 @@ pub struct OgreChargeIndicator;
 #[derive(Component)]
 pub enum OgreChargeState {
     /// Waiting for cooldown to expire before next charge.
-    Idle {
-        cooldown: f32,
-    },
+    Idle { cooldown: f32 },
     /// Picking a target at moderate distance.
     Targeting,
     /// Growing the red fill inside an outline rectangle before charging.
@@ -85,9 +83,7 @@ pub enum OgreChargeState {
         hit_entities: HashSet<Entity>,
     },
     /// Brief pause after charge completes.
-    Recovery {
-        timer: f32,
-    },
+    Recovery { timer: f32 },
 }
 
 pub struct ChargeIndicators {

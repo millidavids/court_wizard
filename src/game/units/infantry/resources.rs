@@ -4,7 +4,7 @@ use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEA
 use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
 use crate::game::units::systems::create_corpse_sprite_materials;
 
-use super::styles::*;
+use super::constants::*;
 
 /// Pre-loaded meshes and materials for infantry units.
 #[derive(Resource)]
@@ -32,7 +32,8 @@ pub(super) fn preload_infantry_assets(
     asset_server: Res<AssetServer>,
 ) {
     let sprite_texture = asset_server.load("images/sprite_sheets/infantry-walking_9-frames.png");
-    let attacking_texture = asset_server.load("images/sprite_sheets/infantry-attacking_6-frames.png");
+    let attacking_texture =
+        asset_server.load("images/sprite_sheets/infantry-attacking_6-frames.png");
     let death_texture = asset_server.load("images/sprite_sheets/infantry-death_6-frames.png");
 
     let defender_corpse_materials = create_corpse_sprite_materials(

@@ -20,7 +20,12 @@ pub struct EntangleGroundEffect {
 }
 
 impl EntangleGroundEffect {
-    pub fn new(duration: f32, center: Vec3, radius: f32, talent_params: EntangleTalentParams) -> Self {
+    pub fn new(
+        duration: f32,
+        center: Vec3,
+        radius: f32,
+        talent_params: EntangleTalentParams,
+    ) -> Self {
         Self {
             time_remaining: duration,
             duration,

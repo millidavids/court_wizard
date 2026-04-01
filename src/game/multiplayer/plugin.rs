@@ -15,9 +15,9 @@ use crate::networking::entity_map::EntityIdCounter;
 use crate::networking::entity_map::NetworkEntityMap;
 use crate::networking::protocol::NetworkMessage;
 use crate::networking::resources::{ConnectionState, NetworkConnection};
-use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::networking::session::{MultiplayerSession, is_multiplayer_guest, is_multiplayer_host};
 use crate::networking::snapshot::SnapshotTick;
+use crate::networking::transport::{TransportCommand, TransportHandle};
 use crate::state::{AppState, MultiplayerGameState};
 use crate::ui::components::ButtonStyle;
 use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
@@ -459,6 +459,7 @@ fn cleanup_mp_score_screen(
 }
 
 /// Handles score screen button clicks.
+#[allow(clippy::too_many_arguments)]
 fn handle_mp_score_buttons(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MpScoreButtonAction>,

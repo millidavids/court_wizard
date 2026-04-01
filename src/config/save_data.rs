@@ -547,13 +547,13 @@ impl AchievementId {
             AchievementId::CloseCall => {
                 "An enemy got dangerously close to the tower. Maybe it's time to get your hands dirty."
             }
-            AchievementId::Stormbringer => {
-                "Lightning meets wind. The sky bends to your will."
-            }
+            AchievementId::Stormbringer => "Lightning meets wind. The sky bends to your will.",
             AchievementId::Pacifist => {
                 "You won without your spells hurting a single enemy. There is another way."
             }
-            AchievementId::ModWaveSpeedMin => "Completed a roguelite run at the slowest wave speed.",
+            AchievementId::ModWaveSpeedMin => {
+                "Completed a roguelite run at the slowest wave speed."
+            }
             AchievementId::ModWaveSpeed100 => "Completed a roguelite run at normal wave speed.",
             AchievementId::ModWaveSpeed200 => "Completed a roguelite run at double wave speed.",
             AchievementId::ModWaveSpeed300 => {
@@ -577,15 +577,11 @@ impl AchievementId {
             AchievementId::ModEnemyCount100 => {
                 "Completed a roguelite run with the standard enemy count."
             }
-            AchievementId::ModEnemyCount200 => {
-                "Completed a roguelite run with double the enemies."
-            }
+            AchievementId::ModEnemyCount200 => "Completed a roguelite run with double the enemies.",
             AchievementId::ModEnemyCount300 => {
                 "Completed a roguelite run against the maximum enemy horde."
             }
-            AchievementId::ModAllMin => {
-                "Completed a roguelite run with every modifier at minimum."
-            }
+            AchievementId::ModAllMin => "Completed a roguelite run with every modifier at minimum.",
             AchievementId::ModAll200 => "Completed a roguelite run with everything doubled.",
             AchievementId::ModAllMax => {
                 "Completed a roguelite run with every modifier maxed out. You're insane."
@@ -1034,16 +1030,6 @@ pub(crate) fn save_cache_is_dirty() -> bool {
     SAVE_DIRTY.load(Ordering::Acquire)
 }
 
-/// Invalidate the in-memory cache, forcing a disk read on next access.
-#[allow(dead_code)]
-pub(crate) fn invalidate_save_cache() {
-    match SAVE_CACHE.lock() {
-        Ok(mut cache) => *cache = None,
-        Err(e) => warn!("Save cache mutex poisoned on invalidate: {e}"),
-    }
-    SAVE_DIRTY.store(false, Ordering::Release);
-}
-
 // ---------------------------------------------------------------------------
 // Disk I/O (internal — all external access goes through the cache above)
 // ---------------------------------------------------------------------------
@@ -1248,17 +1234,14 @@ pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
         if unsaved_count > MAX_ROGUELITE_RUN_HISTORY {
             let excess = unsaved_count - MAX_ROGUELITE_RUN_HISTORY;
             let mut removed = 0;
-            wizard
-                .roguelite
-                .run_history
-                .retain(|r| {
-                    if !r.saved && removed < excess {
-                        removed += 1;
-                        false
-                    } else {
-                        true
-                    }
-                });
+            wizard.roguelite.run_history.retain(|r| {
+                if !r.saved && removed < excess {
+                    removed += 1;
+                    false
+                } else {
+                    true
+                }
+            });
         }
     }
 
@@ -1300,7 +1283,7 @@ pub(crate) fn update_endless_best_stats(
         let should_update = wizard
             .endless_best_stats
             .get(&key)
-            .map_or(true, |existing| stats.efficiency > existing.best_efficiency);
+            .is_none_or(|existing| stats.efficiency > existing.best_efficiency);
 
         if should_update {
             wizard.endless_best_stats.insert(
@@ -1682,4 +1665,3 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
 
     info!("Legacy save migration complete");
 }
-

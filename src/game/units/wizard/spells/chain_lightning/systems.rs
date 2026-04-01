@@ -1,16 +1,16 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, WizardInput,
 };
 use super::components::*;
 use super::constants;
-use super::styles::{arc_color_at_depth, arc_width_at_depth};
+use super::constants::{arc_color_at_depth, arc_width_at_depth};
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
@@ -21,12 +21,12 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
-use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::utils::build_wizard_input;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
 
 /// Computed talent configuration for chain lightning, derived from ActiveTalents.
 struct ChainLightningTalentConfig {
@@ -142,16 +142,12 @@ pub fn handle_chain_lightning_casting(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
-    (mut talent_progress, mut screen_flash): (Option<ResMut<BattleTalentProgress>>, MessageWriter<crate::game::crt_effect::ScreenFlashMessage>),
+    (mut talent_progress, mut screen_flash): (
+        Option<ResMut<BattleTalentProgress>>,
+        MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
+    ),
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
@@ -187,7 +183,12 @@ pub fn handle_chain_lightning_casting(
             intensity: 0.02,
         });
 
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Lightning, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Lightning,
+            time.elapsed_secs(),
+        );
         audio::play_sfx(
             &mut commands,
             &sfx.chain_lightning_cast,
@@ -793,9 +794,7 @@ fn find_next_bounce_targets(
         .filter(|(entity, _, _, _, _, _)| !hit_entities.contains(entity))
         .filter_map(|(entity, transform, _, _, _, _)| {
             let distance = origin.distance(transform.translation);
-            if distance <= bounce_range
-                && !los_blocked(origin, transform.translation)
-            {
+            if distance <= bounce_range && !los_blocked(origin, transform.translation) {
                 Some((entity, transform.translation, distance))
             } else {
                 None
@@ -809,9 +808,7 @@ fn find_next_bounce_targets(
             continue;
         }
         let distance = origin.distance(transform.translation);
-        if distance <= bounce_range
-            && !los_blocked(origin, transform.translation)
-        {
+        if distance <= bounce_range && !los_blocked(origin, transform.translation) {
             candidates.push((entity, transform.translation, distance));
         }
     }
@@ -822,9 +819,7 @@ fn find_next_bounce_targets(
             continue;
         }
         let distance = origin.distance(transform.translation);
-        if distance <= bounce_range
-            && !los_blocked(origin, transform.translation)
-        {
+        if distance <= bounce_range && !los_blocked(origin, transform.translation) {
             candidates.push((entity, transform.translation, distance));
         }
     }

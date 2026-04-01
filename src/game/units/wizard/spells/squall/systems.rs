@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    AbsoluteZeroSlow, FrozenGround, IceExplosion, IceProjectile, PermafrostTracker,
-    SnowParticle, SquallStorm, SquallStormRing, SquallTalentParams,
+    AbsoluteZeroSlow, FrozenGround, IceExplosion, IceProjectile, PermafrostTracker, SnowParticle,
+    SquallStorm, SquallStormRing, SquallTalentParams,
 };
 use super::constants::*;
 use crate::config::GameConfig;
@@ -17,19 +17,20 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    FogEvasionModifier, FrostEffectMarker, FrozenSolidModifier, Health, SlowMovementModifier,
-    Team, TemporaryHitPoints, apply_spell_damage,
+    FogEvasionModifier, FrostEffectMarker, FrozenSolidModifier, Health, SlowMovementModifier, Team,
+    TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::utils::{
-    RETICLE_Y, SpellCircleIndicator, clamp_to_spell_range_ground, get_cursor_world_position,
-    indicator_pulse_scale, make_reticle_mesh, spawn_circle_indicator, xz_distance,
+    RETICLE_Y, SpellCircleIndicator, build_wizard_input, clamp_to_spell_range_ground,
+    cleanup_spell_caster, get_cursor_world_position, handle_spell_release, indicator_pulse_scale,
+    make_reticle_mesh, spawn_circle_indicator, update_indicator_position, xz_distance,
 };
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -76,9 +77,7 @@ fn despawn_storm_rings(commands: &mut Commands, rings: &Query<Entity, With<Squal
 }
 
 /// Computes talent parameters from active talent selections.
-pub(crate) fn compute_talent_params(
-    active_talents: Option<&ActiveTalents>,
-) -> SquallTalentParams {
+pub(crate) fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> SquallTalentParams {
     let mut params = SquallTalentParams::default();
 
     let Some(talents) = active_talents else {
@@ -147,14 +146,7 @@ pub(super) fn handle_squall_casting(
     existing_rings: Query<Entity, With<SquallStormRing>>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions already ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -186,7 +178,12 @@ pub(super) fn handle_squall_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Force, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Force,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -213,14 +210,7 @@ fn squall_casting_logic(
     let mut completed = false;
 
     // Check for release event - cancel cast
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -270,13 +260,12 @@ fn squall_casting_logic(
         }
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
-
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
+            update_indicator_position(
+                wizard_entity,
+                cursor_world_pos,
+                caster_query,
+                indicator_query,
+            );
 
             if casting_state.is_complete(primed_spell.cast_time) {
                 // Absolute Zero: no mana cost on cast completion
@@ -324,9 +313,7 @@ fn squall_casting_logic(
                                     RETICLE_Y,
                                     indicator.position.z,
                                 ))
-                                .with_rotation(Quat::from_rotation_x(
-                                    -std::f32::consts::FRAC_PI_2,
-                                ))
+                                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                                 .with_scale(Vec3::splat(storm_radius)),
                                 SquallStormRing { time_alive: 0.0 },
                                 OnGameplayScreen,
@@ -339,23 +326,13 @@ fn squall_casting_logic(
                     casting_state.cancel();
                     completed = true;
                 } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(commands, wizard_entity, caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }
@@ -658,8 +635,19 @@ pub(super) fn update_ice_explosions(
                     units_hit += 1;
 
                     // Apply frost slow + visual
-                    apply_or_insert_slow(&mut commands, unit_entity, slow_mod, FROST_SLOW_MODIFIER, FROST_SLOW_DURATION);
-                    apply_or_insert_frost(&mut commands, unit_entity, frost_marker, FROST_SLOW_DURATION);
+                    apply_or_insert_slow(
+                        &mut commands,
+                        unit_entity,
+                        slow_mod,
+                        FROST_SLOW_MODIFIER,
+                        FROST_SLOW_DURATION,
+                    );
+                    apply_or_insert_frost(
+                        &mut commands,
+                        unit_entity,
+                        frost_marker,
+                        FROST_SLOW_DURATION,
+                    );
 
                     // Track permafrost hits
                     if storm_has_permafrost {
@@ -681,10 +669,10 @@ pub(super) fn update_ice_explosions(
             }
 
             // Track talent progress
-            if units_hit > 0 {
-                if let Some(ref mut progress) = talent_progress {
-                    progress.increment(Spell::Squall, units_hit);
-                }
+            if units_hit > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(Spell::Squall, units_hit);
             }
         }
 
@@ -733,17 +721,15 @@ pub(super) fn update_absolute_zero(
     storms: Query<(Entity, &SquallStorm)>,
     rings: Query<Entity, With<SquallStormRing>>,
     mut wizard_query: Query<&mut Mana, With<LocalWizard>>,
-    mut units: Query<
-        (
-            Entity,
-            &Transform,
-            &Team,
-            &mut Health,
-            Option<&mut AbsoluteZeroSlow>,
-            Option<&mut SlowMovementModifier>,
-            Option<&mut FrostEffectMarker>,
-        ),
-    >,
+    mut units: Query<(
+        Entity,
+        &Transform,
+        &Team,
+        &mut Health,
+        Option<&mut AbsoluteZeroSlow>,
+        Option<&mut SlowMovementModifier>,
+        Option<&mut FrostEffectMarker>,
+    )>,
     mut commands: Commands,
 ) {
     let delta = time.delta_secs();
@@ -782,23 +768,40 @@ pub(super) fn update_absolute_zero(
 
                 // Stack slow
                 if let Some(mut az) = az_slow {
-                    az.accumulated_slow =
-                        (az.accumulated_slow - ABSOLUTE_ZERO_SLOW_PER_FRAME).max(-ABSOLUTE_ZERO_MAX_SLOW);
+                    az.accumulated_slow = (az.accumulated_slow - ABSOLUTE_ZERO_SLOW_PER_FRAME)
+                        .max(-ABSOLUTE_ZERO_MAX_SLOW);
                     az.decay_timer = ABSOLUTE_ZERO_SLOW_DECAY_TIME;
 
                     // Update the movement modifier to match
-                    apply_or_insert_slow(&mut commands, entity, slow_mod, az.accumulated_slow, ABSOLUTE_ZERO_SLOW_DECAY_TIME);
+                    apply_or_insert_slow(
+                        &mut commands,
+                        entity,
+                        slow_mod,
+                        az.accumulated_slow,
+                        ABSOLUTE_ZERO_SLOW_DECAY_TIME,
+                    );
                 } else {
                     // First frame in zone — create tracker
                     commands.entity(entity).insert(AbsoluteZeroSlow {
                         accumulated_slow: -ABSOLUTE_ZERO_SLOW_PER_FRAME,
                         decay_timer: ABSOLUTE_ZERO_SLOW_DECAY_TIME,
                     });
-                    apply_or_insert_slow(&mut commands, entity, slow_mod, -ABSOLUTE_ZERO_SLOW_PER_FRAME, ABSOLUTE_ZERO_SLOW_DECAY_TIME);
+                    apply_or_insert_slow(
+                        &mut commands,
+                        entity,
+                        slow_mod,
+                        -ABSOLUTE_ZERO_SLOW_PER_FRAME,
+                        ABSOLUTE_ZERO_SLOW_DECAY_TIME,
+                    );
                 }
 
                 // Apply frost visual
-                apply_or_insert_frost(&mut commands, entity, frost_marker, ABSOLUTE_ZERO_SLOW_DECAY_TIME);
+                apply_or_insert_frost(
+                    &mut commands,
+                    entity,
+                    frost_marker,
+                    ABSOLUTE_ZERO_SLOW_DECAY_TIME,
+                );
             }
         }
     }
@@ -814,9 +817,7 @@ pub(super) fn decay_absolute_zero_slow(
     let delta = time.delta_secs();
 
     // Check if any active storm has absolute zero
-    let has_active_az = storms
-        .iter()
-        .any(|s| s.talent_params.absolute_zero);
+    let has_active_az = storms.iter().any(|s| s.talent_params.absolute_zero);
 
     for (entity, unit_transform, mut az) in units.iter_mut() {
         // Check if unit is currently inside an active AZ storm
@@ -867,15 +868,15 @@ pub(super) fn update_blizzard_position(
         }
 
         // Clamp target to spell range
-        let target = clamp_to_spell_range_ground(
-            cursor_pos,
-            SPELL_ORIGIN,
-            wizard.spell_range,
-            storm.radius,
-        );
+        let target =
+            clamp_to_spell_range_ground(cursor_pos, SPELL_ORIGIN, wizard.spell_range, storm.radius);
 
         // Lerp storm position toward cursor
-        let direction = Vec3::new(target.x - storm.position.x, 0.0, target.z - storm.position.z);
+        let direction = Vec3::new(
+            target.x - storm.position.x,
+            0.0,
+            target.z - storm.position.z,
+        );
         let distance = direction.length();
 
         if distance > 1.0 {
@@ -975,7 +976,13 @@ pub(super) fn update_frozen_ground(
             let distance = xz_distance(unit_transform.translation, patch.position);
 
             if distance <= patch.radius {
-                apply_or_insert_slow(&mut commands, unit_entity, slow_mod, ICE_AGE_SLOW_MODIFIER, ICE_AGE_SLOW_DURATION);
+                apply_or_insert_slow(
+                    &mut commands,
+                    unit_entity,
+                    slow_mod,
+                    ICE_AGE_SLOW_MODIFIER,
+                    ICE_AGE_SLOW_DURATION,
+                );
             }
         }
     }

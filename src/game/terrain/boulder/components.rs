@@ -46,9 +46,9 @@ impl Boulder {
         let t1 = (-b - sqrt_disc) / (2.0 * a);
         let t2 = (-b + sqrt_disc) / (2.0 * a);
 
-        if t1 >= 0.0 && t1 <= 1.0 {
+        if (0.0..=1.0).contains(&t1) {
             Some(t1)
-        } else if t2 >= 0.0 && t2 <= 1.0 {
+        } else if (0.0..=1.0).contains(&t2) {
             Some(t2)
         } else if t1 < 0.0 && t2 > 1.0 {
             // Segment entirely inside circle
@@ -72,11 +72,7 @@ impl Boulder {
 
         // If exactly at center, push in arbitrary direction
         if dist < 0.001 {
-            return Some(Vec3::new(
-                self.center.x + required,
-                point.y,
-                self.center.z,
-            ));
+            return Some(Vec3::new(self.center.x + required, point.y, self.center.z));
         }
 
         let scale = required / dist;

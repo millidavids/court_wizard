@@ -14,17 +14,30 @@ use crate::game::units::boss::components::Boss;
 use crate::game::units::components::Knockback;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
-    Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled, MovementSpeed, PolymorphedModifier,
-    FrozenSolidModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier,
-    SickenedModifier, SleepModifier, Sleepwalking,
-    SlowMovementModifier, TargetingVelocity, Team, Teleportable, TemporaryHitPoints,
-    apply_damage_to_unit,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
+    HasteModifier, Health, Hitbox, InMelee, Invulnerable, KingsGuard, MindControlled,
+    MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier, RoughTerrainModifier,
+    SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
+    Teleportable, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+
+type MindControlTargetData = (
+    Entity,
+    &'static Transform,
+    &'static Team,
+    &'static FlowFieldInfluence,
+);
+type MindControlTargetFilter = (
+    Without<Hag>,
+    Without<Corpse>,
+    Without<MindControlled>,
+    Without<Wizard>,
+    Without<BanishedModifier>,
+);
 
 /// Spawns all 3 hags at their designated grid positions.
 pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
@@ -203,7 +216,16 @@ pub fn update_hag_targeting(
         ),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>, Without<StagingAttacker>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
+    >,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
@@ -417,7 +439,15 @@ pub fn hag_movement(
     ) in &mut hags
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -1004,7 +1034,7 @@ pub fn justina_chain_lightning(
             let dx = target_transform.translation.x - hag_pos.x;
             let dz = target_transform.translation.z - hag_pos.z;
             let dist = (dx * dx + dz * dz).sqrt();
-            if dist <= CHAIN_LIGHTNING_RANGE && (nearest.is_none() || dist < nearest.unwrap().2) {
+            if dist <= CHAIN_LIGHTNING_RANGE && nearest.as_ref().is_none_or(|n| dist < n.2) {
                 nearest = Some((entity, target_transform.translation, dist));
             }
         }
@@ -1267,7 +1297,15 @@ pub fn josephina_leap_knockback(
         (&Transform, &Team, &HagIdentity, &mut LeapState),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    targets: Query<(Entity, &Transform, &Team), (Without<Hag>, Without<Corpse>, Without<Wizard>, Without<BanishedModifier>)>,
+    targets: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Hag>,
+            Without<Corpse>,
+            Without<Wizard>,
+            Without<BanishedModifier>,
+        ),
+    >,
 ) {
     for (transform, team, identity, mut leap) in &mut josephina_query {
         if *identity != HagIdentity::Josephina {
@@ -1521,16 +1559,7 @@ pub fn martina_mind_control(
         (&Transform, &HagIdentity),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    defenders: Query<
-        (Entity, &Transform, &Team, &FlowFieldInfluence),
-        (
-            Without<Hag>,
-            Without<Corpse>,
-            Without<MindControlled>,
-            Without<Wizard>,
-            Without<BanishedModifier>,
-        ),
-    >,
+    defenders: Query<MindControlTargetData, MindControlTargetFilter>,
     existing_controlled: Query<&MindControlled, Without<Corpse>>,
 ) {
     let controlled_count = existing_controlled.iter().count() as u32;
@@ -1583,7 +1612,14 @@ pub fn update_mind_controlled_targeting(
         &mut TargetingVelocity,
         &MindControlled,
     )>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<MindControlled>, Without<BanishedModifier>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<BanishedModifier>,
+        ),
+    >,
 ) {
     for (entity, transform, team, mut targeting, _mc) in &mut controlled {
         // Find nearest ALLY to attack (reversed targeting)
@@ -1713,7 +1749,11 @@ pub fn mind_controlled_combat(
             &mut Health,
             Option<&mut TemporaryHitPoints>,
         ),
-        (Without<Corpse>, Without<MindControlled>, Without<BanishedModifier>),
+        (
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<BanishedModifier>,
+        ),
     >,
 ) {
     let current_time = attack_cycle.current_time;
@@ -1745,11 +1785,7 @@ pub fn mind_controlled_combat(
 
             if dist <= attack_range {
                 let damage = MIND_CONTROL_COMBAT_DAMAGE * mc.damage_multiplier;
-                apply_damage_to_unit(
-                    &mut health,
-                    temp_hp.as_deref_mut(),
-                    damage,
-                );
+                apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
                 timing.last_attack_time = Some(current_time);
 
                 // Victim retaliates — consider the MC attacker a valid target

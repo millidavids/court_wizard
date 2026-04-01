@@ -1,6 +1,6 @@
 mod components;
 mod constants;
-pub mod messages;
+pub(crate) mod messages;
 mod plugin;
 mod resources;
 mod systems;

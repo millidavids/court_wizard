@@ -1,7 +1,7 @@
 use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
-use super::components::{BoulderProjectile, BoulderShadow, Boulder};
+use super::components::{Boulder, BoulderProjectile, BoulderShadow};
 use super::messages::*;
 use super::resources;
 use super::systems::*;

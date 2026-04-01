@@ -137,4 +137,3 @@ pub(crate) const BLIZZARD_COLOR: Color = Color::srgba(0.7, 0.85, 1.0, 0.8);
 
 /// Drought weather color (orange/amber).
 pub(crate) const DROUGHT_COLOR: Color = Color::srgba(0.9, 0.6, 0.2, 0.8);
-

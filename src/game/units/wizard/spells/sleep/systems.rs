@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
@@ -6,22 +5,25 @@ use super::components::SleepTalentParams;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{Comatose, Corpse, Health, MovementSpeed, NarcolepticWave, NightTerrors, SleepModifier, Sleepwalking, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit};
-use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
+use crate::game::units::components::{
+    Comatose, Corpse, Health, MovementSpeed, NarcolepticWave, NightTerrors, SleepModifier,
+    Sleepwalking, TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{
+    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, handle_spell_release,
+    spawn_circle_indicator, update_indicator_position,
+};
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
-pub(crate) fn compute_talent_params(
-    active_talents: Option<&ActiveTalents>,
-) -> SleepTalentParams {
+pub(crate) fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> SleepTalentParams {
     let mut params = SleepTalentParams::default();
 
     let Some(talents) = active_talents else {
@@ -92,17 +94,13 @@ pub fn handle_sleep_casting(
     targets_query: Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talent_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions already ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -136,7 +134,12 @@ pub fn handle_sleep_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Dark,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -163,14 +166,7 @@ fn sleep_casting_logic(
     talent_progress: &mut Option<ResMut<BattleTalentProgress>>,
 ) -> bool {
     // Check for release event
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -221,12 +217,12 @@ fn sleep_casting_logic(
         }
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
+            update_indicator_position(
+                wizard_entity,
+                cursor_world_pos,
+                caster_query,
+                indicator_query,
+            );
             if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(effective_mana_cost) {
                     if let Ok(caster) = caster_query.get(wizard_entity)
@@ -249,30 +245,20 @@ fn sleep_casting_logic(
                             talent_params,
                         );
                         // Track talent progress
-                        if hit_count > 0 {
-                            if let Some(progress) = talent_progress {
-                                progress.increment(Spell::Sleep, hit_count);
-                            }
+                        if hit_count > 0
+                            && let Some(progress) = talent_progress
+                        {
+                            progress.increment(Spell::Sleep, hit_count);
                         }
                     }
                     completed = true;
                 }
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+                cleanup_spell_caster(commands, wizard_entity, caster_query);
                 casting_state.cancel();
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }
@@ -363,9 +349,13 @@ pub fn update_sleep_modifiers(
     let delta = time.delta_secs();
     for (entity, mut sleep) in query.iter_mut() {
         if sleep.update(delta) {
-            commands
-                .entity(entity)
-                .remove::<(SleepModifier, NightTerrors, Comatose, NarcolepticWave, Sleepwalking)>();
+            commands.entity(entity).remove::<(
+                SleepModifier,
+                NightTerrors,
+                Comatose,
+                NarcolepticWave,
+                Sleepwalking,
+            )>();
         }
     }
 }
@@ -374,7 +364,12 @@ pub fn update_sleep_modifiers(
 pub fn update_night_terrors(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut NightTerrors, &mut Health, Option<&mut TemporaryHitPoints>)>,
+    mut query: Query<(
+        Entity,
+        &mut NightTerrors,
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+    )>,
 ) {
     let delta = time.delta_secs();
     for (entity, mut terrors, mut health, mut temp_hp) in query.iter_mut() {
@@ -420,7 +415,9 @@ pub fn update_narcoleptic_wave(
 
     let mut spread_events: Vec<SpreadEvent> = Vec::new();
 
-    for (entity, mut wave, sleep, transform, team, has_night_terrors, has_comatose, sleepwalking) in wave_query.iter_mut() {
+    for (entity, mut wave, sleep, transform, team, has_night_terrors, has_comatose, sleepwalking) in
+        wave_query.iter_mut()
+    {
         wave.timer -= delta;
         if wave.timer <= 0.0 {
             // Remove the component now that it's spread — avoids iterating every frame

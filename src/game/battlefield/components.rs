@@ -52,4 +52,3 @@ pub struct WaterRipple {
 pub struct WaterRippleAssets {
     pub mesh: Handle<Mesh>,
 }
-

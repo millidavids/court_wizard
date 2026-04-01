@@ -29,7 +29,7 @@ pub(crate) mod plague_wind;
 mod plugin;
 pub(crate) mod polymorph;
 pub(crate) mod raise_the_dead;
-pub mod run_conditions;
+pub(crate) mod run_conditions;
 pub(crate) mod sleep;
 pub(crate) mod spike_growth;
 pub(crate) mod squall;

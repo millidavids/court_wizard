@@ -15,19 +15,3 @@ pub const KING_AURA_SPEED_PERCENTAGE: f32 = 0.25;
 
 /// Color of the King's aura sphere (blue transparent)
 pub const KING_AURA_COLOR: Color = Color::srgba(0.4, 0.4, 0.9, 0.08);
-
-// ============================================================================
-// Default Commander Constants (for future commander types)
-// ============================================================================
-
-/// Default aura radius for new commander types
-#[allow(dead_code)]
-pub const DEFAULT_COMMANDER_AURA_RADIUS: f32 = 200.0;
-
-/// Default damage buff percentage for new commanders
-#[allow(dead_code)]
-pub const DEFAULT_AURA_DAMAGE_BUFF: f32 = 0.3;
-
-/// Default speed buff percentage for new commanders
-#[allow(dead_code)]
-pub const DEFAULT_AURA_SPEED_BUFF: f32 = 0.2;

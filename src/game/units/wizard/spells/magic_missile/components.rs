@@ -46,7 +46,6 @@ pub struct MagicMissileCooldown {
 
 /// Defines which teams a magic missile can target.
 #[derive(Clone, Copy)]
-#[allow(dead_code)]
 pub enum TargetTeams {
     /// Host wizard: targets Attackers and Undead.
     AttackersAndUndead,

@@ -26,12 +26,8 @@ pub(in crate::game) fn spawn_single_bush(
     commands.spawn((
         Mesh3d(assets.mesh.clone()),
         MeshMaterial3d(assets.material.clone()),
-        Transform::from_xyz(x, BUSH_HEIGHT * scale / 2.0 + 1.0, z)
-            .with_scale(Vec3::splat(scale)),
-        Bush {
-            center,
-            radius,
-        },
+        Transform::from_xyz(x, BUSH_HEIGHT * scale / 2.0 + 1.0, z).with_scale(Vec3::splat(scale)),
+        Bush { center, radius },
         Billboard,
         OnGameplayScreen,
     ));
@@ -148,7 +144,11 @@ pub fn apply_burning_bush_damage(
     time: Res<Time>,
     mut burning_bushes: Query<(&Bush, &mut BurningBush)>,
     mut units: Query<
-        (&Transform, &mut Health, Option<&mut crate::game::units::components::TemporaryHitPoints>),
+        (
+            &Transform,
+            &mut Health,
+            Option<&mut crate::game::units::components::TemporaryHitPoints>,
+        ),
         Without<Corpse>,
     >,
 ) {

@@ -1,31 +1,27 @@
 use std::cmp::Ordering;
 
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
 use super::components::{
-    ContagiousBaas, DireSheep, ExplosiveSheep, PermanentLivestock, PigForm,
-    PolymorphTalentParams,
+    ContagiousBaas, DireSheep, ExplosiveSheep, PermanentLivestock, PigForm, PolymorphTalentParams,
 };
 use super::constants;
 use crate::config::GameConfig;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    AttackTiming, Corpse, Health, PolymorphedModifier, Team, TemporaryHitPoints,
-    apply_spell_damage,
+    AttackTiming, Corpse, Health, PolymorphedModifier, Team, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::utils::{build_wizard_input, clamp_cursor_to_spell_range};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::wizard::spells::utils::{
-    clamp_cursor_to_spell_range, get_cursor_world_position,
-};
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
 
 /// Removes all polymorph-related talent components from an entity.
 fn strip_polymorph_components(commands: &mut Commands, entity: Entity) {
@@ -162,11 +158,7 @@ fn apply_polymorph_to_target(
         entity_cmds.insert(PermanentLivestock);
     }
     if talent_params.dire {
-        entity_cmds.insert((
-            DireSheep::new(),
-            Team::Defenders,
-            AttackTiming::new(),
-        ));
+        entity_cmds.insert((DireSheep::new(), Team::Defenders, AttackTiming::new()));
     }
 }
 
@@ -197,11 +189,13 @@ pub fn handle_polymorph_casting(
     >,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talent_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
-    let released = mouse_left_released.read().next().is_some();
-    let raw_cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((_wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -212,13 +206,8 @@ pub fn handle_polymorph_casting(
         return;
     }
 
-    let cursor_pos = clamp_cursor_to_spell_range(raw_cursor_pos, wizard.spell_range, 0.0);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let cursor_pos = clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, 0.0);
+    input.cursor_pos = cursor_pos;
 
     let talent_params = compute_talent_params(active_talents.as_deref());
 
@@ -236,7 +225,12 @@ pub fn handle_polymorph_casting(
     );
 
     if completed > 0 {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Transmutation, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Transmutation,
+            time.elapsed_secs(),
+        );
         if let Some(pos) = cursor_pos {
             audio::play_sfx(&mut commands, &sfx.polymorph_cast, pos, &game_config, &sfx);
         }
@@ -294,73 +288,79 @@ fn polymorph_casting_logic(
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
             if casting_state.is_complete(cast_time) {
-                if mana.consume(mana_cost) {
-                    if let Some(cursor_pos) = input.cursor_pos {
-                        let duration = talent_params.duration * primed_spell.empowerment;
+                if mana.consume(mana_cost)
+                    && let Some(cursor_pos) = input.cursor_pos
+                {
+                    let duration = talent_params.duration * primed_spell.empowerment;
 
-                        if talent_params.mass {
-                            // Mass Polymorph: collect target entity IDs first, then apply
-                            let target_entities: Vec<Entity> = targets_query
-                                .iter()
-                                .filter(|(_, transform, _, _, _)| {
-                                    transform.translation.distance(cursor_pos)
-                                        <= constants::MASS_POLYMORPH_RADIUS
-                                })
-                                .map(|(entity, _, _, _, _)| entity)
-                                .collect();
+                    if talent_params.mass {
+                        // Mass Polymorph: collect target entity IDs first, then apply
+                        let target_entities: Vec<Entity> = targets_query
+                            .iter()
+                            .filter(|(_, transform, _, _, _)| {
+                                transform.translation.distance(cursor_pos)
+                                    <= constants::MASS_POLYMORPH_RADIUS
+                            })
+                            .map(|(entity, _, _, _, _)| entity)
+                            .collect();
 
-                            for entity in &target_entities {
-                                if let Ok((_, transform, health, material, team)) = targets_query.get(*entity) {
-                                    apply_polymorph_to_target(
-                                        commands,
-                                        materials,
-                                        *entity,
-                                        health,
-                                        material,
-                                        *team,
-                                        duration,
-                                        talent_params,
-                                        primed_spell.empowerment,
-                                        transform.translation,
-                                        visual_assets,
-                                        time_secs,
-                                    );
-                                    polymorphed_count += 1;
-                                }
-                            }
-                        } else {
-                            // Single target: find nearest enemy in radius
-                            if let Some((target_entity, _, target_transform, target_health, target_material, target_team)) =
-                                targets_query
-                                    .iter()
-                                    .filter_map(|(entity, transform, health, material, team)| {
-                                        let dist = transform.translation.distance(cursor_pos);
-                                        if dist <= constants::TARGET_SEARCH_RADIUS {
-                                            Some((entity, dist, transform, health, material, team))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .min_by(|a, b| {
-                                        a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal)
-                                    })
+                        for entity in &target_entities {
+                            if let Ok((_, transform, health, material, team)) =
+                                targets_query.get(*entity)
                             {
                                 apply_polymorph_to_target(
                                     commands,
                                     materials,
-                                    target_entity,
-                                    target_health,
-                                    target_material,
-                                    *target_team,
+                                    *entity,
+                                    health,
+                                    material,
+                                    *team,
                                     duration,
                                     talent_params,
                                     primed_spell.empowerment,
-                                    target_transform.translation,
+                                    transform.translation,
                                     visual_assets,
                                     time_secs,
                                 );
                                 polymorphed_count += 1;
                             }
+                        }
+                    } else {
+                        // Single target: find nearest enemy in radius
+                        if let Some((
+                            target_entity,
+                            _,
+                            target_transform,
+                            target_health,
+                            target_material,
+                            target_team,
+                        )) = targets_query
+                            .iter()
+                            .filter_map(|(entity, transform, health, material, team)| {
+                                let dist = transform.translation.distance(cursor_pos);
+                                if dist <= constants::TARGET_SEARCH_RADIUS {
+                                    Some((entity, dist, transform, health, material, team))
+                                } else {
+                                    None
+                                }
+                            })
+                            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal))
+                        {
+                            apply_polymorph_to_target(
+                                commands,
+                                materials,
+                                target_entity,
+                                target_health,
+                                target_material,
+                                *target_team,
+                                duration,
+                                talent_params,
+                                primed_spell.empowerment,
+                                target_transform.translation,
+                                visual_assets,
+                                time_secs,
+                            );
+                            polymorphed_count += 1;
                         }
                     }
                 }
@@ -410,7 +410,9 @@ pub fn tick_polymorphed_units(
 ) {
     let delta = time.delta_secs();
 
-    for (entity, transform, mut modifier, mut health, contagious, is_permanent, is_dire) in &mut polymorphed {
+    for (entity, transform, mut modifier, mut health, contagious, is_permanent, is_dire) in
+        &mut polymorphed
+    {
         if modifier.update(delta) {
             if is_permanent {
                 // Permanent Livestock: sheep survives full duration, stays polymorphed forever.
@@ -430,7 +432,15 @@ pub fn tick_polymorphed_units(
                     })
                     .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
 
-                if let Some((target_entity, _, target_pos, target_health, target_material, target_team)) = nearest {
+                if let Some((
+                    target_entity,
+                    _,
+                    target_pos,
+                    target_health,
+                    target_material,
+                    target_team,
+                )) = nearest
+                {
                     let empowerment = contagious.empowerment;
                     let talent_params = contagious.talent_params;
                     let duration = talent_params.duration * empowerment;
@@ -450,7 +460,13 @@ pub fn tick_polymorphed_units(
                         time.elapsed_secs(),
                     );
 
-                    audio::play_sfx(&mut commands, &sfx.polymorph_cast, transform.translation, &game_config, &sfx);
+                    audio::play_sfx(
+                        &mut commands,
+                        &sfx.polymorph_cast,
+                        transform.translation,
+                        &game_config,
+                        &sfx,
+                    );
 
                     if let Some(ref mut progress) = talent_progress {
                         progress.increment(Spell::Polymorph, 1);
@@ -485,11 +501,23 @@ pub fn tick_polymorphed_units(
 pub fn check_explosive_sheep_deaths(
     mut commands: Commands,
     sheep_query: Query<
-        (Entity, &Transform, &Health, &PolymorphedModifier, Has<ExplosiveSheep>),
+        (
+            Entity,
+            &Transform,
+            &Health,
+            &PolymorphedModifier,
+            Has<ExplosiveSheep>,
+        ),
         (Without<Corpse>, Without<DireSheep>),
     >,
     mut damage_targets: Query<
-        (Entity, &Transform, &mut Health, Option<&mut TemporaryHitPoints>, Has<SpellShield>),
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
 ) {
@@ -504,8 +532,13 @@ pub fn check_explosive_sheep_deaths(
 
         if is_explosive {
             // Deal AoE damage to nearby enemies
-            for (target_entity, target_transform, mut target_health, mut temp_hp, has_spell_shield) in
-                &mut damage_targets
+            for (
+                target_entity,
+                target_transform,
+                mut target_health,
+                mut temp_hp,
+                has_spell_shield,
+            ) in &mut damage_targets
             {
                 let dist = target_transform
                     .translation
@@ -566,7 +599,14 @@ pub fn tick_dire_sheep(
         (With<PolymorphedModifier>, Without<Corpse>),
     >,
     mut enemies_query: Query<
-        (Entity, &Transform, &mut Health, &Team, Option<&mut TemporaryHitPoints>, Has<SpellShield>),
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            &Team,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
         (Without<Corpse>, Without<PolymorphedModifier>),
     >,
     mut velocity_query: Query<&mut crate::game::components::Velocity>,
@@ -580,9 +620,7 @@ pub fn tick_dire_sheep(
         let mut nearest_enemy: Option<(Entity, f32, Vec3)> = None;
         for (entity, transform, _, team, _, _) in &enemies_query {
             if Team::Defenders.is_enemy(team) {
-                let dist = sheep_transform
-                    .translation
-                    .distance(transform.translation);
+                let dist = sheep_transform.translation.distance(transform.translation);
                 if nearest_enemy.as_ref().is_none_or(|e| dist < e.1) {
                     nearest_enemy = Some((entity, dist, transform.translation));
                 }

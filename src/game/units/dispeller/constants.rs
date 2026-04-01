@@ -6,8 +6,8 @@ use crate::game::constants::{UNIT_SCALE, get_tier, get_tier_level};
 pub const DISPELLER_RADIUS: f32 = 8.0 * UNIT_SCALE;
 
 // Sprite animation (re-export shared defaults)
-pub use crate::game::units::constants::DEFAULT_SPRITE_WIDTH as DISPELLER_SPRITE_WIDTH;
 pub use crate::game::units::constants::DEFAULT_SPRITE_HEIGHT as DISPELLER_SPRITE_HEIGHT;
+pub use crate::game::units::constants::DEFAULT_SPRITE_WIDTH as DISPELLER_SPRITE_WIDTH;
 
 /// Sprite tint for attacker dispellers.
 pub const DISPELLER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);

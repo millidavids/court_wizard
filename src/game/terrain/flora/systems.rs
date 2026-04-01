@@ -4,11 +4,13 @@ use rand::prelude::*;
 use super::components::Flora;
 use super::constants::*;
 use super::resources::FloraAssets;
-use crate::config::save_data::SavedFlora;
 use crate::config::GameConfig;
-use crate::game::battlefield::constants::{LAVA_POOL_POSITION, LAVA_POOL_RADIUS, WATER_POOL_POSITION, WATER_POOL_RADIUS};
+use crate::config::save_data::SavedFlora;
+use crate::game::battlefield::constants::{
+    LAVA_POOL_POSITION, LAVA_POOL_RADIUS, WATER_POOL_POSITION, WATER_POOL_RADIUS,
+};
 use crate::game::components::{Billboard, OnGameplayScreen};
-use crate::game::seeded_rng::resources::{derive_seed, SEED_PURPOSE_FLORA};
+use crate::game::seeded_rng::resources::{SEED_PURPOSE_FLORA, derive_seed};
 use crate::game::shared_systems::{ShadowAssets, spawn_terrain_shadow};
 use crate::game::units::components::Corpse;
 
@@ -18,7 +20,11 @@ use crate::game::units::components::Corpse;
 /// Uses seeded RNG when a seed is available for deterministic generation.
 pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
     let mut rng: Box<dyn RngCore> = match config.seed {
-        Some(seed) => Box::new(StdRng::seed_from_u64(derive_seed(seed, config.current_level, SEED_PURPOSE_FLORA))),
+        Some(seed) => Box::new(StdRng::seed_from_u64(derive_seed(
+            seed,
+            config.current_level,
+            SEED_PURPOSE_FLORA,
+        ))),
         None => Box::new(rand::thread_rng()),
     };
 
@@ -72,14 +78,18 @@ pub(in crate::game) fn spawn_single_flora(
         Mesh3d(flora_assets.mesh.clone()),
         MeshMaterial3d(flora_assets.materials[sprite_idx].clone()),
         Transform::from_xyz(saved.x, spawn_y, saved.z),
-        Flora {
-            saved_id: saved.id,
-        },
+        Flora { saved_id: saved.id },
         Billboard,
         OnGameplayScreen,
     ));
 
-    spawn_terrain_shadow(commands, shadow_assets, saved.x, saved.z, FLORA_SHADOW_SCALE);
+    spawn_terrain_shadow(
+        commands,
+        shadow_assets,
+        saved.x,
+        saved.z,
+        FLORA_SHADOW_SCALE,
+    );
 }
 
 /// Removes flora when living units walk over them.
@@ -88,7 +98,14 @@ pub(in crate::game) fn spawn_single_flora(
 pub(super) fn trample_flora(
     mut commands: Commands,
     flora_query: Query<(Entity, &Transform, &Flora)>,
-    unit_query: Query<&Transform, (With<crate::game::components::Velocity>, Without<Corpse>, Without<Flora>)>,
+    unit_query: Query<
+        &Transform,
+        (
+            With<crate::game::components::Velocity>,
+            Without<Corpse>,
+            Without<Flora>,
+        ),
+    >,
     mut config: ResMut<GameConfig>,
 ) {
     let mut trampled_ids: Vec<u32> = Vec::new();
@@ -108,8 +125,6 @@ pub(super) fn trample_flora(
     }
 
     if !trampled_ids.is_empty() {
-        config
-            .saved_flora
-            .retain(|f| !trampled_ids.contains(&f.id));
+        config.saved_flora.retain(|f| !trampled_ids.contains(&f.id));
     }
 }

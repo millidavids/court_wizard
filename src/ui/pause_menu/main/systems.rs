@@ -39,10 +39,16 @@ pub fn setup(
 
     commands.entity(content).with_children(|parent| {
         // Title text
-        spawn_title_with_shadow(parent, "Paused", TITLE_FONT_SIZE, TEXT_COLOR, Node {
-            margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),
-            ..default()
-        });
+        spawn_title_with_shadow(
+            parent,
+            "Paused",
+            TITLE_FONT_SIZE,
+            TEXT_COLOR,
+            Node {
+                margin: UiRect::bottom(Val::Px(MARGIN * 2.0)),
+                ..default()
+            },
+        );
 
         // Continue button
         spawn_button(

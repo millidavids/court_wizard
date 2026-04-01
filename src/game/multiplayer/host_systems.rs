@@ -158,7 +158,11 @@ pub fn receive_teleport_message(
     mut commands: Commands,
     mut connection: ResMut<NetworkConnection>,
     units_query: Query<
-        (Entity, &Transform, Option<&crate::game::units::components::Team>),
+        (
+            Entity,
+            &Transform,
+            Option<&crate::game::units::components::Team>,
+        ),
         (
             With<crate::game::units::components::Teleportable>,
             Without<

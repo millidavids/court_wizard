@@ -70,10 +70,7 @@ impl Plugin for BattlemagePlugin {
             // Enter the Fray button
             .add_systems(
                 Update,
-                (
-                    handle_enter_fray_click,
-                    update_enter_fray_visibility,
-                )
+                (handle_enter_fray_click, update_enter_fray_visibility)
                     .run_if(is_spell_effects_active)
                     .run_if(is_battlemage)
                     .run_if(any_exist::<EnterFrayRoot>()),

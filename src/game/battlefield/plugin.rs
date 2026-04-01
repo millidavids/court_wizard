@@ -18,25 +18,17 @@ impl Plugin for BattlefieldPlugin {
             .add_systems(
                 Update,
                 (
-                    (
-                        systems::emit_lava_fire_smoke,
-                        systems::emit_lava_sparks,
-                    )
+                    (systems::emit_lava_fire_smoke, systems::emit_lava_sparks)
                         .run_if(any_exist::<LavaPool>()),
-                    systems::emit_water_ripples
-                        .run_if(resource_exists::<WaterRippleAssets>),
-                    systems::update_water_ripples
-                        .run_if(any_exist::<WaterRipple>()),
+                    systems::emit_water_ripples.run_if(resource_exists::<WaterRippleAssets>),
+                    systems::update_water_ripples.run_if(any_exist::<WaterRipple>()),
                 )
                     .run_if(is_gameplay_running),
             )
             // Terrain hazard systems (lava damage, water slow)
             .add_systems(
                 Update,
-                (
-                    systems::apply_lava_damage,
-                    systems::apply_water_slow,
-                )
+                (systems::apply_lava_damage, systems::apply_water_slow)
                     .run_if(is_gameplay_running)
                     .run_if(resource_exists::<PathfindingGrid>),
             );

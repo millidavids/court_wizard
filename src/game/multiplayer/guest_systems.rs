@@ -31,7 +31,9 @@ use crate::game::units::wizard::spells::meteor_fall::components::{
     MeteorExplosion, MeteorGroundFire,
 };
 use crate::game::units::wizard::spells::plague_wind::components::PlagueWindCloud;
-use crate::game::units::wizard::spells::spike_growth::components::{SpikeGrowthTalentParams, SpikeGrowthZone};
+use crate::game::units::wizard::spells::spike_growth::components::{
+    SpikeGrowthTalentParams, SpikeGrowthZone,
+};
 use crate::game::units::wizard::spells::squall::components::IceExplosion;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -443,7 +445,7 @@ fn pick_material(
         let tint = crate::game::units::systems::archer_sprite_tint_for_team(team);
         create_default_sprite_material(materials, archer_assets.sprite_texture.clone(), tint)
     } else if is_guard {
-        use crate::game::units::infantry::styles::KINGS_GUARD_SPRITE_TINT;
+        use crate::game::units::infantry::constants::KINGS_GUARD_SPRITE_TINT;
         create_default_sprite_material(
             materials,
             infantry_assets.sprite_texture.clone(),

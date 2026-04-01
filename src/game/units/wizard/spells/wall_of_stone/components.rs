@@ -181,8 +181,12 @@ impl WallOfStone {
     /// Returns the closest point on this wall's surface to the given point (XZ plane).
     pub fn closest_point_on_surface(&self, point: Vec3) -> Vec3 {
         let diff = Vec3::new(point.x - self.center.x, 0.0, point.z - self.center.z);
-        let forward_proj = diff.dot(self.forward).clamp(-self.half_length, self.half_length);
-        let right_proj = diff.dot(self.right).clamp(-self.half_width, self.half_width);
+        let forward_proj = diff
+            .dot(self.forward)
+            .clamp(-self.half_length, self.half_length);
+        let right_proj = diff
+            .dot(self.right)
+            .clamp(-self.half_width, self.half_width);
         self.center + self.forward * forward_proj + self.right * right_proj
     }
 

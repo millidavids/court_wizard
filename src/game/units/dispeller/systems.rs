@@ -9,15 +9,15 @@ use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
-    FlockingVelocity, HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier,
-    FrozenSolidModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
-    Sleepwalking, SlowMovementModifier,
-    TargetingVelocity, Team, TemporaryHitPoints, apply_damage_to_unit,
+    FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed,
+    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, TemporaryHitPoints,
+    apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
-use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::wizard::spells::dispel::systems::{
     is_dispellable, spawn_dispel_projectile, spell_edge_distance,
 };
@@ -37,7 +37,14 @@ pub fn update_dispeller_targeting(
         (With<Dispeller>, Without<Corpse>),
     >,
     spell_effects: Query<(Entity, &Transform, &NetworkedSpellEffect)>,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
+    >,
     // Spell-specific queries for volume-aware distance
     wall_of_fire_query: Query<&WallOfFireEffect>,
     wall_of_stone_query: Query<&WallOfStone>,
@@ -220,11 +227,30 @@ pub fn dispeller_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
+        (
+            sleeping,
+            sleepwalking,
+            banished,
+            polymorphed,
+            sickened,
+            frozen,
+            stunned,
+            team,
+            has_staging,
+            has_wave_group,
+        ),
     ) in &mut dispeller_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -260,7 +286,8 @@ pub fn dispeller_movement(
 
         // Stop completely when in optimal position (not in melee, not on hazard)
         // Skip for staging units — they need to keep following the flow field
-        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
         if !is_staging && in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
@@ -282,7 +309,14 @@ pub fn dispeller_cast_dispel(
     mut materials: ResMut<Assets<StandardMaterial>>,
     dispeller_assets: Res<DispellerAssets>,
     mut dispellers: Query<
-        (Entity, &Transform, &Team, Option<&mut DispellerDispelCooldown>, Has<StagingAttacker>, Has<WaveGroup>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            Option<&mut DispellerDispelCooldown>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
+        ),
         (With<Dispeller>, Without<Corpse>),
     >,
     spell_effects: Query<(Entity, &Transform, &NetworkedSpellEffect)>,
@@ -412,7 +446,11 @@ pub fn dispeller_ranged_combat(
     ) in &mut dispellers
     {
         // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
-        if crate::game::units::systems::is_staging_attacker(dispeller_team, has_staging, has_wave_group) {
+        if crate::game::units::systems::is_staging_attacker(
+            dispeller_team,
+            has_staging,
+            has_wave_group,
+        ) {
             continue;
         }
 
@@ -515,7 +553,9 @@ pub fn check_bolt_collisions(
     for (bolt_entity, bolt_transform, bolt) in &bolts {
         let bolt_pos = bolt_transform.translation;
 
-        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction) in &mut targets {
+        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction) in
+            &mut targets
+        {
             // Skip same team
             if *team == bolt.source_team {
                 continue;

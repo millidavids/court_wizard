@@ -10,6 +10,7 @@
 pub(crate) mod achievements;
 mod battlefield;
 pub(crate) mod cauldron;
+pub(crate) mod combat_systems;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod crt_effect;
@@ -18,6 +19,7 @@ pub(crate) mod game_mode;
 pub(crate) mod input;
 mod loading;
 pub(crate) mod messages;
+pub(crate) mod movement_systems;
 pub(crate) mod multiplayer;
 pub(crate) mod pathfinding;
 mod plugin;

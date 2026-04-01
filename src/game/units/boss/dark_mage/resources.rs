@@ -33,7 +33,10 @@ pub(super) fn preload_dark_mage_assets(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let assets = DarkMageAssets {
-        mesh: meshes.add(Ellipse::new(DARK_MAGE_ELLIPSE_WIDTH, DARK_MAGE_ELLIPSE_DEPTH)),
+        mesh: meshes.add(Ellipse::new(
+            DARK_MAGE_ELLIPSE_WIDTH,
+            DARK_MAGE_ELLIPSE_DEPTH,
+        )),
         material_phase0: materials.add(StandardMaterial {
             base_color: DARK_MAGE_COLOR,
             unlit: true,

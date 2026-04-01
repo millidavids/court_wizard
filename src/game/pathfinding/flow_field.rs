@@ -75,31 +75,6 @@ impl FlowField {
         z * self.width + x
     }
 
-    /// Marks cells as blocked (impassable).
-    #[allow(dead_code)]
-    pub fn mark_blocked(&mut self, cells: &[(usize, usize)]) {
-        for &(x, z) in cells {
-            if x < self.width && z < self.height {
-                let idx = self.index(x, z);
-                self.costs[idx] = f32::INFINITY;
-            }
-        }
-    }
-
-    /// Sets terrain cost for cells (higher = slower movement).
-    ///
-    /// This replaces the current cost - use this when clearing obstacles or
-    /// updating terrain. For obstacles that overlap, the last one wins.
-    #[allow(dead_code)]
-    pub fn set_terrain_cost(&mut self, cells: &[(usize, usize)], cost: f32) {
-        for &(x, z) in cells {
-            if x < self.width && z < self.height {
-                let idx = self.index(x, z);
-                self.costs[idx] = cost;
-            }
-        }
-    }
-
     /// Generates the flow field using Dijkstra's algorithm from a goal position.
     ///
     /// # Arguments
@@ -258,7 +233,11 @@ impl FlowField {
                 let c01 = self.sample_integration_cost(x0, z1);
                 let c11 = self.sample_integration_cost(x1, z1);
 
-                if !c00.is_infinite() && !c10.is_infinite() && !c01.is_infinite() && !c11.is_infinite() {
+                if !c00.is_infinite()
+                    && !c10.is_infinite()
+                    && !c01.is_infinite()
+                    && !c11.is_infinite()
+                {
                     // Gradient of the bilinear surface at cell center (fx=fz=0.5)
                     let dx = 0.5 * (c10 - c00) + 0.5 * (c11 - c01);
                     let dz = 0.5 * (c01 - c00) + 0.5 * (c11 - c10);
@@ -310,9 +289,24 @@ impl FlowField {
         let n_pass = z + 1 < self.height && !self.costs[self.index(x, z + 1)].is_infinite();
 
         let diag_neighbors = [
-            (x.wrapping_sub(1), z.wrapping_sub(1), Vec3::new(-1.0, 0.0, -1.0), w_pass && s_pass),
-            (x + 1, z.wrapping_sub(1), Vec3::new(1.0, 0.0, -1.0), e_pass && s_pass),
-            (x.wrapping_sub(1), z + 1, Vec3::new(-1.0, 0.0, 1.0), w_pass && n_pass),
+            (
+                x.wrapping_sub(1),
+                z.wrapping_sub(1),
+                Vec3::new(-1.0, 0.0, -1.0),
+                w_pass && s_pass,
+            ),
+            (
+                x + 1,
+                z.wrapping_sub(1),
+                Vec3::new(1.0, 0.0, -1.0),
+                e_pass && s_pass,
+            ),
+            (
+                x.wrapping_sub(1),
+                z + 1,
+                Vec3::new(-1.0, 0.0, 1.0),
+                w_pass && n_pass,
+            ),
             (x + 1, z + 1, Vec3::new(1.0, 0.0, 1.0), e_pass && n_pass),
         ];
 

@@ -120,21 +120,12 @@ pub(super) struct SeedInputText;
 pub(super) struct SeedInputBox;
 
 /// Resource tracking the seed input state.
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub(super) struct SeedInputState {
     /// The current text in the seed input field.
     pub text: String,
     /// Whether the input field is focused (accepting keyboard input).
     pub focused: bool,
-}
-
-impl Default for SeedInputState {
-    fn default() -> Self {
-        Self {
-            text: String::new(),
-            focused: false,
-        }
-    }
 }
 
 /// Marker for the "Random" toggle button.

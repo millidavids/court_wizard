@@ -67,9 +67,9 @@ impl KillStats {
 /// Tracks whether the player won or lost the game.
 #[derive(Resource, Clone, Copy, PartialEq, Eq)]
 pub enum GameOutcome {
-    Victory,              // Player wins (all attackers and undead eliminated)
-    Defeat,               // Player loses (all defenders eliminated)
-    DefeatKingDied,       // Player loses (King was killed)
+    Victory,                // Player wins (all attackers and undead eliminated)
+    Defeat,                 // Player loses (all defenders eliminated)
+    DefeatKingDied,         // Player loses (King was killed)
     DefeatNotEnoughCarnage, // Psychopath loses (not enough defenders killed)
 }
 

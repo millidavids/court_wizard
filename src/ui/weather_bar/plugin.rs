@@ -14,10 +14,7 @@ impl Plugin for WeatherBarPlugin {
             OnEnter(InGameState::Running),
             systems::spawn_weather_bar.run_if(is_meteorologist),
         )
-        .add_systems(
-            OnExit(InGameState::Running),
-            systems::cleanup_weather_bar,
-        )
+        .add_systems(OnExit(InGameState::Running), systems::cleanup_weather_bar)
         .add_systems(
             Update,
             (

@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -7,6 +6,7 @@ use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::crt_effect::ScreenDesaturateMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
@@ -17,12 +17,12 @@ use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, get_cursor_world_position};
+use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, build_wizard_input};
 use crate::game::units::wizard::spells::vfx;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
 
 /// Computes talent-modified parameters for Finger of Death.
 pub(super) fn compute_fod_params(active_talents: Option<&ActiveTalents>) -> FodTalentParams {
@@ -147,14 +147,7 @@ pub fn handle_finger_of_death_casting(
     mut beams: Query<(Entity, &mut FingerOfDeathBeam)>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, mut casting_state, mana, primed_spell, wizard)) =
         wizard_query.single_mut()
@@ -215,8 +208,13 @@ pub fn handle_finger_of_death_casting(
             cast_progress,
             talent_params,
         } => {
-            let mut new_beam =
-                FingerOfDeathBeam::with_talents(origin, direction, length, empowerment, talent_params);
+            let mut new_beam = FingerOfDeathBeam::with_talents(
+                origin,
+                direction,
+                length,
+                empowerment,
+                talent_params,
+            );
             new_beam.cast_progress = cast_progress;
             spawn_beam(&mut commands, &visual_assets, &mut materials, new_beam);
         }
@@ -496,10 +494,10 @@ pub fn apply_finger_of_death_damage(
             }
         }
         for rock in &rocks {
-            if !rock.sinking {
-                if let Some(t) = rock.line_segment_intersects(beam.origin, beam_end) {
-                    max_t = max_t.min(t);
-                }
+            if !rock.sinking
+                && let Some(t) = rock.line_segment_intersects(beam.origin, beam_end)
+            {
+                max_t = max_t.min(t);
             }
         }
         let effective_length = beam.length * max_t;
@@ -537,9 +535,7 @@ pub fn apply_finger_of_death_damage(
                     }
 
                     // Deathmark: also apply debuff to survivors (chain beam fires if they die later)
-                    if beam.talent_params.deathmark
-                        && health.current > 0.0
-                    {
+                    if beam.talent_params.deathmark && health.current > 0.0 {
                         commands.entity(entity).insert(DeathmarkDebuff {
                             time_remaining: constants::DEATHMARK_DURATION,
                             beam_origin: beam.origin,
@@ -559,7 +555,12 @@ pub fn apply_finger_of_death_damage(
             intensity: 0.15,
         });
 
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Dark,
+            time.elapsed_secs(),
+        );
         audio::play_sfx(
             &mut commands,
             &sfx.finger_of_death_cast,
@@ -586,7 +587,9 @@ pub fn apply_finger_of_death_damage(
                     if cooldown > 0.0 {
                         commands
                             .entity(wizard_entity)
-                            .insert(FingerOfDeathCooldown { remaining: cooldown });
+                            .insert(FingerOfDeathCooldown {
+                                remaining: cooldown,
+                            });
                     }
 
                     // Soul Harvest: refund mana on kill
@@ -718,7 +721,7 @@ pub fn process_pending_undead_raises(
     };
 
     use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
-    use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
+    use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
 
     let mut raised_entities = Vec::new();
     for kill_pos in &pending.kill_positions {
@@ -795,9 +798,13 @@ fn spawn_necrotic_explosion(
         },
         Mesh3d(visual_assets.unit_circle.clone()),
         MeshMaterial3d(instance),
-        Transform::from_translation(Vec3::new(position.x, constants::PULSE_Y_POSITION, position.z))
-            .with_rotation(UPWARD_ROTATION)
-            .with_scale(Vec3::splat(1.0)),
+        Transform::from_translation(Vec3::new(
+            position.x,
+            constants::PULSE_Y_POSITION,
+            position.z,
+        ))
+        .with_rotation(UPWARD_ROTATION)
+        .with_scale(Vec3::splat(1.0)),
         OnGameplayScreen,
     ));
 }
@@ -979,8 +986,7 @@ pub fn update_reapers_scythe(
         }
 
         // Calculate current sweep angle
-        let arc_radians =
-            constants::REAPERS_SCYTHE_ARC_DEGREES.to_radians();
+        let arc_radians = constants::REAPERS_SCYTHE_ARC_DEGREES.to_radians();
         let half_arc = arc_radians / 2.0;
         let progress = sweep.time_elapsed / sweep.duration;
         let current_angle = -half_arc + arc_radians * progress;
@@ -1014,10 +1020,10 @@ pub fn update_reapers_scythe(
             }
         }
         for rock in &rocks_query {
-            if !rock.sinking {
-                if let Some(t) = rock.line_segment_intersects(sweep.origin, beam_end) {
-                    max_t = max_t.min(t);
-                }
+            if !rock.sinking
+                && let Some(t) = rock.line_segment_intersects(sweep.origin, beam_end)
+            {
+                max_t = max_t.min(t);
             }
         }
         let effective_length = sweep.length * max_t;
@@ -1066,10 +1072,10 @@ pub fn update_reapers_scythe(
             }
         }
 
-        if kill_count > 0 {
-            if let Some(ref mut progress) = talent_progress {
-                progress.increment(Spell::FingerOfDeath, kill_count);
-            }
+        if kill_count > 0
+            && let Some(ref mut progress) = talent_progress
+        {
+            progress.increment(Spell::FingerOfDeath, kill_count);
         }
 
         // Spawn visual beam trail at intervals (every ~0.05s) instead of every frame
@@ -1114,9 +1120,7 @@ pub fn tick_finger_of_death_cooldown(
     for (entity, mut cooldown) in &mut cooldowns {
         cooldown.remaining -= time.delta_secs();
         if cooldown.remaining <= 0.0 {
-            commands
-                .entity(entity)
-                .remove::<FingerOfDeathCooldown>();
+            commands.entity(entity).remove::<FingerOfDeathCooldown>();
         }
     }
 }
@@ -1158,7 +1162,11 @@ pub fn update_finger_of_death_beam_visuals(
         let beam_width = base_width * pulse;
 
         // During cast: scale up with cast_progress; after fire: full size
-        let progress_scale = if beam.has_fired { 1.0 } else { beam.cast_progress };
+        let progress_scale = if beam.has_fired {
+            1.0
+        } else {
+            beam.cast_progress
+        };
         transform.scale = Vec3::new(
             beam_width * progress_scale,
             visual_len * progress_scale,
@@ -1208,8 +1216,7 @@ pub fn update_finger_of_death_beam_visuals(
                     );
                 } else {
                     mat.base_color = Color::srgb(0.6 * intensity, 0.0, 0.8 * intensity);
-                    mat.emissive =
-                        LinearRgba::new(1.5 * intensity, 0.0, 2.5 * intensity, 1.0);
+                    mat.emissive = LinearRgba::new(1.5 * intensity, 0.0, 2.5 * intensity, 1.0);
                 }
             }
         }
@@ -1299,7 +1306,11 @@ pub fn update_finger_of_death_glow(
         };
         let glow_width = base_width * constants::GLOW_WIDTH_MULTIPLIER * (pulse + shimmer);
 
-        let progress_scale = if beam.has_fired { 1.0 } else { beam.cast_progress };
+        let progress_scale = if beam.has_fired {
+            1.0
+        } else {
+            beam.cast_progress
+        };
         transform.scale = Vec3::new(
             glow_width * progress_scale,
             visual_len * progress_scale,
@@ -1342,7 +1353,11 @@ pub fn update_finger_of_death_flare(
         let radius = constants::FLARE_RADIUS * pulse;
 
         // Scale with cast progress so flare grows during cast
-        let progress_scale = if beam.has_fired { 1.0 } else { beam.cast_progress };
+        let progress_scale = if beam.has_fired {
+            1.0
+        } else {
+            beam.cast_progress
+        };
         transform.scale = Vec3::splat(radius * progress_scale);
     }
 }

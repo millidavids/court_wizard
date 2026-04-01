@@ -1,9 +1,9 @@
-use bevy::prelude::*;
 use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{
@@ -19,7 +19,6 @@ use crate::game::units::wizard::spells::grease::components::{GreaseIgnited, Grea
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::spike_growth::components::SpikeGrowthZone;
 use crate::game::units::wizard::spells::utils::{get_cursor_world_position, xz_distance};
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants as vfx_constants;
 use crate::game::units::wizard::spells::vfx::systems::spawn_explosion_smoke;
@@ -28,13 +27,12 @@ use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffe
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 // ===== Talent Params =====
 
 /// Computes talent parameters from active talent selections.
-pub(crate) fn compute_talent_params(
-    active_talents: Option<&ActiveTalents>,
-) -> DispelTalentParams {
+pub(crate) fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> DispelTalentParams {
     let mut params = DispelTalentParams::default();
     let Some(talents) = active_talents else {
         return params;
@@ -123,7 +121,12 @@ pub fn handle_dispel_casting(
     }
 
     let origin = SPELL_ORIGIN;
-    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
+    vfx::systems::spawn_school_flare(
+        &mut commands,
+        &visual_assets,
+        vfx::systems::SpellSchool::Arcane,
+        time.elapsed_secs(),
+    );
     audio::play_sfx(&mut commands, &sfx.dispel_cast, origin, &game_config, &sfx);
 
     let cooldown_time = constants::COOLDOWN * talent_params.cooldown_mult;
@@ -222,7 +225,13 @@ pub(crate) fn spawn_dispel_projectile(
 ) {
     let params = DispelTalentParams::default();
     spawn_dispel_projectile_with_talents(
-        commands, meshes, materials, origin, target_pos, height_offset, &params,
+        commands,
+        meshes,
+        materials,
+        origin,
+        target_pos,
+        height_offset,
+        &params,
     );
 }
 
@@ -492,12 +501,7 @@ pub fn update_dispel_impacts(
 
             // Explosive Nullification: damage enemies near the dispelled effect + VFX
             if has_explosive {
-                spawn_dispel_explosion(
-                    &mut commands,
-                    &visual_assets,
-                    effect_pos,
-                    time_secs,
-                );
+                spawn_dispel_explosion(&mut commands, &visual_assets, effect_pos, time_secs);
                 for (entity, tf, team, _, _, has_shield, _, _, _, _, _) in unit_query.iter() {
                     if !Team::Defenders.is_enemy(team) {
                         continue;
@@ -520,8 +524,7 @@ pub fn update_dispel_impacts(
                     if !Team::Defenders.is_enemy(team) {
                         continue;
                     }
-                    if xz_distance(tf.translation, target_pos)
-                        <= constants::SPELL_REFLECTION_RADIUS
+                    if xz_distance(tf.translation, target_pos) <= constants::SPELL_REFLECTION_RADIUS
                     {
                         damage_targets.push((
                             entity,
@@ -555,11 +558,11 @@ pub fn update_dispel_impacts(
             &mut commands,
             impact_center,
             radius,
-            unit_query.iter().filter_map(
-                |(entity, tf, _, _, _, _, _, _, _, _, has_mc)| {
+            unit_query
+                .iter()
+                .filter_map(|(entity, tf, _, _, _, _, _, _, _, _, has_mc)| {
                     has_mc.then_some((entity, tf.translation))
-                },
-            ),
+                }),
         );
         dispelled_count += mc_freed;
 
@@ -568,12 +571,12 @@ pub fn update_dispel_impacts(
             &mut commands,
             impact_center,
             radius,
-            unit_query.iter().filter_map(
-                |(entity, tf, team, _, _, has_shield, _, _, _, _, _)| {
+            unit_query
+                .iter()
+                .filter_map(|(entity, tf, team, _, _, has_shield, _, _, _, _, _)| {
                     (has_shield && Team::Defenders.is_enemy(team))
                         .then_some((entity, tf.translation))
-                },
-            ),
+                }),
         );
         dispelled_count += shields_stripped;
 
@@ -695,10 +698,7 @@ pub fn update_null_zones(
     grease_query: Query<(&GreaseZone, Has<GreaseIgnited>)>,
     meteor_fire_query: Query<&MeteorGroundFire>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
-    mind_controlled_query: Query<
-        (Entity, &Transform),
-        (With<MindControlled>, Without<NullZone>),
-    >,
+    mind_controlled_query: Query<(Entity, &Transform), (With<MindControlled>, Without<NullZone>)>,
 ) {
     let delta = time.delta_secs();
     for (zone_entity, mut zone, material_handle) in &mut zones {
@@ -979,14 +979,17 @@ pub(crate) fn despawn_spell_effect(
 
         // Trigger sinking animation — the existing tick/animate/cleanup pipeline
         // will handle the visual sink and eventual despawn.
-        let sink_duration = crate::game::units::wizard::spells::wall_of_stone::constants::WALL_SINK_DURATION;
+        let sink_duration =
+            crate::game::units::wizard::spells::wall_of_stone::constants::WALL_SINK_DURATION;
         commands.entity(spell_entity).insert(
             crate::game::units::wizard::spells::wall_of_stone::components::DispelledWall {
                 sink_duration,
             },
         );
         // Remove the NetworkedSpellEffect so the dispel impact doesn't re-target this wall
-        commands.entity(spell_entity).remove::<NetworkedSpellEffect>();
+        commands
+            .entity(spell_entity)
+            .remove::<NetworkedSpellEffect>();
         return;
     }
 

@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
-use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, INSIGHT_COLOR as GLOBAL_INSIGHT, TEXT_BODY, TEXT_PRIMARY};
+use crate::ui::constants::{
+    BUTTON_BG, BUTTON_BORDER, INSIGHT_COLOR as GLOBAL_INSIGHT, TEXT_BODY, TEXT_PRIMARY,
+};
 
 pub const TITLE_COLOR: Color = TEXT_PRIMARY;
 pub const TEXT_COLOR: Color = TEXT_BODY;

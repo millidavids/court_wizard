@@ -15,13 +15,6 @@ pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
     |query: Query<(), With<T>>| !query.is_empty()
 }
 
-/// Check if any entities have component T but not component U.
-#[allow(dead_code)]
-pub fn any_exist_without<T: Component, U: Component>(
-) -> impl FnMut(Query<(), (With<T>, Without<U>)>) -> bool {
-    move |query: Query<(), (With<T>, Without<U>)>| !query.is_empty()
-}
-
 /// Returns true if single-player simulation should be active.
 ///
 /// True when `InGameState::Running`, or when urgent mode is enabled and the
@@ -159,12 +152,6 @@ pub fn is_randomancer(config: Res<GameConfig>) -> bool {
 /// Returns true if the active wizard type is Arcanorouter.
 pub fn is_arcanorouter(config: Res<GameConfig>) -> bool {
     config.wizard_type == WizardType::Arcanorouter
-}
-
-/// Returns true if the active wizard type is Alchemist.
-#[allow(dead_code)]
-pub fn is_alchemist(config: Res<GameConfig>) -> bool {
-    config.wizard_type == WizardType::Alchemist
 }
 
 /// Returns true if the active wizard type is Warglock (gunslinger).

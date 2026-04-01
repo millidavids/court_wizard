@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.498] - 2026-04-01
+
+### Changed
+- **Cleaner code under the hood** — major cleanup pass across the entire game to improve code quality, reduce duplication, and follow best practices. No gameplay changes, just a healthier codebase
+- **Combat and movement split into focused files** — the game's internal systems are now better organized, making future updates easier to develop and test
+- **Spell casting is more consistent** — all spells now share the same underlying input and indicator logic, reducing the chance of one spell behaving slightly differently from another
+
 ## [v0.5.425] - 2026-04-01
 
 ### Added

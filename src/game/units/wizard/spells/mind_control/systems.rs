@@ -3,28 +3,28 @@ use std::cmp::Ordering;
 use bevy::prelude::*;
 
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard,
 };
 use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
+use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::boss::components::Boss;
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::units::boss::components::Boss;
 use crate::game::units::components::{
     AttackTiming, Corpse, FlockingVelocity, Health, Hitbox, MindControlled, TargetingVelocity,
     Team, TemporaryHitPoints, apply_damage_to_unit,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::vfx;
-use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
-    ground_projected_range, spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster,
+    ground_projected_range, spawn_circle_indicator, update_indicator_position,
 };
+use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 
 /// Computes talent parameters from active talent selections.
@@ -108,7 +108,12 @@ pub(super) fn handle_mind_control_casting(
     corrected_cursor: Res<CorrectedCursorPosition>,
     enemies_query: Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
-        (Without<Corpse>, Without<MindControlled>, Without<Boss>, Without<MassHysteriaTarget>),
+        (
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Boss>,
+            Without<MassHysteriaTarget>,
+        ),
     >,
     existing_controlled: Query<&MindControlled>,
     existing_dominated: Query<Entity, With<DominatedUnit>>,
@@ -116,20 +121,16 @@ pub(super) fn handle_mind_control_casting(
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     mut highlight: Local<HighlightState>,
     loaded_assets: (Res<SpellSfxAssets>, Res<SpellVisualAssets>, Res<GameConfig>),
-    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talent_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (ref mut materials, ref mut meshes) = assets;
     let (ref sfx, ref visual_assets, ref game_config) = loaded_assets;
     let (active_talents, mut talent_progress) = talent_resources;
-    let released = mouse_left_released.read().next().is_some();
-    let raw_cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    // cursor_pos is set after we know spell_range; use raw_cursor_pos for now
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos: raw_cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let raw_cursor_pos = input.cursor_pos;
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell, cooldown)) =
         wizard_query.single_mut()
@@ -170,12 +171,7 @@ pub(super) fn handle_mind_control_casting(
 
     // On release → cancel cast, remove highlight, and despawn indicator
     if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
+        cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
         casting_state.cancel();
         clear_highlight(&mut commands, materials, &mut highlight);
         return;
@@ -185,8 +181,7 @@ pub(super) fn handle_mind_control_casting(
         CastingState::Resting => {
             let can_cast = if talent_params.mass_hysteria {
                 // Mass Hysteria doesn't check controlled count
-                mana.can_afford(mana_cost)
-                    && !cooldown.is_some_and(|cd| cd.remaining > 0.0)
+                mana.can_afford(mana_cost) && !cooldown.is_some_and(|cd| cd.remaining > 0.0)
             } else {
                 mana.can_afford(mana_cost)
                     && !cooldown.is_some_and(|cd| cd.remaining > 0.0)
@@ -194,20 +189,20 @@ pub(super) fn handle_mind_control_casting(
             };
 
             if (input.just_pressed || input.pressed) && can_cast {
-                if talent_params.mass_hysteria {
-                    if let Some(pos) = cursor_pos {
-                        let circle_entity = spawn_circle_indicator(
-                            &mut commands,
-                            meshes,
-                            visual_assets.mind_control_indicator.clone(),
-                            pos,
-                            constants::MASS_HYSTERIA_RADIUS,
-                        )
-                        .id();
-                        commands
-                            .entity(wizard_entity)
-                            .insert(SpellCaster::with_indicator(circle_entity));
-                    }
+                if talent_params.mass_hysteria
+                    && let Some(pos) = cursor_pos
+                {
+                    let circle_entity = spawn_circle_indicator(
+                        &mut commands,
+                        meshes,
+                        visual_assets.mind_control_indicator.clone(),
+                        pos,
+                        constants::MASS_HYSTERIA_RADIUS,
+                    )
+                    .id();
+                    commands
+                        .entity(wizard_entity)
+                        .insert(SpellCaster::with_indicator(circle_entity));
                 }
                 casting_state.start_cast();
             }
@@ -217,12 +212,13 @@ pub(super) fn handle_mind_control_casting(
 
             if talent_params.mass_hysteria {
                 // Update indicator position to follow cursor
-                if let Some(pos) = cursor_pos
-                    && let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                    && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-                {
-                    indicator.position = pos;
+                if let Some(pos) = cursor_pos {
+                    update_indicator_position(
+                        wizard_entity,
+                        pos,
+                        &caster_query,
+                        &mut indicator_query,
+                    );
                 }
             } else {
                 // Find nearest enemy to cursor each frame and update highlight
@@ -238,7 +234,12 @@ pub(super) fn handle_mind_control_casting(
 
             if casting_state.is_complete(cast_time) {
                 if mana.consume(mana_cost) {
-                    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
+                    vfx::systems::spawn_school_flare(
+                        &mut commands,
+                        visual_assets,
+                        vfx::systems::SpellSchool::Dark,
+                        time.elapsed_secs(),
+                    );
                     if talent_params.mass_hysteria {
                         // Mass Hysteria: apply chaos to all enemies in radius
                         if let Some(pos) = cursor_pos {
@@ -247,7 +248,9 @@ pub(super) fn handle_mind_control_casting(
                                 if !matches!(*team, Team::Attackers | Team::Undead) {
                                     continue;
                                 }
-                                if transform.translation.distance(pos) <= constants::MASS_HYSTERIA_RADIUS {
+                                if transform.translation.distance(pos)
+                                    <= constants::MASS_HYSTERIA_RADIUS
+                                {
                                     commands.entity(entity).insert(MassHysteriaTarget {
                                         time_remaining: constants::MASS_HYSTERIA_DURATION
                                             * talent_params.duration_mult,
@@ -260,8 +263,8 @@ pub(super) fn handle_mind_control_casting(
                                     &mut commands,
                                     &sfx.mind_control_cast,
                                     pos,
-                                    &game_config,
-                                    &sfx,
+                                    game_config,
+                                    sfx,
                                 );
                                 if let Some(ref mut progress) = talent_progress {
                                     progress.increment(Spell::MindControl, count);
@@ -270,13 +273,15 @@ pub(super) fn handle_mind_control_casting(
                         }
                     } else if let Some(ref highlighted) = highlight.target {
                         // Normal single-target MC
-                        if let Ok((_, target_transform, _, _)) = enemies_query.get(highlighted.entity) {
+                        if let Ok((_, target_transform, _, _)) =
+                            enemies_query.get(highlighted.entity)
+                        {
                             audio::play_sfx(
                                 &mut commands,
                                 &sfx.mind_control_cast,
                                 target_transform.translation,
-                                &game_config,
-                                &sfx,
+                                game_config,
+                                sfx,
                             );
                         }
 
@@ -320,23 +325,13 @@ pub(super) fn handle_mind_control_casting(
                     }
                 }
 
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+                cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
                 clear_highlight(&mut commands, materials, &mut highlight);
                 casting_state.cancel();
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
             casting_state.cancel();
             clear_highlight(&mut commands, materials, &mut highlight);
         }
@@ -348,7 +343,12 @@ pub(super) fn handle_mind_control_casting(
 fn find_nearest_enemy(
     enemies_query: &Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
-        (Without<Corpse>, Without<MindControlled>, Without<Boss>, Without<MassHysteriaTarget>),
+        (
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Boss>,
+            Without<MassHysteriaTarget>,
+        ),
     >,
     cursor_pos: Option<Vec3>,
     spell_range: f32,
@@ -383,7 +383,12 @@ fn update_highlight(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     enemies_query: &Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
-        (Without<Corpse>, Without<MindControlled>, Without<Boss>, Without<MassHysteriaTarget>),
+        (
+            Without<Corpse>,
+            Without<MindControlled>,
+            Without<Boss>,
+            Without<MassHysteriaTarget>,
+        ),
     >,
     highlight: &mut HighlightState,
     nearest: Option<Entity>,
@@ -464,7 +469,14 @@ pub(super) fn tick_mind_control_cooldown(
 /// Also cleans up lingering Demoralized when no aura sources remain.
 pub(super) fn update_traitors_mark_aura(
     mut commands: Commands,
-    aura_query: Query<&Transform, (With<MindControlled>, With<TraitorsMarkAura>, Without<Corpse>)>,
+    aura_query: Query<
+        &Transform,
+        (
+            With<MindControlled>,
+            With<TraitorsMarkAura>,
+            Without<Corpse>,
+        ),
+    >,
     mut enemies: Query<
         (Entity, &Transform, &Team, Has<Demoralized>),
         (Without<Corpse>, Without<MindControlled>),
@@ -500,7 +512,13 @@ fn confused_combat_attack(
     current_time: f32,
     timing: &mut AttackTiming,
     potential_targets: &mut Query<
-        (Entity, &Transform, &Hitbox, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<Corpse>,
     >,
 ) {
@@ -560,11 +578,23 @@ pub(super) fn tick_amnesia_effect(
     attack_cycle: Res<crate::game::plugin::GlobalAttackCycle>,
     mut commands: Commands,
     mut amnesia_query: Query<
-        (Entity, &Transform, &Hitbox, &mut AmnesiaEffect, &mut AttackTiming),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &mut AmnesiaEffect,
+            &mut AttackTiming,
+        ),
         Without<Corpse>,
     >,
     mut potential_targets: Query<
-        (Entity, &Transform, &Hitbox, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<Corpse>,
     >,
 ) {
@@ -599,7 +629,14 @@ pub(super) fn tick_sleeper_agent(
         Without<Corpse>,
     >,
     mut potential_targets: Query<
-        (Entity, &Transform, &Hitbox, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &Transform,
+            &Hitbox,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         (Without<Corpse>, Without<SleeperAgentActive>),
     >,
 ) {
@@ -644,13 +681,16 @@ pub(super) fn tick_sleeper_agent(
 /// Mass Hysteria targeting: affected units move toward the nearest unit regardless of team.
 pub(super) fn update_mass_hysteria_targeting(
     mut hysteria_units: Query<
-        (Entity, &Transform, &mut TargetingVelocity, &mut FlowFieldVelocity, &mut FlockingVelocity),
+        (
+            Entity,
+            &Transform,
+            &mut TargetingVelocity,
+            &mut FlowFieldVelocity,
+            &mut FlockingVelocity,
+        ),
         (With<MassHysteriaTarget>, Without<Corpse>),
     >,
-    all_units: Query<
-        (Entity, &Transform),
-        Without<Corpse>,
-    >,
+    all_units: Query<(Entity, &Transform), Without<Corpse>>,
 ) {
     for (entity, transform, mut targeting, mut flow_field, mut flocking) in &mut hysteria_units {
         let pos = transform.translation;

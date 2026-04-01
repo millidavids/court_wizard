@@ -23,14 +23,18 @@ use bevy::{
     ui_render::graph::NodeUi,
 };
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer};
-use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage};
+use super::components::{
+    ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings,
+    LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer,
+};
+use super::messages::{
+    ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage,
+};
 use super::systems::{
     CorrectedCursorPosition, RawCursorPosition, animate_channel_change, animate_desaturation,
-    animate_screen_flash, animate_vignette_pulse,
-    correct_cursor_for_barrel_distortion, correct_ui_interaction_for_barrel,
-    handle_channel_change_message, handle_desaturation_message, handle_screen_flash_message,
-    handle_vignette_pulse_message, update_heat_distortion_positions,
+    animate_screen_flash, animate_vignette_pulse, correct_cursor_for_barrel_distortion,
+    correct_ui_interaction_for_barrel, handle_channel_change_message, handle_desaturation_message,
+    handle_screen_flash_message, handle_vignette_pulse_message, update_heat_distortion_positions,
     update_lensing_positions, update_teleport_distortion_positions,
 };
 use crate::state::AppState;
@@ -117,17 +121,35 @@ impl Plugin for CrtEffectPlugin {
 
         render_app.add_systems(
             RenderStartup,
-            (init_crt_pipeline, init_lensing_pipeline, init_heat_distortion_pipeline, init_teleport_distortion_pipeline),
+            (
+                init_crt_pipeline,
+                init_lensing_pipeline,
+                init_heat_distortion_pipeline,
+                init_teleport_distortion_pipeline,
+            ),
         );
 
         render_app
             .add_render_graph_node::<ViewNodeRunner<LensingNode>>(Core3d, LensingLabel)
-            .add_render_graph_node::<ViewNodeRunner<TeleportDistortionNode>>(Core3d, TeleportDistortionLabel)
-            .add_render_graph_node::<ViewNodeRunner<HeatDistortionNode>>(Core3d, HeatDistortionLabel)
+            .add_render_graph_node::<ViewNodeRunner<TeleportDistortionNode>>(
+                Core3d,
+                TeleportDistortionLabel,
+            )
+            .add_render_graph_node::<ViewNodeRunner<HeatDistortionNode>>(
+                Core3d,
+                HeatDistortionLabel,
+            )
             .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(Core3d, CrtEffectLabel)
             .add_render_graph_edges(
                 Core3d,
-                (NodeUi::UiPass, LensingLabel, TeleportDistortionLabel, HeatDistortionLabel, CrtEffectLabel, Node3d::Upscaling),
+                (
+                    NodeUi::UiPass,
+                    LensingLabel,
+                    TeleportDistortionLabel,
+                    HeatDistortionLabel,
+                    CrtEffectLabel,
+                    Node3d::Upscaling,
+                ),
             );
     }
 }

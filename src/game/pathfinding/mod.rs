@@ -3,13 +3,13 @@
 //! Provides grid-based pathfinding using flow fields to guide units toward goals
 //! while avoiding obstacles and respecting terrain costs.
 
-pub mod components;
-pub mod debug;
-pub mod flow_field;
-pub mod messages;
-pub mod plugin;
-pub mod resources;
-pub mod systems;
+pub(crate) mod components;
+pub(crate) mod debug;
+pub(crate) mod flow_field;
+pub(crate) mod messages;
+mod plugin;
+pub(crate) mod resources;
+pub(crate) mod systems;
 
 pub use components::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, WaveGroup};
 pub use messages::{ObstacleChanged, ObstacleShape, ObstacleType};

@@ -21,13 +21,13 @@ pub struct Commander {
 ///
 /// Determines which teams are affected by a commander's aura buffs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum TeamFilter {
     /// Only buff Defender units
     Defenders,
     /// Only buff Attacker units
     Attackers,
     /// Buff both Defenders and Attackers
+    #[allow(dead_code)]
     Both,
 }
 

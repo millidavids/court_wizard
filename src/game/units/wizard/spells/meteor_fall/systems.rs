@@ -3,13 +3,12 @@
 use bevy::prelude::*;
 use rand::Rng;
 
-use super::components::{
-    MeteorExplosion, MeteorFallStorm, MeteorGroundFire, MeteorProjectile,
-};
+use super::components::{MeteorExplosion, MeteorFallStorm, MeteorGroundFire, MeteorProjectile};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -25,9 +24,9 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_to_spell_range_ground, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_to_spell_range_ground, cleanup_spell_caster,
+    spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -158,14 +157,7 @@ pub(super) fn handle_meteor_fall_casting(
     existing_storms: Query<Entity, With<MeteorFallStorm>>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions already ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -196,7 +188,12 @@ pub(super) fn handle_meteor_fall_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Fire, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Fire,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -223,12 +220,7 @@ fn meteor_fall_casting_logic(
 
     // Check for release event - cancel cast
     if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
+        cleanup_spell_caster(commands, wizard_entity, caster_query);
         casting_state.cancel();
         return false;
     }
@@ -279,12 +271,12 @@ fn meteor_fall_casting_logic(
             casting_state.advance(time.delta_secs());
 
             // Update circle position to follow cursor
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
+            update_indicator_position(
+                wizard_entity,
+                cursor_world_pos,
+                caster_query,
+                indicator_query,
+            );
 
             // Check if cast is complete
             if casting_state.is_complete(primed_spell.cast_time) {
@@ -345,24 +337,14 @@ fn meteor_fall_casting_logic(
                     completed = true;
                 } else {
                     // Out of mana - cancel cast
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(commands, wizard_entity, caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
             // Meteor Fall doesn't use channeling, cancel if we somehow get here
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }
@@ -719,7 +701,13 @@ pub(super) fn check_meteor_collisions(
             vfx::systems::spawn_explosion_smoke(&mut commands, &visual_assets, pos, t);
 
             // Heat shimmer burst at impact
-            vfx::systems::spawn_heat_shimmer(&mut commands, &visual_assets, pos, vfx::constants::EXPLOSION_SHIMMER_COUNT, t);
+            vfx::systems::spawn_heat_shimmer(
+                &mut commands,
+                &visual_assets,
+                pos,
+                vfx::constants::EXPLOSION_SHIMMER_COUNT,
+                t,
+            );
             vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, pos, t);
             screen_flash.write(crate::game::crt_effect::ScreenFlashMessage {
                 color: [1.0, 0.5, 0.1],

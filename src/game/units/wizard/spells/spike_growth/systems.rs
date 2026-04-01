@@ -1,14 +1,14 @@
-use bevy::prelude::*;
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard,
 };
 use super::components::{
-    SpikeGrowthLingeringPoison, SpikeGrowthTalentParams,
-    SpikeGrowthZone, SpikeStormProjectile, ZonePresenceTracker,
+    SpikeGrowthLingeringPoison, SpikeGrowthTalentParams, SpikeGrowthZone, SpikeStormProjectile,
+    ZonePresenceTracker,
 };
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -20,14 +20,15 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    self, SpellCircleIndicator, UniqueHitTracker, clamp_cursor_to_spell_range,
-    get_cursor_world_position, spawn_circle_indicator, xz_distance,
+    self, SpellCircleIndicator, UniqueHitTracker, build_wizard_input, clamp_cursor_to_spell_range,
+    cleanup_spell_caster, handle_spell_release, spawn_circle_indicator, update_indicator_position,
+    xz_distance,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -100,17 +101,13 @@ pub fn handle_spike_growth_casting(
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talent_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (active_talents, _talent_progress) = talent_resources;
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -122,26 +119,23 @@ pub fn handle_spike_growth_casting(
     }
 
     let talent_params = compute_talent_params(active_talents.as_deref());
-    let effective_radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
+    let effective_radius =
+        constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
     let effective_mana_cost = constants::MANA_COST * talent_params.mana_mult;
     let effective_cast_time = primed_spell.cast_time * talent_params.cast_time_mult;
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(
-        input.cursor_pos,
-        wizard.spell_range,
-        effective_radius,
-    );
+    let clamped_cursor =
+        clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, effective_radius);
 
     // Handle release — clean up indicator
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -173,16 +167,21 @@ pub fn handle_spike_growth_casting(
             casting_state.advance(time.delta_secs());
 
             // Update indicator position
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = clamped_cursor;
-            }
+            update_indicator_position(
+                wizard_entity,
+                clamped_cursor,
+                &caster_query,
+                &mut indicator_query,
+            );
 
             if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(effective_mana_cost) {
-                    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Nature, time.elapsed_secs());
+                    vfx::systems::spawn_school_flare(
+                        &mut commands,
+                        &visual_assets,
+                        vfx::systems::SpellSchool::Nature,
+                        time.elapsed_secs(),
+                    );
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
@@ -223,23 +222,13 @@ pub fn handle_spike_growth_casting(
                     casting_state.cancel();
                     mouse_state.left_consumed = true;
                 } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
             casting_state.cancel();
         }
     }
@@ -286,8 +275,15 @@ pub fn apply_spike_growth_damage(
 
         let mut units_hit: u32 = 0;
 
-        for (entity, transform, mut health, mut temp_hp, existing_slow, has_spell_shield, zone_tracker) in
-            &mut targets
+        for (
+            entity,
+            transform,
+            mut health,
+            mut temp_hp,
+            existing_slow,
+            has_spell_shield,
+            zone_tracker,
+        ) in &mut targets
         {
             let distance = xz_distance(zone.origin, transform.translation);
 
@@ -328,10 +324,9 @@ pub fn apply_spike_growth_damage(
                 if let Some(mut slow) = existing_slow {
                     slow.apply(slow_mod, zone.slow_duration);
                 } else {
-                    commands.entity(entity).insert(SlowMovementModifier::new(
-                        slow_mod,
-                        zone.slow_duration,
-                    ));
+                    commands
+                        .entity(entity)
+                        .insert(SlowMovementModifier::new(slow_mod, zone.slow_duration));
                 }
 
                 // Zone presence tracking (for Quicksand and/or Poisoned Spikes)
@@ -358,27 +353,26 @@ pub fn apply_spike_growth_damage(
                         });
                     }
                 }
-            } else if needs_tracking {
+            } else if needs_tracking
+                && let Some(ref tracker) = zone_tracker
+                && tracker.zone_entity == zone_entity
+            {
                 // Unit is outside the zone — handle exit
-                if let Some(ref tracker) = zone_tracker {
-                    if tracker.zone_entity == zone_entity {
-                        commands.entity(entity).remove::<ZonePresenceTracker>();
-                        // Poisoned Spikes: apply lingering poison on exit
-                        if zone.talent_params.poisoned_spikes {
-                            commands
-                                .entity(entity)
-                                .insert(SpikeGrowthLingeringPoison::new());
-                        }
-                    }
+                commands.entity(entity).remove::<ZonePresenceTracker>();
+                // Poisoned Spikes: apply lingering poison on exit
+                if zone.talent_params.poisoned_spikes {
+                    commands
+                        .entity(entity)
+                        .insert(SpikeGrowthLingeringPoison::new());
                 }
             }
         }
 
         // Track talent progress
-        if units_hit > 0 {
-            if let Some(ref mut progress) = talent_progress {
-                progress.increment(Spell::SpikeGrowth, units_hit);
-            }
+        if units_hit > 0
+            && let Some(ref mut progress) = talent_progress
+        {
+            progress.increment(Spell::SpikeGrowth, units_hit);
         }
     }
 }
@@ -402,7 +396,9 @@ pub fn tick_lingering_poison(
         poison.time_since_last_tick += delta;
 
         if poison.time_remaining <= 0.0 {
-            commands.entity(entity).remove::<SpikeGrowthLingeringPoison>();
+            commands
+                .entity(entity)
+                .remove::<SpikeGrowthLingeringPoison>();
             continue;
         }
 
@@ -498,11 +494,7 @@ pub fn spike_storm_volley(
 
         for (target_pos, _) in &candidates {
             let spawn_pos = Vec3::new(zone.origin.x, 3.0, zone.origin.z);
-            let direction = Vec3::new(
-                target_pos.x - spawn_pos.x,
-                0.0,
-                target_pos.z - spawn_pos.z,
-            );
+            let direction = Vec3::new(target_pos.x - spawn_pos.x, 0.0, target_pos.z - spawn_pos.z);
             let direction = if direction.length_squared() > 0.001 {
                 direction.normalize()
             } else {
@@ -535,13 +527,16 @@ pub fn update_spike_storm_projectiles(
     mut commands: Commands,
     time: Res<Time>,
     mut projectiles: Query<(Entity, &mut Transform, &mut SpikeStormProjectile)>,
-    mut targets: Query<(
-        Entity,
-        &Transform,
-        &mut Health,
-        Option<&mut TemporaryHitPoints>,
-        Has<SpellShield>,
-    ), Without<SpikeStormProjectile>>,
+    mut targets: Query<
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+            Has<SpellShield>,
+        ),
+        Without<SpikeStormProjectile>,
+    >,
 ) {
     let delta = time.delta_secs();
 
@@ -556,7 +551,9 @@ pub fn update_spike_storm_projectiles(
         proj_transform.translation += projectile.direction * projectile.speed * delta;
 
         let mut hit = false;
-        for (target_entity, target_transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
+        for (target_entity, target_transform, mut health, mut temp_hp, has_spell_shield) in
+            &mut targets
+        {
             if health.is_dead() {
                 continue;
             }

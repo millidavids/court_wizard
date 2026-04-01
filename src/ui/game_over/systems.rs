@@ -5,8 +5,8 @@ use crate::config::{ActiveSave, ConfigChanged, GameConfig, WizardType};
 use crate::game::constants::INITIAL_DEFENDER_COUNT;
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::game_mode::components::{
-    format_time, is_roguelite_mode, GameMode, LevelRunStats, RogueliteRunState,
-    RunAggregateStats, ROGUELITE_MAX_LEVEL,
+    GameMode, LevelRunStats, ROGUELITE_MAX_LEVEL, RogueliteRunState, RunAggregateStats,
+    format_time, is_roguelite_mode,
 };
 use crate::game::input::messages::MouseClicked;
 use crate::game::resources::{
@@ -20,7 +20,7 @@ use crate::state::AppState;
 use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_shadow};
 
 use super::components::*;
-use super::styles::*;
+use super::constants::*;
 
 /// Saves efficiency for current level to config when entering game over screen.
 ///
@@ -152,7 +152,10 @@ pub(super) fn save_terrain_on_victory(
     mut config: ResMut<GameConfig>,
     trees: Query<&crate::game::terrain::tree::components::Tree>,
     ponds: Query<&crate::game::terrain::pond::components::Pond>,
-    bushes: Query<&crate::game::terrain::bush::components::Bush, Without<crate::game::terrain::bush::components::BurningBush>>,
+    bushes: Query<
+        &crate::game::terrain::bush::components::Bush,
+        Without<crate::game::terrain::bush::components::BurningBush>,
+    >,
     boulders: Query<&crate::game::terrain::boulder::components::Boulder>,
     time_travel: Option<Res<TimeTravelState>>,
 ) {
@@ -199,6 +202,7 @@ pub(super) fn save_terrain_on_victory(
         .collect();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn setup_game_over_screen(
     mut commands: Commands,
     game_outcome: Res<GameOutcome>,
@@ -213,8 +217,8 @@ pub(super) fn setup_game_over_screen(
 ) {
     let is_time_travel = time_travel.is_some();
     let is_roguelite = matches!(game_mode.as_deref(), Some(&GameMode::Roguelite));
-    let is_roguelite_run_end = is_roguelite
-        && (game_outcome.is_defeat() || current_level.0 >= ROGUELITE_MAX_LEVEL);
+    let is_roguelite_run_end =
+        is_roguelite && (game_outcome.is_defeat() || current_level.0 >= ROGUELITE_MAX_LEVEL);
     // Load lifetime stats (already accumulated by send_battle_ended)
     let save = load_unified_save();
     let lifetime_attackers = save
@@ -254,328 +258,318 @@ pub(super) fn setup_game_over_screen(
     );
 
     commands.entity(content).with_children(|parent| {
-            // Left column - Buttons
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(20.0),
-                    ..default()
-                })
-                .with_children(|buttons| {
-                    // Victory/Defeat title
-                    let title_text = if game_outcome.is_defeat() {
-                        "DEFEAT"
-                    } else {
-                        "VICTORY"
-                    };
+        // Left column - Buttons
+        parent
+            .spawn(Node {
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(20.0),
+                ..default()
+            })
+            .with_children(|buttons| {
+                // Victory/Defeat title
+                let title_text = if game_outcome.is_defeat() {
+                    "DEFEAT"
+                } else {
+                    "VICTORY"
+                };
 
-                    spawn_title_with_shadow(buttons, title_text, 60.0, TITLE_COLOR, Node::default());
+                spawn_title_with_shadow(buttons, title_text, 60.0, TITLE_COLOR, Node::default());
 
-                    // Subtext for King death
-                    if *game_outcome == GameOutcome::DefeatKingDied {
-                        buttons.spawn((
-                            Text::new("The King died!"),
-                            TextFont::from_font_size(24.0),
-                            TextColor(TEXT_COLOR),
-                        ));
-                    }
+                // Subtext for King death
+                if *game_outcome == GameOutcome::DefeatKingDied {
+                    buttons.spawn((
+                        Text::new("The King died!"),
+                        TextFont::from_font_size(24.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                }
 
-                    // Subtext for not enough carnage (Psychopath)
-                    if *game_outcome == GameOutcome::DefeatNotEnoughCarnage {
-                        let kill_pct =
-                            kill_stats.defenders_killed as f32 / total_defenders * 100.0;
-                        let required_pct = DEFENDER_KILL_THRESHOLD * 100.0;
-                        buttons.spawn((
-                            Text::new(format!(
-                                "Not enough carnage! Only {:.0}% killed ({:.0}% required)",
-                                kill_pct, required_pct
-                            )),
-                            TextFont::from_font_size(24.0),
-                            TextColor(TEXT_COLOR),
-                        ));
-                    }
+                // Subtext for not enough carnage (Psychopath)
+                if *game_outcome == GameOutcome::DefeatNotEnoughCarnage {
+                    let kill_pct = kill_stats.defenders_killed as f32 / total_defenders * 100.0;
+                    let required_pct = DEFENDER_KILL_THRESHOLD * 100.0;
+                    buttons.spawn((
+                        Text::new(format!(
+                            "Not enough carnage! Only {:.0}% killed ({:.0}% required)",
+                            kill_pct, required_pct
+                        )),
+                        TextFont::from_font_size(24.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                }
 
-                    if is_roguelite_run_end {
-                        // Roguelite run ended (defeat or completed all levels)
+                if is_roguelite_run_end {
+                    // Roguelite run ended (defeat or completed all levels)
+                    spawn_button(
+                        buttons,
+                        "End Run",
+                        GameOverButtonAction::EndRun,
+                        &BUTTON_STYLE,
+                    );
+                } else if is_roguelite {
+                    // Roguelite mid-run victory — continue to next level
+                    spawn_button(
+                        buttons,
+                        "Continue",
+                        GameOverButtonAction::PlayAgain,
+                        &BUTTON_STYLE,
+                    );
+                } else if is_time_travel {
+                    // Time travel: victory shows only "Return to Tower"
+                    // Defeat shows retry + return to tower
+                    if game_outcome.is_defeat() {
                         spawn_button(
                             buttons,
-                            "End Run",
-                            GameOverButtonAction::EndRun,
-                            &BUTTON_STYLE,
-                        );
-                    } else if is_roguelite {
-                        // Roguelite mid-run victory — continue to next level
-                        spawn_button(
-                            buttons,
-                            "Continue",
+                            &format!("Time Rewind (Level {})", current_level.0),
                             GameOverButtonAction::PlayAgain,
                             &BUTTON_STYLE,
                         );
-                    } else if is_time_travel {
-                        // Time travel: victory shows only "Return to Tower"
-                        // Defeat shows retry + return to tower
-                        if game_outcome.is_defeat() {
-                            spawn_button(
-                                buttons,
-                                &format!("Time Rewind (Level {})", current_level.0),
-                                GameOverButtonAction::PlayAgain,
-                                &BUTTON_STYLE,
-                            );
-                        }
+                    }
 
+                    spawn_button(
+                        buttons,
+                        "Return to Tower",
+                        GameOverButtonAction::ReturnToTower,
+                        &BUTTON_STYLE,
+                    );
+                } else {
+                    // Normal Endless flow
+                    let button_text = if game_outcome.is_defeat() {
+                        format!("Time Rewind (Level {})", current_level.0)
+                    } else {
+                        "Continue".to_string()
+                    };
+
+                    spawn_button(
+                        buttons,
+                        &button_text,
+                        GameOverButtonAction::PlayAgain,
+                        &BUTTON_STYLE,
+                    );
+
+                    // Return to Tower button (only on defeat)
+                    if game_outcome.is_defeat() {
                         spawn_button(
                             buttons,
                             "Return to Tower",
                             GameOverButtonAction::ReturnToTower,
                             &BUTTON_STYLE,
                         );
+                    }
+
+                    // Return to Menu button
+                    spawn_button(
+                        buttons,
+                        "Return to Menu",
+                        GameOverButtonAction::ReturnToMenu,
+                        &BUTTON_STYLE,
+                    );
+                }
+            });
+
+        // Right column - Statistics
+        parent
+            .spawn(Node {
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::FlexStart,
+                row_gap: Val::Px(15.0),
+                ..default()
+            })
+            .with_children(|stats| {
+                // Current Level
+                stats.spawn((
+                    Text::new(format!("Current Level: {}", current_level.0)),
+                    TextFont::from_font_size(28.0),
+                    TextColor(TITLE_COLOR),
+                ));
+
+                // Kill Statistics header
+                stats.spawn((
+                    Text::new("Kill Statistics:"),
+                    TextFont::from_font_size(24.0),
+                    TextColor(TEXT_COLOR),
+                ));
+
+                stats.spawn((
+                    Text::new(format!("  Defenders Lost: {}", kill_stats.defenders_killed)),
+                    TextFont::from_font_size(20.0),
+                    TextColor(TEXT_COLOR),
+                ));
+
+                stats.spawn((
+                    Text::new(format!(
+                        "  Attackers Killed: {}",
+                        kill_stats.attackers_killed
+                    )),
+                    TextFont::from_font_size(20.0),
+                    TextColor(TEXT_COLOR),
+                ));
+
+                stats.spawn((
+                    Text::new(format!("  Undead Killed: {}", kill_stats.undead_killed)),
+                    TextFont::from_font_size(20.0),
+                    TextColor(TEXT_COLOR),
+                ));
+
+                // Current efficiency
+                stats.spawn((
+                    Text::new(format!("  Efficiency: {:.1}%", current_efficiency)),
+                    TextFont::from_font_size(20.0),
+                    TextColor(TEXT_COLOR),
+                ));
+
+                // Carnage meter (Psychopath only)
+                if config.wizard_type == WizardType::Psychopath {
+                    let carnage_pct =
+                        (kill_stats.defenders_killed as f32 / total_defenders * 100.0).min(100.0);
+                    let carnage_color = if carnage_pct >= DEFENDER_KILL_THRESHOLD * 100.0 {
+                        CARNAGE_MET_COLOR
                     } else {
-                        // Normal Endless flow
-                        let button_text = if game_outcome.is_defeat() {
-                            format!("Time Rewind (Level {})", current_level.0)
-                        } else {
-                            "Continue".to_string()
-                        };
-
-                        spawn_button(
-                            buttons,
-                            &button_text,
-                            GameOverButtonAction::PlayAgain,
-                            &BUTTON_STYLE,
-                        );
-
-                        // Return to Tower button (only on defeat)
-                        if game_outcome.is_defeat() {
-                            spawn_button(
-                                buttons,
-                                "Return to Tower",
-                                GameOverButtonAction::ReturnToTower,
-                                &BUTTON_STYLE,
-                            );
-                        }
-
-                        // Return to Menu button
-                        spawn_button(
-                            buttons,
-                            "Return to Menu",
-                            GameOverButtonAction::ReturnToMenu,
-                            &BUTTON_STYLE,
-                        );
-                    }
-                });
-
-            // Right column - Statistics
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::FlexStart,
-                    row_gap: Val::Px(15.0),
-                    ..default()
-                })
-                .with_children(|stats| {
-                    // Current Level
-                    stats.spawn((
-                        Text::new(format!("Current Level: {}", current_level.0)),
-                        TextFont::from_font_size(28.0),
-                        TextColor(TITLE_COLOR),
-                    ));
-
-                    // Kill Statistics header
-                    stats.spawn((
-                        Text::new("Kill Statistics:"),
-                        TextFont::from_font_size(24.0),
-                        TextColor(TEXT_COLOR),
-                    ));
-
-                    stats.spawn((
-                        Text::new(format!("  Defenders Lost: {}", kill_stats.defenders_killed)),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
-                    ));
-
+                        CARNAGE_UNMET_COLOR
+                    };
                     stats.spawn((
                         Text::new(format!(
-                            "  Attackers Killed: {}",
-                            kill_stats.attackers_killed
+                            "  Carnage: {:.1}% / {:.0}%",
+                            carnage_pct,
+                            DEFENDER_KILL_THRESHOLD * 100.0
                         )),
                         TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
+                        TextColor(carnage_color),
                     ));
+                }
 
-                    stats.spawn((
-                        Text::new(format!("  Undead Killed: {}", kill_stats.undead_killed)),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
-                    ));
+                // Insight earned this battle
+                stats.spawn((
+                    Text::new(format!(
+                        "  Insight Earned: +{}",
+                        battle_insight.insight_earned
+                    )),
+                    TextFont::from_font_size(20.0),
+                    TextColor(INSIGHT_COLOR),
+                ));
 
-                    // Current efficiency
-                    stats.spawn((
-                        Text::new(format!("  Efficiency: {:.1}%", current_efficiency)),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TEXT_COLOR),
-                    ));
-
-                    // Carnage meter (Psychopath only)
-                    if config.wizard_type == WizardType::Psychopath {
-                        let carnage_pct =
-                            (kill_stats.defenders_killed as f32 / total_defenders * 100.0)
-                                .min(100.0);
-                        let carnage_color = if carnage_pct >= DEFENDER_KILL_THRESHOLD * 100.0 {
-                            CARNAGE_MET_COLOR
-                        } else {
-                            CARNAGE_UNMET_COLOR
-                        };
+                if !is_roguelite {
+                    // Past victory efficiency for current level (if exists)
+                    if let Some(past_efficiency) =
+                        config.efficiency_ratios.get(&current_level.0.to_string())
+                    {
                         stats.spawn((
-                            Text::new(format!(
-                                "  Carnage: {:.1}% / {:.0}%",
-                                carnage_pct,
-                                DEFENDER_KILL_THRESHOLD * 100.0
-                            )),
-                            TextFont::from_font_size(20.0),
-                            TextColor(carnage_color),
-                        ));
-                    }
-
-                    // Insight earned this battle
-                    stats.spawn((
-                        Text::new(format!(
-                            "  Insight Earned: +{}",
-                            battle_insight.insight_earned
-                        )),
-                        TextFont::from_font_size(20.0),
-                        TextColor(INSIGHT_COLOR),
-                    ));
-
-                    if !is_roguelite {
-                        // Past victory efficiency for current level (if exists)
-                        if let Some(past_efficiency) =
-                            config.efficiency_ratios.get(&current_level.0.to_string())
-                        {
-                            stats.spawn((
-                                Text::new("Past Victory:"),
-                                TextFont::from_font_size(24.0),
-                                TextColor(TEXT_COLOR),
-                            ));
-
-                            stats.spawn((
-                                Text::new(format!(
-                                    "  Level {}: {:.1}%",
-                                    current_level.0,
-                                    past_efficiency * 100.0
-                                )),
-                                TextFont::from_font_size(18.0),
-                                TextColor(TEXT_COLOR),
-                            ));
-                        }
-
-                        // Lifetime stats
-                        stats.spawn((
-                            Text::new("Lifetime:"),
+                            Text::new("Past Victory:"),
                             TextFont::from_font_size(24.0),
                             TextColor(TEXT_COLOR),
                         ));
 
                         stats.spawn((
-                            Text::new(format!("  Attackers Killed: {}", lifetime_attackers)),
-                            TextFont::from_font_size(20.0),
-                            TextColor(TEXT_COLOR),
-                        ));
-
-                        stats.spawn((
-                            Text::new(format!("  Defenders Lost: {}", lifetime_defenders)),
-                            TextFont::from_font_size(20.0),
-                            TextColor(TEXT_COLOR),
-                        ));
-
-                        stats.spawn((
-                            Text::new(format!("  Undead Killed: {}", lifetime_undead)),
-                            TextFont::from_font_size(20.0),
+                            Text::new(format!(
+                                "  Level {}: {:.1}%",
+                                current_level.0,
+                                past_efficiency * 100.0
+                            )),
+                            TextFont::from_font_size(18.0),
                             TextColor(TEXT_COLOR),
                         ));
                     }
 
-                    // Roguelite run summary (on run end only)
-                    if is_roguelite_run_end {
-                        if let Some(ref run) = roguelite_run {
-                            stats.spawn((
-                                Text::new("Run Summary:"),
-                                TextFont::from_font_size(24.0),
-                                TextColor(TITLE_COLOR),
-                                Node {
-                                    margin: UiRect::top(Val::Px(10.0)),
-                                    ..default()
-                                },
-                            ));
+                    // Lifetime stats
+                    stats.spawn((
+                        Text::new("Lifetime:"),
+                        TextFont::from_font_size(24.0),
+                        TextColor(TEXT_COLOR),
+                    ));
 
-                            let agg = RunAggregateStats::from_level_stats(&run.level_stats);
+                    stats.spawn((
+                        Text::new(format!("  Attackers Killed: {}", lifetime_attackers)),
+                        TextFont::from_font_size(20.0),
+                        TextColor(TEXT_COLOR),
+                    ));
 
-                            stats.spawn((
-                                Text::new(format!(
-                                    "  Levels Completed: {}",
-                                    run.level_stats.len()
-                                )),
-                                TextFont::from_font_size(18.0),
-                                TextColor(TEXT_COLOR),
-                            ));
-                            stats.spawn((
-                                Text::new(format!("  Total Kills: {}", agg.total_kills)),
-                                TextFont::from_font_size(18.0),
-                                TextColor(TEXT_COLOR),
-                            ));
-                            stats.spawn((
-                                Text::new(format!(
-                                    "  Avg Efficiency: {:.1}%",
-                                    agg.avg_efficiency * 100.0
-                                )),
-                                TextFont::from_font_size(18.0),
-                                TextColor(TEXT_COLOR),
-                            ));
-                            stats.spawn((
-                                Text::new(format!(
-                                    "  Total Time: {}",
-                                    format_time(agg.total_time)
-                                )),
-                                TextFont::from_font_size(18.0),
-                                TextColor(TEXT_COLOR),
-                            ));
+                    stats.spawn((
+                        Text::new(format!("  Defenders Lost: {}", lifetime_defenders)),
+                        TextFont::from_font_size(20.0),
+                        TextColor(TEXT_COLOR),
+                    ));
 
-                            // Per-level breakdown (scrollable)
-                            stats.spawn((
-                                Text::new("  Per Level:"),
-                                TextFont::from_font_size(16.0),
-                                TextColor(INSIGHT_COLOR),
-                            ));
+                    stats.spawn((
+                        Text::new(format!("  Undead Killed: {}", lifetime_undead)),
+                        TextFont::from_font_size(20.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                }
 
-                            stats
-                                .spawn(Node {
-                                    flex_direction: FlexDirection::Column,
-                                    max_height: Val::Px(150.0),
-                                    overflow: Overflow::scroll_y(),
-                                    row_gap: Val::Px(2.0),
-                                    padding: UiRect::left(Val::Px(20.0)),
-                                    ..default()
-                                })
-                                .with_children(|scroll| {
-                                    for level_stat in &run.level_stats {
-                                        scroll.spawn((
-                                            Text::new(format!(
-                                                "Lv{}: {:.0}% | {} kills | {}",
-                                                level_stat.level,
-                                                level_stat.efficiency * 100.0,
-                                                level_stat.total_kills(),
-                                                format_time(level_stat.elapsed_time),
-                                            )),
-                                            TextFont::from_font_size(12.0),
-                                            TextColor(TEXT_COLOR),
-                                        ));
-                                    }
-                                });
-                        }
-                    }
-                });
+                // Roguelite run summary (on run end only)
+                if is_roguelite_run_end && let Some(ref run) = roguelite_run {
+                    stats.spawn((
+                        Text::new("Run Summary:"),
+                        TextFont::from_font_size(24.0),
+                        TextColor(TITLE_COLOR),
+                        Node {
+                            margin: UiRect::top(Val::Px(10.0)),
+                            ..default()
+                        },
+                    ));
+
+                    let agg = RunAggregateStats::from_level_stats(&run.level_stats);
+
+                    stats.spawn((
+                        Text::new(format!("  Levels Completed: {}", run.level_stats.len())),
+                        TextFont::from_font_size(18.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                    stats.spawn((
+                        Text::new(format!("  Total Kills: {}", agg.total_kills)),
+                        TextFont::from_font_size(18.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                    stats.spawn((
+                        Text::new(format!(
+                            "  Avg Efficiency: {:.1}%",
+                            agg.avg_efficiency * 100.0
+                        )),
+                        TextFont::from_font_size(18.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+                    stats.spawn((
+                        Text::new(format!("  Total Time: {}", format_time(agg.total_time))),
+                        TextFont::from_font_size(18.0),
+                        TextColor(TEXT_COLOR),
+                    ));
+
+                    // Per-level breakdown (scrollable)
+                    stats.spawn((
+                        Text::new("  Per Level:"),
+                        TextFont::from_font_size(16.0),
+                        TextColor(INSIGHT_COLOR),
+                    ));
+
+                    stats
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Column,
+                            max_height: Val::Px(150.0),
+                            overflow: Overflow::scroll_y(),
+                            row_gap: Val::Px(2.0),
+                            padding: UiRect::left(Val::Px(20.0)),
+                            ..default()
+                        })
+                        .with_children(|scroll| {
+                            for level_stat in &run.level_stats {
+                                scroll.spawn((
+                                    Text::new(format!(
+                                        "Lv{}: {:.0}% | {} kills | {}",
+                                        level_stat.level,
+                                        level_stat.efficiency * 100.0,
+                                        level_stat.total_kills(),
+                                        format_time(level_stat.elapsed_time),
+                                    )),
+                                    TextFont::from_font_size(12.0),
+                                    TextColor(TEXT_COLOR),
+                                ));
+                            }
+                        });
+                }
+            });
 
         // Seed display (small text at the bottom)
         if let Some(ref seed) = game_seed {
@@ -716,10 +710,7 @@ pub(super) fn accumulate_mode_level_stats(
         Some(&GameMode::Endless) => {
             // Save best stats for this level (only on victory, not during time travel)
             if *game_outcome == GameOutcome::Victory && time_travel.is_none() {
-                crate::config::save_data::update_endless_best_stats(
-                    &active_save,
-                    &level_stats,
-                );
+                crate::config::save_data::update_endless_best_stats(&active_save, &level_stats);
             }
         }
         None => {}

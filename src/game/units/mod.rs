@@ -18,11 +18,11 @@ pub(crate) mod dispeller;
 pub(in crate::game) mod elite;
 pub(crate) mod healer;
 pub(in crate::game) mod infantry;
-pub(crate) mod shielder;
 pub(crate) mod king;
-pub(crate) mod undead;
 pub(in crate::game) mod movement;
+pub(crate) mod shielder;
 pub(in crate::game) mod systems;
+pub(crate) mod undead;
 pub(crate) mod wizard;
 
 mod plugin;

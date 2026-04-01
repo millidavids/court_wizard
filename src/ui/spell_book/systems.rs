@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
-use crate::config::{GameConfig, WizardType};
 use crate::config::save_data::load_unified_save;
+use crate::config::{GameConfig, WizardType};
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
 use crate::game::units::wizard::components::{Spell, SpellCategory};
 use crate::game::units::wizard::messages::PrimeSpellMessage;

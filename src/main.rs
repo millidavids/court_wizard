@@ -15,7 +15,9 @@ mod ui;
 
 use config::{ConfigPlugin, GameConfig};
 use game::GamePlugin;
-use game::crt_effect::{CrtEffectSettings, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings};
+use game::crt_effect::{
+    CrtEffectSettings, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings,
+};
 use game::multiplayer::MultiplayerGamePlugin;
 use music::MusicPlugin;
 use networking::NetworkingPlugin;
@@ -49,7 +51,10 @@ fn main() {
                 // so the game works regardless of what CWD it's launched from.
                 file_path: std::env::current_exe()
                     .ok()
-                    .and_then(|p| p.parent().map(|d| d.join("assets").to_string_lossy().into_owned()))
+                    .and_then(|p| {
+                        p.parent()
+                            .map(|d| d.join("assets").to_string_lossy().into_owned())
+                    })
                     .unwrap_or_else(|| "assets".to_string()),
                 ..default()
             })

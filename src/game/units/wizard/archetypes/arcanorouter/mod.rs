@@ -1,8 +1,8 @@
 mod components;
 mod constants;
-pub mod messages;
+pub(crate) mod messages;
 mod plugin;
-pub mod resources;
+pub(crate) mod resources;
 mod systems;
 
 pub use components::ArcanoRouterBonuses;

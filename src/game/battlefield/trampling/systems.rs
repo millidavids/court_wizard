@@ -1,4 +1,4 @@
-use bevy::image::{ImageSampler, ImageAddressMode, ImageFilterMode, ImageSamplerDescriptor};
+use bevy::image::{ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
@@ -99,8 +99,7 @@ pub fn track_unit_trampling(
     *cleanup_counter += 1;
     if *cleanup_counter >= 120 {
         *cleanup_counter = 0;
-        let alive: std::collections::HashSet<Entity> =
-            units.iter().map(|(e, _)| e).collect();
+        let alive: std::collections::HashSet<Entity> = units.iter().map(|(e, _)| e).collect();
         last_cells.retain(|e, _| alive.contains(e));
     }
 }
@@ -195,7 +194,7 @@ pub fn restore_trampling_from_config(
     mut grid: ResMut<TramplingGrid>,
     config: Res<crate::config::GameConfig>,
 ) {
-    grid.from_saved(&config.saved_trampling);
+    grid.restore_saved(&config.saved_trampling);
 }
 
 fn trampling_color_rgb() -> (u8, u8, u8) {

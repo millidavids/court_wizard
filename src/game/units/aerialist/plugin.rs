@@ -15,8 +15,7 @@ impl Plugin for AerialistPlugin {
                 (
                     systems::update_aerialist_targeting
                         .in_set(crate::game::plugin::VelocitySystemSet),
-                    systems::aerialist_movement
-                        .in_set(crate::game::units::MovementCalculationSet),
+                    systems::aerialist_movement.in_set(crate::game::units::MovementCalculationSet),
                     systems::aerialist_combat,
                     systems::clamp_aerialist_height.in_set(ApplyTransformsSet),
                 )

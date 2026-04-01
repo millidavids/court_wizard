@@ -39,4 +39,3 @@ pub const BUSH_BASE_COUNT_MAX: u32 = 12;
 
 /// Height of the bush (for visual purposes; bushes don't block projectiles).
 pub const BUSH_HEIGHT: f32 = 40.0;
-

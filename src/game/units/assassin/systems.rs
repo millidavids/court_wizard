@@ -4,13 +4,14 @@ use super::components::Assassin;
 use super::constants::*;
 use super::resources::AssassinAssets;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
-use crate::game::constants::{ASSASSIN_SPAWN_DEPTH_OFFSET, ATTACKER_HITBOX_HEIGHT, attacker_spawn_position};
+use crate::game::constants::{
+    ASSASSIN_SPAWN_DEPTH_OFFSET, ATTACKER_HITBOX_HEIGHT, attacker_spawn_position,
+};
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
 use crate::game::units::archer::Archer;
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, Corpse, Effectiveness, FacingDirection,
-    FlockingVelocity, Health, Hitbox, MovementSpeed, TargetingVelocity, Team,
-    Teleportable, WalkingAnimation,
+    AttackTiming, BanishedModifier, Corpse, Effectiveness, FacingDirection, FlockingVelocity,
+    Health, Hitbox, MovementSpeed, TargetingVelocity, Team, Teleportable, WalkingAnimation,
 };
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
@@ -22,21 +23,14 @@ use crate::game::units::random_position_in_cell;
 /// the assassin gets close enough (within TARGETING_CROSSOVER_DISTANCE).
 pub fn update_assassin_targeting(
     mut assassins: Query<
-        (
-            &Transform,
-            &Team,
-            &mut TargetingVelocity,
-        ),
+        (&Transform, &Team, &mut TargetingVelocity),
         (With<Assassin>, Without<Corpse>),
     >,
     archers: Query<
         (Entity, &Transform, &Team),
         (With<Archer>, Without<Corpse>, Without<BanishedModifier>),
     >,
-    kings: Query<
-        (Entity, &Transform, &Team),
-        (With<King>, Without<Corpse>),
-    >,
+    kings: Query<(Entity, &Transform, &Team), (With<King>, Without<Corpse>)>,
 ) {
     for (transform, team, mut targeting_velocity) in &mut assassins {
         let pos = transform.translation;
@@ -77,7 +71,6 @@ pub fn update_assassin_targeting(
                 // Far away — let flow field guide, minimal targeting
                 targeting_velocity.velocity = Vec3::ZERO;
             }
-
         } else {
             // No targets at all
             targeting_velocity.velocity = Vec3::ZERO;
@@ -140,7 +133,13 @@ pub fn assassin_movement(
     {
         // CC'd units cannot move
         if crate::game::units::systems::is_cc_immobilized(
-            rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned,
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
         ) {
             velocity.x = 0.0;
             velocity.z = 0.0;

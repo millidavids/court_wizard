@@ -1,30 +1,28 @@
-use bevy::prelude::*;
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard,
 };
 use super::components::{
-    ChainHasteSource, FleetFeet, HasteTalentParams, HasteSlowZone, MomentumBuff, MomentumPending,
+    ChainHasteSource, FleetFeet, HasteSlowZone, HasteTalentParams, MomentumBuff, MomentumPending,
 };
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Corpse, HasteModifier, SlowMovementModifier, Team};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
-    spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster,
+    handle_spell_release, try_start_cast_with_indicator, update_indicator_position,
 };
-use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
-pub(crate) fn compute_talent_params(
-    active_talents: Option<&ActiveTalents>,
-) -> HasteTalentParams {
+pub(crate) fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> HasteTalentParams {
     let mut params = HasteTalentParams::default();
     let Some(talents) = active_talents else {
         return params;
@@ -81,14 +79,7 @@ pub fn handle_haste_casting(
     active_talents: Option<Res<ActiveTalents>>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -109,14 +100,13 @@ pub fn handle_haste_casting(
     );
 
     // Handle release -- clean up indicator
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -129,107 +119,97 @@ pub fn handle_haste_casting(
 
     match *casting_state {
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed)
-                && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
-            {
-                let circle_entity = spawn_circle_indicator(
+            if input.just_pressed || input.pressed {
+                try_start_cast_with_indicator(
                     &mut commands,
                     &mut meshes,
                     visual_assets.haste_indicator.clone(),
+                    wizard_entity,
+                    &mut casting_state,
+                    &mana,
+                    constants::MANA_COST,
                     clamped_cursor,
                     constants::CIRCLE_RADIUS * primed_spell.empowerment,
-                )
-                .id();
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-                casting_state.start_cast();
+                    &caster_query,
+                );
             }
         }
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
 
             // Update indicator position
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = clamped_cursor;
-            }
+            update_indicator_position(
+                wizard_entity,
+                clamped_cursor,
+                &caster_query,
+                &mut indicator_query,
+            );
 
             if casting_state.is_complete(cast_time) {
                 if mana.consume(constants::MANA_COST) {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
+                        && let Ok(indicator) = indicator_query.get(indicator_entity)
                     {
-                        if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
-                            audio::play_sfx(
-                                &mut commands,
-                                &sfx.haste_cast,
-                                indicator.position,
-                                &game_config,
-                                &sfx,
-                            );
-                            let buffed_count = apply_haste_buff(
-                                &mut commands,
-                                indicator.position,
-                                radius,
-                                primed_spell.empowerment,
-                                &talent_params,
-                                &mut targets_query,
-                            );
+                        let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment;
+                        audio::play_sfx(
+                            &mut commands,
+                            &sfx.haste_cast,
+                            indicator.position,
+                            &game_config,
+                            &sfx,
+                        );
+                        let buffed_count = apply_haste_buff(
+                            &mut commands,
+                            indicator.position,
+                            radius,
+                            primed_spell.empowerment,
+                            &talent_params,
+                            &mut targets_query,
+                        );
 
-                            // Track talent progress
-                            if buffed_count > 0 {
-                                if let Some(progress) = talent_progress.as_deref_mut() {
-                                    progress.increment(Spell::Haste, buffed_count);
-                                }
-                            }
-
-                            // Spawn slow zone if talent is active
-                            if talent_params.slow_zone {
-                                commands.spawn((
-                                    HasteSlowZone {
-                                        position: indicator.position,
-                                        radius: constants::SLOW_ZONE_RADIUS * primed_spell.empowerment,
-                                        time_remaining: constants::SLOW_ZONE_DURATION,
-                                        slow_amount: constants::SLOW_ZONE_SLOW_AMOUNT,
-                                    },
-                                    OnGameplayScreen,
-                                ));
-                            }
+                        // Track talent progress
+                        if buffed_count > 0
+                            && let Some(progress) = talent_progress.as_deref_mut()
+                        {
+                            progress.increment(Spell::Haste, buffed_count);
                         }
-                        commands.entity(indicator_entity).try_despawn();
+
+                        // Spawn slow zone if talent is active
+                        if talent_params.slow_zone {
+                            commands.spawn((
+                                HasteSlowZone {
+                                    position: indicator.position,
+                                    radius: constants::SLOW_ZONE_RADIUS * primed_spell.empowerment,
+                                    time_remaining: constants::SLOW_ZONE_DURATION,
+                                    slow_amount: constants::SLOW_ZONE_SLOW_AMOUNT,
+                                },
+                                OnGameplayScreen,
+                            ));
+                        }
                     }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
                     casting_state.cancel();
                     completed = true;
                 } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
             casting_state.cancel();
         }
     }
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Holy,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -273,7 +253,11 @@ pub(crate) fn apply_haste_buff(
             } else {
                 commands
                     .entity(entity)
-                    .insert(HasteModifier::with_attack_speed(modifier, duration, attack_speed));
+                    .insert(HasteModifier::with_attack_speed(
+                        modifier,
+                        duration,
+                        attack_speed,
+                    ));
             }
 
             // Insert talent-specific behavioral components
@@ -307,17 +291,23 @@ pub fn handle_haste_expiry(
     // Units with momentum pending but no haste (haste just expired)
     momentum_expired: Query<
         Entity,
-        (With<MomentumPending>, Without<HasteModifier>, Without<Corpse>),
+        (
+            With<MomentumPending>,
+            Without<HasteModifier>,
+            Without<Corpse>,
+        ),
     >,
     // Units with chain haste source but no haste (haste just expired)
-    chain_sources: Query<
-        (Entity, &Transform, &ChainHasteSource, &Team),
-        Without<HasteModifier>,
-    >,
+    chain_sources: Query<(Entity, &Transform, &ChainHasteSource, &Team), Without<HasteModifier>>,
     // Potential targets for chain haste (alive units without haste)
     potential_targets: Query<
         (Entity, &Transform, &Team),
-        (Without<HasteModifier>, Without<ChainHasteSource>, Without<Corpse>, Without<Wizard>),
+        (
+            Without<HasteModifier>,
+            Without<ChainHasteSource>,
+            Without<Corpse>,
+            Without<Wizard>,
+        ),
     >,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
@@ -355,9 +345,7 @@ pub fn handle_haste_expiry(
                 .iter()
                 .filter(|(_, _, team)| **team == *source_team)
                 .map(|(entity, transform, team)| {
-                    let dist = transform
-                        .translation
-                        .distance(source_transform.translation);
+                    let dist = transform.translation.distance(source_transform.translation);
                     (entity, dist, team)
                 })
                 .filter(|(_, dist, _)| *dist <= constants::CHAIN_HASTE_RADIUS)

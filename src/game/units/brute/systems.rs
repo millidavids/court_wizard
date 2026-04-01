@@ -8,18 +8,18 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 
 use crate::game::resources::CurrentLevel;
-use crate::game::units::components::{
-    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
-    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, HasteModifier, Health,
-    Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RetaliationTarget, RootedModifier,
-    FrozenSolidModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
-    SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
-};
-use crate::game::units::infantry::resources::InfantryAssets;
-use crate::game::units::infantry::styles::ATTACKER_SPRITE_TINT;
-use crate::game::units::random_position_in_cell;
 use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
 use crate::game::terrain::boulder::messages::BoulderThrownMessage;
+use crate::game::units::components::{
+    AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
+    Effectiveness, EliteSpeedBonus, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
+    HasteModifier, Health, Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RetaliationTarget,
+    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
+    SlowMovementModifier, TargetingVelocity, Team, Teleportable, UnitTypeGlow,
+};
+use crate::game::units::infantry::constants::ATTACKER_SPRITE_TINT;
+use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::units::random_position_in_cell;
 
 /// Spawns a brute attacker.
 /// Brutes spawn in the archer row alongside archers.
@@ -56,8 +56,7 @@ pub fn spawn_brute(
             // Rendering — infantry sprite, scaled up
             Mesh3d(infantry_assets.sprite_mesh.clone()),
             MeshMaterial3d(material),
-            Transform::from_xyz(final_x, spawn_y, final_z)
-                .with_scale(Vec3::splat(BRUTE_SCALE)),
+            Transform::from_xyz(final_x, spawn_y, final_z).with_scale(Vec3::splat(BRUTE_SCALE)),
             // Physics
             Velocity {
                 x: initial_velocity.x,
@@ -111,7 +110,15 @@ pub fn update_brute_targeting(
         ),
         With<Brute>,
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Brute>, Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Brute>,
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
+    >,
 ) {
     let unit_snapshot: Vec<_> = all_units
         .iter()
@@ -184,7 +191,15 @@ pub fn brute_movement(
     ) in &mut brutes
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -244,7 +259,11 @@ pub fn brute_rock_throw(
     >,
     targets: Query<
         (&Transform, &Team),
-        (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -257,7 +276,13 @@ pub fn brute_rock_throw(
     ) in &mut brutes
     {
         if crate::game::units::systems::is_cc_immobilized(
-            rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned,
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
         ) || polymorphed.is_some()
         {
             continue;

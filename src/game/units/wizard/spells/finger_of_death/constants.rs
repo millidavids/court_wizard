@@ -90,4 +90,3 @@ pub(super) const DEATHMARK_CHAIN_DAMAGE_PERCENT: f32 = 0.1;
 // Necrotic explosion visuals
 pub(super) const NECROTIC_EXPLOSION_PULSE_LIFETIME: f32 = 0.4;
 pub(super) const NECROTIC_EXPLOSION_COLOR: Color = Color::srgb(0.5, 0.0, 0.7);
-

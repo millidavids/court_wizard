@@ -2,7 +2,9 @@ use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
-use crate::config::save_data::{SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTree, SavedWall};
+use crate::config::save_data::{
+    SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTree, SavedWall,
+};
 
 /// A task that spawns a single entity.
 /// Each plugin can enqueue tasks for the entities it needs to spawn.
@@ -47,7 +49,6 @@ pub enum SpawnTask {
     Hags,
     DarkMage,
     Battlefield,
-    #[allow(dead_code)]
     Castle,
     Wizard,
     LoadWizardAssets,

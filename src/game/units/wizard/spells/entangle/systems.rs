@@ -1,12 +1,14 @@
-use bevy::prelude::*;
 use super::super::super::components::{
-    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
+    CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard,
 };
-use super::components::{EntangleGroundEffect, EntangleRooted, EntangleTalentParams, EntangleVine, ThornyVines};
+use super::components::{
+    EntangleGroundEffect, EntangleRooted, EntangleTalentParams, EntangleVine, ThornyVines,
+};
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::achievements::messages::EntangleHitDefenderMessage;
 use crate::game::components::OnGameplayScreen;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -15,13 +17,14 @@ use crate::game::units::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    self, SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position, spawn_circle_indicator,
+    self, SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range,
+    cleanup_spell_caster, handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -96,18 +99,14 @@ pub fn handle_entangle_casting(
     mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talent_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
     let (mut meshes, mut materials) = mesh_and_materials;
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -119,26 +118,23 @@ pub fn handle_entangle_casting(
     }
 
     let talent_params = compute_talent_params(active_talents.as_deref());
-    let effective_radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
+    let effective_radius =
+        constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
     let effective_mana_cost = constants::MANA_COST * talent_params.mana_mult;
     let effective_cast_time = primed_spell.cast_time * talent_params.cast_time_mult;
 
     // Clamp cursor to spell range
-    let clamped_cursor = clamp_cursor_to_spell_range(
-        input.cursor_pos,
-        wizard.spell_range,
-        effective_radius,
-    );
+    let clamped_cursor =
+        clamp_cursor_to_spell_range(input.cursor_pos, wizard.spell_range, effective_radius);
 
     // Handle release — clean up indicator
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -170,23 +166,29 @@ pub fn handle_entangle_casting(
             casting_state.advance(time.delta_secs());
 
             // Update indicator position
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = clamped_cursor;
-            }
+            update_indicator_position(
+                wizard_entity,
+                clamped_cursor,
+                &caster_query,
+                &mut indicator_query,
+            );
 
             if casting_state.is_complete(effective_cast_time) {
                 if mana.consume(effective_mana_cost) {
-                    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Nature, time.elapsed_secs());
+                    vfx::systems::spawn_school_flare(
+                        &mut commands,
+                        &visual_assets,
+                        vfx::systems::SpellSchool::Nature,
+                        time.elapsed_secs(),
+                    );
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
                             let cast_pos = indicator.position;
-                            let root_duration =
-                                constants::ROOT_DURATION * primed_spell.empowerment * talent_params.duration_mult;
+                            let root_duration = constants::ROOT_DURATION
+                                * primed_spell.empowerment
+                                * talent_params.duration_mult;
                             audio::play_sfx(
                                 &mut commands,
                                 &sfx.entangle_cast,
@@ -218,23 +220,13 @@ pub fn handle_entangle_casting(
                     casting_state.cancel();
                     mouse_state.left_consumed = true;
                 } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
             casting_state.cancel();
         }
     }
@@ -275,7 +267,8 @@ pub fn tick_entangle_ground_effect(
         if effect.talent_params.overgrowth {
             let progress = (effect.time_remaining / effect.duration).max(0.0);
             let elapsed_fraction = 1.0 - progress;
-            let growth = effect.base_radius * constants::OVERGROWTH_GROWTH_FRACTION * elapsed_fraction;
+            let growth =
+                effect.base_radius * constants::OVERGROWTH_GROWTH_FRACTION * elapsed_fraction;
             effect.current_radius = effect.base_radius + growth;
         }
     }
@@ -377,7 +370,12 @@ pub fn thorny_vines_tick(
 pub fn handle_entangle_root_expire(
     mut commands: Commands,
     mut rooted_units: Query<
-        (Entity, &EntangleRooted, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            Entity,
+            &EntangleRooted,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<RootedModifier>,
     >,
 ) {
@@ -407,7 +405,9 @@ pub fn handle_entangle_root_expire(
             }
         }
 
-        commands.entity(entity).remove::<(EntangleRooted, ThornyVines)>();
+        commands
+            .entity(entity)
+            .remove::<(EntangleRooted, ThornyVines)>();
     }
 }
 
@@ -427,7 +427,8 @@ pub fn nourishing_roots_mana_regen(
         .count();
 
     if enemy_count > 0 {
-        let regen = constants::NOURISHING_ROOTS_MANA_PER_SEC * enemy_count as f32 * time.delta_secs();
+        let regen =
+            constants::NOURISHING_ROOTS_MANA_PER_SEC * enemy_count as f32 * time.delta_secs();
         mana.regenerate(regen);
     }
 }
@@ -446,12 +447,10 @@ fn apply_entangle_to_unit(
 
     // Nature's Sanctuary: defenders get temp HP instead of root
     if talent_params.sanctuary && is_defender {
-        commands
-            .entity(entity)
-            .insert(TemporaryHitPoints::new(
-                constants::SANCTUARY_TEMP_HP,
-                duration,
-            ));
+        commands.entity(entity).insert(TemporaryHitPoints::new(
+            constants::SANCTUARY_TEMP_HP,
+            duration,
+        ));
     } else {
         let mut entity_commands = commands.entity(entity);
         entity_commands.insert((
@@ -493,10 +492,17 @@ pub(crate) fn apply_entangle(
 
     for (entity, transform, team) in targets.iter() {
         let distance = transform.translation.distance(circle_pos);
-        if distance <= radius {
-            if apply_entangle_to_unit(commands, entity, team, root_duration, talent_params, defender_hit_msg) {
-                hit_count += 1;
-            }
+        if distance <= radius
+            && apply_entangle_to_unit(
+                commands,
+                entity,
+                team,
+                root_duration,
+                talent_params,
+                defender_hit_msg,
+            )
+        {
+            hit_count += 1;
         }
     }
 
@@ -516,7 +522,14 @@ pub(crate) fn apply_entangle(
     ));
 
     // Spawn vine toruses rising from the ground
-    spawn_vine_toruses(commands, assets, materials, circle_pos, radius, root_duration);
+    spawn_vine_toruses(
+        commands,
+        assets,
+        materials,
+        circle_pos,
+        radius,
+        root_duration,
+    );
 
     hit_count
 }
@@ -571,8 +584,7 @@ fn spawn_vine_toruses(
             EntangleVine {
                 final_y,
                 rise_elapsed: 0.0,
-                rise_duration: constants::VINE_RISE_DURATION
-                    * (0.7 + rand::random::<f32>() * 0.6), // Stagger rise timing
+                rise_duration: constants::VINE_RISE_DURATION * (0.7 + rand::random::<f32>() * 0.6), // Stagger rise timing
                 duration,
                 time_remaining: duration,
             },
@@ -603,8 +615,8 @@ pub fn animate_entangle_vines(
             let progress = (vine.rise_elapsed / vine.rise_duration).clamp(0.0, 1.0);
             // Ease-out: fast start, slow finish
             let eased = 1.0 - (1.0 - progress) * (1.0 - progress);
-            transform.translation.y =
-                constants::VINE_START_OFFSET + (vine.final_y - constants::VINE_START_OFFSET) * eased;
+            transform.translation.y = constants::VINE_START_OFFSET
+                + (vine.final_y - constants::VINE_START_OFFSET) * eased;
         }
 
         // Fade out in the last 25% of lifetime

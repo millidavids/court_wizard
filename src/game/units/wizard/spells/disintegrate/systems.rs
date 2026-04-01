@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -10,6 +9,7 @@ use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Hitbox, TemporaryHitPoints, apply_spell_damage};
 use crate::game::units::king::components::SpellShield;
@@ -17,10 +17,10 @@ use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn
 use crate::game::units::wizard::spells::audio::{self, ChannelingSfx, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball;
 use crate::game::units::wizard::spells::utils::{UniqueHitTracker, get_cursor_world_position};
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
+use bevy::prelude::*;
 
 /// Talent configuration computed once from ActiveTalents.
 pub(crate) struct TalentConfig {
@@ -233,7 +233,12 @@ pub fn handle_disintegrate_casting(
             mut length,
             empowerment,
         } => {
-            vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
+            vfx::systems::spawn_school_flare(
+                &mut commands,
+                &visual_assets,
+                vfx::systems::SpellSchool::Arcane,
+                time.elapsed_secs(),
+            );
             // Annihilation Beam: shoot from the sky above the clamped target
             let mut annihilation_forward = Vec3::X;
             if talent_cfg.annihilation {

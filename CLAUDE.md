@@ -17,6 +17,9 @@ Court Wizard is a real-time strategy game built with Rust and the Bevy game engi
 src/
 ├── config/           # Game configuration and level definitions
 ├── game/             # Core game logic
+│   ├── combat_systems.rs   # Melee combat, invulnerability, corpse conversion
+│   ├── movement_systems.rs # Separation/flocking, wall avoidance/collision, terrain slowdown
+│   ├── shared_systems.rs   # Timing, effectiveness, cleanup, defenders, ambience, shadows
 │   ├── battlefield/  # Battlefield setup and rendering
 │   ├── input/        # Input handling systems
 │   ├── pathfinding/  # Flow field pathfinding system
@@ -81,10 +84,16 @@ Systems are grouped into sets with explicit ordering:
 ### Code Sharing
 **CRITICAL**: Maximize code sharing between systems, units, and spells:
 - Units (infantry, behemoth, king, archer) share movement and targeting code via `src/game/units/systems.rs`
-- Spells likely have similar patterns (spawning, lifetime, effects, cleanup) that should be extracted into shared functions
+- Spells share casting boilerplate via `src/game/units/wizard/spells/utils.rs` — use `build_wizard_input`, `cleanup_spell_caster`, `handle_spell_release`, `update_indicator_position`, and `try_start_cast_with_indicator` instead of duplicating input/indicator/cleanup logic
 - When adding new units or spells, check existing implementations for shared patterns
 - Extract common logic into shared functions rather than duplicating code
 - Unit-specific or spell-specific behavior should be minimal overrides on top of shared systems
+
+### Function Arguments & SystemParam
+- **Bevy systems** naturally have many injected parameters (Res, ResMut, Query, Commands, etc.). When a system exceeds 7 arguments, add `#[allow(clippy::too_many_arguments)]` — this is idiomatic Bevy, not a code smell.
+- **Helper functions** (non-system functions called from other code) should keep argument counts reasonable. When multiple helpers share the same parameter group, extract a params struct (e.g., `CrystalAutocastParams` in arcane_crystal).
+- **Constructors** with many fields: prefer `#[allow(clippy::too_many_arguments)]` on `new()` since the arguments map 1:1 to struct fields.
+- **Do NOT** create `#[derive(SystemParam)]` bundles just to reduce argument counts — this obscures what systems actually access and makes code harder to follow. Only use `SystemParam` when a group of resources/queries is reused across 3+ systems with identical parameter sets.
 
 ### Component Design
 **Prefer small, focused Components over monolithic data structs.** This is core to Bevy's ECS design:

@@ -10,13 +10,13 @@ use super::loading::{upgrade_selection, upgrade_systems};
 use super::messages::WaveSpawnedMessage;
 use super::pathfinding::StagingAttacker;
 use super::resources::{CurrentLevel, KillStats, PendingWaveUpgrades, WaveState};
+use super::units::aerialist::resources::AerialistAssets;
 use super::units::archer::resources::ArcherAssets;
 use super::units::brute::constants::BRUTE_START_TIER;
 use super::units::components::{Corpse, Hitbox};
 use super::units::dispeller::resources::DispellerAssets;
 use super::units::healer::resources::HealerAssets;
 use super::units::infantry::resources::InfantryAssets;
-use super::units::aerialist::resources::AerialistAssets;
 use super::units::shielder::resources::ShielderAssets;
 use super::units::{aerialist, archer, brute, infantry};
 
@@ -123,7 +123,8 @@ pub fn tick_wave_timer(
     }
 
     // Update kill stats with newly spawned attackers
-    let wave_attackers = total_infantry + total_archers + total_aerialists + if has_brute { 1 } else { 0 };
+    let wave_attackers =
+        total_infantry + total_archers + total_aerialists + if has_brute { 1 } else { 0 };
     kill_stats.total_attackers_spawned += wave_attackers;
 
     // Check if this was the last wave
@@ -169,28 +170,35 @@ pub fn apply_wave_upgrades(
     let mut excluded = HashSet::new();
 
     let infantry_commanders = upgrade_selection::select_commander_entities(
-        &pending.infantry, level, MAX_COMMANDER_INFANTRY, seed_base, 1, "Infantry (wave)",
+        &pending.infantry,
+        level,
+        MAX_COMMANDER_INFANTRY,
+        seed_base,
+        1,
+        "Infantry (wave)",
     );
     excluded.extend(&infantry_commanders);
 
     let archer_commanders = upgrade_selection::select_commander_entities(
-        &pending.archers, level, MAX_COMMANDER_ARCHERS, seed_base, 997, "Archer (wave)",
+        &pending.archers,
+        level,
+        MAX_COMMANDER_ARCHERS,
+        seed_base,
+        997,
+        "Archer (wave)",
     );
     excluded.extend(&archer_commanders);
 
-    let dispellers = upgrade_selection::select_dispeller_entities(
-        &pending.archers, level, &excluded, seed_base,
-    );
+    let dispellers =
+        upgrade_selection::select_dispeller_entities(&pending.archers, level, &excluded, seed_base);
     excluded.extend(&dispellers);
 
-    let healers = upgrade_selection::select_healer_entities(
-        &pending.archers, level, &excluded, seed_base,
-    );
+    let healers =
+        upgrade_selection::select_healer_entities(&pending.archers, level, &excluded, seed_base);
     excluded.extend(&healers);
 
-    let shielders = upgrade_selection::select_shielder_entities(
-        &pending.infantry, level, &excluded, seed_base,
-    );
+    let shielders =
+        upgrade_selection::select_shielder_entities(&pending.infantry, level, &excluded, seed_base);
     excluded.extend(&shielders);
 
     // Elites run last so all other upgrade types are excluded first
@@ -201,32 +209,55 @@ pub fn apply_wave_upgrades(
     all_wave_entities.extend(&pending.archers);
     all_wave_entities.extend(&pending.aerialists);
 
-    let elites = upgrade_selection::select_elite_entities(
-        &all_wave_entities, level, &excluded, seed_base,
-    );
+    let elites =
+        upgrade_selection::select_elite_entities(&all_wave_entities, level, &excluded, seed_base);
 
     for entity in infantry_commanders.iter().chain(archer_commanders.iter()) {
-        if let Some((transform, hitbox)) = upgrade_systems::get_transform_and_hitbox(*entity, &transform_query, &hitbox_query) {
+        if let Some((transform, hitbox)) =
+            upgrade_systems::get_transform_and_hitbox(*entity, &transform_query, &hitbox_query)
+        {
             upgrade_systems::apply_commander_upgrade(
-                &mut commands, *entity, &mut materials, &mut meshes, &transform, &hitbox,
+                &mut commands,
+                *entity,
+                &mut materials,
+                &mut meshes,
+                &transform,
+                &hitbox,
             );
         }
     }
 
     for entity in &dispellers {
-        upgrade_systems::apply_dispeller_upgrade(&mut commands, *entity, &dispeller_assets, &mut materials);
+        upgrade_systems::apply_dispeller_upgrade(
+            &mut commands,
+            *entity,
+            &dispeller_assets,
+            &mut materials,
+        );
     }
 
     for entity in &healers {
-        upgrade_systems::apply_healer_upgrade(&mut commands, *entity, &healer_assets, &mut materials);
+        upgrade_systems::apply_healer_upgrade(
+            &mut commands,
+            *entity,
+            &healer_assets,
+            &mut materials,
+        );
     }
 
     for entity in &shielders {
-        upgrade_systems::apply_shielder_upgrade(&mut commands, *entity, &shielder_assets, &mut materials);
+        upgrade_systems::apply_shielder_upgrade(
+            &mut commands,
+            *entity,
+            &shielder_assets,
+            &mut materials,
+        );
     }
 
     for entity in &elites {
-        if let Some((transform, hitbox)) = upgrade_systems::get_transform_and_hitbox(*entity, &transform_query, &hitbox_query) {
+        if let Some((transform, hitbox)) =
+            upgrade_systems::get_transform_and_hitbox(*entity, &transform_query, &hitbox_query)
+        {
             upgrade_systems::apply_elite_upgrade(&mut commands, *entity, &transform, &hitbox);
         }
     }

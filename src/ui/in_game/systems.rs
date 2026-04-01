@@ -716,7 +716,13 @@ pub(super) fn spawn_boss_health_bar(
     boss_query: Query<&Health, (With<Boss>, Without<Corpse>)>,
     hag_query: Query<&HagIdentity, (With<Hag>, Without<Corpse>, Without<PermanentlyDead>)>,
     lich_query: Query<&LichPhase, (With<Lich>, Without<Corpse>)>,
-    dark_mage_query: Query<Entity, (With<crate::game::units::boss::dark_mage::DarkMage>, Without<Corpse>)>,
+    dark_mage_query: Query<
+        Entity,
+        (
+            With<crate::game::units::boss::dark_mage::DarkMage>,
+            Without<Corpse>,
+        ),
+    >,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
 ) {
     let boss_exists = boss_query.iter().next().is_some();
@@ -945,20 +951,37 @@ pub(super) fn update_boss_health_bar(
         (&HagIdentity, &Health),
         (With<Hag>, Without<Corpse>, Without<PermanentlyDead>),
     >,
-    lich_query: Query<
-        (&Health, &SoulPower, &LichPhase),
-        (With<Lich>, Without<Corpse>),
-    >,
+    lich_query: Query<(&Health, &SoulPower, &LichPhase), (With<Lich>, Without<Corpse>)>,
     bar_query: Query<Entity, With<BossHealthBarRoot>>,
     mut fill_query: Query<&mut Node, (With<BossHealthBarFill>, Without<HagHealthBarFill>)>,
-    mut text_query: Query<&mut Text, (With<BossHealthBarText>, Without<HagHealthBarText>, Without<LichBarLabel>)>,
+    mut text_query: Query<
+        &mut Text,
+        (
+            With<BossHealthBarText>,
+            Without<HagHealthBarText>,
+            Without<LichBarLabel>,
+        ),
+    >,
     mut hag_fill_query: Query<
         (&mut Node, &mut BackgroundColor, &HagHealthBarFill),
         Without<BossHealthBarFill>,
     >,
-    mut hag_text_query: Query<(&mut Text, &HagHealthBarText), (Without<BossHealthBarText>, Without<LichBarLabel>)>,
-    mut label_query: Query<&mut Text, (With<LichBarLabel>, Without<BossHealthBarText>, Without<HagHealthBarText>)>,
-    mut fill_bg_query: Query<&mut BackgroundColor, (With<BossHealthBarFill>, Without<HagHealthBarFill>)>,
+    mut hag_text_query: Query<
+        (&mut Text, &HagHealthBarText),
+        (Without<BossHealthBarText>, Without<LichBarLabel>),
+    >,
+    mut label_query: Query<
+        &mut Text,
+        (
+            With<LichBarLabel>,
+            Without<BossHealthBarText>,
+            Without<HagHealthBarText>,
+        ),
+    >,
+    mut fill_bg_query: Query<
+        &mut BackgroundColor,
+        (With<BossHealthBarFill>, Without<HagHealthBarFill>),
+    >,
 ) {
     // Build a fixed-size lookup of living hag health (no heap allocation)
     let mut living = [None::<f32>; 3]; // indexed: Justina=0, Martina=1, Josephina=2
@@ -1025,8 +1048,7 @@ pub(super) fn update_boss_health_bar(
             }
             LichPhase::Combat => {
                 // Switch to HP display
-                let hp_percent =
-                    (health.current / health.max * 100.0).clamp(0.0, 100.0);
+                let hp_percent = (health.current / health.max * 100.0).clamp(0.0, 100.0);
                 if let Ok(mut node) = fill_query.single_mut() {
                     node.width = Val::Percent(hp_percent);
                 }

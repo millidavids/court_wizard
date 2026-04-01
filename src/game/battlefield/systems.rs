@@ -237,12 +237,7 @@ fn create_tile_mesh(tile_size: f32, tile_index: usize, total_tiles: usize) -> Me
     );
     mesh.insert_attribute(
         Mesh::ATTRIBUTE_UV_0,
-        vec![
-            [u_max, 0.0],
-            [u_min, 0.0],
-            [u_min, 1.0],
-            [u_max, 1.0],
-        ],
+        vec![[u_max, 0.0], [u_min, 0.0], [u_min, 1.0], [u_max, 1.0]],
     );
     mesh.insert_indices(Indices::U32(vec![0, 2, 1, 0, 3, 2]));
     mesh
@@ -412,7 +407,12 @@ pub fn emit_water_ripples(
 /// Grows and fades water ripples over their lifetime.
 pub fn update_water_ripples(
     mut commands: Commands,
-    mut ripples: Query<(Entity, &mut WaterRipple, &mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut ripples: Query<(
+        Entity,
+        &mut WaterRipple,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+    )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     time: Res<Time>,
 ) {

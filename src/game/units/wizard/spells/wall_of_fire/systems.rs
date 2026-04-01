@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -22,16 +21,17 @@ use crate::game::units::components::{
     Corpse, Health, ResidualFireDamaged, SlowMovementModifier, TemporaryHitPoints,
     apply_spell_damage,
 };
-use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
+use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::utils::{
-    UniqueHitTracker, clamp_to_spell_range, get_cursor_world_position,
+    UniqueHitTracker, build_wizard_input, clamp_to_spell_range,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Computes the axis-aligned bounding box of a rotated wall, expanded by the obstacle buffer.
 ///
@@ -175,9 +175,9 @@ fn spawn_wall_vfx(
         game_config,
         sfx,
     );
-    commands.entity(sfx_entity).insert(WallOfFireSfx {
-        wall_entity,
-    });
+    commands
+        .entity(sfx_entity)
+        .insert(WallOfFireSfx { wall_entity });
 }
 
 /// Local wizard Wall of Fire casting — reads mouse input, manages preview.
@@ -202,14 +202,7 @@ pub fn handle_wall_of_fire_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -262,8 +255,9 @@ pub fn handle_wall_of_fire_casting(
                     cull_mode: None,
                     ..default()
                 })),
-                Transform::from_xyz(pos.x, preview_height / 2.0 + 1.0, pos.z)
-                    .with_scale(Vec3::new(0.0, preview_height, WALL_WIDTH * talent_params.width_mult)),
+                Transform::from_xyz(pos.x, preview_height / 2.0 + 1.0, pos.z).with_scale(
+                    Vec3::new(0.0, preview_height, WALL_WIDTH * talent_params.width_mult),
+                ),
                 WallOfFirePreview,
                 OnGameplayScreen,
             ))
@@ -305,15 +299,31 @@ pub fn handle_wall_of_fire_casting(
             let perp = Vec3::new(-wall_dir.z, 0.0, wall_dir.x);
             let offset = perp * info.half_width;
             let twin_damage = info.damage * constants::TWIN_WALLS_DAMAGE_MULT;
-            ([
-                (info.wall_start + offset, info.wall_end + offset, info.half_width, twin_damage),
-                (info.wall_start - offset, info.wall_end - offset, info.half_width, twin_damage),
-            ], 2)
+            (
+                [
+                    (
+                        info.wall_start + offset,
+                        info.wall_end + offset,
+                        info.half_width,
+                        twin_damage,
+                    ),
+                    (
+                        info.wall_start - offset,
+                        info.wall_end - offset,
+                        info.half_width,
+                        twin_damage,
+                    ),
+                ],
+                2,
+            )
         } else {
-            ([
-                (info.wall_start, info.wall_end, info.half_width, info.damage),
-                (Vec3::ZERO, Vec3::ZERO, 0.0, 0.0), // unused
-            ], 1)
+            (
+                [
+                    (info.wall_start, info.wall_end, info.half_width, info.damage),
+                    (Vec3::ZERO, Vec3::ZERO, 0.0, 0.0), // unused
+                ],
+                1,
+            )
         };
 
         for (i, &(start, end, hw, dmg)) in walls[..wall_count].iter().enumerate() {
@@ -325,11 +335,19 @@ pub fn handle_wall_of_fire_casting(
             });
 
             let effect = WallOfFireEffect::new(
-                start, end, hw, dmg, DamageType::Fire,
-                TICK_INTERVAL, info.fire_duration, info.talent_params.clone(),
+                start,
+                end,
+                hw,
+                dmg,
+                DamageType::Fire,
+                TICK_INTERVAL,
+                info.fire_duration,
+                info.talent_params.clone(),
             );
             let transform = wall_transform(start, end, hw);
-            let net = NetworkedSpellEffect { kind: SpellEffectKind::WallOfFire };
+            let net = NetworkedSpellEffect {
+                kind: SpellEffectKind::WallOfFire,
+            };
 
             let wall_entity = if i == 0 {
                 if let Some(preview_entity) = caster.preview_entity {
@@ -366,14 +384,23 @@ pub fn handle_wall_of_fire_casting(
                 obstacle_events.write(ObstacleChanged {
                     bounds: wall_obstacle_bounds(start, end, hw),
                     obstacle_type: ObstacleType::Hazard(4.5),
-                    shape: Some(ObstacleShape::obb_from_wall(start, end, hw + OBSTACLE_BUFFER)),
+                    shape: Some(ObstacleShape::obb_from_wall(
+                        start,
+                        end,
+                        hw + OBSTACLE_BUFFER,
+                    )),
                     rebuild: true,
                 });
             }
 
             spawn_wall_vfx(
-                &mut commands, &visual_assets, &sfx, &game_config,
-                start, end, wall_entity,
+                &mut commands,
+                &visual_assets,
+                &sfx,
+                &game_config,
+                start,
+                end,
+                wall_entity,
             );
         }
 
@@ -389,7 +416,12 @@ pub fn handle_wall_of_fire_casting(
     }
 
     if cast_result.completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Fire, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Fire,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -549,7 +581,16 @@ pub fn apply_wall_of_fire_damage(
             let tick_damage = effect.effective_damage();
             let mut units_hit = 0u32;
 
-            for (entity, transform, mut health, mut temp_hp, has_spell_shield, is_inside, searing) in &mut targets {
+            for (
+                entity,
+                transform,
+                mut health,
+                mut temp_hp,
+                has_spell_shield,
+                is_inside,
+                searing,
+            ) in &mut targets
+            {
                 let distance = effect.distance_to_point(transform.translation);
 
                 if distance <= effect.half_width {
@@ -577,9 +618,9 @@ pub fn apply_wall_of_fire_damage(
                     // Searing Heat: apply healing reduction debuff
                     if effect.talent_params.searing_heat && searing.is_none() {
                         health.healing_reduction += constants::SEARING_HEAT_HEALING_REDUCTION;
-                        commands.entity(entity).insert(SearingHeatDebuff(
-                            constants::SEARING_HEAT_HEALING_REDUCTION,
-                        ));
+                        commands
+                            .entity(entity)
+                            .insert(SearingHeatDebuff(constants::SEARING_HEAT_HEALING_REDUCTION));
                     }
 
                     if hit_tracker.track_hit(entity) {
@@ -588,22 +629,21 @@ pub fn apply_wall_of_fire_damage(
                 }
             }
 
-            if units_hit > 0 {
-                if let Some(ref mut progress) = talent_progress {
-                    progress.increment(Spell::WallOfFire, units_hit);
-                }
+            if units_hit > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(Spell::WallOfFire, units_hit);
             }
         }
     }
 }
-
 
 /// Despawns wall of fire effects that have expired.
 /// If Scorched Earth talent is active, spawns a slow zone in its place.
 pub fn cleanup_wall_of_fire(
     mut commands: Commands,
     effects: Query<(Entity, &WallOfFireEffect)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,  // For scorched earth zones
+    mut materials: ResMut<Assets<StandardMaterial>>, // For scorched earth zones
     visual_assets: Res<SpellVisualAssets>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
@@ -727,12 +767,15 @@ const WALL_SMOKE_INTERVAL: f32 = 0.25;
 pub fn track_wall_of_fire_exit(
     mut commands: Commands,
     walls: Query<&WallOfFireEffect>,
-    mut marked_units: Query<(
-        Entity,
-        &Transform,
-        Option<&SearingHeatDebuff>,
-        Option<&mut Health>,
-    ), With<InsideWallOfFire>>,
+    mut marked_units: Query<
+        (
+            Entity,
+            &Transform,
+            Option<&SearingHeatDebuff>,
+            Option<&mut Health>,
+        ),
+        With<InsideWallOfFire>,
+    >,
 ) {
     for (entity, transform, searing, health) in &mut marked_units {
         let mut still_inside = false;
@@ -851,7 +894,11 @@ pub fn firestorm_death_explosion(
     mut commands: Commands,
     dead_units: Query<
         (Entity, &Transform, &Health),
-        (With<FirestormMarked>, Without<Corpse>, Without<FirestormProcessed>),
+        (
+            With<FirestormMarked>,
+            Without<Corpse>,
+            Without<FirestormProcessed>,
+        ),
     >,
     assets: Res<SpellVisualAssets>,
     time: Res<Time>,

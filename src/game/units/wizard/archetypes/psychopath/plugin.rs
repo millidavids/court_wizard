@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::state::AppState;
+use bevy::prelude::*;
 
 use super::run_conditions::is_psychopath;
 use super::systems;

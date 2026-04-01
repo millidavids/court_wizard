@@ -1,17 +1,17 @@
-use bevy::prelude::*;
 use super::components::{
-    InsidePlagueCloud, PandemicProcessed, PlagueCarrierDoT, PlagueWindCloud,
-    PlagueWindIndicator, PlagueWindTalentParams, ToxicWeaknessDebuff,
+    InsidePlagueCloud, PandemicProcessed, PlagueCarrierDoT, PlagueWindCloud, PlagueWindIndicator,
+    PlagueWindTalentParams, ToxicWeaknessDebuff,
 };
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
-use crate::game::input::messages::MouseLeftReleased;
 use crate::game::input::MouseButtonState;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
+use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Health, SlowMovementModifier, TemporaryHitPoints, apply_spell_damage,
 };
@@ -21,14 +21,14 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, UniqueHitTracker, clamp_to_spell_range_ground,
-    get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, UniqueHitTracker, build_wizard_input, clamp_to_spell_range_ground,
+    spawn_circle_indicator,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::game::units::DamageType;
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Computes talent parameters from the player's active talent selections.
 fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> PlagueWindTalentParams {
@@ -99,14 +99,7 @@ pub fn handle_plague_wind_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -208,7 +201,12 @@ pub fn handle_plague_wind_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Nature, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Nature,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -402,7 +400,13 @@ fn spawn_plague_cloud(
     commands.spawn((
         Transform::from_translation(Vec3::new(pos.x, 0.0, pos.z)),
         PlagueWindCloud::new(
-            pos, radius, damage, constants::TICK_INTERVAL, duration, speed, direction,
+            pos,
+            radius,
+            damage,
+            constants::TICK_INTERVAL,
+            duration,
+            speed,
+            direction,
             talent_params,
         ),
         UniqueHitTracker::default(),
@@ -546,10 +550,10 @@ pub fn apply_plague_wind_damage(
         }
     }
 
-    if unique_hits > 0 {
-        if let Some(ref mut progress) = talent_progress {
-            progress.increment(Spell::PlagueWind, unique_hits);
-        }
+    if unique_hits > 0
+        && let Some(ref mut progress) = talent_progress
+    {
+        progress.increment(Spell::PlagueWind, unique_hits);
     }
 }
 
@@ -654,10 +658,7 @@ pub fn apply_plague_carrier_dot(
 pub fn spawn_pandemic_clouds(
     mut commands: Commands,
     clouds: Query<&PlagueWindCloud>,
-    dead_units: Query<
-        (Entity, &Transform, &Health),
-        (Without<Corpse>, Without<PandemicProcessed>),
-    >,
+    dead_units: Query<(Entity, &Transform, &Health), (Without<Corpse>, Without<PandemicProcessed>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, transform, health) in &dead_units {

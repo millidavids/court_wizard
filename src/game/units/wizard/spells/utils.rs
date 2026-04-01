@@ -10,8 +10,9 @@ use bevy::prelude::Annulus;
 
 use crate::game::components::OnGameplayScreen;
 use crate::game::crt_effect::CorrectedCursorPosition;
+use crate::game::input::messages::MouseLeftReleased;
 use crate::game::units::components::{Health, Team};
-use crate::game::units::wizard::components::Wizard;
+use crate::game::units::wizard::components::{CastingState, SpellCaster, Wizard, WizardInput};
 
 /// Returns the XZ-plane distance between two points (ignoring Y).
 pub(crate) fn xz_distance(a: Vec3, b: Vec3) -> f32 {
@@ -73,10 +74,10 @@ pub(crate) fn apply_pending_defender_heal(
         }
     }
 
-    if let Some((entity, _)) = best {
-        if let Ok((_, _, mut health, _)) = defenders.get_mut(entity) {
-            health.heal(heal.amount);
-        }
+    if let Some((entity, _)) = best
+        && let Ok((_, _, mut health, _)) = defenders.get_mut(entity)
+    {
+        health.heal(heal.amount);
     }
 
     commands.remove_resource::<PendingDefenderHeal>();
@@ -324,8 +325,7 @@ pub(crate) fn spawn_ring_particle(
     let tilt = 0.3 + rand::random::<f32>() * RING_MAX_TILT;
     let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(tilt);
 
-    let max_scale =
-        RING_MIN_SCALE + rand::random::<f32>() * (RING_MAX_SCALE - RING_MIN_SCALE);
+    let max_scale = RING_MIN_SCALE + rand::random::<f32>() * (RING_MAX_SCALE - RING_MIN_SCALE);
     let y = -max_scale * 0.3 * tilt.sin();
     let lifetime = RING_LIFETIME * (0.7 + rand::random::<f32>() * 0.6);
 
@@ -389,5 +389,113 @@ impl UniqueHitTracker {
     /// time this entity has been hit by this spell instance.
     pub fn track_hit(&mut self, entity: Entity) -> bool {
         self.hits.insert(entity)
+    }
+}
+
+// --- Shared spell casting helpers ---
+// These functions extract the boilerplate duplicated across 15+ spell casting systems.
+
+/// Builds a `WizardInput` from mouse state and camera raycasting.
+///
+/// Every spell casting system constructs an identical `WizardInput` — this
+/// centralizes that logic.
+pub(crate) fn build_wizard_input(
+    mouse_left_released: &mut MessageReader<MouseLeftReleased>,
+    camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    corrected_cursor: &Res<CorrectedCursorPosition>,
+) -> WizardInput {
+    let released = mouse_left_released.read().next().is_some();
+    let cursor_pos = get_cursor_world_position(camera_query, corrected_cursor);
+    WizardInput {
+        just_pressed: true, // Run conditions already ensure mouse is held
+        pressed: true,
+        just_released: released,
+        cursor_pos,
+    }
+}
+
+/// Cleans up the spell caster indicator and removes the `SpellCaster` component.
+///
+/// Called on release, completion, and channeling-cancel — identical logic every time.
+pub(crate) fn cleanup_spell_caster(
+    commands: &mut Commands,
+    wizard_entity: Entity,
+    caster_query: &Query<&SpellCaster>,
+) {
+    if let Ok(caster) = caster_query.get(wizard_entity) {
+        if let Some(indicator_entity) = caster.indicator_entity {
+            commands.entity(indicator_entity).try_despawn();
+        }
+        commands.entity(wizard_entity).remove::<SpellCaster>();
+    }
+}
+
+/// Handles the mouse-release event during casting: cleans up indicator and cancels cast.
+///
+/// Returns `true` if released (caller should return early), `false` otherwise.
+pub(crate) fn handle_spell_release(
+    input: &WizardInput,
+    commands: &mut Commands,
+    wizard_entity: Entity,
+    casting_state: &mut CastingState,
+    caster_query: &Query<&SpellCaster>,
+) -> bool {
+    if input.just_released {
+        cleanup_spell_caster(commands, wizard_entity, caster_query);
+        casting_state.cancel();
+        return true;
+    }
+    false
+}
+
+/// Updates the spell circle indicator position to track the cursor.
+///
+/// Used in the `CastingState::Casting` arm of every spell.
+pub(crate) fn update_indicator_position(
+    wizard_entity: Entity,
+    cursor_pos: Vec3,
+    caster_query: &Query<&SpellCaster>,
+    indicator_query: &mut Query<&mut SpellCircleIndicator>,
+) {
+    if let Ok(caster) = caster_query.get(wizard_entity)
+        && let Some(indicator_entity) = caster.indicator_entity
+        && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
+    {
+        indicator.position = cursor_pos;
+    }
+}
+
+/// Spawns a spell circle indicator in the Resting state and starts the cast.
+///
+/// Returns `true` if the indicator was spawned (cast started), `false` otherwise.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn try_start_cast_with_indicator(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    indicator_material: Handle<StandardMaterial>,
+    wizard_entity: Entity,
+    casting_state: &mut CastingState,
+    mana: &crate::game::units::wizard::components::Mana,
+    mana_cost: f32,
+    cursor_pos: Vec3,
+    indicator_radius: f32,
+    caster_query: &Query<&SpellCaster>,
+) -> bool {
+    if caster_query.get(wizard_entity).is_err() && mana.can_afford(mana_cost) {
+        let circle_entity = spawn_circle_indicator(
+            commands,
+            meshes,
+            indicator_material,
+            cursor_pos,
+            indicator_radius,
+        )
+        .id();
+        commands
+            .entity(wizard_entity)
+            .insert(SpellCaster::with_indicator(circle_entity));
+        casting_state.start_cast();
+        true
+    } else {
+        false
     }
 }

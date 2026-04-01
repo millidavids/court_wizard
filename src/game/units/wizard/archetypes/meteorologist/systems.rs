@@ -110,16 +110,14 @@ pub fn tick_weather_timers(time: Res<Time>, mut weather: ResMut<WeatherState>) {
 }
 
 /// Applies or removes weather status components on all living units.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_weather_status(
     mut commands: Commands,
     weather: Res<WeatherState>,
     units_without_wet: Query<Entity, (Without<Corpse>, Without<WetModifier>, With<Health>)>,
     units_without_cold: Query<Entity, (Without<Corpse>, Without<ColdModifier>, With<Health>)>,
     units_without_dry: Query<Entity, (Without<Corpse>, Without<DryModifier>, With<Health>)>,
-    units_without_charged: Query<
-        Entity,
-        (Without<Corpse>, Without<ChargedModifier>, With<Health>),
-    >,
+    units_without_charged: Query<Entity, (Without<Corpse>, Without<ChargedModifier>, With<Health>)>,
     _units_with_wet: Query<Entity, With<WetModifier>>,
     units_with_cold: Query<Entity, With<ColdModifier>>,
     units_with_dry: Query<Entity, With<DryModifier>>,
@@ -215,7 +213,10 @@ pub fn spread_shock_to_wet(
     mut commands: Commands,
     weather: Option<Res<WeatherState>>,
     shocked_wet: Query<(&Transform, &ElectricCharge, &WetModifier), Without<Corpse>>,
-    wet_targets: Query<(Entity, &Transform, Has<ElectricCharge>, Has<SpellShield>), (With<WetModifier>, Without<Corpse>)>,
+    wet_targets: Query<
+        (Entity, &Transform, Has<ElectricCharge>, Has<SpellShield>),
+        (With<WetModifier>, Without<Corpse>),
+    >,
 ) {
     // Use weather intensity for spread radius if storm is active, otherwise base radius
     let intensity = weather
@@ -247,6 +248,7 @@ pub fn spread_shock_to_wet(
 }
 
 /// Storm periodic random lightning strikes.
+#[allow(clippy::too_many_arguments)]
 pub fn storm_lightning(
     mut commands: Commands,
     time: Res<Time>,
@@ -298,25 +300,23 @@ pub fn storm_lightning(
     if !has_shield {
         let damage = THUNDERSTORM_LIGHTNING_DAMAGE * weather.intensity;
         apply_damage_to_unit(&mut health, temp_hp.map(|t| t.into_inner()), damage);
-        commands.entity(entity).insert(
-            crate::game::units::components::PendingDamageEffect {
+        commands
+            .entity(entity)
+            .insert(crate::game::units::components::PendingDamageEffect {
                 damage_type: crate::game::units::damage::DamageType::Electric,
                 damage,
-            },
-        );
+            });
     }
 
     // Deal AoE damage to nearby units
     let splash_targets: Vec<Entity> = targets
         .iter()
         .filter(|(e, t, _, _, shield)| {
-            *e != entity
-                && !shield
-                && {
-                    let dx = strike_pos.x - t.translation.x;
-                    let dz = strike_pos.z - t.translation.z;
-                    (dx * dx + dz * dz) <= THUNDERSTORM_LIGHTNING_RADIUS * THUNDERSTORM_LIGHTNING_RADIUS
-                }
+            *e != entity && !shield && {
+                let dx = strike_pos.x - t.translation.x;
+                let dz = strike_pos.z - t.translation.z;
+                (dx * dx + dz * dz) <= THUNDERSTORM_LIGHTNING_RADIUS * THUNDERSTORM_LIGHTNING_RADIUS
+            }
         })
         .map(|(e, _, _, _, _)| e)
         .collect();
@@ -446,7 +446,12 @@ pub fn cleanup_weather(
     patches: Query<Entity, With<BurningPatch>>,
     strikes: Query<Entity, With<LightningStrike>>,
 ) {
-    for entity in wet.iter().chain(cold.iter()).chain(dry.iter()).chain(charged.iter()) {
+    for entity in wet
+        .iter()
+        .chain(cold.iter())
+        .chain(dry.iter())
+        .chain(charged.iter())
+    {
         commands.entity(entity).remove::<WetModifier>();
         commands.entity(entity).remove::<ColdModifier>();
         commands.entity(entity).remove::<DryModifier>();
@@ -528,9 +533,10 @@ pub fn spawn_ground_overlay(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let mesh = Plane3d::default()
-        .mesh()
-        .size(crate::game::constants::BATTLEFIELD_SIZE, crate::game::constants::BATTLEFIELD_SIZE);
+    let mesh = Plane3d::default().mesh().size(
+        crate::game::constants::BATTLEFIELD_SIZE,
+        crate::game::constants::BATTLEFIELD_SIZE,
+    );
 
     commands.spawn((
         Mesh3d(meshes.add(mesh)),
@@ -648,8 +654,7 @@ pub fn spawn_weather_particles(
                     },
                     Mesh3d(mesh.clone()),
                     MeshMaterial3d(mat.clone()),
-                    Transform::from_translation(pos)
-                        .with_rotation(Quat::from_rotation_z(-0.2)),
+                    Transform::from_translation(pos).with_rotation(Quat::from_rotation_z(-0.2)),
                     OnGameplayScreen,
                 ));
             }

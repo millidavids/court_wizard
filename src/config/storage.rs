@@ -154,4 +154,3 @@ pub(super) fn load_unified_save() -> ConfigResult<String> {
 pub(super) fn unified_save_exists() -> bool {
     file_exists(UNIFIED_SAVE_FILENAME)
 }
-

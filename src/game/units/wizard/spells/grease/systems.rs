@@ -1,16 +1,15 @@
-use bevy::prelude::*;
-use rand::Rng;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use super::components::{
-    GreaseBubble, GreaseIgnited, GreaseOilSlickDebuff,
-    GreaseRegenerating, GreaseSplatter, GreaseTalentParams, GreaseZone, GreaseZonePresenceTracker,
+    GreaseBubble, GreaseIgnited, GreaseOilSlickDebuff, GreaseRegenerating, GreaseSplatter,
+    GreaseTalentParams, GreaseZone, GreaseZonePresenceTracker,
 };
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -26,15 +25,17 @@ use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBe
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire;
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator, xz_distance,
+    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, handle_spell_release,
+    spawn_circle_indicator, update_indicator_position, xz_distance,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
+use rand::Rng;
 
 /// Helper to write an obstacle event for a grease zone.
 fn write_grease_obstacle(
@@ -54,9 +55,7 @@ fn write_grease_obstacle(
 }
 
 /// Computes talent parameters from active talent selections.
-pub(crate) fn compute_talent_params(
-    active_talents: Option<&ActiveTalents>,
-) -> GreaseTalentParams {
+pub(crate) fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> GreaseTalentParams {
     let mut params = GreaseTalentParams::default();
 
     let Some(talents) = active_talents else {
@@ -124,17 +123,13 @@ pub fn handle_grease_casting(
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    talent_resources: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talent_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (active_talents, _talent_progress) = talent_resources;
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions already ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -168,7 +163,12 @@ pub fn handle_grease_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Transmutation, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Transmutation,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -196,14 +196,7 @@ fn grease_casting_logic(
 ) -> bool {
     let mut completed = false;
 
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -250,19 +243,21 @@ fn grease_casting_logic(
         }
         CastingState::Casting { .. } => {
             casting_state.advance(time.delta_secs());
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = cursor_world_pos;
-            }
+            update_indicator_position(
+                wizard_entity,
+                cursor_world_pos,
+                caster_query,
+                indicator_query,
+            );
             if casting_state.is_complete(primed_spell.cast_time) {
                 if mana.consume(constants::MANA_COST) {
                     if let Ok(caster) = caster_query.get(wizard_entity)
                         && let Some(indicator_entity) = caster.indicator_entity
                     {
                         if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                            let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * talent_params.radius_mult;
+                            let radius = constants::CIRCLE_RADIUS
+                                * primed_spell.empowerment
+                                * talent_params.radius_mult;
                             audio::play_sfx(
                                 commands,
                                 &sfx.grease_cast,
@@ -287,23 +282,13 @@ fn grease_casting_logic(
                     casting_state.cancel();
                     completed = true;
                 } else {
-                    if let Ok(caster) = caster_query.get(wizard_entity)
-                        && let Some(indicator_entity) = caster.indicator_entity
-                    {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                    commands.entity(wizard_entity).remove::<SpellCaster>();
+                    cleanup_spell_caster(commands, wizard_entity, caster_query);
                     casting_state.cancel();
                 }
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }
@@ -317,7 +302,12 @@ fn grease_casting_logic(
 pub fn apply_grease_slow(
     mut commands: Commands,
     time: Res<Time>,
-    mut zones: Query<(Entity, &mut GreaseZone, Has<GreaseIgnited>, Has<GreaseRegenerating>)>,
+    mut zones: Query<(
+        Entity,
+        &mut GreaseZone,
+        Has<GreaseIgnited>,
+        Has<GreaseRegenerating>,
+    )>,
     mut targets: Query<
         (
             Entity,
@@ -351,8 +341,7 @@ pub fn apply_grease_slow(
             zone.time_since_last_tick = 0.0;
 
             let mut units_slowed: u32 = 0;
-            let needs_tracking =
-                zone.talent_params.slip_and_fall || zone.talent_params.oil_slick;
+            let needs_tracking = zone.talent_params.slip_and_fall || zone.talent_params.oil_slick;
 
             for (entity, transform, existing_slow, existing_tracker, has_oil_debuff, mut health) in
                 &mut targets
@@ -377,62 +366,59 @@ pub fn apply_grease_slow(
                     if needs_tracking {
                         let is_new = existing_tracker
                             .as_ref()
-                            .map_or(true, |t| t.zone_entity != zone_entity);
+                            .is_none_or(|t| t.zone_entity != zone_entity);
 
                         if is_new {
-                            commands.entity(entity).insert(GreaseZonePresenceTracker {
-                                zone_entity,
-                            });
+                            commands
+                                .entity(entity)
+                                .insert(GreaseZonePresenceTracker { zone_entity });
 
                             // Talent: Slip and Fall — stun on zone entry
                             if zone.talent_params.slip_and_fall {
                                 let roll: f32 = rng.gen_range(0.0..1.0);
                                 if roll < constants::SLIP_AND_FALL_CHANCE {
-                                    commands.entity(entity).insert(
-                                        RootedModifier::new(constants::SLIP_AND_FALL_STUN_DURATION),
-                                    );
+                                    commands.entity(entity).insert(RootedModifier::new(
+                                        constants::SLIP_AND_FALL_STUN_DURATION,
+                                    ));
                                 }
                             }
 
                             // Talent: Oil Slick — apply vulnerability debuff (once per unit)
-                            if zone.talent_params.oil_slick && has_oil_debuff.is_none() {
-                                if let Some(ref mut health) = health {
-                                    health.spell_vulnerability +=
-                                        constants::OIL_SLICK_VULNERABILITY;
-                                    commands
-                                        .entity(entity)
-                                        .insert(GreaseOilSlickDebuff::new());
-                                }
+                            if zone.talent_params.oil_slick
+                                && has_oil_debuff.is_none()
+                                && let Some(ref mut health) = health
+                            {
+                                health.spell_vulnerability += constants::OIL_SLICK_VULNERABILITY;
+                                commands.entity(entity).insert(GreaseOilSlickDebuff::new());
                             }
                         }
                     }
                 } else if needs_tracking {
                     // Unit is outside the zone — clean up tracker and debuffs
-                    if let Some(ref tracker) = existing_tracker {
-                        if tracker.zone_entity == zone_entity {
-                            commands
-                                .entity(entity)
-                                .remove::<GreaseZonePresenceTracker>();
+                    if let Some(ref tracker) = existing_tracker
+                        && tracker.zone_entity == zone_entity
+                    {
+                        commands
+                            .entity(entity)
+                            .remove::<GreaseZonePresenceTracker>();
 
-                            // Remove Oil Slick vulnerability when leaving
-                            if let Some(debuff) = has_oil_debuff {
-                                if let Some(ref mut health) = health {
-                                    health.spell_vulnerability = (health.spell_vulnerability
-                                        - debuff.vulnerability)
-                                        .max(0.0);
-                                }
-                                commands.entity(entity).remove::<GreaseOilSlickDebuff>();
+                        // Remove Oil Slick vulnerability when leaving
+                        if let Some(debuff) = has_oil_debuff {
+                            if let Some(ref mut health) = health {
+                                health.spell_vulnerability =
+                                    (health.spell_vulnerability - debuff.vulnerability).max(0.0);
                             }
+                            commands.entity(entity).remove::<GreaseOilSlickDebuff>();
                         }
                     }
                 }
             }
 
             // Track talent progress
-            if units_slowed > 0 {
-                if let Some(ref mut progress) = talent_progress {
-                    progress.increment(Spell::Grease, units_slowed);
-                }
+            if units_slowed > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(Spell::Grease, units_slowed);
             }
         }
     }
@@ -444,7 +430,10 @@ pub fn apply_grease_slow(
 #[allow(clippy::too_many_arguments)]
 pub fn check_grease_ignition(
     mut commands: Commands,
-    mut zones: Query<(Entity, &mut GreaseZone), (Without<GreaseIgnited>, Without<GreaseRegenerating>)>,
+    mut zones: Query<
+        (Entity, &mut GreaseZone),
+        (Without<GreaseIgnited>, Without<GreaseRegenerating>),
+    >,
     ignited_zone_query: Query<&GreaseZone, With<GreaseIgnited>>,
     fire_units: Query<
         &Transform,
@@ -477,7 +466,6 @@ pub fn check_grease_ignition(
         .collect();
 
     for (zone_entity, mut zone) in &mut zones {
-
         // Track ignition source point
         let mut ignition_pos: Option<Vec3> = None;
 
@@ -587,7 +575,9 @@ pub fn check_grease_ignition(
         }
 
         if let Some(ign_point) = ignition_pos {
-            commands.entity(zone_entity).insert(GreaseIgnited::new(ign_point));
+            commands
+                .entity(zone_entity)
+                .insert(GreaseIgnited::new(ign_point));
 
             // Talent: Lingering Flames — reset time_alive so fire burns for the full zone duration
             if zone.talent_params.lingering_flames {
@@ -631,10 +621,10 @@ pub fn check_grease_ignition(
                         units_launched += 1;
                     }
                 }
-                if units_launched > 0 {
-                    if let Some(ref mut progress) = talent_progress {
-                        progress.increment(Spell::Grease, units_launched);
-                    }
+                if units_launched > 0
+                    && let Some(ref mut progress) = talent_progress
+                {
+                    progress.increment(Spell::Grease, units_launched);
                 }
             }
 
@@ -684,8 +674,7 @@ pub fn spawn_grease_fire_smoke(
         }
 
         // Use the current fire radius (accounts for fire spread animation)
-        let fire_radius = ignited
-            .current_fire_radius(zone.radius, constants::FIRE_SPREAD_DURATION);
+        let fire_radius = ignited.current_fire_radius(zone.radius, constants::FIRE_SPREAD_DURATION);
 
         // Spawn orange fire smoke puffs scattered across the burning area
         vfx::systems::spawn_fire_orange_smoke(
@@ -725,10 +714,12 @@ pub fn apply_grease_burn(
             zone.time_since_last_tick = 0.0;
 
             // During spread phase, scope damage to current fire radius from ignition point
-            let fire_radius = ignited.current_fire_radius(zone.radius, constants::FIRE_SPREAD_DURATION);
+            let fire_radius =
+                ignited.current_fire_radius(zone.radius, constants::FIRE_SPREAD_DURATION);
             let spreading = ignited.fire_spread_time < constants::FIRE_SPREAD_DURATION;
 
-            let burn_damage = zone.ignite_burn_damage * zone.empowerment * zone.talent_params.burn_damage_mult;
+            let burn_damage =
+                zone.ignite_burn_damage * zone.empowerment * zone.talent_params.burn_damage_mult;
             let mut units_burned: u32 = 0;
 
             for (entity, transform, mut health, mut temp_hp, has_spell_shield) in &mut targets {
@@ -755,10 +746,10 @@ pub fn apply_grease_burn(
             }
 
             // Track talent progress for burns
-            if units_burned > 0 {
-                if let Some(ref mut progress) = talent_progress {
-                    progress.increment(Spell::Grease, units_burned);
-                }
+            if units_burned > 0
+                && let Some(ref mut progress) = talent_progress
+            {
+                progress.increment(Spell::Grease, units_burned);
             }
         }
     }
@@ -766,7 +757,13 @@ pub fn apply_grease_burn(
 
 pub fn fade_grease_zone(
     time: Res<Time>,
-    mut zones: Query<(&GreaseZone, &mut Transform, &MeshMaterial3d<StandardMaterial>, Has<GreaseIgnited>, Has<GreaseRegenerating>)>,
+    mut zones: Query<(
+        &GreaseZone,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+        Has<GreaseIgnited>,
+        Has<GreaseRegenerating>,
+    )>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let t = time.elapsed_secs();
@@ -867,11 +864,11 @@ pub fn update_grease_regeneration(
         // Fade the grease mesh back in as it regenerates.
         let regen_progress =
             (regen.time_regenerating / constants::ENDLESS_OIL_REGEN_DURATION).min(1.0);
-        if let Ok(mat_handle) = zone_materials.get(entity) {
-            if let Some(material) = materials.get_mut(mat_handle) {
-                let (r, g, b, a) = constants::GREASE_COLOR;
-                material.base_color = Color::srgba(r, g, b, a * regen_progress);
-            }
+        if let Ok(mat_handle) = zone_materials.get(entity)
+            && let Some(material) = materials.get_mut(mat_handle)
+        {
+            let (r, g, b, a) = constants::GREASE_COLOR;
+            material.base_color = Color::srgba(r, g, b, a * regen_progress);
         }
 
         if regen.time_regenerating >= constants::ENDLESS_OIL_REGEN_DURATION {
@@ -911,6 +908,7 @@ pub fn cleanup_grease_debuffs(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_grease_zone(
     commands: &mut Commands,
     assets: &SpellVisualAssets,

@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::config::save_data::{SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTrampling, SavedTree, SavedWall};
+use crate::config::save_data::{
+    SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTrampling, SavedTree,
+    SavedWall,
+};
 use crate::game::units::wizard::components::Spell;
 
 /// Temporary structure for TOML serialization only.

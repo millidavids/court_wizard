@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use rand::prelude::*;
 
-use crate::config::save_data::{SavedBoulder, SavedBush, SavedPond, SavedTree};
 use crate::config::GameConfig;
+use crate::config::save_data::{SavedBoulder, SavedBush, SavedPond, SavedTree};
 use crate::game::battlefield::constants::{
     LAVA_POOL_POSITION, LAVA_POOL_RADIUS, WATER_POOL_POSITION, WATER_POOL_RADIUS,
 };
 use crate::game::constants::get_tier;
-use crate::game::seeded_rng::resources::{derive_seed, SEED_PURPOSE_TERRAIN};
+use crate::game::seeded_rng::resources::{SEED_PURPOSE_TERRAIN, derive_seed};
 use crate::game::terrain::boulder::constants::ROCK_RADIUS;
 use crate::game::terrain::bush::constants::*;
 use crate::game::terrain::pond::constants::*;
@@ -42,11 +42,7 @@ const BOULDER_BASE_COUNT_MIN: u32 = 2;
 const BOULDER_BASE_COUNT_MAX: u32 = 6;
 
 /// Generates all terrain (trees, ponds, bushes, boulders) for the first battle.
-pub(in crate::game) fn generate_terrain(
-    config: &mut GameConfig,
-    level: u32,
-    terrain_density: f32,
-) {
+pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, terrain_density: f32) {
     if terrain_density <= 0.0 {
         return;
     }
@@ -113,9 +109,7 @@ pub(in crate::game) fn generate_terrain(
         (base as f32 * terrain_density).round() as u32
     };
 
-    let random_scale = |rng: &mut dyn RngCore| -> f32 {
-        rng.gen_range(SCALE_MIN..=SCALE_MAX)
-    };
+    let random_scale = |rng: &mut dyn RngCore| -> f32 { rng.gen_range(SCALE_MIN..=SCALE_MAX) };
 
     // Generate boulders
     let boulder_count = scale_count(BOULDER_BASE_COUNT_MIN, BOULDER_BASE_COUNT_MAX);

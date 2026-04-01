@@ -17,10 +17,8 @@ impl Plugin for TramplingPlugin {
                 Update,
                 (
                     systems::track_unit_trampling,
-                    systems::sync_trampling_texture
-                        .after(systems::track_unit_trampling),
-                    systems::clear_dirty_flag
-                        .after(systems::sync_trampling_texture),
+                    systems::sync_trampling_texture.after(systems::track_unit_trampling),
+                    systems::clear_dirty_flag.after(systems::sync_trampling_texture),
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_exist::<TramplingOverlay>()),
@@ -29,16 +27,14 @@ impl Plugin for TramplingPlugin {
                 OnEnter(AppState::Loading),
                 (
                     systems::restore_trampling_from_config,
-                    systems::decay_trampling
-                        .after(systems::restore_trampling_from_config),
+                    systems::decay_trampling.after(systems::restore_trampling_from_config),
                 ),
             )
             .add_systems(
                 OnExit(AppState::InGame),
                 (
                     systems::save_trampling_to_config,
-                    systems::reset_trampling
-                        .after(systems::save_trampling_to_config),
+                    systems::reset_trampling.after(systems::save_trampling_to_config),
                 ),
             );
     }

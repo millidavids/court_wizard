@@ -3,14 +3,14 @@
 use bevy::prelude::*;
 
 use super::components::{
-    CastFlare, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, FloatingMote,
-    HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
+    CastFlare, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, FloatingMote, HeatShimmer,
+    MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
 };
-use crate::game::constants::SPELL_ORIGIN;
-use crate::game::components::Billboard;
 use super::constants;
 use super::constants::UPWARD_ROTATION;
+use crate::game::components::Billboard;
 use crate::game::components::OnGameplayScreen;
+use crate::game::constants::SPELL_ORIGIN;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Updates glow halo position and pulsing scale to follow its source entity.
@@ -414,7 +414,14 @@ pub fn spawn_heat_shimmer(
     count: usize,
     time_secs: f32,
 ) {
-    spawn_heat_shimmer_sized(commands, assets, position, count, time_secs, constants::SHIMMER_SIZE);
+    spawn_heat_shimmer_sized(
+        commands,
+        assets,
+        position,
+        count,
+        time_secs,
+        constants::SHIMMER_SIZE,
+    );
 }
 
 /// Spawns heat shimmer billboards with a custom size (for larger surface fire effects).
@@ -545,7 +552,16 @@ pub fn spawn_plague_smoke_puffs(
     count: usize,
     time_secs: f32,
 ) {
-    spawn_smoke_puffs(commands, assets, &assets.plague_smoke, &PLAGUE_SMOKE_PARAMS, center, cloud_radius, count, time_secs);
+    spawn_smoke_puffs(
+        commands,
+        assets,
+        &assets.plague_smoke,
+        &PLAGUE_SMOKE_PARAMS,
+        center,
+        cloud_radius,
+        count,
+        time_secs,
+    );
 }
 
 /// Spawns fog smoke puffs (gray, denser and ground-hugging).
@@ -557,7 +573,16 @@ pub fn spawn_fog_smoke_puffs(
     count: usize,
     time_secs: f32,
 ) {
-    spawn_smoke_puffs(commands, assets, &assets.fog_smoke, &FOG_SMOKE_PARAMS, center, cloud_radius, count, time_secs);
+    spawn_smoke_puffs(
+        commands,
+        assets,
+        &assets.fog_smoke,
+        &FOG_SMOKE_PARAMS,
+        center,
+        cloud_radius,
+        count,
+        time_secs,
+    );
 }
 
 /// Spawns smoke puffs with configurable material and parameters.
@@ -591,11 +616,7 @@ fn spawn_smoke_puffs(
         let rise_variation = 0.7 + 0.3 * ((seed * 17.3).cos() * 0.5 + 0.5);
         let swirl_x = angle.sin() * params.swirl_speed;
         let swirl_z = -angle.cos() * params.swirl_speed;
-        let velocity = Vec3::new(
-            swirl_x,
-            params.rise_speed * rise_variation,
-            swirl_z,
-        );
+        let velocity = Vec3::new(swirl_x, params.rise_speed * rise_variation, swirl_z);
 
         let size_variation = 0.6 + 0.4 * ((seed * 41.7).sin() * 0.5 + 0.5);
         let base_size = params.size * size_variation;
@@ -645,8 +666,7 @@ fn spawn_fire_smoke_puff(
         },
         Mesh3d(mesh.clone()),
         MeshMaterial3d(material),
-        Transform::from_translation(position)
-            .with_scale(Vec3::splat(base_size * 0.3)),
+        Transform::from_translation(position).with_scale(Vec3::splat(base_size * 0.3)),
         Billboard,
         OnGameplayScreen,
     ));
@@ -754,13 +774,7 @@ pub fn emit_fire_smoke_apex_puffs(
         let progress = smoke.time_alive / smoke.lifetime;
         if progress >= 0.3 {
             marker.emitted = true;
-            spawn_fire_black_smoke(
-                &mut commands,
-                &assets,
-                transform.translation,
-                1,
-                t,
-            );
+            spawn_fire_black_smoke(&mut commands, &assets, transform.translation, 1, t);
         }
     }
 }
@@ -889,14 +903,38 @@ pub fn spawn_school_flare(
     time_secs: f32,
 ) {
     let (glow, spark) = match school {
-        SpellSchool::Fire => (assets.flare_fire_glow.clone(), assets.flare_fire_spark.clone()),
-        SpellSchool::Lightning => (assets.flare_lightning_glow.clone(), assets.flare_lightning_spark.clone()),
-        SpellSchool::Arcane => (assets.flare_arcane_glow.clone(), assets.flare_arcane_spark.clone()),
-        SpellSchool::Nature => (assets.flare_nature_glow.clone(), assets.flare_nature_spark.clone()),
-        SpellSchool::Holy => (assets.flare_holy_glow.clone(), assets.flare_holy_spark.clone()),
-        SpellSchool::Dark => (assets.flare_dark_glow.clone(), assets.flare_dark_spark.clone()),
-        SpellSchool::Force => (assets.flare_force_glow.clone(), assets.flare_force_spark.clone()),
-        SpellSchool::Transmutation => (assets.flare_transmutation_glow.clone(), assets.flare_transmutation_spark.clone()),
+        SpellSchool::Fire => (
+            assets.flare_fire_glow.clone(),
+            assets.flare_fire_spark.clone(),
+        ),
+        SpellSchool::Lightning => (
+            assets.flare_lightning_glow.clone(),
+            assets.flare_lightning_spark.clone(),
+        ),
+        SpellSchool::Arcane => (
+            assets.flare_arcane_glow.clone(),
+            assets.flare_arcane_spark.clone(),
+        ),
+        SpellSchool::Nature => (
+            assets.flare_nature_glow.clone(),
+            assets.flare_nature_spark.clone(),
+        ),
+        SpellSchool::Holy => (
+            assets.flare_holy_glow.clone(),
+            assets.flare_holy_spark.clone(),
+        ),
+        SpellSchool::Dark => (
+            assets.flare_dark_glow.clone(),
+            assets.flare_dark_spark.clone(),
+        ),
+        SpellSchool::Force => (
+            assets.flare_force_glow.clone(),
+            assets.flare_force_spark.clone(),
+        ),
+        SpellSchool::Transmutation => (
+            assets.flare_transmutation_glow.clone(),
+            assets.flare_transmutation_spark.clone(),
+        ),
     };
     spawn_cast_flare(commands, assets, SPELL_ORIGIN, glow, spark, time_secs);
 }
@@ -1006,8 +1044,7 @@ pub fn update_floating_motes(
         transform.translation += mote.velocity * dt;
 
         // Gentle lateral sway
-        let sway = (t * constants::MOTE_SWAY_FREQUENCY * std::f32::consts::TAU + mote.phase)
-            .sin()
+        let sway = (t * constants::MOTE_SWAY_FREQUENCY * std::f32::consts::TAU + mote.phase).sin()
             * constants::MOTE_SWAY_AMPLITUDE
             * dt;
         transform.translation.x += sway;

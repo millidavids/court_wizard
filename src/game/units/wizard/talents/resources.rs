@@ -39,14 +39,15 @@ impl ActiveTalents {
                     *slot = None;
 
                     // Fix in the loaded save file (batched write at end)
-                    if let Some(ref mut sf) = save_file {
-                        let name = format!("{:?}", spell);
-                        if let Some(entry) = sf.player.spell_talent_selections.get_mut(&name) {
-                            if tier < entry.len() {
-                                entry[tier] = -1;
-                                save_dirty = true;
-                            }
-                        }
+                    if let Some(ref mut sf) = save_file
+                        && let Some(entry) = sf
+                            .player
+                            .spell_talent_selections
+                            .get_mut(&format!("{:?}", spell))
+                        && tier < entry.len()
+                    {
+                        entry[tier] = -1;
+                        save_dirty = true;
                     }
                 }
             }
@@ -57,10 +58,8 @@ impl ActiveTalents {
         }
 
         // Single write if any selections were cleaned up
-        if save_dirty {
-            if let Some(ref sf) = save_file {
-                save_data::save_unified(sf);
-            }
+        if save_dirty && let Some(ref sf) = save_file {
+            save_data::save_unified(sf);
         }
 
         Self { selections }

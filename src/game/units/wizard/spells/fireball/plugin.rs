@@ -35,8 +35,7 @@ impl Plugin for FireballPlugin {
                 )
                     .chain()
                     .run_if(any_exist::<FireballExplosion>()),
-                systems::spawn_scorched_earth_fire_smoke
-                    .run_if(any_exist::<ScorchedEarthFire>()),
+                systems::spawn_scorched_earth_fire_smoke.run_if(any_exist::<ScorchedEarthFire>()),
             )
                 .run_if(is_spell_effects_active),
         );

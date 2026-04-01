@@ -53,11 +53,11 @@ pub(super) fn restore_save_from_steam_cloud(client: Res<Client>) {
     let mut data = Vec::new();
     match reader.read_to_end(&mut data) {
         Ok(bytes_read) => {
-            if let Some(parent) = local_path.parent() {
-                if let Err(e) = std::fs::create_dir_all(parent) {
-                    warn!("Steam Cloud: could not create save dir: {e}");
-                    return;
-                }
+            if let Some(parent) = local_path.parent()
+                && let Err(e) = std::fs::create_dir_all(parent)
+            {
+                warn!("Steam Cloud: could not create save dir: {e}");
+                return;
             }
             if let Err(e) = std::fs::write(&local_path, &data) {
                 warn!("Steam Cloud: could not write local save: {e}");

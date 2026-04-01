@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    CastFlare, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, FloatingMote,
-    HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
+    CastFlare, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, FloatingMote, HeatShimmer,
+    MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
 };
 use super::systems;
 use crate::game::run_conditions::{any_exist, is_spell_effects_active};

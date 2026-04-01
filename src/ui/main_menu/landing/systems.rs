@@ -8,7 +8,7 @@ use crate::state::MenuState;
 use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::{MenuButtonAction, OnLandingScreen};
-use super::constants::{BUTTONS_LEFT_PADDING, BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
+use super::constants::{BUTTON_STYLE, BUTTONS_LEFT_PADDING, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 
 /// Sets up the landing screen UI.
 pub fn setup(mut commands: Commands) {
@@ -60,12 +60,7 @@ pub fn setup(mut commands: Commands) {
                         MenuButtonAction::Instructions,
                         &BUTTON_STYLE,
                     );
-                    spawn_button(
-                        buttons,
-                        "Credits",
-                        MenuButtonAction::Credits,
-                        &BUTTON_STYLE,
-                    );
+                    spawn_button(buttons, "Credits", MenuButtonAction::Credits, &BUTTON_STYLE);
                     spawn_button(buttons, "Exit", MenuButtonAction::Exit, &BUTTON_STYLE);
                 });
 

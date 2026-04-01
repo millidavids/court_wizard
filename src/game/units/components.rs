@@ -118,9 +118,7 @@ impl UnitType {
             UnitType::Shielder => {
                 "Handing out magical umbrellas like party favors. How thoughtful."
             }
-            UnitType::Assassin => {
-                "They don't fight fair. That's the whole point."
-            }
+            UnitType::Assassin => "They don't fight fair. That's the whole point.",
             UnitType::Aerialist => "Death from above. Way, way above.",
             UnitType::Hag => "Three sisters who share one terrible disposition.",
             UnitType::Ogre => "Started the fight angry. It only gets worse from there.",
@@ -1396,7 +1394,10 @@ pub struct NarcolepticWave {
 
 impl NarcolepticWave {
     pub fn new(delay: f32, radius: f32) -> Self {
-        Self { timer: delay, radius }
+        Self {
+            timer: delay,
+            radius,
+        }
     }
 }
 
@@ -1836,7 +1837,9 @@ impl Knockback {
 
 // Re-export elite components
 #[allow(unused_imports)]
-pub use super::elite::{EliteAttackSpeedBonus, EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus};
+pub use super::elite::{
+    EliteAttackSpeedBonus, EliteDamageBonus, EliteHealthBonus, EliteSpeedBonus,
+};
 
 /// Persistent color glow for special unit types (dispeller, healer, shielder, commander, brute).
 ///

@@ -1,22 +1,24 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
-use crate::game::units::components::{AnthemResilience, BattleHymnModifier, EchoingSong, HasteModifier, Team, TemporaryHitPoints};
+use crate::game::units::components::{
+    AnthemResilience, BattleHymnModifier, EchoingSong, HasteModifier, Team, TemporaryHitPoints,
+};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_cursor_to_spell_range, get_cursor_world_position,
-    spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster,
+    handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
+use bevy::prelude::*;
 
 /// Local wizard battle hymn casting -- reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -53,14 +55,7 @@ pub fn handle_battle_hymn_casting(
     >,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -94,14 +89,13 @@ pub fn handle_battle_hymn_casting(
     );
 
     // Handle release -- clean up indicator and SpellCaster
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(
+        &input,
+        &mut commands,
+        wizard_entity,
+        &mut casting_state,
+        &caster_query,
+    ) {
         return;
     }
 
@@ -131,21 +125,12 @@ pub fn handle_battle_hymn_casting(
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = clamped_cursor
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = clamped_cursor {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
         }
     }
 
@@ -160,7 +145,12 @@ pub fn handle_battle_hymn_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Holy, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Holy,
+            time.elapsed_secs(),
+        );
         if chorus_of_valor {
             // Chorus of Valor: no indicator, buff all defenders from wizard position
             apply_battle_hymn_buff(
@@ -183,8 +173,7 @@ pub fn handle_battle_hymn_casting(
             && let Some(indicator_entity) = caster.indicator_entity
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
-                let radius =
-                    constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
+                let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
                 apply_battle_hymn_buff(
                     &mut commands,
                     indicator.position,
@@ -299,7 +288,11 @@ pub(crate) fn apply_battle_hymn_buff(
 
     // Tier 2 echo duration
     let has_echoing_song = t2 == Some(1);
-    let echo_duration = if has_echoing_song { duration * 0.5 } else { 0.0 };
+    let echo_duration = if has_echoing_song {
+        duration * 0.5
+    } else {
+        0.0
+    };
 
     // Tier 3 damage reduction
     let has_anthem_resilience = t3 == Some(1);
@@ -325,15 +318,23 @@ pub(crate) fn apply_battle_hymn_buff(
                 buff.attack_speed = attack_speed;
                 buff.refresh(duration);
             } else {
-                commands.entity(entity).insert(BattleHymnModifier::new(damage_bonus, attack_speed, duration));
+                commands.entity(entity).insert(BattleHymnModifier::new(
+                    damage_bonus,
+                    attack_speed,
+                    duration,
+                ));
             }
 
             // Insert/update talent sub-components
             if has_echoing_song {
-                commands.entity(entity).insert(EchoingSong::new(echo_duration));
+                commands
+                    .entity(entity)
+                    .insert(EchoingSong::new(echo_duration));
             }
             if has_anthem_resilience {
-                commands.entity(entity).insert(AnthemResilience::new(anthem_reduction));
+                commands
+                    .entity(entity)
+                    .insert(AnthemResilience::new(anthem_reduction));
             }
 
             // Tier 2: Fortifying Hymn grants 20 temporary HP
@@ -391,9 +392,7 @@ pub fn update_battle_hymn_modifier(
             if let Some(echo) = echoing_song {
                 modifier.time_remaining = echo.echo_duration;
                 // Consume the echo — only triggers once
-                commands
-                    .entity(entity)
-                    .remove::<EchoingSong>();
+                commands.entity(entity).remove::<EchoingSong>();
             } else {
                 commands
                     .entity(entity)

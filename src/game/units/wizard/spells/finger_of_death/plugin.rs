@@ -41,16 +41,13 @@ impl Plugin for FingerOfDeathPlugin {
                 // Talent systems
                 systems::process_pending_undead_raises
                     .run_if(resource_exists::<PendingUndeadRaise>),
-                apply_pending_defender_heal
-                    .run_if(resource_exists::<PendingDefenderHeal>),
+                apply_pending_defender_heal.run_if(resource_exists::<PendingDefenderHeal>),
                 systems::apply_necrotic_explosion_damage
                     .run_if(any_exist::<NecroticExplosionBurst>()),
                 systems::update_necrotic_explosion_bursts
                     .run_if(any_exist::<NecroticExplosionBurst>()),
-                systems::update_deathmark_debuffs
-                    .run_if(any_exist::<DeathmarkDebuff>()),
-                systems::update_reapers_scythe
-                    .run_if(any_exist::<ReapersScytheSweep>()),
+                systems::update_deathmark_debuffs.run_if(any_exist::<DeathmarkDebuff>()),
+                systems::update_reapers_scythe.run_if(any_exist::<ReapersScytheSweep>()),
                 // Existing visual systems
                 systems::update_necrotic_veins.run_if(any_exist::<NecroticVein>()),
                 (

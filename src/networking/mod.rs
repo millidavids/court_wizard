@@ -5,7 +5,6 @@
 
 pub(crate) mod crdt;
 pub(crate) mod entity_map;
-mod messages;
 mod plugin;
 pub(crate) mod protocol;
 pub(crate) mod resources;

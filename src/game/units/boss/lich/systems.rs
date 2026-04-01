@@ -10,17 +10,27 @@ use crate::game::resources::KillStats;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::ogre::MeleeDamageReduction;
 use crate::game::units::components::{
-    AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness,
-    FlockingModifier, FlockingVelocity, Health, Hitbox, MovementSpeed,
-    RoughTerrainModifier, SleepModifier, TargetingVelocity, Team, Teleportable,
-    TemporaryHitPoints, apply_spell_damage,
+    AttackTiming, BanishedModifier, Corpse, DamageMultiplier, Effectiveness, FlockingModifier,
+    FlockingVelocity, Health, Hitbox, MovementSpeed, RoughTerrainModifier, SleepModifier,
+    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::damage::DamageType;
 use crate::game::units::infantry::components::Infantry;
-use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
+use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
 use crate::game::units::random_position_in_cell;
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::undead::resources::UndeadAssets;
+
+type LichBeamTargetData = (
+    Entity,
+    &'static Transform,
+    &'static Team,
+    &'static mut Health,
+    &'static Hitbox,
+    Option<&'static mut TemporaryHitPoints>,
+    Has<crate::game::units::king::components::King>,
+);
+type LichBeamTargetFilter = (Without<Corpse>, Without<Lich>, Without<Boss>);
 
 /// Checks if it's time to spawn the Lich mid-game.
 /// The Lich spawns as an extra wave after all normal waves have been dispatched
@@ -34,7 +44,9 @@ pub fn check_lich_spawn(
     all_attackers: Query<&Team, Without<Corpse>>,
 ) {
     let Some(_pending) = pending else { return };
-    if !existing.is_empty() { return };
+    if !existing.is_empty() {
+        return;
+    };
     let Some(wave_state) = wave_state else { return };
 
     // Wait for all normal waves to finish spawning
@@ -209,7 +221,7 @@ fn spawn_fresh_undead(
     x: f32,
     z: f32,
 ) {
-    use crate::game::units::infantry::styles::UNIT_RADIUS;
+    use crate::game::units::infantry::constants::UNIT_RADIUS;
 
     let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + 1.0;
@@ -273,10 +285,7 @@ pub fn track_soul_power(
 pub fn lich_phase_transition(
     mut commands: Commands,
     lich_assets: Res<LichAssets>,
-    mut query: Query<
-        (Entity, &SoulPower, &mut LichPhase),
-        (With<Lich>, Without<Corpse>),
-    >,
+    mut query: Query<(Entity, &SoulPower, &mut LichPhase), (With<Lich>, Without<Corpse>)>,
 ) {
     for (entity, soul_power, mut phase) in &mut query {
         if *phase != LichPhase::Summoning || !soul_power.is_full() {
@@ -286,7 +295,8 @@ pub fn lich_phase_transition(
         // Transition to combat phase
         *phase = LichPhase::Combat;
 
-        commands.entity(entity)
+        commands
+            .entity(entity)
             .remove::<LichSummonTimer>()
             .insert(LichFingerOfDeath::new())
             .insert(MeshMaterial3d(lich_assets.material_combat.clone()));
@@ -298,7 +308,13 @@ pub fn lich_phase_transition(
 pub fn update_lich_targeting(
     mut commands: Commands,
     mut lich_query: Query<
-        (Entity, &Transform, &Team, &mut TargetingVelocity, &LichPhase),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut TargetingVelocity,
+            &LichPhase,
+        ),
         (With<Lich>, Without<Corpse>),
     >,
     all_units: Query<
@@ -348,7 +364,9 @@ pub fn lich_movement(
         (With<Lich>, Without<Corpse>),
     >,
 ) {
-    for (transform, mut velocity, mut acceleration, targeting, flow_field, speed, phase) in &mut query {
+    for (transform, mut velocity, mut acceleration, targeting, flow_field, speed, phase) in
+        &mut query
+    {
         match phase {
             LichPhase::Summoning => {
                 // Stationary — zero everything
@@ -361,17 +379,15 @@ pub fn lich_movement(
                 // flow field because is_staging_attacker is Team::Attackers only).
                 let max_speed = speed.0 * GLOBAL_SPEED_MULTIPLIER;
                 let pos = transform.translation;
-                let to_staging = Vec3::new(
-                    STAGING_POINT.0 - pos.x,
-                    0.0,
-                    STAGING_POINT.1 - pos.z,
-                );
+                let to_staging = Vec3::new(STAGING_POINT.0 - pos.x, 0.0, STAGING_POINT.1 - pos.z);
 
                 if to_staging.length_squared() > 1.0 {
                     let target_vel = to_staging.normalize() * max_speed;
                     let steer = STEERING_FORCE * time.delta_secs();
-                    acceleration.x = (target_vel.x - velocity.x).clamp(-steer, steer) / time.delta_secs().max(0.001);
-                    acceleration.z = (target_vel.z - velocity.z).clamp(-steer, steer) / time.delta_secs().max(0.001);
+                    acceleration.x = (target_vel.x - velocity.x).clamp(-steer, steer)
+                        / time.delta_secs().max(0.001);
+                    acceleration.z = (target_vel.z - velocity.z).clamp(-steer, steer)
+                        / time.delta_secs().max(0.001);
                 }
 
                 velocity.max_speed = max_speed;
@@ -391,8 +407,10 @@ pub fn lich_movement(
                 if combined.length_squared() > 0.001 {
                     let target_vel = combined.normalize() * max_speed;
                     let steer = STEERING_FORCE * time.delta_secs();
-                    acceleration.x = (target_vel.x - velocity.x).clamp(-steer, steer) / time.delta_secs().max(0.001);
-                    acceleration.z = (target_vel.z - velocity.z).clamp(-steer, steer) / time.delta_secs().max(0.001);
+                    acceleration.x = (target_vel.x - velocity.x).clamp(-steer, steer)
+                        / time.delta_secs().max(0.001);
+                    acceleration.z = (target_vel.z - velocity.z).clamp(-steer, steer)
+                        / time.delta_secs().max(0.001);
                 }
 
                 velocity.max_speed = max_speed;
@@ -419,8 +437,20 @@ pub fn lich_combat_targeting(
             Without<BanishedModifier>,
         ),
     >,
-    king_query: Query<Entity, (With<crate::game::units::king::components::King>, Without<Corpse>)>,
-    guard_query: Query<Entity, (With<crate::game::units::components::KingsGuard>, Without<Corpse>)>,
+    king_query: Query<
+        Entity,
+        (
+            With<crate::game::units::king::components::King>,
+            Without<Corpse>,
+        ),
+    >,
+    guard_query: Query<
+        Entity,
+        (
+            With<crate::game::units::components::KingsGuard>,
+            Without<Corpse>,
+        ),
+    >,
 ) {
     for (mut fod, phase) in &mut lich_query {
         if *phase != LichPhase::Combat {
@@ -450,10 +480,10 @@ pub fn lich_combat_targeting(
             .filter(|(entity, _)| {
                 if !can_target_royalty {
                     // Skip king
-                    if let Some(king_e) = king_entity {
-                        if *entity == king_e {
-                            return false;
-                        }
+                    if let Some(king_e) = king_entity
+                        && *entity == king_e
+                    {
+                        return false;
                     }
                     // Skip king's guard
                     if guard_entities.contains(entity) {
@@ -478,6 +508,7 @@ pub fn lich_combat_targeting(
 /// Phase 2: Fires the death beam at the current target using the wizard's
 /// Finger of Death visual system (same purple beam, screen darkening, casting effect).
 /// Beam originates from the top of the Lich's sprite and shoots toward the target.
+#[allow(clippy::too_many_arguments)]
 pub fn lich_fire_beam(
     time: Res<Time>,
     mut commands: Commands,
@@ -489,11 +520,7 @@ pub fn lich_fire_beam(
     target_query: Query<&Transform, Without<Lich>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut desaturate: MessageWriter<crate::game::crt_effect::ScreenDesaturateMessage>,
-    mut target_health: Query<
-        (Entity, &Transform, &Team, &mut Health, &Hitbox, Option<&mut TemporaryHitPoints>,
-         Has<crate::game::units::king::components::King>),
-        (Without<Corpse>, Without<Lich>, Without<Boss>),
-    >,
+    mut target_health: Query<LichBeamTargetData, LichBeamTargetFilter>,
 ) {
     use crate::game::units::wizard::spells::finger_of_death::components::{
         FingerOfDeathBeam, FodTalentParams, PendingUndeadRaise,
@@ -544,13 +571,8 @@ pub fn lich_fire_beam(
             beam_width_fired: BEAM_WIDTH,
             ..Default::default()
         };
-        let mut beam = FingerOfDeathBeam::with_talents(
-            origin,
-            direction,
-            beam_length,
-            1.0,
-            talent_params,
-        );
+        let mut beam =
+            FingerOfDeathBeam::with_talents(origin, direction, beam_length, 1.0, talent_params);
         beam.has_fired = true;
         beam.cast_progress = 1.0;
 
@@ -568,7 +590,8 @@ pub fn lich_fire_beam(
         // Apply damage to defenders in the beam path
         let mut kill_positions: Vec<Vec3> = Vec::new();
 
-        for (entity, t_transform, team, mut health, hitbox, temp_hp, is_king) in &mut target_health {
+        for (entity, t_transform, team, mut health, hitbox, temp_hp, is_king) in &mut target_health
+        {
             if *team != Team::Defenders {
                 continue;
             }

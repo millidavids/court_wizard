@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, WizardInput,
 };
@@ -9,25 +8,27 @@ use super::components::*;
 use super::constants;
 use crate::config::GameConfig;
 use crate::game::constants::{UNIT_HEALTH, UNIT_MOVEMENT_SPEED};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseLeftReleased;
+use crate::game::units::DamageType;
 use crate::game::units::components::{
     Corpse, Effectiveness, Health, PermanentCorpse, PoisonedModifier, Team, TemporaryHitPoints,
 };
 use crate::game::units::constants::{
     POISON_DURATION, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
 };
-use crate::game::units::infantry::styles::UNDEAD_SPRITE_TINT;
+use crate::game::units::infantry::constants::UNDEAD_SPRITE_TINT;
 use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, get_cursor_world_position,
+    spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
-use crate::game::units::DamageType;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
-use crate::game::crt_effect::CorrectedCursorPosition;
+use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
 pub(crate) fn compute_talent_params(
@@ -124,7 +125,10 @@ pub fn handle_raise_the_dead_casting(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut wizard_query: Query<(Entity, &mut CastingState, &mut Mana, &PrimedSpell), With<LocalWizard>>,
+    mut wizard_query: Query<
+        (Entity, &mut CastingState, &mut Mana, &PrimedSpell),
+        With<LocalWizard>,
+    >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     caster_query: Query<&SpellCaster>,
@@ -134,20 +138,15 @@ pub fn handle_raise_the_dead_casting(
     mut materials: ResMut<Assets<StandardMaterial>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    talents_and_progress: (Option<Res<ActiveTalents>>, Option<ResMut<BattleTalentProgress>>),
+    talents_and_progress: (
+        Option<Res<ActiveTalents>>,
+        Option<ResMut<BattleTalentProgress>>,
+    ),
 ) {
     let (active_talents, mut talent_progress) = talents_and_progress;
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true,
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
-    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) =
-        wizard_query.single_mut()
+    let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
         return;
     };
@@ -162,13 +161,10 @@ pub fn handle_raise_the_dead_casting(
 
     // Handle release -- clean up indicator, SpellCaster, and CorpseMagnetActive
     if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        commands.entity(wizard_entity).remove::<CorpseMagnetActive>();
+        cleanup_spell_caster(&mut commands, wizard_entity, &caster_query);
+        commands
+            .entity(wizard_entity)
+            .remove::<CorpseMagnetActive>();
     }
 
     // Manage indicator based on casting state
@@ -177,7 +173,7 @@ pub fn handle_raise_the_dead_casting(
         CastingState::Resting => {
             if caster_query.get(wizard_entity).is_err()
                 && mana.can_afford(mana_cost)
-                && let Some(pos) = cursor_pos
+                && let Some(pos) = input.cursor_pos
             {
                 let circle_entity = spawn_circle_indicator(
                     &mut commands,
@@ -193,21 +189,13 @@ pub fn handle_raise_the_dead_casting(
             }
         }
         CastingState::Casting { .. } => {
-            if let Some(pos) = cursor_pos
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = input.cursor_pos {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
         CastingState::Channeling { .. } => {
-            if let Some(pos) = cursor_pos
-                && let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                indicator.position = pos;
+            if let Some(pos) = input.cursor_pos {
+                update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
             }
         }
     }
@@ -230,7 +218,12 @@ pub fn handle_raise_the_dead_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Dark, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Dark,
+            time.elapsed_secs(),
+        );
     }
 }
 
@@ -259,7 +252,9 @@ fn raise_the_dead_casting_logic(
     // Check for release event
     if input.just_released {
         casting_state.cancel();
-        commands.entity(wizard_entity).remove::<CorpseMagnetActive>();
+        commands
+            .entity(wizard_entity)
+            .remove::<CorpseMagnetActive>();
         return false;
     }
 
@@ -296,7 +291,9 @@ fn raise_the_dead_casting_logic(
                     casting_state.reset_channel_interval();
                 } else {
                     casting_state.cancel();
-                    commands.entity(wizard_entity).remove::<CorpseMagnetActive>();
+                    commands
+                        .entity(wizard_entity)
+                        .remove::<CorpseMagnetActive>();
                 }
             }
         }
@@ -321,7 +318,7 @@ fn raise_the_dead_casting_logic(
                             materials,
                             primed_spell.empowerment,
                             talent_params,
-                            talent_progress.as_deref_mut(),
+                            talent_progress,
                         );
                     }
                     casting_state.start_channeling();
@@ -369,6 +366,7 @@ fn find_nearest_corpse(
 /// Raises a corpse entity as undead infantry with talent components.
 ///
 /// Shared between direct casting, Perpetual Unrest, and Revenant Lord.
+#[allow(clippy::too_many_arguments)]
 fn raise_corpse_as_undead(
     commands: &mut Commands,
     corpse_entity: Entity,
@@ -405,6 +403,7 @@ fn raise_corpse_as_undead(
 
 /// Resurrects the nearest corpse to the target position as undead infantry.
 /// Returns true if a corpse was raised.
+#[allow(clippy::too_many_arguments)]
 fn resurrect_nearest_corpse(
     commands: &mut Commands,
     target_pos: Vec3,
@@ -571,12 +570,14 @@ pub fn pull_corpses_to_cursor(
 pub fn handle_undead_detonation(
     time: Res<Time>,
     mut commands: Commands,
-    dead_query: Query<
-        (Entity, &UndeadDetonation, &Transform),
-        (With<RaisedUndead>, Added<Corpse>),
-    >,
+    dead_query: Query<(Entity, &UndeadDetonation, &Transform), (With<RaisedUndead>, Added<Corpse>)>,
     mut targets: Query<
-        (&Transform, &Team, &mut Health, Option<&mut TemporaryHitPoints>),
+        (
+            &Transform,
+            &Team,
+            &mut Health,
+            Option<&mut TemporaryHitPoints>,
+        ),
         Without<Corpse>,
     >,
     assets: Res<SpellVisualAssets>,
@@ -640,17 +641,19 @@ pub fn handle_undead_detonation(
 }
 
 /// Tier 3: Perpetual Unrest — dead enemies near PerpetualUnrest undead are auto-raised.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_perpetual_unrest(
     mut commands: Commands,
     mut raised_this_frame: Local<HashSet<Entity>>,
     new_corpses: Query<
         (Entity, &Transform, &Team),
-        (With<Corpse>, Without<PermanentCorpse>, Without<RaisedUndead>),
+        (
+            With<Corpse>,
+            Without<PermanentCorpse>,
+            Without<RaisedUndead>,
+        ),
     >,
-    unrest_undead: Query<
-        (&Transform, &PerpetualUnrest),
-        (With<RaisedUndead>, Without<Corpse>),
-    >,
+    unrest_undead: Query<(&Transform, &PerpetualUnrest), (With<RaisedUndead>, Without<Corpse>)>,
     undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     active_talents: Option<Res<ActiveTalents>>,
@@ -694,6 +697,7 @@ pub fn handle_perpetual_unrest(
 }
 
 /// Tier 3: Revenant Lord — passively resurrects nearby corpses as undead minions.
+#[allow(clippy::too_many_arguments)]
 pub fn tick_revenant_raise(
     time: Res<Time>,
     mut commands: Commands,
@@ -701,10 +705,7 @@ pub fn tick_revenant_raise(
         (&Transform, &mut RevenantLord),
         (With<RaisedUndead>, Without<Corpse>),
     >,
-    corpse_query: Query<
-        (Entity, &Transform),
-        (With<Corpse>, Without<PermanentCorpse>),
-    >,
+    corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     undead_assets: Res<UndeadAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     active_talents: Option<Res<ActiveTalents>>,
@@ -724,9 +725,11 @@ pub fn tick_revenant_raise(
         }
         revenant.raise_timer -= revenant.raise_interval;
 
-        if let Some((corpse_entity, position)) =
-            find_nearest_corpse(&corpse_query, rev_transform.translation, revenant.raise_radius)
-        {
+        if let Some((corpse_entity, position)) = find_nearest_corpse(
+            &corpse_query,
+            rev_transform.translation,
+            revenant.raise_radius,
+        ) {
             raise_corpse_as_undead(
                 &mut commands,
                 corpse_entity,

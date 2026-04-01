@@ -5,9 +5,7 @@
 
 use bevy::prelude::*;
 
-use crate::game::constants::{
-    get_tier, get_tier_level,
-};
+use crate::game::constants::{get_tier, get_tier_level};
 
 // ============================================================================
 // Elite Upgrade Probability

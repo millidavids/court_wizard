@@ -135,8 +135,7 @@ pub(super) fn setup_wizard_tower_main(
     let insight_balance = get_insight();
     commands.insert_resource(SelectedTimeTravelLevel::default());
 
-    let is_roguelite =
-        crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    let is_roguelite = crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
     let show_time_travel = config.highest_level_achieved > 1 && !is_roguelite;
 
     commands
@@ -165,7 +164,13 @@ pub(super) fn setup_wizard_tower_main(
             })
             .with_children(|left| {
                 // Title
-                spawn_title_with_shadow(left, "Wizard's Tower", TITLE_FONT_SIZE, TITLE_COLOR, Node::default());
+                spawn_title_with_shadow(
+                    left,
+                    "Wizard's Tower",
+                    TITLE_FONT_SIZE,
+                    TITLE_COLOR,
+                    Node::default(),
+                );
 
                 // Level display
                 left.spawn((
@@ -909,7 +914,13 @@ fn spawn_study_screen(
                         BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
                     ))
                     .with_children(|header| {
-                        spawn_title_with_shadow(header, "Study Spells", TITLE_FONT_SIZE, TITLE_COLOR, Node::default());
+                        spawn_title_with_shadow(
+                            header,
+                            "Study Spells",
+                            TITLE_FONT_SIZE,
+                            TITLE_COLOR,
+                            Node::default(),
+                        );
 
                         header.spawn((
                             Text::new(format!("Arcane Insight: {}", insight_balance)),
@@ -1146,6 +1157,7 @@ pub(super) fn handle_graph_pan(
 }
 
 /// Handles zooming the graph via mouse scroll wheel.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_graph_zoom(
     mut commands: Commands,
     mut mouse_wheel: MessageReader<MouseWheel>,

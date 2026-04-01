@@ -29,9 +29,7 @@ pub(super) fn sync_achievements_to_steam(
         }
     }
 
-    if any_unlocked {
-        if let Err(()) = user_stats.store_stats() {
-            warn!("Failed to store Steam stats");
-        }
+    if any_unlocked && let Err(()) = user_stats.store_stats() {
+        warn!("Failed to store Steam stats");
     }
 }

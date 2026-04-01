@@ -65,6 +65,7 @@ pub struct SpikeGrowthZone {
 }
 
 impl SpikeGrowthZone {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         origin: Vec3,
         base_radius: f32,
@@ -157,4 +158,3 @@ pub(crate) struct SpikeStormProjectile {
     pub time_alive: f32,
     pub max_lifetime: f32,
 }
-

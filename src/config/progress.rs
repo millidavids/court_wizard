@@ -38,7 +38,11 @@ pub(crate) fn keyed_hash(data: &[u8]) -> u128 {
     let remainder = chunks.remainder();
 
     for chunk in chunks {
-        let m = u64::from_le_bytes(chunk.try_into().unwrap());
+        let m = u64::from_le_bytes(
+            chunk
+                .try_into()
+                .expect("chunks_exact(8) guarantees 8-byte slices"),
+        );
         v3 ^= m;
         for _ in 0..2 {
             v0 = v0.wrapping_add(v1);

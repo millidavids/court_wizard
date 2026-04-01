@@ -1,9 +1,16 @@
 use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
-use super::components::{ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings, LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer};
-use super::constants::{CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH};
-use super::messages::{ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage};
+use super::components::{
+    ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings,
+    LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer,
+};
+use super::constants::{
+    CHANNEL_CHANGE_DURATION, DESATURATION_DURATION, LENSING_INFLUENCE_MULT, LENSING_STRENGTH,
+};
+use super::messages::{
+    ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage,
+};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
@@ -40,7 +47,12 @@ pub(super) struct RawCursorPosition(pub(super) Option<Vec2>);
 pub(crate) struct CorrectedCursorPosition(pub Option<Vec2>);
 
 /// Applies the barrel distortion formula to a UV coordinate.
-fn barrel_correct(raw_logical: Vec2, logical_width: f32, logical_height: f32, barrel_distortion: f32) -> Vec2 {
+fn barrel_correct(
+    raw_logical: Vec2,
+    logical_width: f32,
+    logical_height: f32,
+    barrel_distortion: f32,
+) -> Vec2 {
     let uv = Vec2::new(
         raw_logical.x / logical_width,
         raw_logical.y / logical_height,
@@ -48,8 +60,7 @@ fn barrel_correct(raw_logical: Vec2, logical_width: f32, logical_height: f32, ba
 
     let centered = uv - Vec2::new(0.5, 0.5);
     let dist_sq = centered.dot(centered);
-    let corrected_uv =
-        centered * (1.0 + barrel_distortion * dist_sq) + Vec2::new(0.5, 0.5);
+    let corrected_uv = centered * (1.0 + barrel_distortion * dist_sq) + Vec2::new(0.5, 0.5);
 
     Vec2::new(
         corrected_uv.x * logical_width,
@@ -171,12 +182,12 @@ pub(super) fn correct_ui_interaction_for_barrel(
     let corrected_physical = corrected_logical * window.scale_factor();
     let camera_cursor_positions: Vec<(Entity, Vec2)> = camera_query
         .iter()
-        .filter_map(|(entity, camera)| {
+        .map(|(entity, camera)| {
             let viewport_position = camera
                 .physical_viewport_rect()
                 .map(|rect| rect.min.as_vec2())
                 .unwrap_or_default();
-            Some((entity, corrected_physical - viewport_position))
+            (entity, corrected_physical - viewport_position)
         })
         .collect();
 
@@ -203,10 +214,7 @@ pub(super) fn correct_ui_interaction_for_barrel(
         };
 
         // Skip invisible nodes
-        if inherited_visibility
-            .map(|v| v.get())
-            != Some(true)
-        {
+        if inherited_visibility.map(|v| v.get()) != Some(true) {
             continue;
         }
 
@@ -349,7 +357,9 @@ pub(super) fn update_lensing_positions(
             break;
         }
         // Track growth for screen darkening (0→1 over GROWTH_TIME)
-        let growth = (black_hole.time_alive / crate::game::units::wizard::spells::black_hole::constants::GROWTH_TIME).min(1.0);
+        let growth = (black_hole.time_alive
+            / crate::game::units::wizard::spells::black_hole::constants::GROWTH_TIME)
+            .min(1.0);
         max_growth = max_growth.max(growth);
 
         // Project black hole center to NDC
@@ -365,8 +375,7 @@ pub(super) fn update_lensing_positions(
         }
 
         // Project a point at the edge of the black hole to get screen-space radius
-        let edge_point =
-            black_hole.position + camera_transform.right() * black_hole.current_radius;
+        let edge_point = black_hole.position + camera_transform.right() * black_hole.current_radius;
         let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge_point) else {
             continue;
         };
@@ -398,7 +407,8 @@ pub(super) fn update_lensing_positions(
     }
 
     // Slots 2-3: Dimensional Rift endpoints (lensing only, no darkening)
-    let rift_radius = crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_LENSING_RADIUS;
+    let rift_radius =
+        crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_LENSING_RADIUS;
     let mut rift_slot = 2u32;
     'rift_loop: for rift in &rifts {
         for &pos in &[rift.source_pos, rift.dest_pos] {
@@ -506,7 +516,9 @@ pub(super) fn update_heat_distortion_positions(
         let Some(edge_ndc) = camera.world_to_ndc(camera_transform, edge) else {
             continue;
         };
-        let radius = (ndc_to_uv(edge_ndc).x - ndc_to_uv(mid_ndc).x).abs().max(0.02);
+        let radius = (ndc_to_uv(edge_ndc).x - ndc_to_uv(mid_ndc).x)
+            .abs()
+            .max(0.02);
 
         match count {
             0 => {
@@ -563,7 +575,8 @@ pub(super) fn update_teleport_distortion_positions(
         return;
     };
 
-    let influence_mult = crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_INFLUENCE_MULT;
+    let influence_mult =
+        crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_INFLUENCE_MULT;
 
     let mut count = 0u32;
     let mut has_persistent = false;
@@ -606,9 +619,11 @@ pub(super) fn update_teleport_distortion_positions(
 
     // Use rift strength if any persistent warp effects are active, otherwise one-shot strength
     if has_persistent {
-        settings.strength = crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_RIPPLE_STRENGTH;
+        settings.strength =
+            crate::game::units::wizard::spells::teleport::vfx_constants::RIFT_RIPPLE_STRENGTH;
     } else {
-        settings.strength = crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_STRENGTH;
+        settings.strength =
+            crate::game::units::wizard::spells::teleport::vfx_constants::RIPPLE_STRENGTH;
     }
 }
 
@@ -623,7 +638,11 @@ pub(super) fn handle_screen_flash_message(
         if existing_timer.is_some() {
             commands.remove_resource::<ScreenFlashTimer>();
         }
-        commands.insert_resource(ScreenFlashTimer::new(msg.color, msg.duration, msg.intensity));
+        commands.insert_resource(ScreenFlashTimer::new(
+            msg.color,
+            msg.duration,
+            msg.intensity,
+        ));
     }
 }
 

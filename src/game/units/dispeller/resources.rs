@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{
-    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
-};
+use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
 use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
 use crate::game::units::systems::create_corpse_sprite_materials;
 
@@ -39,8 +37,7 @@ pub(super) fn preload_dispeller_assets(
     let sprite_texture = asset_server.load("images/sprite_sheets/dispeller-walking_9-frames.png");
     let attacking_texture =
         asset_server.load("images/sprite_sheets/dispeller-attacking_6-frames.png");
-    let casting_texture =
-        asset_server.load("images/sprite_sheets/dispeller-casting_7-frames.png");
+    let casting_texture = asset_server.load("images/sprite_sheets/dispeller-casting_7-frames.png");
     let death_texture = asset_server.load("images/sprite_sheets/dispeller-death_6-frames.png");
 
     let defender_corpse_materials = create_corpse_sprite_materials(
@@ -53,11 +50,8 @@ pub(super) fn preload_dispeller_assets(
         sprite_texture.clone(),
         ATTACKER_CORPSE_COLOR,
     );
-    let undead_corpse_materials = create_corpse_sprite_materials(
-        &mut materials,
-        sprite_texture.clone(),
-        UNDEAD_CORPSE_COLOR,
-    );
+    let undead_corpse_materials =
+        create_corpse_sprite_materials(&mut materials, sprite_texture.clone(), UNDEAD_CORPSE_COLOR);
 
     let assets = DispellerAssets {
         bolt_mesh: meshes.add(Circle::new(BOLT_RADIUS)),

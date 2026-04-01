@@ -308,10 +308,30 @@ impl TeleportDistortionSettings {
     /// Sets a distortion point by index (0–3), avoiding repetitive match arms.
     pub fn set_point(&mut self, index: u32, x: f32, y: f32, radius: f32, intensity: f32) {
         match index {
-            0 => { self.point_0_x = x; self.point_0_y = y; self.point_0_radius = radius; self.point_0_intensity = intensity; }
-            1 => { self.point_1_x = x; self.point_1_y = y; self.point_1_radius = radius; self.point_1_intensity = intensity; }
-            2 => { self.point_2_x = x; self.point_2_y = y; self.point_2_radius = radius; self.point_2_intensity = intensity; }
-            3 => { self.point_3_x = x; self.point_3_y = y; self.point_3_radius = radius; self.point_3_intensity = intensity; }
+            0 => {
+                self.point_0_x = x;
+                self.point_0_y = y;
+                self.point_0_radius = radius;
+                self.point_0_intensity = intensity;
+            }
+            1 => {
+                self.point_1_x = x;
+                self.point_1_y = y;
+                self.point_1_radius = radius;
+                self.point_1_intensity = intensity;
+            }
+            2 => {
+                self.point_2_x = x;
+                self.point_2_y = y;
+                self.point_2_radius = radius;
+                self.point_2_intensity = intensity;
+            }
+            3 => {
+                self.point_3_x = x;
+                self.point_3_y = y;
+                self.point_3_radius = radius;
+                self.point_3_intensity = intensity;
+            }
             _ => {}
         }
     }

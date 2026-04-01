@@ -8,8 +8,8 @@ use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
 use crate::ui::constants::SLIDER_TRACK_WIDTH;
 use crate::ui::systems::{
-    default_content_node, spawn_button, spawn_page_container, spawn_slider_row,
-    spawn_title_with_shadow, SliderRowConfig,
+    SliderRowConfig, default_content_node, spawn_button, spawn_page_container, spawn_slider_row,
+    spawn_title_with_shadow,
 };
 
 use super::components::{
@@ -353,25 +353,23 @@ pub(super) fn slider_interaction(
             .iter()
             .any(|(_, h)| h.value == track.value && h.is_dragging);
 
-        if is_dragging {
-            if let Some(pos) = cursor_pos.normalized {
-                // RelativeCursorPosition.normalized: center at (0,0),
-                // left edge = -0.5, right edge = 0.5
-                let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
+        if is_dragging && let Some(pos) = cursor_pos.normalized {
+            // RelativeCursorPosition.normalized: center at (0,0),
+            // left edge = -0.5, right edge = 0.5
+            let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
 
-                let min = track.value.min_value();
-                let max = track.value.max_value();
-                let range = max - min;
-                let new_value = (min + normalized * range).clamp(min, max);
+            let min = track.value.min_value();
+            let max = track.value.max_value();
+            let range = max - min;
+            let new_value = (min + normalized * range).clamp(min, max);
 
-                // Snap to nearest step
-                let step = track.value.step();
-                let snapped = (new_value / step).round() * step;
-                let snapped = snapped.clamp(min, max);
+            // Snap to nearest step
+            let step = track.value.step();
+            let snapped = (new_value / step).round() * step;
+            let snapped = snapped.clamp(min, max);
 
-                if (track.value.get(&modifiers) - snapped).abs() > f32::EPSILON {
-                    track.value.set(&mut modifiers, snapped);
-                }
+            if (track.value.get(&modifiers) - snapped).abs() > f32::EPSILON {
+                track.value.set(&mut modifiers, snapped);
             }
         }
     }
@@ -485,10 +483,12 @@ pub(super) fn seed_input_keyboard(
     let ctrl = keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight);
 
     // Ctrl+C: Copy seed to clipboard (works even when not focused)
-    if ctrl && keyboard.just_pressed(KeyCode::KeyC) && !seed_state.text.is_empty() {
-        if let Ok(mut clipboard) = arboard::Clipboard::new() {
-            let _ = clipboard.set_text(seed_state.text.clone());
-        }
+    if ctrl
+        && keyboard.just_pressed(KeyCode::KeyC)
+        && !seed_state.text.is_empty()
+        && let Ok(mut clipboard) = arboard::Clipboard::new()
+    {
+        let _ = clipboard.set_text(seed_state.text.clone());
     }
 
     if !seed_state.focused {
@@ -498,14 +498,19 @@ pub(super) fn seed_input_keyboard(
     let mut changed = false;
 
     // Ctrl+V: Paste seed from clipboard
-    if ctrl && keyboard.just_pressed(KeyCode::KeyV) {
-        if let Ok(text) = arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
-            // Extract only digits, limit to 10 characters
-            let digits: String = text.chars().filter(|c| c.is_ascii_digit()).take(MAX_SEED_CHARS).collect();
-            if !digits.is_empty() {
-                seed_state.text = digits;
-                changed = true;
-            }
+    if ctrl
+        && keyboard.just_pressed(KeyCode::KeyV)
+        && let Ok(text) = arboard::Clipboard::new().and_then(|mut cb| cb.get_text())
+    {
+        // Extract only digits, limit to 10 characters
+        let digits: String = text
+            .chars()
+            .filter(|c| c.is_ascii_digit())
+            .take(MAX_SEED_CHARS)
+            .collect();
+        if !digits.is_empty() {
+            seed_state.text = digits;
+            changed = true;
         }
     }
 

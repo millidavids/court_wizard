@@ -94,7 +94,9 @@ fn update_ui_scale(
     window_query: Query<&Window, With<PrimaryWindow>>,
     crt_query: Query<&crate::game::crt_effect::CrtEffectSettings>,
 ) {
-    let Ok(window) = window_query.single() else { return };
+    let Ok(window) = window_query.single() else {
+        return;
+    };
 
     // Use viewport width from CRT settings (fraction of window)
     let viewport_fraction = if let Ok(settings) = crt_query.single() {

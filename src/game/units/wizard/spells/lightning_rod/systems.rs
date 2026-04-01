@@ -2,15 +2,12 @@
 
 use std::cmp::Ordering;
 
-use bevy::prelude::*;
-use super::components::{
-    LightningRod, LightningRodArc, LightningRodTalentParams,
-    LightningStrike,
-};
+use super::components::{LightningRod, LightningRodArc, LightningRodTalentParams, LightningStrike};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -24,14 +21,14 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, clamp_to_spell_range_ground, get_cursor_world_position,
-    spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, clamp_to_spell_range_ground, cleanup_spell_caster,
+    handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Compute talent parameters from active talent selections.
 fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> LightningRodTalentParams {
@@ -85,7 +82,11 @@ fn spawn_lightning_bolt(
     assets: &SpellVisualAssets,
     strike: LightningStrike,
 ) {
-    let strike_start = Vec3::new(strike.target_pos.x, STRIKE_SPAWN_HEIGHT, strike.target_pos.z);
+    let strike_start = Vec3::new(
+        strike.target_pos.x,
+        STRIKE_SPAWN_HEIGHT,
+        strike.target_pos.z,
+    );
     let bolt_length = STRIKE_SPAWN_HEIGHT - TOWER_HEIGHT;
     let bolt_width = STRIKE_BOLT_WIDTH * strike.empowerment;
     let midpoint = (strike_start + strike.target_pos) / 2.0;
@@ -124,14 +125,7 @@ pub(super) fn handle_lightning_rod_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()
@@ -168,11 +162,8 @@ pub(super) fn handle_lightning_rod_casting(
     // Update indicator position during casting
     if matches!(*casting_state, CastingState::Casting { .. })
         && let Some(pos) = clamped_pos
-        && let Ok(caster) = caster_query.get(wizard_entity)
-        && let Some(indicator_entity) = caster.indicator_entity
-        && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
     {
-        indicator.position = pos;
+        update_indicator_position(wizard_entity, pos, &caster_query, &mut indicator_query);
     }
 
     // Get the final spawn position from indicator if available
@@ -206,7 +197,12 @@ pub(super) fn handle_lightning_rod_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Lightning, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Lightning,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -231,14 +227,7 @@ fn lightning_rod_casting_logic(
     let wizard_pos = SPELL_ORIGIN;
 
     // Check for release event - cancel cast
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -305,22 +294,12 @@ fn lightning_rod_casting_logic(
                 }
 
                 // Clean up indicator and caster
-                if let Ok(caster) = caster_query.get(wizard_entity)
-                    && let Some(indicator_entity) = caster.indicator_entity
-                {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+                cleanup_spell_caster(commands, wizard_entity, caster_query);
                 casting_state.cancel();
             }
         }
         CastingState::Channeling { .. } => {
-            if let Ok(caster) = caster_query.get(wizard_entity) {
-                if let Some(indicator_entity) = caster.indicator_entity {
-                    commands.entity(indicator_entity).try_despawn();
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
-            }
+            cleanup_spell_caster(commands, wizard_entity, caster_query);
             casting_state.cancel();
         }
     }
@@ -410,8 +389,7 @@ pub(super) fn update_lightning_rod(
             }
 
             // T1-2 Wider Arc: radius and targets
-            let arc_radius =
-                ARC_RADIUS * rod.empowerment * rod.talent_params.arc_radius_mult;
+            let arc_radius = ARC_RADIUS * rod.empowerment * rod.talent_params.arc_radius_mult;
             let max_targets = ARC_MAX_TARGETS + rod.talent_params.extra_targets;
 
             let target_pos = Vec3::new(rod.position.x, TOWER_HEIGHT, rod.position.z);
@@ -541,8 +519,7 @@ fn spawn_arcs_to_nearby_units(
         .iter()
         .map(|(entity, transform, _, _, _, _)| {
             let pos = transform.translation;
-            let dist =
-                Vec3::new(rod_top.x, 0.0, rod_top.z).distance(Vec3::new(pos.x, 0.0, pos.z));
+            let dist = Vec3::new(rod_top.x, 0.0, rod_top.z).distance(Vec3::new(pos.x, 0.0, pos.z));
             (entity, pos, dist)
         })
         .filter(|(_, _, dist)| *dist <= radius)
@@ -607,10 +584,10 @@ fn spawn_arcs_to_nearby_units(
     }
 
     // Track talent progress: "Enemies struck by arcs"
-    if let Some(progress) = talent_progress {
-        if hit_count > 0 {
-            progress.increment(Spell::LightningRod, hit_count);
-        }
+    if let Some(progress) = talent_progress
+        && hit_count > 0
+    {
+        progress.increment(Spell::LightningRod, hit_count);
     }
 
     kills

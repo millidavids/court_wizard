@@ -82,7 +82,7 @@ impl TramplingGrid {
     }
 
     /// Restores from saved data. Ignores if grid size doesn't match.
-    pub fn from_saved(&mut self, saved: &SavedTrampling) {
+    pub fn restore_saved(&mut self, saved: &SavedTrampling) {
         if saved.grid_size != self.tiles_per_side || saved.cells.is_empty() {
             return;
         }

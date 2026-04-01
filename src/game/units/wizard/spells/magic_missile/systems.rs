@@ -9,6 +9,7 @@ use super::constants;
 use crate::config::GameConfig;
 use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::components::{
     Corpse, Health, Team, TemporaryHitPoints, apply_spell_damage,
 };
@@ -17,7 +18,6 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::get_cursor_world_position;
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -180,7 +180,12 @@ pub fn handle_magic_missile_casting(
         return;
     }
 
-    vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Arcane, time.elapsed_secs());
+    vfx::systems::spawn_school_flare(
+        &mut commands,
+        &visual_assets,
+        vfx::systems::SpellSchool::Arcane,
+        time.elapsed_secs(),
+    );
 
     let spawn_origin = SPELL_ORIGIN;
 
@@ -653,6 +658,7 @@ pub fn move_magic_missiles(
 /// Checks for magic missile collisions with enemies (Attackers and Undead).
 ///
 /// When a missile hits an enemy, it deals 50 damage and despawns.
+#[allow(clippy::too_many_arguments)]
 pub fn check_magic_missile_collisions(
     mut commands: Commands,
     mut missiles: Query<(Entity, &Transform, &mut MagicMissile)>,
@@ -697,8 +703,7 @@ pub fn check_magic_missile_collisions(
         // Rock collision
         let mut hit_rock = false;
         for rock in &rocks {
-            if rock.blocks_projectile(missile_transform.translation)
-            {
+            if rock.blocks_projectile(missile_transform.translation) {
                 commands.entity(missile_entity).try_despawn();
                 hit_rock = true;
                 break;
@@ -711,8 +716,7 @@ pub fn check_magic_missile_collisions(
         // Tree collision
         let mut hit_tree = false;
         for tree in &trees {
-            if tree.blocks_projectile(missile_transform.translation)
-            {
+            if tree.blocks_projectile(missile_transform.translation) {
                 commands.entity(missile_entity).try_despawn();
                 hit_tree = true;
                 break;

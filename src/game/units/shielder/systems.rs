@@ -5,6 +5,7 @@ use super::constants::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Velocity};
 use crate::game::pathfinding::FlowFieldVelocity;
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::components::{
     BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
     FlockingVelocity, FrozenSolidModifier, HasteModifier, MovementSpeed, PolymorphedModifier,
@@ -13,7 +14,6 @@ use crate::game::units::components::{
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::SpellShield;
-use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 
 /// Updates shielder targeting — seeks nearest same-team ally without a spell shield,
 /// or falls back to following the army toward nearest enemy.
@@ -27,9 +27,20 @@ pub fn update_shielder_targeting(
     >,
     potential_targets: Query<
         (Entity, &Transform, &Team, Has<SpellShield>),
-        (Without<Corpse>, Without<BanishedModifier>, Without<Shielder>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<Shielder>,
+        ),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
+    >,
 ) {
     // Snapshot ally data for shield targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, bool)> = potential_targets
@@ -183,7 +194,18 @@ pub fn shielder_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
+        (
+            sleeping,
+            sleepwalking,
+            banished,
+            polymorphed,
+            sickened,
+            frozen,
+            stunned,
+            team,
+            has_staging,
+            has_wave_group,
+        ),
     ) in &mut shielder_units
     {
         // CC'd units cannot move
@@ -231,7 +253,8 @@ pub fn shielder_movement(
 
         // Stop completely when in optimal position (not in melee, not on hazard)
         // Skip for staging units — they need to keep following the flow field
-        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
         if !is_staging && in_melee.is_none() && flow_field_velocity.terrain_cost <= 1.0 {
             let targeting_is_zero = targeting_velocity.velocity.length_squared() < 0.01;
             if targeting_is_zero {
@@ -265,7 +288,11 @@ pub fn shielder_apply_shield(
     >,
     potential_targets: Query<
         (Entity, &Transform, &Team, Has<SpellShield>),
-        (Without<Corpse>, Without<BanishedModifier>, Without<Shielder>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<Shielder>,
+        ),
     >,
 ) {
     let delta = time.delta_secs();
@@ -278,7 +305,9 @@ pub fn shielder_apply_shield(
         })
         .collect();
 
-    for (entity, transform, team, cooldown, sleeping, banished, has_staging, has_wave_group) in &mut shielders {
+    for (entity, transform, team, cooldown, sleeping, banished, has_staging, has_wave_group) in
+        &mut shielders
+    {
         // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
         if crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group) {
             continue;
@@ -291,9 +320,7 @@ pub fn shielder_apply_shield(
                 continue;
             }
             // Cooldown expired — remove it and allow casting
-            commands
-                .entity(entity)
-                .remove::<ShielderShieldCooldown>();
+            commands.entity(entity).remove::<ShielderShieldCooldown>();
         }
 
         // Skip if CC'd

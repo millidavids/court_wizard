@@ -11,9 +11,9 @@ pub(super) const AVATAR_HEALTH: f32 = 150.0;
 /// Sprite tint for the battlemage avatar (neutral white — swordcerer has its own sprite sheet).
 pub(super) const AVATAR_SPRITE_TINT: Color = Color::WHITE;
 
+pub(super) use crate::game::units::constants::DEFAULT_SPRITE_HEIGHT as AVATAR_SPRITE_HEIGHT;
 /// Sprite dimensions for the battlemage avatar.
 pub(super) use crate::game::units::constants::DEFAULT_SPRITE_WIDTH as AVATAR_SPRITE_WIDTH;
-pub(super) use crate::game::units::constants::DEFAULT_SPRITE_HEIGHT as AVATAR_SPRITE_HEIGHT;
 
 /// Magic missile damage from the battlemage avatar.
 pub(super) const MISSILE_DAMAGE: f32 = 20.0;

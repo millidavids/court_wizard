@@ -29,10 +29,16 @@ fn setup(mut commands: Commands, pause_menu: bool) {
 
     commands.entity(content).with_children(|parent| {
         // Title
-        spawn_title_with_shadow(parent, "Compendium", TITLE_FONT_SIZE, TEXT_COLOR, Node {
-            margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
-            ..default()
-        });
+        spawn_title_with_shadow(
+            parent,
+            "Compendium",
+            TITLE_FONT_SIZE,
+            TEXT_COLOR,
+            Node {
+                margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
+                ..default()
+            },
+        );
 
         // Main content: left detail + right tabbed panel
         parent
@@ -305,10 +311,10 @@ pub(super) fn handle_copy_seed(
     copy_query: Query<&CopySeedButton>,
 ) {
     for event in button_clicked.read() {
-        if let Ok(copy_btn) = copy_query.get(event.button) {
-            if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                let _ = clipboard.set_text(copy_btn.0.to_string());
-            }
+        if let Ok(copy_btn) = copy_query.get(event.button)
+            && let Ok(mut clipboard) = arboard::Clipboard::new()
+        {
+            let _ = clipboard.set_text(copy_btn.0.to_string());
         }
     }
 }
@@ -468,10 +474,9 @@ pub(super) fn rebuild_on_state_change(
             state.selected_item,
             Some(CompendiumItemId::EndlessWizardType(_))
         ),
-        CompendiumTab::Roguelite => matches!(
-            state.selected_item,
-            Some(CompendiumItemId::RogueliteRun(_))
-        ),
+        CompendiumTab::Roguelite => {
+            matches!(state.selected_item, Some(CompendiumItemId::RogueliteRun(_)))
+        }
         _ => false,
     };
     if let Ok(container) = level_history.single() {
@@ -491,7 +496,10 @@ pub(super) fn rebuild_on_state_change(
                     (CompendiumTab::Endless, Some(CompendiumItemId::EndlessWizardType(name))) => {
                         spawn_endless_detail_for_wizard(parent, save.as_ref(), name);
                     }
-                    (CompendiumTab::Roguelite, Some(CompendiumItemId::RogueliteRun(started_at))) => {
+                    (
+                        CompendiumTab::Roguelite,
+                        Some(CompendiumItemId::RogueliteRun(started_at)),
+                    ) => {
                         spawn_roguelite_run_detail(parent, save.as_ref(), *started_at);
                     }
                     _ => spawn_level_history_rows(parent, save.as_ref()),
@@ -926,8 +934,10 @@ fn spawn_endless_detail_for_wizard(
     use crate::game::game_mode::components::format_time;
 
     // Aggregate best stats for this wizard type across all wizard saves of that type
-    let mut all_levels: std::collections::BTreeMap<u32, crate::config::save_data::EndlessLevelBest> =
-        std::collections::BTreeMap::new();
+    let mut all_levels: std::collections::BTreeMap<
+        u32,
+        crate::config::save_data::EndlessLevelBest,
+    > = std::collections::BTreeMap::new();
 
     if let Some(save) = save {
         for wizard in &save.wizards {
@@ -998,9 +1008,9 @@ fn spawn_endless_detail_for_wizard(
 // ---------------------------------------------------------------------------
 
 /// Collects all roguelite runs across all wizards, sorted by most recent first.
-fn collect_all_roguelite_runs<'a>(
-    save: Option<&'a crate::config::save_data::UnifiedSaveFile>,
-) -> Vec<&'a crate::config::save_data::RogueliteRun> {
+fn collect_all_roguelite_runs(
+    save: Option<&crate::config::save_data::UnifiedSaveFile>,
+) -> Vec<&crate::config::save_data::RogueliteRun> {
     let mut all_runs: Vec<&crate::config::save_data::RogueliteRun> = Vec::new();
     if let Some(save) = save {
         for wizard in &save.wizards {
@@ -1091,7 +1101,12 @@ fn spawn_roguelite_run_button(
         run.levels_completed,
         run.wizard_type.display_name()
     );
-    spawn_item_button(parent, &label, outcome_color, CompendiumItemId::RogueliteRun(run.started_at));
+    spawn_item_button(
+        parent,
+        &label,
+        outcome_color,
+        CompendiumItemId::RogueliteRun(run.started_at),
+    );
 }
 
 fn spawn_roguelite_run_detail(
@@ -1099,7 +1114,7 @@ fn spawn_roguelite_run_detail(
     save: Option<&crate::config::save_data::UnifiedSaveFile>,
     started_at: u64,
 ) {
-    use crate::game::game_mode::components::{format_time, RunAggregateStats};
+    use crate::game::game_mode::components::{RunAggregateStats, format_time};
 
     // Find the run by started_at timestamp directly instead of re-sorting all runs
     let run = save.and_then(|s| {
@@ -1194,7 +1209,12 @@ fn spawn_roguelite_run_detail(
                     row.spawn((
                         Button,
                         Node {
-                            padding: UiRect::new(Val::Px(6.0), Val::Px(6.0), Val::Px(2.0), Val::Px(2.0)),
+                            padding: UiRect::new(
+                                Val::Px(6.0),
+                                Val::Px(6.0),
+                                Val::Px(2.0),
+                                Val::Px(2.0),
+                            ),
                             border: UiRect::all(Val::Px(1.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,

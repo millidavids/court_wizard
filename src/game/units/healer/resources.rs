@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::constants::{
-    ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR,
-};
+use crate::game::constants::{ATTACKER_CORPSE_COLOR, DEFENDER_CORPSE_COLOR, UNDEAD_CORPSE_COLOR};
 use crate::game::units::components::CORPSE_MATERIAL_VARIANTS;
 use crate::game::units::constants::{DEFAULT_SPRITE_HEIGHT, DEFAULT_SPRITE_WIDTH};
 use crate::game::units::systems::create_corpse_sprite_materials;
@@ -38,8 +36,7 @@ pub(super) fn preload_healer_assets(
     asset_server: Res<AssetServer>,
 ) {
     let sprite_texture = asset_server.load("images/sprite_sheets/healer-walking_9-frames.png");
-    let attacking_texture =
-        asset_server.load("images/sprite_sheets/healer-attacking_6-frames.png");
+    let attacking_texture = asset_server.load("images/sprite_sheets/healer-attacking_6-frames.png");
     let casting_texture = asset_server.load("images/sprite_sheets/healer-casting_7-frames.png");
     let death_texture = asset_server.load("images/sprite_sheets/healer-death_6-frames.png");
 
@@ -53,11 +50,8 @@ pub(super) fn preload_healer_assets(
         sprite_texture.clone(),
         ATTACKER_CORPSE_COLOR,
     );
-    let undead_corpse_materials = create_corpse_sprite_materials(
-        &mut materials,
-        sprite_texture.clone(),
-        UNDEAD_CORPSE_COLOR,
-    );
+    let undead_corpse_materials =
+        create_corpse_sprite_materials(&mut materials, sprite_texture.clone(), UNDEAD_CORPSE_COLOR);
 
     let assets = HealerAssets {
         sprite_mesh: meshes.add(Rectangle::new(DEFAULT_SPRITE_WIDTH, DEFAULT_SPRITE_HEIGHT)),

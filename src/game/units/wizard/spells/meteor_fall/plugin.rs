@@ -2,9 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::{
-    MeteorExplosion, MeteorFallStorm, MeteorGroundFire, MeteorProjectile,
-};
+use super::components::{MeteorExplosion, MeteorFallStorm, MeteorGroundFire, MeteorProjectile};
 use super::systems::*;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::wizard::components::Spell;

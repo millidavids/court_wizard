@@ -24,10 +24,16 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
 
     commands.entity(content).with_children(|parent| {
         // Title
-        spawn_title_with_shadow(parent, "Instructions", 48.0, TEXT_COLOR, Node {
-            margin: UiRect::bottom(Val::Px(20.0)),
-            ..default()
-        });
+        spawn_title_with_shadow(
+            parent,
+            "Instructions",
+            48.0,
+            TEXT_COLOR,
+            Node {
+                margin: UiRect::bottom(Val::Px(20.0)),
+                ..default()
+            },
+        );
 
         // Scrollable instructions content
         parent

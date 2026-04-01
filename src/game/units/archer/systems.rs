@@ -6,24 +6,23 @@ use rand::Rng;
 use super::components::*;
 use super::constants::*;
 use super::resources::ArcherAssets;
-use super::styles::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::{
     calculate_defender_grid_position, cells_needed, distribute_units_to_cells, *,
 };
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity};
+use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::plugin::GlobalAttackCycle;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness,
-    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity, HasteModifier, Health,
-    Hitbox, MovementSpeed, PolymorphedModifier, RootedModifier, RoughTerrainModifier,
-    FrozenSolidModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
-    TargetingVelocity, Team, Teleportable,
-    TemporaryHitPoints, WalkingAnimation, apply_damage_to_unit,
+    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
+    HasteModifier, Health, Hitbox, MovementSpeed, PolymorphedModifier, RootedModifier,
+    RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
+    TargetingVelocity, Team, Teleportable, TemporaryHitPoints, WalkingAnimation,
+    apply_damage_to_unit,
 };
 use crate::game::units::infantry::components::DefendersActivated;
-use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 
@@ -78,8 +77,16 @@ pub fn archer_melee_combat(
         ),
         (With<Archer>, Without<Corpse>),
     >,
-    targets: Query<(Entity, &Transform, &Hitbox, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<crate::game::units::shielder::components::ShielderDamageReduction>, Has<crate::game::units::assassin::Assassin>)>,
+    targets: Query<
+        (Entity, &Transform, &Hitbox, &Team),
+        (Without<Corpse>, Without<BanishedModifier>),
+    >,
+    mut health_query: Query<(
+        &mut Health,
+        Option<&mut TemporaryHitPoints>,
+        Has<crate::game::units::shielder::components::ShielderDamageReduction>,
+        Has<crate::game::units::assassin::Assassin>,
+    )>,
 ) {
     let current_time = attack_cycle.current_time;
     let last_time = (current_time - APPROX_FRAME_TIME).max(0.0);
@@ -105,7 +112,11 @@ pub fn archer_melee_combat(
     ) in &mut archers
     {
         // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
-        if crate::game::units::systems::is_staging_attacker(archer_team, has_staging, has_wave_group) {
+        if crate::game::units::systems::is_staging_attacker(
+            archer_team,
+            has_staging,
+            has_wave_group,
+        ) {
             continue;
         }
 
@@ -137,16 +148,19 @@ pub fn archer_melee_combat(
         {
             // Attack if we're in the unit's attack window
             if attack_timing.can_attack(current_time, last_time)
-                && let Ok((mut target_health, mut temp_hp, has_shielder_reduction, is_assassin)) = health_query.get_mut(*target_entity)
+                && let Ok((mut target_health, mut temp_hp, has_shielder_reduction, is_assassin)) =
+                    health_query.get_mut(*target_entity)
             {
                 // Apply effectiveness multiplier to melee damage
                 let mut modified_damage = ARCHER_MELEE_DAMAGE * effectiveness.multiplier();
                 if has_shielder_reduction {
-                    modified_damage *= crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
+                    modified_damage *=
+                        crate::game::units::shielder::constants::SHIELDER_DAMAGE_REDUCTION;
                 }
                 // Assassins take 50% less damage from archers (melee)
                 if is_assassin {
-                    modified_damage *= crate::game::units::assassin::constants::ARCHER_DAMAGE_REDUCTION;
+                    modified_damage *=
+                        crate::game::units::assassin::constants::ARCHER_DAMAGE_REDUCTION;
                 }
                 apply_damage_to_unit(&mut target_health, temp_hp.as_deref_mut(), modified_damage);
                 attack_timing.last_attack_time = Some(current_time);
@@ -165,7 +179,7 @@ pub fn archer_melee_combat(
 
 /// Archer ranged combat system that spawns arrows instead of dealing direct damage.
 /// Only fires if no melee targets are available.
-#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn archer_ranged_combat(
     mut commands: Commands,
     archer_assets: Res<ArcherAssets>,
@@ -233,7 +247,11 @@ pub fn archer_ranged_combat(
     ) in archers.iter_mut()
     {
         // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
-        if crate::game::units::systems::is_staging_attacker(archer_team, has_staging, has_wave_group) {
+        if crate::game::units::systems::is_staging_attacker(
+            archer_team,
+            has_staging,
+            has_wave_group,
+        ) {
             continue;
         }
 
@@ -297,26 +315,25 @@ pub fn archer_ranged_combat(
                     return false;
                 }
                 // Concealing Veil: units in fog can't be targeted by ranged attacks from outside
-                if !archer_is_in_veil && !concealing_veil_snapshot.is_empty() {
-                    if crate::game::units::wizard::spells::fog_cloud::systems::is_in_fog_zone(
+                if !archer_is_in_veil
+                    && !concealing_veil_snapshot.is_empty()
+                    && crate::game::units::wizard::spells::fog_cloud::systems::is_in_fog_zone(
                         transform.translation,
                         &concealing_veil_snapshot,
-                    ) {
-                        return false;
-                    }
+                    )
+                {
+                    return false;
                 }
                 // Skip targets blocked by walls, rocks, or trees
                 !WallOfStone::any_blocks_los(
                     &wall_snapshot,
                     archer_transform.translation,
                     transform.translation,
-                )
-                && !crate::game::terrain::boulder::components::Boulder::any_blocks_los(
+                ) && !crate::game::terrain::boulder::components::Boulder::any_blocks_los(
                     &rock_snapshot,
                     archer_transform.translation,
                     transform.translation,
-                )
-                && !crate::game::terrain::tree::components::Tree::any_blocks_los(
+                ) && !crate::game::terrain::tree::components::Tree::any_blocks_los(
                     &tree_snapshot,
                     archer_transform.translation,
                     transform.translation,
@@ -441,9 +458,7 @@ pub(in crate::game) fn spawn_arrow(
     let denominator = 2.0 * (horizontal_distance * tan_theta - height_diff);
 
     let required_speed = if denominator > 0.1 {
-        (horizontal_distance / cos_theta)
-            * (ARROW_GRAVITY / denominator).sqrt()
-            * power_multiplier
+        (horizontal_distance / cos_theta) * (ARROW_GRAVITY / denominator).sqrt() * power_multiplier
     } else {
         // Fallback for nearly-vertical or unreachable shots: use flat-ground formula
         let sin_2theta = (2.0 * launch_angle).sin();
@@ -557,7 +572,16 @@ pub fn check_arrow_collisions(
         }
 
         // Unit collision (skip friendly fire)
-        for (target_transform, hitbox, team, mut health, mut temp_hp, has_shielder_reduction, is_assassin) in &mut targets {
+        for (
+            target_transform,
+            hitbox,
+            team,
+            mut health,
+            mut temp_hp,
+            has_shielder_reduction,
+            is_assassin,
+        ) in &mut targets
+        {
             // Skip same team
             if *team == arrow.source_team {
                 continue;
@@ -606,7 +630,14 @@ pub fn update_archer_targeting(
         ),
         (With<Archer>, Without<Corpse>),
     >,
-    all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
+    all_units: Query<
+        (Entity, &Transform, &Team),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<StagingAttacker>,
+        ),
+    >,
     walls: Query<&WallOfStone>,
     rocks_query2: Query<&crate::game::terrain::boulder::components::Boulder>,
     trees_query2: Query<&crate::game::terrain::tree::components::Tree>,
@@ -652,8 +683,16 @@ pub fn update_archer_targeting(
                 if dist >= attack_range.min_range && dist <= ARCHER_SEEK_RANGE {
                     // Check line-of-sight: skip if any wall, rock, or tree blocks the shot
                     if WallOfStone::any_blocks_los(&wall_snapshot, pos, target_pos)
-                        || crate::game::terrain::boulder::components::Boulder::any_blocks_los(&rock_snapshot, pos, target_pos)
-                        || crate::game::terrain::tree::components::Tree::any_blocks_los(&tree_snapshot, pos, target_pos)
+                        || crate::game::terrain::boulder::components::Boulder::any_blocks_los(
+                            &rock_snapshot,
+                            pos,
+                            target_pos,
+                        )
+                        || crate::game::terrain::tree::components::Tree::any_blocks_los(
+                            &tree_snapshot,
+                            pos,
+                            target_pos,
+                        )
                     {
                         None
                     } else {
@@ -684,12 +723,12 @@ pub fn update_archer_targeting(
             // If a wall is near the approach path (even if it doesn't block direct
             // LOS), keep advancing so the flow field routes the archer around it.
             // Otherwise enter shooting stance.
-            targeting_velocity.velocity = if wall_near_approach_path(&wall_snapshot, pos, target_pos)
-            {
-                Vec3::new(target_pos.x - pos.x, 0.0, target_pos.z - pos.z).normalize_or_zero()
-            } else {
-                Vec3::ZERO
-            };
+            targeting_velocity.velocity =
+                if wall_near_approach_path(&wall_snapshot, pos, target_pos) {
+                    Vec3::new(target_pos.x - pos.x, 0.0, target_pos.z - pos.z).normalize_or_zero()
+                } else {
+                    Vec3::ZERO
+                };
             targeting_velocity.distance_to_target = ranged_dist;
             commands
                 .entity(entity)
@@ -781,11 +820,30 @@ pub fn archer_movement(
         terrain_modifier,
         slow_modifier,
         (cauldron_modifier, rooted, haste_modifier, elite_speed),
-        (sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned, team, has_staging, has_wave_group),
+        (
+            sleeping,
+            sleepwalking,
+            banished,
+            polymorphed,
+            sickened,
+            frozen,
+            stunned,
+            team,
+            has_staging,
+            has_wave_group,
+        ),
     ) in &mut archer_units
     {
         // CC'd units cannot move
-        if crate::game::units::systems::is_cc_immobilized(rooted, sleeping, sleepwalking, banished, sickened, frozen, stunned) {
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
             velocity.x = 0.0;
             velocity.z = 0.0;
             continue;
@@ -825,7 +883,8 @@ pub fn archer_movement(
         //  - standing on hazardous terrain (fire, spikes)
         //  - no target in range (needs to follow flow field back to spawn)
         //  - path is fully blocked (wall-attack system needs velocity)
-        let is_staging = crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
         if !is_staging
             && in_melee.is_none()
             && flow_field_velocity.terrain_cost <= 1.0

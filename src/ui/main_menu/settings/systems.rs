@@ -16,10 +16,10 @@ use super::components::{
     SliderFill, SliderHandle, SliderText, SliderTrack, SliderUpButton, SliderValue,
 };
 use super::constants::{
-    BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
-    BUTTON_FONT_SIZE, DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, LABEL_FONT_SIZE, MARGIN,
-    MARGIN_SMALL, OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, POPUP_BOX_BG, POPUP_OVERLAY_BG,
-    SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE,
+    BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH, BUTTON_FONT_SIZE,
+    DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, LABEL_FONT_SIZE, MARGIN, MARGIN_SMALL,
+    OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, POPUP_BOX_BG, POPUP_OVERLAY_BG, SECTION_FONT_SIZE,
+    SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE,
 };
 
 /// Sets up the settings menu UI.
@@ -46,10 +46,16 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
     );
     commands.entity(content).with_children(|parent| {
         // Title
-        spawn_title_with_shadow(parent, "Settings", TITLE_FONT_SIZE, TEXT_COLOR, Node {
-            margin: UiRect::bottom(Val::Px(MARGIN)),
-            ..default()
-        });
+        spawn_title_with_shadow(
+            parent,
+            "Settings",
+            TITLE_FONT_SIZE,
+            TEXT_COLOR,
+            Node {
+                margin: UiRect::bottom(Val::Px(MARGIN)),
+                ..default()
+            },
+        );
 
         // Scrollable settings content
         parent
@@ -70,230 +76,235 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
                 ScrollableContainer,
             ))
             .with_children(|scroll| {
-            // Graphics Settings Section
-            spawn_section(scroll, "Graphics", |section| {
-                // VSync Mode
-                spawn_option_row(section, "VSync:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "On",
-                        OptionButtonValue::VsyncMode(VsyncMode::On),
-                        game_config.vsync == VsyncMode::On,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Off",
-                        OptionButtonValue::VsyncMode(VsyncMode::Off),
-                        game_config.vsync == VsyncMode::Off,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Adaptive",
-                        OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
-                        game_config.vsync == VsyncMode::Adaptive,
-                    );
-                });
-
-                // Display Mode
-                spawn_option_row(section, "Display Mode:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "Windowed",
-                        OptionButtonValue::DisplayMode(DisplayMode::Windowed),
-                        game_config.display_mode == DisplayMode::Windowed,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Fullscreen",
-                        OptionButtonValue::DisplayMode(DisplayMode::BorderlessFullscreen),
-                        game_config.display_mode == DisplayMode::BorderlessFullscreen,
-                    );
-                });
-            });
-
-            // Audio Settings Section
-            spawn_section(scroll, "Audio", |section| {
-                spawn_slider_control(
-                    section,
-                    "Master Volume:",
-                    SliderValue::MasterVolume,
-                    &game_config,
-                );
-                spawn_slider_control(
-                    section,
-                    "Music Volume:",
-                    SliderValue::MusicVolume,
-                    &game_config,
-                );
-                spawn_slider_control(section, "SFX Volume:", SliderValue::SfxVolume, &game_config);
-            });
-
-            // Display Settings Section
-            spawn_section(scroll, "Display", |section| {
-                spawn_slider_control(
-                    section,
-                    "Brightness:",
-                    SliderValue::UiBrightness,
-                    &game_config,
-                );
-            });
-
-            // Game Settings Section
-            spawn_section(scroll, "Game", |section| {
-                spawn_option_row(section, "Skip Splash:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "On",
-                        OptionButtonValue::SkipSplash(true),
-                        game_config.skip_splash,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Off",
-                        OptionButtonValue::SkipSplash(false),
-                        !game_config.skip_splash,
-                    );
-                });
-
-                spawn_option_row(section, "Tutorials:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "On",
-                        OptionButtonValue::TutorialsEnabled(true),
-                        game_config.tutorials_enabled,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Off",
-                        OptionButtonValue::TutorialsEnabled(false),
-                        !game_config.tutorials_enabled,
-                    );
-                });
-
-                spawn_option_row(section, "Level Clock:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "On",
-                        OptionButtonValue::ShowLevelClock(true),
-                        game_config.show_level_clock,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Off",
-                        OptionButtonValue::ShowLevelClock(false),
-                        !game_config.show_level_clock,
-                    );
-                });
-
-                spawn_option_row(section, "Urgent Mode:", |buttons| {
-                    spawn_option_button(
-                        buttons,
-                        "On",
-                        OptionButtonValue::UrgentMode(true),
-                        game_config.urgent_mode,
-                    );
-                    spawn_option_button(
-                        buttons,
-                        "Off",
-                        OptionButtonValue::UrgentMode(false),
-                        !game_config.urgent_mode,
-                    );
-                });
-
-                // Reset Tutorials button
-                section
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(MARGIN),
-                        ..default()
-                    })
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new("Reset Tutorials:"),
-                            TextFont::from_font_size(LABEL_FONT_SIZE),
-                            TextColor(TEXT_COLOR),
-                            Node {
-                                width: Val::Px(200.0),
-                                ..default()
-                            },
-                        ));
-
-                        row.spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(OPTION_BUTTON_WIDTH),
-                                height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BorderColor::all(BUTTON_BORDER),
-                            BorderRadius::all(Val::Px(4.0)),
-                            BackgroundColor(BUTTON_BACKGROUND),
-                            ButtonColors {
-                                background: BUTTON_BACKGROUND,
-                            },
-                            SettingsButtonAction::ResetTutorials,
-                        ))
-                        .with_children(|button| {
-                            button.spawn((
-                                Text::new("Reset"),
-                                TextFont::from_font_size(BUTTON_FONT_SIZE),
-                                TextColor(TEXT_COLOR),
-                            ));
-                        });
+                // Graphics Settings Section
+                spawn_section(scroll, "Graphics", |section| {
+                    // VSync Mode
+                    spawn_option_row(section, "VSync:", |buttons| {
+                        spawn_option_button(
+                            buttons,
+                            "On",
+                            OptionButtonValue::VsyncMode(VsyncMode::On),
+                            game_config.vsync == VsyncMode::On,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Off",
+                            OptionButtonValue::VsyncMode(VsyncMode::Off),
+                            game_config.vsync == VsyncMode::Off,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Adaptive",
+                            OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
+                            game_config.vsync == VsyncMode::Adaptive,
+                        );
                     });
 
-                // Clear Progress button
-                section
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(MARGIN),
-                        ..default()
-                    })
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new("Clear Progress:"),
-                            TextFont::from_font_size(LABEL_FONT_SIZE),
-                            TextColor(TEXT_COLOR),
-                            Node {
-                                width: Val::Px(200.0),
-                                ..default()
-                            },
-                        ));
-
-                        row.spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(OPTION_BUTTON_WIDTH),
-                                height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BorderColor::all(DANGER_BUTTON_BORDER),
-                            BorderRadius::all(Val::Px(4.0)),
-                            BackgroundColor(DANGER_BUTTON_BACKGROUND),
-                            ButtonColors {
-                                background: DANGER_BUTTON_BACKGROUND,
-                            },
-                            SettingsButtonAction::ClearProgress,
-                        ))
-                        .with_children(|button| {
-                            button.spawn((
-                                Text::new("Clear"),
-                                TextFont::from_font_size(BUTTON_FONT_SIZE),
-                                TextColor(TEXT_COLOR),
-                            ));
-                        });
+                    // Display Mode
+                    spawn_option_row(section, "Display Mode:", |buttons| {
+                        spawn_option_button(
+                            buttons,
+                            "Windowed",
+                            OptionButtonValue::DisplayMode(DisplayMode::Windowed),
+                            game_config.display_mode == DisplayMode::Windowed,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Fullscreen",
+                            OptionButtonValue::DisplayMode(DisplayMode::BorderlessFullscreen),
+                            game_config.display_mode == DisplayMode::BorderlessFullscreen,
+                        );
                     });
-            });
+                });
+
+                // Audio Settings Section
+                spawn_section(scroll, "Audio", |section| {
+                    spawn_slider_control(
+                        section,
+                        "Master Volume:",
+                        SliderValue::MasterVolume,
+                        &game_config,
+                    );
+                    spawn_slider_control(
+                        section,
+                        "Music Volume:",
+                        SliderValue::MusicVolume,
+                        &game_config,
+                    );
+                    spawn_slider_control(
+                        section,
+                        "SFX Volume:",
+                        SliderValue::SfxVolume,
+                        &game_config,
+                    );
+                });
+
+                // Display Settings Section
+                spawn_section(scroll, "Display", |section| {
+                    spawn_slider_control(
+                        section,
+                        "Brightness:",
+                        SliderValue::UiBrightness,
+                        &game_config,
+                    );
+                });
+
+                // Game Settings Section
+                spawn_section(scroll, "Game", |section| {
+                    spawn_option_row(section, "Skip Splash:", |buttons| {
+                        spawn_option_button(
+                            buttons,
+                            "On",
+                            OptionButtonValue::SkipSplash(true),
+                            game_config.skip_splash,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Off",
+                            OptionButtonValue::SkipSplash(false),
+                            !game_config.skip_splash,
+                        );
+                    });
+
+                    spawn_option_row(section, "Tutorials:", |buttons| {
+                        spawn_option_button(
+                            buttons,
+                            "On",
+                            OptionButtonValue::TutorialsEnabled(true),
+                            game_config.tutorials_enabled,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Off",
+                            OptionButtonValue::TutorialsEnabled(false),
+                            !game_config.tutorials_enabled,
+                        );
+                    });
+
+                    spawn_option_row(section, "Level Clock:", |buttons| {
+                        spawn_option_button(
+                            buttons,
+                            "On",
+                            OptionButtonValue::ShowLevelClock(true),
+                            game_config.show_level_clock,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Off",
+                            OptionButtonValue::ShowLevelClock(false),
+                            !game_config.show_level_clock,
+                        );
+                    });
+
+                    spawn_option_row(section, "Urgent Mode:", |buttons| {
+                        spawn_option_button(
+                            buttons,
+                            "On",
+                            OptionButtonValue::UrgentMode(true),
+                            game_config.urgent_mode,
+                        );
+                        spawn_option_button(
+                            buttons,
+                            "Off",
+                            OptionButtonValue::UrgentMode(false),
+                            !game_config.urgent_mode,
+                        );
+                    });
+
+                    // Reset Tutorials button
+                    section
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            column_gap: Val::Px(MARGIN),
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            row.spawn((
+                                Text::new("Reset Tutorials:"),
+                                TextFont::from_font_size(LABEL_FONT_SIZE),
+                                TextColor(TEXT_COLOR),
+                                Node {
+                                    width: Val::Px(200.0),
+                                    ..default()
+                                },
+                            ));
+
+                            row.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(OPTION_BUTTON_WIDTH),
+                                    height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                BorderColor::all(BUTTON_BORDER),
+                                BorderRadius::all(Val::Px(4.0)),
+                                BackgroundColor(BUTTON_BACKGROUND),
+                                ButtonColors {
+                                    background: BUTTON_BACKGROUND,
+                                },
+                                SettingsButtonAction::ResetTutorials,
+                            ))
+                            .with_children(|button| {
+                                button.spawn((
+                                    Text::new("Reset"),
+                                    TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                    TextColor(TEXT_COLOR),
+                                ));
+                            });
+                        });
+
+                    // Clear Progress button
+                    section
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            column_gap: Val::Px(MARGIN),
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            row.spawn((
+                                Text::new("Clear Progress:"),
+                                TextFont::from_font_size(LABEL_FONT_SIZE),
+                                TextColor(TEXT_COLOR),
+                                Node {
+                                    width: Val::Px(200.0),
+                                    ..default()
+                                },
+                            ));
+
+                            row.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(OPTION_BUTTON_WIDTH),
+                                    height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                BorderColor::all(DANGER_BUTTON_BORDER),
+                                BorderRadius::all(Val::Px(4.0)),
+                                BackgroundColor(DANGER_BUTTON_BACKGROUND),
+                                ButtonColors {
+                                    background: DANGER_BUTTON_BACKGROUND,
+                                },
+                                SettingsButtonAction::ClearProgress,
+                            ))
+                            .with_children(|button| {
+                                button.spawn((
+                                    Text::new("Clear"),
+                                    TextFont::from_font_size(BUTTON_FONT_SIZE),
+                                    TextColor(TEXT_COLOR),
+                                ));
+                            });
+                        });
+                });
             }); // end scrollable container
 
         // Back button (outside scroll area)
@@ -698,11 +709,7 @@ pub fn settings_button_action(
                     next_menu_state.set(MenuState::Landing);
                 }
                 SettingsButtonAction::ResetTutorials => {
-                    spawn_confirmation_popup(
-                        &mut commands,
-                        *action,
-                        "Reset all tutorials?",
-                    );
+                    spawn_confirmation_popup(&mut commands, *action, "Reset all tutorials?");
                 }
                 SettingsButtonAction::ClearProgress => {
                     spawn_confirmation_popup(
@@ -736,11 +743,7 @@ pub fn pause_settings_button_action(
                     next_pause_menu_state.set(PauseMenuState::Main);
                 }
                 SettingsButtonAction::ResetTutorials => {
-                    spawn_confirmation_popup(
-                        &mut commands,
-                        *action,
-                        "Reset all tutorials?",
-                    );
+                    spawn_confirmation_popup(&mut commands, *action, "Reset all tutorials?");
                 }
                 SettingsButtonAction::ClearProgress => {
                     spawn_confirmation_popup(
@@ -886,21 +889,19 @@ pub fn slider_interaction(
             .iter()
             .any(|(_, h)| h.value == track.value && h.is_dragging);
 
-        if is_dragging {
-            if let Some(pos) = cursor_pos.normalized {
-                // RelativeCursorPosition.normalized: center at (0,0),
-                // left edge = -0.5, right edge = 0.5
-                let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
+        if is_dragging && let Some(pos) = cursor_pos.normalized {
+            // RelativeCursorPosition.normalized: center at (0,0),
+            // left edge = -0.5, right edge = 0.5
+            let normalized = (pos.x + 0.5).clamp(0.0, 1.0);
 
-                let min = track.value.min_value();
-                let max = track.value.max_value();
-                let range = max - min;
-                let new_value = (min + normalized * range).clamp(min, max);
+            let min = track.value.min_value();
+            let max = track.value.max_value();
+            let range = max - min;
+            let new_value = (min + normalized * range).clamp(min, max);
 
-                if (track.value.get(&game_config) - new_value).abs() > f32::EPSILON {
-                    track.value.set(&mut game_config, new_value);
-                    slider_adjusted.write(SliderAdjusted);
-                }
+            if (track.value.get(&game_config) - new_value).abs() > f32::EPSILON {
+                track.value.set(&mut game_config, new_value);
+                slider_adjusted.write(SliderAdjusted);
             }
         }
     }

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use super::components::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
+use super::components::*;
 use super::systems;
 use crate::game::plugin::PostCombatSet;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};

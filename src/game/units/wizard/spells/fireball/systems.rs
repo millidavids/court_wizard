@@ -1,13 +1,12 @@
-use bevy::prelude::*;
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard, WizardInput,
 };
 use super::components::*;
 use super::constants;
-use super::styles::*;
 use crate::config::GameConfig;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
@@ -19,14 +18,15 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, get_cursor_world_position, spawn_circle_indicator,
+    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, handle_spell_release,
+    try_start_cast_with_indicator, update_indicator_position,
 };
-use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
+use bevy::prelude::*;
 
 /// Local wizard fireball casting — reads mouse input.
 #[allow(clippy::too_many_arguments)]
@@ -49,14 +49,7 @@ pub fn handle_fireball_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let released = mouse_left_released.read().next().is_some();
-    let cursor_pos = get_cursor_world_position(&camera_query, &corrected_cursor);
-    let input = WizardInput {
-        just_pressed: true, // Run conditions ensure mouse is held
-        pressed: true,
-        just_released: released,
-        cursor_pos,
-    };
+    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {
@@ -84,7 +77,12 @@ pub fn handle_fireball_casting(
     );
 
     if completed {
-        vfx::systems::spawn_school_flare(&mut commands, &visual_assets, vfx::systems::SpellSchool::Fire, time.elapsed_secs());
+        vfx::systems::spawn_school_flare(
+            &mut commands,
+            &visual_assets,
+            vfx::systems::SpellSchool::Fire,
+            time.elapsed_secs(),
+        );
         mouse_state.left_consumed = true;
     }
 }
@@ -110,14 +108,7 @@ fn fireball_casting_logic(
     let mut completed = false;
 
     // Check for release event
-    if input.just_released {
-        if let Ok(caster) = caster_query.get(wizard_entity) {
-            if let Some(indicator_entity) = caster.indicator_entity {
-                commands.entity(indicator_entity).try_despawn();
-            }
-            commands.entity(wizard_entity).remove::<SpellCaster>();
-        }
-        casting_state.cancel();
+    if handle_spell_release(input, commands, wizard_entity, casting_state, caster_query) {
         return false;
     }
 
@@ -135,13 +126,8 @@ fn fireball_casting_logic(
         }
         CastingState::Casting { .. } => {
             // Update indicator position to follow cursor
-            if let Ok(caster) = caster_query.get(wizard_entity)
-                && let Some(indicator_entity) = caster.indicator_entity
-                && let Ok(mut indicator) = indicator_query.get_mut(indicator_entity)
-            {
-                if let Some(cursor_pos) = input.cursor_pos {
-                    indicator.position = cursor_pos;
-                }
+            if let Some(cursor_pos) = input.cursor_pos {
+                update_indicator_position(wizard_entity, cursor_pos, caster_query, indicator_query);
             }
 
             casting_state.advance(time.delta_secs());
@@ -163,34 +149,26 @@ fn fireball_casting_logic(
                     audio::play_sfx(commands, &sfx.fireball_cast, spawn_origin, game_config, sfx);
                     completed = true;
                 }
-                if let Ok(caster) = caster_query.get(wizard_entity) {
-                    if let Some(indicator_entity) = caster.indicator_entity {
-                        commands.entity(indicator_entity).try_despawn();
-                    }
-                }
-                commands.entity(wizard_entity).remove::<SpellCaster>();
+                cleanup_spell_caster(commands, wizard_entity, caster_query);
                 casting_state.cancel();
             }
         }
         CastingState::Resting => {
-            if (input.just_pressed || input.pressed)
-                && caster_query.get(wizard_entity).is_err()
-                && mana.can_afford(constants::MANA_COST)
-            {
+            if input.just_pressed || input.pressed {
                 let indicator_pos = input.cursor_pos.unwrap_or(SPELL_ORIGIN);
                 let indicator_radius = constants::EXPLOSION_RADIUS * primed_spell.empowerment;
-                let circle_entity = spawn_circle_indicator(
+                try_start_cast_with_indicator(
                     commands,
                     meshes,
                     assets.fireball_indicator.clone(),
+                    wizard_entity,
+                    casting_state,
+                    mana,
+                    constants::MANA_COST,
                     indicator_pos,
                     indicator_radius,
-                )
-                .id();
-                commands
-                    .entity(wizard_entity)
-                    .insert(SpellCaster::with_indicator(circle_entity));
-                casting_state.start_cast();
+                    caster_query,
+                );
             }
         }
     }
@@ -257,7 +235,7 @@ fn spawn_fireball_with_talents(
     let damage = primed_spell.scale(constants::DAMAGE_PER_TICK) * damage_mult / duration_mult;
     let explosion_radius = primed_spell.scale(constants::EXPLOSION_RADIUS) * radius_mult;
     let collision_radius = primed_spell.scale(constants::PROJECTILE_COLLISION_RADIUS);
-    let visual_radius = primed_spell.scale(FIREBALL_RADIUS);
+    let visual_radius = primed_spell.scale(constants::FIREBALL_RADIUS);
 
     // Build fireball with talent flags
     let mut fireball = Fireball::new(
@@ -650,12 +628,7 @@ pub fn update_explosions(
                 vfx::constants::SPARK_COUNT,
                 time_secs,
             );
-            vfx::systems::spawn_explosion_smoke(
-                &mut commands,
-                &visual_assets,
-                pos,
-                time_secs,
-            );
+            vfx::systems::spawn_explosion_smoke(&mut commands, &visual_assets, pos, time_secs);
             vfx::systems::spawn_heat_shimmer(
                 &mut commands,
                 &visual_assets,
@@ -663,12 +636,7 @@ pub fn update_explosions(
                 vfx::constants::EXPLOSION_SHIMMER_COUNT,
                 time_secs,
             );
-            vfx::systems::spawn_explosion_dark_smoke(
-                &mut commands,
-                &visual_assets,
-                pos,
-                time_secs,
-            );
+            vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, pos, time_secs);
         }
     }
 }

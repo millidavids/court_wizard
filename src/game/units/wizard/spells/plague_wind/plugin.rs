@@ -3,8 +3,7 @@ use bevy::prelude::*;
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
 use super::components::{
-    InsidePlagueCloud, PlagueCarrierDoT, PlagueWindCloud,
-    ToxicWeaknessDebuff,
+    InsidePlagueCloud, PlagueCarrierDoT, PlagueWindCloud, ToxicWeaknessDebuff,
 };
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
@@ -26,12 +25,9 @@ impl Plugin for PlagueWindPlugin {
                     systems::move_plague_wind_cloud,
                     systems::apply_plague_wind_damage,
                     systems::emit_plague_cloud_particles,
-                    systems::cleanup_toxic_weakness
-                        .run_if(any_exist::<ToxicWeaknessDebuff>()),
-                    systems::track_plague_carrier
-                        .run_if(any_exist::<InsidePlagueCloud>()),
-                    systems::apply_plague_carrier_dot
-                        .run_if(any_exist::<PlagueCarrierDoT>()),
+                    systems::cleanup_toxic_weakness.run_if(any_exist::<ToxicWeaknessDebuff>()),
+                    systems::track_plague_carrier.run_if(any_exist::<InsidePlagueCloud>()),
+                    systems::apply_plague_carrier_dot.run_if(any_exist::<PlagueCarrierDoT>()),
                     systems::spawn_pandemic_clouds,
                     systems::cleanup_plague_wind_cloud,
                 )

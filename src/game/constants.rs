@@ -540,7 +540,7 @@ pub const fn calculate_total_assassins(level: u32) -> u32 {
 /// Aerialists spawn from tier 2 onward (level 11+).
 pub const fn calculate_total_aerialists(level: u32) -> u32 {
     use crate::game::units::aerialist::constants::{
-        AERIALIST_START_TIER, BASE_AERIALIST_COUNT, AERIALISTS_PER_LEVEL,
+        AERIALIST_START_TIER, AERIALISTS_PER_LEVEL, BASE_AERIALIST_COUNT,
     };
     if get_tier(level) < AERIALIST_START_TIER {
         return 0;
@@ -608,4 +608,3 @@ pub fn calculate_defender_grid_position(row: u32, col: u32) -> (f32, f32) {
     let z = WIZARD_POSITION.z + radius * angle.sin();
     (x, z)
 }
-

@@ -25,8 +25,7 @@ impl Plugin for WallOfFirePlugin {
                     .run_if(mouse_held_or_wizard_casting),
                 (
                     systems::apply_wall_of_fire_damage,
-                    systems::firestorm_death_explosion
-                        .run_if(any_exist::<FirestormMarked>()),
+                    systems::firestorm_death_explosion.run_if(any_exist::<FirestormMarked>()),
                 )
                     .chain()
                     .run_if(any_exist::<WallOfFireEffect>()),

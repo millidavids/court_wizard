@@ -34,6 +34,7 @@ pub struct WallOfFireEffect {
 }
 
 impl WallOfFireEffect {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         start: Vec3,
         end: Vec3,
