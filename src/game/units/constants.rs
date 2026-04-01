@@ -69,6 +69,10 @@ pub const FROST_EFFECT_INTENSITY: f32 = 0.35;
 pub const ELECTRIC_EFFECT_MAX_INTENSITY: f32 = 0.5;
 /// Minimum blend strength for electric tint.
 pub const ELECTRIC_EFFECT_MIN_INTENSITY: f32 = 0.05;
+/// Color overlay for wet status (dark blue-gray, darkens units).
+pub const WET_EFFECT_COLOR: Color = Color::srgb(0.15, 0.2, 0.35);
+/// Blend strength for wet tint (constant, no pulsing).
+pub const WET_EFFECT_INTENSITY: f32 = 0.3;
 /// Color overlay for mind control effect (bright pink).
 pub const MIND_CONTROL_EFFECT_COLOR: Color = Color::srgb(1.0, 0.2, 0.7);
 /// Blend strength for mind control tint (constant, no pulsing).

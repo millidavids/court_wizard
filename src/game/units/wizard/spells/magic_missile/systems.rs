@@ -669,6 +669,7 @@ pub fn check_magic_missile_collisions(
     >,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
+    trees: Query<&crate::game::terrain::tree::components::Tree>,
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
@@ -704,6 +705,20 @@ pub fn check_magic_missile_collisions(
             }
         }
         if hit_rock {
+            continue;
+        }
+
+        // Tree collision
+        let mut hit_tree = false;
+        for tree in &trees {
+            if tree.blocks_projectile(missile_transform.translation)
+            {
+                commands.entity(missile_entity).try_despawn();
+                hit_tree = true;
+                break;
+            }
+        }
+        if hit_tree {
             continue;
         }
 

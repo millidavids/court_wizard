@@ -300,6 +300,19 @@ pub(super) fn handle_toggle_save_run(
     }
 }
 
+pub(super) fn handle_copy_seed(
+    mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
+    copy_query: Query<&CopySeedButton>,
+) {
+    for event in button_clicked.read() {
+        if let Ok(copy_btn) = copy_query.get(event.button) {
+            if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                let _ = clipboard.set_text(copy_btn.0.to_string());
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Rebuild content when tab or selection changes
 // ---------------------------------------------------------------------------
@@ -1150,6 +1163,87 @@ fn spawn_roguelite_run_detail(
         &format!("{:.0}%", agg.avg_efficiency * 100.0),
     );
     spawn_stat_text_row(parent, "Total Time", &format_time(agg.total_time));
+
+    // Seed with copy button
+    if let Some(seed) = run.seed {
+        parent
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(2.0),
+                ..default()
+            })
+            .with_children(|col| {
+                col.spawn((
+                    Text::new("Seed"),
+                    TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
+                    TextColor(STAT_LABEL_COLOR),
+                ));
+                col.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(8.0),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Text::new(seed.to_string()),
+                        TextFont::from_font_size(DETAIL_DESC_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                    ));
+                    row.spawn((
+                        Button,
+                        Node {
+                            padding: UiRect::new(Val::Px(6.0), Val::Px(6.0), Val::Px(2.0), Val::Px(2.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(ITEM_BG),
+                        BorderColor::all(Color::srgb(0.3, 0.6, 0.9)),
+                        BorderRadius::all(Val::Px(3.0)),
+                        ButtonColors {
+                            background: ITEM_BG,
+                            border: Color::srgb(0.3, 0.6, 0.9),
+                        },
+                        CopySeedButton(seed),
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn((
+                            Text::new("Copy"),
+                            TextFont::from_font_size(10.0),
+                            TextColor(Color::srgb(0.3, 0.6, 0.9)),
+                        ));
+                    });
+                });
+            });
+    }
+
+    // Modifier display
+    if let Some(ref mods) = run.modifiers {
+        spawn_stat_section_header(parent, "Run Settings");
+        spawn_stat_text_row(
+            parent,
+            "Wave Speed",
+            &format!("{}%", (mods.game_speed * 100.0) as u32),
+        );
+        spawn_stat_text_row(
+            parent,
+            "Enemy Strength",
+            &format!("{}%", (mods.enemy_effectiveness * 100.0) as u32),
+        );
+        spawn_stat_text_row(
+            parent,
+            "Enemy Count",
+            &format!("{}%", (mods.enemy_count * 100.0) as u32),
+        );
+        spawn_stat_text_row(
+            parent,
+            "Terrain",
+            &format!("{}%", (mods.terrain_density * 100.0) as u32),
+        );
+    }
 
     // Level-by-level breakdown
     spawn_stat_section_header(parent, "Level Breakdown");

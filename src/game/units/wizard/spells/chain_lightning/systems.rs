@@ -488,6 +488,7 @@ pub fn process_chain_lightning_bounces(
     crystals: Query<(Entity, &Transform), With<ArcaneCrystal>>,
     walls: Query<&WallOfStone>,
     rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
+    trees_query: Query<&crate::game::terrain::tree::components::Tree>,
     mut slow_query: Query<&mut SlowMovementModifier>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
@@ -541,6 +542,7 @@ pub fn process_chain_lightning_bounces(
         // Find up to split_count targets (units + lightning rods + crystals)
         let wall_snapshot: Vec<_> = walls.iter().collect();
         let rock_snapshot: Vec<_> = rocks_query.iter().filter(|r| !r.sinking).collect();
+        let tree_snapshot: Vec<_> = trees_query.iter().collect();
         let targets = find_next_bounce_targets(
             snapshot.last_hit_position,
             &group.hit_entities,
@@ -551,6 +553,7 @@ pub fn process_chain_lightning_bounces(
             snapshot.split_count,
             &wall_snapshot,
             &rock_snapshot,
+            &tree_snapshot,
         );
 
         for (target_entity, target_pos) in &targets {
@@ -773,12 +776,15 @@ fn find_next_bounce_targets(
     max_targets: usize,
     walls: &[&WallOfStone],
     rocks: &[&crate::game::terrain::boulder::components::Boulder],
+    trees: &[&crate::game::terrain::tree::components::Tree],
 ) -> Vec<(Entity, Vec3)> {
     use crate::game::terrain::boulder::components::Boulder;
+    use crate::game::terrain::tree::components::Tree;
 
     let los_blocked = |from: Vec3, to: Vec3| -> bool {
         WallOfStone::any_blocks_los(walls, from, to)
             || Boulder::any_blocks_los(rocks, from, to)
+            || Tree::any_blocks_los(trees, from, to)
     };
 
     let mut candidates: Vec<(Entity, Vec3, f32)> = enemies

@@ -18,6 +18,7 @@ use super::messages::{
     SpellResearchedMessage, WaveSpawnedMessage,
 };
 use super::pathfinding::PathfindingPlugin;
+use super::seeded_rng::SeededRngPlugin;
 use super::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
 };
@@ -115,6 +116,7 @@ impl Plugin for GamePlugin {
                 GameModePlugin,
                 CrtEffectPlugin,
                 TalentsPlugin,
+                SeededRngPlugin,
             ))
             .add_systems(
                 Startup,

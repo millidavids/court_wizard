@@ -20,6 +20,7 @@ pub(super) enum ModifierSliderValue {
     GameSpeed,
     EnemyEffectiveness,
     EnemyCount,
+    TerrainDensity,
 }
 
 impl ModifierSliderValue {
@@ -28,6 +29,7 @@ impl ModifierSliderValue {
             Self::GameSpeed => modifiers.game_speed,
             Self::EnemyEffectiveness => modifiers.enemy_effectiveness,
             Self::EnemyCount => modifiers.enemy_count,
+            Self::TerrainDensity => modifiers.terrain_density,
         }
     }
 
@@ -36,6 +38,7 @@ impl ModifierSliderValue {
             Self::GameSpeed => modifiers.game_speed = value,
             Self::EnemyEffectiveness => modifiers.enemy_effectiveness = value,
             Self::EnemyCount => modifiers.enemy_count = value,
+            Self::TerrainDensity => modifiers.terrain_density = value,
         }
     }
 
@@ -56,6 +59,7 @@ impl ModifierSliderValue {
             Self::GameSpeed => "Wave Speed",
             Self::EnemyEffectiveness => "Enemy Strength",
             Self::EnemyCount => "Enemy Count",
+            Self::TerrainDensity => "Terrain",
         }
     }
 
@@ -65,6 +69,7 @@ impl ModifierSliderValue {
             Self::GameSpeed => "How quickly waves arrive",
             Self::EnemyEffectiveness => "How strong enemies are",
             Self::EnemyCount => "How many enemies spawn",
+            Self::TerrainDensity => "How much terrain spawns",
         }
     }
 }
@@ -105,3 +110,33 @@ pub(super) struct ModifierSliderHandle {
     pub value: ModifierSliderValue,
     pub is_dragging: bool,
 }
+
+/// Marker for the seed input text display.
+#[derive(Component)]
+pub(super) struct SeedInputText;
+
+/// Marker for the seed input box background (clickable to focus).
+#[derive(Component)]
+pub(super) struct SeedInputBox;
+
+/// Resource tracking the seed input state.
+#[derive(Resource)]
+pub(super) struct SeedInputState {
+    /// The current text in the seed input field.
+    pub text: String,
+    /// Whether the input field is focused (accepting keyboard input).
+    pub focused: bool,
+}
+
+impl Default for SeedInputState {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            focused: false,
+        }
+    }
+}
+
+/// Marker for the "Random" toggle button.
+#[derive(Component)]
+pub(super) struct SeedRandomButton;

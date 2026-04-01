@@ -15,3 +15,6 @@ pub(super) const FLORA_MIN_X: f32 = -2200.0;
 pub(super) const FLORA_MAX_X: f32 = 2400.0;
 pub(super) const FLORA_MIN_Z: f32 = -2200.0;
 pub(super) const FLORA_MAX_Z: f32 = 2200.0;
+
+/// Shadow scale for flora sprites.
+pub(super) const FLORA_SHADOW_SCALE: f32 = 0.4;

@@ -507,12 +507,13 @@ pub(crate) fn spawn_slider_row<
             ..default()
         })
         .with_children(|row| {
-            // Label
+            // Label (min_width ensures consistent alignment regardless of text length)
             row.spawn((
                 Text::new(label),
                 TextFont::from_font_size(SLIDER_LABEL_FONT_SIZE),
                 TextColor(TEXT_PRIMARY),
                 Node {
+                    min_width: Val::Px(label_width),
                     width: Val::Px(label_width),
                     ..default()
                 },

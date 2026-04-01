@@ -410,3 +410,60 @@ pub fn sync_teleported_rocks(
         });
     }
 }
+
+/// Spawns a pre-placed terrain boulder (identical to a landed thrown boulder).
+/// Used by the terrain generation system, not by brute/ogre throws.
+pub(in crate::game) fn spawn_terrain_boulder(
+    commands: &mut Commands,
+    rock_assets: &BoulderAssets,
+    shadow_assets: &ShadowAssets,
+    x: f32,
+    z: f32,
+    scale: f32,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
+) {
+    let radius = ROCK_RADIUS * scale;
+    let height = ROCK_HEIGHT * scale;
+    let rock_y = height / 2.0;
+
+    let rock = Boulder {
+        center: Vec3::new(x, 0.0, z),
+        radius,
+        height,
+        sinking: false,
+        time_alive: 0.0,
+        sink_deadline: f32::MAX,
+    };
+
+    let center_xz = Vec2::new(x, z);
+    obstacle_events.write(ObstacleChanged {
+        bounds: Rect::from_center_half_size(center_xz, Vec2::splat(radius)),
+        obstacle_type: ObstacleType::Blocked,
+        shape: Some(ObstacleShape::circle(center_xz, radius)),
+        rebuild: false,
+    });
+
+    let rock_entity = commands
+        .spawn((
+            Mesh3d(rock_assets.mesh.clone()),
+            MeshMaterial3d(rock_assets.material.clone()),
+            Transform::from_xyz(x, rock_y, z)
+                .with_scale(Vec3::splat(scale)),
+            rock,
+            ObstacleHealth::new(ROCK_HEALTH * scale),
+            Billboard,
+            Teleportable,
+            OnGameplayScreen,
+        ))
+        .id();
+
+    commands.spawn((
+        Mesh3d(shadow_assets.mesh.clone()),
+        MeshMaterial3d(shadow_assets.material.clone()),
+        Transform::from_xyz(x, ROCK_SHADOW_Y, z)
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(ROCK_SHADOW_SCALE * scale)),
+        BoulderShadow { owner: rock_entity },
+        OnGameplayScreen,
+    ));
+}

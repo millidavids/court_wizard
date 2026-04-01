@@ -1,12 +1,18 @@
 use bevy::prelude::*;
 
-/// Wet status — applied to all units during Storm.
-/// Shocked units spread electricity to nearby wet units.
+/// Wet status — applied to units in ponds or during Storm.
+/// Amplifies electric damage, enables shock spread between wet units.
+/// Darkens unit visuals while active.
 #[derive(Component)]
 pub struct WetModifier {
     /// Current weather intensity (scales effect strength).
     pub intensity: f32,
+    /// Time remaining before wet expires (refreshed while in pond or storm).
+    pub time_remaining: f32,
 }
+
+/// Duration wet lasts after leaving a pond or storm ending (seconds).
+pub const WET_DURATION: f32 = 10.0;
 
 /// Cold status — applied to all units during Blizzard.
 /// Frost slows stack multiplicatively. Frost + Cold = brief freeze (root).

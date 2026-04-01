@@ -20,6 +20,10 @@ use super::healer::HealerPlugin;
 use super::infantry::InfantryPlugin;
 use super::shielder::ShielderPlugin;
 use crate::game::terrain::boulder::BoulderPlugin;
+use crate::game::terrain::bush::BushPlugin;
+use crate::game::terrain::flora::FloraPlugin;
+use crate::game::terrain::pond::PondPlugin;
+use crate::game::terrain::tree::TreePlugin;
 use super::king::KingPlugin;
 use super::movement;
 use super::systems;
@@ -57,6 +61,12 @@ impl Plugin for UnitsPlugin {
             BoulderPlugin,
             BossPlugin,
             KingPlugin,
+        ))
+        .add_plugins((
+            BushPlugin,
+            FloraPlugin,
+            PondPlugin,
+            TreePlugin,
         ))
         .configure_sets(
             Update,

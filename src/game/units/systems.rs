@@ -20,7 +20,7 @@ use super::constants::{
     ELECTRIC_ARC_RANGE, ELECTRIC_ARC_WIDTH, ELECTRIC_EFFECT_COLOR, ELECTRIC_EFFECT_FLICKER_SPEED,
     ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, FIRE_EFFECT_COLOR,
     FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY, FIRE_EFFECT_PULSE_SPEED,
-    FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK,
+    FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION, FROST_SLOW_PER_STACK, WET_EFFECT_COLOR, WET_EFFECT_INTENSITY,
     MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY, POISON_DURATION, POISON_EFFECT_COLOR,
     POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP, POISON_EFFECTIVENESS_PER_STACK,
     BERSERKER_RAGE_EFFECT_COLOR, BERSERKER_RAGE_EFFECT_INTENSITY, ELITE_EFFECT_COLOR,
@@ -535,7 +535,7 @@ pub fn update_electric_charge(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut charge_query: Query<(Entity, &mut ElectricCharge, &Transform, &Team, Has<ChargedModifier>), Without<Corpse>>,
     target_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
-    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>), Without<Corpse>>,
+    mut health_query: Query<(&mut Health, Option<&mut TemporaryHitPoints>, Has<WetModifier>), Without<Corpse>>,
 ) {
     let delta = time.delta_secs();
     let mut rng = rand::thread_rng();
@@ -616,8 +616,14 @@ pub fn update_electric_charge(
     for (source_pos, target_entity, target_pos) in arc_events {
         // Apply arc damage directly (bypasses PendingDamageEffect so it does NOT
         // propagate the ElectricCharge debuff to arc targets).
-        if let Ok((mut health, mut temp_hp)) = health_query.get_mut(target_entity) {
-            apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), ELECTRIC_ARC_DAMAGE);
+        // Wet units take extra electric arc damage.
+        if let Ok((mut health, mut temp_hp, is_wet)) = health_query.get_mut(target_entity) {
+            let damage = if is_wet {
+                ELECTRIC_ARC_DAMAGE * crate::game::terrain::pond::constants::WET_ELECTRIC_DAMAGE_MULTIPLIER
+            } else {
+                ELECTRIC_ARC_DAMAGE
+            };
+            apply_damage_to_unit(&mut health, temp_hp.as_deref_mut(), damage);
         }
 
         // Spawn arc visual (simple straight line between source and target)
@@ -770,6 +776,7 @@ pub fn update_persistent_effect_visuals(
                 Has<super::shielder::components::ShielderDamageReduction>,
                 Has<super::elite::EliteHealthBonus>,
                 Option<&super::components::UnitTypeGlow>,
+                Has<WetModifier>,
             ),
         ),
         Or<(
@@ -790,6 +797,7 @@ pub fn update_persistent_effect_visuals(
                 With<super::shielder::components::ShielderDamageReduction>,
                 With<super::elite::EliteHealthBonus>,
                 With<super::components::UnitTypeGlow>,
+                With<WetModifier>,
             )>,
         )>,
     >,
@@ -799,6 +807,7 @@ pub fn update_persistent_effect_visuals(
     // Pre-compute linear versions of constant effect colors (avoid per-entity conversion)
     let fire_linear = FIRE_EFFECT_COLOR.to_linear();
     let frost_linear = FROST_EFFECT_COLOR.to_linear();
+    let wet_linear = WET_EFFECT_COLOR.to_linear();
     let electric_linear = ELECTRIC_EFFECT_COLOR.to_linear();
     let mc_linear = MIND_CONTROL_EFFECT_COLOR.to_linear();
     let poison_linear = POISON_EFFECT_COLOR.to_linear();
@@ -820,7 +829,7 @@ pub fn update_persistent_effect_visuals(
         has_mind_control,
         has_mass_hysteria,
         original_mat,
-        (has_poisoned, has_sickened, has_smelly, has_rage, has_shield_glow, has_elite, unit_type_glow),
+        (has_poisoned, has_sickened, has_smelly, has_rage, has_shield_glow, has_elite, unit_type_glow, has_wet),
     ) in &query
     {
         let has_fire = fire.is_some() || remote_fire;
@@ -837,6 +846,7 @@ pub fn update_persistent_effect_visuals(
             || has_rage
             || has_shield_glow
             || has_elite
+            || has_wet
             || unit_type_glow.is_some();
 
         if has_any_effect && original_mat.is_none() {
@@ -874,6 +884,10 @@ pub fn update_persistent_effect_visuals(
 
             if has_frost {
                 result_linear = result_linear.mix(&frost_linear, FROST_EFFECT_INTENSITY);
+            }
+
+            if has_wet {
+                result_linear = result_linear.mix(&wet_linear, WET_EFFECT_INTENSITY);
             }
 
             if has_electric {

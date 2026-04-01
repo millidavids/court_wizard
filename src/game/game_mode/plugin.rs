@@ -56,6 +56,10 @@ fn init_roguelite_run(
     config.saved_crystals.clear();
     config.saved_flora.clear();
     config.saved_trampling = Default::default();
+    config.saved_trees.clear();
+    config.saved_ponds.clear();
+    config.saved_bushes.clear();
+    config.saved_boulders.clear();
     config.efficiency_ratios.clear();
 
     commands.insert_resource(RogueliteRunState {

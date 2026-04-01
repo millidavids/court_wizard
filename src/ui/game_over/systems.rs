@@ -33,6 +33,7 @@ pub(super) fn save_efficiency_to_config(
     mut config_events: MessageWriter<ConfigChanged>,
     time_travel: Option<Res<TimeTravelState>>,
     game_mode: Option<Res<GameMode>>,
+    game_outcome: Res<GameOutcome>,
 ) {
     if time_travel.is_some() {
         return;
@@ -41,10 +42,14 @@ pub(super) fn save_efficiency_to_config(
     if is_roguelite_mode(game_mode.as_deref()) {
         return;
     }
-    // Calculate efficiency ratio for this level
-    let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
-    let defenders_lost = kill_stats.defenders_killed as f32;
-    let efficiency = 1.0 - (defenders_lost / total_defenders);
+    // Defeat = 0% efficiency (king died)
+    let efficiency = if game_outcome.is_defeat() {
+        0.0
+    } else {
+        let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
+        let defenders_lost = kill_stats.defenders_killed as f32;
+        1.0 - (defenders_lost / total_defenders)
+    };
 
     // Store efficiency ratio for current level (the level that was just played)
     config
@@ -141,6 +146,59 @@ pub(super) fn save_crystals_on_victory(
     config.saved_crystals = saved;
 }
 
+/// Saves all living terrain on victory.
+pub(super) fn save_terrain_on_victory(
+    game_outcome: Res<GameOutcome>,
+    mut config: ResMut<GameConfig>,
+    trees: Query<&crate::game::terrain::tree::components::Tree>,
+    ponds: Query<&crate::game::terrain::pond::components::Pond>,
+    bushes: Query<&crate::game::terrain::bush::components::Bush, Without<crate::game::terrain::bush::components::BurningBush>>,
+    boulders: Query<&crate::game::terrain::boulder::components::Boulder>,
+    time_travel: Option<Res<TimeTravelState>>,
+) {
+    if time_travel.is_some() || *game_outcome != GameOutcome::Victory {
+        return;
+    }
+
+    config.saved_trees = trees
+        .iter()
+        .map(|t| crate::config::save_data::SavedTree {
+            x: t.center.x,
+            z: t.center.z,
+            scale: t.radius / crate::game::terrain::tree::constants::TREE_RADIUS,
+        })
+        .collect();
+
+    config.saved_ponds = ponds
+        .iter()
+        .map(|p| crate::config::save_data::SavedPond {
+            x: p.center.x,
+            z: p.center.z,
+            radius: p.radius,
+        })
+        .collect();
+
+    config.saved_bushes = bushes
+        .iter()
+        .map(|b| crate::config::save_data::SavedBush {
+            x: b.center.x,
+            z: b.center.z,
+            scale: b.radius / crate::game::terrain::bush::constants::BUSH_RADIUS,
+        })
+        .collect();
+
+    // Save all living boulders (both terrain-placed and thrown)
+    config.saved_boulders = boulders
+        .iter()
+        .filter(|b| !b.sinking)
+        .map(|b| crate::config::save_data::SavedBoulder {
+            x: b.center.x,
+            z: b.center.z,
+            scale: b.radius / crate::game::terrain::boulder::constants::ROCK_RADIUS,
+        })
+        .collect();
+}
+
 pub(super) fn setup_game_over_screen(
     mut commands: Commands,
     game_outcome: Res<GameOutcome>,
@@ -151,6 +209,7 @@ pub(super) fn setup_game_over_screen(
     time_travel: Option<Res<TimeTravelState>>,
     game_mode: Option<Res<GameMode>>,
     roguelite_run: Option<Res<RogueliteRunState>>,
+    game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
 ) {
     let is_time_travel = time_travel.is_some();
     let is_roguelite = matches!(game_mode.as_deref(), Some(&GameMode::Roguelite));
@@ -517,7 +576,22 @@ pub(super) fn setup_game_over_screen(
                         }
                     }
                 });
-        });
+
+        // Seed display (small text at the bottom)
+        if let Some(ref seed) = game_seed {
+            parent.spawn((
+                Text::new(format!("Seed: {}", seed.0)),
+                TextFont::from_font_size(14.0),
+                TextColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(10.0),
+                    right: Val::Px(20.0),
+                    ..default()
+                },
+            ));
+        }
+    });
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -534,6 +608,7 @@ pub(super) fn handle_button_actions(
     time_travel: Option<Res<TimeTravelState>>,
     roguelite_run: Option<Res<RogueliteRunState>>,
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
+    game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -587,6 +662,7 @@ pub(super) fn handle_button_actions(
                             saved: false,
                             level_stats: run.level_stats.clone(),
                             modifiers: roguelite_modifiers.as_ref().map(|m| m.as_ref().clone()),
+                            seed: game_seed.as_ref().map(|s| s.0),
                         };
                         crate::config::save_data::save_roguelite_run(
                             &active_save,
@@ -614,8 +690,13 @@ pub(super) fn accumulate_mode_level_stats(
     active_save: Res<ActiveSave>,
     time_travel: Option<Res<TimeTravelState>>,
 ) {
-    let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
-    let efficiency = 1.0 - (kill_stats.defenders_killed as f32 / total_defenders);
+    // Defeat = 0% efficiency (king died)
+    let efficiency = if game_outcome.is_defeat() {
+        0.0
+    } else {
+        let total_defenders = (INITIAL_DEFENDER_COUNT + INITIAL_ARCHER_DEFENDER_COUNT) as f32;
+        1.0 - (kill_stats.defenders_killed as f32 / total_defenders)
+    };
 
     let level_stats = LevelRunStats {
         level: current_level.0,

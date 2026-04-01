@@ -4,10 +4,6 @@
 
 This game was created by David Yurek.
 
-### Development Assistance
-
-Significant portions of this game's code were developed with assistance from [Claude](https://claude.ai/), an AI assistant created by [Anthropic](https://www.anthropic.com/).
-
 ## Built With
 
 ### Bevy Game Engine
@@ -42,13 +38,12 @@ All character and unit sprites are from the **Liberated Pixel Cup (LPC)** projec
 
 ## Special Thanks
 
-- **Anthropic** and **Claude** for AI-assisted development and code generation
 - The Bevy community for their excellent documentation and examples
 - The Rust community for creating an amazing language and ecosystem
 - The LPC community and all contributing sprite artists on OpenGameArt.org
 
 ---
 
-This game is open source under the MIT License. See [LICENSE](LICENSE) for details.
+This game is open source under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
 
 While the source code is freely available, the game may display advertisements when hosted online.

@@ -120,7 +120,7 @@ pub fn apply_weather_status(
         Entity,
         (Without<Corpse>, Without<ChargedModifier>, With<Health>),
     >,
-    units_with_wet: Query<Entity, With<WetModifier>>,
+    _units_with_wet: Query<Entity, With<WetModifier>>,
     units_with_cold: Query<Entity, With<ColdModifier>>,
     units_with_dry: Query<Entity, With<DryModifier>>,
     units_with_charged: Query<Entity, With<ChargedModifier>>,
@@ -132,6 +132,7 @@ pub fn apply_weather_status(
         for entity in units_without_wet.iter() {
             commands.entity(entity).insert(WetModifier {
                 intensity: weather.intensity,
+                time_remaining: super::components::WET_DURATION,
             });
         }
         for entity in units_without_charged.iter() {
@@ -140,9 +141,8 @@ pub fn apply_weather_status(
             });
         }
     } else {
-        for entity in units_with_wet.iter() {
-            commands.entity(entity).remove::<WetModifier>();
-        }
+        // Don't remove wet — let the timer expire naturally (10s duration).
+        // Only remove Charged immediately (storm-exclusive effect).
         for entity in units_with_charged.iter() {
             commands.entity(entity).remove::<ChargedModifier>();
         }
@@ -188,6 +188,8 @@ pub fn update_weather_intensity(
         Some(WeatherType::Storm) => {
             for mut m in wet_query.iter_mut() {
                 m.intensity = intensity;
+                // Refresh timer while storm is active
+                m.time_remaining = super::components::WET_DURATION;
             }
             for mut m in charged_query.iter_mut() {
                 m.intensity = intensity;
@@ -208,17 +210,20 @@ pub fn update_weather_intensity(
 }
 
 /// Spreads ElectricCharge from shocked units to nearby wet units.
+/// Works for any source of Wet (ponds or storm weather).
 pub fn spread_shock_to_wet(
     mut commands: Commands,
-    weather: Res<WeatherState>,
+    weather: Option<Res<WeatherState>>,
     shocked_wet: Query<(&Transform, &ElectricCharge, &WetModifier), Without<Corpse>>,
     wet_targets: Query<(Entity, &Transform, Has<ElectricCharge>, Has<SpellShield>), (With<WetModifier>, Without<Corpse>)>,
 ) {
-    if weather.active != Some(WeatherType::Storm) {
-        return;
-    }
-
-    let spread_radius = WET_SHOCK_SPREAD_RADIUS * weather.intensity;
+    // Use weather intensity for spread radius if storm is active, otherwise base radius
+    let intensity = weather
+        .as_ref()
+        .filter(|w| w.active == Some(WeatherType::Storm))
+        .map(|w| w.intensity)
+        .unwrap_or(1.0);
+    let spread_radius = WET_SHOCK_SPREAD_RADIUS * intensity;
 
     for (source_tf, charge, _wet) in shocked_wet.iter() {
         let source_pos = source_tf.translation;

@@ -128,3 +128,7 @@ pub(super) struct LevelHistoryContainer;
 /// Button to toggle save/unsave on a roguelite run. Stores the run's `started_at` timestamp.
 #[derive(Component)]
 pub(super) struct ToggleSaveRunButton(pub u64);
+
+/// Button to copy a seed value to the clipboard.
+#[derive(Component)]
+pub(super) struct CopySeedButton(pub u64);

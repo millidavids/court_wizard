@@ -730,6 +730,48 @@ pub(crate) struct SavedFlora {
     pub(crate) sprite_index: u8,
 }
 
+/// Serializable tree placement data for persistent trees.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedTree {
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    /// Size multiplier (1.0 = default, varies ~0.8–1.2).
+    #[serde(default = "default_scale")]
+    pub(crate) scale: f32,
+}
+
+/// Serializable pond placement data for persistent ponds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedPond {
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    pub(crate) radius: f32,
+}
+
+/// Serializable bush placement data for persistent bushes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedBush {
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    /// Size multiplier (1.0 = default, varies ~0.8–1.2).
+    #[serde(default = "default_scale")]
+    pub(crate) scale: f32,
+}
+
+/// Serializable boulder placement data for terrain-spawned boulders.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct SavedBoulder {
+    pub(crate) x: f32,
+    pub(crate) z: f32,
+    /// Size multiplier (1.0 = default, varies ~0.8–1.2).
+    #[serde(default = "default_scale")]
+    pub(crate) scale: f32,
+}
+
+fn default_scale() -> f32 {
+    1.0
+}
+
 /// Per-wizard save data. Exactly one per wizard type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct WizardSave {
@@ -786,6 +828,9 @@ pub(crate) struct RogueliteRun {
     /// Player-chosen modifiers for this run (None for runs before modifiers existed).
     #[serde(default)]
     pub(crate) modifiers: Option<crate::game::game_mode::components::RogueliteModifiers>,
+    /// Seed used for this run (deterministic terrain/unit generation).
+    #[serde(default)]
+    pub(crate) seed: Option<u64>,
 }
 
 /// Best stats achieved on a single endless level.

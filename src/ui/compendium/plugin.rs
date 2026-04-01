@@ -31,6 +31,7 @@ impl Plugin for MainMenuCompendiumPlugin {
                     systems::handle_tab_click,
                     systems::handle_item_click,
                     systems::handle_toggle_save_run,
+                    systems::handle_copy_seed,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MenuState::Compendium)),
@@ -110,6 +111,7 @@ impl Plugin for MetaGameCompendiumPlugin {
                     systems::handle_tab_click,
                     systems::handle_item_click,
                     systems::handle_toggle_save_run,
+                    systems::handle_copy_seed,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(MetaGameState::Compendium)),

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::config::save_data::{SavedCrystal, SavedFlora, SavedTrampling, SavedWall};
+use crate::config::save_data::{SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTrampling, SavedTree, SavedWall};
 use crate::game::units::wizard::components::Spell;
 
 /// Temporary structure for TOML serialization only.
@@ -435,6 +435,22 @@ pub struct GameConfig {
     /// Trampling grid state (mud trails on battlefield)
     #[serde(skip)]
     pub saved_trampling: SavedTrampling,
+    /// Persistent trees from previous victories
+    #[serde(skip)]
+    pub saved_trees: Vec<SavedTree>,
+    /// Persistent ponds from previous victories
+    #[serde(skip)]
+    pub saved_ponds: Vec<SavedPond>,
+    /// Persistent bushes from previous victories
+    #[serde(skip)]
+    pub saved_bushes: Vec<SavedBush>,
+    /// Persistent terrain boulders from previous victories
+    #[serde(skip)]
+    pub saved_boulders: Vec<SavedBoulder>,
+    /// Master seed for the current run (deterministic gameplay).
+    /// None = auto-generate a random seed at run start.
+    #[serde(skip)]
+    pub seed: Option<u64>,
 }
 
 impl Default for GameConfig {
@@ -460,6 +476,11 @@ impl Default for GameConfig {
             saved_crystals: Vec::new(),
             saved_flora: Vec::new(),
             saved_trampling: SavedTrampling::default(),
+            saved_trees: Vec::new(),
+            saved_ponds: Vec::new(),
+            saved_bushes: Vec::new(),
+            saved_boulders: Vec::new(),
+            seed: None,
         }
     }
 }

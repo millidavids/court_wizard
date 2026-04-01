@@ -27,6 +27,8 @@ impl Plugin for RogueliteModifiersPlugin {
                     systems::update_slider_text,
                     systems::update_sliders,
                     systems::escape_to_game_mode_select,
+                    systems::seed_input_click.in_set(ButtonActionSet),
+                    systems::seed_input_keyboard,
                 )
                     .run_if(in_state(MenuState::RogueliteModifiers)),
             );

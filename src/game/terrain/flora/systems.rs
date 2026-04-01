@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::Rng;
+use rand::prelude::*;
 
 use super::components::Flora;
 use super::constants::*;
@@ -8,13 +8,19 @@ use crate::config::save_data::SavedFlora;
 use crate::config::GameConfig;
 use crate::game::battlefield::constants::{LAVA_POOL_POSITION, LAVA_POOL_RADIUS, WATER_POOL_POSITION, WATER_POOL_RADIUS};
 use crate::game::components::{Billboard, OnGameplayScreen};
+use crate::game::seeded_rng::resources::{derive_seed, SEED_PURPOSE_FLORA};
+use crate::game::shared_systems::{ShadowAssets, spawn_terrain_shadow};
 use crate::game::units::components::Corpse;
 
 /// Generates random flora positions and stores them in GameConfig.
 ///
 /// Called once when a wizard's first battle has no saved flora.
+/// Uses seeded RNG when a seed is available for deterministic generation.
 pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
-    let mut rng = rand::thread_rng();
+    let mut rng: Box<dyn RngCore> = match config.seed {
+        Some(seed) => Box::new(StdRng::seed_from_u64(derive_seed(seed, config.current_level, SEED_PURPOSE_FLORA))),
+        None => Box::new(rand::thread_rng()),
+    };
 
     let lava_xz = Vec2::new(LAVA_POOL_POSITION.x, LAVA_POOL_POSITION.z);
     let water_xz = Vec2::new(WATER_POOL_POSITION.x, WATER_POOL_POSITION.z);
@@ -52,10 +58,11 @@ pub(in crate::game) fn generate_flora_positions(config: &mut GameConfig) {
     }
 }
 
-/// Spawns a single flora entity from saved data.
+/// Spawns a single flora entity from saved data, with a shadow underneath.
 pub(in crate::game) fn spawn_single_flora(
     commands: &mut Commands,
     flora_assets: &FloraAssets,
+    shadow_assets: &ShadowAssets,
     saved: &SavedFlora,
 ) {
     let sprite_idx = (saved.sprite_index as usize).min(FLORA_SPRITE_COUNT - 1);
@@ -71,6 +78,8 @@ pub(in crate::game) fn spawn_single_flora(
         Billboard,
         OnGameplayScreen,
     ));
+
+    spawn_terrain_shadow(commands, shadow_assets, saved.x, saved.z, FLORA_SHADOW_SCALE);
 }
 
 /// Removes flora when living units walk over them.

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
-use crate::config::save_data::{SavedCrystal, SavedFlora, SavedWall};
+use crate::config::save_data::{SavedBoulder, SavedBush, SavedCrystal, SavedFlora, SavedPond, SavedTree, SavedWall};
 
 /// A task that spawns a single entity.
 /// Each plugin can enqueue tasks for the entities it needs to spawn.
@@ -80,6 +80,18 @@ pub enum SpawnTask {
         flora: SavedFlora,
     },
     TramplingOverlay,
+    TerrainTree {
+        tree: SavedTree,
+    },
+    TerrainPond {
+        pond: SavedPond,
+    },
+    TerrainBush {
+        bush: SavedBush,
+    },
+    TerrainBoulder {
+        boulder: SavedBoulder,
+    },
 }
 
 impl SpawnTask {

@@ -84,10 +84,44 @@ pub fn init_loading_progress(
 
     // 3d. Battlefield flora (generate on first battle, then spawn from save)
     if config.saved_flora.is_empty() {
-        crate::game::battlefield::flora::systems::generate_flora_positions(&mut config);
+        crate::game::terrain::flora::systems::generate_flora_positions(&mut config);
     }
     for flora in &config.saved_flora {
         queue.tasks.push_back(SpawnTask::Flora { flora: flora.clone() });
+    }
+
+    // 3e. Terrain (trees, ponds, bushes, boulders) — generate on first battle, spawn from save
+    {
+        let terrain_density = roguelite_modifiers
+            .as_ref()
+            .map(|m| m.terrain_density)
+            .unwrap_or(1.0);
+
+        let has_no_terrain = config.saved_trees.is_empty()
+            && config.saved_ponds.is_empty()
+            && config.saved_bushes.is_empty()
+            && config.saved_boulders.is_empty();
+
+        if has_no_terrain {
+            crate::game::loading::terrain_generation::generate_terrain(
+                &mut config,
+                level,
+                terrain_density,
+            );
+        }
+
+        for boulder in &config.saved_boulders {
+            queue.tasks.push_back(SpawnTask::TerrainBoulder { boulder: boulder.clone() });
+        }
+        for tree in &config.saved_trees {
+            queue.tasks.push_back(SpawnTask::TerrainTree { tree: tree.clone() });
+        }
+        for pond in &config.saved_ponds {
+            queue.tasks.push_back(SpawnTask::TerrainPond { pond: pond.clone() });
+        }
+        for bush in &config.saved_bushes {
+            queue.tasks.push_back(SpawnTask::TerrainBush { bush: bush.clone() });
+        }
     }
 
     // 4. King (central defender)
@@ -302,8 +336,13 @@ pub fn process_spawn_queue(
         Res<BattlefieldAssets>,
         Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
         Res<AssetServer>,
-        Res<crate::game::battlefield::flora::resources::FloraAssets>,
+        Res<crate::game::terrain::flora::resources::FloraAssets>,
         Res<crate::game::battlefield::trampling::resources::TramplingGrid>,
+        Res<crate::game::terrain::tree::resources::TreeAssets>,
+        Res<crate::game::terrain::pond::resources::PondAssets>,
+        Res<crate::game::terrain::bush::resources::BushAssets>,
+        Res<crate::game::terrain::boulder::resources::BoulderAssets>,
+        Res<crate::game::shared_systems::ShadowAssets>,
     ),
     // Use ParamSet to reduce parameter count and avoid query conflicts
     mut queries: ParamSet<(
@@ -312,12 +351,16 @@ pub fn process_spawn_queue(
         Query<&Transform>,
         Query<&Hitbox>,
     )>,
-    mut channel_change: MessageWriter<ChannelChangeMessage>,
+    message_writers: (
+        MessageWriter<ChannelChangeMessage>,
+        MessageWriter<crate::game::pathfinding::messages::ObstacleChanged>,
+    ),
 ) {
     let (infantry_assets, archer_assets, assassin_assets, dispeller_assets, shielder_assets, healer_assets) = &unit_assets;
     let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
     let (ref wizard_assets_opt, ref cauldron_assets_opt, mut images) = optional_assets;
-    let (battlefield_assets, spell_visual_assets, asset_server, flora_assets, trampling_grid) = &shared_assets;
+    let (battlefield_assets, spell_visual_assets, asset_server, flora_assets, trampling_grid, tree_assets, pond_assets, bush_assets, boulder_assets, shadow_assets) = &shared_assets;
+    let (mut channel_change, mut obstacle_events) = message_writers;
 
     // Process tasks in bulk, breaking only when the next task needs deferred
     // commands from this frame to be flushed first (e.g., Select* tasks need
@@ -676,10 +719,54 @@ pub fn process_spawn_queue(
                 }
             }
             SpawnTask::Flora { flora } => {
-                crate::game::battlefield::flora::systems::spawn_single_flora(
+                crate::game::terrain::flora::systems::spawn_single_flora(
                     &mut commands,
                     flora_assets,
+                    shadow_assets,
                     &flora,
+                );
+            }
+            SpawnTask::TerrainBoulder { boulder } => {
+                crate::game::terrain::boulder::systems::spawn_terrain_boulder(
+                    &mut commands,
+                    boulder_assets,
+                    shadow_assets,
+                    boulder.x,
+                    boulder.z,
+                    boulder.scale,
+                    &mut obstacle_events,
+                );
+            }
+            SpawnTask::TerrainTree { tree } => {
+                crate::game::terrain::tree::systems::spawn_single_tree(
+                    &mut commands,
+                    tree_assets,
+                    shadow_assets,
+                    tree.x,
+                    tree.z,
+                    tree.scale,
+                    &mut obstacle_events,
+                );
+            }
+            SpawnTask::TerrainPond { pond } => {
+                crate::game::terrain::pond::systems::spawn_single_pond(
+                    &mut commands,
+                    pond_assets,
+                    pond.x,
+                    pond.z,
+                    pond.radius,
+                    &mut obstacle_events,
+                );
+            }
+            SpawnTask::TerrainBush { bush } => {
+                crate::game::terrain::bush::systems::spawn_single_bush(
+                    &mut commands,
+                    bush_assets,
+                    shadow_assets,
+                    bush.x,
+                    bush.z,
+                    bush.scale,
+                    &mut obstacle_events,
                 );
             }
             SpawnTask::TramplingOverlay => {

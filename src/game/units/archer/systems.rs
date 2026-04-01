@@ -200,6 +200,7 @@ pub fn archer_ranged_combat(
     >,
     walls: Query<&WallOfStone>,
     rocks_query: Query<&crate::game::terrain::boulder::components::Boulder>,
+    trees_query: Query<&crate::game::terrain::tree::components::Tree>,
     concealing_veil_zones: Query<
         &crate::game::units::wizard::spells::fog_cloud::components::FogCloudZone,
         With<crate::game::units::wizard::spells::fog_cloud::components::ConcealingVeilZone>,
@@ -207,6 +208,7 @@ pub fn archer_ranged_combat(
 ) {
     let wall_snapshot: Vec<_> = walls.iter().collect();
     let rock_snapshot: Vec<_> = rocks_query.iter().filter(|r| !r.sinking).collect();
+    let tree_snapshot: Vec<_> = trees_query.iter().collect();
 
     // Collect concealing veil zone snapshots for ranged targeting checks
     let concealing_veil_snapshot: Vec<(Vec3, f32)> = concealing_veil_zones
@@ -303,7 +305,7 @@ pub fn archer_ranged_combat(
                         return false;
                     }
                 }
-                // Skip targets blocked by walls or rocks
+                // Skip targets blocked by walls, rocks, or trees
                 !WallOfStone::any_blocks_los(
                     &wall_snapshot,
                     archer_transform.translation,
@@ -311,6 +313,11 @@ pub fn archer_ranged_combat(
                 )
                 && !crate::game::terrain::boulder::components::Boulder::any_blocks_los(
                     &rock_snapshot,
+                    archer_transform.translation,
+                    transform.translation,
+                )
+                && !crate::game::terrain::tree::components::Tree::any_blocks_los(
+                    &tree_snapshot,
                     archer_transform.translation,
                     transform.translation,
                 )
@@ -498,6 +505,7 @@ pub fn check_arrow_collisions(
     >,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
+    trees: Query<&crate::game::terrain::tree::components::Tree>,
 ) {
     #[allow(clippy::significant_drop_in_scrutinee)]
     for (arrow_entity, arrow_transform, arrow) in &arrows {
@@ -526,6 +534,19 @@ pub fn check_arrow_collisions(
             }
         }
         if hit_rock {
+            continue;
+        }
+
+        // Tree collision
+        let mut hit_tree = false;
+        for tree in &trees {
+            if tree.blocks_projectile(arrow_pos) {
+                commands.entity(arrow_entity).try_despawn();
+                hit_tree = true;
+                break;
+            }
+        }
+        if hit_tree {
             continue;
         }
 
@@ -588,6 +609,7 @@ pub fn update_archer_targeting(
     all_units: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>, Without<StagingAttacker>)>,
     walls: Query<&WallOfStone>,
     rocks_query2: Query<&crate::game::terrain::boulder::components::Boulder>,
+    trees_query2: Query<&crate::game::terrain::tree::components::Tree>,
 ) {
     // Collect snapshot of all unit positions (excludes staging attackers)
     let unit_snapshot: Vec<_> = all_units
@@ -595,9 +617,10 @@ pub fn update_archer_targeting(
         .map(|(entity, transform, team)| (entity, transform.translation, *team))
         .collect();
 
-    // Collect wall and rock snapshots for line-of-sight checks
+    // Collect wall, rock, and tree snapshots for line-of-sight checks
     let wall_snapshot: Vec<_> = walls.iter().collect();
     let rock_snapshot: Vec<_> = rocks_query2.iter().filter(|r| !r.sinking).collect();
+    let tree_snapshot: Vec<_> = trees_query2.iter().collect();
 
     // Update each archer's targeting velocity
     for (entity, transform, team, attack_range, mut targeting_velocity) in &mut archers {
@@ -627,9 +650,10 @@ pub fn update_archer_targeting(
                 let dz = pos.z - target_pos.z;
                 let dist = (dx * dx + dz * dz).sqrt();
                 if dist >= attack_range.min_range && dist <= ARCHER_SEEK_RANGE {
-                    // Check line-of-sight: skip if any wall or rock blocks the shot
+                    // Check line-of-sight: skip if any wall, rock, or tree blocks the shot
                     if WallOfStone::any_blocks_los(&wall_snapshot, pos, target_pos)
                         || crate::game::terrain::boulder::components::Boulder::any_blocks_los(&rock_snapshot, pos, target_pos)
+                        || crate::game::terrain::tree::components::Tree::any_blocks_los(&tree_snapshot, pos, target_pos)
                     {
                         None
                     } else {

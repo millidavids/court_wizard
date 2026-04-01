@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use super::components::{BattlefieldAssets, LavaPool, WaterRipple, WaterRippleAssets};
-use super::flora::FloraPlugin;
 use super::systems;
 use super::trampling::TramplingPlugin;
 use crate::game::pathfinding::resources::PathfindingGrid;
@@ -14,7 +13,7 @@ pub struct BattlefieldPlugin;
 
 impl Plugin for BattlefieldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((FloraPlugin, TramplingPlugin))
+        app.add_plugins(TramplingPlugin)
             .add_systems(Startup, load_battlefield_assets)
             .add_systems(
                 Update,

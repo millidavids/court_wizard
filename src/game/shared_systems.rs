@@ -1647,6 +1647,25 @@ pub fn preload_shadow_assets(
     commands.insert_resource(ShadowAssets { mesh, material });
 }
 
+/// Spawns a static ground shadow at the given XZ position.
+/// Used by terrain objects (flora, trees, bushes, boulders).
+pub fn spawn_terrain_shadow(
+    commands: &mut Commands,
+    shadow_assets: &ShadowAssets,
+    x: f32,
+    z: f32,
+    scale: f32,
+) {
+    commands.spawn((
+        Mesh3d(shadow_assets.mesh.clone()),
+        MeshMaterial3d(shadow_assets.material.clone()),
+        Transform::from_xyz(x, SHADOW_Y, z)
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(scale)),
+        super::components::OnGameplayScreen,
+    ));
+}
+
 /// Spawns shadow entities for any unit that doesn't have one yet.
 /// Shadow scale is derived from the unit's hitbox radius so bosses (which use
 /// large meshes rather than large transform scales) get proportionally larger shadows.

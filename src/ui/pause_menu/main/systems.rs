@@ -15,7 +15,10 @@ use super::constants::{BUTTON_STYLE, MARGIN, TEXT_COLOR, TITLE_FONT_SIZE};
 ///
 /// Spawns the root UI node containing the title and menu buttons.
 /// All spawned entities are marked with `OnPauseMainScreen` for cleanup.
-pub fn setup(mut commands: Commands) {
+pub fn setup(
+    mut commands: Commands,
+    game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+) {
     let content = spawn_page_container(
         &mut commands,
         OnPauseMainScreen,
@@ -80,6 +83,19 @@ pub fn setup(mut commands: Commands) {
             PauseMenuButtonAction::Exit,
             &BUTTON_STYLE,
         );
+
+        // Seed display
+        if let Some(ref seed) = game_seed {
+            parent.spawn((
+                Text::new(format!("Seed: {}", seed.0)),
+                TextFont::from_font_size(14.0),
+                TextColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
+                Node {
+                    margin: UiRect::top(Val::Px(MARGIN * 2.0)),
+                    ..default()
+                },
+            ));
+        }
     });
 }
 

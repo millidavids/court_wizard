@@ -106,6 +106,10 @@ pub(crate) struct RogueliteModifiers {
     /// Enemy count multiplier (0.2–3.0, default 1.0).
     /// Higher values spawn more enemies per wave.
     pub enemy_count: f32,
+    /// Terrain density multiplier (0.0–3.0, default 1.0).
+    /// Controls how many trees, ponds, and bushes spawn.
+    /// 0.0 = no terrain, 1.0 = normal, 3.0 = triple density.
+    pub terrain_density: f32,
 }
 
 impl Default for RogueliteModifiers {
@@ -114,6 +118,7 @@ impl Default for RogueliteModifiers {
             game_speed: 1.0,
             enemy_effectiveness: 1.0,
             enemy_count: 1.0,
+            terrain_density: 1.0,
         }
     }
 }
@@ -125,6 +130,7 @@ impl RogueliteModifiers {
         (self.game_speed - 1.0).abs() < 0.01
             && (self.enemy_effectiveness - 1.0).abs() < 0.01
             && (self.enemy_count - 1.0).abs() < 0.01
+            && (self.terrain_density - 1.0).abs() < 0.01
     }
 }
 

@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.425] - 2026-04-01
+
+### Added
+- **Battlefield terrain** — trees, bushes, ponds, and boulders now spawn across the battlefield at the start of each run. The amount and placement varies each time based on the terrain seed
+- **Trees block everything** — trees are impassable obstacles that block movement, arrows, magic missiles, chain lightning, and disintegrate beams. Only fire spells can burn them down
+- **Bushes catch fire** — bushes slow units passing through them, but hit them with a fire spell and they'll ignite into a burning hazard that damages nearby units for the rest of the battle. Burned bushes disappear between levels
+- **Ponds make units wet** — stepping into a pond applies the Wet status, which boosts electric damage taken by 50% and allows electric charges to spread between wet units. Wet lasts 10 seconds after leaving the water
+- **Boulders on the battlefield** — boulders now appear as natural terrain in addition to being thrown by Brutes and Ogres. All boulders persist between levels if you win
+- **Terrain density slider** — a new difficulty slider on the roguelite run setup screen lets you control how much terrain spawns, from 20% to 300%
+- **Seeded runs** — every run gets a random seed that controls terrain layout, unit positions, and other randomized elements. You can type in a specific seed to replay the same battlefield setup, or share seeds with friends
+- **Copy and paste seeds** — use Ctrl+C to copy and Ctrl+V to paste seeds on the run setup screen. Seeds can also be copied from the compendium
+- **Seed displayed everywhere** — your run's seed shows on the pause menu, game over screen, and in the compendium run history
+- **Run settings in compendium** — the compendium now shows the difficulty settings and seed used for each roguelite run
+- **Terrain has shadows** — trees, bushes, boulders, and flowers all cast ground shadows
+- **Size variation** — trees, bushes, and boulders spawn with slight size differences (80%–120%) for a more natural look
+
+### Changed
+- **Wet status from storms** — the Meteorologist's storm weather now applies the same Wet status as ponds. Electric shock now spreads between wet units regardless of whether a storm is active
+- **Wet units appear darker** — units with the Wet status get a subtle dark blue-gray tint
+- **Defeat means 0% efficiency** — losing a level now always reports 0% efficiency instead of tracking how many defenders survived before the king fell
+- **License changed to GPL v3.0** — the game is now distributed under the GNU General Public License v3.0
+
+### Fixed
+- **Terrain slider alignment** — all difficulty sliders now align properly regardless of label length
+
 ## [v0.5.402] - 2026-03-31
 
 ### Added

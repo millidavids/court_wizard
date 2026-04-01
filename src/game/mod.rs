@@ -23,6 +23,7 @@ pub(crate) mod pathfinding;
 mod plugin;
 pub(crate) mod resources;
 pub(crate) mod run_conditions;
+pub(crate) mod seeded_rng;
 pub(crate) mod shared_systems;
 pub(in crate::game) mod systems;
 pub(crate) mod terrain;

@@ -58,4 +58,4 @@ Built with:
 
 ## Credits
 
-Developed with assistance from Anthropic's Claude AI coding assistant.
+See [CREDITS.md](CREDITS.md) for full attribution.
