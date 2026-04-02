@@ -187,6 +187,7 @@ pub(super) fn save_terrain_on_victory(
             x: b.center.x,
             z: b.center.z,
             scale: b.radius / crate::game::terrain::bush::constants::BUSH_RADIUS,
+            sprite_index: b.sprite_index,
         })
         .collect();
 
@@ -198,6 +199,7 @@ pub(super) fn save_terrain_on_victory(
             x: b.center.x,
             z: b.center.z,
             scale: b.radius / crate::game::terrain::boulder::constants::ROCK_RADIUS,
+            sprite_index: b.sprite_index,
         })
         .collect();
 }

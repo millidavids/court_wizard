@@ -8,6 +8,8 @@ pub struct Bush {
     pub center: Vec3,
     /// Collision radius on the XZ plane.
     pub radius: f32,
+    /// Sprite variant index (0–9) into the bush sprite sheet.
+    pub sprite_index: u8,
 }
 
 /// Marker for a bush that has caught fire.

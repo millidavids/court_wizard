@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
@@ -9,7 +10,9 @@ use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
-use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
+use crate::game::terrain::boulder::constants::{
+    BOULDER_SPRITE_COUNT, ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE,
+};
 use crate::game::terrain::boulder::messages::BoulderThrownMessage;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::lich::Lich;
@@ -837,6 +840,7 @@ pub fn ogre_rock_throw(
             rock_events.write(BoulderThrownMessage {
                 origin: boss_transform.translation,
                 target: target_pos,
+                sprite_index: rand::thread_rng().gen_range(0..BOULDER_SPRITE_COUNT as u8),
             });
             cooldown.reset(ROCK_THROW_COOLDOWN);
         }

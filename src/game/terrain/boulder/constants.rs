@@ -1,16 +1,30 @@
 use bevy::prelude::*;
 
+use crate::game::constants::UNIT_SCALE;
+
 // Visual appearance
-/// Radius of the boulder obstacle on the battlefield (world units).
-pub const ROCK_RADIUS: f32 = 35.0;
+/// Radius of the boulder obstacle on the battlefield (matches sprite half-width).
+pub const ROCK_RADIUS: f32 = BOULDER_SPRITE_WIDTH / 2.0;
 /// Height of the boulder obstacle for collision checks.
-pub const ROCK_HEIGHT: f32 = 50.0;
-/// Visual scale of the boulder circle mesh.
-pub const ROCK_VISUAL_RADIUS: f32 = 35.0;
-/// Color of a full-health boulder.
-pub const ROCK_BASE_COLOR: Color = Color::srgba(0.55, 0.53, 0.50, 1.0);
-/// Color of a boulder at zero HP.
+pub const ROCK_HEIGHT: f32 = BOULDER_SPRITE_HEIGHT;
+/// Color of a boulder at zero HP (used for damage tinting).
 pub const ROCK_DAMAGED_COLOR: Color = Color::srgba(0.35, 0.30, 0.25, 1.0);
+
+// Sprite sheet (boulder_tiles.png: 10 sprites in a row, each 32x32 pixels)
+/// Number of boulder sprite variants in the sprite sheet.
+pub(crate) const BOULDER_SPRITE_COUNT: usize = 10;
+/// Width of a single boulder sprite in world units.
+pub(super) const BOULDER_SPRITE_WIDTH: f32 = 32.0 * UNIT_SCALE;
+/// Height of a single boulder sprite in world units.
+pub(super) const BOULDER_SPRITE_HEIGHT: f32 = 32.0 * UNIT_SCALE;
+
+/// How far the sprite sinks into the ground (a couple of pixels).
+pub(super) const BOULDER_GROUND_CLIP: f32 = 2.0 * UNIT_SCALE;
+
+// Spin animation
+/// Rotation speed in radians/sec while a boulder projectile is in flight.
+/// ~2 full rotations during the 0.8s flight.
+pub(super) const BOULDER_SPIN_SPEED: f32 = 12.0;
 
 // Health
 /// Hit points for a thrown boulder.
@@ -44,4 +58,4 @@ pub const ROCK_MIN_SEPARATION: f32 = ROCK_RADIUS * 2.0 + 5.0;
 /// Y position for boulder shadows (just above ground to avoid z-fighting).
 pub const ROCK_SHADOW_Y: f32 = 1.5;
 /// Shadow scale relative to boulder visual radius.
-pub const ROCK_SHADOW_SCALE: f32 = 1.2;
+pub const ROCK_SHADOW_SCALE: f32 = 1.8;

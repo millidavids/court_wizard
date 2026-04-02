@@ -21,6 +21,12 @@ impl Plugin for PathfindingPlugin {
             .init_resource::<FlowFieldDebugMode>()
             // Wave staging timers (timeout-based force activation)
             .init_resource::<WaveStagingTimers>()
+            // Handle obstacle changes (updates base_costs) — runs during loading
+            // so terrain spawned via the spawn queue is registered immediately.
+            .add_systems(
+                Update,
+                handle_obstacle_events.run_if(resource_exists::<PathfindingGrid>),
+            )
             // Flow field management: continuously rebuild all fields in parallel.
             .add_systems(
                 Update,
@@ -31,8 +37,6 @@ impl Plugin for PathfindingPlugin {
                     update_king_target,
                     // Tick defender rally delay (no-enemies → spawn center)
                     tick_defender_rally_delay,
-                    // Handle obstacle changes (updates base_costs)
-                    handle_obstacle_events,
                     // Poll completed rebuilds and immediately spawn new ones
                     continuous_flow_field_rebuild,
                 )

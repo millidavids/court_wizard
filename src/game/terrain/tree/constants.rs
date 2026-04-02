@@ -1,16 +1,16 @@
 use bevy::prelude::*;
 
-/// Collision radius of a tree on the XZ plane (world units).
-pub const TREE_RADIUS: f32 = 30.0;
-
-/// Vertical extent for projectile collision checks.
-pub const TREE_HEIGHT: f32 = 50.0;
-
 /// Visual width of the tree rectangle (placeholder brown rectangle).
 pub const TREE_VISUAL_WIDTH: f32 = 40.0;
 
 /// Visual height of the tree rectangle (placeholder brown rectangle).
 pub const TREE_VISUAL_HEIGHT: f32 = 60.0;
+
+/// Collision radius of a tree on the XZ plane (matches visual half-width).
+pub const TREE_RADIUS: f32 = TREE_VISUAL_WIDTH / 2.0;
+
+/// Vertical extent for projectile collision checks.
+pub const TREE_HEIGHT: f32 = TREE_VISUAL_HEIGHT;
 
 /// Tree color (brown, placeholder until sprites are drawn).
 pub const TREE_COLOR: Color = Color::srgb(0.45, 0.30, 0.15);

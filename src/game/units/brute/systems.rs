@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
@@ -8,7 +9,9 @@ use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 
 use crate::game::resources::CurrentLevel;
-use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
+use crate::game::terrain::boulder::constants::{
+    BOULDER_SPRITE_COUNT, ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE,
+};
 use crate::game::terrain::boulder::messages::BoulderThrownMessage;
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
@@ -302,6 +305,7 @@ pub fn brute_rock_throw(
             rock_events.write(BoulderThrownMessage {
                 origin: brute_transform.translation,
                 target: target_pos,
+                sprite_index: rand::thread_rng().gen_range(0..BOULDER_SPRITE_COUNT as u8),
             });
             cooldown.reset(ROCK_THROW_COOLDOWN);
         }

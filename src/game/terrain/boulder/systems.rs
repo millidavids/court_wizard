@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{Boulder, BoulderProjectile, BoulderShadow};
+use super::components::{Boulder, BoulderProjectile, BoulderShadow, ClonedMaterial};
 use super::constants::*;
 use super::messages::*;
 use super::resources::BoulderAssets;
@@ -27,6 +27,7 @@ pub fn spawn_rock_projectile(
         let start_y = 20.0; // Launch from unit height
         let start = Vec3::new(event.origin.x, start_y, event.origin.z);
         let target = Vec3::new(event.target.x, 0.0, event.target.z);
+        let idx = (event.sprite_index as usize).min(BOULDER_SPRITE_COUNT - 1);
 
         let projectile = BoulderProjectile {
             start,
@@ -34,16 +35,16 @@ pub fn spawn_rock_projectile(
             duration: ROCK_PROJECTILE_DURATION,
             elapsed: 0.0,
             arc_height: ROCK_PROJECTILE_ARC_HEIGHT,
+            sprite_index: event.sprite_index,
         };
 
         let pos = projectile.current_position();
 
         commands.spawn((
             Mesh3d(rock_assets.mesh.clone()),
-            MeshMaterial3d(rock_assets.material.clone()),
+            MeshMaterial3d(rock_assets.materials[idx].clone()),
             Transform::from_translation(pos),
             projectile,
-            Billboard,
             OnGameplayScreen,
         ));
     }
@@ -69,6 +70,8 @@ pub fn animate_rock_projectiles(
         let pos = projectile.current_position();
         transform.translation = pos;
 
+        transform.rotate_z(BOULDER_SPIN_SPEED * delta);
+
         if projectile.is_landed() {
             // Despawn the projectile
             commands.entity(entity).despawn();
@@ -77,7 +80,8 @@ pub fn animate_rock_projectiles(
             let mut land_pos = Vec3::new(projectile.target.x, 0.0, projectile.target.z);
             land_pos = resolve_overlap(land_pos, &existing_rocks);
 
-            let rock_y = ROCK_HEIGHT / 2.0;
+            let rock_y = BOULDER_SPRITE_HEIGHT / 2.0 - BOULDER_GROUND_CLIP;
+            let idx = (projectile.sprite_index as usize).min(BOULDER_SPRITE_COUNT - 1);
 
             // Spawn the permanent boulder obstacle
             let rock = Boulder {
@@ -87,6 +91,7 @@ pub fn animate_rock_projectiles(
                 sinking: false,
                 time_alive: 0.0,
                 sink_deadline: f32::MAX,
+                sprite_index: projectile.sprite_index,
             };
 
             let obs_bounds = rock.obstacle_bounds();
@@ -109,11 +114,11 @@ pub fn animate_rock_projectiles(
                 &sfx,
             );
 
-            // Spawn the permanent boulder obstacle entity
+            // Landed boulder spawns upright (no rotation carried over from spin)
             let rock_entity = commands
                 .spawn((
                     Mesh3d(rock_assets.mesh.clone()),
-                    MeshMaterial3d(rock_assets.material.clone()),
+                    MeshMaterial3d(rock_assets.materials[idx].clone()),
                     Transform::from_xyz(land_pos.x, rock_y, land_pos.z),
                     rock,
                     ObstacleHealth::new(ROCK_HEALTH),
@@ -181,9 +186,10 @@ pub fn tick_rock_lifetime(time: Res<Time>, mut rocks: Query<(&mut Boulder, &mut 
             let sink_progress = ((rock.time_alive - (rock.sink_deadline - ROCK_SINK_DURATION))
                 / ROCK_SINK_DURATION)
                 .clamp(0.0, 1.0);
-            // Sink from rock_y down to underground
-            let rock_y = (ROCK_HEIGHT / 2.0) * (1.0 - sink_progress);
-            transform.translation.y = rock_y;
+            // Sink from sprite position down to underground
+            let base_y = BOULDER_SPRITE_HEIGHT / 2.0 - BOULDER_GROUND_CLIP;
+            transform.translation.y = base_y * (1.0 - sink_progress);
+
         }
     }
 }
@@ -275,28 +281,36 @@ pub fn units_attack_blocking_rocks(
     }
 }
 
-/// Tints boulder material from base color to damaged color based on remaining HP.
+/// Tints boulder sprite from white (full HP) toward a dark color (zero HP).
 /// Clones the shared material on first damage so tinting one boulder doesn't affect others.
 pub fn update_rock_damage_tint(
-    mut rocks: Query<(&ObstacleHealth, &mut MeshMaterial3d<StandardMaterial>), With<Boulder>>,
+    mut commands: Commands,
+    mut rocks: Query<
+        (
+            Entity,
+            &ObstacleHealth,
+            &mut MeshMaterial3d<StandardMaterial>,
+            Has<ClonedMaterial>,
+        ),
+        With<Boulder>,
+    >,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    rock_assets: Res<BoulderAssets>,
 ) {
-    let base = ROCK_BASE_COLOR.to_srgba();
+    let base = Color::WHITE.to_srgba();
     let damaged = ROCK_DAMAGED_COLOR.to_srgba();
 
-    for (health, mut material_handle) in &mut rocks {
+    for (entity, health, mut material_handle, already_cloned) in &mut rocks {
         if health.current >= health.max {
             continue;
         }
 
-        // Clone shared material into per-boulder instance on first damage
-        if material_handle.0 == rock_assets.material {
-            let Some(shared_mat) = materials.get(&rock_assets.material) else {
+        if !already_cloned {
+            let Some(shared_mat) = materials.get(&material_handle.0) else {
                 continue;
             };
             let cloned = shared_mat.clone();
             material_handle.0 = materials.add(cloned);
+            commands.entity(entity).insert(ClonedMaterial);
         }
 
         let Some(mat) = materials.get_mut(&material_handle.0) else {
@@ -418,19 +432,21 @@ pub(in crate::game) fn spawn_terrain_boulder(
     x: f32,
     z: f32,
     scale: f32,
+    sprite_index: u8,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
 ) {
     let radius = ROCK_RADIUS * scale;
-    let height = ROCK_HEIGHT * scale;
-    let rock_y = height / 2.0;
+    let rock_y = BOULDER_SPRITE_HEIGHT * scale / 2.0 - BOULDER_GROUND_CLIP;
+    let idx = (sprite_index as usize).min(BOULDER_SPRITE_COUNT - 1);
 
     let rock = Boulder {
         center: Vec3::new(x, 0.0, z),
         radius,
-        height,
+        height: ROCK_HEIGHT * scale,
         sinking: false,
         time_alive: 0.0,
         sink_deadline: f32::MAX,
+        sprite_index,
     };
 
     let center_xz = Vec2::new(x, z);
@@ -444,7 +460,7 @@ pub(in crate::game) fn spawn_terrain_boulder(
     let rock_entity = commands
         .spawn((
             Mesh3d(rock_assets.mesh.clone()),
-            MeshMaterial3d(rock_assets.material.clone()),
+            MeshMaterial3d(rock_assets.materials[idx].clone()),
             Transform::from_xyz(x, rock_y, z).with_scale(Vec3::splat(scale)),
             rock,
             ObstacleHealth::new(ROCK_HEALTH * scale),

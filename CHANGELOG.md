@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.511] - 2026-04-01
+
+### Added
+- **Boulder sprites** — boulders now have unique hand-drawn appearances instead of plain circles. Each boulder randomly picks from 10 different looks, whether placed as terrain or thrown by Brutes and Ogres
+- **Bush sprites** — bushes now have varied, detailed appearances with 10 different styles that are randomly assigned each time they spawn
+- **Thrown boulders spin through the air** — boulders thrown by Brutes and Ogres now tumble as they fly, landing upright when they hit the ground
+- **Burning bush glow** — bushes that catch fire now show an orange tint over their sprite, making it easier to tell which bushes are burning at a glance
+
+### Changed
+- **Terrain now properly blocks the flow field** — boulders, trees, bushes, and ponds now correctly influence unit pathfinding. Units will navigate around obstacles instead of walking straight through them
+- **Terrain collision matches visuals** — the area that boulders, bushes, and trees block now matches their actual visual size on screen, so pathfinding feels more accurate
+- **Boulders darken when damaged** — boulders that take damage gradually darken, giving better visual feedback on their remaining health
+
+### Fixed
+- **Terrain obstacles were invisible to pathfinding** — fixed a timing issue where terrain spawned during level loading wasn't being registered with the pathfinding system, causing units to ignore obstacles entirely
+
 ## [v0.5.498] - 2026-04-01
 
 ### Changed

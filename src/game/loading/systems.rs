@@ -804,6 +804,7 @@ pub fn process_spawn_queue(
                     boulder.x,
                     boulder.z,
                     boulder.scale,
+                    boulder.sprite_index,
                     &mut obstacle_events,
                 );
             }
@@ -836,6 +837,7 @@ pub fn process_spawn_queue(
                     bush.x,
                     bush.z,
                     bush.scale,
+                    bush.sprite_index,
                     &mut obstacle_events,
                 );
             }

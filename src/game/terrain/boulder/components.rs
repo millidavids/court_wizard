@@ -1,5 +1,9 @@
 use bevy::prelude::*;
 
+/// Marker: this boulder's material has been cloned for per-instance damage tinting.
+#[derive(Component)]
+pub struct ClonedMaterial;
+
 /// A landed boulder obstacle on the battlefield. Blocks movement and pathfinding.
 #[derive(Component)]
 pub struct Boulder {
@@ -15,6 +19,8 @@ pub struct Boulder {
     pub time_alive: f32,
     /// When sinking starts, the time at which the boulder should be despawned.
     pub sink_deadline: f32,
+    /// Sprite variant index (0–9) into the boulder sprite sheet.
+    pub sprite_index: u8,
 }
 
 impl Boulder {
@@ -133,6 +139,8 @@ pub struct BoulderProjectile {
     pub elapsed: f32,
     /// Peak height of the arc above ground.
     pub arc_height: f32,
+    /// Sprite variant index (0–9) into the boulder sprite sheet.
+    pub sprite_index: u8,
 }
 
 impl BoulderProjectile {

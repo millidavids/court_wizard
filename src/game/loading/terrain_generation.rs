@@ -8,7 +8,7 @@ use crate::game::battlefield::constants::{
 };
 use crate::game::constants::get_tier;
 use crate::game::seeded_rng::resources::{SEED_PURPOSE_TERRAIN, derive_seed};
-use crate::game::terrain::boulder::constants::ROCK_RADIUS;
+use crate::game::terrain::boulder::constants::{BOULDER_SPRITE_COUNT, ROCK_RADIUS};
 use crate::game::terrain::bush::constants::*;
 use crate::game::terrain::pond::constants::*;
 use crate::game::terrain::tree::constants::*;
@@ -117,10 +117,12 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
         let scale = random_scale(&mut *rng);
         let radius = ROCK_RADIUS * scale;
         if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position) {
+            let sprite_index = rng.gen_range(0..BOULDER_SPRITE_COUNT as u8);
             config.saved_boulders.push(SavedBoulder {
                 x: pos.x,
                 z: pos.y,
                 scale,
+                sprite_index,
             });
             placed.push((pos, radius));
         }
@@ -161,10 +163,12 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
         let scale = random_scale(&mut *rng);
         let radius = BUSH_RADIUS * scale;
         if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position) {
+            let sprite_index = rng.gen_range(0..BUSH_SPRITE_COUNT as u8);
             config.saved_bushes.push(SavedBush {
                 x: pos.x,
                 z: pos.y,
                 scale,
+                sprite_index,
             });
             placed.push((pos, radius));
         }

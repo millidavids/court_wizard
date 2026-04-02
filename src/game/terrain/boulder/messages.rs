@@ -7,4 +7,6 @@ pub struct BoulderThrownMessage {
     pub origin: Vec3,
     /// Target landing position.
     pub target: Vec3,
+    /// Sprite variant index (0–9) into the boulder sprite sheet.
+    pub sprite_index: u8,
 }

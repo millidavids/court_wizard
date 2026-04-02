@@ -752,6 +752,9 @@ pub(crate) struct SavedBush {
     /// Size multiplier (1.0 = default, varies ~0.8–1.2).
     #[serde(default = "default_scale")]
     pub(crate) scale: f32,
+    /// Sprite variant index (0–9) into the bush sprite sheet.
+    #[serde(default)]
+    pub(crate) sprite_index: u8,
 }
 
 /// Serializable boulder placement data for terrain-spawned boulders.
@@ -762,6 +765,9 @@ pub(crate) struct SavedBoulder {
     /// Size multiplier (1.0 = default, varies ~0.8–1.2).
     #[serde(default = "default_scale")]
     pub(crate) scale: f32,
+    /// Sprite variant index (0–9) into the boulder sprite sheet.
+    #[serde(default)]
+    pub(crate) sprite_index: u8,
 }
 
 fn default_scale() -> f32 {

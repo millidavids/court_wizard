@@ -18,21 +18,28 @@ pub(in crate::game) fn spawn_single_bush(
     x: f32,
     z: f32,
     scale: f32,
+    sprite_index: u8,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
 ) {
     let center = Vec3::new(x, 0.0, z);
     let radius = BUSH_RADIUS * scale;
+    let idx = (sprite_index as usize).min(BUSH_SPRITE_COUNT - 1);
 
     commands.spawn((
         Mesh3d(assets.mesh.clone()),
-        MeshMaterial3d(assets.material.clone()),
-        Transform::from_xyz(x, BUSH_HEIGHT * scale / 2.0 + 1.0, z).with_scale(Vec3::splat(scale)),
-        Bush { center, radius },
+        MeshMaterial3d(assets.materials[idx].clone()),
+        Transform::from_xyz(x, BUSH_SPRITE_HEIGHT * scale / 2.0 - BUSH_GROUND_CLIP, z)
+            .with_scale(Vec3::splat(scale)),
+        Bush {
+            center,
+            radius,
+            sprite_index,
+        },
         Billboard,
         OnGameplayScreen,
     ));
 
-    spawn_terrain_shadow(commands, shadow_assets, x, z, 0.9 * scale);
+    spawn_terrain_shadow(commands, shadow_assets, x, z, BUSH_SHADOW_SCALE * scale);
 
     let center_xz = Vec2::new(x, z);
     obstacle_events.write(ObstacleChanged {
@@ -61,6 +68,7 @@ pub fn apply_bush_slow(
 }
 
 /// Ignites bushes hit by fire spell explosions or disintegrate beams. Once burning, they stay on fire.
+#[allow(clippy::too_many_arguments)]
 pub fn ignite_bushes_from_fire(
     mut commands: Commands,
     bushes: Query<(Entity, &Bush), Without<BurningBush>>,
@@ -69,6 +77,7 @@ pub fn ignite_bushes_from_fire(
         &crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion,
     >,
     beams: Query<&crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam>,
+    bush_assets: Res<BushAssets>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
@@ -116,17 +125,18 @@ pub fn ignite_bushes_from_fire(
         }
 
         if should_ignite {
-            // Add burning component
             commands
                 .entity(entity)
                 .insert(BurningBush { tick_timer: 0.0 });
 
-            let new_mat = materials.add(StandardMaterial {
-                base_color: BURNING_BUSH_COLOR,
-                unlit: true,
-                ..default()
-            });
-            commands.entity(entity).insert(MeshMaterial3d(new_mat));
+            // Clone per-instance so tinting one bush doesn't affect others
+            let idx = (bush.sprite_index as usize).min(BUSH_SPRITE_COUNT - 1);
+            if let Some(shared_mat) = materials.get(&bush_assets.materials[idx]) {
+                let mut tinted = shared_mat.clone();
+                tinted.base_color = BURNING_BUSH_TINT;
+                let new_mat = materials.add(tinted);
+                commands.entity(entity).insert(MeshMaterial3d(new_mat));
+            }
 
             let center_xz = Vec2::new(bush.center.x, bush.center.z);
             obstacle_events.write(ObstacleChanged {
