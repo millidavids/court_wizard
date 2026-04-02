@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.513] - 2026-04-02
+
+### Changed
+- **Simplified game mode selection** — removed the Story mode placeholder from the mode select screen. The available modes are now Roguelite, Endless, and Multiplayer (coming soon), displayed in a cleaner vertical layout
+
 ## [v0.5.511] - 2026-04-01
 
 ### Added
@@ -320,7 +325,7 @@ All notable changes to this project will be documented in this file.
 - **Endless compendium tab** — view your best stats per level for each wizard type in the compendium
 - **Save and unsave runs** — permanently save your favorite roguelite runs so they're never lost to history trimming
 - **Roguelite score screen** — when a roguelite run ends, see a summary of your run performance including kills, efficiency, and time per level
-- **Story and Multiplayer placeholders** — these game modes appear on the selection screen as "Coming Soon"
+- **Multiplayer placeholder** — multiplayer game mode appears on the selection screen as "Coming Soon"
 
 ### Changed
 - **CRT flash effect** — reduced the intensity of the screen flash during menu transitions for a subtler look

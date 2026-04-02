@@ -45,7 +45,7 @@ pub(super) fn setup(mut commands: Commands) {
             },
         );
 
-        // 2x2 button grid
+        // Game mode buttons
         parent
             .spawn(Node {
                 flex_direction: FlexDirection::Column,
@@ -53,43 +53,25 @@ pub(super) fn setup(mut commands: Commands) {
                 row_gap: Val::Px(GRID_GAP),
                 ..default()
             })
-            .with_children(|grid| {
-                // Top row: Story, Roguelite
-                grid.spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(GRID_GAP),
-                    ..default()
-                })
-                .with_children(|row| {
-                    spawn_disabled_button(row, "Story", GameModeButtonAction::Story, "Coming Soon");
-                    spawn_mode_button(
-                        row,
-                        "Roguelite",
-                        GameModeButtonAction::Roguelite,
-                        "Fixed 25-level run",
-                    );
-                });
-
-                // Bottom row: Endless, Multiplayer
-                grid.spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(GRID_GAP),
-                    ..default()
-                })
-                .with_children(|row| {
-                    spawn_mode_button(
-                        row,
-                        "Endless",
-                        GameModeButtonAction::Endless,
-                        "Infinite scaling",
-                    );
-                    spawn_disabled_button(
-                        row,
-                        "Multiplayer",
-                        GameModeButtonAction::Multiplayer,
-                        "Coming Soon",
-                    );
-                });
+            .with_children(|column| {
+                spawn_mode_button(
+                    column,
+                    "Roguelite",
+                    GameModeButtonAction::Roguelite,
+                    "Fixed 25-level run",
+                );
+                spawn_mode_button(
+                    column,
+                    "Endless",
+                    GameModeButtonAction::Endless,
+                    "Infinite scaling",
+                );
+                spawn_disabled_button(
+                    column,
+                    "Multiplayer",
+                    GameModeButtonAction::Multiplayer,
+                    "Coming Soon",
+                );
             });
 
         // Back button
@@ -226,7 +208,7 @@ pub(super) fn button_action(
                 GameModeButtonAction::Back => {
                     next_menu_state.set(MenuState::Landing);
                 }
-                // Story and Multiplayer are filtered out by Without<DisabledModeButton>
+                // Multiplayer is filtered out by Without<DisabledModeButton>
                 _ => {}
             }
         }

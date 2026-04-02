@@ -71,7 +71,7 @@ pub enum MenuState {
     /// Credits screen.
     Credits,
 
-    /// Game mode selection screen (Story, Roguelite, Endless, Multiplayer).
+    /// Game mode selection screen (Roguelite, Endless, Multiplayer).
     GameModeSelect,
 
     /// Roguelite modifier selection (game speed, enemy effectiveness, enemy count).

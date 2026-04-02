@@ -6,6 +6,12 @@ A 3D wizard tower defense game built with Rust and Bevy.
 
 Play as a powerful wizard defending your castle from waves of attackers.
 
+## Game Modes
+
+- **Roguelite** - Fixed 25-level run with progression between battles
+- **Endless** - Infinite scaling difficulty
+- **Multiplayer** - Coming soon
+
 ## Gameplay
 
 **Objective:**

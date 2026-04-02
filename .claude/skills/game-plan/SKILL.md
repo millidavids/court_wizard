@@ -14,14 +14,15 @@ description: >
 
 Plan new features for the Court Wizard Bevy game by following established codebase patterns exactly. Use Context7 MCP tools for Bevy and Rust documentation when needed.
 
-## Planning Workflow
+## Instructions
+
+When this skill is activated, **immediately enter Plan Mode** using the `EnterPlanMode` tool. Then, during Plan Mode exploration:
 
 1. **Classify** the feature into one or more categories (see below)
 2. **Read** the relevant reference file(s) for boilerplate templates
 3. **Identify** integration points (parent plugins, state machines, config, loading)
-4. **Draft** a step-by-step implementation plan with exact file paths and code patterns
-5. **Review** for code sharing opportunities -- check existing shared systems before writing new ones
-6. **Present** the plan for user approval before implementing
+4. **Review** for code sharing opportunities -- check existing shared systems before writing new ones
+5. Use the plan output format below when writing the plan file
 
 ## Feature Categories
 

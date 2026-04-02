@@ -7,7 +7,6 @@ pub(super) struct OnGameModeSelectScreen;
 /// Actions for game mode selection buttons.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum GameModeButtonAction {
-    Story,
     Roguelite,
     Endless,
     Multiplayer,
