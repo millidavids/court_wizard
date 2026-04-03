@@ -929,22 +929,21 @@ pub fn capture_key_input(
     };
 
     // Check if confirming a pending conflict (same key pressed again)
-    if let Some(ref pending) = action.pending_conflict {
-        if pending.key == key {
-            // User confirmed — swap: unbind conflicting, bind new
-            bindings.set(
-                pending.conflicting_context,
-                pending.conflicting_action,
-                None,
-            );
-            bindings.set(context, action_id, Some(key));
-            capture_state.active = None;
-            for entity in &overlay_query {
-                commands.entity(entity).despawn();
-            }
-            return;
+    if let Some(ref pending) = action.pending_conflict
+        && pending.key == key
+    {
+        // User confirmed — swap: unbind conflicting, bind new
+        bindings.set(
+            pending.conflicting_context,
+            pending.conflicting_action,
+            None,
+        );
+        bindings.set(context, action_id, Some(key));
+        capture_state.active = None;
+        for entity in &overlay_query {
+            commands.entity(entity).despawn();
         }
-        // Different key — clear pending, fall through to check this new key
+        return;
     }
 
     // Check for conflict
@@ -954,7 +953,6 @@ pub fn capture_key_input(
             let key_label = key_name(key);
             action.pending_conflict = Some(PendingConflict {
                 key,
-                conflict_display: conflict_display.clone(),
                 conflicting_context: conf_ctx,
                 conflicting_action: conf_action,
             });
@@ -1076,15 +1074,15 @@ pub fn resolution_button_action(
         return;
     }
     for event in button_clicked.read() {
-        if let Ok(preset) = button_query.get(event.button) {
-            if let Ok(mut window) = windows.single_mut() {
-                for mut camera in &mut cameras {
-                    camera.viewport = None;
-                }
-                window.resolution.set(preset.width, preset.height);
-                saved_geometry.width = preset.width;
-                saved_geometry.height = preset.height;
+        if let Ok(preset) = button_query.get(event.button)
+            && let Ok(mut window) = windows.single_mut()
+        {
+            for mut camera in &mut cameras {
+                camera.viewport = None;
             }
+            window.resolution.set(preset.width, preset.height);
+            saved_geometry.width = preset.width;
+            saved_geometry.height = preset.height;
         }
     }
 }

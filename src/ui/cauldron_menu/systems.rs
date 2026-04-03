@@ -30,6 +30,22 @@ pub(super) fn spawn_cauldron_menu_ui(
     build_menu(&mut commands, is_brewing, &selection, &config, &stone_used);
 }
 
+/// Despawns the menu when the cauldron state changes (e.g. brew completes in urgent mode).
+/// `respawn_menu_on_toggle` will rebuild the menu next frame with the updated state.
+pub(super) fn rebuild_menu_on_brew_state_change(
+    mut commands: Commands,
+    cauldron_query: Query<&CauldronState, (With<Cauldron>, Changed<CauldronState>)>,
+    menu_query: Query<Entity, With<OnCauldronMenuScreen>>,
+) {
+    if let Ok(state) = cauldron_query.single()
+        && !state.is_brewing()
+    {
+        for entity in &menu_query {
+            commands.entity(entity).try_despawn();
+        }
+    }
+}
+
 /// Re-spawns the menu UI if it was despawned by a toggle action.
 pub(super) fn respawn_menu_on_toggle(
     mut commands: Commands,
@@ -97,11 +113,21 @@ fn build_menu(
             },
         );
 
-        // Content area: two-panel row
+        // Content area: two-panel row (centered when brewing)
         root.spawn(Node {
             flex_grow: 1.0,
             flex_direction: FlexDirection::Row,
             column_gap: Val::Px(COLUMN_GAP),
+            justify_content: if is_brewing {
+                JustifyContent::Center
+            } else {
+                JustifyContent::default()
+            },
+            align_items: if is_brewing {
+                AlignItems::Center
+            } else {
+                AlignItems::default()
+            },
             ..default()
         })
         .with_children(|content| {

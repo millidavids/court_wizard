@@ -359,7 +359,7 @@ impl Default for ArcanoRouterBindings {
 // ---------------------------------------------------------------------------
 
 /// Top-level input bindings resource, persisted as part of the config file.
-#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Resource, Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub(crate) struct InputBindings {
     #[serde(default)]
     pub universal: UniversalBindings,
@@ -373,19 +373,6 @@ pub(crate) struct InputBindings {
     pub meteorologist: MeteorologistBindings,
     #[serde(default)]
     pub arcanorouter: ArcanoRouterBindings,
-}
-
-impl Default for InputBindings {
-    fn default() -> Self {
-        Self {
-            universal: UniversalBindings::default(),
-            rune_caster: RuneCasterBindings::default(),
-            battlemage: BattlemageBindings::default(),
-            warglock: WarglockBindings::default(),
-            meteorologist: MeteorologistBindings::default(),
-            arcanorouter: ArcanoRouterBindings::default(),
-        }
-    }
 }
 
 #[allow(dead_code)]
@@ -597,22 +584,22 @@ impl InputBindings {
     ) -> Option<(BindingContext, &str, Option<KeyCode>)> {
         // Check universal bindings (always checked)
         for (label, existing) in self.context_keys(BindingContext::Universal) {
-            if let Some(existing_key) = existing {
-                if existing_key == key
-                    && !(context == BindingContext::Universal
-                        && self.get(BindingContext::Universal, action) == Some(key))
-                {
-                    return Some((BindingContext::Universal, label, existing));
-                }
+            if let Some(existing_key) = existing
+                && existing_key == key
+                && !(context == BindingContext::Universal
+                    && self.get(BindingContext::Universal, action) == Some(key))
+            {
+                return Some((BindingContext::Universal, label, existing));
             }
         }
         // Check the target context (if not universal)
         if context != BindingContext::Universal {
             for (label, existing) in self.context_keys(context) {
-                if let Some(existing_key) = existing {
-                    if existing_key == key && self.get(context, action) != Some(key) {
-                        return Some((context, label, existing));
-                    }
+                if let Some(existing_key) = existing
+                    && existing_key == key
+                    && self.get(context, action) != Some(key)
+                {
+                    return Some((context, label, existing));
                 }
             }
         }

@@ -424,6 +424,7 @@ pub fn sync_teleported_rocks(
 
 /// Spawns a pre-placed terrain boulder (identical to a landed thrown boulder).
 /// Used by the terrain generation system, not by brute/ogre throws.
+#[allow(clippy::too_many_arguments)]
 pub(in crate::game) fn spawn_terrain_boulder(
     commands: &mut Commands,
     rock_assets: &BoulderAssets,

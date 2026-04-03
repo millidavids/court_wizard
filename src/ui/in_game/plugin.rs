@@ -2,7 +2,9 @@
 
 use bevy::prelude::*;
 
-use crate::game::run_conditions::{is_gameplay_running, is_local_wizard_active};
+use crate::game::run_conditions::{
+    is_gameplay_running, is_local_wizard_active, is_spell_effects_active,
+};
 use crate::state::{AppState, InGameState};
 use crate::ui::plugin::ButtonActionSet;
 
@@ -50,13 +52,18 @@ impl Plugin for InGamePlugin {
                 )
                     .run_if(is_gameplay_running),
             )
-            // Mana/cast/king bars: use is_local_wizard_active so guest can see their bars too
+            // Cast/overlay bars: use is_spell_effects_active so they update during
+            // urgent mode menus (SP) and for both host+guest (MP).
+            .add_systems(
+                Update,
+                (systems::update_cast_bar, systems::update_overlay_text)
+                    .run_if(is_spell_effects_active),
+            )
+            // Mana/king/ammo bars: use is_local_wizard_active so guest can see their bars too
             .add_systems(
                 Update,
                 (
                     systems::update_mana_bar,
-                    systems::update_cast_bar,
-                    systems::update_overlay_text,
                     systems::update_king_health_bar,
                     systems::update_ammo_display,
                 )

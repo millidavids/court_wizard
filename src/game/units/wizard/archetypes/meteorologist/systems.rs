@@ -84,11 +84,11 @@ pub fn handle_weather_input(
 
     let mut requested = None;
     for (key_opt, weather_type) in weather_keys {
-        if let Some(key) = key_opt {
-            if keyboard.just_pressed(key) {
-                requested = Some(weather_type);
-                break;
-            }
+        if let Some(key) = key_opt
+            && keyboard.just_pressed(key)
+        {
+            requested = Some(weather_type);
+            break;
         }
     }
 

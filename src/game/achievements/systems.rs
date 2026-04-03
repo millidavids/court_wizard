@@ -948,10 +948,10 @@ pub(crate) fn check_clicker(
         }
 
         // Wizard-specific bindings must be unbound (if the wizard type has any)
-        if let Some(ctx) = wizard_type_to_context(game_config.wizard_type) {
-            if !bindings.all_context_unbound(ctx) {
-                continue;
-            }
+        if let Some(ctx) = wizard_type_to_context(game_config.wizard_type)
+            && !bindings.all_context_unbound(ctx)
+        {
+            continue;
         }
 
         do_unlock(&mut res, &mut events);

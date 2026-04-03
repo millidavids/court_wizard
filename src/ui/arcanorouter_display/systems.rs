@@ -178,10 +178,10 @@ pub(super) fn handle_slider_interaction(
     ];
 
     for (key_opt, slider, delta) in slider_keys {
-        if let Some(key) = key_opt {
-            if keyboard.just_pressed(key) {
-                writer.write(SliderAdjustMessage { slider, delta });
-            }
+        if let Some(key) = key_opt
+            && keyboard.just_pressed(key)
+        {
+            writer.write(SliderAdjustMessage { slider, delta });
         }
     }
 }

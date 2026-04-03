@@ -26,6 +26,7 @@ impl Plugin for CauldronMenuPlugin {
                 (
                     systems::button_action.in_set(ButtonActionSet),
                     escape_to_running,
+                    systems::rebuild_menu_on_brew_state_change,
                     systems::respawn_menu_on_toggle,
                 )
                     .run_if(in_state(InGameState::CauldronMenu)),

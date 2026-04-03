@@ -129,10 +129,10 @@ pub fn detect_keyboard_input(
     ];
 
     for (slot, key_opt) in slot_keys.iter().enumerate() {
-        if let Some(key_code) = key_opt {
-            if keyboard.just_pressed(*key_code) {
-                action_bar_pressed.write(ActionBarKeyPressed { slot: slot as u8 });
-            }
+        if let Some(key_code) = key_opt
+            && keyboard.just_pressed(*key_code)
+        {
+            action_bar_pressed.write(ActionBarKeyPressed { slot: slot as u8 });
         }
     }
 }
@@ -151,12 +151,12 @@ pub fn detect_rune_input(
     >,
 ) {
     // Activate key triggers rune sequence
-    if let Some(activate_key) = bindings.universal.activate {
-        if keyboard.just_pressed(activate_key) {
-            rune_activate.write(
-                crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
-            );
-        }
+    if let Some(activate_key) = bindings.universal.activate
+        && keyboard.just_pressed(activate_key)
+    {
+        rune_activate.write(
+            crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
+        );
     }
 
     // Check rune keys, skipping unbound entries
@@ -183,12 +183,12 @@ pub fn detect_rune_input(
     ];
 
     for (key_opt, rune) in rune_keys {
-        if let Some(key_code) = key_opt {
-            if keyboard.just_pressed(key_code) {
-                rune_pressed.write(
-                    crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune },
-                );
-            }
+        if let Some(key_code) = key_opt
+            && keyboard.just_pressed(key_code)
+        {
+            rune_pressed.write(
+                crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune },
+            );
         }
     }
 }
@@ -203,12 +203,12 @@ pub fn detect_roulette_input(
         crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
     >,
 ) {
-    if let Some(activate_key) = bindings.universal.activate {
-        if keyboard.just_pressed(activate_key) {
-            spin_message.write(
-                crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
-            );
-        }
+    if let Some(activate_key) = bindings.universal.activate
+        && keyboard.just_pressed(activate_key)
+    {
+        spin_message.write(
+            crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
+        );
     }
 }
 

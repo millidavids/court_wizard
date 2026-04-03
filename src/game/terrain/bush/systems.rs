@@ -11,6 +11,7 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Spawns a single bush at the given position with a size multiplier.
+#[allow(clippy::too_many_arguments)]
 pub(in crate::game) fn spawn_single_bush(
     commands: &mut Commands,
     assets: &BushAssets,

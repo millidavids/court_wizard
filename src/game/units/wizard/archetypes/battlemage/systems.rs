@@ -101,25 +101,25 @@ pub(super) fn player_movement(
 
     // Calculate input direction
     let mut input = Vec2::ZERO;
-    if let Some(key) = bindings.battlemage.move_forward {
-        if keyboard.pressed(key) {
-            input.y -= 1.0; // -Z is "forward" toward the battlefield
-        }
+    if let Some(key) = bindings.battlemage.move_forward
+        && keyboard.pressed(key)
+    {
+        input.y -= 1.0; // -Z is "forward" toward the battlefield
     }
-    if let Some(key) = bindings.battlemage.move_backward {
-        if keyboard.pressed(key) {
-            input.y += 1.0;
-        }
+    if let Some(key) = bindings.battlemage.move_backward
+        && keyboard.pressed(key)
+    {
+        input.y += 1.0;
     }
-    if let Some(key) = bindings.battlemage.move_left {
-        if keyboard.pressed(key) {
-            input.x -= 1.0;
-        }
+    if let Some(key) = bindings.battlemage.move_left
+        && keyboard.pressed(key)
+    {
+        input.x -= 1.0;
     }
-    if let Some(key) = bindings.battlemage.move_right {
-        if keyboard.pressed(key) {
-            input.x += 1.0;
-        }
+    if let Some(key) = bindings.battlemage.move_right
+        && keyboard.pressed(key)
+    {
+        input.x += 1.0;
     }
 
     let input_normalized = if input.length_squared() > 0.0 {

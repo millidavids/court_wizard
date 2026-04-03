@@ -286,7 +286,6 @@ pub(crate) struct KeyCaptureAction {
 /// Tracks a pending conflict that needs user confirmation.
 pub(crate) struct PendingConflict {
     pub key: KeyCode,
-    pub conflict_display: String,
     pub conflicting_context: BindingContext,
     pub conflicting_action: BindingAction,
 }

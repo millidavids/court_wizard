@@ -51,10 +51,10 @@ pub fn handle_reload_key(
     bindings: Res<InputBindings>,
     mut reload_message: MessageWriter<ReloadMessage>,
 ) {
-    if let Some(key) = bindings.warglock.reload {
-        if keyboard.just_pressed(key) {
-            reload_message.write(ReloadMessage);
-        }
+    if let Some(key) = bindings.warglock.reload
+        && keyboard.just_pressed(key)
+    {
+        reload_message.write(ReloadMessage);
     }
 }
 

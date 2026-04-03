@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.518] - 2026-04-03
+
+### Fixed
+- **Brewing progress bar updates in urgent mode** — when you open the cauldron menu while a brew is in progress and urgent mode is on, the progress bar on the HUD now continues updating instead of freezing
+- **Cauldron menu refreshes when a brew finishes** — if a brew completes while the cauldron menu is open in urgent mode, the menu now automatically switches back to the ingredient selection screen so you can start another brew right away
+- **"Brewing in progress" is now centered** — the brewing status message in the cauldron menu is now displayed in the center of the window instead of being stuck in the top-left corner
+
 ## [v0.5.514] - 2026-04-03
 
 ### Added
