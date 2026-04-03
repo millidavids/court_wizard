@@ -11,32 +11,39 @@ use crate::ui::styles::{item_hovered, item_pressed};
 use crate::ui::systems::spawn_title_with_shadow;
 
 use super::components::{
-    ButtonColors, ConfirmationAction, ConfirmationPopup, OnSettingsScreen, OptionButtonValue,
-    ScrollableContainer, SelectedOption, SettingsButtonAction, SliderAdjusted, SliderDownButton,
-    SliderFill, SliderHandle, SliderText, SliderTrack, SliderUpButton, SliderValue,
+    ButtonColors, ConfirmationAction, ConfirmationPopup, KeyBindingButton, KeyBindingText,
+    KeyCaptureAction, KeyCaptureOverlay, KeyCaptureState, OnSettingsScreen, OptionButtonValue,
+    PendingConflict, ResolutionPreset, ResolutionRow, SelectedOption, SettingsButtonAction,
+    SettingsContentContainer, SettingsTab, SettingsTabButton, SettingsTabState, SliderAdjusted,
+    SliderDownButton, SliderFill, SliderHandle, SliderText, SliderTrack, SliderUpButton,
+    SliderValue,
 };
 use super::constants::{
-    BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH, BUTTON_FONT_SIZE,
-    DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, LABEL_FONT_SIZE, MARGIN, MARGIN_SMALL,
-    OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, POPUP_BOX_BG, POPUP_OVERLAY_BG, SECTION_FONT_SIZE,
-    SELECTED_BACKGROUND, SELECTED_BORDER, TEXT_COLOR, TITLE_FONT_SIZE,
+    ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, BUTTON_BACKGROUND, BUTTON_BORDER, BUTTON_BORDER_WIDTH,
+    BUTTON_FONT_SIZE, DANGER_BUTTON_BACKGROUND, DANGER_BUTTON_BORDER, INACTIVE_TAB_BG,
+    LABEL_FONT_SIZE, LOCKED_TEXT_COLOR, LOCKED_TITLE_COLOR, MARGIN, MARGIN_SMALL,
+    OPTION_BUTTON_HEIGHT, OPTION_BUTTON_WIDTH, POPUP_BOX_BG, POPUP_OVERLAY_BG, RESOLUTION_PRESETS,
+    SECTION_FONT_SIZE, SELECTED_BACKGROUND, SELECTED_BORDER, TAB_BORDER_COLOR, TAB_FONT_SIZE,
+    TAB_HEIGHT, TAB_PADDING_H, TEXT_COLOR, TITLE_FONT_SIZE,
 };
+use crate::config::SavedWindowedGeometry;
+use crate::config::input_bindings::{
+    BindingAction, BindingContext, is_bindable_key, key_display_name, key_name,
+};
+use bevy::window::PrimaryWindow;
 
-/// Sets up the settings menu UI.
+/// Sets up the settings menu UI with a tabbed interface.
 ///
-/// Creates a scrollable settings screen with controls for:
-/// - VSync mode (On, Off, Adaptive)
-/// - Audio volumes (Master, Music, SFX)
-/// - Game difficulty (Easy, Normal, Hard)
+/// Creates a settings screen with tabs for Graphics, Audio, Game, and Controls.
+/// Tab content is rebuilt dynamically by `rebuild_settings_content` when the
+/// active tab changes.
 ///
 /// All spawned entities are marked with `OnSettingsScreen` for cleanup.
-///
-/// # Arguments
-///
-/// * `commands` - Bevy command buffer for spawning entities
-/// * `game_config` - Current game configuration
-fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool) {
+fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_menu: bool) {
     use crate::ui::systems::spawn_page_container;
+
+    // Reset to default tab when entering settings
+    tab_state.active_tab = SettingsTab::Graphics;
 
     let content = spawn_page_container(
         &mut commands,
@@ -57,257 +64,71 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
             },
         );
 
-        // Scrollable settings content
+        // Tab bar
         parent
-            .spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    flex_grow: 1.0,
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    overflow: Overflow::scroll_y(),
-                    margin: UiRect::bottom(Val::Px(MARGIN)),
-                    border: UiRect::all(Val::Px(1.0)),
-                    padding: UiRect::all(Val::Px(10.0)),
-                    ..default()
-                },
-                crate::ui::systems::scroll_area_style(),
-                ScrollPosition::default(),
-                ScrollableContainer,
-            ))
-            .with_children(|scroll| {
-                // Graphics Settings Section
-                spawn_section(scroll, "Graphics", |section| {
-                    // VSync Mode
-                    spawn_option_row(section, "VSync:", |buttons| {
-                        spawn_option_button(
-                            buttons,
-                            "On",
-                            OptionButtonValue::VsyncMode(VsyncMode::On),
-                            game_config.vsync == VsyncMode::On,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Off",
-                            OptionButtonValue::VsyncMode(VsyncMode::Off),
-                            game_config.vsync == VsyncMode::Off,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Adaptive",
-                            OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
-                            game_config.vsync == VsyncMode::Adaptive,
-                        );
-                    });
-
-                    // Display Mode
-                    spawn_option_row(section, "Display Mode:", |buttons| {
-                        spawn_option_button(
-                            buttons,
-                            "Windowed",
-                            OptionButtonValue::DisplayMode(DisplayMode::Windowed),
-                            game_config.display_mode == DisplayMode::Windowed,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Fullscreen",
-                            OptionButtonValue::DisplayMode(DisplayMode::BorderlessFullscreen),
-                            game_config.display_mode == DisplayMode::BorderlessFullscreen,
-                        );
-                    });
-                });
-
-                // Audio Settings Section
-                spawn_section(scroll, "Audio", |section| {
-                    spawn_slider_control(
-                        section,
-                        "Master Volume:",
-                        SliderValue::MasterVolume,
-                        &game_config,
-                    );
-                    spawn_slider_control(
-                        section,
-                        "Music Volume:",
-                        SliderValue::MusicVolume,
-                        &game_config,
-                    );
-                    spawn_slider_control(
-                        section,
-                        "SFX Volume:",
-                        SliderValue::SfxVolume,
-                        &game_config,
-                    );
-                });
-
-                // Display Settings Section
-                spawn_section(scroll, "Display", |section| {
-                    spawn_slider_control(
-                        section,
-                        "Brightness:",
-                        SliderValue::UiBrightness,
-                        &game_config,
-                    );
-                });
-
-                // Game Settings Section
-                spawn_section(scroll, "Game", |section| {
-                    spawn_option_row(section, "Skip Splash:", |buttons| {
-                        spawn_option_button(
-                            buttons,
-                            "On",
-                            OptionButtonValue::SkipSplash(true),
-                            game_config.skip_splash,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Off",
-                            OptionButtonValue::SkipSplash(false),
-                            !game_config.skip_splash,
-                        );
-                    });
-
-                    spawn_option_row(section, "Tutorials:", |buttons| {
-                        spawn_option_button(
-                            buttons,
-                            "On",
-                            OptionButtonValue::TutorialsEnabled(true),
-                            game_config.tutorials_enabled,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Off",
-                            OptionButtonValue::TutorialsEnabled(false),
-                            !game_config.tutorials_enabled,
-                        );
-                    });
-
-                    spawn_option_row(section, "Level Clock:", |buttons| {
-                        spawn_option_button(
-                            buttons,
-                            "On",
-                            OptionButtonValue::ShowLevelClock(true),
-                            game_config.show_level_clock,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Off",
-                            OptionButtonValue::ShowLevelClock(false),
-                            !game_config.show_level_clock,
-                        );
-                    });
-
-                    spawn_option_row(section, "Urgent Mode:", |buttons| {
-                        spawn_option_button(
-                            buttons,
-                            "On",
-                            OptionButtonValue::UrgentMode(true),
-                            game_config.urgent_mode,
-                        );
-                        spawn_option_button(
-                            buttons,
-                            "Off",
-                            OptionButtonValue::UrgentMode(false),
-                            !game_config.urgent_mode,
-                        );
-                    });
-
-                    // Reset Tutorials button
-                    section
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Row,
-                            align_items: AlignItems::Center,
-                            column_gap: Val::Px(MARGIN),
-                            ..default()
-                        })
-                        .with_children(|row| {
-                            row.spawn((
-                                Text::new("Reset Tutorials:"),
-                                TextFont::from_font_size(LABEL_FONT_SIZE),
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: Val::Px(4.0),
+                row_gap: Val::Px(4.0),
+                margin: UiRect::bottom(Val::Px(MARGIN)),
+                ..default()
+            })
+            .with_children(|tab_bar| {
+                for &tab in SettingsTab::all() {
+                    let is_active = tab == tab_state.active_tab;
+                    let (bg, border) = if is_active {
+                        (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
+                    } else {
+                        (INACTIVE_TAB_BG, TAB_BORDER_COLOR)
+                    };
+                    tab_bar
+                        .spawn((
+                            Button,
+                            Node {
+                                height: Val::Px(TAB_HEIGHT),
+                                padding: UiRect::horizontal(Val::Px(TAB_PADDING_H)),
+                                border: UiRect::all(Val::Px(2.0)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BackgroundColor(bg),
+                            BorderColor::all(border),
+                            BorderRadius::all(Val::Px(4.0)),
+                            ButtonColors { background: bg },
+                            SettingsTabButton(tab),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text::new(tab.label()),
+                                TextFont::from_font_size(TAB_FONT_SIZE),
                                 TextColor(TEXT_COLOR),
-                                Node {
-                                    width: Val::Px(200.0),
-                                    ..default()
-                                },
                             ));
-
-                            row.spawn((
-                                Button,
-                                Node {
-                                    width: Val::Px(OPTION_BUTTON_WIDTH),
-                                    height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    ..default()
-                                },
-                                BorderColor::all(BUTTON_BORDER),
-                                BorderRadius::all(Val::Px(4.0)),
-                                BackgroundColor(BUTTON_BACKGROUND),
-                                ButtonColors {
-                                    background: BUTTON_BACKGROUND,
-                                },
-                                SettingsButtonAction::ResetTutorials,
-                            ))
-                            .with_children(|button| {
-                                button.spawn((
-                                    Text::new("Reset"),
-                                    TextFont::from_font_size(BUTTON_FONT_SIZE),
-                                    TextColor(TEXT_COLOR),
-                                ));
-                            });
                         });
+                }
+            });
 
-                    // Clear Progress button
-                    section
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Row,
-                            align_items: AlignItems::Center,
-                            column_gap: Val::Px(MARGIN),
-                            ..default()
-                        })
-                        .with_children(|row| {
-                            row.spawn((
-                                Text::new("Clear Progress:"),
-                                TextFont::from_font_size(LABEL_FONT_SIZE),
-                                TextColor(TEXT_COLOR),
-                                Node {
-                                    width: Val::Px(200.0),
-                                    ..default()
-                                },
-                            ));
+        // Scrollable content container (rebuilt by rebuild_settings_content)
+        parent.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                flex_grow: 1.0,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                overflow: Overflow::scroll_y(),
+                margin: UiRect::bottom(Val::Px(MARGIN)),
+                border: UiRect::all(Val::Px(1.0)),
+                padding: UiRect::all(Val::Px(10.0)),
+                ..default()
+            },
+            crate::ui::systems::scroll_area_style(),
+            ScrollPosition::default(),
+            SettingsContentContainer,
+        ));
 
-                            row.spawn((
-                                Button,
-                                Node {
-                                    width: Val::Px(OPTION_BUTTON_WIDTH),
-                                    height: Val::Px(OPTION_BUTTON_HEIGHT),
-                                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    ..default()
-                                },
-                                BorderColor::all(DANGER_BUTTON_BORDER),
-                                BorderRadius::all(Val::Px(4.0)),
-                                BackgroundColor(DANGER_BUTTON_BACKGROUND),
-                                ButtonColors {
-                                    background: DANGER_BUTTON_BACKGROUND,
-                                },
-                                SettingsButtonAction::ClearProgress,
-                            ))
-                            .with_children(|button| {
-                                button.spawn((
-                                    Text::new("Clear"),
-                                    TextFont::from_font_size(BUTTON_FONT_SIZE),
-                                    TextColor(TEXT_COLOR),
-                                ));
-                            });
-                        });
-                });
-            }); // end scrollable container
-
-        // Back button (outside scroll area)
+        // Back button (outside content area)
         parent
             .spawn((
                 Button,
@@ -338,42 +159,1045 @@ fn setup(mut commands: Commands, game_config: Res<GameConfig>, pause_menu: bool)
 }
 
 /// Spawns settings with opaque background (for main menu).
-pub fn setup_main_menu(commands: Commands, game_config: Res<GameConfig>) {
-    setup(commands, game_config, false);
+pub fn setup_main_menu(commands: Commands, tab_state: ResMut<SettingsTabState>) {
+    setup(commands, tab_state, false);
 }
 
 /// Spawns settings with transparent background and GlobalZIndex (for pause menu).
-pub fn setup_pause_menu(commands: Commands, game_config: Res<GameConfig>) {
-    setup(commands, game_config, true);
+pub fn setup_pause_menu(commands: Commands, tab_state: ResMut<SettingsTabState>) {
+    setup(commands, tab_state, true);
 }
 
-/// Helper function to spawn a settings section with a title.
-fn spawn_section(
+// ---------------------------------------------------------------------------
+// Per-tab content spawn functions
+// ---------------------------------------------------------------------------
+
+/// Spawns Graphics tab content: VSync, Display Mode, Resolution, Brightness.
+fn spawn_graphics_tab(
     parent: &mut ChildSpawnerCommands,
-    title: &str,
-    spawn_content: impl FnOnce(&mut ChildSpawnerCommands),
+    game_config: &GameConfig,
+    saved_geometry: &SavedWindowedGeometry,
 ) {
+    let mut wrapper = parent.spawn(Node {
+        width: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        row_gap: Val::Px(MARGIN_SMALL),
+        ..default()
+    });
+    wrapper.with_children(|section| {
+        spawn_option_row(section, "VSync:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::VsyncMode(VsyncMode::On),
+                game_config.vsync == VsyncMode::On,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::VsyncMode(VsyncMode::Off),
+                game_config.vsync == VsyncMode::Off,
+            );
+            spawn_option_button(
+                buttons,
+                "Adaptive",
+                OptionButtonValue::VsyncMode(VsyncMode::Adaptive),
+                game_config.vsync == VsyncMode::Adaptive,
+            );
+        });
+
+        spawn_option_row(section, "Display Mode:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "Windowed",
+                OptionButtonValue::DisplayMode(DisplayMode::Windowed),
+                game_config.display_mode == DisplayMode::Windowed,
+            );
+            spawn_option_button(
+                buttons,
+                "Fullscreen",
+                OptionButtonValue::DisplayMode(DisplayMode::BorderlessFullscreen),
+                game_config.display_mode == DisplayMode::BorderlessFullscreen,
+            );
+        });
+
+        // Resolution (Windowed mode only)
+        section
+            .spawn((
+                ResolutionRow,
+                Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(MARGIN),
+                    ..default()
+                },
+                if game_config.display_mode == DisplayMode::BorderlessFullscreen {
+                    Visibility::Hidden
+                } else {
+                    Visibility::Inherited
+                },
+            ))
+            .with_children(|row| {
+                row.spawn((
+                    Text::new("Resolution:"),
+                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                    Node {
+                        width: Val::Px(200.0),
+                        ..default()
+                    },
+                ));
+                row.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(MARGIN_SMALL),
+                    ..default()
+                })
+                .with_children(|buttons| {
+                    for &(w, h, label) in RESOLUTION_PRESETS {
+                        let is_selected = (saved_geometry.width - w).abs() < 1.0
+                            && (saved_geometry.height - h).abs() < 1.0;
+                        let (bg_color, border_color) = if is_selected {
+                            (SELECTED_BACKGROUND, SELECTED_BORDER)
+                        } else {
+                            (BUTTON_BACKGROUND, BUTTON_BORDER)
+                        };
+                        let mut entity = buttons.spawn((
+                            Button,
+                            Node {
+                                width: Val::Px(OPTION_BUTTON_WIDTH),
+                                height: Val::Px(OPTION_BUTTON_HEIGHT),
+                                border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BorderColor::all(border_color),
+                            BorderRadius::all(Val::Px(4.0)),
+                            BackgroundColor(bg_color),
+                            ButtonColors {
+                                background: bg_color,
+                            },
+                            ResolutionPreset {
+                                width: w,
+                                height: h,
+                            },
+                        ));
+                        if is_selected {
+                            entity.insert(SelectedOption);
+                        }
+                        entity.with_children(|button| {
+                            let font_size = crate::ui::systems::scale_font_by_text_width(
+                                label.len() as f32,
+                                6.0,
+                                12.0,
+                                0.7,
+                                BUTTON_FONT_SIZE,
+                            );
+                            button.spawn((
+                                Text::new(label),
+                                TextFont::from_font_size(font_size),
+                                TextColor(TEXT_COLOR),
+                            ));
+                        });
+                    }
+                });
+            });
+
+        spawn_slider_control(
+            section,
+            "Brightness:",
+            SliderValue::UiBrightness,
+            game_config,
+        );
+    });
+}
+
+/// Spawns Audio tab content: Master, Music, SFX volume sliders.
+fn spawn_audio_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
+    let mut wrapper = parent.spawn(Node {
+        width: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        row_gap: Val::Px(MARGIN_SMALL),
+        ..default()
+    });
+    wrapper.with_children(|section| {
+        spawn_slider_control(
+            section,
+            "Master Volume:",
+            SliderValue::MasterVolume,
+            game_config,
+        );
+        spawn_slider_control(
+            section,
+            "Music Volume:",
+            SliderValue::MusicVolume,
+            game_config,
+        );
+        spawn_slider_control(section, "SFX Volume:", SliderValue::SfxVolume, game_config);
+    });
+}
+
+/// Spawns Game tab content: toggles + reset/clear buttons.
+fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
+    let mut wrapper = parent.spawn(Node {
+        width: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        row_gap: Val::Px(MARGIN_SMALL),
+        ..default()
+    });
+    wrapper.with_children(|section| {
+        spawn_option_row(section, "Skip Splash:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::SkipSplash(true),
+                game_config.skip_splash,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::SkipSplash(false),
+                !game_config.skip_splash,
+            );
+        });
+
+        spawn_option_row(section, "Tutorials:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::TutorialsEnabled(true),
+                game_config.tutorials_enabled,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::TutorialsEnabled(false),
+                !game_config.tutorials_enabled,
+            );
+        });
+
+        spawn_option_row(section, "Level Clock:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::ShowLevelClock(true),
+                game_config.show_level_clock,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::ShowLevelClock(false),
+                !game_config.show_level_clock,
+            );
+        });
+
+        spawn_option_row(section, "Urgent Mode:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::UrgentMode(true),
+                game_config.urgent_mode,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::UrgentMode(false),
+                !game_config.urgent_mode,
+            );
+        });
+
+        // Reset Tutorials button
+        section
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: Val::Px(MARGIN),
+                ..default()
+            })
+            .with_children(|row| {
+                row.spawn((
+                    Text::new("Reset Tutorials:"),
+                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                    Node {
+                        width: Val::Px(200.0),
+                        ..default()
+                    },
+                ));
+
+                row.spawn((
+                    Button,
+                    Node {
+                        width: Val::Px(OPTION_BUTTON_WIDTH),
+                        height: Val::Px(OPTION_BUTTON_HEIGHT),
+                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BorderColor::all(BUTTON_BORDER),
+                    BorderRadius::all(Val::Px(4.0)),
+                    BackgroundColor(BUTTON_BACKGROUND),
+                    ButtonColors {
+                        background: BUTTON_BACKGROUND,
+                    },
+                    SettingsButtonAction::ResetTutorials,
+                ))
+                .with_children(|button| {
+                    button.spawn((
+                        Text::new("Reset"),
+                        TextFont::from_font_size(BUTTON_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                    ));
+                });
+            });
+
+        // Clear Progress button
+        section
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: Val::Px(MARGIN),
+                ..default()
+            })
+            .with_children(|row| {
+                row.spawn((
+                    Text::new("Clear Progress:"),
+                    TextFont::from_font_size(LABEL_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                    Node {
+                        width: Val::Px(200.0),
+                        ..default()
+                    },
+                ));
+
+                row.spawn((
+                    Button,
+                    Node {
+                        width: Val::Px(OPTION_BUTTON_WIDTH),
+                        height: Val::Px(OPTION_BUTTON_HEIGHT),
+                        border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BorderColor::all(DANGER_BUTTON_BORDER),
+                    BorderRadius::all(Val::Px(4.0)),
+                    BackgroundColor(DANGER_BUTTON_BACKGROUND),
+                    ButtonColors {
+                        background: DANGER_BUTTON_BACKGROUND,
+                    },
+                    SettingsButtonAction::ClearProgress,
+                ))
+                .with_children(|button| {
+                    button.spawn((
+                        Text::new("Clear"),
+                        TextFont::from_font_size(BUTTON_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                    ));
+                });
+            });
+    });
+}
+
+/// Spawns Controls tab content: key binding subsections + Reset Controls button.
+/// Locked wizard archetypes show joke text instead of keybindings.
+fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::config::InputBindings) {
+    let unlocked = crate::config::save_data::load_unified_save()
+        .map(|s| s.player.unlocked_content.wizard_types)
+        .unwrap_or_default();
+
+    let is_unlocked = |wizard_debug_name: &str| -> bool {
+        wizard_debug_name == "BoringOleMage" || unlocked.contains(&wizard_debug_name.to_string())
+    };
+
     parent
         .spawn(Node {
             width: Val::Percent(100.0),
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(MARGIN_SMALL),
-            margin: UiRect::vertical(Val::Px(MARGIN)),
             ..default()
         })
         .with_children(|section| {
-            // Section title
-            section.spawn((
-                Text::new(title),
-                TextFont::from_font_size(SECTION_FONT_SIZE),
+            // Universal bindings — always shown
+            spawn_controls_subsection(
+                section,
+                "Universal",
+                bindings,
+                &[
+                    (
+                        "Slot 1:",
+                        BindingContext::Universal,
+                        BindingAction::ActionSlot1,
+                    ),
+                    (
+                        "Slot 2:",
+                        BindingContext::Universal,
+                        BindingAction::ActionSlot2,
+                    ),
+                    (
+                        "Slot 3:",
+                        BindingContext::Universal,
+                        BindingAction::ActionSlot3,
+                    ),
+                    (
+                        "Slot 4:",
+                        BindingContext::Universal,
+                        BindingAction::ActionSlot4,
+                    ),
+                    (
+                        "Slot 5:",
+                        BindingContext::Universal,
+                        BindingAction::ActionSlot5,
+                    ),
+                    (
+                        "Activate:",
+                        BindingContext::Universal,
+                        BindingAction::Activate,
+                    ),
+                ],
+            );
+
+            // Archetype-specific bindings — hidden if locked
+            if is_unlocked("RuneCaster") {
+                spawn_controls_subsection(
+                    section,
+                    "Rune Caster",
+                    bindings,
+                    &[
+                        ("Rune 1:", BindingContext::RuneCaster, BindingAction::Rune1),
+                        ("Rune 2:", BindingContext::RuneCaster, BindingAction::Rune2),
+                        ("Rune 3:", BindingContext::RuneCaster, BindingAction::Rune3),
+                        ("Rune 4:", BindingContext::RuneCaster, BindingAction::Rune4),
+                    ],
+                );
+            } else {
+                spawn_locked_subsection(
+                    section,
+                    "Rune Caster",
+                    "Try pressing some keys on your keyboard...",
+                );
+            }
+
+            if is_unlocked("Battlemage") {
+                spawn_controls_subsection(
+                    section,
+                    "Swordcerer",
+                    bindings,
+                    &[
+                        (
+                            "Forward:",
+                            BindingContext::Battlemage,
+                            BindingAction::MoveForward,
+                        ),
+                        (
+                            "Backward:",
+                            BindingContext::Battlemage,
+                            BindingAction::MoveBackward,
+                        ),
+                        ("Left:", BindingContext::Battlemage, BindingAction::MoveLeft),
+                        (
+                            "Right:",
+                            BindingContext::Battlemage,
+                            BindingAction::MoveRight,
+                        ),
+                    ],
+                );
+            } else {
+                spawn_locked_subsection(
+                    section,
+                    "Swordcerer",
+                    "Get up close and personal to unlock this one.",
+                );
+            }
+
+            if is_unlocked("ArcanoRouter") {
+                spawn_controls_subsection(
+                    section,
+                    "Arcanorouter",
+                    bindings,
+                    &[
+                        (
+                            "Range +:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::RangeUp,
+                        ),
+                        (
+                            "Range -:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::RangeDown,
+                        ),
+                        (
+                            "Mana +:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::ManaUp,
+                        ),
+                        (
+                            "Mana -:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::ManaDown,
+                        ),
+                        (
+                            "Power +:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::PowerUp,
+                        ),
+                        (
+                            "Power -:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::PowerDown,
+                        ),
+                        (
+                            "Speed +:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::SpeedUp,
+                        ),
+                        (
+                            "Speed -:",
+                            BindingContext::ArcanoRouter,
+                            BindingAction::SpeedDown,
+                        ),
+                    ],
+                );
+            } else {
+                spawn_locked_subsection(
+                    section,
+                    "Arcanorouter",
+                    "This wizard has a lot of sliders to slide. Unlock to find out.",
+                );
+            }
+
+            if is_unlocked("Meteorologist") {
+                spawn_controls_subsection(
+                    section,
+                    "Meteorologist",
+                    bindings,
+                    &[
+                        (
+                            "Weather 1:",
+                            BindingContext::Meteorologist,
+                            BindingAction::Weather1,
+                        ),
+                        (
+                            "Weather 2:",
+                            BindingContext::Meteorologist,
+                            BindingAction::Weather2,
+                        ),
+                        (
+                            "Weather 3:",
+                            BindingContext::Meteorologist,
+                            BindingAction::Weather3,
+                        ),
+                    ],
+                );
+            } else {
+                spawn_locked_subsection(
+                    section,
+                    "Meteorologist",
+                    "Forecast says: locked with a chance of unlocking.",
+                );
+            }
+
+            if is_unlocked("Warglock") {
+                spawn_controls_subsection(
+                    section,
+                    "Warglock",
+                    bindings,
+                    &[("Reload:", BindingContext::Warglock, BindingAction::Reload)],
+                );
+            } else {
+                spawn_locked_subsection(section, "Warglock", "Spells are overrated. Find out why.");
+            }
+
+            // Reset Controls button
+            section
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(MARGIN),
+                    margin: UiRect::top(Val::Px(MARGIN)),
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        Text::new("Reset Controls:"),
+                        TextFont::from_font_size(LABEL_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                        Node {
+                            width: Val::Px(200.0),
+                            ..default()
+                        },
+                    ));
+                    row.spawn((
+                        Button,
+                        Node {
+                            width: Val::Px(OPTION_BUTTON_WIDTH),
+                            height: Val::Px(OPTION_BUTTON_HEIGHT),
+                            border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BorderColor::all(BUTTON_BORDER),
+                        BorderRadius::all(Val::Px(4.0)),
+                        BackgroundColor(BUTTON_BACKGROUND),
+                        ButtonColors {
+                            background: BUTTON_BACKGROUND,
+                        },
+                        SettingsButtonAction::ResetControls,
+                    ))
+                    .with_children(|button| {
+                        button.spawn((
+                            Text::new("Reset"),
+                            TextFont::from_font_size(BUTTON_FONT_SIZE),
+                            TextColor(TEXT_COLOR),
+                        ));
+                    });
+                });
+        });
+
+    // NOTE: The rest of this function was the old placeholder. The spawn_controls_subsection
+    // and spawn_key_binding_row helpers are defined below.
+}
+
+fn spawn_controls_subsection(
+    parent: &mut ChildSpawnerCommands,
+    title: &str,
+    bindings: &crate::config::InputBindings,
+    entries: &[(&str, BindingContext, BindingAction)],
+) {
+    parent.spawn((
+        Text::new(title),
+        TextFont::from_font_size(LABEL_FONT_SIZE),
+        TextColor(SELECTED_BORDER),
+        Node {
+            margin: UiRect::top(Val::Px(MARGIN_SMALL)),
+            ..default()
+        },
+    ));
+    for &(label, context, action) in entries {
+        spawn_key_binding_row(
+            parent,
+            label,
+            context,
+            action,
+            bindings.get(context, action),
+        );
+    }
+}
+
+fn spawn_locked_subsection(parent: &mut ChildSpawnerCommands, title: &str, joke: &str) {
+    parent.spawn((
+        Text::new(title),
+        TextFont::from_font_size(LABEL_FONT_SIZE),
+        TextColor(LOCKED_TITLE_COLOR),
+        Node {
+            margin: UiRect::top(Val::Px(MARGIN_SMALL)),
+            ..default()
+        },
+    ));
+    parent.spawn((
+        Text::new(joke),
+        TextFont::from_font_size(LABEL_FONT_SIZE),
+        TextColor(LOCKED_TEXT_COLOR),
+        Node {
+            margin: UiRect::left(Val::Px(20.0)),
+            ..default()
+        },
+    ));
+}
+
+fn spawn_key_binding_row(
+    parent: &mut ChildSpawnerCommands,
+    label: &str,
+    context: BindingContext,
+    action: BindingAction,
+    current_key: Option<KeyCode>,
+) {
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(MARGIN),
+            ..default()
+        })
+        .with_children(|row| {
+            row.spawn((
+                Text::new(label),
+                TextFont::from_font_size(LABEL_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
-                    margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
+                    width: Val::Px(200.0),
                     ..default()
                 },
             ));
+            row.spawn((
+                Button,
+                Node {
+                    width: Val::Px(OPTION_BUTTON_WIDTH),
+                    height: Val::Px(OPTION_BUTTON_HEIGHT),
+                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BorderColor::all(BUTTON_BORDER),
+                BorderRadius::all(Val::Px(4.0)),
+                BackgroundColor(BUTTON_BACKGROUND),
+                ButtonColors {
+                    background: BUTTON_BACKGROUND,
+                },
+                KeyBindingButton { context, action },
+            ))
+            .with_children(|button| {
+                button.spawn((
+                    Text::new(key_display_name(current_key)),
+                    TextFont::from_font_size(BUTTON_FONT_SIZE),
+                    TextColor(TEXT_COLOR),
+                    KeyBindingText { context, action },
+                ));
+            });
+        });
+}
 
-            spawn_content(section);
+/// Opens key capture overlay when a binding button is clicked.
+/// Opens key capture overlay when a binding button is clicked.
+pub fn key_binding_button_action(
+    mut commands: Commands,
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&KeyBindingButton>,
+    mut capture_state: ResMut<KeyCaptureState>,
+    capture_query: Query<&KeyCaptureOverlay>,
+) {
+    if !capture_query.is_empty() {
+        button_clicked.read();
+        return;
+    }
+    for event in button_clicked.read() {
+        if let Ok(binding) = button_query.get(event.button) {
+            capture_state.active = Some(KeyCaptureAction {
+                context: binding.context,
+                action: binding.action,
+                pending_conflict: None,
+            });
+            spawn_capture_overlay(&mut commands);
+        }
+    }
+}
+
+/// Captures key input for rebinding, with unbind and conflict confirmation support.
+pub fn capture_key_input(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut capture_state: ResMut<KeyCaptureState>,
+    overlay_query: Query<Entity, With<KeyCaptureOverlay>>,
+    mut bindings: ResMut<crate::config::InputBindings>,
+) {
+    let Some(ref mut action) = capture_state.active else {
+        return;
+    };
+    let context = action.context;
+    let action_id = action.action;
+
+    // Escape cancels
+    if keyboard.just_pressed(KeyCode::Escape) {
+        capture_state.active = None;
+        for entity in &overlay_query {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
+
+    // Backspace unbinds
+    if keyboard.just_pressed(KeyCode::Backspace) {
+        bindings.set(context, action_id, None);
+        capture_state.active = None;
+        for entity in &overlay_query {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
+
+    let pressed_key = keyboard.get_just_pressed().find(|k| is_bindable_key(**k));
+    let Some(&key) = pressed_key else {
+        return;
+    };
+
+    // Check if confirming a pending conflict (same key pressed again)
+    if let Some(ref pending) = action.pending_conflict {
+        if pending.key == key {
+            // User confirmed — swap: unbind conflicting, bind new
+            bindings.set(
+                pending.conflicting_context,
+                pending.conflicting_action,
+                None,
+            );
+            bindings.set(context, action_id, Some(key));
+            capture_state.active = None;
+            for entity in &overlay_query {
+                commands.entity(entity).despawn();
+            }
+            return;
+        }
+        // Different key — clear pending, fall through to check this new key
+    }
+
+    // Check for conflict
+    if let Some(conflict_display) = bindings.would_conflict(key, context, action_id) {
+        if let Some((conf_ctx, conf_action)) = bindings.find_conflict(key, context, action_id) {
+            // Enter confirmation mode
+            let key_label = key_name(key);
+            action.pending_conflict = Some(PendingConflict {
+                key,
+                conflict_display: conflict_display.clone(),
+                conflicting_context: conf_ctx,
+                conflicting_action: conf_action,
+            });
+            // Respawn overlay with warning
+            for entity in &overlay_query {
+                commands.entity(entity).despawn();
+            }
+            spawn_capture_overlay_with_warning(
+                &mut commands,
+                &format!(
+                    "{key_label} is already bound to {conflict_display}.\nPress {key_label} again to swap, or press another key."
+                ),
+            );
+        }
+        return;
+    }
+
+    // No conflict — apply immediately
+    bindings.set(context, action_id, Some(key));
+    capture_state.active = None;
+    for entity in &overlay_query {
+        commands.entity(entity).despawn();
+    }
+}
+
+/// Returns true when no key capture is active (used as run condition for escape navigation).
+pub fn key_capture_inactive(capture_state: Res<KeyCaptureState>) -> bool {
+    capture_state.active.is_none()
+}
+
+fn spawn_capture_overlay(commands: &mut Commands) {
+    spawn_capture_overlay_inner(commands, None);
+}
+
+fn spawn_capture_overlay_with_warning(commands: &mut Commands, warning: &str) {
+    spawn_capture_overlay_inner(commands, Some(warning));
+}
+
+fn spawn_capture_overlay_inner(commands: &mut Commands, warning: Option<&str>) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                position_type: PositionType::Absolute,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(POPUP_OVERLAY_BG),
+            GlobalZIndex(600),
+            KeyCaptureOverlay,
+            OnSettingsScreen,
+        ))
+        .with_children(|overlay| {
+            overlay
+                .spawn((
+                    Node {
+                        padding: UiRect::all(Val::Px(30.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(MARGIN_SMALL),
+                        ..default()
+                    },
+                    BackgroundColor(POPUP_BOX_BG),
+                    BorderColor::all(SELECTED_BORDER),
+                    BorderRadius::all(Val::Px(8.0)),
+                ))
+                .with_children(|popup| {
+                    if let Some(warning) = warning {
+                        popup.spawn((
+                            Text::new(warning),
+                            TextFont::from_font_size(LABEL_FONT_SIZE),
+                            TextColor(Color::srgb(1.0, 0.3, 0.3)),
+                        ));
+                    } else {
+                        popup.spawn((
+                            Text::new("Press a key..."),
+                            TextFont::from_font_size(SECTION_FONT_SIZE),
+                            TextColor(TEXT_COLOR),
+                        ));
+                    }
+                    popup.spawn((
+                        Text::new("(Backspace to unbind, Escape to cancel)"),
+                        TextFont::from_font_size(LABEL_FONT_SIZE),
+                        TextColor(Color::hsla(0.0, 0.0, 0.5, 1.0)),
+                    ));
+                });
+        });
+}
+
+/// Updates binding button text when InputBindings changes.
+pub fn update_key_binding_text(
+    bindings: Res<crate::config::InputBindings>,
+    mut texts: Query<(&mut Text, &KeyBindingText)>,
+) {
+    if !bindings.is_changed() {
+        return;
+    }
+    for (mut text, binding_text) in &mut texts {
+        let key = bindings.get(binding_text.context, binding_text.action);
+        text.0 = key_display_name(key).to_string();
+    }
+}
+
+/// Handles resolution preset button clicks.
+/// Clears the camera viewport before resizing to avoid wgpu scissor rect crashes.
+pub fn resolution_button_action(
+    mut button_clicked: MessageReader<MouseClicked>,
+    button_query: Query<&ResolutionPreset>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+    mut cameras: Query<&mut Camera, With<Camera3d>>,
+    mut saved_geometry: ResMut<SavedWindowedGeometry>,
+    game_config: Res<GameConfig>,
+) {
+    if game_config.display_mode != DisplayMode::Windowed {
+        button_clicked.read();
+        return;
+    }
+    for event in button_clicked.read() {
+        if let Ok(preset) = button_query.get(event.button) {
+            if let Ok(mut window) = windows.single_mut() {
+                for mut camera in &mut cameras {
+                    camera.viewport = None;
+                }
+                window.resolution.set(preset.width, preset.height);
+                saved_geometry.width = preset.width;
+                saved_geometry.height = preset.height;
+            }
+        }
+    }
+}
+
+/// Updates resolution button highlighting based on current window geometry.
+pub fn update_resolution_selection(
+    mut commands: Commands,
+    saved_geometry: Res<SavedWindowedGeometry>,
+    mut preset_buttons: Query<(
+        Entity,
+        &ResolutionPreset,
+        &mut BackgroundColor,
+        &mut BorderColor,
+    )>,
+) {
+    if !saved_geometry.is_changed() {
+        return;
+    }
+    for (entity, preset, mut bg, mut border) in &mut preset_buttons {
+        let matches = (preset.width - saved_geometry.width).abs() < 1.0
+            && (preset.height - saved_geometry.height).abs() < 1.0;
+        if matches {
+            commands.entity(entity).insert(SelectedOption);
+            *bg = BackgroundColor(SELECTED_BACKGROUND);
+            *border = BorderColor::all(SELECTED_BORDER);
+        } else {
+            commands.entity(entity).remove::<SelectedOption>();
+            *bg = BackgroundColor(BUTTON_BACKGROUND);
+            *border = BorderColor::all(BUTTON_BORDER);
+        }
+    }
+}
+
+/// Shows/hides the resolution row based on display mode.
+pub fn update_resolution_visibility(
+    game_config: Res<GameConfig>,
+    mut resolution_row: Query<&mut Visibility, With<ResolutionRow>>,
+) {
+    if !game_config.is_changed() {
+        return;
+    }
+    for mut vis in &mut resolution_row {
+        *vis = if game_config.display_mode == DisplayMode::Windowed {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab interaction systems
+// ---------------------------------------------------------------------------
+
+/// Handles settings tab button clicks.
+pub fn handle_settings_tab_click(
+    mut button_clicked: MessageReader<MouseClicked>,
+    tab_query: Query<&SettingsTabButton>,
+    mut state: ResMut<SettingsTabState>,
+) {
+    for event in button_clicked.read() {
+        if let Ok(tab_btn) = tab_query.get(event.button)
+            && state.active_tab != tab_btn.0
+        {
+            state.active_tab = tab_btn.0;
+        }
+    }
+}
+
+/// Rebuilds the settings content area when the active tab changes.
+/// Also updates tab button styling.
+#[allow(clippy::too_many_arguments)]
+pub fn rebuild_settings_content(
+    mut commands: Commands,
+    state: Res<SettingsTabState>,
+    game_config: Res<GameConfig>,
+    saved_geometry: Res<SavedWindowedGeometry>,
+    bindings: Res<crate::config::InputBindings>,
+    container_query: Query<Entity, With<SettingsContentContainer>>,
+    tab_buttons: Query<(Entity, &SettingsTabButton)>,
+    mut tab_colors: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+
+    // Update tab button styling
+    for (entity, tab_btn) in &tab_buttons {
+        let is_active = tab_btn.0 == state.active_tab;
+        let (bg, border) = if is_active {
+            (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
+        } else {
+            (INACTIVE_TAB_BG, TAB_BORDER_COLOR)
+        };
+        if let Ok((mut bg_color, mut border_color, mut colors)) = tab_colors.get_mut(entity) {
+            *bg_color = BackgroundColor(bg);
+            *border_color = BorderColor::all(border);
+            colors.background = bg;
+        }
+    }
+
+    // Rebuild content
+    let Ok(container) = container_query.single() else {
+        return;
+    };
+    commands.entity(container).despawn_related::<Children>();
+    commands
+        .entity(container)
+        .with_children(|parent| match state.active_tab {
+            SettingsTab::Graphics => spawn_graphics_tab(parent, &game_config, &saved_geometry),
+            SettingsTab::Audio => spawn_audio_tab(parent, &game_config),
+            SettingsTab::Game => spawn_game_tab(parent, &game_config),
+            SettingsTab::Controls => spawn_controls_tab(parent, &bindings),
         });
 }
 
@@ -688,6 +1512,7 @@ pub fn handle_confirmation_popup(
 }
 
 /// Handles settings button actions when clicked from main menu.
+#[allow(clippy::too_many_arguments)]
 pub fn settings_button_action(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
@@ -695,8 +1520,8 @@ pub fn settings_button_action(
     popup_query: Query<&ConfirmationPopup>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
+    mut bindings: ResMut<crate::config::InputBindings>,
 ) {
-    // Don't process settings buttons while a confirmation popup is open
     if !popup_query.is_empty() {
         button_clicked.read();
         return;
@@ -718,6 +1543,9 @@ pub fn settings_button_action(
                         "Clear all progress? This cannot be undone.",
                     );
                 }
+                SettingsButtonAction::ResetControls => {
+                    *bindings = crate::config::InputBindings::default();
+                }
             }
         }
     }
@@ -730,8 +1558,8 @@ pub fn pause_settings_button_action(
     button_query: Query<&SettingsButtonAction>,
     popup_query: Query<&ConfirmationPopup>,
     mut next_pause_menu_state: ResMut<NextState<PauseMenuState>>,
+    mut bindings: ResMut<crate::config::InputBindings>,
 ) {
-    // Don't process settings buttons while a confirmation popup is open
     if !popup_query.is_empty() {
         button_clicked.read();
         return;
@@ -751,6 +1579,9 @@ pub fn pause_settings_button_action(
                         *action,
                         "Clear all progress? This cannot be undone.",
                     );
+                }
+                SettingsButtonAction::ResetControls => {
+                    *bindings = crate::config::InputBindings::default();
                 }
             }
         }

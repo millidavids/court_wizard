@@ -80,5 +80,6 @@ pub(super) fn steam_api_name(id: AchievementId) -> &'static str {
         AchievementId::ModAll200 => "ACH_MOD_ALL_200",
         AchievementId::ModAllMax => "ACH_MOD_ALL_MAX",
         AchievementId::ModMixedExtremes => "ACH_MOD_MIXED_EXTREMES",
+        AchievementId::Clicker => "ACH_CLICKER",
     }
 }

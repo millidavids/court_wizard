@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use super::components::*;
 use super::constants::*;
+use crate::config::input_bindings::InputBindings;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::wizard::archetypes::arcanorouter::{
     ArcanoRouterState, SliderAdjustMessage, SliderType,
@@ -132,63 +133,55 @@ pub(super) fn update_slider_visuals(
 /// Handles mouse and keyboard input for slider adjustment
 pub(super) fn handle_slider_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut writer: MessageWriter<SliderAdjustMessage>,
 ) {
-    // Keyboard controls: 1-4 to select, arrow keys to adjust
-    // For now, we'll use simple keyboard controls:
-    // Q/A = Range, W/S = Mana, E/D = Power, R/F = Speed
-
     let sensitivity = 10.0; // Change by 10% per key press
 
-    if keyboard.just_pressed(KeyCode::KeyQ) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Range,
-            delta: sensitivity,
-        });
-    }
-    if keyboard.just_pressed(KeyCode::KeyA) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Range,
-            delta: -sensitivity,
-        });
-    }
+    let slider_keys: [(Option<KeyCode>, SliderType, f32); 8] = [
+        (
+            bindings.arcanorouter.range_up,
+            SliderType::Range,
+            sensitivity,
+        ),
+        (
+            bindings.arcanorouter.range_down,
+            SliderType::Range,
+            -sensitivity,
+        ),
+        (bindings.arcanorouter.mana_up, SliderType::Mana, sensitivity),
+        (
+            bindings.arcanorouter.mana_down,
+            SliderType::Mana,
+            -sensitivity,
+        ),
+        (
+            bindings.arcanorouter.power_up,
+            SliderType::Power,
+            sensitivity,
+        ),
+        (
+            bindings.arcanorouter.power_down,
+            SliderType::Power,
+            -sensitivity,
+        ),
+        (
+            bindings.arcanorouter.speed_up,
+            SliderType::Speed,
+            sensitivity,
+        ),
+        (
+            bindings.arcanorouter.speed_down,
+            SliderType::Speed,
+            -sensitivity,
+        ),
+    ];
 
-    if keyboard.just_pressed(KeyCode::KeyW) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Mana,
-            delta: sensitivity,
-        });
-    }
-    if keyboard.just_pressed(KeyCode::KeyS) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Mana,
-            delta: -sensitivity,
-        });
-    }
-
-    if keyboard.just_pressed(KeyCode::KeyE) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Power,
-            delta: sensitivity,
-        });
-    }
-    if keyboard.just_pressed(KeyCode::KeyD) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Power,
-            delta: -sensitivity,
-        });
-    }
-
-    if keyboard.just_pressed(KeyCode::KeyR) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Speed,
-            delta: sensitivity,
-        });
-    }
-    if keyboard.just_pressed(KeyCode::KeyF) {
-        writer.write(SliderAdjustMessage {
-            slider: SliderType::Speed,
-            delta: -sensitivity,
-        });
+    for (key_opt, slider, delta) in slider_keys {
+        if let Some(key) = key_opt {
+            if keyboard.just_pressed(key) {
+                writer.write(SliderAdjustMessage { slider, delta });
+            }
+        }
     }
 }

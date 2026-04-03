@@ -226,6 +226,7 @@ pub(crate) enum AchievementId {
     ModAll200,
     ModAllMax,
     ModMixedExtremes,
+    Clicker,
 }
 
 impl AchievementId {
@@ -292,6 +293,7 @@ impl AchievementId {
             AchievementId::ModAll200,
             AchievementId::ModAllMax,
             AchievementId::ModMixedExtremes,
+            AchievementId::Clicker,
         ]
     }
 
@@ -357,6 +359,7 @@ impl AchievementId {
             AchievementId::ModAll200 => "mod_all_200",
             AchievementId::ModAllMax => "mod_all_max",
             AchievementId::ModMixedExtremes => "mod_mixed_extremes",
+            AchievementId::Clicker => "clicker",
         }
     }
 
@@ -422,6 +425,7 @@ impl AchievementId {
             AchievementId::ModAll200 => "Overachiever",
             AchievementId::ModAllMax => "Absolute Madness",
             AchievementId::ModMixedExtremes => "Glass Cannon",
+            AchievementId::Clicker => "Clicker",
         }
     }
 
@@ -455,6 +459,7 @@ impl AchievementId {
             AchievementId::ModEnemyCount300 => Some("Grants: 25 Arcane Insight"),
             AchievementId::ModAll200 => Some("Grants: 50 Arcane Insight"),
             AchievementId::ModAllMax => Some("Grants: 100 Arcane Insight"),
+            AchievementId::Clicker => Some("Grants: 50 Arcane Insight"),
             _ => None,
         }
     }
@@ -479,6 +484,7 @@ impl AchievementId {
             AchievementId::ModEnemyCount300 => 25,
             AchievementId::ModAll200 => 50,
             AchievementId::ModAllMax => 100,
+            AchievementId::Clicker => 50,
             _ => 0,
         }
     }
@@ -588,6 +594,9 @@ impl AchievementId {
             }
             AchievementId::ModMixedExtremes => {
                 "Completed a roguelite run with one modifier maxed and another at minimum."
+            }
+            AchievementId::Clicker => {
+                "Won a roguelite run using only your mouse, with no option to press a key."
             }
         }
     }

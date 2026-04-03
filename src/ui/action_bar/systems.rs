@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use super::messages::AssignSpellToSlot;
+use crate::config::input_bindings::{InputBindings, key_display_name};
 use crate::config::{ConfigChanged, GameConfig, WizardType};
 use crate::game::components::OnGameplayScreen;
 use crate::game::input::messages::{ActionBarKeyPressed, MouseClicked};
@@ -44,6 +45,7 @@ pub(super) fn clear_blocked_action_bar_spells(mut config: ResMut<GameConfig>) {
 pub(super) fn spawn_action_bar(
     mut commands: Commands,
     config: Res<GameConfig>,
+    bindings: Res<InputBindings>,
     icon_assets: Res<SpellIconAssets>,
 ) {
     commands
@@ -70,8 +72,17 @@ pub(super) fn spawn_action_bar(
                     let is_gunslinger = config.wizard_type == WizardType::Warglock;
                     let guns = GunType::all();
 
+                    let slot_bindings: [Option<KeyCode>; 5] = [
+                        bindings.universal.action_slot_1,
+                        bindings.universal.action_slot_2,
+                        bindings.universal.action_slot_3,
+                        bindings.universal.action_slot_4,
+                        bindings.universal.action_slot_5,
+                    ];
+
                     for slot in 0..5 {
-                        let hotkey_label = &(slot + 1).to_string();
+                        let hotkey_label =
+                            &key_display_name(slot_bindings[slot as usize]).to_string();
 
                         // For gunslinger, show gun names instead of spells
                         let (slot_name, has_icon, icon_handle): (
@@ -351,6 +362,7 @@ pub(super) fn handle_debug_mana_click(
 pub(super) fn highlight_keyboard_pressed_slots(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut slots: Query<(
         Entity,
         &ActionBarSlot,
@@ -360,20 +372,22 @@ pub(super) fn highlight_keyboard_pressed_slots(
         Has<KeyboardHighlighted>,
     )>,
 ) {
-    const KEYS: [KeyCode; 5] = [
-        KeyCode::Digit1,
-        KeyCode::Digit2,
-        KeyCode::Digit3,
-        KeyCode::Digit4,
-        KeyCode::Digit5,
+    let keys: [Option<KeyCode>; 5] = [
+        bindings.universal.action_slot_1,
+        bindings.universal.action_slot_2,
+        bindings.universal.action_slot_3,
+        bindings.universal.action_slot_4,
+        bindings.universal.action_slot_5,
     ];
 
     for (entity, slot, colors, mut bg, mut border, is_highlighted) in &mut slots {
         let slot_idx = slot.slot as usize;
-        if slot_idx >= KEYS.len() {
+        if slot_idx >= keys.len() {
             continue;
         }
-        let pressed = keyboard.pressed(KEYS[slot_idx]);
+
+        // Unbound slots are never highlighted
+        let pressed = keys[slot_idx].is_some_and(|key| keyboard.pressed(key));
 
         if pressed && !is_highlighted {
             commands.entity(entity).insert(KeyboardHighlighted);

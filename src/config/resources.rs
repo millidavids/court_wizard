@@ -23,6 +23,9 @@ pub(crate) struct ConfigFile {
     pub audio: AudioConfig,
     /// Game configuration settings (includes all user preferences)
     pub game: GameConfig,
+    /// Input key bindings
+    #[serde(default)]
+    pub controls: super::input_bindings::InputBindings,
 }
 
 /// VSync (vertical synchronization) mode options.

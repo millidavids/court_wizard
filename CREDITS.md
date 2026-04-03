@@ -24,7 +24,6 @@ This game is written in [Rust](https://www.rust-lang.org/), a language empowerin
 This project uses the following open-source libraries (via Cargo dependencies):
 
 - **Bevy** - Game engine (MIT OR Apache-2.0)
-- **wasm-bindgen** - Rust/WASM interop (MIT OR Apache-2.0)
 
 For complete license information, see the `Cargo.lock` file which lists all dependencies and their versions.
 
@@ -45,5 +44,3 @@ All character and unit sprites are from the **Liberated Pixel Cup (LPC)** projec
 ---
 
 This game is open source under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
-
-While the source code is freely available, the game may display advertisements when hosted online.

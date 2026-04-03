@@ -259,6 +259,13 @@ impl Plugin for AchievementsPlugin {
                 systems::check_roguelite_modifier_achievements
                     .run_if(on_message::<BattleEndedMessage>),
             )
+            // Clicker — win roguelite run with all keybindings unbound (mouse only)
+            .add_systems(
+                Update,
+                systems::check_clicker
+                    .run_if(on_message::<BattleEndedMessage>)
+                    .run_if(achievement_locked::<ClickerAchievement>),
+            )
             // Reset all achievements when progress is cleared
             .add_systems(
                 Update,

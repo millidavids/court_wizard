@@ -6,10 +6,13 @@
 use bevy::prelude::*;
 
 use crate::state::PauseMenuState;
-use crate::ui::main_menu::settings::components::ScrollableContainer;
+use crate::ui::main_menu::settings::components::SettingsContentContainer;
 use crate::ui::main_menu::settings::systems::{
-    button_hover, button_press, handle_confirmation_popup, option_button_action,
-    pause_settings_button_action, setup_pause_menu, slider_button_action, slider_interaction,
+    button_hover, button_press, capture_key_input, handle_confirmation_popup,
+    handle_settings_tab_click, key_binding_button_action, key_capture_inactive,
+    option_button_action, pause_settings_button_action, rebuild_settings_content,
+    resolution_button_action, setup_pause_menu, slider_button_action, slider_interaction,
+    update_key_binding_text, update_resolution_selection, update_resolution_visibility,
     update_selected_options, update_slider_text, update_sliders,
 };
 use crate::ui::plugin::ButtonActionSet;
@@ -37,6 +40,9 @@ impl Plugin for PauseSettingsPlugin {
                     pause_settings_button_action,
                     option_button_action,
                     slider_button_action,
+                    handle_settings_tab_click,
+                    key_binding_button_action,
+                    resolution_button_action,
                 )
                     .in_set(ButtonActionSet)
                     .run_if(in_state(PauseMenuState::Settings)),
@@ -44,8 +50,8 @@ impl Plugin for PauseSettingsPlugin {
             .add_systems(
                 Update,
                 (
-                    escape_to_pause_main,
-                    handle_scroll::<ScrollableContainer>,
+                    escape_to_pause_main.run_if(key_capture_inactive),
+                    handle_scroll::<SettingsContentContainer>,
                     button_hover,
                     button_press,
                     slider_interaction,
@@ -53,6 +59,11 @@ impl Plugin for PauseSettingsPlugin {
                     update_sliders,
                     update_selected_options,
                     handle_confirmation_popup,
+                    rebuild_settings_content,
+                    capture_key_input,
+                    update_key_binding_text,
+                    update_resolution_selection,
+                    update_resolution_visibility,
                 )
                     .run_if(in_state(PauseMenuState::Settings)),
             );

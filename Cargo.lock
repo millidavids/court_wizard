@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "court_wizard"
-version = "0.5.513"
+version = "0.5.514"
 dependencies = [
  "anyhow",
  "arboard",
@@ -1996,6 +1996,7 @@ dependencies = [
  "crossbeam-channel",
  "data-encoding",
  "dirs",
+ "image",
  "iroh",
  "rand 0.8.5",
  "serde",
@@ -2004,6 +2005,7 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "winit",
 ]
 
 [[package]]

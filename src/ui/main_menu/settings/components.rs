@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::config::input_bindings::{BindingAction, BindingContext};
 use crate::config::{DisplayMode, VsyncMode};
 
 /// Marker component for entities that belong to the settings screen.
@@ -10,10 +11,6 @@ use crate::config::{DisplayMode, VsyncMode};
 /// This is used by both main menu and pause menu settings.
 #[derive(Component)]
 pub struct OnSettingsScreen;
-
-/// Marker component for the scrollable container in settings.
-#[derive(Component)]
-pub struct ScrollableContainer;
 
 /// Identifies which config option a button series controls.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Component)]
@@ -67,6 +64,8 @@ pub enum SettingsButtonAction {
     ResetTutorials,
     /// Button to clear all game progress
     ClearProgress,
+    /// Button to reset all key bindings to defaults
+    ResetControls,
 }
 
 /// Colors for different button states.
@@ -202,3 +201,92 @@ pub enum ConfirmationAction {
 /// Message sent when any slider is adjusted (buttons, drag, or track click).
 #[derive(Message)]
 pub struct SliderAdjusted;
+
+/// Settings tab categories.
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsTab {
+    #[default]
+    Graphics,
+    Audio,
+    Game,
+    Controls,
+}
+
+impl SettingsTab {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Graphics => "Graphics",
+            Self::Audio => "Audio",
+            Self::Game => "Game",
+            Self::Controls => "Controls",
+        }
+    }
+
+    pub fn all() -> &'static [SettingsTab] {
+        &[Self::Graphics, Self::Audio, Self::Game, Self::Controls]
+    }
+}
+
+/// Tracks which settings tab is active.
+#[derive(Resource, Default)]
+pub(crate) struct SettingsTabState {
+    pub active_tab: SettingsTab,
+}
+
+/// Identifies a settings tab button.
+#[derive(Component)]
+pub(crate) struct SettingsTabButton(pub SettingsTab);
+
+/// Marker for the settings content container that gets rebuilt on tab switch.
+#[derive(Component)]
+pub(crate) struct SettingsContentContainer;
+
+/// Identifies a resolution preset button.
+#[derive(Component, Clone, Copy, PartialEq)]
+pub(crate) struct ResolutionPreset {
+    pub width: f32,
+    pub height: f32,
+}
+
+/// Marker for the resolution row container so it can be hidden in fullscreen mode.
+#[derive(Component)]
+pub(crate) struct ResolutionRow;
+
+/// Identifies a rebindable key button.
+#[derive(Component, Clone, Copy)]
+pub(crate) struct KeyBindingButton {
+    pub context: BindingContext,
+    pub action: BindingAction,
+}
+
+/// Marker for key binding button text that shows the current key.
+#[derive(Component, Clone, Copy)]
+pub(crate) struct KeyBindingText {
+    pub context: BindingContext,
+    pub action: BindingAction,
+}
+
+/// Marker for the key capture overlay.
+#[derive(Component)]
+pub(crate) struct KeyCaptureOverlay;
+
+/// State tracking which binding is currently being captured.
+#[derive(Resource, Default)]
+pub(crate) struct KeyCaptureState {
+    pub active: Option<KeyCaptureAction>,
+}
+
+/// Tracks the in-progress key capture with optional conflict confirmation.
+pub(crate) struct KeyCaptureAction {
+    pub context: BindingContext,
+    pub action: BindingAction,
+    pub pending_conflict: Option<PendingConflict>,
+}
+
+/// Tracks a pending conflict that needs user confirmation.
+pub(crate) struct PendingConflict {
+    pub key: KeyCode,
+    pub conflict_display: String,
+    pub conflicting_context: BindingContext,
+    pub conflicting_action: BindingAction,
+}

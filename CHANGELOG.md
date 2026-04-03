@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.514] - 2026-04-03
+
+### Added
+- **Tabbed settings menu** — the settings screen is now organized into four tabs: Graphics, Audio, Game, and Controls. Click a tab to switch between pages instead of scrolling through one long list
+- **Resolution selection** — a new row in the Graphics tab lets you pick from common windowed resolutions (720p, 900p, 1080p, 1440p, 4K). Only available in windowed mode
+- **Key rebinding** — every gameplay keybind can now be reassigned in the Controls tab. Click a key, then press the key you want to assign. Bindings are saved between sessions
+- **Unbind keys** — press Backspace during key capture to remove a binding entirely. Unbound keys show as "-" in the controls list and action bar
+- **Key conflict warnings** — if you try to bind a key that's already in use, you'll see a red warning showing what it conflicts with. Press the key again to confirm the swap
+- **Window icon** — the game now shows its logo in the Windows taskbar and title bar instead of a blank icon
+- **Save on exit** — your progress is now saved when closing the game via Alt+F4 or the window close button, so you won't lose recent changes
+- **New achievement** — a hidden achievement has been added for players who really like clicking
+
+### Changed
+- **Wizard renamed** — the Gunslinger wizard is now called the Warglock
+- **Locked wizard controls are hidden** — the Controls tab only shows key bindings for wizards you've unlocked. Locked wizards show a hint instead
+- **Brightness moved to Graphics tab** — the brightness slider is now in the Graphics tab alongside VSync, display mode, and resolution
+- **Credits updated** — removed outdated references to web-only libraries and features
+
 ## [v0.5.513] - 2026-04-02
 
 ### Changed

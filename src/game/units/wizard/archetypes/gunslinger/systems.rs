@@ -6,6 +6,7 @@ use super::constants;
 use super::messages::{ReloadMessage, SelectGunMessage};
 use super::resources::{FlamethrowerSfx, GunState};
 use crate::config::GameConfig;
+use crate::config::input_bindings::InputBindings;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::SPELL_ORIGIN;
 use crate::game::crt_effect::CorrectedCursorPosition;
@@ -44,13 +45,16 @@ pub fn process_gun_selection(
     }
 }
 
-/// Handle R key for manual reload.
+/// Handle reload key for manual reload.
 pub fn handle_reload_key(
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut reload_message: MessageWriter<ReloadMessage>,
 ) {
-    if keyboard.just_pressed(KeyCode::KeyR) {
-        reload_message.write(ReloadMessage);
+    if let Some(key) = bindings.warglock.reload {
+        if keyboard.just_pressed(key) {
+            reload_message.write(ReloadMessage);
+        }
     }
 }
 

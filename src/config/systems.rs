@@ -100,6 +100,7 @@ pub(super) fn load_and_apply_config(
     game_config.efficiency_ratios = std::collections::HashMap::new();
 
     commands.insert_resource(game_config);
+    commands.insert_resource(config_file.controls);
 
     // ConfigFile is now discarded - GameConfig is the source of truth
 }
@@ -297,6 +298,18 @@ pub(super) fn detect_game_config_changes(
     config_changed.write(ConfigChanged);
 }
 
+/// Detects InputBindings changes and triggers config save.
+pub(super) fn detect_input_bindings_changes(
+    bindings: Res<super::input_bindings::InputBindings>,
+    mut config_changed: MessageWriter<ConfigChanged>,
+) {
+    if !bindings.is_changed() {
+        return;
+    }
+
+    config_changed.write(ConfigChanged);
+}
+
 /// Unified debounce trigger for ALL config changes.
 ///
 /// This system listens for the ConfigChanged message and resets the
@@ -334,12 +347,14 @@ pub(super) fn mark_save_on_config_changed(
 /// * `debounce_timer` - Debounce timer resource
 /// * `windows` - Query for the primary window
 /// * `game_config` - Game configuration resource
+#[allow(clippy::too_many_arguments)]
 pub(super) fn save_config_on_debounce_timer(
     time: Res<Time>,
     mut debounce_timer: ResMut<SaveDebounceTimer>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
     saved_geometry: Res<SavedWindowedGeometry>,
+    input_bindings: Res<super::input_bindings::InputBindings>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
@@ -350,14 +365,13 @@ pub(super) fn save_config_on_debounce_timer(
     debounce_timer.timer.tick(time.delta());
 
     if debounce_timer.timer.is_finished() {
-        let is_roguelite =
-            crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
-        persist_config(
+        persist_current_state(
             &game_config,
             &active_save,
             &saved_geometry,
-            get_window_position(&windows),
-            is_roguelite,
+            &input_bindings,
+            &game_mode,
+            &windows,
         );
         debounce_timer.pending = false;
     }
@@ -365,20 +379,14 @@ pub(super) fn save_config_on_debounce_timer(
 
 /// Manual save trigger (bypasses debounce).
 ///
-/// This system listens for SaveConfigMessage messages and immediately
-/// saves the current state to disk, bypassing the debounce timer.
-/// Useful for critical saves (e.g., on app quit).
-///
-/// # Arguments
-///
-/// * `save_events` - Message reader for save config events
-/// * `windows` - Query for the primary window
-/// * `game_config` - Game configuration resource
+/// Listens for SaveConfigMessage and immediately saves + flushes to disk.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn save_config_on_event(
     mut save_events: MessageReader<SaveConfigMessage>,
     game_config: Res<GameConfig>,
     active_save: Res<ActiveSave>,
     saved_geometry: Res<SavedWindowedGeometry>,
+    input_bindings: Res<super::input_bindings::InputBindings>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
@@ -386,16 +394,14 @@ pub(super) fn save_config_on_event(
         return;
     }
 
-    let is_roguelite = crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
-    persist_config(
+    persist_current_state(
         &game_config,
         &active_save,
         &saved_geometry,
-        get_window_position(&windows),
-        is_roguelite,
+        &input_bindings,
+        &game_mode,
+        &windows,
     );
-
-    // Force-flush the save cache to disk immediately on manual save
     save_data::flush_save_cache();
 }
 
@@ -409,16 +415,38 @@ pub(super) fn periodic_save_flush(time: Res<Time>, mut timer: Local<Option<Timer
     }
 }
 
+/// Resolves current game state and persists config + save data to disk.
+fn persist_current_state(
+    game_config: &GameConfig,
+    active_save: &ActiveSave,
+    saved_geometry: &SavedWindowedGeometry,
+    input_bindings: &super::input_bindings::InputBindings,
+    game_mode: &Option<Res<crate::game::game_mode::components::GameMode>>,
+    windows: &Query<&BevyWindow, With<PrimaryWindow>>,
+) {
+    let is_roguelite = crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
+    persist_config(
+        game_config,
+        active_save,
+        saved_geometry,
+        input_bindings,
+        get_window_position(windows),
+        is_roguelite,
+    );
+}
+
 /// Builds a ConfigFile from current state, serializes to TOML, and saves to disk.
 fn persist_config(
     game_config: &GameConfig,
     active_save: &ActiveSave,
     saved_geometry: &SavedWindowedGeometry,
+    input_bindings: &super::input_bindings::InputBindings,
     window_pos: Option<IVec2>,
     is_roguelite: bool,
 ) {
     // Build ConfigFile from current state
-    let config_file = build_config_from_game_config(game_config, saved_geometry, window_pos);
+    let config_file =
+        build_config_from_game_config(game_config, saved_geometry, input_bindings, window_pos);
 
     // Serialize and save
     match toml::to_string_pretty(&config_file) {
@@ -439,10 +467,41 @@ fn persist_config(
     save_data::save_config_to_active_wizard(game_config, active_save, is_roguelite);
 }
 
+/// Flushes all pending saves to disk when the app is exiting.
+///
+/// Catches Alt+F4, window close, and explicit exit to prevent data loss.
+/// Runs in `Last` so it executes after the exit message is written.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn save_on_exit(
+    mut exit_events: MessageReader<AppExit>,
+    game_config: Res<GameConfig>,
+    active_save: Res<ActiveSave>,
+    saved_geometry: Res<SavedWindowedGeometry>,
+    input_bindings: Res<super::input_bindings::InputBindings>,
+    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
+    windows: Query<&BevyWindow, With<PrimaryWindow>>,
+) {
+    if exit_events.read().count() == 0 {
+        return;
+    }
+
+    info!("App exiting — flushing saves to disk");
+    persist_current_state(
+        &game_config,
+        &active_save,
+        &saved_geometry,
+        &input_bindings,
+        &game_mode,
+        &windows,
+    );
+    save_data::flush_save_cache();
+}
+
 /// Builds a temporary ConfigFile from current GameConfig for serialization.
 fn build_config_from_game_config(
     game_config: &GameConfig,
     saved_geometry: &SavedWindowedGeometry,
+    input_bindings: &super::input_bindings::InputBindings,
     window_pos: Option<IVec2>,
 ) -> ConfigFile {
     let window_config = WindowConfig {
@@ -465,5 +524,6 @@ fn build_config_from_game_config(
         window: window_config,
         audio: audio_config,
         game: game_config.clone(),
+        controls: input_bindings.clone(),
     }
 }

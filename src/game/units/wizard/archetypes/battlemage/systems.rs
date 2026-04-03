@@ -4,6 +4,7 @@ use super::constants::*;
 use super::messages::*;
 use super::resources::{BattlemageAssets, BattlemagePhase, BattlemageState};
 use crate::config::GameConfig;
+use crate::config::input_bindings::InputBindings;
 use crate::game::components::{Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::crt_effect::CorrectedCursorPosition;
@@ -83,6 +84,7 @@ pub(super) fn handle_retreat(
 pub(super) fn player_movement(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut avatar_query: Query<
         (&mut Transform, &mut Velocity, &MovementSpeed),
         With<BattlemageAvatar>,
@@ -99,17 +101,25 @@ pub(super) fn player_movement(
 
     // Calculate input direction
     let mut input = Vec2::ZERO;
-    if keyboard.pressed(KeyCode::KeyW) {
-        input.y -= 1.0; // -Z is "forward" toward the battlefield
+    if let Some(key) = bindings.battlemage.move_forward {
+        if keyboard.pressed(key) {
+            input.y -= 1.0; // -Z is "forward" toward the battlefield
+        }
     }
-    if keyboard.pressed(KeyCode::KeyS) {
-        input.y += 1.0;
+    if let Some(key) = bindings.battlemage.move_backward {
+        if keyboard.pressed(key) {
+            input.y += 1.0;
+        }
     }
-    if keyboard.pressed(KeyCode::KeyA) {
-        input.x -= 1.0;
+    if let Some(key) = bindings.battlemage.move_left {
+        if keyboard.pressed(key) {
+            input.x -= 1.0;
+        }
     }
-    if keyboard.pressed(KeyCode::KeyD) {
-        input.x += 1.0;
+    if let Some(key) = bindings.battlemage.move_right {
+        if keyboard.pressed(key) {
+            input.x += 1.0;
+        }
     }
 
     let input_normalized = if input.length_squared() > 0.0 {

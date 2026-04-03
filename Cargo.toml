@@ -1,6 +1,6 @@
 [package]
 name = "court_wizard"
-version = "0.5.513"
+version = "0.5.514"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
@@ -74,6 +74,8 @@ crossbeam-channel = "0.5"
 bytes = "1"
 arboard = "3"
 data-encoding = "2"
+image = { version = "0.25", default-features = false, features = ["png"] }
+winit = { version = "0.30", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bevy = { version = "0.17.3", default-features = false, features = ["x11", "wayland"] }

@@ -7,6 +7,7 @@ use super::constants::*;
 use super::messages::WeatherChangedMessage;
 use super::resources::{WeatherState, WeatherType};
 use crate::config::GameConfig;
+use crate::config::input_bindings::InputBindings;
 use crate::game::components::OnGameplayScreen;
 use crate::game::units::components::{
     Corpse, ElectricCharge, Health, TemporaryHitPoints, apply_damage_to_unit,
@@ -67,22 +68,29 @@ pub fn reset_weather_state(mut weather: ResMut<WeatherState>) {
     *weather = WeatherState::default();
 }
 
-/// Handles Q/W/E key input to change weather.
+/// Handles weather key input to change weather.
 pub fn handle_weather_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut weather: ResMut<WeatherState>,
     mut mana_query: Query<&mut Mana, With<Wizard>>,
     mut writer: MessageWriter<WeatherChangedMessage>,
 ) {
-    let requested = if keyboard.just_pressed(KeyCode::KeyQ) {
-        Some(WeatherType::Storm)
-    } else if keyboard.just_pressed(KeyCode::KeyW) {
-        Some(WeatherType::Blizzard)
-    } else if keyboard.just_pressed(KeyCode::KeyE) {
-        Some(WeatherType::Drought)
-    } else {
-        None
-    };
+    let weather_keys: [(Option<KeyCode>, WeatherType); 3] = [
+        (bindings.meteorologist.weather_1, WeatherType::Storm),
+        (bindings.meteorologist.weather_2, WeatherType::Blizzard),
+        (bindings.meteorologist.weather_3, WeatherType::Drought),
+    ];
+
+    let mut requested = None;
+    for (key_opt, weather_type) in weather_keys {
+        if let Some(key) = key_opt {
+            if keyboard.just_pressed(key) {
+                requested = Some(weather_type);
+                break;
+            }
+        }
+    }
 
     let Some(requested) = requested else { return };
 

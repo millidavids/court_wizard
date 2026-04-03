@@ -189,7 +189,6 @@ pub fn tick_rock_lifetime(time: Res<Time>, mut rocks: Query<(&mut Boulder, &mut 
             // Sink from sprite position down to underground
             let base_y = BOULDER_SPRITE_HEIGHT / 2.0 - BOULDER_GROUND_CLIP;
             transform.translation.y = base_y * (1.0 - sink_progress);
-
         }
     }
 }

@@ -12,6 +12,7 @@ use super::{
     },
     messages::*,
 };
+use crate::config::input_bindings::InputBindings;
 use crate::game::crt_effect::CorrectedCursorPosition;
 
 /// Clears all mouse input state to prevent stale events from carrying across state transitions.
@@ -99,36 +100,39 @@ pub fn detect_mouse_input(
 /// Archetype-specific inputs are handled by `detect_rune_input` and `detect_roulette_input`.
 pub fn detect_keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut spacebar_pressed: MessageWriter<SpacebarPressed>,
     mut spacebar_held: MessageWriter<SpacebarHeld>,
     mut spacebar_released: MessageWriter<SpacebarReleased>,
     mut action_bar_pressed: MessageWriter<ActionBarKeyPressed>,
 ) {
-    // Check spacebar state
-    if keyboard.just_pressed(KeyCode::Space) {
-        spacebar_pressed.write(SpacebarPressed);
+    // Check activate key state
+    if let Some(activate_key) = bindings.universal.activate {
+        if keyboard.just_pressed(activate_key) {
+            spacebar_pressed.write(SpacebarPressed);
+        }
+        if keyboard.pressed(activate_key) {
+            spacebar_held.write(SpacebarHeld);
+        }
+        if keyboard.just_released(activate_key) {
+            spacebar_released.write(SpacebarReleased);
+        }
     }
 
-    if keyboard.pressed(KeyCode::Space) {
-        spacebar_held.write(SpacebarHeld);
-    }
-
-    if keyboard.just_released(KeyCode::Space) {
-        spacebar_released.write(SpacebarReleased);
-    }
-
-    // Check number keys 1-5 (for slots 0-4 in action bar)
-    const NUMBER_KEYS: [(KeyCode, u8); 5] = [
-        (KeyCode::Digit1, 0),
-        (KeyCode::Digit2, 1),
-        (KeyCode::Digit3, 2),
-        (KeyCode::Digit4, 3),
-        (KeyCode::Digit5, 4),
+    // Check action bar keys 1-5 (for slots 0-4), skipping unbound entries
+    let slot_keys: [Option<KeyCode>; 5] = [
+        bindings.universal.action_slot_1,
+        bindings.universal.action_slot_2,
+        bindings.universal.action_slot_3,
+        bindings.universal.action_slot_4,
+        bindings.universal.action_slot_5,
     ];
 
-    for (key_code, slot) in NUMBER_KEYS {
-        if keyboard.just_pressed(key_code) {
-            action_bar_pressed.write(ActionBarKeyPressed { slot });
+    for (slot, key_opt) in slot_keys.iter().enumerate() {
+        if let Some(key_code) = key_opt {
+            if keyboard.just_pressed(*key_code) {
+                action_bar_pressed.write(ActionBarKeyPressed { slot: slot as u8 });
+            }
         }
     }
 }
@@ -138,6 +142,7 @@ pub fn detect_keyboard_input(
 /// This system is gated to only run when the active wizard type is RuneCaster.
 pub fn detect_rune_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut rune_pressed: MessageWriter<
         crate::game::units::wizard::archetypes::runes::messages::RunePressed,
     >,
@@ -145,56 +150,65 @@ pub fn detect_rune_input(
         crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
     >,
 ) {
-    // Spacebar activates rune sequence
-    if keyboard.just_pressed(KeyCode::Space) {
-        rune_activate
-            .write(crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence);
+    // Activate key triggers rune sequence
+    if let Some(activate_key) = bindings.universal.activate {
+        if keyboard.just_pressed(activate_key) {
+            rune_activate.write(
+                crate::game::units::wizard::archetypes::runes::messages::ActivateRuneSequence,
+            );
+        }
     }
 
-    // Check rune keys Q, W, E, R
-    const RUNE_KEYS: [(
-        KeyCode,
+    // Check rune keys, skipping unbound entries
+    let rune_keys: [(
+        Option<KeyCode>,
         crate::game::units::wizard::archetypes::runes::resources::Rune,
     ); 4] = [
         (
-            KeyCode::KeyQ,
+            bindings.rune_caster.rune_1,
             crate::game::units::wizard::archetypes::runes::resources::Rune::Q,
         ),
         (
-            KeyCode::KeyW,
+            bindings.rune_caster.rune_2,
             crate::game::units::wizard::archetypes::runes::resources::Rune::W,
         ),
         (
-            KeyCode::KeyE,
+            bindings.rune_caster.rune_3,
             crate::game::units::wizard::archetypes::runes::resources::Rune::E,
         ),
         (
-            KeyCode::KeyR,
+            bindings.rune_caster.rune_4,
             crate::game::units::wizard::archetypes::runes::resources::Rune::R,
         ),
     ];
 
-    for (key_code, rune) in RUNE_KEYS {
-        if keyboard.just_pressed(key_code) {
-            rune_pressed.write(
-                crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune },
-            );
+    for (key_opt, rune) in rune_keys {
+        if let Some(key_code) = key_opt {
+            if keyboard.just_pressed(key_code) {
+                rune_pressed.write(
+                    crate::game::units::wizard::archetypes::runes::messages::RunePressed { rune },
+                );
+            }
         }
     }
 }
 
-/// Detects spacebar press to trigger a roulette spin for the Randomancer archetype.
+/// Detects activate key press to trigger a roulette spin for the Randomancer archetype.
 ///
 /// This system is gated to only run when the active wizard type is Randomancer.
 pub fn detect_roulette_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    bindings: Res<InputBindings>,
     mut spin_message: MessageWriter<
         crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
     >,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
-        spin_message
-            .write(crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage);
+    if let Some(activate_key) = bindings.universal.activate {
+        if keyboard.just_pressed(activate_key) {
+            spin_message.write(
+                crate::game::units::wizard::archetypes::roulette::messages::RouletteSpinMessage,
+            );
+        }
     }
 }
 

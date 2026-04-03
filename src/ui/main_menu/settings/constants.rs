@@ -57,3 +57,32 @@ pub const POPUP_OVERLAY_BG: Color = OVERLAY_BG;
 
 /// Confirmation popup box background.
 pub const POPUP_BOX_BG: Color = Color::hsla(220.0, 0.08, 0.12, 1.0);
+
+/// Tab button height.
+pub const TAB_HEIGHT: f32 = 36.0;
+/// Tab horizontal padding.
+pub const TAB_PADDING_H: f32 = 14.0;
+/// Tab font size.
+pub const TAB_FONT_SIZE: f32 = 16.0;
+/// Active tab background.
+pub const ACTIVE_TAB_BG: Color = Color::srgba(0.2, 0.2, 0.25, 0.8);
+/// Inactive tab background.
+pub const INACTIVE_TAB_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.6);
+/// Active tab border.
+pub const ACTIVE_TAB_BORDER: Color = Color::srgba(0.5, 0.5, 0.6, 0.8);
+/// Tab border color.
+pub const TAB_BORDER_COLOR: Color = Color::srgba(0.3, 0.3, 0.35, 0.6);
+
+/// Locked/unavailable section title color.
+pub const LOCKED_TITLE_COLOR: Color = Color::hsla(0.0, 0.0, 0.5, 1.0);
+/// Locked/unavailable section body text color.
+pub const LOCKED_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.45, 1.0);
+
+/// Available windowed resolution presets (16:9 only).
+pub const RESOLUTION_PRESETS: &[(f32, f32, &str)] = &[
+    (1280.0, 720.0, "720p"),
+    (1600.0, 900.0, "900p"),
+    (1920.0, 1080.0, "1080p"),
+    (2560.0, 1440.0, "1440p"),
+    (3840.0, 2160.0, "4K"),
+];

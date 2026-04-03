@@ -127,6 +127,7 @@ achievement_resource!(ModAllMinAch, AchievementId::ModAllMin);
 achievement_resource!(ModAll200Ach, AchievementId::ModAll200);
 achievement_resource!(ModAllMaxAch, AchievementId::ModAllMax);
 achievement_resource!(ModMixedExtremesAch, AchievementId::ModMixedExtremes);
+achievement_resource!(ClickerAchievement, AchievementId::Clicker);
 
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
@@ -237,6 +238,7 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(ModAll200Ach(false));
     commands.insert_resource(ModAllMaxAch(false));
     commands.insert_resource(ModMixedExtremesAch(false));
+    commands.insert_resource(ClickerAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -313,4 +315,5 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(ModAll200Ach);
     init!(ModAllMaxAch);
     init!(ModMixedExtremesAch);
+    init!(ClickerAchievement);
 }

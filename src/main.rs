@@ -3,6 +3,7 @@ use bevy::camera::{ClearColorConfig, Viewport};
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, Window, WindowPlugin, WindowResolution};
+use bevy::winit::WinitWindows;
 
 mod config;
 mod crash_handler;
@@ -81,7 +82,14 @@ fn main() {
     .insert_resource(ClearColor(Color::BLACK));
 
     app.add_systems(Startup, setup)
-        .add_systems(Update, (enforce_aspect_ratio, apply_global_brightness))
+        .add_systems(
+            Update,
+            (
+                enforce_aspect_ratio,
+                apply_global_brightness,
+                set_window_icon.run_if(run_once),
+            ),
+        )
         .run();
 }
 
@@ -200,6 +208,31 @@ fn setup(mut commands: Commands) {
         GlobalZIndex(1000), // On top of everything
         Pickable::IGNORE,   // Don't block pointer events
     ));
+}
+
+/// Sets the window icon from the embedded logo image.
+///
+/// Uses the `image` crate to decode the PNG and `winit` to apply it.
+/// If it fails for any reason, the game continues with the default icon.
+fn set_window_icon(windows: Option<NonSend<WinitWindows>>) {
+    let Some(windows) = windows else {
+        warn!("WinitWindows not available, skipping window icon");
+        return;
+    };
+    let icon_bytes = include_bytes!("../assets/images/logos/logo.png");
+    let Ok(image) = image::load_from_memory(icon_bytes) else {
+        warn!("Failed to decode window icon image");
+        return;
+    };
+    let rgba = image.into_rgba8();
+    let (width, height) = rgba.dimensions();
+    let Ok(icon) = winit::window::Icon::from_rgba(rgba.into_raw(), width, height) else {
+        warn!("Failed to create window icon");
+        return;
+    };
+    for window in windows.windows.values() {
+        window.set_window_icon(Some(icon.clone()));
+    }
 }
 
 /// Applies global brightness setting via overlay opacity.
