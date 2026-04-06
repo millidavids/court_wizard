@@ -30,8 +30,17 @@ pub const fn tree_radius_for_variant(sprite_index: u8) -> f32 {
     }
 }
 
-/// Hit points for a tree. Destroyed only by fire damage.
-pub const TREE_HEALTH: f32 = 150.0;
+/// Fire damage per second dealt by a burning tree to units inside.
+pub const BURNING_TREE_DPS: f32 = 15.0;
+
+/// Tick interval for burning tree fire damage (seconds).
+pub const BURNING_TREE_TICK_INTERVAL: f32 = 0.5;
+
+/// Interval between fire smoke emissions from burning trees (seconds).
+pub const BURNING_TREE_SMOKE_INTERVAL: f32 = 0.3;
+
+/// Interval between spark emissions from burning trees (seconds).
+pub const BURNING_TREE_SPARK_INTERVAL: f32 = 0.8;
 
 /// Base number of trees spawned per level (before terrain density scaling).
 pub const TREE_BASE_COUNT_MIN: u32 = 3;

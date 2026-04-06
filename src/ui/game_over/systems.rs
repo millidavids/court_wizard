@@ -150,7 +150,10 @@ pub(super) fn save_crystals_on_victory(
 pub(super) fn save_terrain_on_victory(
     game_outcome: Res<GameOutcome>,
     mut config: ResMut<GameConfig>,
-    trees: Query<&crate::game::terrain::tree::components::Tree>,
+    trees: Query<
+        &crate::game::terrain::tree::components::Tree,
+        Without<crate::game::terrain::tree::components::BurningTree>,
+    >,
     ponds: Query<&crate::game::terrain::pond::components::Pond>,
     bushes: Query<
         &crate::game::terrain::bush::components::Bush,

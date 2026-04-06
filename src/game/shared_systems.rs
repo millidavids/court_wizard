@@ -1,5 +1,12 @@
 use bevy::audio::Volume;
+use bevy::mesh::MeshVertexBufferLayoutRef;
+use bevy::pbr::{MaterialPipeline, MaterialPipelineKey};
 use bevy::prelude::*;
+use bevy::render::alpha::AlphaMode;
+use bevy::render::render_resource::{
+    AsBindGroup, CompareFunction, RenderPipelineDescriptor, SpecializedMeshPipelineError,
+};
+use bevy::shader::ShaderRef;
 
 use crate::config::GameConfig;
 
@@ -350,13 +357,53 @@ pub fn update_crowd_ambience(
     }
 }
 
+// --- Shadow material ---
+
+/// Material for ground shadows that prevents overlapping shadows from compounding.
+///
+/// Uses depth writing with strict `Greater` comparison so the first shadow drawn
+/// at a pixel claims the depth — subsequent shadows at the same depth fail the
+/// test and are discarded. This ensures overlapping shadows produce a single
+/// uniform darkened area instead of stacking.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub struct ShadowMaterial {
+    #[uniform(0)]
+    pub color: LinearRgba,
+}
+
+impl Material for ShadowMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/shadow.wgsl".into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::Blend
+    }
+
+    fn specialize(
+        _pipeline: &MaterialPipeline,
+        descriptor: &mut RenderPipelineDescriptor,
+        _layout: &MeshVertexBufferLayoutRef,
+        _key: MaterialPipelineKey<Self>,
+    ) -> Result<(), SpecializedMeshPipelineError> {
+        // Enable depth writing so the first shadow at a pixel "claims" it.
+        // Use strict Greater (not GreaterEqual) so shadows at the same depth
+        // don't stack — only the first one drawn passes.
+        if let Some(depth_stencil) = descriptor.depth_stencil.as_mut() {
+            depth_stencil.depth_write_enabled = true;
+            depth_stencil.depth_compare = CompareFunction::Greater;
+        }
+        Ok(())
+    }
+}
+
 // --- Unit shadow system ---
 
 /// Shared shadow mesh and material for all units.
 #[derive(Resource)]
 pub struct ShadowAssets {
     pub mesh: Handle<Mesh>,
-    pub material: Handle<StandardMaterial>,
+    pub material: Handle<ShadowMaterial>,
 }
 
 /// Base shadow circle radius (half of sprite width / 2).
@@ -369,14 +416,11 @@ const SHADOW_Y: f32 = 1.5;
 pub fn preload_shadow_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<ShadowMaterial>>,
 ) {
     let mesh = meshes.add(Circle::new(SHADOW_BASE_RADIUS));
-    let material = materials.add(StandardMaterial {
-        base_color: Color::srgba(0.0, 0.0, 0.0, 0.35),
-        alpha_mode: AlphaMode::Blend,
-        unlit: true,
-        ..default()
+    let material = materials.add(ShadowMaterial {
+        color: LinearRgba::new(0.0, 0.0, 0.0, 0.35),
     });
     commands.insert_resource(ShadowAssets { mesh, material });
 }

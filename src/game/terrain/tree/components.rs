@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 /// A tree obstacle on the battlefield. Impassable AND blocks all projectiles.
-/// Destroyed only by fire spells. Persists between levels.
+/// Flammable — catches fire from fire spells, burns for the rest of the battle.
+/// Burning trees are excluded from save and disappear next level.
 #[derive(Component)]
 pub struct Tree {
     /// Center position in world space.
@@ -101,4 +102,13 @@ impl Tree {
             .iter()
             .any(|tree| tree.line_segment_intersects(from, to).is_some())
     }
+}
+
+/// Marker for a tree that has caught fire.
+/// Burns for the rest of the battle, dealing fire damage to units inside.
+/// Burning trees are excluded from save and disappear next level.
+#[derive(Component)]
+pub struct BurningTree {
+    /// Tick timer for periodic fire damage.
+    pub tick_timer: f32,
 }

@@ -29,6 +29,7 @@ use crate::game::terrain::bush::BushPlugin;
 use crate::game::terrain::flora::FloraPlugin;
 use crate::game::terrain::pond::PondPlugin;
 use crate::game::terrain::tree::TreePlugin;
+use crate::game::terrain::wind_sway::WindSwayPlugin;
 
 /// Plugin that coordinates all unit-related sub-plugins.
 ///
@@ -62,7 +63,7 @@ impl Plugin for UnitsPlugin {
                 BossPlugin,
                 KingPlugin,
             ))
-            .add_plugins((BushPlugin, FloraPlugin, PondPlugin, TreePlugin))
+            .add_plugins((BushPlugin, FloraPlugin, PondPlugin, TreePlugin, WindSwayPlugin))
             .configure_sets(
                 Update,
                 (MovementCalculationSet, ApplyTransformsSet)

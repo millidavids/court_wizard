@@ -6,8 +6,11 @@ use super::resources::BushAssets;
 use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::shared_systems::{ShadowAssets, spawn_terrain_shadow};
+use crate::game::terrain::utils::{
+    BURNING_VEGETATION_TINT, emit_burning_vfx, should_ignite_from_fire,
+};
+use crate::game::terrain::wind_sway::material::WindSwayMaterial;
 use crate::game::units::components::{Corpse, Health, RoughTerrainModifier};
-use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Spawns a single bush at the given position with a size multiplier.
@@ -68,7 +71,7 @@ pub fn apply_bush_slow(
     }
 }
 
-/// Ignites bushes hit by fire spell explosions or disintegrate beams. Once burning, they stay on fire.
+/// Ignites bushes hit by fire spell explosions or disintegrate beams.
 #[allow(clippy::too_many_arguments)]
 pub fn ignite_bushes_from_fire(
     mut commands: Commands,
@@ -79,74 +82,39 @@ pub fn ignite_bushes_from_fire(
     >,
     beams: Query<&crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam>,
     bush_assets: Res<BushAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<WindSwayMaterial>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
-    let xz_distance = |a: Vec3, b: Vec3| -> f32 {
-        let dx = a.x - b.x;
-        let dz = a.z - b.z;
-        (dx * dx + dz * dz).sqrt()
-    };
-
     for (entity, bush) in &bushes {
-        let mut should_ignite = false;
-
-        // Check fireball explosions
-        for explosion in &explosions {
-            if explosion.damage_per_tick > 0.0
-                && xz_distance(explosion.origin, bush.center)
-                    <= explosion.current_radius() + bush.radius
-            {
-                should_ignite = true;
-                break;
-            }
+        if !should_ignite_from_fire(
+            bush.center,
+            bush.radius,
+            &explosions,
+            &meteor_explosions,
+            &beams,
+        ) {
+            continue;
         }
 
-        // Check meteor explosions
-        if !should_ignite {
-            for explosion in &meteor_explosions {
-                if !explosion.damage_applied
-                    && xz_distance(explosion.origin, bush.center)
-                        <= explosion.max_radius + bush.radius
-                {
-                    should_ignite = true;
-                    break;
-                }
-            }
+        commands
+            .entity(entity)
+            .insert(BurningBush { tick_timer: 0.0 });
+
+        let idx = (bush.sprite_index as usize).min(BUSH_SPRITE_COUNT - 1);
+        if let Some(shared_mat) = materials.get(&bush_assets.materials[idx]) {
+            let mut tinted = shared_mat.clone();
+            tinted.base_color = BURNING_VEGETATION_TINT.to_linear();
+            let new_mat = materials.add(tinted);
+            commands.entity(entity).insert(MeshMaterial3d(new_mat));
         }
 
-        // Check disintegrate beams
-        if !should_ignite {
-            for beam in &beams {
-                if beam.contains_point_with_radius(bush.center, bush.radius) {
-                    should_ignite = true;
-                    break;
-                }
-            }
-        }
-
-        if should_ignite {
-            commands
-                .entity(entity)
-                .insert(BurningBush { tick_timer: 0.0 });
-
-            // Clone per-instance so tinting one bush doesn't affect others
-            let idx = (bush.sprite_index as usize).min(BUSH_SPRITE_COUNT - 1);
-            if let Some(shared_mat) = materials.get(&bush_assets.materials[idx]) {
-                let mut tinted = shared_mat.clone();
-                tinted.base_color = BURNING_BUSH_TINT;
-                let new_mat = materials.add(tinted);
-                commands.entity(entity).insert(MeshMaterial3d(new_mat));
-            }
-
-            let center_xz = Vec2::new(bush.center.x, bush.center.z);
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_half_size(center_xz, Vec2::splat(bush.radius)),
-                obstacle_type: ObstacleType::SlowTerrain(BURNING_BUSH_FLOW_COST),
-                shape: Some(ObstacleShape::circle(center_xz, bush.radius)),
-                rebuild: false,
-            });
-        }
+        let center_xz = Vec2::new(bush.center.x, bush.center.z);
+        obstacle_events.write(ObstacleChanged {
+            bounds: Rect::from_center_half_size(center_xz, Vec2::splat(bush.radius)),
+            obstacle_type: ObstacleType::SlowTerrain(BURNING_BUSH_FLOW_COST),
+            shape: Some(ObstacleShape::circle(center_xz, bush.radius)),
+            rebuild: false,
+        });
     }
 }
 
@@ -214,24 +182,18 @@ pub fn emit_burning_bush_vfx(
     }
 
     for bush in &burning_bushes {
-        if emit_smoke {
-            vfx::systems::spawn_fire_orange_smoke(
-                &mut commands,
-                &visual_assets,
-                Vec3::new(bush.center.x, 0.0, bush.center.z),
-                bush.radius,
-                2,
-                t + bush.center.x * 0.1,
-            );
-        }
-        if emit_sparks {
-            vfx::systems::spawn_fire_sparks(
-                &mut commands,
-                &visual_assets,
-                Vec3::new(bush.center.x, 5.0, bush.center.z),
-                3,
-                t + bush.center.z * 0.1,
-            );
-        }
+        emit_burning_vfx(
+            &mut commands,
+            &visual_assets,
+            bush.center.x,
+            bush.center.z,
+            BUSH_SPRITE_HEIGHT,
+            bush.radius,
+            2,
+            2,
+            t,
+            emit_smoke,
+            emit_sparks,
+        );
     }
 }

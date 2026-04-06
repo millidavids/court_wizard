@@ -1,5 +1,3 @@
-use bevy::prelude::*;
-
 use crate::game::constants::UNIT_SCALE;
 
 // Sprite sheet (bush_tiles.png: 10 sprites in a row, each 32x32 pixels)
@@ -24,9 +22,6 @@ pub const BURNING_BUSH_DPS: f32 = 15.0;
 
 /// Tick interval for burning bush fire damage (seconds).
 pub const BURNING_BUSH_TICK_INTERVAL: f32 = 0.5;
-
-/// Orange tint overlay applied to burning bushes (keeps sprite visible underneath).
-pub const BURNING_BUSH_TINT: Color = Color::srgba(1.0, 0.55, 0.25, 1.0);
 
 /// Flow field cost for burning bush cells (hazardous — strongly avoided).
 pub const BURNING_BUSH_FLOW_COST: f32 = 15.0;

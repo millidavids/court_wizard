@@ -24,7 +24,7 @@ use super::resources::{
     BattleInsightData, CurrentLevel, GameOutcome, KillStats, RetryTracker, WaveState,
 };
 use super::seeded_rng::SeededRngPlugin;
-use super::shared_systems;
+use super::shared_systems::{self, ShadowMaterial};
 use super::systems;
 use super::units::UnitsPlugin;
 use super::units::boss::hags::systems as hags_systems;
@@ -119,6 +119,7 @@ impl Plugin for GamePlugin {
                 CrtEffectPlugin,
                 TalentsPlugin,
                 SeededRngPlugin,
+                MaterialPlugin::<ShadowMaterial>::default(),
             ))
             .add_systems(
                 Startup,

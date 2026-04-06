@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.604] - 2026-04-06
+
+### Added
+- **Wind sway on vegetation** — trees, bushes, and flowers now gently sway in the wind, giving the battlefield a more alive feel without requiring sprite animation
+- **Trees catch fire** — fire spells now ignite trees just like bushes. Burning trees stay on fire for the rest of the battle and are gone the next level
+- **Burning trees deal damage** — standing inside a burning tree hurts just like a burning bush
+
+### Changed
+- **Shadows no longer stack** — overlapping shadows from units and terrain now blend into one uniform darkened area instead of getting darker where they overlap
+- **Fire and smoke cover the full sprite** — burning trees and bushes now emit fire and smoke particles across their entire height instead of just at the base
+
 ## [v0.5.597] - 2026-04-05
 
 ### Added

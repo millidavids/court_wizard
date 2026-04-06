@@ -1,11 +1,17 @@
 use bevy::prelude::*;
 
-use super::components::Tree;
+use super::components::{BurningTree, Tree};
 use super::constants::*;
 use super::resources::TreeAssets;
-use crate::game::components::{Billboard, ObstacleHealth, OnGameplayScreen};
+use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::shared_systems::{ShadowAssets, spawn_terrain_shadow};
+use crate::game::terrain::utils::{
+    BURNING_VEGETATION_TINT, emit_burning_vfx, should_ignite_from_fire,
+};
+use crate::game::terrain::wind_sway::material::WindSwayMaterial;
+use crate::game::units::components::Corpse;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Spawns a single tree at the given position with a size multiplier.
 pub(in crate::game) fn spawn_single_tree(
@@ -34,7 +40,6 @@ pub(in crate::game) fn spawn_single_tree(
             height,
             sprite_index,
         },
-        ObstacleHealth::new(TREE_HEALTH * scale),
         Billboard,
         OnGameplayScreen,
     ));
@@ -50,64 +55,120 @@ pub(in crate::game) fn spawn_single_tree(
     });
 }
 
-/// Destroys trees that have lost all health.
-pub fn destroy_dead_trees(
+/// Ignites trees hit by fire spell explosions or disintegrate beams.
+#[allow(clippy::too_many_arguments)]
+pub fn ignite_trees_from_fire(
     mut commands: Commands,
-    trees: Query<(Entity, &Tree, &ObstacleHealth)>,
-    mut obstacle_events: MessageWriter<ObstacleChanged>,
-) {
-    for (entity, tree, health) in &trees {
-        if health.is_dead() {
-            // Remove from pathfinding
-            let center_xz = Vec2::new(tree.center.x, tree.center.z);
-            obstacle_events.write(ObstacleChanged {
-                bounds: Rect::from_center_half_size(center_xz, Vec2::splat(tree.radius)),
-                obstacle_type: ObstacleType::Removed,
-                shape: Some(ObstacleShape::circle(center_xz, tree.radius)),
-                rebuild: false,
-            });
-
-            commands.entity(entity).try_despawn();
-        }
-    }
-}
-
-/// Applies fire spell AoE damage to trees (only fire damage destroys them).
-pub fn apply_spell_damage_to_trees(
-    mut trees: Query<(&Tree, &mut ObstacleHealth)>,
+    trees: Query<(Entity, &Tree), Without<BurningTree>>,
     explosions: Query<&crate::game::units::wizard::spells::fireball::components::FireballExplosion>,
     meteor_explosions: Query<
         &crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion,
     >,
+    beams: Query<&crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam>,
+    tree_assets: Res<TreeAssets>,
+    mut materials: ResMut<Assets<WindSwayMaterial>>,
 ) {
-    let xz_distance = |a: Vec3, b: Vec3| -> f32 {
-        let dx = a.x - b.x;
-        let dz = a.z - b.z;
-        (dx * dx + dz * dz).sqrt()
-    };
-
-    for (tree, mut health) in &mut trees {
-        if health.is_dead() {
+    for (entity, tree) in &trees {
+        if !should_ignite_from_fire(
+            tree.center,
+            tree.radius,
+            &explosions,
+            &meteor_explosions,
+            &beams,
+        ) {
             continue;
         }
 
-        // Fireball explosions
-        for explosion in &explosions {
-            if explosion.damage_per_tick > 0.0
-                && xz_distance(explosion.origin, tree.center)
-                    <= explosion.current_radius() + tree.radius
-            {
-                health.take_damage(explosion.damage_per_tick);
-            }
-        }
+        commands
+            .entity(entity)
+            .insert(BurningTree { tick_timer: 0.0 });
 
-        // Meteor explosions
-        for explosion in &meteor_explosions {
-            if !explosion.damage_applied
-                && xz_distance(explosion.origin, tree.center) <= explosion.max_radius + tree.radius
-            {
-                health.take_damage(explosion.damage);
+        let idx = (tree.sprite_index as usize).min(TREE_SPRITE_COUNT - 1);
+        if let Some(shared_mat) = materials.get(&tree_assets.materials[idx]) {
+            let mut tinted = shared_mat.clone();
+            tinted.base_color = BURNING_VEGETATION_TINT.to_linear();
+            let new_mat = materials.add(tinted);
+            commands.entity(entity).insert(MeshMaterial3d(new_mat));
+        }
+    }
+}
+
+/// Burning trees deal periodic fire damage to units inside them.
+pub fn apply_burning_tree_damage(
+    time: Res<Time>,
+    mut burning_trees: Query<(&Tree, &mut BurningTree)>,
+    mut units: Query<
+        (
+            &Transform,
+            &mut crate::game::units::components::Health,
+            Option<&mut crate::game::units::components::TemporaryHitPoints>,
+        ),
+        Without<Corpse>,
+    >,
+) {
+    let delta = time.delta_secs();
+
+    for (tree, mut burning) in &mut burning_trees {
+        burning.tick_timer += delta;
+        if burning.tick_timer < BURNING_TREE_TICK_INTERVAL {
+            continue;
+        }
+        burning.tick_timer -= BURNING_TREE_TICK_INTERVAL;
+
+        let damage = BURNING_TREE_DPS * BURNING_TREE_TICK_INTERVAL;
+
+        for (transform, mut health, mut temp_hp) in &mut units {
+            let dx = transform.translation.x - tree.center.x;
+            let dz = transform.translation.z - tree.center.z;
+            if dx * dx + dz * dz <= tree.radius * tree.radius {
+                crate::game::units::components::apply_damage_to_unit(
+                    &mut health,
+                    temp_hp.as_deref_mut(),
+                    damage,
+                );
             }
         }
+    }
+}
+
+/// Emits fire smoke and spark particles from burning trees.
+pub fn emit_burning_tree_vfx(
+    mut commands: Commands,
+    burning_trees: Query<&Tree, With<BurningTree>>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut smoke_timer: Local<f32>,
+    mut spark_timer: Local<f32>,
+) {
+    let delta = time.delta_secs();
+    let t = time.elapsed_secs();
+
+    *smoke_timer += delta;
+    *spark_timer += delta;
+
+    let emit_smoke = *smoke_timer >= BURNING_TREE_SMOKE_INTERVAL;
+    let emit_sparks = *spark_timer >= BURNING_TREE_SPARK_INTERVAL;
+
+    if emit_smoke {
+        *smoke_timer -= BURNING_TREE_SMOKE_INTERVAL;
+    }
+    if emit_sparks {
+        *spark_timer -= BURNING_TREE_SPARK_INTERVAL;
+    }
+
+    for tree in &burning_trees {
+        emit_burning_vfx(
+            &mut commands,
+            &visual_assets,
+            tree.center.x,
+            tree.center.z,
+            tree.height,
+            tree.radius,
+            3,
+            3,
+            t,
+            emit_smoke,
+            emit_sparks,
+        );
     }
 }
