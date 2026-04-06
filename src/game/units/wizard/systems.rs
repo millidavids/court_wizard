@@ -199,17 +199,8 @@ pub fn track_spell_casts_for_rotation(
 /// Each kill restores a fixed amount of mana.
 pub fn mana_on_kill(
     mut kill_events: MessageReader<crate::game::achievements::messages::EnemyKilledMessage>,
-    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     mut wizards: Query<&mut Mana, With<Wizard>>,
 ) {
-    if !active_toggles.as_ref().is_some_and(|t| {
-        t.is_active(crate::game::game_mode::components::ToggleModifier::ManaDrought)
-    }) {
-        // Drain events to avoid stale messages, even when toggle is off
-        kill_events.read().for_each(drop);
-        return;
-    }
-
     let kill_count = kill_events.read().count();
     if kill_count == 0 {
         return;

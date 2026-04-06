@@ -40,7 +40,10 @@ impl Plugin for TeleportPlugin {
                     any_exist::<TeleportDestinationCircle>()
                         .or(any_exist::<TeleportSourceCircle>()),
                 ),
-                systems::cleanup_teleport_on_spell_switch,
+                systems::cleanup_teleport_on_spell_switch.run_if(
+                    any_exist::<TeleportDestinationCircle>()
+                        .or(any_exist::<TeleportSourceCircle>()),
+                ),
             )
                 .run_if(is_spell_effects_active),
         );

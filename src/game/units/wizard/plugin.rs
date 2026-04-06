@@ -31,8 +31,15 @@ impl Plugin for WizardPlugin {
                 Update,
                 (
                     systems::regenerate_mana.run_if(is_not_warglock),
-                    systems::mana_on_kill
-                        .run_if(resource_exists::<crate::game::game_mode::components::ActiveToggles>),
+                    systems::mana_on_kill.run_if(
+                        |toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>| {
+                            toggles.as_ref().is_some_and(|t| {
+                                t.is_active(
+                                    crate::game::game_mode::components::ToggleModifier::ManaDrought,
+                                )
+                            })
+                        },
+                    ),
                     systems::reset_empowerment_after_cast,
                     systems::apply_wizard_stats_to_primed_spell,
                 )
