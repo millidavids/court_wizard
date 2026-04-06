@@ -29,6 +29,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 
@@ -669,7 +670,9 @@ pub(super) fn check_meteor_collisions(
         ),
         Without<MeteorProjectile>,
     >,
+    active_toggles: Option<Res<ActiveToggles>>,
 ) {
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     for (entity, transform, projectile) in projectiles.iter() {
         let projectile_pos = transform.translation;
 
@@ -796,7 +799,8 @@ pub(super) fn check_meteor_collisions(
                 let fire_damage = GROUND_FIRE_DAMAGE
                     * projectile.empowerment
                     * projectile.ground_fire_damage_mult;
-                let fire_duration = GROUND_FIRE_DURATION * projectile.ground_fire_duration_mult;
+                let fire_duration =
+                    GROUND_FIRE_DURATION * projectile.ground_fire_duration_mult * scorched_mult;
 
                 let mut ground_fire = MeteorGroundFire::new(
                     Vec3::new(pos.x, 0.0, pos.z),

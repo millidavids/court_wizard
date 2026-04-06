@@ -4,6 +4,7 @@ use super::components::*;
 use super::constants::*;
 use crate::config::input_bindings::InputBindings;
 use crate::game::components::OnGameplayScreen;
+use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::units::wizard::archetypes::arcanorouter::{
     ArcanoRouterState, SliderAdjustMessage, SliderType,
 };
@@ -29,7 +30,7 @@ fn slider_label(slider_type: SliderType) -> &'static str {
 }
 
 /// Spawns the Arcanorouter display with 4 vertical sliders
-pub(super) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<ArcanoRouterState>) {
+pub(crate) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<ArcanoRouterState>) {
     // Root container - absolute positioned at bottom center
     commands
         .spawn((
@@ -43,6 +44,7 @@ pub(super) fn spawn_arcanorouter_display(mut commands: Commands, state: Res<Arca
             },
             OnGameplayScreen,
             ArcanoRouterDisplay,
+            ArchetypeUI,
         ))
         .with_children(|parent| {
             // Container for all sliders

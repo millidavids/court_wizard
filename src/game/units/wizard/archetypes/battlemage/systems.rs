@@ -7,6 +7,7 @@ use crate::config::GameConfig;
 use crate::config::input_bindings::InputBindings;
 use crate::game::components::{Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::WIZARD_POSITION;
+use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::units::components::{
@@ -557,7 +558,7 @@ pub(super) fn despawn_health_bar(
 }
 
 /// Spawns the "Enter the Fray" button UI at the bottom center of the screen.
-pub(super) fn spawn_enter_fray_button(mut commands: Commands) {
+pub(crate) fn spawn_enter_fray_button(mut commands: Commands) {
     commands
         .spawn((
             Node {
@@ -570,6 +571,7 @@ pub(super) fn spawn_enter_fray_button(mut commands: Commands) {
             },
             EnterFrayRoot,
             OnGameplayScreen,
+            ArchetypeUI,
         ))
         .with_children(|parent| {
             parent

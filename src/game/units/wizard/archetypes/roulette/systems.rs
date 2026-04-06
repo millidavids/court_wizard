@@ -13,7 +13,7 @@ pub fn handle_spin_trigger(
     mut state: ResMut<RouletteState>,
 ) {
     for _ in messages.read() {
-        if matches!(state.phase, RoulettePhase::Idle) {
+        if matches!(state.phase, RoulettePhase::Idle | RoulettePhase::Selected { .. }) {
             let mut rng = rand::thread_rng();
             let result_index = rng.gen_range(0..state.wheel_spells.len());
             state.phase = RoulettePhase::Spinning {
@@ -74,15 +74,23 @@ pub fn update_spin(
 pub fn reset_after_cast(
     mut state: ResMut<RouletteState>,
     wizard_query: Query<&CastingState, (With<Wizard>, Changed<CastingState>)>,
+    mouse: Res<ButtonInput<MouseButton>>,
 ) {
     if !matches!(state.phase, RoulettePhase::Selected { .. }) {
         return;
     }
 
+    // Reset when CastingState changes to Casting/Channeling (spells with cast times)
     for casting_state in &wizard_query {
-        if matches!(casting_state, CastingState::Resting) {
+        if !matches!(casting_state, CastingState::Resting) {
             state.phase = RoulettePhase::Idle;
+            return;
         }
+    }
+
+    // Reset on left mouse click (covers instant-cast spells like Magic Missile)
+    if mouse.just_pressed(MouseButton::Left) {
+        state.phase = RoulettePhase::Idle;
     }
 }
 

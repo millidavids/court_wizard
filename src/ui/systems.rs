@@ -10,10 +10,12 @@ use bevy::ui::RelativeCursorPosition;
 
 use super::components::{ButtonColors, ButtonStyle};
 use super::constants::{
-    CONTENT_BG, CONTENT_BORDER, OVERLAY_BG, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
-    SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR,
-    SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE,
-    SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR,
+    CONTENT_BG, CONTENT_BORDER, DETAIL_BG, DETAIL_BORDER, DETAIL_PADDING, LEFT_PANEL_WIDTH,
+    LIST_BG, LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER,
+    SCROLL_SHADOW_COLOR, SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG,
+    SLIDER_BUTTON_BORDER_COLOR, SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP,
+    SLIDER_LABEL_FONT_SIZE, SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR, TWO_PANEL_GAP,
+    TWO_PANEL_PADDING,
 };
 use super::styles::{item_hovered, item_pressed};
 use crate::game::crt_effect::ChannelChangeMessage;
@@ -144,6 +146,108 @@ pub fn default_content_node() -> Node {
         overflow: Overflow::clip(),
         ..default()
     }
+}
+
+/// Returns the standard content Node for a two-panel page layout (left detail + right list).
+/// Pass this to `spawn_page_container()` as the `content_node`.
+pub fn two_panel_content_node() -> Node {
+    Node {
+        width: Val::Percent(100.0),
+        height: Val::Percent(100.0),
+        flex_direction: FlexDirection::Row,
+        padding: UiRect::all(Val::Px(TWO_PANEL_PADDING)),
+        column_gap: Val::Px(TWO_PANEL_GAP),
+        border: UiRect::all(Val::Px(1.0)),
+        overflow: Overflow::clip(),
+        ..default()
+    }
+}
+
+/// Spawns the standard left detail panel (300px fixed, gold-bordered box).
+/// Returns the **inner detail box** entity — add your content as children of this.
+pub fn spawn_left_detail_panel(parent: &mut ChildSpawnerCommands) -> Entity {
+    let mut detail_box_id = Entity::PLACEHOLDER;
+    parent
+        .spawn(Node {
+            width: Val::Px(LEFT_PANEL_WIDTH),
+            flex_direction: FlexDirection::Column,
+            align_self: AlignSelf::Center,
+            row_gap: Val::Px(16.0),
+            flex_grow: 0.0,
+            flex_shrink: 0.0,
+            ..default()
+        })
+        .with_children(|left| {
+            detail_box_id = left
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(DETAIL_PADDING)),
+                        row_gap: Val::Px(12.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        flex_grow: 1.0,
+                        ..default()
+                    },
+                    BackgroundColor(DETAIL_BG),
+                    BorderColor::all(DETAIL_BORDER),
+                    BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
+                ))
+                .id();
+        });
+    detail_box_id
+}
+
+/// Like `spawn_left_detail_panel`, but makes the detail box scrollable.
+/// Inserts the given `marker` component and `ScrollPosition` for scroll handling.
+pub fn spawn_scrollable_left_detail_panel<M: Component>(
+    parent: &mut ChildSpawnerCommands,
+    marker: M,
+) -> Entity {
+    let detail_box = spawn_left_detail_panel(parent);
+    parent.commands().entity(detail_box).insert((
+        marker,
+        ScrollPosition::default(),
+    ));
+    parent
+        .commands()
+        .entity(detail_box)
+        .entry::<Node>()
+        .and_modify(|mut node| {
+            node.overflow = Overflow::scroll_y();
+        });
+    detail_box
+}
+
+/// Spawns the standard right scrollable panel (flex-grow, dark background with scroll).
+/// `marker` is attached for screen-specific queries (e.g. scroll handling).
+/// Returns the scrollable content entity — add your content as children of this.
+pub fn spawn_right_scroll_panel<M: Component>(
+    parent: &mut ChildSpawnerCommands,
+    marker: M,
+    inner_direction: FlexDirection,
+    inner_gap: f32,
+) -> Entity {
+    parent
+        .spawn((
+            Node {
+                flex_grow: 1.0,
+                flex_basis: Val::Px(0.0),
+                min_width: Val::Px(0.0),
+                flex_direction: inner_direction,
+                row_gap: Val::Px(inner_gap),
+                column_gap: Val::Px(inner_gap),
+                overflow: Overflow::scroll_y(),
+                border: UiRect::all(Val::Px(1.0)),
+                padding: UiRect::all(Val::Px(12.0)),
+                ..default()
+            },
+            BackgroundColor(LIST_BG),
+            BorderColor::all(LIST_BORDER),
+            BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
+            ScrollPosition::default(),
+            marker,
+        ))
+        .id()
 }
 
 /// Spawns a full-screen page with a semi-transparent overlay and a styled

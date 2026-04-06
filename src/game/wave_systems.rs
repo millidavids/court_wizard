@@ -18,7 +18,10 @@ use super::units::dispeller::resources::DispellerAssets;
 use super::units::healer::resources::HealerAssets;
 use super::units::infantry::resources::InfantryAssets;
 use super::units::shielder::resources::ShielderAssets;
-use super::units::{aerialist, archer, brute, infantry};
+use super::units::boss::dark_mage::resources::DarkMageAssets;
+use super::units::boss::hags::resources::HagAssets;
+use super::units::boss::ogre::resources::OgreAssets;
+use super::units::{aerialist, archer, boss, brute, infantry};
 
 /// Ticks the wave timer and spawns the next wave when it expires.
 /// Does not tick while staging attackers exist (current wave hasn't activated yet).
@@ -36,6 +39,10 @@ pub fn tick_wave_timer(
     mut materials: ResMut<Assets<StandardMaterial>>,
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
+    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
+    ogre_assets: Option<Res<OgreAssets>>,
+    hag_assets: Option<Res<HagAssets>>,
+    dark_mage_assets: Option<Res<DarkMageAssets>>,
 ) {
     if wave_state.waves_complete {
         return;
@@ -64,10 +71,21 @@ pub fn tick_wave_timer(
     wave_state.wave_timer = wave_state.wave_interval;
 
     let level = current_level.0;
-    let count_mult = roguelite_modifiers
+    let base_count_mult = roguelite_modifiers
         .as_ref()
         .map(|m| m.enemy_count)
         .unwrap_or(1.0);
+
+    // Rising Tide: each successive wave spawns 25% more enemies
+    let rising_tide_mult = if active_toggles
+        .as_ref()
+        .is_some_and(|t| t.is_active(crate::game::game_mode::components::ToggleModifier::RisingTide))
+    {
+        1.0 + 0.25 * next_wave as f32
+    } else {
+        1.0
+    };
+    let count_mult = base_count_mult * rising_tide_mult;
 
     // Spawn infantry for this wave, collecting entity IDs
     let total_infantry = (calculate_total_infantry(level) as f32 * count_mult).round() as u32;
@@ -122,9 +140,50 @@ pub fn tick_wave_timer(
         );
     }
 
+    // Boss Parade: spawn a boss every 3rd wave (cycling Hag → Ogre → Dark Mage)
+    let boss_parade_spawned = if active_toggles.as_ref().is_some_and(|t| {
+        t.is_active(crate::game::game_mode::components::ToggleModifier::BossParade)
+    }) && next_wave % 3 == 2
+    {
+        match (next_wave / 3) % 3 {
+            0 => {
+                if let Some(ref assets) = hag_assets {
+                    boss::hags::systems::spawn_hags(commands.reborrow(), Res::clone(assets));
+                    3 // hags spawn 3 units
+                } else {
+                    0
+                }
+            }
+            1 => {
+                if let Some(ref assets) = ogre_assets {
+                    boss::ogre::systems::spawn_ogre(commands.reborrow(), Res::clone(assets));
+                    1
+                } else {
+                    0
+                }
+            }
+            _ => {
+                if let Some(ref assets) = dark_mage_assets {
+                    boss::dark_mage::systems::spawn_dark_mage(
+                        commands.reborrow(),
+                        Res::clone(assets),
+                    );
+                    1
+                } else {
+                    0
+                }
+            }
+        }
+    } else {
+        0
+    };
+
     // Update kill stats with newly spawned attackers
-    let wave_attackers =
-        total_infantry + total_archers + total_aerialists + if has_brute { 1 } else { 0 };
+    let wave_attackers = total_infantry
+        + total_archers
+        + total_aerialists
+        + if has_brute { 1 } else { 0 }
+        + boss_parade_spawned;
     kill_stats.total_attackers_spawned += wave_attackers;
 
     // Check if this was the last wave

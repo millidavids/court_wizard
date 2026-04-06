@@ -2,7 +2,7 @@ mod components;
 mod constants;
 pub(crate) mod messages;
 mod plugin;
-mod resources;
+pub(crate) mod resources;
 mod systems;
 
 pub use components::GunType;

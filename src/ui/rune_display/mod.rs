@@ -1,6 +1,6 @@
 mod components;
 mod constants;
 mod plugin;
-mod systems;
+pub(crate) mod systems;
 
 pub use plugin::RuneDisplayPlugin;

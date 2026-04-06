@@ -25,6 +25,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -86,7 +87,10 @@ pub fn handle_healing_plume_casting(
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    active_talents: Option<Res<ActiveTalents>>,
+    toggle_resources: (
+        Option<Res<ActiveTalents>>,
+        Option<Res<ActiveToggles>>,
+    ),
     defenders_query: Query<
         (
             Entity,
@@ -102,6 +106,8 @@ pub fn handle_healing_plume_casting(
         ),
     >,
 ) {
+    let (active_talents, active_toggles) = toggle_resources;
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
@@ -182,6 +188,7 @@ pub fn handle_healing_plume_casting(
                     radius,
                     primed_spell.empowerment,
                     &talent_params,
+                    scorched_mult,
                 );
 
                 // Field Medic: convert nearest defender in zone to healer
@@ -646,8 +653,9 @@ pub(crate) fn spawn_healing_plume_zone(
     radius: f32,
     empowerment: f32,
     talent_params: &HealingPlumeTalentParams,
+    scorched_mult: f32,
 ) -> Entity {
-    let duration = constants::ZONE_DURATION * empowerment * talent_params.duration_mult;
+    let duration = constants::ZONE_DURATION * empowerment * talent_params.duration_mult * scorched_mult;
     let mut heal = constants::HEAL_PER_TICK * empowerment * talent_params.heal_mult;
     if talent_params.healing_rain {
         heal *= constants::HEALING_RAIN_HEAL_MULT;

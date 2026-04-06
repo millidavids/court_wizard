@@ -15,28 +15,31 @@ pub(in crate::game) fn spawn_single_tree(
     x: f32,
     z: f32,
     scale: f32,
+    sprite_index: u8,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
 ) {
     let center = Vec3::new(x, 0.0, z);
-    let radius = TREE_RADIUS * scale;
+    let radius = tree_radius_for_variant(sprite_index) * scale;
     let height = TREE_HEIGHT * scale;
+    let idx = (sprite_index as usize).min(TREE_SPRITE_COUNT - 1);
 
     commands.spawn((
         Mesh3d(assets.mesh.clone()),
-        MeshMaterial3d(assets.material.clone()),
-        Transform::from_xyz(x, TREE_VISUAL_HEIGHT * scale / 2.0 + 1.0, z)
+        MeshMaterial3d(assets.materials[idx].clone()),
+        Transform::from_xyz(x, TREE_SPRITE_HEIGHT * scale / 2.0 - TREE_GROUND_CLIP, z)
             .with_scale(Vec3::splat(scale)),
         Tree {
             center,
             radius,
             height,
+            sprite_index,
         },
         ObstacleHealth::new(TREE_HEALTH * scale),
         Billboard,
         OnGameplayScreen,
     ));
 
-    spawn_terrain_shadow(commands, shadow_assets, x, z, 1.2 * scale);
+    spawn_terrain_shadow(commands, shadow_assets, x, z, TREE_SHADOW_SCALE * scale);
 
     let center_xz = Vec2::new(x, z);
     obstacle_events.write(ObstacleChanged {

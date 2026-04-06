@@ -26,6 +26,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -86,7 +87,9 @@ pub fn handle_fog_cloud_casting(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
+    active_toggles: Option<Res<ActiveToggles>>,
 ) {
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
@@ -116,6 +119,7 @@ pub fn handle_fog_cloud_casting(
         &sfx,
         &game_config,
         &talent_params,
+        scorched_mult,
     );
 
     if completed {
@@ -147,6 +151,7 @@ fn fog_cloud_casting_logic(
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     talent_params: &FogCloudTalentParams,
+    scorched_mult: f32,
 ) -> bool {
     let mut completed = false;
 
@@ -225,6 +230,7 @@ fn fog_cloud_casting_logic(
                                 radius,
                                 primed_spell.empowerment,
                                 talent_params,
+                                scorched_mult,
                             );
                         }
                         commands.entity(indicator_entity).try_despawn();
@@ -501,8 +507,9 @@ pub(crate) fn spawn_fog_cloud_zone(
     radius: f32,
     empowerment: f32,
     talent_params: &FogCloudTalentParams,
+    scorched_mult: f32,
 ) {
-    let duration = constants::ZONE_DURATION * empowerment;
+    let duration = constants::ZONE_DURATION * empowerment * scorched_mult;
     let evasion = talent_params.evasion_chance;
     let refresh_dur = talent_params.linger_duration * empowerment;
 

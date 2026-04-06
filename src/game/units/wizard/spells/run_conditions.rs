@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::super::components::{CastingState, LocalWizard, PrimedSpell, Spell};
+use crate::game::game_mode::components::LastCastSpell;
 use crate::game::input::components::MouseLeftHeldThisFrame;
 
 // Re-export commonly used run conditions for convenience
@@ -10,13 +11,30 @@ pub use crate::game::input::run_conditions::{
 pub use crate::game::run_conditions::any_exist;
 
 /// Check if specific spell is primed on the local wizard.
+///
+/// When Spell Rotation is active (`LastCastSpell` resource exists), also blocks
+/// the spell if it was the last one cast. LastCastSpell is only set when mana is
+/// consumed (not when CastingState changes), so multi-step spells like Teleport
+/// complete naturally before the block kicks in.
 pub fn spell_is_primed(
     spell: Spell,
-) -> impl Fn(Query<&PrimedSpell, With<LocalWizard>>) -> bool + Clone {
-    move |local_query: Query<&PrimedSpell, With<LocalWizard>>| {
+) -> impl Fn(Query<&PrimedSpell, With<LocalWizard>>, Option<Res<LastCastSpell>>) -> bool + Clone {
+    move |local_query: Query<&PrimedSpell, With<LocalWizard>>,
+          last_cast: Option<Res<LastCastSpell>>| {
         local_query
             .single()
-            .map(|primed| primed.spell == spell)
+            .map(|primed| {
+                if primed.spell != spell {
+                    return false;
+                }
+                // Spell Rotation: block if this spell was the last one cast
+                if let Some(ref lc) = last_cast {
+                    if !lc.bypass_until_cast && lc.spell == Some(spell) {
+                        return false;
+                    }
+                }
+                true
+            })
             .unwrap_or(false)
     }
 }

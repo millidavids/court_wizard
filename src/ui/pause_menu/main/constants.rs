@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
-use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_PRIMARY};
+use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_MUTED, TEXT_PRIMARY};
 
 /// Text color (alias for global TEXT_PRIMARY).
 pub const TEXT_COLOR: Color = TEXT_PRIMARY;
@@ -37,3 +37,23 @@ pub const BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_color: TEXT_PRIMARY,
     text_shadow: true,
 };
+
+// ── Left Panel Stats ────────────────────────────────────────────────────────
+
+/// Font size for stat labels (e.g., "Level", "Kills").
+pub const STAT_LABEL_FONT_SIZE: f32 = 11.0;
+
+/// Color for stat labels.
+pub const STAT_LABEL_COLOR: Color = TEXT_MUTED;
+
+/// Font size for stat values.
+pub const STAT_VALUE_FONT_SIZE: f32 = 12.0;
+
+/// Color for stat values.
+pub const STAT_VALUE_COLOR: Color = Color::hsla(40.0, 0.15, 0.75, 1.0);
+
+/// Font size for section dividers (e.g., "Modifiers", "Level Best").
+pub const SECTION_DIVIDER_FONT_SIZE: f32 = 10.0;
+
+/// Color for section dividers.
+pub const SECTION_DIVIDER_COLOR: Color = TEXT_MUTED;

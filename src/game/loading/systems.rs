@@ -37,6 +37,8 @@ pub fn init_loading_progress(
     active_talents: Option<Res<crate::game::units::wizard::talents::resources::ActiveTalents>>,
     game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
+    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
+    attrition_state: Option<Res<crate::game::game_mode::components::AttritionState>>,
 ) {
     // Sync CurrentLevel from GameConfig, but skip during time travel
     // (CurrentLevel was already overridden by the wizard tower hub)
@@ -139,15 +141,33 @@ pub fn init_loading_progress(
     // 4. King (central defender)
     queue.tasks.push_back(SpawnTask::King);
 
+    // Veteran Defenders toggle: halve defender counts
+    let veteran_defenders = active_toggles.as_ref().is_some_and(|t| {
+        t.is_active(crate::game::game_mode::components::ToggleModifier::VeteranDefenders)
+    });
+    let defender_mult = if veteran_defenders { 0.5 } else { 1.0 };
+
+    // Attrition toggle: use surviving counts from previous level if available
+    let base_guard_count = attrition_state
+        .as_ref()
+        .map(|a| a.guards)
+        .unwrap_or(KINGS_GUARD_COUNT);
+    let base_infantry_count = attrition_state
+        .as_ref()
+        .map(|a| a.infantry)
+        .unwrap_or(INITIAL_DEFENDER_COUNT);
+
     // 5. King's Guard (protect the king)
-    for i in 0..KINGS_GUARD_COUNT {
+    let guard_count = (base_guard_count as f32 * defender_mult).round() as u32;
+    for i in 0..guard_count {
         queue
             .tasks
             .push_back(SpawnTask::KingsGuard { guard_index: i });
     }
 
     // 6. Defender Infantry
-    for i in 0..INITIAL_DEFENDER_COUNT {
+    let infantry_count = (base_infantry_count as f32 * defender_mult).round() as u32;
+    for i in 0..infantry_count {
         queue
             .tasks
             .push_back(SpawnTask::DefenderInfantry { unit_index: i });
@@ -291,7 +311,12 @@ pub fn init_loading_progress(
     }
 
     // 8. Defender Archers (always spawn regardless of boss level)
-    for i in 0..INITIAL_ARCHER_DEFENDER_COUNT {
+    let base_archer_count = attrition_state
+        .as_ref()
+        .map(|a| a.archers)
+        .unwrap_or(INITIAL_ARCHER_DEFENDER_COUNT);
+    let archer_def_count = (base_archer_count as f32 * defender_mult).round() as u32;
+    for i in 0..archer_def_count {
         queue
             .tasks
             .push_back(SpawnTask::DefenderArcher { unit_index: i });
@@ -299,7 +324,7 @@ pub fn init_loading_progress(
 
     // Track initial defender count for spell shield threshold (multiplayer)
     commands.insert_resource(InitialDefenderCount(
-        INITIAL_DEFENDER_COUNT + KINGS_GUARD_COUNT + INITIAL_ARCHER_DEFENDER_COUNT,
+        infantry_count + guard_count + archer_def_count,
     ));
 
     // 11. Load wizard assets (sprite sheet texture)
@@ -816,6 +841,7 @@ pub fn process_spawn_queue(
                     tree.x,
                     tree.z,
                     tree.scale,
+                    tree.sprite_index,
                     &mut obstacle_events,
                 );
             }

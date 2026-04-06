@@ -26,6 +26,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -104,9 +105,11 @@ pub fn handle_spike_growth_casting(
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        Option<Res<ActiveToggles>>,
     ),
 ) {
-    let (active_talents, _talent_progress) = talent_resources;
+    let (active_talents, _talent_progress, active_toggles) = talent_resources;
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
@@ -203,6 +206,7 @@ pub fn handle_spike_growth_casting(
                                     primed_spell.empowerment,
                                     &mut obstacle_events,
                                     &talent_params,
+                                    scorched_mult,
                                 );
                             } else {
                                 spawn_spike_growth_zone(
@@ -213,6 +217,7 @@ pub fn handle_spike_growth_casting(
                                     primed_spell.empowerment,
                                     &mut obstacle_events,
                                     &talent_params,
+                                    scorched_mult,
                                 );
                             }
                         }
@@ -646,8 +651,9 @@ pub(crate) fn spawn_spike_growth_zone(
     empowerment: f32,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: &SpikeGrowthTalentParams,
+    scorched_mult: f32,
 ) {
-    let duration = constants::ZONE_DURATION * empowerment;
+    let duration = constants::ZONE_DURATION * empowerment * scorched_mult;
     let damage = constants::DAMAGE_PER_TICK * empowerment * talent_params.damage_mult;
     let slow_mod = constants::SLOW_MODIFIER * empowerment;
     let slow_dur = constants::SLOW_DURATION * empowerment;
@@ -710,6 +716,7 @@ fn spawn_minefield_zones(
     empowerment: f32,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: &SpikeGrowthTalentParams,
+    scorched_mult: f32,
 ) {
     let sub_radius = base_radius * constants::MINEFIELD_RADIUS_MULT;
     let spread = base_radius * constants::MINEFIELD_SPREAD_FRACTION;
@@ -731,6 +738,7 @@ fn spawn_minefield_zones(
             empowerment,
             obstacle_events,
             talent_params,
+            scorched_mult,
         );
     }
 }

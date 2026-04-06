@@ -198,6 +198,13 @@ impl WizardType {
         }
     }
 
+    /// Returns true if this wizard type uses its own exclusive casting mechanic
+    /// (rune sequences or roulette spins) and should not access the spell book
+    /// or action bar spell priming.
+    pub const fn uses_exclusive_casting(&self) -> bool {
+        matches!(self, WizardType::RuneCaster | WizardType::Randomancer)
+    }
+
     /// Returns a short description of this wizard type's playstyle.
     pub const fn description(&self) -> &'static str {
         match self {

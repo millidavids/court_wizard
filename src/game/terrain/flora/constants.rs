@@ -3,8 +3,8 @@ use crate::game::constants::UNIT_SCALE;
 /// 160x16 sprite sheet: 10 columns of 16x16 pixels.
 pub(super) const FLORA_SPRITE_COUNT: usize = 10;
 
-pub(super) const FLORA_SPRITE_WIDTH: f32 = 12.0 * UNIT_SCALE;
-pub(super) const FLORA_SPRITE_HEIGHT: f32 = 12.0 * UNIT_SCALE;
+pub(super) const FLORA_SPRITE_WIDTH: f32 = 18.0 * UNIT_SCALE;
+pub(super) const FLORA_SPRITE_HEIGHT: f32 = 18.0 * UNIT_SCALE;
 
 pub(crate) const FLORA_COUNT: u32 = 30;
 

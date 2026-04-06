@@ -94,6 +94,23 @@ pub const LIST_BG: Color = Color::hsla(220.0, 0.08, 0.08, 0.75);
 /// List area border (dark gray).
 pub const LIST_BORDER: Color = Color::hsla(0.0, 0.0, 0.18, 0.8);
 
+// ── Two-Panel Layout ─────────────────────────────────────────────────────
+
+/// Padding around the entire two-panel layout.
+pub const TWO_PANEL_PADDING: f32 = 30.0;
+
+/// Gap between left and right panels.
+pub const TWO_PANEL_GAP: f32 = 30.0;
+
+/// Width of the left detail panel.
+pub const LEFT_PANEL_WIDTH: f32 = 300.0;
+
+/// Internal padding for the left detail box.
+pub const DETAIL_PADDING: f32 = 20.0;
+
+/// Border radius for both detail and list panels.
+pub const PANEL_BORDER_RADIUS: f32 = 6.0;
+
 // ── Shared Slider ─────────────────────────────────────────────────────────
 
 /// Width of slider +/- buttons.

@@ -3,10 +3,12 @@
 use bevy::prelude::*;
 
 /// Marker component for entities that belong to the pause menu main screen.
-///
-/// Used for cleanup when exiting the pause menu main state.
 #[derive(Component)]
 pub(super) struct OnPauseMainScreen;
+
+/// Marker for the scrollable left panel in the pause menu.
+#[derive(Component)]
+pub(super) struct ScrollablePauseStats;
 
 /// Actions that can be triggered by pause menu buttons.
 ///

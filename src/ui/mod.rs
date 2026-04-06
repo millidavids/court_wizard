@@ -5,7 +5,7 @@
 
 mod achievement_popup;
 pub(crate) mod action_bar;
-mod arcanorouter_display;
+pub(crate) mod arcanorouter_display;
 mod cauldron_menu;
 mod compendium;
 pub(crate) mod components;
@@ -18,8 +18,8 @@ mod loading;
 pub(crate) mod main_menu;
 mod pause_menu;
 pub(crate) mod plugin;
-mod roulette_display;
-mod rune_display;
+pub(crate) mod roulette_display;
+pub(crate) mod rune_display;
 mod spell_book;
 mod splash_screen;
 mod styles;

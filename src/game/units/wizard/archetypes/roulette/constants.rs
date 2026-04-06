@@ -1,5 +1,5 @@
 /// How long the wheel visually spins before landing (seconds).
-pub const SPIN_DURATION: f32 = 2.0;
+pub const SPIN_DURATION: f32 = 1.0;
 
 /// How fast the visual highlight cycles through spells at start of spin (seconds per slot).
 pub const INITIAL_TICK_INTERVAL: f32 = 0.05;

@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
-use crate::game::game_mode::components::RogueliteModifiers;
+use crate::game::game_mode::components::{RogueliteModifiers, ToggleModifier};
 
 /// Marker component for entities that belong to the roguelite modifiers screen.
 #[derive(Component)]
@@ -9,9 +11,8 @@ pub(super) struct OnRogueliteModifiersScreen;
 /// Actions for buttons on the modifiers screen.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ModifierButtonAction {
-    Continue,
+    StartRun,
     Back,
-    Reset,
 }
 
 /// Identifies which modifier a slider controls.
@@ -60,16 +61,6 @@ impl ModifierSliderValue {
             Self::EnemyEffectiveness => "Enemy Strength",
             Self::EnemyCount => "Enemy Count",
             Self::TerrainDensity => "Terrain",
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::GameSpeed => "How quickly waves arrive",
-            Self::EnemyEffectiveness => "How strong enemies are",
-            Self::EnemyCount => "How many enemies spawn",
-            Self::TerrainDensity => "How much terrain spawns",
         }
     }
 }
@@ -122,12 +113,79 @@ pub(super) struct SeedInputBox;
 /// Resource tracking the seed input state.
 #[derive(Resource, Default)]
 pub(super) struct SeedInputState {
-    /// The current text in the seed input field.
     pub text: String,
-    /// Whether the input field is focused (accepting keyboard input).
     pub focused: bool,
 }
 
 /// Marker for the "Random" toggle button.
 #[derive(Component)]
 pub(super) struct SeedRandomButton;
+
+// ── Toggle Modifier Components ──────────────────────────────────────────────
+
+/// Expand/collapse arrow button for a toggle row.
+#[derive(Component)]
+pub(super) struct ToggleExpandButton(pub ToggleModifier);
+
+/// Insight cost text for a locked toggle (despawned on unlock).
+#[derive(Component)]
+pub(super) struct ToggleUnlockButton(pub ToggleModifier);
+
+/// The expandable description text (hidden by default).
+#[derive(Component)]
+pub(super) struct ToggleDescriptionNode(pub ToggleModifier);
+
+/// The row container for a toggle (used for visual updates).
+#[derive(Component)]
+pub(super) struct ToggleRowContainer(pub ToggleModifier);
+
+/// Resource tracking which toggle descriptions are expanded.
+#[derive(Resource, Default)]
+pub(super) struct ExpandedToggles(pub HashSet<ToggleModifier>);
+
+/// Resource tracking which toggles are enabled for the pending run.
+#[derive(Resource, Default, Clone)]
+pub(super) struct PendingToggles {
+    pub enabled: Vec<ToggleModifier>,
+}
+
+impl PendingToggles {
+    pub fn is_enabled(&self, toggle: ToggleModifier) -> bool {
+        self.enabled.contains(&toggle)
+    }
+
+    pub fn toggle(&mut self, toggle: ToggleModifier) {
+        if let Some(pos) = self.enabled.iter().position(|t| *t == toggle) {
+            self.enabled.remove(pos);
+        } else {
+            self.enabled.push(toggle);
+        }
+    }
+}
+
+// ── Left Panel (Run Summary) ────────────────────────────────────────────────
+
+/// Marker for the run summary text container in the left panel.
+#[derive(Component)]
+pub(super) struct RunSummaryContent;
+
+/// Marker for the right scrollable panel.
+#[derive(Component)]
+pub(super) struct ScrollableModifierList;
+
+/// Marker for the left scrollable summary panel.
+#[derive(Component)]
+pub(super) struct ScrollableRunSummary;
+
+// ── Confirmation Popup ──────────────────────────────────────────────────────
+
+/// Marker for the unlock confirmation popup overlay.
+#[derive(Component)]
+pub(super) struct ConfirmUnlockPopup;
+
+/// Actions for confirmation popup buttons.
+#[derive(Component, Clone, Copy)]
+pub(super) enum ConfirmUnlockAction {
+    Confirm(ToggleModifier),
+    Cancel,
+}

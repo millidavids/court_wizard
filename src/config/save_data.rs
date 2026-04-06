@@ -84,6 +84,9 @@ pub(crate) struct PlayerMetaProgress {
     /// Tutorial IDs that have been completed.
     #[serde(default)]
     pub(crate) completed_tutorials: Vec<String>,
+    /// Toggle modifier IDs that have been permanently unlocked with Insight.
+    #[serde(default)]
+    pub(crate) unlocked_toggles: Vec<String>,
 }
 
 /// Tracks which content the player has unlocked (spells, ingredients, wizard types).
@@ -743,6 +746,9 @@ pub(crate) struct SavedTree {
     /// Size multiplier (1.0 = default, varies ~0.8–1.2).
     #[serde(default = "default_scale")]
     pub(crate) scale: f32,
+    /// Sprite variant index (0–4) into the tree sprite sheet.
+    #[serde(default)]
+    pub(crate) sprite_index: u8,
 }
 
 /// Serializable pond placement data for persistent ponds.
@@ -842,6 +848,9 @@ pub(crate) struct RogueliteRun {
     /// Seed used for this run (deterministic terrain/unit generation).
     #[serde(default)]
     pub(crate) seed: Option<u64>,
+    /// Toggle modifier IDs that were active during this run.
+    #[serde(default)]
+    pub(crate) active_toggles: Vec<String>,
 }
 
 /// Best stats achieved on a single endless level.
@@ -1282,6 +1291,18 @@ pub(crate) fn toggle_roguelite_run_saved(started_at: u64) {
     save_unified(&save_file);
 }
 
+/// Returns the best stats for a specific endless level, if any have been recorded.
+pub(crate) fn get_endless_best_stats(level: u32) -> Option<EndlessLevelBest> {
+    let save_file = load_unified_save()?;
+    let key = level.to_string();
+    // Search all wizards for best stats at this level (return the best across wizards)
+    save_file
+        .wizards
+        .iter()
+        .filter_map(|w| w.endless_best_stats.get(&key).cloned())
+        .max_by(|a, b| a.best_efficiency.partial_cmp(&b.best_efficiency).unwrap_or(std::cmp::Ordering::Equal))
+}
+
 /// Update the best stats for an endless level if the current efficiency beats the stored best.
 pub(crate) fn update_endless_best_stats(
     active_save: &ActiveSave,
@@ -1384,6 +1405,47 @@ pub(crate) fn get_insight() -> u32 {
     load_unified_save()
         .map(|s| s.player.arcane_insight)
         .unwrap_or(0)
+}
+
+/// Returns true if the given toggle modifier has been permanently unlocked.
+pub(crate) fn is_toggle_unlocked(
+    toggle: crate::game::game_mode::components::ToggleModifier,
+) -> bool {
+    let id = toggle.id();
+    load_unified_save()
+        .map(|s| s.player.unlocked_toggles.iter().any(|t| t == id))
+        .unwrap_or(false)
+}
+
+/// Returns all permanently unlocked toggle modifier IDs.
+pub(crate) fn get_unlocked_toggles() -> Vec<String> {
+    load_unified_save()
+        .map(|s| s.player.unlocked_toggles.clone())
+        .unwrap_or_default()
+}
+
+/// Unlock a toggle modifier by spending Insight. Returns true if successful.
+pub(crate) fn unlock_toggle(
+    toggle: crate::game::game_mode::components::ToggleModifier,
+) -> bool {
+    let id = toggle.id().to_string();
+    let cost = toggle.insight_cost();
+
+    let Some(mut save_file) = load_unified_save() else {
+        return false;
+    };
+    // Already unlocked
+    if save_file.player.unlocked_toggles.iter().any(|t| t == &id) {
+        return false;
+    }
+    // Not enough insight
+    if save_file.player.arcane_insight < cost {
+        return false;
+    }
+    save_file.player.arcane_insight -= cost;
+    save_file.player.unlocked_toggles.push(id);
+    save_unified(&save_file);
+    true
 }
 
 /// Returns the research progress (insight invested) for a specific spell.

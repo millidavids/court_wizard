@@ -492,11 +492,16 @@ pub(super) fn hud_button_action(
     button_query: Query<&HudButtonAction>,
     mut next_in_game_state: Option<ResMut<NextState<InGameState>>>,
     mut next_mp_state: Option<ResMut<NextState<MultiplayerGameState>>>,
+    config: Res<crate::config::GameConfig>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
                 HudButtonAction::OpenSpellBook => {
+                    // RuneCaster and Randomancer can only cast via their own mechanics
+                    if config.wizard_type.uses_exclusive_casting() {
+                        continue;
+                    }
                     if let Some(ref mut next_sp) = next_in_game_state {
                         next_sp.set(InGameState::SpellBook);
                     }

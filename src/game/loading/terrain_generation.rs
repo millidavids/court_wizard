@@ -116,7 +116,7 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     for _ in 0..boulder_count {
         let scale = random_scale(&mut *rng);
         let radius = ROCK_RADIUS * scale;
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position) {
+        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
             let sprite_index = rng.gen_range(0..BOULDER_SPRITE_COUNT as u8);
             config.saved_boulders.push(SavedBoulder {
                 x: pos.x,
@@ -128,16 +128,155 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
         }
     }
 
-    // Generate trees
+    // Generate forest along the left wall, starting 100 units from the battlefield edge
+    // (Z = -2900) and thinning toward the center of the battlefield.
+    {
+        use crate::game::terrain::tree::constants::tree_radius_for_variant;
+
+        const FOREST_Z_START: f32 = -2950.0; // 50 units from left wall at Z = -3000
+        const FOREST_Z_END: f32 = -200.0;
+        const FOREST_BANDS: u32 = 6;
+        let trees_per_band: [u32; 6] = [15, 12, 8, 4, 2, 1];
+        let band_depth = (FOREST_Z_END - FOREST_Z_START) / FOREST_BANDS as f32;
+
+        // Forest-specific validation — allows Z down to FOREST_Z_START
+        // and uses tighter separation (50 units) for a dense canopy.
+        const FOREST_MIN_X: f32 = -3000.0;
+        let is_valid_forest = |pos: Vec2, radius: f32, placed: &[(Vec2, f32)]| -> bool {
+            if pos.x - radius < FOREST_MIN_X
+                || pos.x + radius > TERRAIN_MAX_X
+                || pos.y - radius < FOREST_Z_START
+                || pos.y + radius > TERRAIN_MAX_Z
+            {
+                return false;
+            }
+            if pos.distance(lava_xz) < lava_avoid + radius {
+                return false;
+            }
+            if pos.distance(water_xz) < water_avoid + radius {
+                return false;
+            }
+            if pos.distance(CASTLE_CENTER_XZ) < CASTLE_EXCLUSION_RADIUS + radius {
+                return false;
+            }
+            if pos.distance(spawn_1) < SPAWN_CORRIDOR_RADIUS + radius {
+                return false;
+            }
+            if pos.distance(spawn_2) < SPAWN_CORRIDOR_RADIUS + radius {
+                return false;
+            }
+            for &(other_pos, other_radius) in placed {
+                if pos.distance(other_pos) < radius + other_radius + 50.0 {
+                    return false;
+                }
+            }
+            true
+        };
+
+        // No-collision validation for flora/bushes placed BETWEEN trees.
+        // Only checks boundary — flora can overlap trees and other terrain.
+        let is_valid_forest_flora = |pos: Vec2, _radius: f32, _placed: &[(Vec2, f32)]| -> bool {
+            pos.x >= FOREST_MIN_X
+                && pos.x <= TERRAIN_MAX_X
+                && pos.y >= FOREST_Z_START
+                && pos.y <= TERRAIN_MAX_Z
+        };
+
+        for band in 0..FOREST_BANDS {
+            let band_z_min = FOREST_Z_START + band as f32 * band_depth;
+            let band_z_max = band_z_min + band_depth;
+            let target = (trees_per_band[band as usize] as f32 * terrain_density).round() as u32;
+
+            for _ in 0..target {
+                let scale = random_scale(&mut *rng);
+                let sprite_index = rng.gen_range(0..TREE_SPRITE_COUNT as u8);
+                let radius = tree_radius_for_variant(sprite_index) * scale;
+                if let Some(pos) = try_place(
+                    &mut *rng,
+                    radius,
+                    &placed,
+                    &is_valid_forest,
+                    FOREST_MIN_X,
+                    TERRAIN_MAX_X,
+                    band_z_min,
+                    band_z_max,
+                ) {
+                    config.saved_trees.push(SavedTree {
+                        x: pos.x,
+                        z: pos.y,
+                        scale,
+                        sprite_index,
+                    });
+                    placed.push((pos, radius));
+                }
+            }
+
+            // Scatter bushes and boulders between the trees in this band.
+            // These use the flora validation (no collision checks) so they
+            // can overlap with trees for a dense undergrowth look.
+            let bush_target = target / 2;
+            for _ in 0..bush_target {
+                let scale = random_scale(&mut *rng);
+                let sprite_index = rng.gen_range(0..BUSH_SPRITE_COUNT as u8);
+                if let Some(pos) = try_place(
+                    &mut *rng,
+                    0.0,
+                    &placed,
+                    &is_valid_forest_flora,
+                    FOREST_MIN_X,
+                    TERRAIN_MAX_X,
+                    band_z_min,
+                    band_z_max,
+                ) {
+                    config.saved_bushes.push(SavedBush {
+                        x: pos.x,
+                        z: pos.y,
+                        scale,
+                        sprite_index,
+                    });
+                }
+            }
+
+            let boulder_target = target / 4;
+            for _ in 0..boulder_target {
+                let scale = random_scale(&mut *rng) * 0.8; // slightly smaller in forest
+                let sprite_index = rng.gen_range(0..BOULDER_SPRITE_COUNT as u8);
+                if let Some(pos) = try_place(
+                    &mut *rng,
+                    0.0,
+                    &placed,
+                    &is_valid_forest_flora,
+                    FOREST_MIN_X,
+                    TERRAIN_MAX_X,
+                    band_z_min,
+                    band_z_max,
+                ) {
+                    config.saved_boulders.push(SavedBoulder {
+                        x: pos.x,
+                        z: pos.y,
+                        scale,
+                        sprite_index,
+                    });
+                    // Boulders DO block pathfinding, so add to placed
+                    let radius = ROCK_RADIUS * scale;
+                    placed.push((pos, radius));
+                }
+            }
+        }
+    }
+
+    // Generate scattered trees across the battlefield
     let tree_count = scale_count(TREE_BASE_COUNT_MIN, TREE_BASE_COUNT_MAX);
     for _ in 0..tree_count {
         let scale = random_scale(&mut *rng);
-        let radius = TREE_RADIUS * scale;
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position) {
+        let sprite_index = rng.gen_range(0..TREE_SPRITE_COUNT as u8);
+        let radius = tree_radius_for_variant(sprite_index) * scale;
+        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
             config.saved_trees.push(SavedTree {
                 x: pos.x,
                 z: pos.y,
                 scale,
+                sprite_index,
             });
             placed.push((pos, radius));
         }
@@ -147,7 +286,7 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     let pond_count = scale_count(POND_BASE_COUNT_MIN, POND_BASE_COUNT_MAX);
     for _ in 0..pond_count {
         let radius = rng.gen_range(POND_RADIUS_MIN..=POND_RADIUS_MAX);
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position) {
+        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
             config.saved_ponds.push(SavedPond {
                 x: pos.x,
                 z: pos.y,
@@ -162,7 +301,7 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     for _ in 0..bush_count {
         let scale = random_scale(&mut *rng);
         let radius = BUSH_RADIUS * scale;
-        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position) {
+        if let Some(pos) = try_place(&mut *rng, radius, &placed, &is_valid_position, TERRAIN_MIN_X, TERRAIN_MAX_X, TERRAIN_MIN_Z, TERRAIN_MAX_Z) {
             let sprite_index = rng.gen_range(0..BUSH_SPRITE_COUNT as u8);
             config.saved_bushes.push(SavedBush {
                 x: pos.x,
@@ -175,15 +314,20 @@ pub(in crate::game) fn generate_terrain(config: &mut GameConfig, level: u32, ter
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn try_place(
     rng: &mut dyn RngCore,
     radius: f32,
     placed: &[(Vec2, f32)],
     is_valid: &dyn Fn(Vec2, f32, &[(Vec2, f32)]) -> bool,
+    x_min: f32,
+    x_max: f32,
+    z_min: f32,
+    z_max: f32,
 ) -> Option<Vec2> {
     for _ in 0..80 {
-        let x = rng.gen_range(TERRAIN_MIN_X..=TERRAIN_MAX_X);
-        let z = rng.gen_range(TERRAIN_MIN_Z..=TERRAIN_MAX_Z);
+        let x = rng.gen_range(x_min..=x_max);
+        let z = rng.gen_range(z_min..=z_max);
         let pos = Vec2::new(x, z);
         if is_valid(pos, radius, placed) {
             return Some(pos);

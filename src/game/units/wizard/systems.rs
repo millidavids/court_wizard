@@ -121,12 +121,27 @@ pub fn update_wizard_animation(
 }
 
 /// Regenerates wizard mana over time, scaled by cauldron buffs.
+/// Skipped entirely when the Mana Drought toggle is active.
 pub fn regenerate_mana(
     time: Res<Time>,
     cauldron_buffs: Res<CauldronBuffs>,
     infinite_mana: Res<crate::ui::action_bar::InfiniteMana>,
+    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>,
 ) {
+    // Mana Drought: no passive regen (mana comes from kills instead)
+    if active_toggles.as_ref().is_some_and(|t| {
+        t.is_active(crate::game::game_mode::components::ToggleModifier::ManaDrought)
+    }) {
+        // Still apply infinite mana cheat if active
+        if infinite_mana.0 {
+            for (mut mana, _) in &mut wizards {
+                mana.current = mana.max;
+            }
+        }
+        return;
+    }
+
     for (mut mana, regen) in &mut wizards {
         if infinite_mana.0 {
             mana.current = mana.max;
@@ -137,16 +152,96 @@ pub fn regenerate_mana(
     }
 }
 
+/// Spell Rotation: detects completed spell casts by watching for mana consumption
+/// followed by returning to CastingState::Resting. This two-step approach ensures
+/// channeled/multi-step spells aren't blocked mid-cast.
+///
+/// Phase 1: When mana decreases significantly (> 1.0), record the spell as "pending".
+/// Phase 2: When CastingState returns to Resting with a pending spell, commit it
+///          as the last cast spell (blocking re-cast via spell_is_primed).
+pub fn track_spell_casts_for_rotation(
+    wizard_query: Query<(&Mana, &CastingState, Option<&PrimedSpell>), With<Wizard>>,
+    mut last_cast: Option<ResMut<crate::game::game_mode::components::LastCastSpell>>,
+) {
+    let Some(ref mut lc) = last_cast else {
+        return;
+    };
+
+    for (mana, casting_state, primed) in &wizard_query {
+        // Initialize prev_mana on first frame
+        if lc.prev_mana == f32::MAX {
+            lc.prev_mana = mana.current;
+            continue;
+        }
+
+        // Phase 1: Detect mana consumption → mark pending.
+        // Any decrease counts (channeled spells drain small amounts per frame).
+        if mana.current < lc.prev_mana - f32::EPSILON {
+            if let Some(primed_spell) = primed {
+                lc.pending_spell = Some(primed_spell.spell);
+                // Mana was spent — clear rune bypass since the spell is now casting
+                lc.bypass_until_cast = false;
+            }
+        }
+
+        // Phase 2: When wizard returns to Resting, commit pending spell as last cast
+        if matches!(casting_state, CastingState::Resting) {
+            if let Some(pending) = lc.pending_spell.take() {
+                lc.spell = Some(pending);
+            }
+        }
+
+        lc.prev_mana = mana.current;
+    }
+}
+
+/// Mana Drought toggle: restores mana when enemies die.
+/// Each kill restores a fixed amount of mana.
+pub fn mana_on_kill(
+    mut kill_events: MessageReader<crate::game::achievements::messages::EnemyKilledMessage>,
+    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
+    mut wizards: Query<&mut Mana, With<Wizard>>,
+) {
+    if !active_toggles.as_ref().is_some_and(|t| {
+        t.is_active(crate::game::game_mode::components::ToggleModifier::ManaDrought)
+    }) {
+        // Drain events to avoid stale messages, even when toggle is off
+        kill_events.read().for_each(drop);
+        return;
+    }
+
+    let kill_count = kill_events.read().count();
+    if kill_count == 0 {
+        return;
+    }
+
+    const MANA_PER_KILL: f32 = 3.0;
+    let mana_restore = kill_count as f32 * MANA_PER_KILL;
+
+    for mut mana in &mut wizards {
+        mana.regenerate(mana_restore);
+    }
+}
+
 /// Handles PrimeSpellMessage to update the wizard's primed spell.
 /// This allows UI systems to request spell changes without directly accessing components.
 /// Applies cauldron spell power buff as a base empowerment multiplier.
+/// Blocks same-spell priming when Spell Rotation toggle is active.
 pub fn handle_prime_spell_messages(
     mut messages: MessageReader<PrimeSpellMessage>,
     cauldron_buffs: Res<CauldronBuffs>,
     mut wizard_query: Query<&mut PrimedSpell, With<LocalWizard>>,
     active_talents: Option<Res<ActiveTalents>>,
+    last_cast: Option<Res<crate::game::game_mode::components::LastCastSpell>>,
 ) {
     for message in messages.read() {
+        // Spell Rotation: block priming the same spell that was just cast
+        if let Some(ref lc) = last_cast {
+            if !lc.bypass_until_cast && lc.spell == Some(message.spell.spell) {
+                continue;
+            }
+        }
+
         if let Ok(mut primed_spell) = wizard_query.single_mut() {
             let mut spell = message.spell;
             if cauldron_buffs.spell_power_multiplier() > 1.0 {
@@ -215,6 +310,7 @@ pub fn reset_empowerment_after_cast(
         }
     }
 }
+
 
 /// Cancels any active casting when leaving the Running state.
 ///

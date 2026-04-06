@@ -169,6 +169,7 @@ pub(super) fn save_terrain_on_victory(
             x: t.center.x,
             z: t.center.z,
             scale: t.radius / crate::game::terrain::tree::constants::TREE_RADIUS,
+            sprite_index: t.sprite_index,
         })
         .collect();
 
@@ -604,6 +605,7 @@ pub(super) fn handle_button_actions(
     time_travel: Option<Res<TimeTravelState>>,
     roguelite_run: Option<Res<RogueliteRunState>>,
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
+    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
@@ -659,6 +661,10 @@ pub(super) fn handle_button_actions(
                             level_stats: run.level_stats.clone(),
                             modifiers: roguelite_modifiers.as_ref().map(|m| m.as_ref().clone()),
                             seed: game_seed.as_ref().map(|s| s.0),
+                            active_toggles: active_toggles
+                                .as_ref()
+                                .map(|t| t.to_ids())
+                                .unwrap_or_default(),
                         };
                         crate::config::save_data::save_roguelite_run(
                             &active_save,

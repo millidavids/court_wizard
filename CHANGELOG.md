@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.576] - 2026-04-05
+
+### Added
+- **Toggle modifiers for roguelite runs** — spend Insight to permanently unlock special run modifiers that change how the game plays. Enable or disable them before each run from the new Run Modifiers screen
+- **Blood Magic modifier** — no passive mana regeneration. Instead, gain mana from enemy kills
+- **Boss Parade modifier** — a boss appears every 3rd wave, cycling through all boss types
+- **Fortified Horde modifier** — first-wave enemies arrive with temporary shields and a pulsing golden glow
+- **Glass Cannon modifier** — your defenders hit twice as hard but have half health
+- **Spell Rotation modifier** — forces you to use different spells in sequence. You can't cast the same spell twice in a row
+- **Wizard Cycle modifier** — your wizard archetype automatically rotates through all your unlocked types every 30 seconds, with a banner announcing each switch
+- **Scorched Earth modifier** — all ground-effect spells last 3 times longer
+- **Veteran Defenders modifier** — half as many defenders, but each one is significantly tougher
+- **Attrition modifier** — defenders who die during a level don't come back for the next one. Protect your army across the entire run
+- **Rising Tide modifier** — each wave within a level spawns more enemies than the last
+- **Urgent modifier** — moved from settings into a toggle modifier. The game keeps running while browsing menus
+- **Insight bonus for modifiers** — active toggle modifiers grant bonus Insight at the end of each battle
+- **Run Modifiers screen redesigned** — now uses a two-panel layout with your run summary on the left and all configuration options (seed, sliders, and toggle modifiers) on the right
+- **Pause menu redesigned** — now shows live battle stats on the left panel (level, time, kills, efficiency, wave progress) with active modifiers listed for roguelite and best stats for endless mode
+- **Tree sprites** — trees now have unique hand-drawn appearances with 5 different styles, replacing the old placeholder rectangles
+- **Forest along the battlefield edge** — a dense forest of trees, bushes, and boulders spawns along the back wall, thinning out toward the center of the battlefield
+- **Entangle now affects pathfinding** — the entangle spell zone is now treated as a hazard on the flow field, causing enemies to path around it
+
+### Changed
+- **Bigger trees** — trees are now larger with bigger shadows, giving the battlefield a more dramatic look. Thick-trunk tree variants have a wider collision zone
+- **Bigger flowers** — flora decorations are 1.5x larger
+- **Spell book disabled for RuneCaster and Randomancer** — these wizards now exclusively use their own casting mechanics (rune sequences and roulette spins). The spell book and action bar spell selection are locked
+- **Randomancer can re-spin** — pressing the spin button again before casting now starts a new spin immediately, and the spin animation is faster
+- **Rune-activated spell name appears above the rune buttons** — with a text shadow for visibility on light backgrounds
+- **Wizard select grid stays fixed** — the wizard type grid no longer reflows when resizing the window
+- **Shared two-panel layout** — spell book, cauldron, compendium, run modifiers, and pause menu now all use a consistent two-panel design
+
+### Fixed
+- **Modifier selections no longer persist between runs** — toggle modifier selections now reset when starting a fresh run instead of carrying over from the previous one
+- **Screen flicker removed from toggle clicks** — toggling modifiers on and off no longer triggers the CRT screen transition effect
+- **Excremage colors apply during Wizard Cycle** — spell materials correctly switch to brown when cycling to the Excremage and back to normal when cycling away
+- **Warglock action bar updates during Wizard Cycle** — the action bar now correctly shows gun names when cycling to the Warglock
+- **Arcanorouter bonuses reset on wizard switch** — range/speed/power bonuses from the Arcanorouter are properly removed when cycling to a different wizard type
+
 ## [v0.5.518] - 2026-04-03
 
 ### Fixed

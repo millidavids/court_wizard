@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::units::wizard::archetypes::roulette::resources::{RoulettePhase, RouletteState};
 use crate::game::units::wizard::components::Spell;
 
@@ -12,7 +13,7 @@ fn spell_display_name(spell: &Spell) -> String {
 }
 
 /// Spawns the roulette wheel as a UI image node with UiTransform for rotation.
-pub(super) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Load the roulette wheel image
     let wheel_texture: Handle<Image> = asset_server.load("images/roulette.png");
 
@@ -30,6 +31,7 @@ pub(super) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
                 ..default()
             },
             OnGameplayScreen,
+            ArchetypeUI,
         ))
         .with_children(|parent| {
             // Selected spell text (above wheel)

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::config::{GameConfig, WizardType};
+use crate::game::game_mode::components::{ActiveToggles, ToggleModifier};
 use crate::networking::resources::PeerRole;
 use crate::networking::session::MultiplayerSession;
 use crate::state::{InGameState, MultiplayerGameState};
@@ -17,14 +18,19 @@ pub fn any_exist<T: Component>() -> impl Fn(Query<(), With<T>>) -> bool {
 
 /// Returns true if single-player simulation should be active.
 ///
-/// True when `InGameState::Running`, or when urgent mode is enabled and the
-/// player is browsing the SpellBook or CauldronMenu.
-fn is_sp_simulation_active(state: &InGameState, config: &Option<Res<GameConfig>>) -> bool {
+/// True when `InGameState::Running`, or when the Urgent toggle modifier is
+/// active and the player is browsing the SpellBook or CauldronMenu.
+fn is_sp_simulation_active(
+    state: &InGameState,
+    active_toggles: &Option<Res<ActiveToggles>>,
+) -> bool {
     if *state == InGameState::Running {
         return true;
     }
     matches!(state, InGameState::SpellBook | InGameState::CauldronMenu)
-        && config.as_ref().is_some_and(|c| c.urgent_mode)
+        && active_toggles
+            .as_ref()
+            .is_some_and(|t| t.is_active(ToggleModifier::Urgent))
 }
 
 /// Returns true when gameplay simulation should be running.
@@ -41,11 +47,11 @@ pub fn is_gameplay_running(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
     session: Option<Res<MultiplayerSession>>,
-    config: Option<Res<GameConfig>>,
+    active_toggles: Option<Res<ActiveToggles>>,
 ) -> bool {
     // Single-player
     if let Some(ref state) = sp_state
-        && is_sp_simulation_active(state.get(), &config)
+        && is_sp_simulation_active(state.get(), &active_toggles)
     {
         return true;
     }
@@ -120,11 +126,11 @@ pub fn is_local_wizard_active(
 pub fn is_spell_effects_active(
     sp_state: Option<Res<State<InGameState>>>,
     mp_state: Option<Res<State<MultiplayerGameState>>>,
-    config: Option<Res<GameConfig>>,
+    active_toggles: Option<Res<ActiveToggles>>,
 ) -> bool {
     // Single-player
     if let Some(ref state) = sp_state
-        && is_sp_simulation_active(state.get(), &config)
+        && is_sp_simulation_active(state.get(), &active_toggles)
     {
         return true;
     }

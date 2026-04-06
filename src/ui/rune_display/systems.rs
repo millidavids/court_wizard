@@ -3,13 +3,14 @@ use bevy::prelude::*;
 use super::components::*;
 use super::constants::*;
 use crate::game::components::OnGameplayScreen;
+use crate::game::game_mode::components::ArchetypeUI;
 use crate::game::input::messages::MouseClicked;
 use crate::game::units::wizard::archetypes::runes::resources::Rune;
 use crate::game::units::wizard::archetypes::runes::{LastActivatedSpell, RuneSequence};
 use crate::ui::components::ButtonColors;
 
 /// Spawns the rune display UI with 4 clickable buttons and sequence text above.
-pub(super) fn spawn_rune_display(mut commands: Commands) {
+pub(crate) fn spawn_rune_display(mut commands: Commands) {
     // Create a full-width container at the bottom for proper centering
     commands
         .spawn((
@@ -22,6 +23,7 @@ pub(super) fn spawn_rune_display(mut commands: Commands) {
                 ..default()
             },
             OnGameplayScreen,
+            ArchetypeUI,
         ))
         .with_children(|parent| {
             // Inner container with the actual rune buttons
@@ -36,17 +38,68 @@ pub(super) fn spawn_rune_display(mut commands: Commands) {
                     RuneDisplayRoot,
                 ))
                 .with_children(|inner| {
+                    // Activated spell name (above sequence text, fades out)
+                    let activated_font = RUNE_SEQUENCE_FONT_SIZE + 4.0;
+                    let activated_offset = activated_font / 20.0;
+                    inner
+                        .spawn(Node {
+                            position_type: PositionType::Relative,
+                            min_height: Val::Px(activated_font + 8.0),
+                            ..default()
+                        })
+                        .with_children(|wrapper| {
+                            // Shadow
+                            wrapper.spawn((
+                                Text::new(""),
+                                TextFont::from_font_size(activated_font),
+                                TextColor(Color::NONE),
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(activated_offset),
+                                    top: Val::Px(activated_offset),
+                                    ..default()
+                                },
+                                ActivatedSpellTextShadow,
+                            ));
+                            // Main text
+                            wrapper.spawn((
+                                Text::new(""),
+                                TextFont::from_font_size(activated_font),
+                                TextColor(Color::srgba(0.7, 0.5, 1.0, 0.0)),
+                                ActivatedSpellText,
+                            ));
+                        });
+
                     // Sequence text above buttons
-                    inner.spawn((
-                        Text::new(""),
-                        TextFont::from_font_size(RUNE_SEQUENCE_FONT_SIZE),
-                        TextColor(SEQUENCE_TEXT_COLOR),
-                        Node {
+                    let seq_offset = RUNE_SEQUENCE_FONT_SIZE / 20.0;
+                    inner
+                        .spawn(Node {
+                            position_type: PositionType::Relative,
                             min_height: Val::Px(RUNE_SEQUENCE_FONT_SIZE + 4.0),
                             ..default()
-                        },
-                        RuneSequenceText,
-                    ));
+                        })
+                        .with_children(|wrapper| {
+                            // Shadow
+                            wrapper.spawn((
+                                Text::new(""),
+                                TextFont::from_font_size(RUNE_SEQUENCE_FONT_SIZE),
+                                TextColor(crate::ui::constants::TEXT_SHADOW_COLOR),
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(seq_offset),
+                                    top: Val::Px(seq_offset),
+                                    ..default()
+                                },
+                                RuneSequenceTextShadow,
+                            ));
+                            // Main text
+                            wrapper.spawn((
+                                Text::new(""),
+                                TextFont::from_font_size(RUNE_SEQUENCE_FONT_SIZE),
+                                TextColor(SEQUENCE_TEXT_COLOR),
+                                RuneSequenceText,
+                            ));
+                        });
 
                     // Row of 4 rune buttons (Q, W, E, R)
                     inner
@@ -123,80 +176,97 @@ pub(super) fn update_rune_display(
         ),
         With<RuneSequenceText>,
     >,
+    mut shadow_query: Query<&mut Text, (With<RuneSequenceTextShadow>, Without<RuneSequenceText>)>,
 ) {
     if !sequence.is_changed() {
         return;
     }
 
     if let Ok((entity, mut text, fade_timer, mut color)) = sequence_text_query.single_mut() {
-        // If a new rune is being added to the sequence, interrupt any fade animation
         if !sequence.is_empty() && fade_timer.is_some() {
             commands.entity(entity).remove::<SpellNameFadeTimer>();
             color.0.set_alpha(1.0);
         }
 
-        // Don't update if a spell name is currently fading (unless we're interrupting above)
         if fade_timer.is_some() && sequence.is_empty() {
             return;
         }
 
-        if sequence.is_empty() {
-            **text = "".to_string();
+        let new_text = if sequence.is_empty() {
+            "".to_string()
         } else {
-            **text = format!("{}", *sequence);
+            format!("{}", *sequence)
+        };
+        **text = new_text.clone();
+        if let Ok(mut shadow) = shadow_query.single_mut() {
+            **shadow = new_text;
         }
     }
 }
 
-/// System to handle the spell name fade timer and remove it when done.
+/// System to handle the activated spell name fade timer.
 pub(super) fn update_spell_name_fade(
     time: Res<Time>,
     mut commands: Commands,
-    mut fade_query: Query<
-        (Entity, &mut SpellNameFadeTimer, &mut TextColor),
-        With<RuneSequenceText>,
+    mut fade_query: Query<(Entity, &mut SpellNameFadeTimer, &mut TextColor), With<ActivatedSpellText>>,
+    mut shadow_query: Query<
+        (&mut Text, &mut TextColor),
+        (With<ActivatedSpellTextShadow>, Without<ActivatedSpellText>),
     >,
-    mut text_query: Query<&mut Text, With<RuneSequenceText>>,
 ) {
     for (entity, mut timer, mut color) in &mut fade_query {
         timer.elapsed += time.delta_secs();
 
-        // Calculate fade alpha (1.0 to 0.0)
         let alpha = (1.0 - (timer.elapsed / timer.duration)).max(0.0);
         color.0.set_alpha(alpha);
 
-        // Remove timer and reset text when fade is complete
+        // Fade shadow in sync
+        if let Ok((_, mut shadow_color)) = shadow_query.single_mut() {
+            shadow_color.0.set_alpha(alpha * 0.5);
+        }
+
         if timer.elapsed >= timer.duration {
             commands.entity(entity).remove::<SpellNameFadeTimer>();
-            color.0.set_alpha(1.0);
+            color.0.set_alpha(0.0);
 
-            if let Ok(mut text) = text_query.single_mut() {
-                **text = "".to_string();
+            // Clear both texts
+            if let Ok((mut shadow_text, mut shadow_color)) = shadow_query.single_mut() {
+                **shadow_text = "".to_string();
+                shadow_color.0.set_alpha(0.0);
             }
         }
     }
 }
 
-/// Shows spell name briefly when a valid rune sequence is activated.
+/// Shows spell name briefly above the rune display when a valid rune sequence is activated.
 pub(super) fn show_spell_name_on_activation(
     mut last_activated: ResMut<LastActivatedSpell>,
     mut commands: Commands,
-    mut sequence_text_query: Query<(Entity, &mut Text), With<RuneSequenceText>>,
+    mut activated_text_query: Query<(Entity, &mut Text, &mut TextColor), With<ActivatedSpellText>>,
+    mut shadow_query: Query<
+        (&mut Text, &mut TextColor),
+        (With<ActivatedSpellTextShadow>, Without<ActivatedSpellText>),
+    >,
 ) {
     if last_activated.just_activated {
         if let Some(spell) = last_activated.spell
-            && let Ok((entity, mut text)) = sequence_text_query.single_mut()
+            && let Ok((entity, mut text, mut text_color)) = activated_text_query.single_mut()
         {
-            // Show spell name
-            **text = spell.name().to_string();
+            let name = spell.name().to_string();
+            **text = name.clone();
+            text_color.0 = Color::srgba(0.7, 0.5, 1.0, 1.0);
 
-            // Add fade timer
+            // Sync shadow
+            if let Ok((mut shadow_text, mut shadow_color)) = shadow_query.single_mut() {
+                **shadow_text = name;
+                shadow_color.0 = crate::ui::constants::TEXT_SHADOW_COLOR;
+            }
+
             commands.entity(entity).insert(SpellNameFadeTimer {
                 elapsed: 0.0,
                 duration: SPELL_NAME_FADE_DURATION,
             });
         }
-        // Acknowledge that we've processed this activation
         last_activated.acknowledge();
     }
 }

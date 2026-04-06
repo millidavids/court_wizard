@@ -25,8 +25,6 @@ pub enum OptionButtonValue {
     TutorialsEnabled(bool),
     /// Show level clock toggle
     ShowLevelClock(bool),
-    /// Urgent mode toggle (gameplay continues during menus)
-    UrgentMode(bool),
 }
 
 impl OptionButtonValue {
@@ -38,7 +36,6 @@ impl OptionButtonValue {
             OptionButtonValue::SkipSplash(skip) => config.skip_splash == *skip,
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled == *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock == *show,
-            OptionButtonValue::UrgentMode(urgent) => config.urgent_mode == *urgent,
         }
     }
 
@@ -50,7 +47,6 @@ impl OptionButtonValue {
             OptionButtonValue::SkipSplash(skip) => config.skip_splash = *skip,
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled = *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock = *show,
-            OptionButtonValue::UrgentMode(urgent) => config.urgent_mode = *urgent,
         }
     }
 }

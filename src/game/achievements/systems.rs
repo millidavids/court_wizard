@@ -50,6 +50,7 @@ pub(crate) fn send_battle_ended(
     talent_progress: Option<
         Res<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
+    active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
 ) {
     let is_victory = *game_outcome == GameOutcome::Victory;
 
@@ -94,6 +95,15 @@ pub(crate) fn send_battle_ended(
         insight += 10; // Victory bonus
     }
     insight += (efficiency * 10.0) as u32; // Efficiency bonus: 0-10
+
+    // Toggle modifier bonus: each active toggle adds a percentage bonus
+    let toggle_bonus_pct = active_toggles
+        .as_ref()
+        .map(|t| t.total_insight_bonus_percent())
+        .unwrap_or(0);
+    if toggle_bonus_pct > 0 {
+        insight += (insight * toggle_bonus_pct) / 100;
+    }
 
     battle_insight.insight_earned = insight;
     grant_insight(insight);

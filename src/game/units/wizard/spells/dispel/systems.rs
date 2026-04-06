@@ -25,6 +25,7 @@ use crate::game::units::wizard::spells::vfx::systems::spawn_explosion_smoke;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -381,7 +382,10 @@ pub fn update_dispel_impacts(
     meteor_fire_query: Query<&MeteorGroundFire>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut wizard_mana: Query<&mut Mana, With<LocalWizard>>,
-    mut progress: ResMut<BattleTalentProgress>,
+    progress_and_toggles: (
+        ResMut<BattleTalentProgress>,
+        Option<Res<ActiveToggles>>,
+    ),
     // Combined query for buff removal, damage, enemy finding, and mind control removal
     mut unit_query: Query<
         (
@@ -400,6 +404,8 @@ pub fn update_dispel_impacts(
         (Without<Corpse>, Without<DispelImpact>),
     >,
 ) {
+    let (mut progress, active_toggles) = progress_and_toggles;
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let time_secs = time.elapsed_secs();
     let mut damage_targets: Vec<(Entity, f32, bool)> = Vec::new();
 
@@ -425,6 +431,7 @@ pub fn update_dispel_impacts(
                     &mut meshes,
                     &mut materials,
                     transform.translation,
+                    scorched_mult,
                 );
             }
             commands.entity(entity).try_despawn();
@@ -641,6 +648,7 @@ fn spawn_null_zone(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
+    scorched_mult: f32,
 ) {
     let origin = Vec3::new(position.x, 0.0, position.z);
     let radius = constants::NULL_ZONE_RADIUS;
@@ -656,7 +664,7 @@ fn spawn_null_zone(
         })),
         Transform::from_translation(origin + Vec3::Y * (constants::NULL_ZONE_HEIGHT / 2.0)),
         NullZone {
-            time_remaining: constants::NULL_ZONE_DURATION,
+            time_remaining: constants::NULL_ZONE_DURATION * scorched_mult,
             radius,
             origin,
         },

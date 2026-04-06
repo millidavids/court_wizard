@@ -2,20 +2,24 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use rand::Rng;
 
+use crate::config::save_data;
 use crate::game::crt_effect::ChannelChangeMessage;
-use crate::game::game_mode::components::RogueliteModifiers;
+use crate::game::game_mode::components::{ActiveToggles, RogueliteModifiers, ToggleModifier};
 use crate::game::input::messages::MouseClicked;
 use crate::state::MenuState;
-use crate::ui::constants::SLIDER_TRACK_WIDTH;
+use crate::ui::constants::{SLIDER_TRACK_WIDTH, TEXT_DISABLED, TEXT_MUTED};
 use crate::ui::systems::{
-    SliderRowConfig, default_content_node, spawn_button, spawn_page_container, spawn_slider_row,
-    spawn_title_with_shadow,
+    SliderRowConfig, spawn_button, spawn_page_container,
+    spawn_slider_row,
 };
 
 use super::components::{
-    ModifierButtonAction, ModifierSliderDownButton, ModifierSliderFill, ModifierSliderHandle,
-    ModifierSliderText, ModifierSliderTrack, ModifierSliderUpButton, ModifierSliderValue,
-    OnRogueliteModifiersScreen, SeedInputBox, SeedInputState, SeedInputText, SeedRandomButton,
+    ConfirmUnlockAction, ConfirmUnlockPopup, ExpandedToggles, ModifierButtonAction,
+    ModifierSliderDownButton, ModifierSliderFill, ModifierSliderHandle, ModifierSliderText,
+    ModifierSliderTrack, ModifierSliderUpButton, ModifierSliderValue, OnRogueliteModifiersScreen,
+    PendingToggles, RunSummaryContent, ScrollableModifierList, ScrollableRunSummary, SeedInputBox,
+    SeedInputState, SeedInputText, SeedRandomButton, ToggleDescriptionNode, ToggleExpandButton,
+    ToggleRowContainer, ToggleUnlockButton,
 };
 use super::constants::*;
 
@@ -28,10 +32,14 @@ fn random_seed() -> u64 {
     rand::thread_rng().gen_range(0..MAX_SEED)
 }
 
-/// Sets up the roguelite modifiers screen UI.
+// ── Setup ──────────────────────────────────────────────────────────────────
+
+/// Sets up the roguelite modifiers screen UI with a two-panel layout.
 pub(super) fn setup(
     mut commands: Commands,
     modifiers: Option<Res<RogueliteModifiers>>,
+    existing_pending: Option<Res<PendingToggles>>,
+    active_toggles: Option<Res<ActiveToggles>>,
     mut config: ResMut<crate::config::GameConfig>,
 ) {
     let already_exists = modifiers.is_some();
@@ -39,6 +47,19 @@ pub(super) fn setup(
     if !already_exists {
         commands.insert_resource(mods.clone());
     }
+
+    // Only preserve pending toggles if ActiveToggles exists (returning from wizard select).
+    // Otherwise start fresh — prevents stale selections from previous runs.
+    let pending_toggles = if active_toggles.is_some() {
+        existing_pending
+            .map(|p| PendingToggles {
+                enabled: p.enabled.clone(),
+            })
+            .unwrap_or_default()
+    } else {
+        PendingToggles::default()
+    };
+    commands.insert_resource(pending_toggles.clone());
 
     // Always generate a fresh random seed when opening this page
     let seed = random_seed();
@@ -49,163 +70,321 @@ pub(super) fn setup(
         focused: false,
     });
 
+    commands.insert_resource(ExpandedToggles::default());
+
+    // Column root: title + two-panel row (matches compendium pattern)
     let content = spawn_page_container(
         &mut commands,
         OnRogueliteModifiersScreen,
         false,
-        default_content_node(),
+        crate::ui::systems::default_content_node(),
     );
 
-    commands.entity(content).with_children(|parent| {
+    commands.entity(content).with_children(|root| {
         // Title
-        spawn_title_with_shadow(
-            parent,
+        crate::ui::systems::spawn_title_with_shadow(
+            root,
             "Run Modifiers",
-            TITLE_FONT_SIZE,
+            20.0,
             TEXT_COLOR,
             Node {
-                margin: UiRect::bottom(Val::Px(MARGIN)),
+                margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
                 ..default()
             },
         );
 
-        // Subtitle
-        parent.spawn((
-            Text::new("Adjust difficulty before starting your run"),
-            TextFont::from_font_size(SUBTITLE_FONT_SIZE),
-            TextColor(DESCRIPTION_COLOR),
-            Node {
-                margin: UiRect::bottom(Val::Px(MARGIN)),
-                ..default()
-            },
+        // Two-panel row — fills remaining height after title
+        root.spawn(Node {
+            width: Val::Percent(100.0),
+            flex_grow: 1.0,
+            flex_basis: Val::Px(0.0),
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(crate::ui::constants::TWO_PANEL_GAP),
+            ..default()
+        })
+        .with_children(|row| {
+            spawn_left_panel(row, &mods, &pending_toggles);
+            spawn_right_panel(row, &mods, &pending_toggles, &seed_text);
+        });
+    });
+}
+
+// ── Left Panel (Run Summary) ───────────────────────────────────────────────
+
+/// Spawns the left panel showing a summary of active modifiers and navigation buttons.
+fn spawn_left_panel(
+    parent: &mut ChildSpawnerCommands,
+    mods: &RogueliteModifiers,
+    pending_toggles: &PendingToggles,
+) {
+    let detail_box =
+        crate::ui::systems::spawn_scrollable_left_detail_panel(parent, ScrollableRunSummary);
+
+    // Add content to the detail box
+    parent.commands().entity(detail_box).with_children(|panel| {
+        // Title
+        panel.spawn((
+            Text::new("Your Run"),
+            TextFont::from_font_size(SUMMARY_TITLE_FONT_SIZE),
+            TextColor(TEXT_COLOR),
         ));
 
-        // Seed input row (above sliders)
-        parent
+        // Summary content container (rebuilt dynamically)
+        panel
+            .spawn((
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    ..default()
+                },
+                RunSummaryContent,
+            ))
+            .with_children(|summary| {
+                spawn_summary_items(summary, mods, pending_toggles);
+            });
+    });
+
+    // Buttons go below the detail box (inside the left panel outer container).
+    // The detail box's parent is the left panel outer node.
+    parent.commands().entity(detail_box).with_children(|panel| {
+        // Spacer to push buttons to bottom
+        panel.spawn(Node {
+            flex_grow: 1.0,
+            ..default()
+        });
+
+        panel
             .spawn(Node {
-                width: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
                 align_items: AlignItems::Center,
-                column_gap: Val::Px(crate::ui::constants::SLIDER_GAP),
-                margin: UiRect::bottom(Val::Px(MARGIN)),
                 ..default()
             })
-            .with_children(|row| {
-                // Label
-                row.spawn((
-                    Text::new("Seed"),
-                    TextFont::from_font_size(crate::ui::constants::SLIDER_LABEL_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    Node {
-                        min_width: Val::Px(200.0),
-                        width: Val::Px(200.0),
-                        ..default()
-                    },
-                ));
-
-                // Input box (clickable, bigger)
-                row.spawn((
-                    Button,
-                    Node {
-                        width: Val::Px(280.0),
-                        height: Val::Px(32.0),
-                        border: UiRect::all(Val::Px(1.0)),
-                        padding: UiRect::horizontal(Val::Px(8.0)),
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0)),
-                    BorderRadius::all(Val::Px(4.0)),
-                    BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
-                    crate::ui::components::ButtonColors {
-                        background: Color::srgba(0.1, 0.1, 0.1, 1.0),
-                        border: Color::srgba(0.4, 0.4, 0.4, 1.0),
-                    },
-                    SeedInputBox,
-                ))
-                .with_children(|input_box| {
-                    input_box.spawn((
-                        Text::new(seed_text.clone()),
-                        TextFont::from_font_size(14.0),
-                        TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
-                        SeedInputText,
-                    ));
-                });
-
-                // Random button
-                row.spawn((
-                    Button,
-                    Node {
-                        height: Val::Px(32.0),
-                        border: UiRect::all(Val::Px(1.0)),
-                        padding: UiRect::horizontal(Val::Px(12.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0)),
-                    BorderRadius::all(Val::Px(4.0)),
-                    BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 1.0)),
-                    crate::ui::components::ButtonColors {
-                        background: Color::srgba(0.15, 0.15, 0.15, 1.0),
-                        border: Color::srgba(0.4, 0.4, 0.4, 1.0),
-                    },
-                    SeedRandomButton,
-                ))
-                .with_children(|btn| {
-                    btn.spawn((
-                        Text::new("Randomize"),
-                        TextFont::from_font_size(12.0),
-                        TextColor(TEXT_COLOR),
-                    ));
-                });
-            });
-
-        // Sliders
-        let sliders = [
-            ModifierSliderValue::GameSpeed,
-            ModifierSliderValue::EnemyEffectiveness,
-            ModifierSliderValue::EnemyCount,
-            ModifierSliderValue::TerrainDensity,
-        ];
-
-        for slider_value in sliders {
-            spawn_modifier_slider(parent, slider_value, &mods);
-        }
-
-        // Reset button
-        parent
-            .spawn(Node {
-                margin: UiRect::top(Val::Px(MARGIN_SMALL)),
-                ..default()
-            })
-            .with_children(|row| {
+            .with_children(|buttons| {
                 spawn_button(
-                    row,
-                    "Reset All",
-                    ModifierButtonAction::Reset,
-                    &RESET_BUTTON_STYLE,
+                    buttons,
+                    "Start Run",
+                    ModifierButtonAction::StartRun,
+                    &START_RUN_BUTTON_STYLE,
                 );
-            });
-
-        // Button row
-        parent
-            .spawn(Node {
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(MARGIN),
-                margin: UiRect::top(Val::Px(MARGIN)),
-                ..default()
-            })
-            .with_children(|row| {
-                spawn_button(row, "Back", ModifierButtonAction::Back, &BACK_BUTTON_STYLE);
                 spawn_button(
-                    row,
-                    "Continue",
-                    ModifierButtonAction::Continue,
-                    &CONTINUE_BUTTON_STYLE,
+                    buttons,
+                    "Back",
+                    ModifierButtonAction::Back,
+                    &BACK_BUTTON_STYLE,
                 );
             });
     });
+}
+
+/// Spawns text items inside the run summary content container.
+fn spawn_summary_items(
+    parent: &mut ChildSpawnerCommands,
+    mods: &RogueliteModifiers,
+    pending_toggles: &PendingToggles,
+) {
+    let mut has_items = false;
+
+    // Slider modifiers at non-default values
+    for (label, pct) in mods.non_default_entries() {
+        parent.spawn((
+            Text::new(format!("{}: {}%", label, pct)),
+            TextFont::from_font_size(SUMMARY_ITEM_FONT_SIZE),
+            TextColor(SUMMARY_ITEM_COLOR),
+        ));
+        has_items = true;
+    }
+
+    // Enabled toggle names
+    for toggle in &pending_toggles.enabled {
+        parent.spawn((
+            Text::new(toggle.display_name()),
+            TextFont::from_font_size(SUMMARY_ITEM_FONT_SIZE),
+            TextColor(SUMMARY_ITEM_COLOR),
+        ));
+        has_items = true;
+    }
+
+    // Placeholder if nothing active
+    if !has_items {
+        parent.spawn((
+            Text::new("Default settings"),
+            TextFont::from_font_size(SUMMARY_ITEM_FONT_SIZE),
+            TextColor(SUMMARY_PLACEHOLDER_COLOR),
+        ));
+    }
+}
+
+// ── Right Panel (Configuration) ────────────────────────────────────────────
+
+/// Spawns the right panel with seed input, sliders, and toggle modifiers.
+/// Uses the compendium pattern: outer Column + nested scrollable container.
+fn spawn_right_panel(
+    parent: &mut ChildSpawnerCommands,
+    mods: &RogueliteModifiers,
+    pending_toggles: &PendingToggles,
+    seed_text: &str,
+) {
+    // Outer column wrapper (takes remaining width)
+    parent
+        .spawn(Node {
+            flex_grow: 1.0,
+            flex_direction: FlexDirection::Column,
+            ..default()
+        })
+        .with_children(|right_outer| {
+            // Scrollable content area (matches compendium scroll pattern)
+            right_outer
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        flex_grow: 1.0,
+                        flex_basis: Val::Px(0.0),
+                        overflow: Overflow::scroll_y(),
+                        ..default()
+                    },
+                    ScrollPosition::default(),
+                    ScrollableModifierList,
+                    BackgroundColor(crate::ui::constants::LIST_BG),
+                    BorderColor::all(crate::ui::constants::LIST_BORDER),
+                    BorderRadius::all(Val::Px(crate::ui::constants::PANEL_BORDER_RADIUS)),
+                ))
+                .with_children(|scroll| {
+                    // Inner content column
+                    scroll
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(MARGIN_SMALL),
+                            padding: UiRect::all(Val::Px(16.0)),
+                            ..default()
+                        })
+                        .with_children(|right| {
+                            // Seed input row
+                            spawn_seed_input_row(right, seed_text);
+
+                            // Sliders
+                            let sliders = [
+                                ModifierSliderValue::GameSpeed,
+                                ModifierSliderValue::EnemyEffectiveness,
+                                ModifierSliderValue::EnemyCount,
+                                ModifierSliderValue::TerrainDensity,
+                            ];
+                            for slider_value in sliders {
+                                spawn_modifier_slider(right, slider_value, mods);
+                            }
+
+                            // Toggle Modifiers section header
+                            right.spawn((
+                                Text::new("Toggle Modifiers"),
+                                TextFont::from_font_size(SECTION_HEADER_FONT_SIZE),
+                                TextColor(TEXT_COLOR),
+                                Node {
+                                    margin: UiRect::new(
+                                        Val::ZERO,
+                                        Val::ZERO,
+                                        Val::Px(MARGIN),
+                                        Val::Px(MARGIN_SMALL),
+                                    ),
+                                    ..default()
+                                },
+                            ));
+
+                            // Toggle modifier rows
+                            let unlocked_ids = save_data::get_unlocked_toggles();
+                            for &toggle in ToggleModifier::all() {
+                                let is_unlocked =
+                                    unlocked_ids.iter().any(|id| id == toggle.id());
+                                let is_enabled =
+                                    is_unlocked && pending_toggles.is_enabled(toggle);
+                                spawn_toggle_row(right, toggle, is_unlocked, is_enabled);
+                            }
+                        });
+                });
+        });
+}
+
+/// Spawns the seed input row with label, text input box, and Randomize button.
+fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(crate::ui::constants::SLIDER_GAP),
+            margin: UiRect::bottom(Val::Px(MARGIN)),
+            ..default()
+        })
+        .with_children(|row| {
+            // Label
+            row.spawn((
+                Text::new("Seed"),
+                TextFont::from_font_size(crate::ui::constants::SLIDER_LABEL_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                Node {
+                    min_width: Val::Px(200.0),
+                    width: Val::Px(200.0),
+                    ..default()
+                },
+            ));
+
+            // Input box (clickable)
+            row.spawn((
+                Button,
+                Node {
+                    width: Val::Px(280.0),
+                    height: Val::Px(32.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    padding: UiRect::horizontal(Val::Px(8.0)),
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0)),
+                BorderRadius::all(Val::Px(4.0)),
+                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
+                crate::ui::components::ButtonColors {
+                    background: Color::srgba(0.1, 0.1, 0.1, 1.0),
+                    border: Color::srgba(0.4, 0.4, 0.4, 1.0),
+                },
+                SeedInputBox,
+            ))
+            .with_children(|input_box| {
+                input_box.spawn((
+                    Text::new(seed_text),
+                    TextFont::from_font_size(14.0),
+                    TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
+                    SeedInputText,
+                ));
+            });
+
+            // Random button
+            row.spawn((
+                Button,
+                Node {
+                    height: Val::Px(32.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    padding: UiRect::horizontal(Val::Px(12.0)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0)),
+                BorderRadius::all(Val::Px(4.0)),
+                BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 1.0)),
+                crate::ui::components::ButtonColors {
+                    background: Color::srgba(0.15, 0.15, 0.15, 1.0),
+                    border: Color::srgba(0.4, 0.4, 0.4, 1.0),
+                },
+                SeedRandomButton,
+            ))
+            .with_children(|btn| {
+                btn.spawn((
+                    Text::new("Randomize"),
+                    TextFont::from_font_size(12.0),
+                    TextColor(TEXT_COLOR),
+                ));
+            });
+        });
 }
 
 /// Spawns a single modifier slider using the shared slider row helper.
@@ -247,27 +426,242 @@ fn spawn_modifier_slider(
     );
 }
 
-/// Handles button actions on the modifiers screen.
+// ── Toggle Rows ────────────────────────────────────────────────────────────
+
+/// Spawns a single toggle modifier row.
+/// - Unlocked: entire row is clickable to toggle on/off, turns purple when active.
+/// - Locked: shows Insight cost centered, clicking row opens unlock popup.
+fn spawn_toggle_row(
+    parent: &mut ChildSpawnerCommands,
+    toggle: ToggleModifier,
+    is_unlocked: bool,
+    is_enabled: bool,
+) {
+    let (bg, border) = if !is_unlocked {
+        (TOGGLE_LOCKED_BG, TOGGLE_LOCKED_BORDER)
+    } else if is_enabled {
+        (TOGGLE_ON_BG, TOGGLE_ON_BORDER)
+    } else {
+        (TOGGLE_OFF_BG, TOGGLE_OFF_BORDER)
+    };
+
+    // The row itself is a Button so clicking anywhere toggles it
+    parent
+        .spawn((
+            Button,
+            Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                border: UiRect::all(Val::Px(1.0)),
+                padding: UiRect::all(Val::Px(6.0)),
+                row_gap: Val::Px(4.0),
+                ..default()
+            },
+            BackgroundColor(bg),
+            BorderColor::all(border),
+            BorderRadius::all(Val::Px(6.0)),
+            crate::ui::components::ButtonColors {
+                background: bg,
+                border,
+            },
+            ToggleRowContainer(toggle),
+        ))
+        .with_children(|row_container| {
+            // Header row: [Name ... (Insight cost if locked) ... expand_btn]
+            row_container
+                .spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(8.0),
+                    ..default()
+                })
+                .with_children(|header| {
+                    // Toggle name (left)
+                    let name_color = if is_unlocked {
+                        TEXT_COLOR
+                    } else {
+                        TEXT_DISABLED
+                    };
+                    header.spawn((
+                        Text::new(toggle.display_name()),
+                        TextFont::from_font_size(TOGGLE_NAME_FONT_SIZE),
+                        TextColor(name_color),
+                        Node {
+                            flex_grow: 1.0,
+                            ..default()
+                        },
+                    ));
+
+                    // Insight cost (centered, only for locked toggles)
+                    if !is_unlocked {
+                        header.spawn((
+                            Text::new(format!("{} Insight", toggle.insight_cost())),
+                            TextFont::from_font_size(TOGGLE_SMALL_BUTTON_FONT_SIZE),
+                            TextColor(crate::ui::constants::INSIGHT_COLOR),
+                            ToggleUnlockButton(toggle),
+                        ));
+                    }
+
+                    // Expand arrow button
+                    header
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Px(TOGGLE_SMALL_BUTTON_SIZE),
+                                height: Val::Px(TOGGLE_SMALL_BUTTON_SIZE),
+                                border: UiRect::all(Val::Px(1.0)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            BorderColor::all(border),
+                            BorderRadius::all(Val::Px(4.0)),
+                            BackgroundColor(Color::NONE),
+                            crate::ui::components::ButtonColors {
+                                background: Color::NONE,
+                                border,
+                            },
+                            ToggleExpandButton(toggle),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text::new("\u{25b8}"),
+                                TextFont::from_font_size(TOGGLE_SMALL_BUTTON_FONT_SIZE),
+                                TextColor(TEXT_MUTED),
+                            ));
+                        });
+                });
+
+            // Description (hidden by default)
+            row_container.spawn((
+                Text::new(toggle.description()),
+                TextFont::from_font_size(TOGGLE_DESC_FONT_SIZE),
+                TextColor(DESCRIPTION_COLOR),
+                Node {
+                    display: Display::None,
+                    max_width: Val::Percent(95.0),
+                    padding: UiRect::left(Val::Px(4.0)),
+                    ..default()
+                },
+                ToggleDescriptionNode(toggle),
+            ));
+        });
+}
+
+// ── Confirmation Popup ─────────────────────────────────────────────────────
+
+/// Spawns a confirmation popup for unlocking a toggle modifier.
+fn spawn_unlock_popup(commands: &mut Commands, toggle: ToggleModifier) {
+    let current_insight = save_data::get_insight();
+    let cost = toggle.insight_cost();
+    let can_afford = current_insight >= cost;
+
+    let message = if can_afford {
+        format!(
+            "Unlock \"{}\" for {} Insight?\n(You have {} Insight)",
+            toggle.display_name(),
+            cost,
+            current_insight
+        )
+    } else {
+        format!(
+            "Not enough Insight to unlock \"{}\".\nCost: {} | You have: {}",
+            toggle.display_name(),
+            cost,
+            current_insight
+        )
+    };
+
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(POPUP_OVERLAY_BG),
+            GlobalZIndex(600),
+            ConfirmUnlockPopup,
+            OnRogueliteModifiersScreen,
+        ))
+        .with_children(|overlay| {
+            overlay
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::all(Val::Px(30.0)),
+                        row_gap: Val::Px(20.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        min_width: Val::Px(350.0),
+                        ..default()
+                    },
+                    BackgroundColor(POPUP_BOX_BG),
+                    BorderColor::all(POPUP_BOX_BORDER),
+                    BorderRadius::all(Val::Px(8.0)),
+                ))
+                .with_children(|popup| {
+                    popup.spawn((
+                        Text::new(message),
+                        TextFont::from_font_size(POPUP_FONT_SIZE),
+                        TextColor(TEXT_COLOR),
+                        TextLayout::new_with_justify(Justify::Center),
+                    ));
+
+                    popup
+                        .spawn(Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(16.0),
+                            ..default()
+                        })
+                        .with_children(|buttons| {
+                            if can_afford {
+                                spawn_button(
+                                    buttons,
+                                    "Confirm",
+                                    ConfirmUnlockAction::Confirm(toggle),
+                                    &CONFIRM_BUTTON_STYLE,
+                                );
+                            }
+                            spawn_button(
+                                buttons,
+                                "Cancel",
+                                ConfirmUnlockAction::Cancel,
+                                &CANCEL_BUTTON_STYLE,
+                            );
+                        });
+                });
+        });
+}
+
+// ── Button Systems ─────────────────────────────────────────────────────────
+
+/// Handles Back and Start Run button actions.
 pub(super) fn button_action(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&ModifierButtonAction>,
     mut next_state: ResMut<NextState<MenuState>>,
-    mut modifiers: ResMut<RogueliteModifiers>,
+    pending_toggles: Res<PendingToggles>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = button_query.get(event.button) {
             match action {
-                ModifierButtonAction::Continue => {
+                ModifierButtonAction::StartRun => {
                     channel_change.write(ChannelChangeMessage);
+                    commands.insert_resource(ActiveToggles::new(
+                        pending_toggles.enabled.clone(),
+                    ));
                     next_state.set(MenuState::WizardSelect);
                 }
                 ModifierButtonAction::Back => {
                     channel_change.write(ChannelChangeMessage);
                     next_state.set(MenuState::GameModeSelect);
-                }
-                ModifierButtonAction::Reset => {
-                    *modifiers = RogueliteModifiers::default();
                 }
             }
         }
@@ -285,6 +679,211 @@ pub(super) fn escape_to_game_mode_select(
         next_state.set(MenuState::GameModeSelect);
     }
 }
+
+// ── Toggle Systems ─────────────────────────────────────────────────────────
+
+/// Toggles the expand/collapse state of a toggle modifier's description.
+pub(super) fn toggle_expand_action(
+    mut button_clicked: MessageReader<MouseClicked>,
+    expand_buttons: Query<&ToggleExpandButton>,
+    mut expanded: ResMut<ExpandedToggles>,
+    mut descriptions: Query<(&ToggleDescriptionNode, &mut Node)>,
+    children_query: Query<&Children>,
+    mut text_query: Query<&mut Text>,
+    expand_btn_entities: Query<(Entity, &ToggleExpandButton)>,
+) {
+    for event in button_clicked.read() {
+        let Ok(btn) = expand_buttons.get(event.button) else {
+            continue;
+        };
+        let toggle = btn.0;
+
+        let is_expanded = expanded.0.contains(&toggle);
+        if is_expanded {
+            expanded.0.remove(&toggle);
+        } else {
+            expanded.0.insert(toggle);
+        }
+        let now_expanded = !is_expanded;
+
+        // Update description visibility
+        for (desc, mut node) in &mut descriptions {
+            if desc.0 == toggle {
+                node.display = if now_expanded {
+                    Display::Flex
+                } else {
+                    Display::None
+                };
+            }
+        }
+
+        // Update arrow text
+        for (entity, expand_btn) in &expand_btn_entities {
+            if expand_btn.0 == toggle {
+                if let Ok(children) = children_query.get(entity) {
+                    for child in children.iter() {
+                        if let Ok(mut text) = text_query.get_mut(child) {
+                            text.0 = if now_expanded {
+                                "\u{25be}".to_string()
+                            } else {
+                                "\u{25b8}".to_string()
+                            };
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Toggles ON/OFF for unlocked toggle modifiers by clicking the row itself.
+/// For locked toggles, clicking the row opens the unlock confirmation popup.
+pub(super) fn toggle_row_action(
+    mut commands: Commands,
+    mut button_clicked: MessageReader<MouseClicked>,
+    row_query: Query<&ToggleRowContainer>,
+    expand_buttons: Query<&ToggleExpandButton>,
+    mut pending_toggles: ResMut<PendingToggles>,
+    mut row_containers: Query<(
+        &ToggleRowContainer,
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &mut crate::ui::components::ButtonColors,
+    )>,
+    existing_popup: Query<Entity, With<ConfirmUnlockPopup>>,
+) {
+    for event in button_clicked.read() {
+        // Skip if the click was on the expand button (handled separately)
+        if expand_buttons.get(event.button).is_ok() {
+            continue;
+        }
+
+        let Ok(row) = row_query.get(event.button) else {
+            continue;
+        };
+        let toggle = row.0;
+        let is_unlocked = save_data::is_toggle_unlocked(toggle);
+
+        if !is_unlocked {
+            // Locked — open unlock confirmation popup
+            if existing_popup.is_empty() {
+                spawn_unlock_popup(&mut commands, toggle);
+            }
+            continue;
+        }
+
+        // Unlocked — toggle on/off
+        pending_toggles.toggle(toggle);
+        let now_enabled = pending_toggles.is_enabled(toggle);
+
+        let (bg, border) = if now_enabled {
+            (TOGGLE_ON_BG, TOGGLE_ON_BORDER)
+        } else {
+            (TOGGLE_OFF_BG, TOGGLE_OFF_BORDER)
+        };
+
+        for (container, mut bg_color, mut border_color, mut btn_colors) in &mut row_containers {
+            if container.0 == toggle {
+                bg_color.0 = bg;
+                *border_color = BorderColor::all(border);
+                btn_colors.background = bg;
+                btn_colors.border = border;
+            }
+        }
+    }
+}
+
+
+
+/// Handles confirm/cancel actions in the unlock confirmation popup.
+pub(super) fn handle_unlock_confirmation(
+    mut commands: Commands,
+    mut button_clicked: MessageReader<MouseClicked>,
+    action_query: Query<&ConfirmUnlockAction>,
+    popup_query: Query<Entity, With<ConfirmUnlockPopup>>,
+    mut pending_toggles: ResMut<PendingToggles>,
+    mut row_containers: Query<(
+        &ToggleRowContainer,
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &mut crate::ui::components::ButtonColors,
+    )>,
+    unlock_cost_texts: Query<(Entity, &ToggleUnlockButton)>,
+) {
+    for event in button_clicked.read() {
+        let Ok(action) = action_query.get(event.button) else {
+            continue;
+        };
+
+        match action {
+            ConfirmUnlockAction::Confirm(toggle) => {
+                let toggle = *toggle;
+                if save_data::unlock_toggle(toggle) {
+                    pending_toggles.enabled.push(toggle);
+
+                    // Update row visual to enabled state
+                    for (container, mut bg_color, mut border_color, mut btn_colors) in
+                        &mut row_containers
+                    {
+                        if container.0 == toggle {
+                            bg_color.0 = TOGGLE_ON_BG;
+                            *border_color = BorderColor::all(TOGGLE_ON_BORDER);
+                            btn_colors.background = TOGGLE_ON_BG;
+                            btn_colors.border = TOGGLE_ON_BORDER;
+                        }
+                    }
+
+                    // Remove the Insight cost text
+                    for (entity, unlock_btn) in &unlock_cost_texts {
+                        if unlock_btn.0 == toggle {
+                            commands.entity(entity).try_despawn();
+                            break;
+                        }
+                    }
+                }
+            }
+            ConfirmUnlockAction::Cancel => {}
+        }
+
+        // Dismiss popup
+        for entity in &popup_query {
+            commands.entity(entity).try_despawn();
+        }
+    }
+}
+
+// ── Run Summary Update ─────────────────────────────────────────────────────
+
+/// Rebuilds the left panel summary text when modifiers or pending toggles change.
+pub(super) fn update_run_summary(
+    mut commands: Commands,
+    modifiers: Res<RogueliteModifiers>,
+    pending_toggles: Res<PendingToggles>,
+    summary_query: Query<Entity, With<RunSummaryContent>>,
+    children_query: Query<&Children>,
+) {
+    if !modifiers.is_changed() && !pending_toggles.is_changed() {
+        return;
+    }
+
+    let Ok(summary_entity) = summary_query.single() else {
+        return;
+    };
+
+    // Despawn all existing children
+    if let Ok(children) = children_query.get(summary_entity) {
+        for child in children.iter() {
+            commands.entity(child).try_despawn();
+        }
+    }
+
+    // Re-spawn fresh text nodes
+    commands.entity(summary_entity).with_children(|summary| {
+        spawn_summary_items(summary, &modifiers, &pending_toggles);
+    });
+}
+
+// ── Slider Systems ─────────────────────────────────────────────────────────
 
 /// Handles slider +/- button clicks.
 pub(super) fn slider_button_action(
@@ -414,6 +1013,8 @@ pub(super) fn update_sliders(
         }
     }
 }
+
+// ── Seed Input Systems ─────────────────────────────────────────────────────
 
 /// Handles clicking the seed input box to focus it, or clicking Random / other buttons to unfocus.
 pub(super) fn seed_input_click(

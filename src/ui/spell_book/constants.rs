@@ -3,43 +3,10 @@
 use bevy::prelude::*;
 
 use crate::ui::components::ButtonStyle;
-use crate::ui::constants::{
-    BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, DETAIL_BG as GLOBAL_DETAIL_BG,
-    DETAIL_BORDER as GLOBAL_DETAIL_BORDER, GOLD_ACCENT, LIST_BG as GLOBAL_LIST_BG,
-    LIST_BORDER as GLOBAL_LIST_BORDER, TEXT_BODY, TEXT_MUTED,
-};
+use crate::ui::constants::{BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, GOLD_ACCENT, TEXT_BODY, TEXT_MUTED};
 
-// ---------------------------------------------------------------------------
-// Layout
-// ---------------------------------------------------------------------------
-
-/// Padding around the entire spell book layout.
-pub const LAYOUT_PADDING: f32 = 30.0;
-
-/// Gap between left panel and right list.
-pub const COLUMN_GAP: f32 = 30.0;
-
-/// Width of the left detail panel.
-pub const LEFT_PANEL_WIDTH: f32 = 300.0;
-
-// ---------------------------------------------------------------------------
-// Detail panel (left side)
-// ---------------------------------------------------------------------------
-
-/// Detail panel background color.
-pub const DETAIL_BG: Color = GLOBAL_DETAIL_BG;
-
-/// Detail panel border color — subtle gold.
-pub const DETAIL_BORDER: Color = GLOBAL_DETAIL_BORDER;
-
-/// Detail panel border width.
-pub const DETAIL_BORDER_WIDTH: f32 = 1.0;
-
-/// Detail panel border radius.
-pub const DETAIL_BORDER_RADIUS: f32 = 6.0;
-
-/// Detail panel internal padding.
-pub const DETAIL_PADDING: f32 = 20.0;
+// Re-export shared layout constants used in systems.rs
+pub use crate::ui::constants::{DETAIL_PADDING, LEFT_PANEL_WIDTH};
 
 /// Font size for spell name in the detail panel.
 pub const DETAIL_NAME_FONT_SIZE: f32 = 14.0;
@@ -99,21 +66,6 @@ pub const HOTKEY_ACTIVE_TEXT: Color = Color::hsla(40.0, 0.20, 0.85, 1.0);
 // ---------------------------------------------------------------------------
 // Spell list (right side)
 // ---------------------------------------------------------------------------
-
-/// Background for the spell list scroll area.
-pub const LIST_BG: Color = GLOBAL_LIST_BG;
-
-/// Border for the spell list scroll area.
-pub const LIST_BORDER: Color = GLOBAL_LIST_BORDER;
-
-/// Border width for the spell list.
-pub const LIST_BORDER_WIDTH: f32 = 1.0;
-
-/// Border radius for the spell list.
-pub const LIST_BORDER_RADIUS: f32 = 6.0;
-
-/// Internal padding for the spell list.
-pub const LIST_PADDING: f32 = 12.0;
 
 /// Gap between items in the spell list.
 pub const LIST_ITEM_GAP: f32 = 16.0;

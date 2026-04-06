@@ -25,11 +25,20 @@ pub fn handle_rune_activation(
     mut last_activated: ResMut<super::resources::LastActivatedSpell>,
     mut prime_spell: MessageWriter<PrimeSpellMessage>,
     mut spell_activated: MessageWriter<RuneSpellActivated>,
+    mut last_cast: Option<ResMut<crate::game::game_mode::components::LastCastSpell>>,
 ) {
     for _ in messages.read() {
         if let Some(spell) = sequence_to_spell(&sequence.runes) {
             // Store in resource for UI display FIRST, before clearing sequence
             last_activated.activate(spell);
+
+            // Clear Spell Rotation block — rune activation overrides the restriction
+            // since the rune system forces a specific spell via the sequence
+            if let Some(ref mut lc) = last_cast {
+                lc.spell = None;
+                lc.pending_spell = None;
+                lc.bypass_until_cast = true;
+            }
 
             // Valid sequence - prime the spell with 25% empowerment
             prime_spell.write(PrimeSpellMessage {

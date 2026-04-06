@@ -392,21 +392,6 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
             );
         });
 
-        spawn_option_row(section, "Urgent Mode:", |buttons| {
-            spawn_option_button(
-                buttons,
-                "On",
-                OptionButtonValue::UrgentMode(true),
-                game_config.urgent_mode,
-            );
-            spawn_option_button(
-                buttons,
-                "Off",
-                OptionButtonValue::UrgentMode(false),
-                !game_config.urgent_mode,
-            );
-        });
-
         // Reset Tutorials button
         section
             .spawn(Node {

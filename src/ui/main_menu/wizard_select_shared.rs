@@ -381,17 +381,19 @@ pub(super) fn update_card_borders(
 
 /// Returns the grid container node for the right side of the wizard select screen.
 pub(super) fn grid_container_node() -> Node {
+    let grid_width =
+        (CARD_WIDTH * GRID_COLUMNS as f32) + (CARD_GAP * (GRID_COLUMNS - 1) as f32);
     Node {
         flex_grow: 1.0,
+        flex_shrink: 0.0,
         flex_direction: FlexDirection::Row,
         flex_wrap: FlexWrap::Wrap,
         justify_content: JustifyContent::FlexEnd,
         align_content: AlignContent::FlexStart,
         column_gap: Val::Px(CARD_GAP),
         row_gap: Val::Px(CARD_GAP),
-        max_width: Val::Px(
-            (CARD_WIDTH * GRID_COLUMNS as f32) + (CARD_GAP * (GRID_COLUMNS - 1) as f32),
-        ),
+        min_width: Val::Px(grid_width),
+        max_width: Val::Px(grid_width),
         ..default()
     }
 }

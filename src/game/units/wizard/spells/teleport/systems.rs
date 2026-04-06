@@ -1032,3 +1032,44 @@ fn random_position_in_circle(rng: &mut impl Rng, center: Vec3, radius: f32, y: f
 
     Vec3::new(new_x, y, new_z)
 }
+
+/// Cleans up teleport circles and caster state when the player switches away
+/// from the Teleport spell while a teleport is in progress.
+pub fn cleanup_teleport_on_spell_switch(
+    mut commands: Commands,
+    mut wizard_query: Query<(&PrimedSpell, &mut CastingState), (With<LocalWizard>, Changed<PrimedSpell>)>,
+    mut caster_query: Query<&mut TeleportCaster, With<LocalWizard>>,
+) {
+    let Ok((primed_spell, mut casting_state)) = wizard_query.single_mut() else {
+        return;
+    };
+    if primed_spell.spell == Spell::Teleport {
+        return;
+    }
+
+    let Ok(mut caster) = caster_query.single_mut() else {
+        return;
+    };
+
+    // Only clean up if there's actually an in-progress teleport (circles exist).
+    // TeleportCaster persists on the wizard, so we must check for active state.
+    let has_circles =
+        caster.destination_circle.is_some() || caster.source_circle.is_some();
+    if !has_circles {
+        return;
+    }
+
+    if let Some(dest_entity) = caster.destination_circle {
+        commands.entity(dest_entity).try_despawn();
+    }
+    if let Some(source_entity) = caster.source_circle {
+        commands.entity(source_entity).try_despawn();
+    }
+    caster.destination_circle = None;
+    caster.destination_position = None;
+    caster.source_circle = None;
+    caster.lingering_gate_active = false;
+    if !matches!(*casting_state, CastingState::Resting) {
+        casting_state.cancel();
+    }
+}

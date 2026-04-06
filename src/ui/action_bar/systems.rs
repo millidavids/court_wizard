@@ -222,6 +222,8 @@ pub(super) fn handle_slot_click(
                         gun: guns[slot_idx],
                     });
                 }
+            } else if config.wizard_type.uses_exclusive_casting() {
+                // RuneCaster/Randomancer can only cast via their own mechanics
             } else if let Some(spell) = config.action_bar_slots[slot_idx] {
                 prime_spell.write(PrimeSpellMessage {
                     spell: spell.primed_config(),
@@ -249,6 +251,11 @@ pub(super) fn handle_keyboard_input(
                     gun: guns[slot_idx],
                 });
             }
+        } else if matches!(
+            config.wizard_type,
+            WizardType::RuneCaster | WizardType::Randomancer
+        ) {
+            // RuneCaster/Randomancer can only cast via their own mechanics
         } else if let Some(spell) = config.action_bar_slots[slot_idx] {
             prime_spell.write(PrimeSpellMessage {
                 spell: spell.primed_config(),
@@ -298,7 +305,28 @@ pub(super) fn update_action_bar_slots(
 
     if config.is_changed() {
         if is_gunslinger {
-            // Gunslinger: gun names are static, set during spawn
+            // Show gun names in slots, hide icons
+            let guns = GunType::all();
+            for (mut text, mut text_font, mut visibility, mut node, slot_text) in
+                &mut slot_text_query
+            {
+                let slot_idx = slot_text.slot as usize;
+                let gun_name = if slot_idx < guns.len() {
+                    guns[slot_idx].display_name()
+                } else {
+                    ""
+                };
+                **text = gun_name.to_string();
+                text_font.font_size = calculate_action_bar_font_size(gun_name);
+                *visibility = Visibility::Inherited;
+                node.flex_grow = 1.0;
+            }
+            for (_, mut visibility, mut node, _) in &mut slot_icon_query {
+                *visibility = Visibility::Hidden;
+                node.flex_grow = 0.0;
+                node.width = Val::Px(0.0);
+                node.height = Val::Px(0.0);
+            }
             return;
         }
 

@@ -63,21 +63,12 @@ pub(super) fn spawn_spell_book_ui(
 
     commands.insert_resource(SelectedSpellPreview(initial_spell));
 
-    // Page container (standard overlay with content box)
+    // Page container with shared two-panel layout
     let content = spawn_page_container(
         &mut commands,
         OnSpellBookScreen,
         false,
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            flex_direction: FlexDirection::Row,
-            padding: UiRect::all(Val::Px(LAYOUT_PADDING)),
-            column_gap: Val::Px(COLUMN_GAP),
-            border: UiRect::all(Val::Px(1.0)),
-            overflow: Overflow::clip(),
-            ..default()
-        },
+        crate::ui::systems::two_panel_content_node(),
     );
 
     commands.entity(content).with_children(|root| {
@@ -91,31 +82,9 @@ pub(super) fn spawn_spell_book_ui(
 
 /// Spawns the left detail panel showing spell info, hotkeys, and action buttons.
 fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &GameConfig) {
-    parent
-        .spawn(Node {
-            width: Val::Px(LEFT_PANEL_WIDTH),
-            flex_direction: FlexDirection::Column,
-            align_self: AlignSelf::Center,
-            row_gap: Val::Px(16.0),
-            flex_grow: 0.0,
-            flex_shrink: 0.0,
-            ..default()
-        })
-        .with_children(|left| {
-            // Detail panel with border
-            left.spawn((
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(DETAIL_PADDING)),
-                    row_gap: Val::Px(12.0),
-                    border: UiRect::all(Val::Px(DETAIL_BORDER_WIDTH)),
-                    ..default()
-                },
-                BackgroundColor(DETAIL_BG),
-                BorderColor::all(DETAIL_BORDER),
-                BorderRadius::all(Val::Px(DETAIL_BORDER_RADIUS)),
-            ))
-            .with_children(|panel| {
+    let detail_box = crate::ui::systems::spawn_left_detail_panel(parent);
+
+    parent.commands().entity(detail_box).with_children(|panel| {
                 // Spell name
                 panel.spawn((
                     Text::new(spell.display_name()),
@@ -217,10 +186,10 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                                 }
                             });
                     });
-            });
 
-            // Button row: Select + Close
-            left.spawn(Node {
+        // Button row: Select + Close
+        panel
+            .spawn(Node {
                 flex_direction: FlexDirection::Row,
                 column_gap: Val::Px(10.0),
                 justify_content: JustifyContent::Center,
@@ -240,7 +209,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                     &CLOSE_BUTTON_STYLE,
                 );
             });
-        });
+    });
 }
 
 /// Spawns the right panel with 4 category columns, each scrollable.
@@ -250,25 +219,14 @@ fn spawn_spell_list(
     is_unlocked: &dyn Fn(&Spell) -> bool,
     icon_assets: &SpellIconAssets,
 ) {
-    parent
-        .spawn((
-            Node {
-                flex_grow: 1.0,
-                min_width: Val::Px(0.0),
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(LIST_ITEM_GAP),
-                overflow: Overflow::scroll_y(),
-                border: UiRect::all(Val::Px(LIST_BORDER_WIDTH)),
-                padding: UiRect::all(Val::Px(LIST_PADDING)),
-                ..default()
-            },
-            BackgroundColor(LIST_BG),
-            BorderColor::all(LIST_BORDER),
-            BorderRadius::all(Val::Px(LIST_BORDER_RADIUS)),
-            ScrollPosition::default(),
-            ScrollableSpellList,
-        ))
-        .with_children(|list| {
+    let right_id = crate::ui::systems::spawn_right_scroll_panel(
+        parent,
+        ScrollableSpellList,
+        FlexDirection::Row,
+        LIST_ITEM_GAP,
+    );
+
+    parent.commands().entity(right_id).with_children(|list| {
             for category in SpellCategory::all() {
                 let mut unlocked_in_category: Vec<Spell> = category
                     .spells()

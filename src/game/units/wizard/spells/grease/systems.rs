@@ -32,6 +32,7 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -126,9 +127,11 @@ pub fn handle_grease_casting(
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        Option<Res<ActiveToggles>>,
     ),
 ) {
-    let (active_talents, _talent_progress) = talent_resources;
+    let (active_talents, _talent_progress, active_toggles) = talent_resources;
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
@@ -160,6 +163,7 @@ pub fn handle_grease_casting(
         &sfx,
         &game_config,
         &talent_params,
+        scorched_mult,
     );
 
     if completed {
@@ -193,6 +197,7 @@ fn grease_casting_logic(
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
     talent_params: &GreaseTalentParams,
+    scorched_mult: f32,
 ) -> bool {
     let mut completed = false;
 
@@ -274,6 +279,7 @@ fn grease_casting_logic(
                                 primed_spell.empowerment,
                                 obstacle_events,
                                 *talent_params,
+                                scorched_mult,
                             );
                         }
                         commands.entity(indicator_entity).try_despawn();
@@ -918,8 +924,9 @@ pub(crate) fn spawn_grease_zone(
     empowerment: f32,
     obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: GreaseTalentParams,
+    scorched_mult: f32,
 ) {
-    let duration = constants::ZONE_DURATION * empowerment;
+    let duration = constants::ZONE_DURATION * empowerment * scorched_mult;
     let slow_mod = constants::SLOW_MODIFIER * talent_params.slow_mult;
     let slow_dur = constants::SLOW_DURATION * empowerment;
 

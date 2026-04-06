@@ -12,6 +12,7 @@ use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
+use crate::game::pathfinding::{OBSTACLE_BUFFER, ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::units::components::{
     Corpse, Health, RootedModifier, SlowMovementModifier, Team, TemporaryHitPoints,
 };
@@ -22,6 +23,7 @@ use crate::game::units::wizard::spells::utils::{
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
 use bevy::prelude::*;
@@ -96,15 +98,21 @@ pub fn handle_entangle_casting(
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     targets_query: Query<(Entity, &Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
-    mut defender_hit_msg: MessageWriter<EntangleHitDefenderMessage>,
+    messages: (
+        MessageWriter<EntangleHitDefenderMessage>,
+        MessageWriter<ObstacleChanged>,
+    ),
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
+        Option<Res<ActiveToggles>>,
     ),
 ) {
-    let (active_talents, mut talent_progress) = talent_resources;
+    let (mut defender_hit_msg, mut obstacle_events) = messages;
+    let (active_talents, mut talent_progress, active_toggles) = talent_resources;
+    let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (mut meshes, mut materials) = mesh_and_materials;
     let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
 
@@ -188,7 +196,8 @@ pub fn handle_entangle_casting(
                             let cast_pos = indicator.position;
                             let root_duration = constants::ROOT_DURATION
                                 * primed_spell.empowerment
-                                * talent_params.duration_mult;
+                                * talent_params.duration_mult
+                                * scorched_mult;
                             audio::play_sfx(
                                 &mut commands,
                                 &sfx.entangle_cast,
@@ -205,6 +214,7 @@ pub fn handle_entangle_casting(
                                 root_duration,
                                 &targets_query,
                                 &mut defender_hit_msg,
+                                &mut obstacle_events,
                                 &talent_params,
                             );
                             // Track talent progress
@@ -328,9 +338,19 @@ pub fn overgrowth_root_new_units(
 pub fn cleanup_entangle_ground_effect(
     mut commands: Commands,
     effects: Query<(Entity, &EntangleGroundEffect)>,
+    mut obstacle_events: MessageWriter<ObstacleChanged>,
 ) {
     for (entity, effect) in &effects {
         if effect.time_remaining <= 0.0 {
+            // Notify pathfinding that this zone is removed
+            let buffered_radius = effect.current_radius + OBSTACLE_BUFFER;
+            let origin_2d = Vec2::new(effect.center.x, effect.center.z);
+            obstacle_events.write(ObstacleChanged {
+                bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
+                obstacle_type: ObstacleType::Removed,
+                shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+                rebuild: false,
+            });
             commands.entity(entity).try_despawn();
         }
     }
@@ -486,6 +506,7 @@ pub(crate) fn apply_entangle(
     root_duration: f32,
     targets: &Query<(Entity, &Transform, &Team), (Without<Wizard>, Without<Corpse>)>,
     defender_hit_msg: &mut MessageWriter<EntangleHitDefenderMessage>,
+    obstacle_events: &mut MessageWriter<ObstacleChanged>,
     talent_params: &EntangleTalentParams,
 ) -> u32 {
     let mut hit_count = 0u32;
@@ -520,6 +541,16 @@ pub(crate) fn apply_entangle(
         },
         OnGameplayScreen,
     ));
+
+    // Notify pathfinding that this zone is a hazard
+    let buffered_radius = radius + OBSTACLE_BUFFER;
+    let origin_2d = Vec2::new(circle_pos.x, circle_pos.z);
+    obstacle_events.write(ObstacleChanged {
+        bounds: Rect::from_center_size(origin_2d, Vec2::splat(buffered_radius * 2.0)),
+        obstacle_type: ObstacleType::Hazard(15.0),
+        shape: Some(ObstacleShape::circle(origin_2d, buffered_radius)),
+        rebuild: false,
+    });
 
     // Spawn vine toruses rising from the ground
     spawn_vine_toruses(

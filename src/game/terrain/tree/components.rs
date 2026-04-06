@@ -10,6 +10,8 @@ pub struct Tree {
     pub radius: f32,
     /// Vertical extent for projectile collision checks.
     pub height: f32,
+    /// Sprite variant index into the tree sprite sheet.
+    pub sprite_index: u8,
 }
 
 impl Tree {
