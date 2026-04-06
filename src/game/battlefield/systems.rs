@@ -7,6 +7,7 @@ use super::components::{
     WaterRippleAssets,
 };
 use super::constants::*;
+use super::ground_material::{GroundMaterial, StoneNoiseMaterial};
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::*;
 
@@ -17,6 +18,8 @@ pub fn setup_battlefield(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    ground_materials: &mut Assets<GroundMaterial>,
+    stone_materials: &mut Assets<StoneNoiseMaterial>,
     battlefield_assets: &BattlefieldAssets,
 ) {
     // Add a light source so we can see 3D objects
@@ -31,7 +34,7 @@ pub fn setup_battlefield(
     ));
 
     // Spawn battlefield as a grid of textured ground tiles
-    spawn_ground_tiles(commands, meshes, materials, battlefield_assets);
+    spawn_ground_tiles(commands, meshes, ground_materials, battlefield_assets);
 
     // Spawn castle wall as a textured plane the wizard stands on
     spawn_castle_wall(
@@ -70,15 +73,73 @@ pub fn setup_battlefield(
         0.0,
     );
 
+    // Noise underlays beneath the wall floor — transparent areas in
+    // wall_floor.png reveal procedural noise instead of grass.
+    {
+        // Sand underlay (circular blend around the pond)
+        let sand_size = WATER_POOL_RADIUS * 3.5;
+        let sand_mesh = Rectangle::new(sand_size, sand_size);
+        let sand_material = stone_materials.add(StoneNoiseMaterial {
+            dark_color: Vec4::new(0.55, 0.45, 0.30, 1.0),
+            light_color: Vec4::new(0.75, 0.65, 0.48, 1.0),
+            blend_params: Vec4::new(
+                WATER_POOL_POSITION.x + 100.0,
+                WATER_POOL_POSITION.z - 100.0,
+                WATER_POOL_RADIUS * 0.3,
+                WATER_POOL_RADIUS * 2.0,
+            ),
+            blend_mode: Vec4::new(0.0, 0.0, 0.0, 0.0),
+        });
+        commands.spawn((
+            Mesh3d(meshes.add(sand_mesh)),
+            MeshMaterial3d(sand_material),
+            Transform::from_xyz(
+                WATER_POOL_POSITION.x + 100.0,
+                0.5,
+                WATER_POOL_POSITION.z - 100.0,
+            )
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            OnGameplayScreen,
+        ));
+
+        // Stone underlay (diagonal-line blend following the wall floor art border)
+        // Oversized plane covering full battlefield height so it reaches the map edge.
+        let stone_width = WALL_FLOOR_DEPTH + 2000.0;
+        let stone_length = BATTLEFIELD_SIZE + 2000.0;
+        let stone_mesh = Rectangle::new(stone_width, stone_length);
+        // #5D3933 as dark, lighter variant for noise range
+        let stone_material = stone_materials.add(StoneNoiseMaterial {
+            dark_color: Vec4::new(0.11, 0.04, 0.03, 1.0),
+            light_color: Vec4::new(0.20, 0.10, 0.07, 1.0),
+            blend_params: Vec4::new(
+                0.0,   // unused (line is hardcoded in shader)
+                50.0,  // fade_start (tight to the art edge)
+                800.0, // fade_end (blend distance into grass)
+                0.0,
+            ),
+            blend_mode: Vec4::new(1.0, 0.0, 0.0, 0.0),
+        });
+        commands.spawn((
+            Mesh3d(meshes.add(stone_mesh)),
+            MeshMaterial3d(stone_material),
+            // Center further from camera than wall_floor (Z=-1000) so transparent
+            // sort order puts this behind the wall floor.
+            Transform::from_xyz(WALL_FLOOR_POSITION.x, 0.5, -1500.0)
+                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            OnGameplayScreen,
+        ));
+    }
+
     // Spawn floor between the right and left walls (laid flat, facing up).
-    // Uses AlphaMode::Mask so it renders in the opaque pass and writes depth,
-    // ensuring the trampling overlay (transparent) renders behind it.
+    // AlphaMode::Blend so translucent edges in the art blend properly.
+    // The stone/sand underlays are opaque (blend toward grass green at edges),
+    // so this transparent layer always renders on top of them.
     {
         let mesh = Rectangle::new(WALL_FLOOR_DEPTH, WALL_FLOOR_LENGTH);
         let material = materials.add(StandardMaterial {
             base_color_texture: Some(battlefield_assets.wall_floor.clone()),
             base_color: Color::WHITE,
-            alpha_mode: AlphaMode::Mask(0.5),
+            alpha_mode: AlphaMode::Blend,
             unlit: true,
             cull_mode: None,
             ..default()
@@ -258,7 +319,7 @@ fn pick_weighted_tile(rng: &mut impl Rng) -> usize {
 fn spawn_ground_tiles(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<GroundMaterial>,
     battlefield_assets: &BattlefieldAssets,
 ) {
     let half = BATTLEFIELD_SIZE / 2.0;
@@ -269,13 +330,15 @@ fn spawn_ground_tiles(
         .map(|i| meshes.add(create_tile_mesh(TILE_WORLD_SIZE, i, TILE_COUNT)))
         .collect();
 
-    // One shared material for all tiles.
-    let tile_material = materials.add(StandardMaterial {
-        base_color_texture: Some(battlefield_assets.battlefield_tiles.clone()),
-        base_color: Color::WHITE,
-        unlit: true,
-        depth_bias: 0.0,
-        ..default()
+    // Single shared material — the shader computes intensity from world Z position.
+    let tile_material = materials.add(GroundMaterial {
+        params: Vec4::new(
+            GROUND_NOISE_BASE,
+            GROUND_NOISE_FOREST,
+            GROUND_NOISE_FOREST_Z,
+            GROUND_NOISE_BLEND_RANGE,
+        ),
+        base_texture: battlefield_assets.battlefield_tiles.clone(),
     });
 
     let mut rng = rand::thread_rng();
@@ -289,7 +352,7 @@ fn spawn_ground_tiles(
             commands.spawn((
                 Mesh3d(tile_meshes[tile_index].clone()),
                 MeshMaterial3d(tile_material.clone()),
-                Transform::from_xyz(x, 0.0, z),
+                Transform::from_xyz(x, -1.0, z),
                 Battlefield,
                 OnGameplayScreen,
             ));
@@ -479,5 +542,43 @@ pub fn apply_water_slow(
         } else if terrain_mod.0 != 0.0 {
             terrain_mod.0 = 0.0;
         }
+    }
+}
+
+// ===== Ambient Motes =====
+
+/// Periodically spawns floating motes across the battlefield for atmosphere.
+pub fn emit_ambient_motes(
+    mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    *timer += time.delta_secs();
+    if *timer < AMBIENT_MOTE_INTERVAL {
+        return;
+    }
+    *timer -= AMBIENT_MOTE_INTERVAL;
+
+    let t = time.elapsed_secs();
+
+    // Spawn motes at pseudo-random positions across the playable area
+    for i in 0..AMBIENT_MOTE_COUNT {
+        let seed = t * 3.7 + i as f32 * 7.13;
+        let x = AMBIENT_MOTE_MIN_X
+            + ((seed * 17.3).sin() * 0.5 + 0.5) * (AMBIENT_MOTE_MAX_X - AMBIENT_MOTE_MIN_X);
+        let z = AMBIENT_MOTE_MIN_Z
+            + ((seed * 23.1).cos() * 0.5 + 0.5) * (AMBIENT_MOTE_MAX_Z - AMBIENT_MOTE_MIN_Z);
+        let y = 10.0 + ((seed * 41.7).sin() * 0.5 + 0.5) * 25.0;
+
+        vfx::systems::spawn_floating_motes(
+            &mut commands,
+            &visual_assets,
+            &visual_assets.ambient_mote,
+            Vec3::new(x, y, z),
+            50.0,
+            1,
+            t + seed,
+        );
     }
 }

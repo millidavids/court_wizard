@@ -6,7 +6,7 @@ pub(super) const FLORA_SPRITE_COUNT: usize = 10;
 pub(super) const FLORA_SPRITE_WIDTH: f32 = 18.0 * UNIT_SCALE;
 pub(super) const FLORA_SPRITE_HEIGHT: f32 = 18.0 * UNIT_SCALE;
 
-pub(crate) const FLORA_COUNT: u32 = 30;
+pub(crate) const FLORA_COUNT: u32 = 80;
 
 pub(super) const FLORA_TRAMPLE_RADIUS: f32 = 20.0;
 pub(super) const FLORA_TRAMPLE_RADIUS_SQ: f32 = FLORA_TRAMPLE_RADIUS * FLORA_TRAMPLE_RADIUS;

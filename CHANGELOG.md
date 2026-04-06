@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.633] - 2026-04-06
+
+### Added
+- **Ground texture variation** — the battlefield grass now has subtle color variation with darker and lighter patches, giving the field a more natural look instead of flat uniform green
+- **Earthy forest floor** — the area under the tree concentration has more pronounced ground noise with brown earth tones, gradually blending into the open field
+- **Darkened back wall area** — the ground near the back wall is darker, adding depth to the forested region
+- **Sandy blending around the pond** — the water pool area now has a sandy-colored ground that blends in a natural circle around the pond
+- **Rocky ground near the tunnels** — the area around the tunnel entrances has a dark reddish-brown stone texture that follows the wall border and blends organically into the grass
+- **More wildflowers** — the battlefield now has significantly more scattered flowers and small plants across the open field
+- **Floating particles** — small pollen-like motes now drift slowly across the battlefield, adding atmosphere
+
+### Fixed
+- **Units no longer walk through trees** — trees now physically block units just like boulders and stone walls do
+
 ## [v0.5.604] - 2026-04-06
 
 ### Added

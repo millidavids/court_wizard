@@ -451,11 +451,34 @@ pub fn apply_wall_avoidance(
 /// Pushes units out of any active Wall of Stone or Boulder entities.
 ///
 /// Runs after movement systems to ensure units cannot walk through walls or rocks.
+/// Applies a circular push-out correction to a unit's transform.
+fn apply_circular_push_out(
+    corrected: Option<Vec3>,
+    transform: &mut Mut<Transform>,
+    total_correction: &mut Vec3,
+    corrected_this_pass: &mut bool,
+    had_collision: &mut bool,
+) {
+    if let Some(corrected) = corrected {
+        let correction = Vec3::new(
+            corrected.x - transform.translation.x,
+            0.0,
+            corrected.z - transform.translation.z,
+        );
+        transform.translation.x = corrected.x;
+        transform.translation.z = corrected.z;
+        *total_correction += correction;
+        *corrected_this_pass = true;
+        *had_collision = true;
+    }
+}
+
 /// Uses multiple iterations so that obstacle intersections are resolved correctly —
 /// being pushed out of obstacle A won't leave the unit stuck in obstacle B.
 pub fn enforce_wall_collision(
     walls: Query<&super::units::wizard::spells::wall_of_stone::components::WallOfStone>,
     rocks: Query<&super::terrain::boulder::components::Boulder>,
+    trees: Query<&super::terrain::tree::components::Tree>,
     mut units: Query<
         (
             &mut Transform,
@@ -507,19 +530,23 @@ pub fn enforce_wall_collision(
                 if rock.sinking {
                     continue;
                 }
-                if let Some(corrected) = rock.push_out(transform.translation, hitbox.radius) {
-                    let correction = Vec3::new(
-                        corrected.x - transform.translation.x,
-                        0.0,
-                        corrected.z - transform.translation.z,
-                    );
+                apply_circular_push_out(
+                    rock.push_out(transform.translation, hitbox.radius),
+                    &mut transform,
+                    &mut total_correction,
+                    &mut corrected_this_pass,
+                    &mut had_collision,
+                );
+            }
 
-                    transform.translation.x = corrected.x;
-                    transform.translation.z = corrected.z;
-                    total_correction += correction;
-                    corrected_this_pass = true;
-                    had_collision = true;
-                }
+            for tree in &trees {
+                apply_circular_push_out(
+                    tree.push_out(transform.translation, hitbox.radius),
+                    &mut transform,
+                    &mut total_correction,
+                    &mut corrected_this_pass,
+                    &mut had_collision,
+                );
             }
 
             // No more overlaps — stable position found

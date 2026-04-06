@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::{BattlefieldAssets, LavaPool, WaterRipple, WaterRippleAssets};
+use super::ground_material::{GroundMaterial, StoneNoiseMaterial};
 use super::systems;
 use super::trampling::TramplingPlugin;
 use crate::game::pathfinding::resources::PathfindingGrid;
@@ -13,7 +14,11 @@ pub struct BattlefieldPlugin;
 
 impl Plugin for BattlefieldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(TramplingPlugin)
+        app.add_plugins((
+                TramplingPlugin,
+                MaterialPlugin::<GroundMaterial>::default(),
+                MaterialPlugin::<StoneNoiseMaterial>::default(),
+            ))
             .add_systems(Startup, load_battlefield_assets)
             .add_systems(
                 Update,
@@ -22,6 +27,7 @@ impl Plugin for BattlefieldPlugin {
                         .run_if(any_exist::<LavaPool>()),
                     systems::emit_water_ripples.run_if(resource_exists::<WaterRippleAssets>),
                     systems::update_water_ripples.run_if(any_exist::<WaterRipple>()),
+                    systems::emit_ambient_motes,
                 )
                     .run_if(is_gameplay_running),
             )

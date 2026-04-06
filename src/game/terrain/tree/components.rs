@@ -73,7 +73,6 @@ impl Tree {
     }
 
     /// Pushes a point outside the tree if it overlaps.
-    #[allow(dead_code)]
     pub fn push_out(&self, point: Vec3, unit_radius: f32) -> Option<Vec3> {
         let dx = point.x - self.center.x;
         let dz = point.z - self.center.z;

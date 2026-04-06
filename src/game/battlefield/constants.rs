@@ -142,3 +142,30 @@ pub(crate) const WATER_SLOW_FLOW_COST: f32 = 3.0;
 pub(crate) const LAVA_DAMAGE_PER_SECOND: f32 = 100.0;
 /// Water speed reduction applied as a percentage modifier (e.g., -0.5 = 50% slower).
 pub(crate) const WATER_SPEED_MODIFIER: f32 = -0.5;
+
+// ===== Ground Noise Constants =====
+
+/// Base noise intensity for the open battlefield.
+pub(super) const GROUND_NOISE_BASE: f32 = 0.6;
+/// Noise intensity under forest tree concentration (more earthy).
+pub(super) const GROUND_NOISE_FOREST: f32 = 2.0;
+/// Z threshold below which full forest noise intensity applies.
+pub(super) const GROUND_NOISE_FOREST_Z: f32 = -600.0;
+/// Z range over which noise blends between forest and base intensity.
+/// The blend edge is further randomized by noise in the shader.
+pub(super) const GROUND_NOISE_BLEND_RANGE: f32 = 1200.0;
+
+// ===== Ambient Mote Constants =====
+
+/// Interval between ambient mote spawn batches (seconds).
+pub(super) const AMBIENT_MOTE_INTERVAL: f32 = 0.5;
+/// Number of motes to spawn per batch.
+pub(super) const AMBIENT_MOTE_COUNT: usize = 3;
+/// Minimum X for ambient mote spawn region.
+pub(super) const AMBIENT_MOTE_MIN_X: f32 = -2200.0;
+/// Maximum X for ambient mote spawn region.
+pub(super) const AMBIENT_MOTE_MAX_X: f32 = 2000.0;
+/// Minimum Z for ambient mote spawn region.
+pub(super) const AMBIENT_MOTE_MIN_Z: f32 = -2200.0;
+/// Maximum Z for ambient mote spawn region.
+pub(super) const AMBIENT_MOTE_MAX_Z: f32 = 2200.0;

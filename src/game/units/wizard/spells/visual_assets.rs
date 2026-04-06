@@ -220,6 +220,9 @@ pub struct SpellVisualAssets {
     // ── Mark of Death materials ───────────────────────────────────────────
     pub mark_indicator: Handle<StandardMaterial>,
 
+    // ── Ambient mote material (floating pollen/dust) ─────────────────────
+    pub ambient_mote: Handle<StandardMaterial>,
+
     // ── Special meshes (fixed-size) ──────────────────────────────────────
     pub magic_missile_mesh: Handle<Mesh>,
     /// Flat quad mesh for particles (2 tris, double-sided).
@@ -629,6 +632,15 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
 
+        // Ambient mote (soft pale green, very low alpha for subtle floating particles)
+        ambient_mote: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.7, 0.85, 0.6, 0.18),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+
         // Disintegrate smoke
         disintegrate_smoke: materials.add(StandardMaterial {
             base_color: Color::srgba(0.05, 0.05, 0.05, 0.4),
@@ -1009,6 +1021,8 @@ impl SpellVisualAssets {
             &self.grease_splatter,
             // Mark of Death
             &self.mark_indicator,
+            // Ambient motes
+            &self.ambient_mote,
             // Arrow indicator
             &self.plague_wind_arrow,
             // Banishment

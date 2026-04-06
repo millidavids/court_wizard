@@ -376,8 +376,12 @@ pub fn process_spawn_queue(
         Res<crate::game::units::boss::dark_mage::resources::DarkMageAssets>,
     ),
     current_level: Res<CurrentLevel>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_stores: (
+        ResMut<Assets<Mesh>>,
+        ResMut<Assets<StandardMaterial>>,
+        ResMut<Assets<crate::game::battlefield::ground_material::GroundMaterial>>,
+        ResMut<Assets<crate::game::battlefield::ground_material::StoneNoiseMaterial>>,
+    ),
     mut king_spawned: ResMut<crate::game::units::king::components::KingSpawned>,
     optional_assets: (
         Option<Res<crate::game::units::wizard::components::WizardAssets>>,
@@ -417,6 +421,7 @@ pub fn process_spawn_queue(
         healer_assets,
     ) = &unit_assets;
     let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
+    let (mut meshes, mut materials, mut ground_materials, mut stone_materials) = asset_stores;
     let (ref wizard_assets_opt, ref cauldron_assets_opt, mut images) = optional_assets;
     let (
         battlefield_assets,
@@ -575,6 +580,8 @@ pub fn process_spawn_queue(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &mut ground_materials,
+                    &mut stone_materials,
                     battlefield_assets,
                 );
             }
