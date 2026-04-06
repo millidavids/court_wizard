@@ -161,7 +161,9 @@ pub(super) fn setup_studio(mut commands: Commands, splash_assets: Res<SplashAsse
             parent.spawn((
                 ImageNode::new(splash_assets.studio_image.clone()),
                 Node {
-                    height: Val::Percent(100.0),
+                    width: Val::Percent(80.0),
+                    height: Val::Percent(80.0),
+                    margin: UiRect::all(Val::Percent(10.0)),
                     ..default()
                 },
             ));

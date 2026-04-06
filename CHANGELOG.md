@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.636] - 2026-04-06
+
+### Changed
+- **New studio logo** — the splash screen now displays the Blackhearth Games logo
+
 ## [v0.5.633] - 2026-04-06
 
 ### Added

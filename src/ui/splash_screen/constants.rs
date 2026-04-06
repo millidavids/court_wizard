@@ -6,8 +6,8 @@ pub(super) const HOLD_DURATION: f32 = 4.0;
 /// Asset path for the CRT effect shader (waited on during Black substate).
 pub(super) const SHADER_ASSET_PATH: &str = "shaders/crt_effect.wgsl";
 
-/// Asset path for the studio background image.
-pub(super) const STUDIO_IMAGE_PATH: &str = "images/studio.png";
+/// Asset path for the studio logo image.
+pub(super) const STUDIO_IMAGE_PATH: &str = "images/logos/blackhearth_logo.png";
 
 /// Asset path for the Rust language logo.
 pub(super) const RUST_LOGO_PATH: &str = "images/rust-logo-256x256-blk.png";
