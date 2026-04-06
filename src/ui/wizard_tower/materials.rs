@@ -25,6 +25,33 @@ impl UiMaterial for RadialProgressMaterial {
     }
 }
 
+/// Concentric rings drawn on insight bonus constellation nodes.
+/// Shows 5 rings: filled (permanent), pending (allocated), and empty.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub(super) struct ConcentricRingsMaterial {
+    #[uniform(0)]
+    pub data: ConcentricRingsData,
+}
+
+#[derive(ShaderType, Debug, Clone, Copy)]
+pub(super) struct ConcentricRingsData {
+    pub fill_color: LinearRgba,
+    pub bg_color: LinearRgba,
+    pub pending_color: LinearRgba,
+    /// Number of permanently filled rings (0-5).
+    pub filled: f32,
+    /// Number of additionally pending rings (0-5).
+    pub pending: f32,
+    /// Total number of rings.
+    pub total: f32,
+}
+
+impl UiMaterial for ConcentricRingsMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/concentric_rings.wgsl".into()
+    }
+}
+
 /// Twinkling starry sky background drawn as a UI material on the spell graph area.
 #[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
 pub(super) struct StarSkyMaterial {

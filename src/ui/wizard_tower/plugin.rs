@@ -5,10 +5,10 @@ use crate::state::{AppState, MetaGameState};
 use crate::ui::plugin::ButtonActionSet;
 
 use super::components::{
-    GraphViewAnimation, GraphViewState, SelectedStudySpell, SelectedTimeTravelLevel,
-    TimeTravelSection,
+    GraphViewAnimation, GraphViewState, SelectedInsightBonus, SelectedStudySpell,
+    SelectedTimeTravelLevel, TimeTravelSection,
 };
-use super::materials::{RadialProgressMaterial, StarSkyMaterial};
+use super::materials::{ConcentricRingsMaterial, RadialProgressMaterial, StarSkyMaterial};
 use super::systems::*;
 use crate::ui::systems::handle_scroll;
 
@@ -17,6 +17,7 @@ pub struct WizardTowerPlugin;
 impl Plugin for WizardTowerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(UiMaterialPlugin::<RadialProgressMaterial>::default())
+            .add_plugins(UiMaterialPlugin::<ConcentricRingsMaterial>::default())
             .add_plugins(UiMaterialPlugin::<StarSkyMaterial>::default())
             // Top-level cleanup when leaving MetaGame entirely
             .add_systems(
@@ -73,14 +74,32 @@ impl Plugin for WizardTowerPlugin {
                     animate_graph_view.run_if(resource_exists::<GraphViewAnimation>),
                     update_graph_node_positions.run_if(resource_exists::<GraphViewState>),
                     update_graph_edge_positions.run_if(resource_exists::<GraphViewState>),
+                    update_insight_node_positions.run_if(resource_exists::<GraphViewState>),
+                    update_insight_edge_positions.run_if(resource_exists::<GraphViewState>),
                     update_graph_node_borders.run_if(
                         resource_exists::<SelectedStudySpell>
                             .and(resource_changed::<SelectedStudySpell>),
                     ),
+                    update_insight_node_borders.run_if(
+                        resource_exists::<SelectedInsightBonus>
+                            .and(resource_changed::<SelectedInsightBonus>),
+                    ),
                     handle_detail_slider_interaction,
+                    handle_insight_bonus_slider_interaction,
                     update_detail_sliders,
+                    update_insight_bonus_sliders,
                     update_study_detail_panel,
+                    update_insight_detail_panel.after(update_study_detail_panel),
+                )
+                    .run_if(in_state(MetaGameState::Study)),
+            )
+            .add_systems(
+                Update,
+                (
                     update_allocation_text,
+                    update_insight_bonus_allocation_text,
+                    update_insight_bonus_rings,
+                    update_graph_node_label_scale.run_if(resource_exists::<GraphViewState>),
                     update_pending_insight_display,
                     handle_talent_card_clicks,
                     update_talent_hover_description,

@@ -64,6 +64,13 @@ pub fn setup_wizard(
         wizard.spell_power_multiplier = super::archetypes::shepherd::SPELL_POWER_MULTIPLIER;
     }
 
+    // Apply permanent insight bonuses on top of archetype stats
+    let insight = crate::game::insight_bonuses::InsightBonuses::from_save();
+    wizard.spell_power_multiplier *= insight.spell_damage_mult;
+    wizard.spell_range *= insight.spell_range_mult;
+    wizard.cast_speed_multiplier *= insight.cast_speed_mult;
+    wizard.mana_cost_multiplier *= insight.mana_cost_mult;
+
     let mut entity_commands = commands.spawn((
         Mesh3d(meshes.add(quad_mesh)),
         MeshMaterial3d(material),

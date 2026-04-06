@@ -7,7 +7,8 @@ use crate::config::ActiveSave;
 use crate::config::save_data::grant_insight;
 use crate::config::save_data::{
     add_spell_research_progress, get_insight, get_spell_research_progress,
-    get_spell_talent_progress, get_spell_talent_selections, load_unified_save, spend_insight,
+    get_spell_talent_progress, get_spell_talent_selections, load_unified_save,
+    set_insight_bonus_levels, spend_insight,
 };
 use crate::game::constants::boss_name_for_level;
 use crate::game::crt_effect::{ChannelChangeMessage, CorrectedCursorPosition};
@@ -22,8 +23,13 @@ use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_title_wit
 
 use super::components::*;
 use super::constants::*;
-use super::graph::build_spell_graph;
-use super::materials::{RadialProgressData, RadialProgressMaterial, StarSkyData, StarSkyMaterial};
+use crate::game::insight_bonuses::InsightBonusStat;
+
+use super::graph::{build_insight_constellation, build_spell_graph};
+use super::materials::{
+    ConcentricRingsData, ConcentricRingsMaterial, RadialProgressData, RadialProgressMaterial,
+    StarSkyData, StarSkyMaterial,
+};
 
 // ===========================================================================
 // Shared helpers
@@ -206,7 +212,7 @@ pub(super) fn setup_wizard_tower_main(
 
                     spawn_button(
                         buttons,
-                        "Study Spells",
+                        "Study",
                         WizardTowerButtonAction::StudySpells,
                         &BUTTON_STYLE,
                     );
@@ -520,18 +526,25 @@ pub(super) fn setup_study_screen(
     battle_insight: Res<BattleInsightData>,
     asset_server: Res<AssetServer>,
     mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
+    mut ring_materials: ResMut<Assets<ConcentricRingsMaterial>>,
     mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
 ) {
     commands.insert_resource(InsightAllocation::default());
-    commands.insert_resource(GraphViewState::default());
+    // Zoom out and offset to show both spell web and insight constellation
+    commands.insert_resource(GraphViewState {
+        offset: Vec2::new(-INSIGHT_CONSTELLATION_OFFSET.x * 0.5 * 0.55, 0.0),
+        scale: 0.55,
+    });
     commands.insert_resource(GraphDragState::default());
     commands.insert_resource(SelectedStudySpell::default());
+    commands.insert_resource(SelectedInsightBonus::default());
 
     spawn_study_screen(
         &mut commands,
         &battle_insight,
         &asset_server,
         &mut progress_materials,
+        &mut ring_materials,
         &mut star_sky_materials,
     );
 }
@@ -542,6 +555,7 @@ pub(super) fn cleanup_study_resources(mut commands: Commands) {
     commands.remove_resource::<GraphViewState>();
     commands.remove_resource::<GraphDragState>();
     commands.remove_resource::<SelectedStudySpell>();
+    commands.remove_resource::<SelectedInsightBonus>();
     commands.remove_resource::<GraphViewAnimation>();
     commands.remove_resource::<GraphBounds>();
 }
@@ -560,6 +574,7 @@ pub(super) fn handle_study_button_actions(
     asset_server: Res<AssetServer>,
     mut selected: Option<ResMut<SelectedStudySpell>>,
     mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
+    mut ring_materials: ResMut<Assets<ConcentricRingsMaterial>>,
     mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
 ) {
     for event in button_clicked.read() {
@@ -602,6 +617,23 @@ pub(super) fn handle_study_button_actions(
                     }
                 }
 
+                // Apply insight bonus allocations (insight already spent above)
+                let cost_per = InsightBonusStat::cost_per_level();
+                let max_level = InsightBonusStat::max_level();
+                let mut bonus_updates: Vec<(&str, u8)> = Vec::new();
+                for (stat, &amount) in &alloc.bonus_allocations {
+                    if amount == 0 {
+                        continue;
+                    }
+                    let current = stat.current_level();
+                    let levels_earned = (amount / cost_per) as u8;
+                    let new_level = (current + levels_earned).min(max_level);
+                    if new_level > current {
+                        bonus_updates.push((stat.id(), new_level));
+                    }
+                }
+                set_insight_bonus_levels(&bonus_updates);
+
                 for spell in newly_unlocked {
                     spell_researched.write(SpellResearchedMessage { spell });
                 }
@@ -613,6 +645,7 @@ pub(super) fn handle_study_button_actions(
                     &battle_insight,
                     &asset_server,
                     &mut progress_materials,
+                    &mut ring_materials,
                     &mut star_sky_materials,
                     true,
                 );
@@ -627,6 +660,7 @@ pub(super) fn handle_study_button_actions(
                     &battle_insight,
                     &asset_server,
                     &mut progress_materials,
+                    &mut ring_materials,
                     &mut star_sky_materials,
                     false,
                 );
@@ -644,6 +678,7 @@ fn rebuild_study_ui(
     battle_insight: &BattleInsightData,
     asset_server: &AssetServer,
     progress_materials: &mut Assets<RadialProgressMaterial>,
+    ring_materials: &mut Assets<ConcentricRingsMaterial>,
     star_sky_materials: &mut Assets<StarSkyMaterial>,
     animate_to_default: bool,
 ) {
@@ -652,6 +687,7 @@ fn rebuild_study_ui(
     }
     commands.remove_resource::<InsightAllocation>();
     commands.insert_resource(InsightAllocation::default());
+    commands.insert_resource(SelectedInsightBonus::default());
     if let Some(sel) = selected {
         sel.0 = None;
     }
@@ -667,6 +703,7 @@ fn rebuild_study_ui(
         battle_insight,
         asset_server,
         progress_materials,
+        ring_materials,
         star_sky_materials,
     );
 }
@@ -677,10 +714,12 @@ fn spawn_study_screen(
     battle_insight: &BattleInsightData,
     asset_server: &AssetServer,
     progress_materials: &mut Assets<RadialProgressMaterial>,
+    ring_materials: &mut Assets<ConcentricRingsMaterial>,
     star_sky_materials: &mut Assets<StarSkyMaterial>,
 ) {
     let insight_balance = get_insight();
     let (node_defs, edge_defs) = build_spell_graph();
+    let (insight_nodes, insight_edges, insight_anchor_pos) = build_insight_constellation();
     let affinities = &battle_insight.damage_types_used;
 
     // Compute graph bounds from node positions for pan clamping.
@@ -689,6 +728,13 @@ fn spawn_study_screen(
     for node_def in &node_defs {
         bounds_min = bounds_min.min(node_def.position);
         bounds_max = bounds_max.max(node_def.position);
+    }
+    // Include insight constellation in bounds
+    bounds_min = bounds_min.min(insight_anchor_pos);
+    bounds_max = bounds_max.max(insight_anchor_pos);
+    for inode in &insight_nodes {
+        bounds_min = bounds_min.min(inode.position);
+        bounds_max = bounds_max.max(inode.position);
     }
     commands.insert_resource(GraphBounds {
         min: bounds_min,
@@ -879,8 +925,134 @@ fn spawn_study_screen(
                                     Text::new("???"),
                                     TextFont::from_font_size(14.0),
                                     TextColor(LOCKED_TEXT_COLOR),
+                                    GraphNodeLabel { base_size: 14.0 },
                                 ));
                             }
+                        });
+                }
+
+                // -------------------------------------------------------
+                // Insight Bonus Constellation
+                // -------------------------------------------------------
+
+                // Constellation edges
+                for edge_def in &insight_edges {
+                    graph_area.spawn((
+                        Node {
+                            width: Val::Px(0.0),
+                            height: Val::Px(GRAPH_EDGE_THICKNESS),
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            ..default()
+                        },
+                        BackgroundColor(INSIGHT_EDGE_COLOR),
+                        UiTransform::default(),
+                        InsightConstellationEdge {
+                            start: edge_def.start,
+                            end: edge_def.end,
+                        },
+                    ));
+                }
+
+                // Constellation central anchor
+                graph_area.spawn((
+                    Node {
+                        width: Val::Px(INSIGHT_ANCHOR_SIZE),
+                        height: Val::Px(INSIGHT_ANCHOR_SIZE),
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(0.0),
+                        top: Val::Px(0.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(INSIGHT_NODE_BG),
+                    BorderColor::all(INSIGHT_ANCHOR_BORDER),
+                    BorderRadius::all(Val::Percent(50.0)),
+                    ZIndex(1),
+                    InsightConstellationAnchor,
+                ));
+
+                // Constellation stat nodes
+                for inode_def in &insight_nodes {
+                    let stat = inode_def.stat;
+                    let level = stat.current_level();
+                    let maxed = level >= InsightBonusStat::max_level();
+                    let border = if maxed {
+                        INSIGHT_NODE_MAXED_BORDER
+                    } else {
+                        INSIGHT_NODE_BORDER
+                    };
+
+                    graph_area
+                        .spawn((
+                            Button,
+                            Node {
+                                width: Val::Px(INSIGHT_NODE_SIZE),
+                                height: Val::Px(INSIGHT_NODE_SIZE),
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                flex_direction: FlexDirection::Column,
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                border: UiRect::all(Val::Px(2.0)),
+                                overflow: Overflow::clip(),
+                                ..default()
+                            },
+                            BackgroundColor(INSIGHT_NODE_BG),
+                            BorderColor::all(border),
+                            BorderRadius::all(Val::Percent(50.0)),
+                            ZIndex(1),
+                            InsightBonusNode {
+                                stat,
+                                graph_position: inode_def.position,
+                            },
+                        ))
+                        .with_children(|node| {
+                            // Concentric rings showing level progress
+                            let mat = ring_materials.add(ConcentricRingsMaterial {
+                                data: ConcentricRingsData {
+                                    fill_color: INSIGHT_PROGRESS_FILL.to_linear(),
+                                    bg_color: LinearRgba::new(0.2, 0.15, 0.3, 0.5),
+                                    pending_color: SLIDER_FILL_COLOR.to_linear(),
+                                    filled: level as f32,
+                                    pending: 0.0,
+                                    total: InsightBonusStat::max_level() as f32,
+                                },
+                            });
+                            node.spawn((
+                                MaterialNode(mat),
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(0.0),
+                                    top: Val::Px(0.0),
+                                    ..default()
+                                },
+                                InsightBonusRings { stat },
+                            ));
+
+                            // Stat label — constrained to node bounds
+                            let label = match stat {
+                                InsightBonusStat::SpellDamage => "DMG",
+                                InsightBonusStat::SpellRange => "RNG",
+                                InsightBonusStat::CastSpeed => "SPD",
+                                InsightBonusStat::ManaCost => "MP",
+                            };
+                            node.spawn((
+                                Text::new(label),
+                                TextFont::from_font_size(11.0),
+                                TextColor(if maxed {
+                                    INSIGHT_NODE_MAXED_BORDER
+                                } else {
+                                    Color::srgb(0.8, 0.75, 0.95)
+                                }),
+                                GraphNodeLabel { base_size: 11.0 },
+                            ));
                         });
                 }
             });
@@ -916,7 +1088,7 @@ fn spawn_study_screen(
                     .with_children(|header| {
                         spawn_title_with_shadow(
                             header,
-                            "Study Spells",
+                            "Study",
                             TITLE_FONT_SIZE,
                             TITLE_COLOR,
                             Node::default(),
@@ -1021,12 +1193,15 @@ fn spawn_study_screen(
 // Graph node selection
 // ===========================================================================
 
-/// Detects clicks on spell graph nodes and updates the selected spell.
+/// Detects clicks on spell graph nodes and insight bonus nodes.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn handle_graph_node_clicks(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     node_query: Query<&SpellGraphNode>,
+    insight_node_query: Query<&InsightBonusNode>,
     mut selected: ResMut<SelectedStudySpell>,
+    mut selected_insight: ResMut<SelectedInsightBonus>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
     panel_query: Query<(&Interaction, &Node), With<StudyDetailPanel>>,
 ) {
@@ -1040,31 +1215,52 @@ pub(super) fn handle_graph_node_clicks(
     }
 
     for event in button_clicked.read() {
+        // Check spell nodes first
         if let Ok(node) = node_query.get(event.button) {
+            selected_insight.0 = None; // Clear insight selection
             if selected.0 == Some(node.spell) {
                 selected.0 = None;
                 commands.remove_resource::<GraphViewAnimation>();
             } else {
                 selected.0 = Some(node.spell);
+                animate_to_node(&mut commands, &graph_area_query, node.graph_position);
+            }
+            continue;
+        }
 
-                // Animate pan+zoom so the node ends up centered in the right 2/3
-                if let Ok(computed) = graph_area_query.single() {
-                    let size = computed.size() * computed.inverse_scale_factor();
-                    let container_center = size / 2.0;
-                    let target_x = DETAIL_PANEL_WIDTH + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
-                    let target_y = size.y / 2.0;
-                    let target = Vec2::new(target_x, target_y);
-                    let target_scale = GRAPH_ZOOM_MAX;
-                    let target_offset =
-                        target - container_center - node.graph_position * target_scale;
-                    commands.insert_resource(GraphViewAnimation {
-                        target_offset,
-                        target_scale,
-                        speed: GRAPH_ANIMATION_SPEED,
-                    });
-                }
+        // Check insight bonus nodes
+        if let Ok(inode) = insight_node_query.get(event.button) {
+            selected.0 = None; // Clear spell selection
+            if selected_insight.0 == Some(inode.stat) {
+                selected_insight.0 = None;
+                commands.remove_resource::<GraphViewAnimation>();
+            } else {
+                selected_insight.0 = Some(inode.stat);
+                animate_to_node(&mut commands, &graph_area_query, inode.graph_position);
             }
         }
+    }
+}
+
+/// Animates the graph view to center a node in the right 2/3 of the screen.
+fn animate_to_node(
+    commands: &mut Commands,
+    graph_area_query: &Query<&ComputedNode, With<SpellGraphArea>>,
+    graph_position: Vec2,
+) {
+    if let Ok(computed) = graph_area_query.single() {
+        let size = computed.size() * computed.inverse_scale_factor();
+        let container_center = size / 2.0;
+        let target_x = DETAIL_PANEL_WIDTH + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
+        let target_y = size.y / 2.0;
+        let target = Vec2::new(target_x, target_y);
+        let target_scale = GRAPH_ZOOM_MAX;
+        let target_offset = target - container_center - graph_position * target_scale;
+        commands.insert_resource(GraphViewAnimation {
+            target_offset,
+            target_scale,
+            speed: GRAPH_ANIMATION_SPEED,
+        });
     }
 }
 
@@ -1098,11 +1294,17 @@ pub(super) fn handle_graph_pan(
     mut drag: ResMut<GraphDragState>,
     bounds: Option<Res<GraphBounds>>,
     mut selected: ResMut<SelectedStudySpell>,
-    node_interactions: Query<&Interaction, With<SpellGraphNode>>,
+    mut selected_insight: ResMut<SelectedInsightBonus>,
+    node_interactions: Query<&Interaction, Or<(With<SpellGraphNode>, With<InsightBonusNode>)>>,
     panel_query: Query<(&Interaction, &Node), With<StudyDetailPanel>>,
     slider_interactions: Query<
         &Interaction,
-        Or<(With<StudyAllocationSlider>, With<StudyAllocationHandle>)>,
+        Or<(
+            With<StudyAllocationSlider>,
+            With<StudyAllocationHandle>,
+            With<InsightBonusSlider>,
+            With<InsightBonusSliderHandle>,
+        )>,
     >,
 ) {
     let Some(cursor_pos) = corrected_cursor.0 else {
@@ -1136,6 +1338,7 @@ pub(super) fn handle_graph_pan(
         // Deselect on a click (not a drag) on empty space, but not over the detail panel
         if total_moved < 4.0 && !cursor_over_panel {
             selected.0 = None;
+            selected_insight.0 = None;
         }
         drag.dragging = false;
         return;
@@ -1335,6 +1538,103 @@ pub(super) fn update_graph_edge_positions(
 }
 
 // ===========================================================================
+// Insight constellation position & border updates
+// ===========================================================================
+
+/// Updates the screen position of insight bonus nodes and the constellation anchor.
+#[allow(clippy::type_complexity)]
+pub(super) fn update_insight_node_positions(
+    view: Res<GraphViewState>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    mut inode_query: Query<
+        (&mut Node, &InsightBonusNode),
+        (Without<InsightConstellationAnchor>, Without<SpellGraphNode>, Without<FreeNode>),
+    >,
+    mut anchor_query: Query<
+        &mut Node,
+        (With<InsightConstellationAnchor>, Without<InsightBonusNode>, Without<SpellGraphNode>, Without<FreeNode>),
+    >,
+) {
+    let Ok(computed) = graph_area_query.single() else {
+        return;
+    };
+    let container_center = computed.size() * computed.inverse_scale_factor() / 2.0;
+
+    for (mut node, inode) in &mut inode_query {
+        let screen_pos = graph_to_screen(inode.graph_position, &view, container_center);
+        let scaled_size = INSIGHT_NODE_SIZE * view.scale;
+        node.left = Val::Px(screen_pos.x - scaled_size / 2.0);
+        node.top = Val::Px(screen_pos.y - scaled_size / 2.0);
+        node.width = Val::Px(scaled_size);
+        node.height = Val::Px(scaled_size);
+    }
+
+    for mut node in &mut anchor_query {
+        let screen_pos = graph_to_screen(INSIGHT_CONSTELLATION_OFFSET, &view, container_center);
+        let scaled_size = INSIGHT_ANCHOR_SIZE * view.scale;
+        node.left = Val::Px(screen_pos.x - scaled_size / 2.0);
+        node.top = Val::Px(screen_pos.y - scaled_size / 2.0);
+        node.width = Val::Px(scaled_size);
+        node.height = Val::Px(scaled_size);
+    }
+}
+
+/// Updates insight constellation edge positions based on pan/zoom state.
+pub(super) fn update_insight_edge_positions(
+    view: Res<GraphViewState>,
+    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    mut segments: Query<
+        (&mut Node, &mut UiTransform, &InsightConstellationEdge),
+        Without<SpellGraphEdge>,
+    >,
+) {
+    let Ok(computed) = graph_area_query.single() else {
+        return;
+    };
+    let container_center = computed.size() * computed.inverse_scale_factor() / 2.0;
+    let thickness = (GRAPH_EDGE_THICKNESS * view.scale).max(1.0);
+
+    for (mut node, mut ui_transform, edge) in &mut segments {
+        let screen_a = graph_to_screen(edge.start, &view, container_center);
+        let screen_b = graph_to_screen(edge.end, &view, container_center);
+
+        let delta = screen_b - screen_a;
+        let length = delta.length();
+        let angle = delta.y.atan2(delta.x);
+
+        let midpoint = (screen_a + screen_b) / 2.0;
+        node.left = Val::Px(midpoint.x - length / 2.0);
+        node.top = Val::Px(midpoint.y - thickness / 2.0);
+        node.width = Val::Px(length);
+        node.height = Val::Px(thickness);
+
+        ui_transform.rotation = Rot2::radians(angle);
+    }
+}
+
+/// Updates border colors on insight bonus nodes based on selection state.
+pub(super) fn update_insight_node_borders(
+    selected: Res<SelectedInsightBonus>,
+    mut border_query: Query<(&mut BorderColor, &InsightBonusNode)>,
+) {
+    let bonuses = crate::config::save_data::get_all_insight_bonuses();
+    let max = InsightBonusStat::max_level();
+    for (mut border_color, inode) in &mut border_query {
+        if selected.0 == Some(inode.stat) {
+            *border_color = BorderColor::all(GRAPH_NODE_SELECTED_BORDER);
+        } else {
+            let level = bonuses.get(inode.stat.id()).copied().unwrap_or(0).min(max);
+            let border = if level >= max {
+                INSIGHT_NODE_MAXED_BORDER
+            } else {
+                INSIGHT_NODE_BORDER
+            };
+            *border_color = BorderColor::all(border);
+        }
+    }
+}
+
+// ===========================================================================
 // Detail panel
 // ===========================================================================
 
@@ -1342,12 +1642,18 @@ pub(super) fn update_graph_edge_positions(
 pub(super) fn update_study_detail_panel(
     mut commands: Commands,
     selected: Res<SelectedStudySpell>,
+    selected_insight: Res<SelectedInsightBonus>,
     battle_insight: Res<BattleInsightData>,
     allocation: Option<Res<InsightAllocation>>,
     mut panel_query: Query<(Entity, &mut Node), With<StudyDetailPanel>>,
     asset_server: Res<AssetServer>,
 ) {
     if !selected.is_changed() {
+        return;
+    }
+
+    // Don't touch the panel at all if insight bonus owns it
+    if selected_insight.0.is_some() {
         return;
     }
 
@@ -1738,6 +2044,223 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
     ));
 }
 
+// ===========================================================================
+// Insight bonus detail panel
+// ===========================================================================
+
+/// Updates the detail panel when an insight bonus is selected.
+pub(super) fn update_insight_detail_panel(
+    mut commands: Commands,
+    selected: Res<SelectedStudySpell>,
+    selected_insight: Res<SelectedInsightBonus>,
+    allocation: Option<Res<InsightAllocation>>,
+    mut panel_query: Query<(Entity, &mut Node), With<StudyDetailPanel>>,
+) {
+    if !selected_insight.is_changed() {
+        return;
+    }
+
+    // Don't touch the panel if spell selection owns it
+    if selected.0.is_some() {
+        return;
+    }
+
+    let Ok((panel_entity, mut panel_node)) = panel_query.single_mut() else {
+        return;
+    };
+
+    commands.entity(panel_entity).despawn_related::<Children>();
+
+    let Some(stat) = selected_insight.0 else {
+        panel_node.display = Display::None;
+        return;
+    };
+
+    panel_node.display = Display::Flex;
+
+    let level = stat.current_level();
+    let max = InsightBonusStat::max_level();
+    let maxed = level >= max;
+    let bonus_pct = level as f32 * InsightBonusStat::bonus_per_level() * 100.0;
+    let cost_per = InsightBonusStat::cost_per_level();
+    let total_cost = InsightBonusStat::total_cost();
+    let committed_insight = level as u32 * cost_per;
+    let current_alloc = allocation.as_ref().map(|a| a.get_bonus(&stat)).unwrap_or(0);
+
+    commands.entity(panel_entity).with_children(|panel| {
+        // Title
+        panel.spawn((
+            Text::new(stat.display_name()),
+            TextFont::from_font_size(DETAIL_TITLE_FONT_SIZE),
+            TextColor(INSIGHT_NODE_BORDER),
+        ));
+
+        // Description
+        panel.spawn((
+            Text::new(stat.description()),
+            TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+            TextColor(TEXT_COLOR),
+            Node {
+                max_width: Val::Px(DETAIL_PANEL_WIDTH - DETAIL_PANEL_PADDING * 2.0),
+                ..default()
+            },
+        ));
+
+        // Current bonus
+        let bonus_text = if maxed {
+            format!("+{:.0}% (MAX)", bonus_pct)
+        } else {
+            format!("+{:.0}%", bonus_pct)
+        };
+        panel.spawn((
+            Text::new(bonus_text),
+            TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
+            TextColor(if maxed {
+                INSIGHT_NODE_MAXED_BORDER
+            } else {
+                INSIGHT_PROGRESS_FILL
+            }),
+        ));
+
+        // Level display
+        panel.spawn((
+            Text::new(format!("Level {} / {}", level, max)),
+            TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+            TextColor(TEXT_COLOR),
+        ));
+
+        // Cost per level
+        panel.spawn((
+            Text::new(format!("{} Insight per level", cost_per)),
+            TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+            TextColor(LOCKED_TEXT_COLOR),
+        ));
+
+        // Separator
+        panel.spawn(Node {
+            height: Val::Px(6.0),
+            ..default()
+        });
+
+        if maxed {
+            panel.spawn((
+                Text::new("MAXED"),
+                TextFont::from_font_size(DETAIL_TITLE_FONT_SIZE),
+                TextColor(INSIGHT_NODE_MAXED_BORDER),
+            ));
+        } else {
+            // Allocation slider (same pattern as spell research)
+            spawn_insight_bonus_slider(
+                panel,
+                stat,
+                committed_insight,
+                total_cost,
+                current_alloc,
+            );
+
+            // Allocation text
+            let pending_levels = current_alloc / cost_per;
+            let alloc_text = if current_alloc > 0 {
+                format!(
+                    "{}+{}/{} (+{}%)",
+                    committed_insight, current_alloc, total_cost, pending_levels
+                )
+            } else {
+                format!("{}/{}", committed_insight, total_cost)
+            };
+            panel.spawn((
+                Text::new(alloc_text),
+                TextFont::from_font_size(DETAIL_TEXT_FONT_SIZE),
+                TextColor(TEXT_COLOR),
+                InsightBonusAllocationText { stat },
+            ));
+        }
+    });
+}
+
+/// Spawns the allocation slider for an insight bonus in the detail panel.
+fn spawn_insight_bonus_slider(
+    parent: &mut ChildSpawnerCommands,
+    stat: InsightBonusStat,
+    committed: u32,
+    total_cost: u32,
+    current_alloc: u32,
+) {
+    let (progress_frac, alloc_frac, handle_pos) =
+        compute_slider_fracs(committed, current_alloc, total_cost);
+
+    parent
+        .spawn((
+            Node {
+                width: Val::Px(SLIDER_TRACK_WIDTH),
+                height: Val::Px(SLIDER_TRACK_HEIGHT),
+                border: UiRect::all(Val::Px(2.0)),
+                justify_content: JustifyContent::FlexStart,
+                align_items: AlignItems::Center,
+                position_type: PositionType::Relative,
+                ..default()
+            },
+            BorderColor::all(INSIGHT_NODE_BORDER),
+            BorderRadius::all(Val::Px(8.0)),
+            BackgroundColor(SLIDER_TRACK_BG),
+            Interaction::default(),
+            RelativeCursorPosition::default(),
+            InsightBonusSlider { stat },
+        ))
+        .with_children(|track| {
+            track.spawn((
+                Node {
+                    width: Val::Percent(progress_frac * 100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    ..default()
+                },
+                BorderRadius {
+                    top_left: Val::Px(8.0),
+                    bottom_left: Val::Px(8.0),
+                    top_right: Val::Px(0.0),
+                    bottom_right: Val::Px(0.0),
+                },
+                BackgroundColor(INSIGHT_PROGRESS_FILL),
+                InsightBonusProgressFill,
+            ));
+
+            track.spawn((
+                Node {
+                    width: Val::Percent(alloc_frac * 100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent(progress_frac * 100.0),
+                    top: Val::Px(0.0),
+                    ..default()
+                },
+                BackgroundColor(SLIDER_FILL_COLOR),
+                InsightBonusAllocationFill { stat },
+            ));
+
+            track.spawn((
+                Node {
+                    width: Val::Px(SLIDER_HANDLE_WIDTH),
+                    height: Val::Px(SLIDER_HANDLE_HEIGHT),
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0),
+                    top: Val::Px(-(SLIDER_HANDLE_HEIGHT - SLIDER_TRACK_HEIGHT) / 2.0),
+                    ..default()
+                },
+                BorderRadius::all(Val::Px(4.0)),
+                BackgroundColor(SLIDER_HANDLE_COLOR),
+                Interaction::default(),
+                RelativeCursorPosition::default(),
+                InsightBonusSliderHandle {
+                    stat,
+                    is_dragging: false,
+                },
+            ));
+        });
+}
+
 /// Spawns a progress bar in the detail panel.
 /// Spawns a unified progress + allocation slider in the detail panel.
 /// Committed progress is shown as a non-reducible filled region on the left.
@@ -2012,6 +2535,204 @@ pub(super) fn update_pending_insight_display(
     let total = allocation.total_allocated();
     for mut text in &mut texts {
         text.0 = format!("Pending: {}", total);
+    }
+}
+
+// ===========================================================================
+// Insight bonus slider interaction
+// ===========================================================================
+
+/// Handles click and drag on insight bonus allocation sliders.
+/// Mirrors `handle_detail_slider_interaction` for spell sliders.
+pub(super) fn handle_insight_bonus_slider_interaction(
+    buttons: Res<ButtonInput<MouseButton>>,
+    mut slider_handles: Query<(&Interaction, &mut InsightBonusSliderHandle)>,
+    slider_tracks: Query<(
+        &Interaction,
+        &RelativeCursorPosition,
+        &InsightBonusSlider,
+    )>,
+    mut allocation: ResMut<InsightAllocation>,
+    mut slider_adjusted: MessageWriter<SliderAdjusted>,
+) {
+    if buttons.just_pressed(MouseButton::Left) {
+        for (interaction, cursor_pos, track) in &slider_tracks {
+            if !matches!(*interaction, Interaction::Pressed | Interaction::Hovered) {
+                continue;
+            }
+            if cursor_pos.normalized.is_none() {
+                continue;
+            }
+            for (_hi, mut handle) in &mut slider_handles {
+                if handle.stat == track.stat {
+                    handle.is_dragging = true;
+                }
+            }
+        }
+        for (interaction, mut handle) in &mut slider_handles {
+            if *interaction == Interaction::Pressed {
+                handle.is_dragging = true;
+            }
+        }
+    }
+
+    if !buttons.pressed(MouseButton::Left) {
+        for (_interaction, mut handle) in &mut slider_handles {
+            handle.is_dragging = false;
+        }
+        return;
+    }
+
+    let mut dragging_stat: Option<InsightBonusStat> = None;
+    for (_interaction, handle) in &slider_handles {
+        if handle.is_dragging {
+            dragging_stat = Some(handle.stat);
+            break;
+        }
+    }
+
+    let Some(stat) = dragging_stat else {
+        return;
+    };
+
+    let insight_balance = get_insight();
+    let cost_per = InsightBonusStat::cost_per_level();
+    let total_cost = InsightBonusStat::total_cost();
+    let level = stat.current_level();
+    let committed = level as u32 * cost_per;
+    let remaining = total_cost.saturating_sub(committed);
+
+    if remaining == 0 {
+        return;
+    }
+
+    for (_interaction, cursor_pos, track) in &slider_tracks {
+        if track.stat != stat {
+            continue;
+        }
+
+        let Some(pos) = cursor_pos.normalized else {
+            continue;
+        };
+
+        let cursor_frac = (pos.x + 0.5).clamp(0.0, 1.0);
+        let progress_frac = committed as f32 / total_cost as f32;
+        let alloc_frac = (cursor_frac - progress_frac).max(0.0);
+        let desired = (alloc_frac * total_cost as f32).round() as u32;
+
+        let others: u32 = allocation
+            .allocations
+            .values()
+            .sum::<u32>()
+            + allocation
+                .bonus_allocations
+                .iter()
+                .filter(|(s, _)| **s != stat)
+                .map(|(_, v)| *v)
+                .sum::<u32>();
+        let max_for_stat = insight_balance.saturating_sub(others).min(remaining);
+        let clamped = desired.min(max_for_stat);
+
+        let old = allocation.get_bonus(&stat);
+        if clamped != old {
+            allocation.set_bonus(stat, clamped);
+            slider_adjusted.write(SliderAdjusted);
+        }
+    }
+}
+
+/// Updates insight bonus slider visuals when allocation changes.
+pub(super) fn update_insight_bonus_sliders(
+    allocation: Res<InsightAllocation>,
+    mut alloc_fills: Query<
+        (&mut Node, &InsightBonusAllocationFill),
+        (Without<InsightBonusSliderHandle>, Without<InsightBonusProgressFill>),
+    >,
+    mut slider_handles: Query<
+        (&mut Node, &InsightBonusSliderHandle),
+        (Without<InsightBonusAllocationFill>, Without<InsightBonusProgressFill>),
+    >,
+) {
+    if !allocation.is_changed() {
+        return;
+    }
+
+    let cost_per = InsightBonusStat::cost_per_level();
+    let total_cost = InsightBonusStat::total_cost();
+
+    for (mut node, fill) in &mut alloc_fills {
+        let committed = fill.stat.current_level() as u32 * cost_per;
+        let alloc = allocation.get_bonus(&fill.stat);
+        let (progress_frac, alloc_frac, _) = compute_slider_fracs(committed, alloc, total_cost);
+
+        node.left = Val::Percent(progress_frac * 100.0);
+        node.width = Val::Percent(alloc_frac * 100.0);
+    }
+
+    for (mut node, handle) in &mut slider_handles {
+        let committed = handle.stat.current_level() as u32 * cost_per;
+        let alloc = allocation.get_bonus(&handle.stat);
+        let (_, _, handle_pos) = compute_slider_fracs(committed, alloc, total_cost);
+
+        node.left = Val::Px(handle_pos * SLIDER_TRACK_WIDTH - SLIDER_HANDLE_WIDTH / 2.0);
+    }
+}
+
+/// Updates insight bonus allocation text.
+pub(super) fn update_insight_bonus_allocation_text(
+    allocation: Res<InsightAllocation>,
+    mut texts: Query<(&mut Text, &InsightBonusAllocationText)>,
+) {
+    if !allocation.is_changed() {
+        return;
+    }
+
+    let cost_per = InsightBonusStat::cost_per_level();
+    let total_cost = InsightBonusStat::total_cost();
+
+    for (mut text, alloc_text) in &mut texts {
+        let stat = alloc_text.stat;
+        let committed = stat.current_level() as u32 * cost_per;
+        let alloc = allocation.get_bonus(&stat);
+        let pending_levels = alloc / cost_per;
+
+        if alloc > 0 {
+            text.0 = format!("{}+{}/{} (+{}%)", committed, alloc, total_cost, pending_levels);
+        } else {
+            text.0 = format!("{}/{}", committed, total_cost);
+        }
+    }
+}
+
+/// Scales insight bonus label font sizes with the graph zoom level.
+pub(super) fn update_graph_node_label_scale(
+    view: Res<GraphViewState>,
+    mut labels: Query<(&mut TextFont, &GraphNodeLabel)>,
+) {
+    for (mut font, label) in &mut labels {
+        font.font_size = (label.base_size * view.scale).max(1.0);
+    }
+}
+
+/// Updates concentric ring visuals on insight nodes when allocation changes.
+pub(super) fn update_insight_bonus_rings(
+    allocation: Res<InsightAllocation>,
+    rings_query: Query<(&InsightBonusRings, &MaterialNode<ConcentricRingsMaterial>)>,
+    mut ring_materials: ResMut<Assets<ConcentricRingsMaterial>>,
+) {
+    if !allocation.is_changed() {
+        return;
+    }
+
+    let cost_per = InsightBonusStat::cost_per_level() as f32;
+
+    for (rings, mat_handle) in &rings_query {
+        let alloc = allocation.get_bonus(&rings.stat) as f32;
+        // Fractional levels: e.g. 750 insight / 500 per level = 1.5 rings
+        let pending_fractional = alloc / cost_per;
+        if let Some(mat) = ring_materials.get_mut(mat_handle) {
+            mat.data.pending = pending_fractional;
+        }
     }
 }
 

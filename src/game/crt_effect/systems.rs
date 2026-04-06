@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ui::RelativeCursorPosition;
 use bevy::window::{CursorLeft, CursorMoved, PrimaryWindow};
 
 use super::components::{
@@ -162,6 +163,7 @@ pub(super) fn correct_ui_interaction_for_barrel(
         Option<&bevy::ui::FocusPolicy>,
         Option<&InheritedVisibility>,
         &ComputedUiTargetCamera,
+        Option<&mut RelativeCursorPosition>,
     )>,
     clipping_query: Query<(
         &ComputedNode,
@@ -204,12 +206,9 @@ pub(super) fn correct_ui_interaction_for_barrel(
             focus_policy,
             inherited_visibility,
             target_camera,
+            relative_cursor,
         )) = node_query.get_mut(*node_entity)
         else {
-            continue;
-        };
-
-        let Some(mut interaction) = interaction else {
             continue;
         };
 
@@ -231,6 +230,31 @@ pub(super) fn correct_ui_interaction_for_barrel(
             computed_node.contains_point(*transform, point)
                 && bevy::ui::clip_check_recursive(point, entity, &clipping_query, &child_of_query)
         });
+
+        // Correct RelativeCursorPosition using the barrel-corrected cursor.
+        // Always provide a value (even outside bounds) so sliders can clamp
+        // when the user drags past the edges.
+        if let Some(mut rel_cursor) = relative_cursor {
+            if let Some(point) = cursor_pos {
+                let node_size = computed_node.size();
+                if node_size.x > 0.0 && node_size.y > 0.0 {
+                    let node_pos = transform.translation;
+                    let half = node_size / 2.0;
+                    let min = Vec2::new(node_pos.x - half.x, node_pos.y - half.y);
+                    let relative = Vec2::new(
+                        (point.x - min.x) / node_size.x - 0.5,
+                        (point.y - min.y) / node_size.y - 0.5,
+                    );
+                    rel_cursor.normalized = Some(relative);
+                }
+            } else {
+                rel_cursor.normalized = None;
+            }
+        }
+
+        let Some(mut interaction) = interaction else {
+            continue;
+        };
 
         if blocked {
             // Already found a blocking node above — reset lower nodes

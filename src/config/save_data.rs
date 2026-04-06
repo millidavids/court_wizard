@@ -87,6 +87,9 @@ pub(crate) struct PlayerMetaProgress {
     /// Toggle modifier IDs that have been permanently unlocked with Insight.
     #[serde(default)]
     pub(crate) unlocked_toggles: Vec<String>,
+    /// Permanent insight bonus levels: bonus stat id → level (0-5).
+    #[serde(default)]
+    pub(crate) insight_bonuses: HashMap<String, u8>,
 }
 
 /// Tracks which content the player has unlocked (spells, ingredients, wizard types).
@@ -682,6 +685,8 @@ pub(crate) fn clear_progress() {
     save_file.player.spell_talent_progress.clear();
     save_file.player.spell_talent_selections.clear();
     save_file.player.completed_tutorials.clear();
+    save_file.player.unlocked_toggles.clear();
+    save_file.player.insight_bonuses.clear();
 
     // Reset all wizard saves to level 1
     for wizard in &mut save_file.wizards {
@@ -1446,6 +1451,31 @@ pub(crate) fn unlock_toggle(
     save_file.player.unlocked_toggles.push(id);
     save_unified(&save_file);
     true
+}
+
+/// Returns all insight bonus levels as a map of id → level.
+pub(crate) fn get_all_insight_bonuses() -> HashMap<String, u8> {
+    load_unified_save()
+        .map(|s| s.player.insight_bonuses.clone())
+        .unwrap_or_default()
+}
+
+/// Batch-set multiple insight bonus levels in a single load/save operation.
+/// Used when insight has already been deducted via `spend_insight`.
+pub(crate) fn set_insight_bonus_levels(updates: &[(&str, u8)]) {
+    if updates.is_empty() {
+        return;
+    }
+    let Some(mut save_file) = load_unified_save() else {
+        return;
+    };
+    for &(id, level) in updates {
+        save_file
+            .player
+            .insight_bonuses
+            .insert(id.to_string(), level);
+    }
+    save_unified(&save_file);
 }
 
 /// Returns the research progress (insight invested) for a specific spell.

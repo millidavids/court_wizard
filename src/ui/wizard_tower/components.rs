@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::game::insight_bonuses::InsightBonusStat;
 use crate::game::units::wizard::components::Spell;
 
 // ---------------------------------------------------------------------------
@@ -232,6 +233,74 @@ pub(super) struct TalentDescriptionText;
 pub(super) struct HoveredTalent(pub Option<(Spell, u8, u8)>);
 
 // ---------------------------------------------------------------------------
+// Insight constellation components
+// ---------------------------------------------------------------------------
+
+/// Marks an insight bonus node in the constellation with its graph-space position.
+#[derive(Component)]
+pub(super) struct InsightBonusNode {
+    pub stat: InsightBonusStat,
+    pub graph_position: Vec2,
+}
+
+/// Marks the central anchor of the insight constellation.
+#[derive(Component)]
+pub(super) struct InsightConstellationAnchor;
+
+/// Marks an edge segment in the insight constellation.
+#[derive(Component)]
+pub(super) struct InsightConstellationEdge {
+    pub start: Vec2,
+    pub end: Vec2,
+}
+
+/// Resource tracking the currently selected insight bonus for the detail panel.
+/// Mutually exclusive with `SelectedStudySpell`.
+#[derive(Resource, Default)]
+pub(super) struct SelectedInsightBonus(pub Option<InsightBonusStat>);
+
+/// Marks the slider track for an insight bonus allocation.
+#[derive(Component)]
+pub(super) struct InsightBonusSlider {
+    pub stat: InsightBonusStat,
+}
+
+/// Marks the committed progress fill in an insight bonus slider.
+#[derive(Component)]
+pub(super) struct InsightBonusProgressFill;
+
+/// Marks the pending allocation fill in an insight bonus slider.
+#[derive(Component)]
+pub(super) struct InsightBonusAllocationFill {
+    pub stat: InsightBonusStat,
+}
+
+/// Marks the slider handle for an insight bonus allocation.
+#[derive(Component)]
+pub(super) struct InsightBonusSliderHandle {
+    pub stat: InsightBonusStat,
+    pub is_dragging: bool,
+}
+
+/// Text showing allocation progress for an insight bonus.
+#[derive(Component)]
+pub(super) struct InsightBonusAllocationText {
+    pub stat: InsightBonusStat,
+}
+
+/// Marks a concentric rings material node on an insight bonus graph node.
+#[derive(Component)]
+pub(super) struct InsightBonusRings {
+    pub stat: InsightBonusStat,
+}
+
+/// Marks a text label inside a graph node that should scale with zoom.
+#[derive(Component)]
+pub(super) struct GraphNodeLabel {
+    pub base_size: f32,
+}
+
+// ---------------------------------------------------------------------------
 // Allocation resource
 // ---------------------------------------------------------------------------
 
@@ -241,12 +310,14 @@ pub(super) struct HoveredTalent(pub Option<(Spell, u8, u8)>);
 pub(super) struct InsightAllocation {
     /// Spell → how much Insight the player wants to invest (before affinity bonus).
     pub allocations: HashMap<Spell, u32>,
+    /// Insight bonus stat → how much Insight the player wants to invest.
+    pub bonus_allocations: HashMap<InsightBonusStat, u32>,
 }
 
 impl InsightAllocation {
-    /// Total Insight allocated across all spells.
+    /// Total Insight allocated across all spells and bonuses.
     pub fn total_allocated(&self) -> u32 {
-        self.allocations.values().sum()
+        self.allocations.values().sum::<u32>() + self.bonus_allocations.values().sum::<u32>()
     }
 
     /// Get the allocation for a specific spell.
@@ -260,6 +331,20 @@ impl InsightAllocation {
             self.allocations.remove(&spell);
         } else {
             self.allocations.insert(spell, amount);
+        }
+    }
+
+    /// Get the allocation for a specific insight bonus stat.
+    pub fn get_bonus(&self, stat: &InsightBonusStat) -> u32 {
+        self.bonus_allocations.get(stat).copied().unwrap_or(0)
+    }
+
+    /// Set allocation for a specific insight bonus stat. Removes entry if 0.
+    pub fn set_bonus(&mut self, stat: InsightBonusStat, amount: u32) {
+        if amount == 0 {
+            self.bonus_allocations.remove(&stat);
+        } else {
+            self.bonus_allocations.insert(stat, amount);
         }
     }
 }

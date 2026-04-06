@@ -16,6 +16,7 @@ pub(crate) mod constants;
 pub(crate) mod crt_effect;
 pub(crate) mod drops;
 pub(crate) mod game_mode;
+pub(crate) mod insight_bonuses;
 pub(crate) mod input;
 mod loading;
 pub(crate) mod messages;

@@ -121,6 +121,20 @@ pub(super) const DESC_SHRINK_THRESHOLD: usize = 80;
 pub(super) const SPELL_ICON_SIZE: f32 = 34.0;
 
 // ---------------------------------------------------------------------------
+// Insight constellation
+// ---------------------------------------------------------------------------
+pub(super) const INSIGHT_CONSTELLATION_OFFSET: Vec2 = Vec2::new(800.0, 0.0);
+pub(super) const INSIGHT_NODE_SIZE: f32 = 50.0;
+pub(super) const INSIGHT_ANCHOR_SIZE: f32 = 36.0;
+pub(super) const INSIGHT_NODE_RADIUS: f32 = 100.0;
+pub(super) const INSIGHT_NODE_BG: Color = Color::srgb(0.1, 0.08, 0.15);
+pub(super) const INSIGHT_NODE_BORDER: Color = Color::srgb(0.6, 0.4, 0.9);
+pub(super) const INSIGHT_NODE_MAXED_BORDER: Color = Color::srgb(1.0, 0.85, 0.3);
+pub(super) const INSIGHT_ANCHOR_BORDER: Color = Color::srgb(0.5, 0.3, 0.8);
+pub(super) const INSIGHT_EDGE_COLOR: Color = Color::srgba(0.5, 0.3, 0.7, 0.6);
+pub(super) const INSIGHT_PROGRESS_FILL: Color = Color::srgb(0.6, 0.4, 0.9);
+
+// ---------------------------------------------------------------------------
 // Buttons
 // ---------------------------------------------------------------------------
 pub(super) const BUTTON_STYLE: ButtonStyle = ButtonStyle {

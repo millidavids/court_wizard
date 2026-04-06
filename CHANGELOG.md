@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.597] - 2026-04-05
+
+### Added
+- **Insight Bonuses constellation** — a new constellation appears to the right of the spell web in the Study screen. Spend Insight on permanent upgrades to Spell Damage, Spell Range, Cast Speed, and Mana Cost Reduction
+- **Five concentric rings** — each bonus node shows 5 rings that fill with a clockwise animation as you invest Insight, matching the spell research visual style
+- **Slider-based allocation** — assign Insight to bonuses using the same slider system as spell research, then commit everything together
+- **Study screen zooms out on load** — the Study now starts zoomed out so you can see both the spell web and the new bonuses constellation at once
+
+### Changed
+- **"Study Spells" renamed to "Study"** — reflects that the screen now includes more than just spell research
+- **Sliders track the mouse more accurately** — all sliders (spell research, bonuses, and settings) now use the barrel-corrected cursor position, fixing a slight offset when clicking
+- **Sliders reach their min and max** — dragging a slider past either end now correctly snaps to the minimum or maximum value instead of getting stuck
+- **Locked spell text scales with zoom** — the "???" text on locked spell nodes now shrinks when zoomed out so it doesn't overflow the circle
+
+### Fixed
+- **Clearing progress now fully resets** — clearing your progress now also resets permanent bonuses and unlocked toggle modifiers
+
 ## [v0.5.576] - 2026-04-05
 
 ### Added
