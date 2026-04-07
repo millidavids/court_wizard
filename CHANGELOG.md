@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.670] - 2026-04-07
+
+### Changed
+- **Meteor explosions look like fireball explosions** — meteor impacts now use the same fiery radial gradient effect as fireball, with a glowing yellow-white core fading to deep orange at the edges
+- **Meteor ground fire uses real fire** — the lingering fire pools left by meteor impacts now show the full procedural fire effect with dancing flames, flickering embers, and rising dark smoke, matching the fire from walls of fire and burning vegetation
+
+### Fixed
+- **Removed screen flash from meteor impacts** — the brief full-screen flash that occurred each time a meteor hit the ground has been removed to reduce eye strain
+
 ## [v0.5.666] - 2026-04-06
 
 ### Added

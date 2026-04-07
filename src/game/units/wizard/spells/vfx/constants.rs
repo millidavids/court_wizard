@@ -96,16 +96,6 @@ pub(crate) const SPARKLE_DRAG: f32 = 3.0;
 /// Random spread speed added to sparkles on spawn.
 pub(crate) const SPARKLE_SPREAD_SPEED: f32 = 30.0;
 
-// ── Surface fire particles (wall of fire, grease fire, ground fire pools) ──
-/// Size of smoke wisps rising off surface fires (2× trail size).
-pub(crate) const SURFACE_SMOKE_SIZE: f32 = 6.0;
-/// Number of smoke wisps per spawn batch for surface fires.
-pub(crate) const SURFACE_SMOKE_COUNT: usize = 2;
-/// Number of shimmer wisps per spawn batch for surface fires.
-pub(crate) const SURFACE_SHIMMER_COUNT: usize = 2;
-/// Size of shimmer billboards for surface fires (2× base size).
-pub(crate) const SURFACE_SHIMMER_SIZE: f32 = 16.0;
-
 // ── Plague smoke (poison cloud) ────────────────────────────────────
 /// Time between plague smoke batch spawns (seconds).
 pub(crate) const PLAGUE_SMOKE_SPAWN_INTERVAL: f32 = 0.06;

@@ -516,10 +516,9 @@ fn spawn_explosion_entity(
     networked: bool,
 ) {
     let mut entity = commands.spawn((
-        Mesh3d(assets.unit_circle.clone()),
-        MeshMaterial3d(assets.meteor_explosion.clone()),
+        Mesh3d(assets.cross_plane_sphere.clone()),
+        MeshMaterial3d(assets.fireball_explosion.clone()),
         Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(0.1)),
         MeteorExplosion::new(pos, radius, damage),
         OnGameplayScreen,
@@ -658,7 +657,6 @@ pub(super) fn check_meteor_collisions(
     mut pathfinding: ResMut<PathfindingGrid>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
-    mut screen_flash: MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     mut ground_fires: Query<&mut MeteorGroundFire>,
     mut units: Query<
         (
@@ -712,11 +710,6 @@ pub(super) fn check_meteor_collisions(
                 t,
             );
             vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, pos, t);
-            screen_flash.write(crate::game::crt_effect::ScreenFlashMessage {
-                color: [1.0, 0.5, 0.1],
-                duration: 0.2,
-                intensity: 0.03,
-            });
 
             // Impact sound (fireball explosion)
             audio::play_impact_sfx(&mut commands, &sfx.fireball_impact, pos, &game_config, &sfx);
@@ -948,8 +941,8 @@ pub(super) fn update_meteor_explosions(
     }
 }
 
-/// Spawns smoke wisps and heat shimmer rising off meteor ground fire pools.
-pub(super) fn spawn_ground_fire_smoke(
+/// Spawns procedural fire particles rising off meteor ground fire pools.
+pub(super) fn spawn_ground_fire_particles(
     mut commands: Commands,
     fires: Query<&MeteorGroundFire>,
     visual_assets: Res<SpellVisualAssets>,
@@ -971,36 +964,13 @@ pub(super) fn spawn_ground_fire_smoke(
             continue;
         }
 
-        // Pick a pseudo-random position within the fire's radius
-        let seed = t * 3.7 + fire.origin.x * 0.1 + fire.origin.z * 0.07;
-        let angle = seed * 2.39 + (seed * 13.7).sin();
-        let frac = (seed * 7.3).fract();
-        let offset_r = fire.radius * frac * 0.8;
-        let pos = Vec3::new(
-            fire.origin.x + angle.cos() * offset_r,
-            0.5,
-            fire.origin.z + angle.sin() * offset_r,
-        );
-
-        vfx::systems::spawn_fire_smoke_wisps(
+        vfx::systems::spawn_fire_orange_smoke(
             &mut commands,
             &visual_assets,
-            pos,
-            vfx::constants::SURFACE_SMOKE_COUNT,
+            Vec3::new(fire.origin.x, 0.0, fire.origin.z),
+            fire.radius,
+            GROUND_FIRE_PARTICLE_COUNT,
             t,
-            vfx::constants::SMOKE_LIFETIME,
-            vfx::constants::SURFACE_SMOKE_SIZE,
-            vfx::constants::SMOKE_RISE_SPEED,
-            vfx::constants::SMOKE_SPREAD_SPEED,
-        );
-
-        vfx::systems::spawn_heat_shimmer_sized(
-            &mut commands,
-            &visual_assets,
-            pos,
-            vfx::constants::SURFACE_SHIMMER_COUNT,
-            t,
-            vfx::constants::SURFACE_SHIMMER_SIZE,
         );
     }
 }

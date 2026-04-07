@@ -838,14 +838,12 @@ pub(super) fn spawn_spell_effect(
 
         SpellEffectKind::MeteorExplosion => {
             let max_radius = extra[0];
-            let material = materials.add(materials.get(&assets.meteor_explosion)?.clone());
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(material),
+                        Mesh3d(assets.cross_plane_sphere.clone()),
+                        MeshMaterial3d(assets.fireball_explosion.clone()),
                         Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                            .with_rotation(flat_rotation)
                             .with_scale(Vec3::splat(0.1)),
                         MeteorExplosion::new(pos, max_radius, 0.0),
                         OnMultiplayerGameScreen,

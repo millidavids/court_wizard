@@ -129,7 +129,6 @@ pub struct SpellVisualAssets {
 
     // ── Explosion materials ──────────────────────────────────────────────
     pub fireball_explosion: Handle<FireExplosionMaterial>,
-    pub meteor_explosion: Handle<StandardMaterial>,
     pub ice_explosion: Handle<StandardMaterial>,
 
     // ── Projectile materials ─────────────────────────────────────────────
@@ -440,14 +439,6 @@ pub fn init_spell_visual_assets(
         fireball_explosion: fire_explosion_materials.add(FireExplosionMaterial {
             inner_color: FIRE_EXPLOSION_INNER_COLOR,
             outer_color: FIRE_EXPLOSION_OUTER_COLOR,
-        }),
-        meteor_explosion: materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 0.5, 0.1, 0.6),
-            unlit: true,
-            emissive: bevy::color::LinearRgba::new(2.5, 1.0, 0.1, 1.0),
-            alpha_mode: AlphaMode::Blend,
-            cull_mode: None,
-            ..default()
         }),
         ice_explosion: materials.add(unlit(Color::srgb(0.3, 0.8, 1.0))),
 
@@ -991,7 +982,6 @@ impl SpellVisualAssets {
             &self.wall_of_stone,
             &self.wall_of_fire,
             // Explosions (fireball_explosion uses FireExplosionMaterial, handled separately)
-            &self.meteor_explosion,
             &self.ice_explosion,
             // Projectiles
             &self.fireball_projectile,
