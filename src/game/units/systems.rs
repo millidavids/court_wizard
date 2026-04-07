@@ -886,12 +886,12 @@ pub fn update_persistent_effect_visuals(
             };
             let cloned = current_material.clone();
             let cloned_handle = materials.add(cloned);
-            commands
-                .entity(entity)
-                .insert(OriginalMaterial(current_handle));
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(cloned_handle));
+            commands.entity(entity).queue_silenced(move |mut e: EntityWorldMut| {
+                e.insert((
+                    OriginalMaterial(current_handle),
+                    MeshMaterial3d(cloned_handle),
+                ));
+            });
         } else if has_any_effect {
             // Phase 2: Blend effect colors onto the cloned material
             let Some(original) = original_mat else {
@@ -993,10 +993,11 @@ pub fn update_persistent_effect_visuals(
             }
         } else if let Some(original) = original_mat {
             // Phase 3: All effects expired — restore original material
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(original.0.clone()));
-            commands.entity(entity).remove::<OriginalMaterial>();
+            let restored = original.0.clone();
+            commands.entity(entity).queue_silenced(move |mut e: EntityWorldMut| {
+                e.insert(MeshMaterial3d(restored));
+                e.remove::<OriginalMaterial>();
+            });
         }
     }
 }

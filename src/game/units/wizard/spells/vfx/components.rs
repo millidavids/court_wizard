@@ -80,6 +80,24 @@ pub struct PlagueSmoke {
     pub base_size: f32,
     /// Phase offset for swirling motion.
     pub phase: f32,
+    /// Y position at spawn time. Fire puffs use this for height-relative scaling/sway.
+    /// Non-fire smoke (plague, fog) sets this to 0.0 to skip height effects.
+    pub spawn_y: f32,
+}
+
+/// Tiny bright ember particle that flickers at the base of fire effects.
+#[derive(Component)]
+pub struct FireEmber {
+    /// World-space velocity.
+    pub velocity: Vec3,
+    /// Seconds since spawned.
+    pub time_alive: f32,
+    /// Total lifetime before despawn.
+    pub lifetime: f32,
+    /// Base size of this ember particle.
+    pub base_size: f32,
+    /// Random phase for flicker animation.
+    pub phase: f32,
 }
 
 /// Marker on orange fire smoke puffs. Spawns a black smoke puff at apex growth.

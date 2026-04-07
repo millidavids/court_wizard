@@ -6,7 +6,8 @@ use super::systems::*;
 use crate::game::run_conditions::is_gameplay_running;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
-use crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion;
+use crate::game::units::wizard::spells::meteor_fall::components::{MeteorExplosion, MeteorGroundFire};
+use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
 pub struct TreePlugin;
 
@@ -20,7 +21,9 @@ impl Plugin for TreePlugin {
                         any_with_component::<Tree>.and(
                             any_with_component::<FireballExplosion>
                                 .or(any_with_component::<MeteorExplosion>)
-                                .or(any_with_component::<DisintegrateBeam>),
+                                .or(any_with_component::<DisintegrateBeam>)
+                                .or(any_with_component::<WallOfFireEffect>)
+                                .or(any_with_component::<MeteorGroundFire>),
                         ),
                     ),
                     apply_burning_tree_damage.run_if(any_with_component::<BurningTree>),

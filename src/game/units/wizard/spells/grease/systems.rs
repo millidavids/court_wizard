@@ -683,12 +683,20 @@ pub fn spawn_grease_fire_smoke(
         let fire_radius = ignited.current_fire_radius(zone.radius, constants::FIRE_SPREAD_DURATION);
 
         // Spawn orange fire smoke puffs scattered across the burning area
+        let fire_pos = Vec3::new(zone.origin.x, 0.0, zone.origin.z);
         vfx::systems::spawn_fire_orange_smoke(
             &mut commands,
             &visual_assets,
-            Vec3::new(zone.origin.x, 0.0, zone.origin.z),
+            fire_pos,
             fire_radius,
             9,
+            t,
+        );
+        vfx::systems::spawn_heat_shimmer(
+            &mut commands,
+            &visual_assets,
+            fire_pos,
+            2,
             t,
         );
     }

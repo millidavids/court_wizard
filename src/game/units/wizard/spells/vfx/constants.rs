@@ -152,6 +152,57 @@ pub(crate) const SHIMMER_SWAY_FREQUENCY: f32 = 3.0;
 /// Pixels of lateral sway.
 pub(crate) const SHIMMER_SWAY_AMPLITUDE: f32 = 5.0;
 
+// ── Fire particle spawning ──────────────────────────────────────────
+/// Multiplier on caller's count for dense fire clouds.
+pub(crate) const FIRE_PARTICLE_COUNT_MULTIPLIER: usize = 8;
+
+/// Layer parameters: (rise_speed, spread_multiplier, base_size).
+pub(crate) const FIRE_LAYER_BASE: (f32, f32, f32) = (5.0, 0.5, 2.5);
+pub(crate) const FIRE_LAYER_MID: (f32, f32, f32) = (8.0, 1.0, 3.5);
+pub(crate) const FIRE_LAYER_TOP: (f32, f32, f32) = (12.0, 1.8, 4.5);
+
+/// Layer lifetimes (seconds): base fire flickers briefly, top smoke lingers.
+pub(crate) const FIRE_LAYER_LIFETIME_BASE: f32 = 0.5;
+pub(crate) const FIRE_LAYER_LIFETIME_MID: f32 = 0.8;
+pub(crate) const FIRE_LAYER_LIFETIME_TOP: f32 = 1.4;
+
+/// Lateral speed multiplier for fire particle drift.
+pub(crate) const FIRE_LATERAL_SPEED: f32 = 4.0;
+
+// ── Rising dark smoke (plague-wind style) ───────────────────────────
+/// Base size of rising dark smoke puffs.
+pub(crate) const RISING_SMOKE_SIZE: f32 = 45.0;
+/// Lifetime of rising smoke puffs (seconds).
+pub(crate) const RISING_SMOKE_LIFETIME: f32 = 3.0;
+/// Upward drift speed of rising smoke.
+pub(crate) const RISING_SMOKE_RISE_SPEED: f32 = 10.0;
+/// Lateral swirl speed of rising smoke.
+pub(crate) const RISING_SMOKE_SWIRL_SPEED: f32 = 3.0;
+/// Y offset above fire source for rising smoke spawn.
+pub(crate) const RISING_SMOKE_Y_OFFSET: f32 = 25.0;
+
+// ── Fire embers (flickering base glow) ──────────────────────────────
+/// Base size of ember particles.
+pub(crate) const EMBER_SIZE: f32 = 1.5;
+/// How long each ember lives (seconds).
+pub(crate) const EMBER_LIFETIME: f32 = 0.4;
+/// Upward drift speed of embers.
+pub(crate) const EMBER_RISE_SPEED: f32 = 15.0;
+/// Lateral spread speed of embers.
+pub(crate) const EMBER_SPREAD_SPEED: f32 = 10.0;
+/// Flicker oscillation frequency (Hz).
+pub(crate) const EMBER_FLICKER_FREQUENCY: f32 = 12.0;
+
+// ── Height-based fire smoke animation ───────────────────────────────
+/// World units of vertical rise for full height factor (0→2.0 range).
+pub(crate) const FIRE_HEIGHT_SCALE_RANGE: f32 = 40.0;
+/// Extra size multiplier at maximum height rise.
+pub(crate) const FIRE_HEIGHT_SIZE_MULT: f32 = 0.5;
+/// Extra sway multiplier at maximum height rise.
+pub(crate) const FIRE_HEIGHT_SWAY_MULT: f32 = 1.5;
+/// Fraction of sprite height at which fire/spark VFX cap (0.7 = 70%).
+pub(crate) const BURNING_VFX_HEIGHT_FRACTION: f32 = 0.7;
+
 // ── Cast flare (muzzle flash at wizard staff) ──────────────────────
 /// How long the cast flare glow lasts (seconds).
 pub(crate) const CAST_FLARE_LIFETIME: f32 = 0.35;

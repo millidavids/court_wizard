@@ -164,6 +164,14 @@ pub struct SpellVisualAssets {
     pub fire_orange_smoke_light: Handle<StandardMaterial>,
     /// Deeper, more red-orange variant for fire smoke.
     pub fire_orange_smoke_deep: Handle<StandardMaterial>,
+    /// Bright emissive ember material for flickering base glow (additive).
+    pub fire_ember: Handle<StandardMaterial>,
+    /// Procedural fire particle material — noise + color ramp + dissolve.
+    /// Shared by ALL fire smoke puffs for GPU batching (single draw call).
+    pub fire_particle: Handle<super::vfx::fire_material::FireParticleMaterial>,
+    /// Smoke particle material with circular radial falloff.
+    /// Shared by ALL dark smoke puffs for GPU batching.
+    pub smoke_particle: Handle<super::vfx::fire_material::SmokeParticleMaterial>,
 
     // ── Disintegrate smoke material ─────────────────────────────────────
     pub disintegrate_smoke: Handle<StandardMaterial>,
@@ -288,6 +296,8 @@ pub fn init_spell_visual_assets(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut fire_explosion_materials: ResMut<Assets<FireExplosionMaterial>>,
+    mut fire_particle_materials: ResMut<Assets<super::vfx::fire_material::FireParticleMaterial>>,
+    mut smoke_particle_materials: ResMut<Assets<super::vfx::fire_material::SmokeParticleMaterial>>,
 ) {
     let unlit = |color: Color| StandardMaterial {
         base_color: color,
@@ -517,24 +527,26 @@ pub fn init_spell_visual_assets(
             base_color: Color::srgb(1.0, 0.8, 0.3),
             unlit: true,
             emissive: bevy::color::LinearRgba::new(4.0, 3.0, 1.0, 1.0),
+            alpha_mode: AlphaMode::Add,
+            cull_mode: None,
             ..default()
         }),
         fire_smoke: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.05, 0.05, 0.05, 0.4),
+            base_color: Color::srgba(0.05, 0.05, 0.05, 0.2),
             unlit: true,
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
         }),
         fire_black_smoke: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.02, 0.02, 0.02, 0.5),
+            base_color: Color::srgba(0.02, 0.02, 0.02, 0.55),
             unlit: true,
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
         }),
         fire_orange_smoke: materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 0.45, 0.05, 0.45),
+            base_color: Color::srgba(1.0, 0.45, 0.05, 0.3),
             unlit: true,
             emissive: bevy::color::LinearRgba::new(1.5, 0.5, 0.0, 1.0),
             alpha_mode: AlphaMode::Blend,
@@ -542,7 +554,7 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
         fire_orange_smoke_light: materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 0.6, 0.1, 0.4),
+            base_color: Color::srgba(1.0, 0.6, 0.1, 0.28),
             unlit: true,
             emissive: bevy::color::LinearRgba::new(2.0, 0.8, 0.0, 1.0),
             alpha_mode: AlphaMode::Blend,
@@ -550,13 +562,29 @@ pub fn init_spell_visual_assets(
             ..default()
         }),
         fire_orange_smoke_deep: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.9, 0.3, 0.02, 0.5),
+            base_color: Color::srgba(0.9, 0.3, 0.02, 0.35),
             unlit: true,
             emissive: bevy::color::LinearRgba::new(1.2, 0.3, 0.0, 1.0),
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
             ..default()
         }),
+        fire_ember: materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, 0.7, 0.2, 0.9),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(5.0, 3.0, 0.5, 1.0),
+            alpha_mode: AlphaMode::Add,
+            cull_mode: None,
+            ..default()
+        }),
+        fire_particle: fire_particle_materials.add(
+            super::vfx::fire_material::FireParticleMaterial { time: 0.0 },
+        ),
+        smoke_particle: smoke_particle_materials.add(
+            super::vfx::fire_material::SmokeParticleMaterial {
+                color: bevy::color::LinearRgba::new(0.02, 0.02, 0.02, 0.55),
+            },
+        ),
 
         // Dust smoke (earthy brown puffs for wall of stone rising/sinking)
         dust_smoke: materials.add(StandardMaterial {

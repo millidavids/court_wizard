@@ -5,6 +5,7 @@
 
 pub(crate) mod components;
 pub(crate) mod constants;
+pub(crate) mod fire_material;
 mod plugin;
 pub(crate) mod systems;
 

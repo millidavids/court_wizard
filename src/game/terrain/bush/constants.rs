@@ -17,8 +17,12 @@ pub(super) const BUSH_GROUND_CLIP: f32 = 2.0 * UNIT_SCALE;
 /// Shadow scale relative to bush sprite.
 pub(super) const BUSH_SHADOW_SCALE: f32 = 1.6;
 
-/// Fire damage per second dealt by a burning bush to units inside.
-pub const BURNING_BUSH_DPS: f32 = 15.0;
+/// Multiplier on bush collision radius for the heat zone that applies FireDoT.
+pub const BURNING_BUSH_HEAT_RADIUS_MULTIPLIER: f32 = 2.0;
+
+/// Effective spell damage used when stacking FireDoT from burning bush heat.
+/// Each tick adds `this * FIRE_DOT_DAMAGE_RATIO` (0.1) = 1.5 DPS to the DoT.
+pub const BURNING_BUSH_HEAT_SPELL_DAMAGE: f32 = 15.0;
 
 /// Tick interval for burning bush fire damage (seconds).
 pub const BURNING_BUSH_TICK_INTERVAL: f32 = 0.5;

@@ -30,8 +30,12 @@ pub const fn tree_radius_for_variant(sprite_index: u8) -> f32 {
     }
 }
 
-/// Fire damage per second dealt by a burning tree to units inside.
-pub const BURNING_TREE_DPS: f32 = 15.0;
+/// Multiplier on tree collision radius for the heat zone that applies FireDoT.
+pub const BURNING_TREE_HEAT_RADIUS_MULTIPLIER: f32 = 2.0;
+
+/// Effective spell damage used when stacking FireDoT from burning tree heat.
+/// Each tick adds `this * FIRE_DOT_DAMAGE_RATIO` (0.1) = 1.5 DPS to the DoT.
+pub const BURNING_TREE_HEAT_SPELL_DAMAGE: f32 = 15.0;
 
 /// Tick interval for burning tree fire damage (seconds).
 pub const BURNING_TREE_TICK_INTERVAL: f32 = 0.5;

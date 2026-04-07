@@ -391,6 +391,13 @@ pub fn emit_lava_fire_smoke(
             4,
             t,
         );
+        vfx::systems::spawn_heat_shimmer(
+            &mut commands,
+            &visual_assets,
+            transform.translation,
+            2,
+            t,
+        );
     }
 }
 

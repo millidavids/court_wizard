@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.5.636] - 2026-04-06
+## [v0.5.666] - 2026-04-06
+
+### Added
+- **Procedural fire shader** — fire effects now use an animated noise-based shader with a full color gradient from white-hot cores through orange and red to dark edges, replacing the old flat-colored particles
+- **Flickering embers** — small bright particles flicker at the base of all fire effects, adding a glowing coal-bed look
+- **Rising smoke plumes** — large dark smoke clouds billow upward from fires with a soft circular shape, visible above the flames
+- **Heat shimmer on all fire** — the wavy heat distortion effect now appears around burning trees, bushes, lava pools, grease fires, and fireball explosions, not just walls of fire
+- **Fire spreads from walls of fire** — casting wall of fire near trees and bushes now sets them ablaze
+- **Fire spreads from meteor ground fire** — the lingering fire left by meteor impacts now ignites nearby vegetation
+- **Burning heat zone** — standing near burning trees and bushes gradually builds up a fire-over-time effect instead of dealing instant damage, rewarding players who move their units away quickly
+
+### Changed
+- **Denser fire particles** — fires now emit many more smaller particles that blend together into thick, cloud-like flames instead of a few large floating shapes
+- **Layered fire animation** — fire particles are split into fast-flickering base flames, medium rising fire, and slow lingering smoke at the top, each with different speeds and sizes
+- **Additive sparks and embers** — fire sparks and embers now glow brighter where they overlap, creating natural-looking hot spots
+- **Smoke particles are round** — dark smoke puffs now fade smoothly at the edges instead of showing hard square corners
+- **Fire stays on the trunk** — burning vegetation particles now only appear in the lower 70% of the sprite, keeping the treetops clear
+
+### Fixed
+- **Rare crash when units die near fire** — fixed a crash that could occur when a unit was despawned in the same frame as a visual effect tried to update its material
 
 ### Changed
 - **New studio logo** — the splash screen now displays the Blackhearth Games logo

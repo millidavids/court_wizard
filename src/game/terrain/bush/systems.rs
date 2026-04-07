@@ -7,10 +7,11 @@ use crate::game::components::{Billboard, OnGameplayScreen};
 use crate::game::pathfinding::messages::{ObstacleChanged, ObstacleShape, ObstacleType};
 use crate::game::shared_systems::{ShadowAssets, spawn_terrain_shadow};
 use crate::game::terrain::utils::{
-    BURNING_VEGETATION_TINT, emit_burning_vfx, should_ignite_from_fire,
+    BURNING_VEGETATION_TINT, apply_heat_zone_fire_dot, emit_burning_vfx, should_ignite_from_fire,
 };
 use crate::game::terrain::wind_sway::material::WindSwayMaterial;
-use crate::game::units::components::{Corpse, Health, RoughTerrainModifier};
+use crate::game::units::components::{Corpse, FireDoT, RoughTerrainModifier};
+use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Spawns a single bush at the given position with a size multiplier.
@@ -81,6 +82,8 @@ pub fn ignite_bushes_from_fire(
         &crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion,
     >,
     beams: Query<&crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam>,
+    walls: Query<&crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect>,
+    ground_fires: Query<&crate::game::units::wizard::spells::meteor_fall::components::MeteorGroundFire>,
     bush_assets: Res<BushAssets>,
     mut materials: ResMut<Assets<WindSwayMaterial>>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -92,6 +95,8 @@ pub fn ignite_bushes_from_fire(
             &explosions,
             &meteor_explosions,
             &beams,
+            &walls,
+            &ground_fires,
         ) {
             continue;
         }
@@ -120,14 +125,11 @@ pub fn ignite_bushes_from_fire(
 
 /// Burning bushes deal periodic fire damage to units inside them.
 pub fn apply_burning_bush_damage(
+    mut commands: Commands,
     time: Res<Time>,
     mut burning_bushes: Query<(&Bush, &mut BurningBush)>,
     mut units: Query<
-        (
-            &Transform,
-            &mut Health,
-            Option<&mut crate::game::units::components::TemporaryHitPoints>,
-        ),
+        (Entity, &Transform, Option<&mut FireDoT>, Has<SpellShield>),
         Without<Corpse>,
     >,
 ) {
@@ -140,16 +142,19 @@ pub fn apply_burning_bush_damage(
         }
         burning.tick_timer -= BURNING_BUSH_TICK_INTERVAL;
 
-        let damage = BURNING_BUSH_DPS * BURNING_BUSH_TICK_INTERVAL;
+        let heat_radius = bush.radius * BURNING_BUSH_HEAT_RADIUS_MULTIPLIER;
+        let heat_radius_sq = heat_radius * heat_radius;
 
-        for (transform, mut health, mut temp_hp) in &mut units {
+        for (entity, transform, fire_dot, has_shield) in &mut units {
             let dx = transform.translation.x - bush.center.x;
             let dz = transform.translation.z - bush.center.z;
-            if dx * dx + dz * dz <= bush.radius * bush.radius {
-                crate::game::units::components::apply_damage_to_unit(
-                    &mut health,
-                    temp_hp.as_deref_mut(),
-                    damage,
+            if dx * dx + dz * dz <= heat_radius_sq {
+                apply_heat_zone_fire_dot(
+                    &mut commands,
+                    entity,
+                    fire_dot,
+                    has_shield,
+                    BURNING_BUSH_HEAT_SPELL_DAMAGE,
                 );
             }
         }

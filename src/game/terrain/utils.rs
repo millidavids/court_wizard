@@ -2,10 +2,12 @@ use bevy::prelude::*;
 
 use super::wind_sway::material::WindSwayMaterial;
 use crate::game::units::systems::create_sprite_material;
+use crate::game::units::components::FireDoT;
 use crate::game::units::wizard::spells::disintegrate::components::DisintegrateBeam;
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
-use crate::game::units::wizard::spells::meteor_fall::components::MeteorExplosion;
-use crate::game::units::wizard::spells::utils::xz_distance;
+use crate::game::units::wizard::spells::meteor_fall::components::{MeteorExplosion, MeteorGroundFire};
+use crate::game::units::wizard::spells::utils::{distance_to_line_segment_xz, xz_distance};
+use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
@@ -79,12 +81,15 @@ pub(crate) fn preload_wind_sway_sprite_sheet<const N: usize>(
 }
 
 /// Checks if a terrain object at `center` with `radius` should be ignited by active fire sources.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn should_ignite_from_fire(
     center: Vec3,
     radius: f32,
     explosions: &Query<&FireballExplosion>,
     meteor_explosions: &Query<&MeteorExplosion>,
     beams: &Query<&DisintegrateBeam>,
+    walls: &Query<&WallOfFireEffect>,
+    ground_fires: &Query<&MeteorGroundFire>,
 ) -> bool {
     for explosion in explosions.iter() {
         if explosion.damage_per_tick > 0.0
@@ -108,7 +113,43 @@ pub(crate) fn should_ignite_from_fire(
         }
     }
 
+    for wall in walls.iter() {
+        if distance_to_line_segment_xz(center, wall.start, wall.end) <= wall.half_width + radius {
+            return true;
+        }
+    }
+
+    for fire in ground_fires.iter() {
+        if xz_distance(fire.origin, center) <= fire.radius + radius {
+            return true;
+        }
+    }
+
     false
+}
+
+/// Applies or stacks FireDoT on a unit from burning terrain heat.
+/// Respects spell shield — shielded units are unaffected.
+pub(crate) fn apply_heat_zone_fire_dot(
+    commands: &mut Commands,
+    entity: Entity,
+    existing_dot: Option<Mut<FireDoT>>,
+    has_spell_shield: bool,
+    spell_damage: f32,
+) {
+    if has_spell_shield {
+        return;
+    }
+    if let Some(mut dot) = existing_dot {
+        dot.stack(spell_damage);
+    } else {
+        let new_dot = FireDoT::new(spell_damage);
+        commands
+            .entity(entity)
+            .queue_silenced(move |mut e: EntityWorldMut| {
+                e.insert(new_dot);
+            });
+    }
 }
 
 /// Emits fire smoke and spark VFX at random heights along a burning terrain sprite.
@@ -128,7 +169,7 @@ pub(crate) fn emit_burning_vfx(
     if emit_smoke {
         for i in 0..smoke_count {
             let seed = center_x * 0.1 + t + i as f32 * 1.37;
-            let y = ((seed * 7.3).sin() * 0.5 + 0.5) * sprite_height;
+            let y = ((seed * 7.3).sin() * 0.5 + 0.5) * sprite_height * vfx::constants::BURNING_VFX_HEIGHT_FRACTION;
             vfx::systems::spawn_fire_orange_smoke(
                 commands,
                 visual_assets,
@@ -142,7 +183,7 @@ pub(crate) fn emit_burning_vfx(
     if emit_sparks {
         for i in 0..spark_count {
             let seed = center_z * 0.1 + t + i as f32 * 2.13;
-            let y = ((seed * 11.1).sin() * 0.5 + 0.5) * sprite_height;
+            let y = ((seed * 11.1).sin() * 0.5 + 0.5) * sprite_height * vfx::constants::BURNING_VFX_HEIGHT_FRACTION;
             vfx::systems::spawn_fire_sparks(
                 commands,
                 visual_assets,
@@ -151,5 +192,15 @@ pub(crate) fn emit_burning_vfx(
                 t + seed,
             );
         }
+    }
+    // Heat shimmer at ground level
+    if emit_smoke {
+        vfx::systems::spawn_heat_shimmer(
+            commands,
+            visual_assets,
+            Vec3::new(center_x, 0.0, center_z),
+            1,
+            t,
+        );
     }
 }

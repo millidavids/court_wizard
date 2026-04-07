@@ -12,7 +12,11 @@ use super::constants::{
 use super::messages::{
     ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage,
 };
+use crate::game::battlefield::components::LavaPool;
+use crate::game::terrain::bush::components::{BurningBush, Bush};
+use crate::game::terrain::tree::components::{BurningTree, Tree};
 use crate::game::units::wizard::spells::black_hole::components::BlackHole;
+use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::wall_of_fire::components::WallOfFireEffect;
 
 /// Converts NDC coordinates (-1..1) to screen UV (0..1), flipping Y for screen space.
@@ -489,6 +493,10 @@ pub(super) fn update_lensing_positions(
 /// Projects active wall of fire positions to viewport-local UV space for heat distortion.
 pub(super) fn update_heat_distortion_positions(
     walls: Query<&WallOfFireEffect>,
+    explosions: Query<&FireballExplosion>,
+    burning_trees: Query<&Tree, With<BurningTree>>,
+    burning_bushes: Query<&Bush, With<BurningBush>>,
+    lava_pools: Query<&Transform, With<LavaPool>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut distortion_query: Query<&mut HeatDistortionSettings>,
     time: Res<Time>,
@@ -506,12 +514,13 @@ pub(super) fn update_heat_distortion_positions(
     };
 
     let mut count = 0u32;
+
+    // Walls of fire get priority (most dramatic linear distortion)
     for wall in &walls {
         if count >= 4 {
             break;
         }
 
-        // Project wall start to screen UV
         let Some(start_ndc) = camera.world_to_ndc(camera_transform, wall.start) else {
             continue;
         };
@@ -522,7 +531,6 @@ pub(super) fn update_heat_distortion_positions(
         let start_uv = ndc_to_uv(start_ndc);
         let end_uv = ndc_to_uv(end_ndc);
 
-        // Skip walls entirely off screen
         if (start_uv.x < -0.3 && end_uv.x < -0.3)
             || (start_uv.x > 1.3 && end_uv.x > 1.3)
             || (start_uv.y < -0.3 && end_uv.y < -0.3)
@@ -531,7 +539,6 @@ pub(super) fn update_heat_distortion_positions(
             continue;
         }
 
-        // Estimate screen-space influence radius from wall half_width
         let mid = (wall.start + wall.end) / 2.0;
         let edge = mid + camera_transform.right() * wall.half_width * 3.0;
         let Some(mid_ndc) = camera.world_to_ndc(camera_transform, mid) else {
@@ -544,40 +551,124 @@ pub(super) fn update_heat_distortion_positions(
             .abs()
             .max(0.02);
 
-        match count {
-            0 => {
-                settings.wall_0_start_x = start_uv.x;
-                settings.wall_0_start_y = start_uv.y;
-                settings.wall_0_end_x = end_uv.x;
-                settings.wall_0_end_y = end_uv.y;
-                settings.wall_0_radius = radius;
-            }
-            1 => {
-                settings.wall_1_start_x = start_uv.x;
-                settings.wall_1_start_y = start_uv.y;
-                settings.wall_1_end_x = end_uv.x;
-                settings.wall_1_end_y = end_uv.y;
-                settings.wall_1_radius = radius;
-            }
-            2 => {
-                settings.wall_2_start_x = start_uv.x;
-                settings.wall_2_start_y = start_uv.y;
-                settings.wall_2_end_x = end_uv.x;
-                settings.wall_2_end_y = end_uv.y;
-                settings.wall_2_radius = radius;
-            }
-            3 => {
-                settings.wall_3_start_x = start_uv.x;
-                settings.wall_3_start_y = start_uv.y;
-                settings.wall_3_end_x = end_uv.x;
-                settings.wall_3_end_y = end_uv.y;
-                settings.wall_3_radius = radius;
-            }
-            _ => {}
-        }
+        set_distortion_slot(&mut settings, count, start_uv, end_uv, radius);
         count += 1;
     }
+
+    // Fill remaining slots with point fire sources (start == end for points)
+    // Fireball explosions
+    for explosion in &explosions {
+        if count >= 4 {
+            break;
+        }
+        if let Some(uv_radius) =
+            project_point_source(camera, camera_transform, explosion.origin, explosion.max_radius)
+        {
+            set_distortion_slot(&mut settings, count, uv_radius.0, uv_radius.0, uv_radius.1);
+            count += 1;
+        }
+    }
+
+    // Burning trees
+    for tree in &burning_trees {
+        if count >= 4 {
+            break;
+        }
+        if let Some(uv_radius) =
+            project_point_source(camera, camera_transform, tree.center, tree.radius * 2.0)
+        {
+            set_distortion_slot(&mut settings, count, uv_radius.0, uv_radius.0, uv_radius.1);
+            count += 1;
+        }
+    }
+
+    // Burning bushes
+    for bush in &burning_bushes {
+        if count >= 4 {
+            break;
+        }
+        if let Some(uv_radius) =
+            project_point_source(camera, camera_transform, bush.center, bush.radius * 2.0)
+        {
+            set_distortion_slot(&mut settings, count, uv_radius.0, uv_radius.0, uv_radius.1);
+            count += 1;
+        }
+    }
+
+    // Lava pools
+    for transform in &lava_pools {
+        if count >= 4 {
+            break;
+        }
+        if let Some(uv_radius) =
+            project_point_source(camera, camera_transform, transform.translation, 60.0)
+        {
+            set_distortion_slot(&mut settings, count, uv_radius.0, uv_radius.0, uv_radius.1);
+            count += 1;
+        }
+    }
+
     settings.count = count as f32;
+}
+
+/// Projects a world-space point source to screen UV and computes its influence radius.
+/// Returns `None` if the point is off-screen.
+fn project_point_source(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    world_pos: Vec3,
+    world_radius: f32,
+) -> Option<(Vec2, f32)> {
+    let ndc = camera.world_to_ndc(camera_transform, world_pos)?;
+    let uv = ndc_to_uv(ndc);
+    if uv.x < -0.3 || uv.x > 1.3 || uv.y < -0.3 || uv.y > 1.3 {
+        return None;
+    }
+    let edge = world_pos + camera_transform.right() * world_radius;
+    let edge_ndc = camera.world_to_ndc(camera_transform, edge)?;
+    let radius = (ndc_to_uv(edge_ndc).x - uv.x).abs().max(0.02);
+    Some((uv, radius))
+}
+
+/// Sets one of the 4 distortion slots by index.
+fn set_distortion_slot(
+    settings: &mut HeatDistortionSettings,
+    index: u32,
+    start_uv: Vec2,
+    end_uv: Vec2,
+    radius: f32,
+) {
+    match index {
+        0 => {
+            settings.wall_0_start_x = start_uv.x;
+            settings.wall_0_start_y = start_uv.y;
+            settings.wall_0_end_x = end_uv.x;
+            settings.wall_0_end_y = end_uv.y;
+            settings.wall_0_radius = radius;
+        }
+        1 => {
+            settings.wall_1_start_x = start_uv.x;
+            settings.wall_1_start_y = start_uv.y;
+            settings.wall_1_end_x = end_uv.x;
+            settings.wall_1_end_y = end_uv.y;
+            settings.wall_1_radius = radius;
+        }
+        2 => {
+            settings.wall_2_start_x = start_uv.x;
+            settings.wall_2_start_y = start_uv.y;
+            settings.wall_2_end_x = end_uv.x;
+            settings.wall_2_end_y = end_uv.y;
+            settings.wall_2_radius = radius;
+        }
+        3 => {
+            settings.wall_3_start_x = start_uv.x;
+            settings.wall_3_start_y = start_uv.y;
+            settings.wall_3_end_x = end_uv.x;
+            settings.wall_3_end_y = end_uv.y;
+            settings.wall_3_radius = radius;
+        }
+        _ => {}
+    }
 }
 
 /// Projects active teleport warp effect positions to viewport-local UV for the distortion shader.
