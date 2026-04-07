@@ -10,3 +10,4 @@ pub(in crate::game) mod systems;
 pub(in crate::game) mod trampling;
 
 pub use plugin::BattlefieldPlugin;
+pub(crate) use plugin::load_battlefield_assets;

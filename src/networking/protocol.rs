@@ -47,7 +47,7 @@ pub enum NetworkMessage {
 
     /// A wall was placed or removed — update pathfinding grid.
     ///
-    /// Sent bidirectionally when either player places a Wall of Stone so
+    /// Sent bidirectionally when either player places a Wall of Dirt so
     /// the other client can update its pathfinding grid.
     WallPlaced {
         /// AABB of the wall obstacle: [min_x, min_z, max_x, max_z].

@@ -51,9 +51,6 @@ pub const WALL_DAMAGE_PER_HIT: f32 = 25.0;
 /// Attack range for units hitting walls (world units from wall surface).
 pub const WALL_ATTACK_RANGE: f32 = 30.0;
 
-/// Base wall color (matches SpellVisualAssets wall_of_stone material).
-pub const WALL_BASE_COLOR: Color = Color::srgba(0.75, 0.6, 0.45, 1.0);
-
 /// Wall color when at 0% HP (damage tint).
 pub const WALL_DAMAGED_COLOR: Color = Color::srgba(0.5, 0.25, 0.15, 1.0);
 

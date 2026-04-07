@@ -17,6 +17,10 @@ use crate::game::units::constants::EXCREMAGE_BROWN;
 
 use super::black_hole::constants::TORUS_MINOR_RADIUS;
 use super::telekinesis::constants::{HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKWAVE_TORUS_MINOR};
+use super::wall_of_stone::wall_material::WallOfStoneMaterial;
+use crate::game::battlefield::components::BattlefieldAssets;
+use crate::game::battlefield::constants::{GROUND_NOISE_BASE, TILE_COUNT, TILE_WORLD_SIZE};
+use crate::game::constants::{STONE_COLOR_DARK, STONE_COLOR_LIGHT};
 
 /// Default bright yellow center color for fire explosion material.
 const FIRE_EXPLOSION_INNER_COLOR: LinearRgba = LinearRgba::new(4.0, 2.5, 0.4, 1.0);
@@ -124,7 +128,7 @@ pub struct SpellVisualAssets {
     pub lightning_rod: Handle<StandardMaterial>,
 
     // ── Wall materials ───────────────────────────────────────────────────
-    pub wall_of_stone: Handle<StandardMaterial>,
+    pub wall_of_stone: Handle<WallOfStoneMaterial>,
     pub wall_of_fire: Handle<StandardMaterial>,
 
     // ── Explosion materials ──────────────────────────────────────────────
@@ -297,6 +301,8 @@ pub fn init_spell_visual_assets(
     mut fire_explosion_materials: ResMut<Assets<FireExplosionMaterial>>,
     mut fire_particle_materials: ResMut<Assets<super::vfx::fire_material::FireParticleMaterial>>,
     mut smoke_particle_materials: ResMut<Assets<super::vfx::fire_material::SmokeParticleMaterial>>,
+    mut wall_of_stone_materials: ResMut<Assets<WallOfStoneMaterial>>,
+    battlefield_assets: Res<BattlefieldAssets>,
 ) {
     let unlit = |color: Color| StandardMaterial {
         base_color: color,
@@ -422,10 +428,22 @@ pub fn init_spell_visual_assets(
         }),
 
         // Wall materials
-        wall_of_stone: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.75, 0.6, 0.45, 1.0),
-            ..default()
-        }),
+        wall_of_stone: {
+            let dark = STONE_COLOR_DARK.to_srgba();
+            let light = STONE_COLOR_LIGHT.to_srgba();
+            wall_of_stone_materials.add(WallOfStoneMaterial {
+                tile_params: Vec4::new(
+                    TILE_WORLD_SIZE,
+                    TILE_COUNT as f32,
+                    0.0,
+                    GROUND_NOISE_BASE,
+                ),
+                damage_tint: Vec4::ZERO,
+                side_dark: Vec4::new(dark.red, dark.green, dark.blue, 1.0),
+                side_light: Vec4::new(light.red, light.green, light.blue, 1.0),
+                base_texture: battlefield_assets.battlefield_tiles.clone(),
+            })
+        },
         wall_of_fire: materials.add(StandardMaterial {
             base_color: Color::srgba(1.0, 0.5, 0.0, 0.4),
             unlit: true,
@@ -978,8 +996,7 @@ impl SpellVisualAssets {
             &self.black_hole_accretion_ring,
             &self.arcane_crystal,
             &self.lightning_rod,
-            // Walls
-            &self.wall_of_stone,
+            // Walls (wall_of_stone uses WallOfStoneMaterial, handled separately)
             &self.wall_of_fire,
             // Explosions (fireball_explosion uses FireExplosionMaterial, handled separately)
             &self.ice_explosion,

@@ -22,7 +22,7 @@ Different spells have different casting styles:
 - Click spells: Click once to fire (Magic Missile, Dispel)
 - Hold spells: Hold the mouse button to channel (Disintegrate, Finger of Death)
 - Placed spells: Hold to charge, release to place (Guardian Circle, Entangle, Sleep)
-- Drag spells: Click and drag to draw a line (Wall of Stone, Wall of Fire)
+- Drag spells: Click and drag to draw a line (Wall of Dirt, Wall of Fire)
 - Concentration spells: Hold to maintain the effect (Squall, Meteor Fall)
 
 MANA MANAGEMENT

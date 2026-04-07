@@ -77,6 +77,16 @@ pub const KING_CORPSE_COLOR: Color = dim(
     CORPSE_ALPHA,
 );
 
+// ===== Earth/Stone Colors =====
+
+/// Dark reddish-brown stone color used for stone underlays, wall sides, trampling,
+/// and dirt borders. The canonical "earth" color throughout the battlefield.
+pub const STONE_COLOR_DARK: Color = Color::srgb(0.11, 0.04, 0.03);
+
+/// Light reddish-brown stone color, paired with STONE_COLOR_DARK for noise blending
+/// on stone surfaces, wall of stone sides, and dirt border accents.
+pub const STONE_COLOR_LIGHT: Color = Color::srgb(0.20, 0.10, 0.07);
+
 // ===== Battlefield Dimensions =====
 
 /// Size of the battlefield (width and depth).

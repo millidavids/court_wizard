@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.676] - 2026-04-07
+
+### Changed
+- **Wall of Stone is now Wall of Dirt** — the spell has been renamed and the wall now looks like a raised chunk of the battlefield itself, with grass on top and earthy brown sides
+- **Grass-topped walls** — the top of the wall shows the same grass texture as the surrounding ground, blending seamlessly with the battlefield
+- **Dirt border on wall tops** — a natural-looking dirt edge frames the grass on top of each wall, making it easy to see where the wall ends
+- **Earthy wall sides** — the sides of the wall use the same dark reddish-brown as the stone terrain, with subtle texture variation
+- **Ground disturbance when walls rise** — the ground around a rising wall gets churned up with a dirt patch that fades outward, as if the earth was displaced
+- **Trampled ground is darker** — the brown color of trampled paths is now a deeper reddish-brown that matches the rest of the terrain
+- **Trampled ground recovers faster** — grass grows back more quickly between levels
+
+### Fixed
+- **Temporary walls no longer persist after winning** — walls placed without the Terraformer talent now properly disappear when you win a level, instead of carrying over to the next battle
+
 ## [v0.5.670] - 2026-04-07
 
 ### Changed

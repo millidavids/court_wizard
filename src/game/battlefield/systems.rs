@@ -107,10 +107,11 @@ pub fn setup_battlefield(
         let stone_width = WALL_FLOOR_DEPTH + 2000.0;
         let stone_length = BATTLEFIELD_SIZE + 2000.0;
         let stone_mesh = Rectangle::new(stone_width, stone_length);
-        // #5D3933 as dark, lighter variant for noise range
+        let stone_dark = STONE_COLOR_DARK.to_srgba();
+        let stone_light = STONE_COLOR_LIGHT.to_srgba();
         let stone_material = stone_materials.add(StoneNoiseMaterial {
-            dark_color: Vec4::new(0.11, 0.04, 0.03, 1.0),
-            light_color: Vec4::new(0.20, 0.10, 0.07, 1.0),
+            dark_color: Vec4::new(stone_dark.red, stone_dark.green, stone_dark.blue, 1.0),
+            light_color: Vec4::new(stone_light.red, stone_light.green, stone_light.blue, 1.0),
             blend_params: Vec4::new(
                 0.0,   // unused (line is hardcoded in shader)
                 50.0,  // fade_start (tight to the art edge)

@@ -26,6 +26,9 @@ use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
+use super::wall_material::WallOfStoneMaterial;
+use crate::game::battlefield::trampling::constants::TRAMPLING_CELL_SIZE;
+use crate::game::battlefield::trampling::resources::TramplingGrid;
 use bevy::prelude::*;
 
 /// Computes talent parameters from active talent selections.
@@ -705,16 +708,16 @@ pub fn destroy_dead_walls(mut walls: Query<(&mut WallOfStone, &WallHealth)>) {
     }
 }
 
-/// Tints wall material from base color to damaged color based on remaining HP.
+/// Tints wall material toward the damaged color based on remaining HP.
 ///
 /// On first damage, clones the shared material into a per-wall instance so
-/// tinting one wall doesn't affect others.
+/// tinting one wall doesn't affect others. Uses the `damage_tint` uniform
+/// which the shader applies as a final lerp over the computed texture/noise.
 pub fn update_wall_damage_tint(
-    mut walls: Query<(&WallHealth, &mut MeshMaterial3d<StandardMaterial>), With<WallOfStone>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut walls: Query<(&WallHealth, &mut MeshMaterial3d<WallOfStoneMaterial>), With<WallOfStone>>,
+    mut materials: ResMut<Assets<WallOfStoneMaterial>>,
     visual_assets: Res<SpellVisualAssets>,
 ) {
-    let base = WALL_BASE_COLOR.to_srgba();
     let damaged = WALL_DAMAGED_COLOR.to_srgba();
 
     for (wall_health, mut material_handle) in &mut walls {
@@ -735,12 +738,9 @@ pub fn update_wall_damage_tint(
             continue;
         };
 
-        // Lerp from damaged color (0 HP) to base color (full HP)
+        // damage_tint.a goes from 0 (full HP) to 1 (0 HP)
         let hp_frac = wall_health.fraction();
-        let r = damaged.red + (base.red - damaged.red) * hp_frac;
-        let g = damaged.green + (base.green - damaged.green) * hp_frac;
-        let b = damaged.blue + (base.blue - damaged.blue) * hp_frac;
-        material.base_color = Color::srgba(r, g, b, 1.0);
+        material.damage_tint = Vec4::new(damaged.red, damaged.green, damaged.blue, 1.0 - hp_frac);
     }
 }
 
@@ -929,6 +929,59 @@ pub fn animate_rising_walls(
             transform.translation.y = final_y;
             commands.entity(entity).remove::<WallRising>();
         }
+    }
+}
+
+/// Applies trampling around a wall when it finishes rising.
+/// Creates a dirt patch around the wall footprint as if the ground was churned up.
+pub fn apply_wall_trampling(
+    walls: Query<(&WallOfStone, &WallRising)>,
+    mut grid: Option<ResMut<TramplingGrid>>,
+    time: Res<Time>,
+) {
+    let Some(ref mut grid) = grid else {
+        return;
+    };
+    let delta = time.delta_secs();
+    let cell_size = TRAMPLING_CELL_SIZE;
+
+    for (wall, rising) in &walls {
+        // Only apply once as the wall nears the end of its rise
+        let prev_progress = ((rising.elapsed - delta) / rising.duration).clamp(0.0, 1.0);
+        if prev_progress >= 0.5 || rising.progress() < 0.5 {
+            continue;
+        }
+
+        // Compute AABB of the wall footprint with a buffer for the disturbed area
+        let buffer = 30.0;
+        let bounds = wall.obstacle_bounds();
+        let min_x = bounds[0] - buffer;
+        let min_z = bounds[1] - buffer;
+        let max_x = bounds[2] + buffer;
+        let max_z = bounds[3] + buffer;
+
+        // Iterate over grid cells in the AABB
+        let mut x = min_x;
+        while x <= max_x {
+            let mut z = min_z;
+            while z <= max_z {
+                let dist = wall.distance_to_surface(Vec3::new(x, 0.0, z));
+                // Strong trampling on the wall footprint, fading outward
+                let intensity = if dist < 1.0 {
+                    0.5
+                } else {
+                    (1.0 - (dist / buffer).min(1.0)) * 0.4
+                };
+                if intensity > 0.0 {
+                    if let Some(idx) = grid.world_to_index(x, z) {
+                        grid.values[idx] = (grid.values[idx] + intensity).min(1.0);
+                    }
+                }
+                z += cell_size;
+            }
+            x += cell_size;
+        }
+        grid.dirty = true;
     }
 }
 

@@ -57,6 +57,8 @@ impl Plugin for WallOfStonePlugin {
                     systems::update_wall_damage_tint.run_if(any_with_component::<WallHealth>),
                     // Wall rise animation (grows from ground)
                     systems::animate_rising_walls.run_if(any_with_component::<WallRising>),
+                    // Trample ground around wall as it rises
+                    systems::apply_wall_trampling.run_if(any_with_component::<WallRising>),
                     // Dust VFX during rise and sink
                     systems::spawn_wall_dust.run_if(any_exist::<WallOfStone>()),
                     // --- Talent systems ---

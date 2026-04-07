@@ -42,7 +42,7 @@ impl Plugin for BattlefieldPlugin {
 }
 
 /// Pre-loads battlefield textures at startup.
-fn load_battlefield_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub(crate) fn load_battlefield_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(BattlefieldAssets {
         castle_wall: asset_server.load("images/castle_wall.png"),
         right_wall: asset_server.load("images/static_sprites/right_wall.png"),

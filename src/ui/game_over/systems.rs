@@ -93,7 +93,8 @@ pub(super) fn update_level_after_display(
     config_events.write(ConfigChanged);
 }
 
-/// Saves all living walls as permanent walls on victory.
+/// Saves permanent walls (Terraformer talent) on victory so they persist to the next level.
+/// Non-permanent walls are not saved and will despawn with the rest of the gameplay screen.
 pub(super) fn save_walls_on_victory(
     game_outcome: Res<GameOutcome>,
     mut config: ResMut<GameConfig>,
@@ -106,6 +107,7 @@ pub(super) fn save_walls_on_victory(
 
     let saved: Vec<SavedWall> = walls
         .iter()
+        .filter(|wall| wall.permanent)
         .map(|wall| SavedWall {
             center_x: wall.center.x,
             center_z: wall.center.z,

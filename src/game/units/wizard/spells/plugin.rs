@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use super::utils::{SpellCircleIndicator, update_spell_indicators};
 use super::visual_assets::FireExplosionMaterial;
+use super::wall_of_stone::wall_material::WallOfStoneMaterial;
+use crate::game::battlefield::load_battlefield_assets;
 use crate::game::run_conditions::{any_exist, is_spell_effects_active};
 use crate::state::AppState;
 
@@ -44,11 +46,15 @@ pub struct SpellsPlugin;
 
 impl Plugin for SpellsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(MaterialPlugin::<FireExplosionMaterial>::default())
+        app.add_plugins((
+                MaterialPlugin::<FireExplosionMaterial>::default(),
+                MaterialPlugin::<WallOfStoneMaterial>::default(),
+            ))
             .add_systems(
                 Startup,
                 (
-                    super::visual_assets::init_spell_visual_assets,
+                    super::visual_assets::init_spell_visual_assets
+                        .after(load_battlefield_assets),
                     super::visual_assets::capture_original_spell_colors
                         .after(super::visual_assets::init_spell_visual_assets),
                     super::audio::load_spell_sfx_assets,

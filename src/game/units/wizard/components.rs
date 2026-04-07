@@ -204,7 +204,7 @@ impl Spell {
             Spell::FingerOfDeath => "Finger of Death",
             Spell::RaiseTheDead => "Raise The Dead",
             Spell::Teleport => "Teleport",
-            Spell::WallOfStone => "Wall of Stone",
+            Spell::WallOfStone => "Wall of Dirt",
             Spell::BlackHole => "Black Hole",
             Spell::Squall => "Squall",
             Spell::WallOfFire => "Wall of Fire",
@@ -241,7 +241,7 @@ impl Spell {
             Spell::FingerOfDeath => "Finger\nof\nDeath",
             Spell::RaiseTheDead => "Raise\nThe\nDead",
             Spell::Teleport => "Teleport",
-            Spell::WallOfStone => "Wall of\nStone",
+            Spell::WallOfStone => "Wall of\nDirt",
             Spell::BlackHole => "Black\nHole",
             Spell::Squall => "Squall",
             Spell::WallOfFire => "Wall of\nFire",
@@ -289,7 +289,7 @@ impl Spell {
             Spell::RaiseTheDead => "Resurrects corpses near the cursor.",
             Spell::Teleport => "Teleports all units near the cursor to a chosen destination.",
             Spell::WallOfStone => {
-                "Drag to raise an impassable stone wall that blocks all movement and projectiles for 20 seconds."
+                "Drag to raise an impassable dirt wall that blocks all movement and projectiles for 20 seconds."
             }
             Spell::BlackHole => {
                 "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 10 seconds, growing in size and strength over time."

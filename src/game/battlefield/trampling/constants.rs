@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
-/// Base brown color for trampled ground overlays (#4B2C28).
-pub(super) const TRAMPLING_COLOR: Color = Color::srgb(0.294, 0.173, 0.157);
+use crate::game::constants::STONE_COLOR_DARK;
+
+/// Base reddish-brown color for trampled ground overlays (derived from stone underlay).
+pub(super) const TRAMPLING_COLOR: Color = STONE_COLOR_DARK;
 
 /// Maximum alpha the trampling overlay can reach.
 pub(super) const TRAMPLING_MAX_ALPHA: f32 = 0.8;
@@ -10,7 +12,7 @@ pub(super) const TRAMPLING_MAX_ALPHA: f32 = 0.8;
 pub(super) const TRAMPLING_INCREMENT: f32 = 0.03;
 
 /// How much trampling intensity decays between levels (grass grows back).
-pub(super) const TRAMPLING_DECAY_PER_LEVEL: f32 = 0.2;
+pub(super) const TRAMPLING_DECAY_PER_LEVEL: f32 = 0.1;
 
 /// How often (seconds) the overlay texture syncs with the trampling grid.
 pub(super) const TRAMPLING_SYNC_INTERVAL: f32 = 0.25;
@@ -20,4 +22,4 @@ pub(super) const TRAMPLING_SYNC_INTERVAL: f32 = 0.25;
 pub(super) const TRAMPLING_OVERLAY_Y: f32 = 0.1;
 
 /// World size of each trampling grid cell (matches pathfinding cell size).
-pub(super) const TRAMPLING_CELL_SIZE: f32 = 10.0;
+pub(in crate::game) const TRAMPLING_CELL_SIZE: f32 = 10.0;

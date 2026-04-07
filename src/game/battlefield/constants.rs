@@ -10,10 +10,10 @@ pub(crate) const BATTLEFIELD_COLOR: Color = Color::srgb(0.204, 0.427, 0.329);
 // ===== Battlefield Tile Constants =====
 
 /// World size of each ground tile (square).
-pub(super) const TILE_WORLD_SIZE: f32 = 50.0;
+pub(in crate::game) const TILE_WORLD_SIZE: f32 = 50.0;
 
 /// Number of tile variants in the sprite sheet.
-pub(super) const TILE_COUNT: usize = 10;
+pub(in crate::game) const TILE_COUNT: usize = 10;
 
 /// Number of base (grass) tiles at the start of the sprite sheet.
 pub(super) const TILE_BASE_COUNT: usize = 5;
@@ -146,7 +146,7 @@ pub(crate) const WATER_SPEED_MODIFIER: f32 = -0.5;
 // ===== Ground Noise Constants =====
 
 /// Base noise intensity for the open battlefield.
-pub(super) const GROUND_NOISE_BASE: f32 = 0.6;
+pub(in crate::game) const GROUND_NOISE_BASE: f32 = 0.6;
 /// Noise intensity under forest tree concentration (more earthy).
 pub(super) const GROUND_NOISE_FOREST: f32 = 2.0;
 /// Z threshold below which full forest noise intensity applies.
