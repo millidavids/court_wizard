@@ -49,7 +49,7 @@ pub const DETAIL_PADDING: f32 = 18.0;
 pub const DETAIL_LABEL_FONT_SIZE: f32 = 12.0;
 
 /// Color for section labels — warm amber.
-pub const DETAIL_LABEL_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+pub const DETAIL_LABEL_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
 
 /// Font size for effect preview text.
 pub const EFFECT_PREVIEW_FONT_SIZE: f32 = 11.0;
@@ -67,7 +67,7 @@ pub const BREW_INFO_COLOR: Color = Color::srgb(0.7, 0.7, 0.5);
 pub const INGREDIENT_COUNT_COLOR: Color = Color::hsla(0.0, 0.0, 0.50, 1.0);
 
 /// Color for ingredient count text when at limit.
-pub const INGREDIENT_COUNT_FULL_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+pub const INGREDIENT_COUNT_FULL_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
 
 /// Brewing status font size.
 pub const BREWING_STATUS_FONT_SIZE: f32 = 13.0;
@@ -85,7 +85,7 @@ pub const PLACEHOLDER_TEXT_COLOR: Color = TEXT_PLACEHOLDER;
 pub const COMBO_FONT_SIZE: f32 = 11.0;
 
 /// Color for combo bonus text — gold.
-pub const COMBO_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+pub const COMBO_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
 
 // ---------------------------------------------------------------------------
 // Ingredient list (right side)
@@ -217,9 +217,9 @@ pub const BREW_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 40.0,
     border_width: 1.0,
     font_size: 13.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
-    border: Color::hsla(40.0, 0.40, 0.35, 1.0),
-    text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    background: Color::hsla(270.0, 0.20, 0.18, 0.75),
+    border: Color::hsla(270.0, 0.50, 0.40, 1.0),
+    text_color: Color::hsla(270.0, 0.20, 0.85, 1.0),
     text_shadow: true,
 };
 

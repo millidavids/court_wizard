@@ -81,6 +81,8 @@ pub(super) enum CompendiumItemId {
 pub(super) struct CompendiumState {
     pub active_tab: CompendiumTab,
     pub selected_item: Option<CompendiumItemId>,
+    /// Previous tab, used to detect tab-only changes without rebuilding items on selection.
+    pub prev_tab: CompendiumTab,
 }
 
 impl Default for CompendiumState {
@@ -88,6 +90,7 @@ impl Default for CompendiumState {
         Self {
             active_tab: CompendiumTab::Spells,
             selected_item: None,
+            prev_tab: CompendiumTab::Spells,
         }
     }
 }

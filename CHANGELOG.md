@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.756] - 2026-04-08
+
+### Added
+- **3D pushable buttons** — all buttons across the game now have a physical depth effect with a raised front face and a visible edge underneath, giving them a tactile, clickable look
+- **Button press animation** — buttons smoothly animate up on hover and push down on click, with a satisfying snap on press and a gentle return to rest
+- **Keyboard press animation** — pressing hotkeys for action bar spells now shows the same push-down animation as clicking
+- **Purple glow effects** — hovering and pressing buttons triggers a vibrant purple glow around the edges, with pressed buttons glowing even brighter
+- **Active button state** — selected tabs, toggled modifiers, and chosen wizard types stay visually pressed down with a bright purple highlight until deselected
+- **Frosted glass overlays** — menu backgrounds now have a subtle frosted texture effect instead of being plain transparent
+- **Procedural parchment shader** — content panels use a noise-based texture for a weathered, organic feel
+- **Ornate panel borders** — content panels have layered border frames with outline rings and depth shadows
+
+### Changed
+- **Fantasy color palette** — the entire UI shifted from cool blue/purple tones to warm charcoal browns with purple accents, creating a medieval fantasy feel
+- **Purple is the accent color** — all borders, highlights, glows, selection indicators, slider bars, and interactive elements use consistent purple tones
+- **Warmer text colors** — text now has a subtle warm parchment tint instead of pure white
+- **Richer panel shadows** — panels use multi-layered warm-tinted shadows for more natural depth
+- **Spellbook button hidden for some wizards** — the spellbook button is now hidden during gameplay for wizard types that don't manage spells
+
+### Fixed
+- **Barrel distortion click accuracy** — fixed a bug where the CRT screen effect could cause clicks to register on the wrong button near screen edges
+- **Menu overlays block interaction** — opening a menu like the spellbook or cauldron now properly prevents hovering and clicking on buttons behind it
+- **Compendium tab switching no longer flashes** — selecting a different item in the compendium no longer causes the entire list to visibly rebuild
+- **Button states update immediately** — switching tabs or deselecting options now instantly returns the previous button to its resting state
+
 ## [v0.5.676] - 2026-04-07
 
 ### Changed

@@ -57,7 +57,7 @@ pub(super) const GRAPH_NODE_FREE_BORDER: Color = Color::srgb(0.5, 0.5, 0.6);
 
 // Graph edge colors
 pub(super) const GRAPH_EDGE_COLOR: Color = Color::srgba(0.4, 0.4, 0.5, 0.7);
-pub(super) const GRAPH_EDGE_LOCKED_COLOR: Color = Color::srgba(0.2, 0.2, 0.25, 0.4);
+pub(super) const GRAPH_EDGE_LOCKED_COLOR: Color = Color::hsla(25.0, 0.10, 0.15, 0.4);
 
 // Graph zoom and animation
 pub(super) const GRAPH_ZOOM_MIN: f32 = 0.4;

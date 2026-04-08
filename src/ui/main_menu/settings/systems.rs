@@ -7,7 +7,6 @@ use crate::config::{DisplayMode, GameConfig, VsyncMode};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
-use crate::ui::styles::{item_hovered, item_pressed};
 use crate::ui::systems::spawn_title_with_shadow;
 
 use super::components::{
@@ -97,7 +96,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                             BackgroundColor(bg),
                             BorderColor::all(border),
                             BorderRadius::all(Val::Px(4.0)),
-                            ButtonColors { background: bg },
+                            ButtonColors { background: bg, border },
                             SettingsTabButton(tab),
                         ))
                         .with_children(|btn| {
@@ -145,6 +144,7 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                 BackgroundColor(BUTTON_BACKGROUND),
                 ButtonColors {
                     background: BUTTON_BACKGROUND,
+                    border: BUTTON_BORDER,
                 },
                 SettingsButtonAction::Back,
             ))
@@ -277,6 +277,7 @@ fn spawn_graphics_tab(
                             BackgroundColor(bg_color),
                             ButtonColors {
                                 background: bg_color,
+                                border: border_color,
                             },
                             ResolutionPreset {
                                 width: w,
@@ -427,6 +428,7 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                     BackgroundColor(BUTTON_BACKGROUND),
                     ButtonColors {
                         background: BUTTON_BACKGROUND,
+                        border: BUTTON_BORDER,
                     },
                     SettingsButtonAction::ResetTutorials,
                 ))
@@ -474,6 +476,7 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                     BackgroundColor(DANGER_BUTTON_BACKGROUND),
                     ButtonColors {
                         background: DANGER_BUTTON_BACKGROUND,
+                        border: DANGER_BUTTON_BORDER,
                     },
                     SettingsButtonAction::ClearProgress,
                 ))
@@ -732,6 +735,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                         BackgroundColor(BUTTON_BACKGROUND),
                         ButtonColors {
                             background: BUTTON_BACKGROUND,
+                            border: BUTTON_BORDER,
                         },
                         SettingsButtonAction::ResetControls,
                     ))
@@ -836,6 +840,7 @@ fn spawn_key_binding_row(
                 BackgroundColor(BUTTON_BACKGROUND),
                 ButtonColors {
                     background: BUTTON_BACKGROUND,
+                    border: BUTTON_BORDER,
                 },
                 KeyBindingButton { context, action },
             ))
@@ -1147,25 +1152,41 @@ pub fn rebuild_settings_content(
     saved_geometry: Res<SavedWindowedGeometry>,
     bindings: Res<crate::config::InputBindings>,
     container_query: Query<Entity, With<SettingsContentContainer>>,
-    tab_buttons: Query<(Entity, &SettingsTabButton)>,
+    tab_buttons: Query<(Entity, &SettingsTabButton, Option<&Children>)>,
     mut tab_colors: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
+    mut front_colors: Query<
+        (&mut BackgroundColor, &mut BorderColor),
+        (With<crate::ui::components::ButtonFront>, Without<ButtonColors>),
+    >,
 ) {
     if !state.is_changed() {
         return;
     }
 
     // Update tab button styling
-    for (entity, tab_btn) in &tab_buttons {
+    for (entity, tab_btn, children) in &tab_buttons {
         let is_active = tab_btn.0 == state.active_tab;
         let (bg, border) = if is_active {
+            commands.entity(entity).insert(crate::ui::components::ButtonActive);
             (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
         } else {
+            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
             (INACTIVE_TAB_BG, TAB_BORDER_COLOR)
         };
         if let Ok((mut bg_color, mut border_color, mut colors)) = tab_colors.get_mut(entity) {
             *bg_color = BackgroundColor(bg);
             *border_color = BorderColor::all(border);
             colors.background = bg;
+            colors.border = border;
+        }
+        // Also update the 3D front face child.
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok((mut front_bg, mut front_border)) = front_colors.get_mut(child) {
+                    *front_bg = crate::ui::systems::opaque(bg).into();
+                    *front_border = BorderColor::all(border);
+                }
+            }
         }
     }
 
@@ -1248,12 +1269,13 @@ fn spawn_option_button(
         BackgroundColor(bg_color),
         ButtonColors {
             background: bg_color,
+            border: border_color,
         },
         value,
     ));
 
     if is_selected {
-        entity.insert(SelectedOption);
+        entity.insert((SelectedOption, crate::ui::components::ButtonActive));
     }
 
     entity.with_children(|button| {
@@ -1311,48 +1333,6 @@ fn spawn_slider_control(
             },
         },
     );
-}
-
-/// Handles button hover visual feedback.
-///
-/// Changes button colors when the cursor hovers over them.
-///
-/// # Arguments
-///
-/// * `interactions` - Query for button interaction states
-pub fn button_hover(
-    mut interactions: Query<
-        (&Interaction, &ButtonColors, &mut BackgroundColor),
-        (Changed<Interaction>, Without<SelectedOption>),
-    >,
-) {
-    for (interaction, colors, mut background) in &mut interactions {
-        match interaction {
-            Interaction::Hovered => *background = BackgroundColor(item_hovered(colors.background)),
-            Interaction::None => *background = BackgroundColor(colors.background),
-            _ => {}
-        }
-    }
-}
-
-/// Handles button press visual feedback.
-///
-/// Changes button colors when buttons are pressed.
-///
-/// # Arguments
-///
-/// * `interactions` - Query for button interaction states
-pub fn button_press(
-    mut interactions: Query<
-        (&Interaction, &ButtonColors, &mut BackgroundColor),
-        (Changed<Interaction>, Without<SelectedOption>),
-    >,
-) {
-    for (interaction, colors, mut background) in &mut interactions {
-        if *interaction == Interaction::Pressed {
-            *background = BackgroundColor(item_pressed(colors.background));
-        }
-    }
 }
 
 /// Spawns a confirmation popup overlay in the center of the screen.
@@ -1416,6 +1396,7 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                                 BackgroundColor(DANGER_BUTTON_BACKGROUND),
                                 ButtonColors {
                                     background: DANGER_BUTTON_BACKGROUND,
+                                    border: DANGER_BUTTON_BORDER,
                                 },
                                 ConfirmationAction::Confirm(action),
                             ))
@@ -1442,6 +1423,7 @@ fn spawn_confirmation_popup(commands: &mut Commands, action: SettingsButtonActio
                                 BackgroundColor(BUTTON_BACKGROUND),
                                 ButtonColors {
                                     background: BUTTON_BACKGROUND,
+                                    border: BUTTON_BORDER,
                                 },
                                 ConfirmationAction::Cancel,
                             ))
@@ -1731,20 +1713,40 @@ pub fn update_selected_options(
             &OptionButtonValue,
             &mut BackgroundColor,
             &mut BorderColor,
+            &mut ButtonColors,
+            Option<&Children>,
         ),
         With<Button>,
     >,
+    mut front_query: Query<
+        (&mut BackgroundColor, &mut BorderColor),
+        (With<crate::ui::components::ButtonFront>, Without<Button>),
+    >,
 ) {
     if game_config.is_changed() {
-        for (entity, value, mut bg, mut border) in &mut option_buttons {
-            if value.is_selected(&game_config) {
-                commands.entity(entity).insert(SelectedOption);
-                *bg = BackgroundColor(SELECTED_BACKGROUND);
-                *border = BorderColor::all(SELECTED_BORDER);
+        for (entity, value, mut bg, mut border, mut colors, children) in &mut option_buttons {
+            let (new_bg, new_border) = if value.is_selected(&game_config) {
+                commands.entity(entity).insert((SelectedOption, crate::ui::components::ButtonActive));
+                (SELECTED_BACKGROUND, SELECTED_BORDER)
             } else {
                 commands.entity(entity).remove::<SelectedOption>();
-                *bg = BackgroundColor(BUTTON_BACKGROUND);
-                *border = BorderColor::all(BUTTON_BORDER);
+                commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                (BUTTON_BACKGROUND, BUTTON_BORDER)
+            };
+
+            *bg = BackgroundColor(new_bg);
+            *border = BorderColor::all(new_border);
+            colors.background = new_bg;
+            colors.border = new_border;
+
+            // Also update the 3D front face child.
+            if let Some(children) = children {
+                for child in children.iter() {
+                    if let Ok((mut front_bg, mut front_border)) = front_query.get_mut(child) {
+                        *front_bg = crate::ui::systems::opaque(new_bg).into();
+                        *front_border = BorderColor::all(new_border);
+                    }
+                }
             }
         }
     }

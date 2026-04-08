@@ -5,4 +5,5 @@
 mod components;
 mod constants;
 pub(super) mod plugin;
+pub(super) mod shared;
 mod systems;

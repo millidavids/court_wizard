@@ -4,20 +4,26 @@ use bevy::ecs::relationship::Relationship;
 use bevy::input::keyboard::KeyCode;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
-use bevy::ui::ComputedNode;
+use bevy::ui::{ComputedNode, ShadowStyle};
 
+use bevy::render::render_resource::{AsBindGroup, ShaderType};
+use bevy::shader::ShaderRef;
 use bevy::ui::RelativeCursorPosition;
 
-use super::components::{ButtonColors, ButtonStyle};
+use super::components::{ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, ButtonStyle};
 use super::constants::{
-    CONTENT_BG, CONTENT_BORDER, DETAIL_BG, DETAIL_BORDER, DETAIL_PADDING, LEFT_PANEL_WIDTH,
-    LIST_BG, LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER,
-    SCROLL_SHADOW_COLOR, SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG,
-    SLIDER_BUTTON_BORDER_COLOR, SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP,
-    SLIDER_LABEL_FONT_SIZE, SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR, TWO_PANEL_GAP,
-    TWO_PANEL_PADDING,
+    BUTTON_3D_ANIM_SPEED, BUTTON_3D_OFFSET_HOVER, BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST,
+    BUTTON_EDGE_DARKEN, BUTTON_GLOW_INNER, BUTTON_GLOW_OUTER, BUTTON_HOVERED_OUTLINE,
+    BUTTON_PRESSED_OUTLINE, BUTTON_PRESS_GLOW_INNER, BUTTON_PRESS_GLOW_OUTER,
+    BUTTON_SHADOW_COLOR, CONTENT_BG, CONTENT_BORDER, DETAIL_BG,
+    DETAIL_BORDER, DETAIL_PADDING, FRAME_OUTER_RING_COLOR, FRAME_OUTLINE_COLOR,
+    FRAME_OUTLINE_OFFSET, FRAME_OUTLINE_WIDTH, FRAME_SHADOW_SPREAD_BASE, LEFT_PANEL_WIDTH, LIST_BG,
+    LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
+    SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR,
+    SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE,
+    SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR, TWO_PANEL_GAP, TWO_PANEL_PADDING,
 };
-use super::styles::{item_hovered, item_pressed};
+use super::styles::{border_bright, border_hovered};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::MouseButtonState;
 use crate::game::input::messages::MouseClicked;
@@ -41,6 +47,14 @@ pub(crate) fn scale_font_by_text_width(
 /// Marker component to track that a button was pressed down.
 #[derive(Component)]
 pub struct ButtonPressedDown;
+
+/// Marker for page content panels that should receive a parchment background.
+#[derive(Component)]
+pub(crate) struct ParchmentPanel;
+
+/// Marker for overlay roots that should receive a frosted glass background.
+#[derive(Component)]
+pub(crate) struct FrostedGlassOverlay;
 
 /// Run condition that returns true if there are any MouseClicked messages.
 pub fn on_message<M: Message>(mut reader: MessageReader<M>) -> bool {
@@ -80,36 +94,451 @@ pub fn button_click_detection(
     }
 }
 
-/// Handles button interaction visual feedback for all buttons with `ButtonColors`.
+/// Sets the 3D button animation target based on interaction state.
 ///
-/// Updates button background and border colors based on the current
-/// interaction state (None, Hovered, or Pressed).
+/// Glows BOTH the edge's outline (lower layer) and the front face's border (top layer).
 pub fn button_interaction(
     mut interaction_query: Query<
         (
             &Interaction,
             &ButtonColors,
-            &mut BackgroundColor,
-            &mut BorderColor,
+            Option<&Children>,
+            Option<&mut BoxShadow>,
+            Option<&mut ButtonAnimState>,
+            Has<ButtonActive>,
         ),
         (Changed<Interaction>, With<Button>),
     >,
+    mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
 ) {
-    for (interaction, colors, mut bg_color, mut border_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *bg_color = item_pressed(colors.background).into();
-                *border_color = BorderColor::all(item_pressed(colors.border));
-            }
-            Interaction::Hovered => {
-                *bg_color = item_hovered(colors.background).into();
-                *border_color = BorderColor::all(item_hovered(colors.border));
-            }
-            Interaction::None => {
-                *bg_color = colors.background.into();
-                *border_color = BorderColor::all(colors.border);
+    for (interaction, colors, children, shadow, anim, is_active) in &mut interaction_query {
+        // Active buttons stay in permanent pressed state.
+        if is_active {
+            continue;
+        }
+        // Determine hover colors for both layers.
+        // Pressed is brighter than hover for a satisfying "flash" on click.
+        let (front_border, edge_outline) = match *interaction {
+            Interaction::Pressed => (border_bright(colors.border), BUTTON_PRESSED_OUTLINE),
+            Interaction::Hovered => (border_hovered(colors.border), BUTTON_HOVERED_OUTLINE),
+            Interaction::None => (colors.border, FRAME_OUTLINE_COLOR),
+        };
+
+        // Update edge outline (lower layer glow) + front border (top layer glow).
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(front_border);
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = edge_outline;
+                }
             }
         }
+
+        // Update wrapper shadow + animation target.
+        match *interaction {
+            Interaction::Pressed => {
+                if let Some(mut shadow) = shadow {
+                    shadow.0 = vec![
+                        ShadowStyle {
+                            color: BUTTON_PRESS_GLOW_INNER,
+                            x_offset: Val::Px(0.0),
+                            y_offset: Val::Px(0.0),
+                            spread_radius: Val::Px(3.0),
+                            blur_radius: Val::Px(10.0),
+                        },
+                        ShadowStyle {
+                            color: BUTTON_PRESS_GLOW_OUTER,
+                            x_offset: Val::Px(0.0),
+                            y_offset: Val::Px(0.0),
+                            spread_radius: Val::Px(6.0),
+                            blur_radius: Val::Px(20.0),
+                        },
+                    ];
+                }
+                if let Some(mut anim) = anim {
+                    anim.target = BUTTON_3D_OFFSET_PRESSED;
+                }
+            }
+            Interaction::Hovered => {
+                if let Some(mut shadow) = shadow {
+                    shadow.0 = vec![
+                        ShadowStyle {
+                            color: BUTTON_GLOW_INNER,
+                            x_offset: Val::Px(0.0),
+                            y_offset: Val::Px(0.0),
+                            spread_radius: Val::Px(2.0),
+                            blur_radius: Val::Px(8.0),
+                        },
+                        ShadowStyle {
+                            color: BUTTON_GLOW_OUTER,
+                            x_offset: Val::Px(0.0),
+                            y_offset: Val::Px(0.0),
+                            spread_radius: Val::Px(4.0),
+                            blur_radius: Val::Px(16.0),
+                        },
+                    ];
+                }
+                if let Some(mut anim) = anim {
+                    anim.target = BUTTON_3D_OFFSET_HOVER;
+                }
+            }
+            Interaction::None => {
+                if let Some(mut shadow) = shadow {
+                    shadow.0 = vec![ShadowStyle {
+                        color: BUTTON_SHADOW_COLOR,
+                        x_offset: Val::Px(0.0),
+                        y_offset: Val::Px(2.0),
+                        spread_radius: Val::Px(0.0),
+                        blur_radius: Val::Px(4.0),
+                    }];
+                }
+                if let Some(mut anim) = anim {
+                    anim.target = BUTTON_3D_OFFSET_REST;
+                }
+            }
+        }
+    }
+}
+
+/// Converts any flat button (with `ButtonColors` but no `ButtonAnimState`) into
+/// a 3D layered button. Reparents existing children into a front face child and
+/// adds an edge child behind it.
+///
+/// The front face inherits the original button's layout properties (flex direction,
+/// alignment, padding, gaps) so content renders identically.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_3d_button_structure(
+    mut commands: Commands,
+    new_buttons: Query<
+        (
+            Entity,
+            &ButtonColors,
+            &Node,
+            Option<&BorderRadius>,
+            Option<&BorderColor>,
+            Option<&Children>,
+        ),
+        (Added<ButtonColors>, With<Button>, Without<ButtonAnimState>),
+    >,
+) {
+    let depth = -BUTTON_3D_OFFSET_REST;
+
+    for (entity, colors, node, radius, border_color, children) in &new_buttons {
+        // Skip transparent/utility buttons — the 3D effect doesn't suit them
+        // and restructuring breaks click behavior for small nested buttons.
+        let bg_hsla = Hsla::from(colors.background);
+        if bg_hsla.alpha < 0.01 {
+            continue;
+        }
+
+        let br = radius.copied().unwrap_or(BorderRadius::all(Val::Px(4.0)));
+        let bc = border_color
+            .copied()
+            .unwrap_or(BorderColor::all(colors.border));
+        let border_width = match node.border.top {
+            Val::Px(px) => px,
+            _ => 1.0,
+        };
+        let original_height = match node.height {
+            Val::Px(h) => h,
+            _ => 40.0,
+        };
+
+        // Collect existing children to reparent into the front face.
+        let existing_children: Vec<Entity> =
+            children.map(|c| c.iter().collect()).unwrap_or_default();
+
+        // Spawn edge — same size as front but offset down and slightly narrower.
+        // Outline lives here so it appears to go behind the front face.
+        let edge = commands
+            .spawn((
+                ButtonEdge,
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    ..default()
+                },
+                BackgroundColor(edge_color(colors.background)),
+                br,
+                Outline::new(Val::Px(1.0), Val::Px(1.0), FRAME_OUTLINE_COLOR),
+            ))
+            .id();
+
+        // Front face inherits layout from original button so content stays correct.
+        // Fixed-height buttons stay fixed; auto-sized buttons can grow.
+        let has_fixed_height = matches!(node.height, Val::Px(_));
+        let mut front_node = Node {
+            width: Val::Percent(100.0),
+            border: UiRect::all(Val::Px(border_width)),
+            flex_direction: node.flex_direction,
+            justify_content: node.justify_content,
+            align_items: node.align_items,
+            padding: node.padding,
+            row_gap: node.row_gap,
+            column_gap: node.column_gap,
+            flex_wrap: node.flex_wrap,
+            overflow: node.overflow,
+            position_type: PositionType::Relative,
+            top: Val::Px(BUTTON_3D_OFFSET_REST),
+            ..default()
+        };
+        if has_fixed_height {
+            front_node.height = Val::Px(original_height);
+            front_node.overflow = Overflow::clip();
+        } else {
+            front_node.min_height = Val::Px(original_height);
+        }
+
+        let front = commands
+            .spawn((
+                ButtonFront,
+                front_node,
+                BackgroundColor(opaque(colors.background)),
+                bc,
+                br,
+            ))
+            .id();
+
+        // Reparent existing children (text, icons) into the front face.
+        for child in &existing_children {
+            commands.entity(front).add_child(*child);
+        }
+
+        // Update the wrapper: clear bg/border, increase height, add 3D components.
+        // Outline stays on wrapper (lower layer) — glows on hover.
+        commands.entity(entity).insert((
+            BackgroundColor(Color::NONE),
+            BorderColor::all(Color::NONE),
+            ButtonAnimState {
+                current: BUTTON_3D_OFFSET_REST,
+                target: BUTTON_3D_OFFSET_REST,
+            },
+            BoxShadow(vec![ShadowStyle {
+                color: BUTTON_SHADOW_COLOR,
+                x_offset: Val::Px(0.0),
+                y_offset: Val::Px(2.0),
+                spread_radius: Val::Px(0.0),
+                blur_radius: Val::Px(4.0),
+            }]),
+        ));
+
+        // Increase wrapper height, clear border/padding (those live on front now).
+        commands
+            .entity(entity)
+            .entry::<Node>()
+            .and_modify(move |mut n| {
+                // Convert fixed height to min_height so content can grow.
+                if let Val::Px(h) = n.height {
+                    n.min_height = Val::Px(h + depth);
+                    n.height = Val::Auto;
+                } else {
+                    // Already auto-sized; just add depth padding at bottom.
+                    n.padding.bottom = Val::Px(depth);
+                }
+                n.border = UiRect::ZERO;
+                n.padding.top = Val::ZERO;
+                n.padding.left = Val::ZERO;
+                n.padding.right = Val::ZERO;
+                n.row_gap = Val::ZERO;
+                n.column_gap = Val::ZERO;
+            });
+
+        // Add edge + front as children (after existing children were reparented).
+        commands.entity(entity).add_child(edge);
+        commands.entity(entity).add_child(front);
+    }
+}
+
+/// Smoothly animates the 3D button front face toward its target offset.
+/// Uses real (wall-clock) time so animations play even when game time is paused/scaled.
+/// Updates both the Node.top on the front face and ButtonAnimState.current in one pass.
+pub fn animate_button_3d(
+    time: Res<Time<Real>>,
+    mut buttons: Query<(&mut ButtonAnimState, &Children)>,
+    mut front_query: Query<&mut Node, With<ButtonFront>>,
+) {
+    let dt = time.delta_secs();
+    for (mut anim, children) in &mut buttons {
+        if (anim.current - anim.target).abs() < 0.01 {
+            anim.current = anim.target;
+            continue;
+        }
+
+        let speed = if anim.target == BUTTON_3D_OFFSET_PRESSED {
+            BUTTON_3D_ANIM_SPEED * 3.0
+        } else {
+            BUTTON_3D_ANIM_SPEED
+        };
+        let t = (speed * dt).min(1.0);
+        anim.current += (anim.target - anim.current) * t;
+
+        for child in children.iter() {
+            if let Ok(mut node) = front_query.get_mut(child) {
+                node.top = Val::Px(anim.current);
+            }
+        }
+    }
+}
+
+/// Sets the pressed visual state on newly activated buttons.
+/// Only runs when `ButtonActive` is first added, not every frame.
+pub fn enforce_active_button_state(
+    mut active_buttons: Query<
+        (&ButtonColors, Option<&Children>, Option<&mut ButtonAnimState>),
+        (Added<ButtonActive>, With<Button>),
+    >,
+    mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
+) {
+    for (colors, children, anim) in &mut active_buttons {
+        if let Some(mut anim) = anim {
+            anim.target = BUTTON_3D_OFFSET_PRESSED;
+        }
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(border_bright(colors.border));
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = BUTTON_PRESSED_OUTLINE;
+                }
+            }
+        }
+    }
+}
+
+/// Resets buttons to their resting state when `ButtonActive` is removed.
+pub fn reset_deactivated_buttons(
+    mut removed: RemovedComponents<ButtonActive>,
+    mut buttons: Query<
+        (&ButtonColors, Option<&Children>, Option<&mut ButtonAnimState>),
+        With<Button>,
+    >,
+    mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
+) {
+    for entity in removed.read() {
+        let Ok((colors, children, anim)) = buttons.get_mut(entity) else {
+            continue;
+        };
+        if let Some(mut anim) = anim {
+            anim.target = BUTTON_3D_OFFSET_REST;
+        }
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(colors.border);
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = FRAME_OUTLINE_COLOR;
+                }
+            }
+        }
+    }
+}
+
+/// Syncs the front face's `BorderColor` and `BackgroundColor` when the wrapper's
+/// `ButtonColors` changes. This ensures that when external systems update button
+/// colors (e.g., selecting a wizard card, toggling a modifier), the 3D front face
+/// reflects the change.
+pub fn sync_front_face_colors(
+    changed_buttons: Query<
+        (&ButtonColors, &Children),
+        (Changed<ButtonColors>, With<Button>, Without<ButtonActive>),
+    >,
+    mut front_query: Query<
+        (&mut BackgroundColor, &mut BorderColor),
+        (With<ButtonFront>, Without<ButtonEdge>),
+    >,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
+) {
+    for (colors, children) in &changed_buttons {
+        for child in children.iter() {
+            if let Ok((mut bg, mut border)) = front_query.get_mut(child) {
+                *bg = opaque(colors.background).into();
+                *border = BorderColor::all(colors.border);
+            }
+            if let Ok(mut outline) = edge_query.get_mut(child) {
+                outline.color = FRAME_OUTLINE_COLOR;
+            }
+        }
+    }
+}
+
+/// Inserts an absolutely positioned `MaterialNode` child behind existing content.
+///
+/// Clears the parent's `BackgroundColor` so the shader shows through.
+/// The shaders themselves handle rounded-corner clipping via `in.border_radius`.
+fn insert_material_background<M: UiMaterial>(
+    commands: &mut Commands,
+    entity: Entity,
+    material: Handle<M>,
+) {
+    let child = commands
+        .spawn((
+            MaterialNode(material),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                ..default()
+            },
+        ))
+        .id();
+
+    commands.entity(entity).insert(BackgroundColor(Color::NONE));
+    commands.entity(entity).insert_children(0, &[child]);
+}
+
+/// Derives a semi-transparent edge (depth) color from a button's background color.
+fn edge_color(bg: Color) -> Color {
+    let hsla = Hsla::from(bg);
+    Color::hsla(
+        hsla.hue,
+        (hsla.saturation + 0.05).min(1.0),
+        hsla.lightness * BUTTON_EDGE_DARKEN,
+        0.8,
+    )
+}
+
+/// Returns a fully opaque version of a color for the front face.
+pub(crate) fn opaque(color: Color) -> Color {
+    let hsla = Hsla::from(color);
+    Color::hsla(hsla.hue, hsla.saturation, hsla.lightness, 1.0)
+}
+
+/// Applies a parchment texture material to newly spawned panels marked with `ParchmentPanel`.
+///
+/// Inserts an absolutely positioned `MaterialNode` child behind the panel content
+/// to give a weathered, medieval parchment background.
+pub fn apply_parchment_backgrounds(
+    mut commands: Commands,
+    new_panels: Query<Entity, Added<ParchmentPanel>>,
+    mut materials: ResMut<Assets<ParchmentMaterial>>,
+) {
+    for entity in &new_panels {
+        let mat = materials.add(ParchmentMaterial::new(CONTENT_BG));
+        insert_material_background(&mut commands, entity, mat);
+    }
+}
+
+/// Applies a frosted glass material to newly spawned overlay roots.
+pub fn apply_frosted_glass_overlays(
+    mut commands: Commands,
+    new_overlays: Query<Entity, Added<FrostedGlassOverlay>>,
+    mut materials: ResMut<Assets<FrostedGlassMaterial>>,
+) {
+    for entity in &new_overlays {
+        let mat = materials.add(FrostedGlassMaterial::new());
+        insert_material_background(&mut commands, entity, mat);
     }
 }
 
@@ -124,13 +553,22 @@ pub(crate) fn scroll_area_style() -> (BackgroundColor, BorderColor, BorderRadius
         BackgroundColor(SCROLL_BG),
         BorderColor::all(SCROLL_BORDER),
         BorderRadius::all(Val::Px(4.0)),
-        BoxShadow::new(
-            SCROLL_SHADOW_COLOR,
-            Val::Px(0.0),
-            Val::Px(2.0),
-            Val::Px(2.0),
-            Val::Px(8.0),
-        ),
+        BoxShadow(vec![
+            ShadowStyle {
+                color: SCROLL_SHADOW_COLOR,
+                x_offset: Val::Px(0.0),
+                y_offset: Val::Px(1.0),
+                spread_radius: Val::Px(0.0),
+                blur_radius: Val::Px(2.0),
+            },
+            ShadowStyle {
+                color: SHADOW_COLOR,
+                x_offset: Val::Px(0.0),
+                y_offset: Val::Px(3.0),
+                spread_radius: Val::Px(1.0),
+                blur_radius: Val::Px(6.0),
+            },
+        ]),
     )
 }
 
@@ -191,6 +629,11 @@ pub fn spawn_left_detail_panel(parent: &mut ChildSpawnerCommands) -> Entity {
                     BackgroundColor(DETAIL_BG),
                     BorderColor::all(DETAIL_BORDER),
                     BorderRadius::all(Val::Px(PANEL_BORDER_RADIUS)),
+                    Outline::new(
+                        Val::Px(FRAME_OUTLINE_WIDTH),
+                        Val::Px(1.0),
+                        FRAME_OUTLINE_COLOR,
+                    ),
                 ))
                 .id();
         });
@@ -204,10 +647,10 @@ pub fn spawn_scrollable_left_detail_panel<M: Component>(
     marker: M,
 ) -> Entity {
     let detail_box = spawn_left_detail_panel(parent);
-    parent.commands().entity(detail_box).insert((
-        marker,
-        ScrollPosition::default(),
-    ));
+    parent
+        .commands()
+        .entity(detail_box)
+        .insert((marker, ScrollPosition::default()));
     parent
         .commands()
         .entity(detail_box)
@@ -278,6 +721,10 @@ pub fn spawn_page_container<M: Component>(
             ..default()
         },
         BackgroundColor(OVERLAY_BG),
+        // Make the overlay block all interactions behind it.
+        Interaction::default(),
+        bevy::ui::FocusPolicy::Block,
+        FrostedGlassOverlay,
         screen_marker,
     ));
 
@@ -293,13 +740,46 @@ pub fn spawn_page_container<M: Component>(
             BackgroundColor(CONTENT_BG),
             BorderColor::all(CONTENT_BORDER),
             BorderRadius::all(Val::Px(6.0)),
-            BoxShadow::new(
-                SHADOW_COLOR,
-                Val::Px(0.0),
-                Val::Px(4.0),
-                Val::Px(4.0),
-                Val::Px(12.0),
+            // Middle ring via outline with gap
+            Outline::new(
+                Val::Px(FRAME_OUTLINE_WIDTH),
+                Val::Px(FRAME_OUTLINE_OFFSET),
+                FRAME_OUTLINE_COLOR,
             ),
+            BoxShadow(vec![
+                // Outermost solid ring (zero blur = solid border)
+                ShadowStyle {
+                    color: FRAME_OUTER_RING_COLOR,
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(0.0),
+                    spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE),
+                    blur_radius: Val::Px(0.0),
+                },
+                // Tight contact shadow
+                ShadowStyle {
+                    color: Color::hsla(25.0, 0.20, 0.08, 0.4),
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(1.0),
+                    spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE),
+                    blur_radius: Val::Px(3.0),
+                },
+                // Medium depth shadow
+                ShadowStyle {
+                    color: Color::hsla(25.0, 0.15, 0.05, 0.3),
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(4.0),
+                    spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE + 2.0),
+                    blur_radius: Val::Px(8.0),
+                },
+                // Wide ambient shadow
+                ShadowStyle {
+                    color: Color::hsla(25.0, 0.10, 0.03, 0.2),
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(8.0),
+                    spread_radius: Val::Px(FRAME_SHADOW_SPREAD_BASE + 4.0),
+                    blur_radius: Val::Px(20.0),
+                },
+            ]),
         ))
         .id();
 
@@ -437,57 +917,107 @@ pub fn cleanup_screen<T: Component>(mut commands: Commands, query: Query<Entity,
     }
 }
 
-/// Spawns a styled button as a child of the given parent.
+/// Spawns a 3D pushable button with edge + front layers.
 ///
-/// # Arguments
+/// The button wrapper is transparent and contains:
+/// - An **edge** child (darker bg, stays in place) that peeks through at the bottom
+/// - A **front** child (button face, offset upward) that slides on interaction
 ///
-/// * `parent` - The parent entity to spawn the button under
-/// * `text` - The button label text
-/// * `action` - Any component to attach as the button's action identifier
-/// * `style` - The `ButtonStyle` configuration for dimensions and colors
+/// The front face moves up on hover and down on press, creating a physical depth illusion.
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_button(
     parent: &mut ChildSpawnerCommands,
     text: &str,
     action: impl Component,
     style: &ButtonStyle,
 ) {
+    let depth = -BUTTON_3D_OFFSET_REST; // positive value = edge visible at bottom
+
     parent
         .spawn((
             Button,
             Node {
                 width: Val::Px(style.width),
-                height: Val::Px(style.height),
-                border: UiRect::all(Val::Px(style.border_width)),
+                height: Val::Px(style.height + depth),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
+                position_type: PositionType::Relative,
                 ..default()
             },
-            BorderColor::all(style.border),
+            BackgroundColor(Color::NONE),
             BorderRadius::all(Val::Px(8.0)),
-            BackgroundColor(style.background),
+            BoxShadow(vec![ShadowStyle {
+                color: BUTTON_SHADOW_COLOR,
+                x_offset: Val::Px(0.0),
+                y_offset: Val::Px(2.0),
+                spread_radius: Val::Px(0.0),
+                blur_radius: Val::Px(4.0),
+            }]),
             ButtonColors {
                 background: style.background,
                 border: style.border,
             },
+            ButtonAnimState {
+                current: BUTTON_3D_OFFSET_REST,
+                target: BUTTON_3D_OFFSET_REST,
+            },
             action,
         ))
-        .with_children(|button| {
-            if style.text_shadow {
-                spawn_shadowed_text(
-                    button,
-                    text,
-                    style.font_size,
-                    style.text_color,
-                    Node::default(),
-                );
-            } else {
-                button.spawn((
-                    Text::new(text),
-                    TextFont::from_font_size(style.font_size),
-                    TextColor(style.text_color),
-                    TextLayout::new_with_justify(Justify::Center),
-                ));
-            }
+        .with_children(|wrapper| {
+            // Edge layer — same size as front but offset down and slightly narrower.
+            // Outline lives here so it appears to go behind the front face.
+            wrapper.spawn((
+                ButtonEdge,
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    ..default()
+                },
+                BackgroundColor(edge_color(style.background)),
+                BorderRadius::all(Val::Px(8.0)),
+                Outline::new(Val::Px(1.0), Val::Px(1.0), FRAME_OUTLINE_COLOR),
+            ));
+
+            // Front face — the interactive surface, offset upward.
+            wrapper
+                .spawn((
+                    ButtonFront,
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Px(style.height),
+                        border: UiRect::all(Val::Px(style.border_width)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        overflow: Overflow::clip(),
+                        position_type: PositionType::Relative,
+                        top: Val::Px(BUTTON_3D_OFFSET_REST),
+                        ..default()
+                    },
+                    BackgroundColor(opaque(style.background)),
+                    BorderColor::all(style.border),
+                    BorderRadius::all(Val::Px(8.0)),
+                ))
+                .with_children(|front| {
+                    if style.text_shadow {
+                        spawn_shadowed_text(
+                            front,
+                            text,
+                            style.font_size,
+                            style.text_color,
+                            Node::default(),
+                        );
+                    } else {
+                        front.spawn((
+                            Text::new(text),
+                            TextFont::from_font_size(style.font_size),
+                            TextColor(style.text_color),
+                            TextLayout::new_with_justify(Justify::Center),
+                        ));
+                    }
+                });
         });
 }
 
@@ -539,6 +1069,80 @@ pub fn spawn_title_with_shadow(
     node: Node,
 ) {
     spawn_shadowed_text(parent, text, font_size, text_color, node);
+}
+
+// ── UI Materials ──────────────────────────────────────────────────────────
+
+/// Procedural parchment/stone texture material for panel backgrounds.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub(crate) struct ParchmentMaterial {
+    #[uniform(0)]
+    pub data: ParchmentData,
+}
+
+#[derive(ShaderType, Debug, Clone, Copy)]
+pub(crate) struct ParchmentData {
+    pub base_color: LinearRgba,
+    pub texture_strength: f32,
+    pub vignette_strength: f32,
+    pub noise_scale: f32,
+    pub _padding: f32,
+}
+
+impl UiMaterial for ParchmentMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/parchment.wgsl".into()
+    }
+}
+
+impl ParchmentMaterial {
+    pub fn new(base_color: Color) -> Self {
+        Self {
+            data: ParchmentData {
+                base_color: base_color.to_linear(),
+                texture_strength: 0.45,
+                vignette_strength: 0.4,
+                noise_scale: 5.0,
+                _padding: 0.0,
+            },
+        }
+    }
+}
+
+/// Frosted glass overlay material for menu backgrounds.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub(crate) struct FrostedGlassMaterial {
+    #[uniform(0)]
+    pub data: FrostedGlassData,
+}
+
+#[derive(ShaderType, Debug, Clone, Copy)]
+pub(crate) struct FrostedGlassData {
+    pub tint_color: LinearRgba,
+    pub frost_intensity: f32,
+    pub noise_scale: f32,
+    pub _padding1: f32,
+    pub _padding2: f32,
+}
+
+impl UiMaterial for FrostedGlassMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/frosted_glass.wgsl".into()
+    }
+}
+
+impl FrostedGlassMaterial {
+    pub fn new() -> Self {
+        Self {
+            data: FrostedGlassData {
+                tint_color: Color::hsla(20.0, 0.04, 0.12, 0.30).to_linear(),
+                frost_intensity: 1.0,
+                noise_scale: 6.0,
+                _padding1: 0.0,
+                _padding2: 0.0,
+            },
+        }
+    }
 }
 
 // ── Shared Slider ─────────────────────────────────────────────────────────

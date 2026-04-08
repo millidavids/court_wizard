@@ -5,7 +5,7 @@ use crate::config::save_data::{AchievementId, load_unified_save};
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
 use crate::game::units::wizard::components::{Spell, SpellCategory};
-use crate::ui::components::ButtonColors;
+use crate::ui::components::{ButtonColors, ButtonEdge, ButtonFront};
 use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::*;
@@ -292,6 +292,25 @@ pub(super) fn handle_item_click(
     }
 }
 
+/// Updates ButtonActive markers on item buttons when the selection changes.
+/// Separate from rebuild_on_state_change to avoid the system parameter limit.
+pub(super) fn update_item_active_state(
+    mut commands: Commands,
+    state: Res<CompendiumState>,
+    item_buttons: Query<(Entity, &ItemButton)>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    for (entity, item_btn) in &item_buttons {
+        if state.selected_item.as_ref() == Some(&item_btn.0) {
+            commands.entity(entity).insert(crate::ui::components::ButtonActive);
+        } else {
+            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+        }
+    }
+}
+
 pub(super) fn handle_toggle_save_run(
     mut button_clicked: MessageReader<crate::game::input::messages::MouseClicked>,
     toggle_query: Query<&ToggleSaveRunButton>,
@@ -326,11 +345,15 @@ pub(super) fn handle_copy_seed(
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(super) fn rebuild_on_state_change(
     mut commands: Commands,
-    state: Res<CompendiumState>,
+    mut state: ResMut<CompendiumState>,
     icon_assets: Res<crate::ui::components::SpellIconAssets>,
     items_container: Query<Entity, With<ItemsContainer>>,
     tab_buttons: Query<(&TabButton, Entity, &Children)>,
     mut tab_bg: Query<(&mut BackgroundColor, &mut BorderColor, &mut ButtonColors)>,
+    mut front_bg: Query<
+        (&mut BackgroundColor, &mut BorderColor),
+        (With<ButtonFront>, Without<ButtonColors>),
+    >,
     mut detail_title: Query<
         &mut Text,
         (
@@ -392,12 +415,19 @@ pub(super) fn rebuild_on_state_change(
         return;
     }
 
-    // Update tab button visuals
-    for (tab_btn, entity, _) in &tab_buttons {
+    let tab_changed = state.prev_tab != state.active_tab;
+    if tab_changed {
+        state.prev_tab = state.active_tab;
+    }
+
+    // Update tab button visuals (wrapper ButtonColors + front face colors).
+    for (tab_btn, entity, children) in &tab_buttons {
         let is_active = tab_btn.0 == state.active_tab;
         let (bg, border) = if is_active {
+            commands.entity(entity).insert(crate::ui::components::ButtonActive);
             (ACTIVE_TAB_BG, ACTIVE_TAB_BORDER)
         } else {
+            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
             (INACTIVE_TAB_BG, TAB_BORDER)
         };
         if let Ok((mut bg_color, mut border_color, mut colors)) = tab_bg.get_mut(entity) {
@@ -405,6 +435,13 @@ pub(super) fn rebuild_on_state_change(
             *border_color = BorderColor::all(border);
             colors.background = bg;
             colors.border = border;
+        }
+        // Also update the 3D front face child.
+        for child in children.iter() {
+            if let Ok((mut front_bg_color, mut front_border_color)) = front_bg.get_mut(child) {
+                *front_bg_color = crate::ui::systems::opaque(bg).into();
+                *front_border_color = BorderColor::all(border);
+            }
         }
     }
 
@@ -424,28 +461,31 @@ pub(super) fn rebuild_on_state_change(
         .unwrap_or_default();
 
     // Rebuild items list
-    if let Ok(container) = items_container.single() {
-        commands.entity(container).despawn_related::<Children>();
-        commands
-            .entity(container)
-            .with_children(|parent| match state.active_tab {
-                CompendiumTab::Spells => {
-                    spawn_spell_items(parent, &unlocked_content.spells, &research_progress)
-                }
-                CompendiumTab::Ingredients => {
-                    spawn_ingredient_items(parent, &unlocked_content.ingredients)
-                }
-                CompendiumTab::Units => spawn_unit_items(parent, &unlocked_content.units),
-                CompendiumTab::Wizards => {
-                    spawn_wizard_items(parent, &unlocked_content.wizard_types)
-                }
-                CompendiumTab::Achievements => {
-                    spawn_achievement_items(parent, &unlocked_achievements)
-                }
-                CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
-                CompendiumTab::Endless => spawn_endless_items(parent, save.as_ref()),
-                CompendiumTab::Roguelite => spawn_roguelite_items(parent, save.as_ref()),
-            });
+    // Only rebuild the item list when the tab changes — not on item selection.
+    if tab_changed {
+        if let Ok(container) = items_container.single() {
+            commands.entity(container).despawn_related::<Children>();
+            commands
+                .entity(container)
+                .with_children(|parent| match state.active_tab {
+                    CompendiumTab::Spells => {
+                        spawn_spell_items(parent, &unlocked_content.spells, &research_progress, &state)
+                    }
+                    CompendiumTab::Ingredients => {
+                        spawn_ingredient_items(parent, &unlocked_content.ingredients, &state)
+                    }
+                    CompendiumTab::Units => spawn_unit_items(parent, &unlocked_content.units, &state),
+                    CompendiumTab::Wizards => {
+                        spawn_wizard_items(parent, &unlocked_content.wizard_types, &state)
+                    }
+                    CompendiumTab::Achievements => {
+                        spawn_achievement_items(parent, &unlocked_achievements, &state)
+                    }
+                    CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
+                    CompendiumTab::Endless => spawn_endless_items(parent, save.as_ref(), &state),
+                    CompendiumTab::Roguelite => spawn_roguelite_items(parent, save.as_ref(), &state),
+                });
+        }
     }
 
     // Update detail panel (including icon)
@@ -541,6 +581,7 @@ fn spawn_spell_items(
     parent: &mut ChildSpawnerCommands,
     unlocked_spells: &[String],
     research_progress: &std::collections::HashMap<String, u32>,
+    state: &CompendiumState,
 ) {
     for category in SpellCategory::all() {
         // Category header
@@ -581,12 +622,13 @@ fn spawn_spell_items(
                 &display_text,
                 text_color,
                 CompendiumItemId::Spell(debug_name),
+                &state.selected_item,
             );
         }
     }
 }
 
-fn spawn_ingredient_items(parent: &mut ChildSpawnerCommands, unlocked_ingredients: &[String]) {
+fn spawn_ingredient_items(parent: &mut ChildSpawnerCommands, unlocked_ingredients: &[String], state: &CompendiumState) {
     let mut ingredients: Vec<_> = Ingredient::all()
         .iter()
         .map(|i| {
@@ -613,6 +655,7 @@ fn spawn_ingredient_items(parent: &mut ChildSpawnerCommands, unlocked_ingredient
             &display_text,
             text_color,
             CompendiumItemId::Ingredient(debug_name),
+            &state.selected_item,
         );
     }
 }
@@ -626,7 +669,7 @@ fn team_label_color(label: &str) -> Color {
     }
 }
 
-fn spawn_unit_items(parent: &mut ChildSpawnerCommands, unlocked_units: &[String]) {
+fn spawn_unit_items(parent: &mut ChildSpawnerCommands, unlocked_units: &[String], state: &CompendiumState) {
     // Group by team label
     for team_label in &["Defender", "Attacker", "Boss"] {
         parent.spawn((
@@ -661,12 +704,13 @@ fn spawn_unit_items(parent: &mut ChildSpawnerCommands, unlocked_units: &[String]
                 &display_text,
                 text_color,
                 CompendiumItemId::Unit(debug_name),
+                &state.selected_item,
             );
         }
     }
 }
 
-fn spawn_wizard_items(parent: &mut ChildSpawnerCommands, unlocked_wizard_types: &[String]) {
+fn spawn_wizard_items(parent: &mut ChildSpawnerCommands, unlocked_wizard_types: &[String], state: &CompendiumState) {
     for wizard_type in WizardType::all() {
         let debug_name = format!("{:?}", wizard_type);
         let is_unlocked = *wizard_type == WizardType::BoringOleMage
@@ -687,11 +731,12 @@ fn spawn_wizard_items(parent: &mut ChildSpawnerCommands, unlocked_wizard_types: 
             &display_text,
             text_color,
             CompendiumItemId::Wizard(debug_name),
+            &state.selected_item,
         );
     }
 }
 
-fn spawn_achievement_items(parent: &mut ChildSpawnerCommands, unlocked_achievements: &[String]) {
+fn spawn_achievement_items(parent: &mut ChildSpawnerCommands, unlocked_achievements: &[String], state: &CompendiumState) {
     let mut achievements: Vec<_> = AchievementId::all()
         .iter()
         .map(|a| {
@@ -721,6 +766,7 @@ fn spawn_achievement_items(parent: &mut ChildSpawnerCommands, unlocked_achieveme
             &display_text,
             text_color,
             CompendiumItemId::Achievement(achievement.id().to_string()),
+            &state.selected_item,
         );
     }
 }
@@ -872,6 +918,7 @@ fn spawn_stats_items(
 fn spawn_endless_items(
     parent: &mut ChildSpawnerCommands,
     save: Option<&crate::config::save_data::UnifiedSaveFile>,
+    state: &CompendiumState,
 ) {
     // Show wizard types that have endless data as clickable items
     let mut wizard_types_with_data: Vec<(WizardType, u32)> = Vec::new();
@@ -922,6 +969,7 @@ fn spawn_endless_items(
             &label,
             UNLOCKED_COLOR,
             CompendiumItemId::EndlessWizardType(debug_name),
+            &state.selected_item,
         );
     }
 }
@@ -1024,6 +1072,7 @@ fn collect_all_roguelite_runs(
 fn spawn_roguelite_items(
     parent: &mut ChildSpawnerCommands,
     save: Option<&crate::config::save_data::UnifiedSaveFile>,
+    state: &CompendiumState,
 ) {
     let all_runs = collect_all_roguelite_runs(save);
 
@@ -1061,7 +1110,7 @@ fn spawn_roguelite_items(
     if !saved_runs.is_empty() {
         spawn_stat_section_header(parent, "Saved Runs");
         for (run_number, run) in &saved_runs {
-            spawn_roguelite_run_button(parent, run, *run_number);
+            spawn_roguelite_run_button(parent, run, state, *run_number);
         }
     }
 
@@ -1077,7 +1126,7 @@ fn spawn_roguelite_items(
     if !recent_runs.is_empty() {
         spawn_stat_section_header(parent, "Recent Runs");
         for (run_number, run) in &recent_runs {
-            spawn_roguelite_run_button(parent, run, *run_number);
+            spawn_roguelite_run_button(parent, run, state, *run_number);
         }
     }
 }
@@ -1085,6 +1134,7 @@ fn spawn_roguelite_items(
 fn spawn_roguelite_run_button(
     parent: &mut ChildSpawnerCommands,
     run: &crate::config::save_data::RogueliteRun,
+    state: &CompendiumState,
     run_number: usize,
 ) {
     let outcome = if run.victory { "Victory" } else { "Defeat" };
@@ -1106,6 +1156,7 @@ fn spawn_roguelite_run_button(
         &label,
         outcome_color,
         CompendiumItemId::RogueliteRun(run.started_at),
+        &state.selected_item,
     );
 }
 
@@ -1319,7 +1370,9 @@ fn spawn_item_button(
     text: &str,
     text_color: Color,
     item_id: CompendiumItemId,
+    selected: &Option<CompendiumItemId>,
 ) {
+    let is_selected = *selected == Some(item_id.clone());
     parent
         .spawn((
             Button,
@@ -1338,6 +1391,7 @@ fn spawn_item_button(
             },
             ItemButton(item_id),
         ))
+        .insert_if(crate::ui::components::ButtonActive, || is_selected)
         .with_children(|btn| {
             btn.spawn((
                 Text::new(text),

@@ -11,7 +11,7 @@ use super::components::{
 use crate::ui::systems::{escape_to_landing, handle_scroll};
 
 use super::systems::{
-    button_hover, button_press, capture_key_input, handle_confirmation_popup,
+    capture_key_input, handle_confirmation_popup,
     handle_settings_tab_click, key_binding_button_action, key_capture_inactive,
     option_button_action, rebuild_settings_content, resolution_button_action,
     settings_button_action, setup_main_menu, slider_button_action, slider_interaction,
@@ -59,8 +59,6 @@ impl Plugin for SettingsPlugin {
                 (
                     escape_to_landing.run_if(key_capture_inactive),
                     handle_scroll::<SettingsContentContainer>,
-                    button_hover,
-                    button_press,
                     slider_interaction,
                     update_slider_text,
                     update_sliders,

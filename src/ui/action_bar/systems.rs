@@ -11,8 +11,9 @@ use crate::game::units::wizard::archetypes::gunslinger::GunState;
 use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
-use crate::ui::components::{ButtonColors, SpellIconAssets};
-use crate::ui::styles::item_pressed;
+use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, SpellIconAssets};
+use crate::ui::constants::{BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE, FRAME_OUTLINE_COLOR};
+use crate::ui::styles::border_bright;
 use crate::ui::systems::scale_font_by_text_width;
 
 const DEBUG_BUTTON_SIZE: f32 = 30.0;
@@ -387,6 +388,7 @@ pub(super) fn handle_debug_mana_click(
 }
 
 /// Highlights action bar buttons when their corresponding keyboard key is held down.
+/// Drives the 3D press animation and updates the front face border + edge outline.
 pub(super) fn highlight_keyboard_pressed_slots(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -395,10 +397,12 @@ pub(super) fn highlight_keyboard_pressed_slots(
         Entity,
         &ActionBarSlot,
         &ButtonColors,
-        &mut BackgroundColor,
-        &mut BorderColor,
+        &Children,
+        Option<&mut ButtonAnimState>,
         Has<KeyboardHighlighted>,
     )>,
+    mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
+    mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
 ) {
     let keys: [Option<KeyCode>; 5] = [
         bindings.universal.action_slot_1,
@@ -408,23 +412,40 @@ pub(super) fn highlight_keyboard_pressed_slots(
         bindings.universal.action_slot_5,
     ];
 
-    for (entity, slot, colors, mut bg, mut border, is_highlighted) in &mut slots {
+    for (entity, slot, colors, children, anim, is_highlighted) in &mut slots {
         let slot_idx = slot.slot as usize;
         if slot_idx >= keys.len() {
             continue;
         }
 
-        // Unbound slots are never highlighted
         let pressed = keys[slot_idx].is_some_and(|key| keyboard.pressed(key));
 
         if pressed && !is_highlighted {
             commands.entity(entity).insert(KeyboardHighlighted);
-            *bg = item_pressed(colors.background).into();
-            *border = BorderColor::all(item_pressed(colors.border));
+            if let Some(mut anim) = anim {
+                anim.target = BUTTON_3D_OFFSET_PRESSED;
+            }
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(border_bright(colors.border));
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = BUTTON_PRESSED_OUTLINE;
+                }
+            }
         } else if !pressed && is_highlighted {
             commands.entity(entity).remove::<KeyboardHighlighted>();
-            *bg = colors.background.into();
-            *border = BorderColor::all(colors.border);
+            if let Some(mut anim) = anim {
+                anim.target = BUTTON_3D_OFFSET_REST;
+            }
+            for child in children.iter() {
+                if let Ok(mut bc) = front_query.get_mut(child) {
+                    *bc = BorderColor::all(colors.border);
+                }
+                if let Ok(mut outline) = edge_query.get_mut(child) {
+                    outline.color = FRAME_OUTLINE_COLOR;
+                }
+            }
         }
     }
 }

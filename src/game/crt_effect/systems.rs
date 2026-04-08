@@ -197,9 +197,11 @@ pub(super) fn correct_ui_interaction_for_barrel(
         })
         .collect();
 
-    let mouse_clicked = mouse_button_input.just_pressed(MouseButton::Left);
+    let mouse_down = mouse_button_input.pressed(MouseButton::Left);
 
-    // Walk the UI stack from top to bottom, same as ui_focus_system
+    // Walk the UI stack from top to bottom, same as ui_focus_system.
+    // This system is FULLY AUTHORITATIVE — it overrides ALL interaction states
+    // set by ui_focus_system (which used the uncorrected cursor position).
     let mut blocked = false;
     for node_entity in ui_stack.uinodes.iter().rev() {
         let Ok((
@@ -256,36 +258,30 @@ pub(super) fn correct_ui_interaction_for_barrel(
             }
         }
 
-        let Some(mut interaction) = interaction else {
-            continue;
-        };
-
-        if blocked {
-            // Already found a blocking node above — reset lower nodes
-            if *interaction != Interaction::Pressed {
+        // Non-interactive nodes can still block lower nodes (e.g., overlay panels).
+        if let Some(mut interaction) = interaction {
+            if blocked {
+                interaction.set_if_neq(Interaction::None);
+            } else if contains_cursor {
+                if mouse_down {
+                    interaction.set_if_neq(Interaction::Pressed);
+                } else {
+                    interaction.set_if_neq(Interaction::Hovered);
+                }
+            } else {
                 interaction.set_if_neq(Interaction::None);
             }
-            continue;
         }
 
-        if contains_cursor {
-            if mouse_clicked {
-                if *interaction != Interaction::Pressed {
-                    *interaction = Interaction::Pressed;
-                }
-            } else if *interaction == Interaction::None {
-                *interaction = Interaction::Hovered;
-            }
-
-            // Check focus policy
+        // Check focus policy for ALL nodes (interactive or not) that contain
+        // the cursor, so overlay panels properly block buttons behind them.
+        if !blocked && contains_cursor {
             match focus_policy.unwrap_or(&bevy::ui::FocusPolicy::Block) {
                 bevy::ui::FocusPolicy::Block => {
                     blocked = true;
                 }
                 bevy::ui::FocusPolicy::Pass => {}
             }
-        } else if *interaction != Interaction::Pressed {
-            interaction.set_if_neq(Interaction::None);
         }
     }
 }

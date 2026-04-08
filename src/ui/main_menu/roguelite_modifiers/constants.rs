@@ -28,7 +28,7 @@ pub(super) const SUMMARY_TITLE_FONT_SIZE: f32 = 16.0;
 pub(super) const SUMMARY_ITEM_FONT_SIZE: f32 = 11.0;
 
 /// Color for modifier entries in the summary.
-pub(super) const SUMMARY_ITEM_COLOR: Color = Color::hsla(40.0, 0.15, 0.70, 1.0);
+pub(super) const SUMMARY_ITEM_COLOR: Color = Color::hsla(270.0, 0.15, 0.70, 1.0);
 
 /// Placeholder text when no modifiers are active.
 pub(super) const SUMMARY_PLACEHOLDER_COLOR: Color = TEXT_MUTED;
@@ -39,9 +39,9 @@ pub(super) const START_RUN_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 45.0,
     border_width: 2.0,
     font_size: 14.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
-    border: Color::hsla(40.0, 0.40, 0.35, 1.0),
-    text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    background: Color::hsla(270.0, 0.20, 0.18, 0.75),
+    border: Color::hsla(270.0, 0.50, 0.40, 1.0),
+    text_color: Color::hsla(270.0, 0.20, 0.85, 1.0),
     text_shadow: true,
 };
 
@@ -100,10 +100,10 @@ pub(super) const TOGGLE_SMALL_BUTTON_FONT_SIZE: f32 = 10.0;
 pub(super) const POPUP_OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.6);
 
 /// Popup box background.
-pub(super) const POPUP_BOX_BG: Color = Color::hsla(220.0, 0.08, 0.12, 0.95);
+pub(super) const POPUP_BOX_BG: Color = Color::hsla(20.0, 0.10, 0.10, 0.95);
 
 /// Popup box border.
-pub(super) const POPUP_BOX_BORDER: Color = Color::srgb(0.6, 0.8, 1.0);
+pub(super) const POPUP_BOX_BORDER: Color = Color::hsla(270.0, 0.55, 0.50, 1.0);
 
 /// Popup text font size.
 pub(super) const POPUP_FONT_SIZE: f32 = 14.0;

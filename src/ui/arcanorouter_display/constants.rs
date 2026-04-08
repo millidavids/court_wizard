@@ -10,7 +10,7 @@ pub(super) const BOTTOM_OFFSET: f32 = 10.0; // Distance from bottom of screen
 
 // Colors - no background, muted dark colors
 pub(super) const BACKGROUND_COLOR: Color = Color::NONE;
-pub(super) const BAR_BACKGROUND_COLOR: Color = Color::srgba(0.2, 0.2, 0.25, 0.5);
+pub(super) const BAR_BACKGROUND_COLOR: Color = Color::hsla(25.0, 0.10, 0.15, 0.5);
 
 // Slider colors by type - muted and darker
 pub(super) const RANGE_COLOR: Color = Color::srgba(0.2, 0.3, 0.5, 0.8); // Muted dark blue

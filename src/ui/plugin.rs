@@ -3,8 +3,11 @@
 //! Aggregates all UI sub-plugins (main menu, pause menu, etc.)
 
 use bevy::prelude::*;
+use bevy::prelude::UiMaterialPlugin;
 use bevy::ui::UiScale as BevyUiScale;
 use bevy::window::PrimaryWindow;
+
+use super::systems::{FrostedGlassMaterial, ParchmentMaterial};
 
 use super::achievement_popup::AchievementPopupPlugin;
 use super::action_bar::ActionBarPlugin;
@@ -66,6 +69,8 @@ impl Plugin for UiPlugin {
             TutorialPlugin,
             WeatherBarPlugin,
         ))
+        .add_plugins(UiMaterialPlugin::<ParchmentMaterial>::default())
+        .add_plugins(UiMaterialPlugin::<FrostedGlassMaterial>::default())
         .configure_sets(
             Update,
             ButtonActionSet.run_if(systems::on_message::<MouseClicked>),
@@ -77,6 +82,13 @@ impl Plugin for UiPlugin {
                 update_ui_scale,
                 systems::button_click_detection,
                 systems::button_interaction,
+                systems::enforce_active_button_state,
+                systems::reset_deactivated_buttons,
+                systems::sync_front_face_colors,
+                systems::animate_button_3d,
+                systems::apply_parchment_backgrounds,
+                systems::apply_frosted_glass_overlays,
+                systems::apply_3d_button_structure,
             ),
         );
     }

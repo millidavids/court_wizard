@@ -17,8 +17,8 @@ pub const DETAIL_NAME_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
 /// Font size for damage type label.
 pub const DETAIL_TYPE_FONT_SIZE: f32 = 7.0;
 
-/// Color for damage type label — warm amber.
-pub const DETAIL_TYPE_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+/// Color for damage type label — purple accent.
+pub const DETAIL_TYPE_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
 
 /// Font size for description text.
 pub const DETAIL_DESC_FONT_SIZE: f32 = 11.0;
@@ -46,7 +46,7 @@ pub const HOTKEY_BOX_GAP: f32 = 6.0;
 pub const HOTKEY_FONT_SIZE: f32 = 8.0;
 
 /// Background for inactive hotkey box.
-pub const HOTKEY_INACTIVE_BG: Color = Color::hsla(220.0, 0.08, 0.12, 0.75);
+pub const HOTKEY_INACTIVE_BG: Color = Color::hsla(20.0, 0.10, 0.10, 0.75);
 
 /// Border for inactive hotkey box.
 pub const HOTKEY_INACTIVE_BORDER: Color = Color::hsla(0.0, 0.0, 0.25, 0.6);
@@ -55,13 +55,13 @@ pub const HOTKEY_INACTIVE_BORDER: Color = Color::hsla(0.0, 0.0, 0.25, 0.6);
 pub const HOTKEY_INACTIVE_TEXT: Color = TEXT_MUTED;
 
 /// Background for active hotkey box (this spell is assigned to this slot).
-pub const HOTKEY_ACTIVE_BG: Color = Color::hsla(40.0, 0.20, 0.18, 1.0);
+pub const HOTKEY_ACTIVE_BG: Color = Color::hsla(270.0, 0.20, 0.18, 1.0);
 
 /// Border for active hotkey box.
-pub const HOTKEY_ACTIVE_BORDER: Color = Color::hsla(40.0, 0.50, 0.45, 1.0);
+pub const HOTKEY_ACTIVE_BORDER: Color = Color::hsla(270.0, 0.50, 0.45, 1.0);
 
 /// Text color for active hotkey.
-pub const HOTKEY_ACTIVE_TEXT: Color = Color::hsla(40.0, 0.20, 0.85, 1.0);
+pub const HOTKEY_ACTIVE_TEXT: Color = Color::hsla(270.0, 0.20, 0.85, 1.0);
 
 // ---------------------------------------------------------------------------
 // Spell list (right side)
@@ -79,11 +79,11 @@ pub const CATEGORY_COLOR: Color = TEXT_MUTED;
 /// Height of spell buttons in the list.
 pub const SPELL_BUTTON_HEIGHT: f32 = 40.0;
 
-/// Background for spell buttons.
-pub const SPELL_BUTTON_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
+/// Background for spell buttons (warm dark brown).
+pub const SPELL_BUTTON_BG: Color = Color::hsla(20.0, 0.12, 0.09, 0.75);
 
-/// Border for spell buttons.
-pub const SPELL_BUTTON_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
+/// Border for spell buttons (warm bronze).
+pub const SPELL_BUTTON_BORDER: Color = Color::hsla(270.0, 0.20, 0.22, 0.6);
 
 /// Border for the currently selected spell button — gold accent.
 pub const SPELL_BUTTON_SELECTED_BORDER: Color = GOLD_ACCENT;
@@ -120,9 +120,9 @@ pub const SELECT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 36.0,
     border_width: 1.0,
     font_size: 8.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
-    border: Color::hsla(40.0, 0.40, 0.35, 1.0),
-    text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    background: Color::hsla(270.0, 0.20, 0.18, 0.75),
+    border: Color::hsla(270.0, 0.50, 0.40, 1.0),
+    text_color: Color::hsla(270.0, 0.20, 0.85, 1.0),
     text_shadow: true,
 };
 

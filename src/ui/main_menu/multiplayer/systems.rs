@@ -16,7 +16,7 @@ use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
 use crate::ui::systems::{spawn_button, spawn_page_container};
 
-use super::super::wizard_select_shared::{self as shared};
+use super::super::wizard_select::shared::{self};
 use super::components::{
     ActiveConnectionButtons, BackButton, CodeDisplayText, CopyCodeButton, InitialButtons,
     IpDisplayText, LanButtons, LanIpEntryButtons, LobbyPhase, MultiplayerButtonAction,
@@ -579,6 +579,7 @@ pub fn cleanup_multiplayer_resources(mut commands: Commands) {
 /// Handles multiplayer button actions.
 #[allow(clippy::too_many_arguments)]
 pub fn button_action(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MultiplayerButtonAction>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
@@ -602,7 +603,7 @@ pub fn button_action(
             Without<DetailStatus>,
         ),
     >,
-    mut card_borders: Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
+    mut card_borders: Query<(Entity, &WizardCard, &mut BorderColor, &mut ButtonColors)>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     let send_cmd = |cmd: TransportCommand| {
@@ -669,7 +670,7 @@ pub fn button_action(
                             .push(NetworkMessage::WizardSelected(*wizard_type));
                     }
 
-                    shared::update_card_borders(*wizard_type, &mut card_borders);
+                    shared::update_card_borders(&mut commands, *wizard_type, &mut card_borders);
                 }
                 MultiplayerButtonAction::Ready => {
                     if let LobbyPhase::WizardSelect {

@@ -10,7 +10,7 @@ use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
 use crate::ui::systems::{spawn_button, spawn_page_container};
 
-use super::super::wizard_select_shared::{self as shared, grid_container_node};
+use super::shared::{self, grid_container_node};
 use super::components::*;
 use super::constants::*;
 
@@ -169,6 +169,7 @@ pub(super) fn cleanup_wizard_select_resources(mut commands: Commands) {
 /// Handles wizard select button actions.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn button_action(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&WizardSelectButtonAction>,
     mut next_app_state: ResMut<NextState<AppState>>,
@@ -201,7 +202,7 @@ pub(super) fn button_action(
             Without<DetailDescription>,
         ),
     >,
-    mut card_borders: Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
+    mut card_borders: Query<(Entity, &WizardCard, &mut BorderColor, &mut ButtonColors)>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -226,7 +227,7 @@ pub(super) fn button_action(
                     }
                 }
 
-                shared::update_card_borders(wizard_type, &mut card_borders);
+                shared::update_card_borders(&mut commands, wizard_type, &mut card_borders);
             }
             WizardSelectButtonAction::Play => {
                 channel_change.write(ChannelChangeMessage);

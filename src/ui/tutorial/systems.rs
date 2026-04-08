@@ -387,7 +387,7 @@ pub(super) fn animate_glow(
     for (mut border_color, mut anim) in &mut glowing {
         anim.elapsed += time.delta_secs();
         let pulse = (anim.elapsed * GLOW_ANIMATION_SPEED).sin() * 0.2 + 0.8;
-        let glow = Color::hsla(45.0, 1.0, 0.65, pulse);
+        let glow = Color::hsla(270.0, 0.85, 0.65, pulse);
         *border_color = BorderColor::all(glow);
     }
 }

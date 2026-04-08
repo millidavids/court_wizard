@@ -9,10 +9,10 @@ use crate::ui::components::ButtonStyle;
 use crate::ui::constants::{BUTTON_BG_SUBTLE, BUTTON_BORDER_SUBTLE, TEXT_MUTED};
 
 // Re-export all shared constants for convenience.
-pub(super) use super::super::wizard_select_shared::*;
+pub(super) use super::shared::*;
 
 /// Color for stat text — warm amber.
-pub(super) const STAT_COLOR: Color = Color::hsla(40.0, 0.55, 0.55, 1.0);
+pub(super) const STAT_COLOR: Color = Color::hsla(270.0, 0.50, 0.60, 1.0);
 
 /// Color for "New" indicator text — soft green.
 pub(super) const NEW_COLOR: Color = Color::hsla(140.0, 0.40, 0.50, 1.0);
@@ -23,9 +23,9 @@ pub(super) const PLAY_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     height: 36.0,
     border_width: 1.0,
     font_size: 12.0,
-    background: Color::hsla(40.0, 0.20, 0.18, 0.75),
-    border: Color::hsla(40.0, 0.40, 0.35, 1.0),
-    text_color: Color::hsla(40.0, 0.20, 0.85, 1.0),
+    background: Color::hsla(270.0, 0.20, 0.18, 0.75),
+    border: Color::hsla(270.0, 0.50, 0.40, 1.0),
+    text_color: Color::hsla(270.0, 0.20, 0.85, 1.0),
     text_shadow: true,
 };
 

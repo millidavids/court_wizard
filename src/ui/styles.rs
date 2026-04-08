@@ -4,40 +4,66 @@
 
 use bevy::prelude::*;
 
-/// Lightens a color for hover state.
-///
-/// # Arguments
-///
-/// * `color` - The base color to lighten
-///
-/// # Returns
-///
-/// A new color with increased lightness
+/// Purple accent hue used when the source color is neutral/desaturated.
+const ACCENT_HUE: f32 = 270.0;
+
+/// Returns the hue to use: the original if saturated, or purple if neutral.
+/// Prevents desaturated colors from producing warm/red tones when brightened.
+fn accent_hue(hsla: Hsla) -> f32 {
+    if hsla.saturation < 0.10 { ACCENT_HUE } else { hsla.hue }
+}
+
+/// Lightens a color for hover state (+8% lightness, +10% saturation).
 pub fn item_hovered(color: Color) -> Color {
     let hsla = Hsla::from(color);
     Color::hsla(
-        hsla.hue,
-        hsla.saturation,
-        (hsla.lightness + 0.1).min(1.0),
+        accent_hue(hsla),
+        (hsla.saturation + 0.10).min(1.0),
+        (hsla.lightness + 0.08).min(1.0),
         hsla.alpha,
     )
 }
 
-/// Lightens a color for pressed state.
-///
-/// # Arguments
-///
-/// * `color` - The base color to lighten
-///
-/// # Returns
-///
-/// A new color with increased lightness
+/// Brightens border color for hover state (+15% lightness, +15% saturation).
+pub fn border_hovered(color: Color) -> Color {
+    let hsla = Hsla::from(color);
+    Color::hsla(
+        accent_hue(hsla),
+        (hsla.saturation + 0.15).min(1.0),
+        (hsla.lightness + 0.15).min(1.0),
+        hsla.alpha,
+    )
+}
+
+/// Darkens a color for pressed state (-5% lightness from base).
 pub fn item_pressed(color: Color) -> Color {
     let hsla = Hsla::from(color);
     Color::hsla(
         hsla.hue,
         hsla.saturation,
-        (hsla.lightness + 0.2).min(1.0),
+        (hsla.lightness - 0.05).max(0.0),
         hsla.alpha,
+    )
+}
+
+/// Dims border color for pressed state (-8% lightness).
+pub fn border_pressed(color: Color) -> Color {
+    let hsla = Hsla::from(color);
+    Color::hsla(
+        hsla.hue,
+        (hsla.saturation - 0.05).max(0.0),
+        (hsla.lightness - 0.08).max(0.0),
+        hsla.alpha,
+    )
+}
+
+/// Brightens border color for pressed state — brighter than hover for a flash effect.
+pub fn border_bright(color: Color) -> Color {
+    let hsla = Hsla::from(color);
+    Color::hsla(
+        accent_hue(hsla),
+        (hsla.saturation + 0.25).min(1.0),
+        (hsla.lightness + 0.25).min(1.0),
+        1.0,
     )
 }

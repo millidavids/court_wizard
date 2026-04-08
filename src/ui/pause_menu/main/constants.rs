@@ -50,7 +50,7 @@ pub const STAT_LABEL_COLOR: Color = TEXT_MUTED;
 pub const STAT_VALUE_FONT_SIZE: f32 = 12.0;
 
 /// Color for stat values.
-pub const STAT_VALUE_COLOR: Color = Color::hsla(40.0, 0.15, 0.75, 1.0);
+pub const STAT_VALUE_COLOR: Color = Color::hsla(270.0, 0.15, 0.75, 1.0);
 
 /// Font size for section dividers (e.g., "Modifiers", "Level Best").
 pub const SECTION_DIVIDER_FONT_SIZE: f32 = 10.0;

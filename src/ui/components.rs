@@ -64,6 +64,31 @@ pub fn load_spell_icon_assets(mut commands: Commands, asset_server: Res<AssetSer
 #[derive(Component)]
 pub struct BackButton;
 
+/// Tracks the 3D push animation state for a button's front face.
+///
+/// The front face slides up/down relative to the edge layer to create
+/// a physical "pushable" illusion. `current` lerps toward `target` each frame.
+#[derive(Component)]
+pub struct ButtonAnimState {
+    /// Current Y offset of the front face (pixels, negative = raised).
+    pub current: f32,
+    /// Target Y offset based on interaction state.
+    pub target: f32,
+}
+
+/// Marker for the front face child of a 3D button.
+#[derive(Component)]
+pub struct ButtonFront;
+
+/// Marker for the edge (depth) child of a 3D button.
+#[derive(Component)]
+pub struct ButtonEdge;
+
+/// Marker for a button that should stay in a permanent "pressed" visual state.
+/// Used for active tabs, selected options, and other toggle-like buttons.
+#[derive(Component)]
+pub struct ButtonActive;
+
 /// Configuration for button dimensions and styling.
 ///
 /// Pass this to `spawn_button` to control button size, font, and colors.

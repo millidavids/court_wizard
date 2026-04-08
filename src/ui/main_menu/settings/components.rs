@@ -64,12 +64,8 @@ pub enum SettingsButtonAction {
     ResetControls,
 }
 
-/// Colors for different button states.
-#[derive(Component, Clone, Copy)]
-pub struct ButtonColors {
-    /// Normal background color
-    pub background: Color,
-}
+/// Re-export shared ButtonColors for settings use.
+pub use crate::ui::components::ButtonColors;
 
 /// Marker for currently selected option button.
 ///

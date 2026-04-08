@@ -1,6 +1,6 @@
 //! Multiplayer screen styling constants.
 //!
-//! Most wizard select styling is shared with the single-player screen via `wizard_select_shared`.
+//! Most wizard select styling is shared with the single-player screen via `wizard_select::shared`.
 //! This file only contains multiplayer-specific constants.
 
 use bevy::prelude::*;
@@ -12,7 +12,7 @@ use crate::ui::constants::{
 };
 
 // Re-export all shared constants for convenience.
-pub(super) use super::super::wizard_select_shared::*;
+pub(super) use super::super::wizard_select::shared::*;
 
 // ===== Connection Phase Styling =====
 

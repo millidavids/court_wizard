@@ -14,126 +14,126 @@ use crate::ui::systems::spawn_title_with_shadow;
 
 /// Marker for the detail panel name text.
 #[derive(Component)]
-pub(super) struct DetailName;
+pub(in crate::ui::main_menu) struct DetailName;
 
 /// Marker for the detail panel description text.
 #[derive(Component)]
-pub(super) struct DetailDescription;
+pub(in crate::ui::main_menu) struct DetailDescription;
 
 /// Marker for the detail panel status text.
 #[derive(Component)]
-pub(super) struct DetailStatus;
+pub(in crate::ui::main_menu) struct DetailStatus;
 
 /// Marker for a grid card, storing which wizard type it represents.
 #[derive(Component)]
-pub(super) struct WizardCard(pub WizardType);
+pub(in crate::ui::main_menu) struct WizardCard(pub WizardType);
 
 /// Resource tracking which wizard type is currently previewed in the detail panel.
 #[derive(Resource)]
-pub(super) struct SelectedWizardPreview(pub WizardType);
+pub(in crate::ui::main_menu) struct SelectedWizardPreview(pub WizardType);
 
 // ===== Shared Styling Constants =====
 
 /// Font size for the wizard select title text.
-pub(super) const TITLE_FONT_SIZE: f32 = 29.0;
+pub(in crate::ui::main_menu) const TITLE_FONT_SIZE: f32 = 29.0;
 
 /// Font size for the subtitle text.
-pub(super) const SUBTITLE_FONT_SIZE: f32 = 10.0;
+pub(in crate::ui::main_menu) const SUBTITLE_FONT_SIZE: f32 = 10.0;
 
 /// Primary text color.
-pub(super) const TEXT_COLOR: Color = TEXT_PRIMARY;
+pub(in crate::ui::main_menu) const TEXT_COLOR: Color = TEXT_PRIMARY;
 
 /// Subdued text color for secondary elements.
-pub(super) const SUBTITLE_COLOR: Color = TEXT_MUTED;
+pub(in crate::ui::main_menu) const SUBTITLE_COLOR: Color = TEXT_MUTED;
 
 /// Width of the left panel (title + detail + buttons).
-pub(super) const LEFT_PANEL_WIDTH: f32 = 300.0;
+pub(in crate::ui::main_menu) const LEFT_PANEL_WIDTH: f32 = 300.0;
 
 /// Margin between elements.
-pub(super) const MARGIN: f32 = 20.0;
+pub(in crate::ui::main_menu) const MARGIN: f32 = 20.0;
 
 /// Total number of grid slots (4x4).
-pub(super) const GRID_SLOTS: usize = 16;
+pub(in crate::ui::main_menu) const GRID_SLOTS: usize = 16;
 
 /// Gap between grid cards in pixels.
-pub(super) const CARD_GAP: f32 = 8.0;
+pub(in crate::ui::main_menu) const CARD_GAP: f32 = 8.0;
 
 /// Number of columns in the wizard grid.
-pub(super) const GRID_COLUMNS: usize = 4;
+pub(in crate::ui::main_menu) const GRID_COLUMNS: usize = 4;
 
 /// Card width in pixels.
-pub(super) const CARD_WIDTH: f32 = 210.0;
+pub(in crate::ui::main_menu) const CARD_WIDTH: f32 = 210.0;
 
 /// Card height in pixels.
-pub(super) const CARD_HEIGHT: f32 = 140.0;
+pub(in crate::ui::main_menu) const CARD_HEIGHT: f32 = 140.0;
 
 /// Card border width in pixels.
-pub(super) const CARD_BORDER_WIDTH: f32 = 1.0;
+pub(in crate::ui::main_menu) const CARD_BORDER_WIDTH: f32 = 1.0;
 
 /// Card border radius in pixels.
-pub(super) const CARD_BORDER_RADIUS: f32 = 4.0;
+pub(in crate::ui::main_menu) const CARD_BORDER_RADIUS: f32 = 4.0;
 
 /// Font size for wizard name on cards.
-pub(super) const CARD_NAME_FONT_SIZE: f32 = 14.0;
+pub(in crate::ui::main_menu) const CARD_NAME_FONT_SIZE: f32 = 14.0;
 
 /// Font size for wizard description on cards.
-pub(super) const CARD_DESC_FONT_SIZE: f32 = 10.0;
+pub(in crate::ui::main_menu) const CARD_DESC_FONT_SIZE: f32 = 10.0;
 
 /// Background color for unlocked wizard cards.
-pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
+pub(in crate::ui::main_menu) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
 
 /// Border color for unlocked wizard cards.
-pub(super) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
+pub(in crate::ui::main_menu) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
 
 /// Border color for the selected/active wizard card — gold accent.
-pub(super) const CARD_BORDER_SELECTED: Color = GOLD_ACCENT;
+pub(in crate::ui::main_menu) const CARD_BORDER_SELECTED: Color = GOLD_ACCENT;
 
 /// Color for wizard type short description text on cards.
-pub(super) const DESCRIPTION_COLOR: Color = TEXT_MUTED;
+pub(in crate::ui::main_menu) const DESCRIPTION_COLOR: Color = TEXT_MUTED;
 
 /// Accent color for wizard name text — slightly warm white.
-pub(super) const CARD_NAME_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
+pub(in crate::ui::main_menu) const CARD_NAME_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
 
 /// Detail panel border width.
-pub(super) const DETAIL_BORDER_WIDTH: f32 = 1.0;
+pub(in crate::ui::main_menu) const DETAIL_BORDER_WIDTH: f32 = 1.0;
 
 /// Detail panel border radius.
-pub(super) const DETAIL_BORDER_RADIUS: f32 = 6.0;
+pub(in crate::ui::main_menu) const DETAIL_BORDER_RADIUS: f32 = 6.0;
 
 /// Detail panel background color (from global palette).
-pub(super) const DETAIL_PANEL_BG: Color = DETAIL_BG;
+pub(in crate::ui::main_menu) const DETAIL_PANEL_BG: Color = DETAIL_BG;
 
 /// Detail panel border color (from global palette).
-pub(super) const DETAIL_PANEL_BORDER: Color = DETAIL_BORDER;
+pub(in crate::ui::main_menu) const DETAIL_PANEL_BORDER: Color = DETAIL_BORDER;
 
 /// Font size for the wizard name in the detail panel.
-pub(super) const DETAIL_NAME_FONT_SIZE: f32 = 18.0;
+pub(in crate::ui::main_menu) const DETAIL_NAME_FONT_SIZE: f32 = 18.0;
 
 /// Font size for the long description in the detail panel.
-pub(super) const DETAIL_DESC_FONT_SIZE: f32 = 10.0;
+pub(in crate::ui::main_menu) const DETAIL_DESC_FONT_SIZE: f32 = 10.0;
 
 /// Color for the long description text.
-pub(super) const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.58, 1.0);
+pub(in crate::ui::main_menu) const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.58, 1.0);
 
 /// Font size for status text in the detail panel.
-pub(super) const DETAIL_STATUS_FONT_SIZE: f32 = 10.0;
+pub(in crate::ui::main_menu) const DETAIL_STATUS_FONT_SIZE: f32 = 10.0;
 
 /// Background color for locked (unavailable) wizard cards.
-pub(super) const LOCKED_CARD_BG: Color = Color::hsla(220.0, 0.05, 0.065, 0.6);
+pub(in crate::ui::main_menu) const LOCKED_CARD_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.6);
 
 /// Border color for locked wizard cards.
-pub(super) const LOCKED_CARD_BORDER: Color = Color::hsla(220.0, 0.05, 0.12, 0.5);
+pub(in crate::ui::main_menu) const LOCKED_CARD_BORDER: Color = Color::hsla(25.0, 0.10, 0.12, 0.5);
 
 /// Text color for locked wizard cards.
-pub(super) const LOCKED_TEXT_COLOR: Color = Color::hsla(0.0, 0.0, 0.20, 1.0);
+pub(in crate::ui::main_menu) const LOCKED_TEXT_COLOR: Color = Color::hsla(30.0, 0.06, 0.45, 1.0);
 
 /// Separator line color.
-pub(super) const SEPARATOR_COLOR: Color = Color::hsla(40.0, 0.15, 0.15, 1.0);
+pub(in crate::ui::main_menu) const SEPARATOR_COLOR: Color = Color::hsla(270.0, 0.10, 0.15, 1.0);
 
 // ===== Shared Spawn Functions =====
 
 /// Spawns an unlocked wizard card with the given button action component.
-pub(super) fn spawn_wizard_card(
+pub(in crate::ui::main_menu) fn spawn_wizard_card(
     parent: &mut ChildSpawnerCommands,
     wizard_type: WizardType,
     is_selected: bool,
@@ -191,7 +191,7 @@ pub(super) fn spawn_wizard_card(
 }
 
 /// Spawns a locked wizard card showing flavor text, not interactive.
-pub(super) fn spawn_locked_wizard_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType) {
+pub(in crate::ui::main_menu) fn spawn_locked_wizard_card(parent: &mut ChildSpawnerCommands, wizard_type: WizardType) {
     parent
         .spawn((
             Node {
@@ -224,7 +224,7 @@ pub(super) fn spawn_locked_wizard_card(parent: &mut ChildSpawnerCommands, wizard
 }
 
 /// Spawns a locked/unavailable card placeholder.
-pub(super) fn spawn_locked_card(parent: &mut ChildSpawnerCommands) {
+pub(in crate::ui::main_menu) fn spawn_locked_card(parent: &mut ChildSpawnerCommands) {
     parent
         .spawn((
             Node {
@@ -250,7 +250,7 @@ pub(super) fn spawn_locked_card(parent: &mut ChildSpawnerCommands) {
 }
 
 /// Spawns the title group (heading + subtitle + separator line).
-pub(super) fn spawn_title_group(parent: &mut ChildSpawnerCommands, title: &str, subtitle: &str) {
+pub(in crate::ui::main_menu) fn spawn_title_group(parent: &mut ChildSpawnerCommands, title: &str, subtitle: &str) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Column,
@@ -285,7 +285,7 @@ pub(super) fn spawn_title_group(parent: &mut ChildSpawnerCommands, title: &str, 
 
 /// Spawns the detail panel container with shared styling.
 /// `build_contents` receives the card's ChildSpawnerCommands to add custom content.
-pub(super) fn spawn_detail_panel_container(
+pub(in crate::ui::main_menu) fn spawn_detail_panel_container(
     parent: &mut ChildSpawnerCommands,
     build_contents: impl FnOnce(&mut ChildSpawnerCommands),
 ) {
@@ -307,7 +307,7 @@ pub(super) fn spawn_detail_panel_container(
 }
 
 /// Spawns the top section of the detail panel (wizard name + long description).
-pub(super) fn spawn_detail_panel_top(parent: &mut ChildSpawnerCommands, wizard_type: WizardType) {
+pub(in crate::ui::main_menu) fn spawn_detail_panel_top(parent: &mut ChildSpawnerCommands, wizard_type: WizardType) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Column,
@@ -336,7 +336,7 @@ pub(super) fn spawn_detail_panel_top(parent: &mut ChildSpawnerCommands, wizard_t
 }
 
 /// Updates the detail panel text when previewing a different wizard.
-pub(super) fn update_detail_panel_text(
+pub(in crate::ui::main_menu) fn update_detail_panel_text(
     wizard_type: WizardType,
     detail_name: &mut Query<
         &mut Text,
@@ -363,15 +363,18 @@ pub(super) fn update_detail_panel_text(
     }
 }
 
-/// Updates card border highlights when selection changes.
-pub(super) fn update_card_borders(
+/// Updates card border highlights and active state when selection changes.
+pub(in crate::ui::main_menu) fn update_card_borders(
+    commands: &mut Commands,
     selected: WizardType,
-    card_borders: &mut Query<(&WizardCard, &mut BorderColor, &mut ButtonColors)>,
+    card_borders: &mut Query<(Entity, &WizardCard, &mut BorderColor, &mut ButtonColors)>,
 ) {
-    for (card, mut border, mut colors) in card_borders.iter_mut() {
+    for (entity, card, mut border, mut colors) in card_borders.iter_mut() {
         let new_border = if card.0 == selected {
+            commands.entity(entity).insert(crate::ui::components::ButtonActive);
             CARD_BORDER_SELECTED
         } else {
+            commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
             CARD_BORDER
         };
         *border = BorderColor::all(new_border);
@@ -380,7 +383,7 @@ pub(super) fn update_card_borders(
 }
 
 /// Returns the grid container node for the right side of the wizard select screen.
-pub(super) fn grid_container_node() -> Node {
+pub(in crate::ui::main_menu) fn grid_container_node() -> Node {
     let grid_width =
         (CARD_WIDTH * GRID_COLUMNS as f32) + (CARD_GAP * (GRID_COLUMNS - 1) as f32);
     Node {

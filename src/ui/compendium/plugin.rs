@@ -43,6 +43,7 @@ impl Plugin for MainMenuCompendiumPlugin {
                     handle_scroll::<DetailPanel>,
                     escape_to_landing,
                     systems::rebuild_on_state_change,
+                    systems::update_item_active_state,
                 )
                     .run_if(in_state(MenuState::Compendium)),
             );
@@ -123,6 +124,7 @@ impl Plugin for MetaGameCompendiumPlugin {
                     handle_scroll::<DetailPanel>,
                     escape_to_wizard_tower,
                     systems::rebuild_on_state_change,
+                    systems::update_item_active_state,
                 )
                     .run_if(in_state(MetaGameState::Compendium)),
             );

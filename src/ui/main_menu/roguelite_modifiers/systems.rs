@@ -339,12 +339,12 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                     align_items: AlignItems::Center,
                     ..default()
                 },
-                BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0)),
+                BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
                 BorderRadius::all(Val::Px(4.0)),
-                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
+                BackgroundColor(Color::hsla(270.0, 0.08, 0.08, 1.0)),
                 crate::ui::components::ButtonColors {
-                    background: Color::srgba(0.1, 0.1, 0.1, 1.0),
-                    border: Color::srgba(0.4, 0.4, 0.4, 1.0),
+                    background: Color::hsla(270.0, 0.08, 0.08, 1.0),
+                    border: Color::hsla(270.0, 0.35, 0.35, 1.0),
                 },
                 SeedInputBox,
             ))
@@ -368,12 +368,12 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                     align_items: AlignItems::Center,
                     ..default()
                 },
-                BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0)),
+                BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
                 BorderRadius::all(Val::Px(4.0)),
-                BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 1.0)),
+                BackgroundColor(Color::hsla(270.0, 0.08, 0.10, 1.0)),
                 crate::ui::components::ButtonColors {
-                    background: Color::srgba(0.15, 0.15, 0.15, 1.0),
-                    border: Color::srgba(0.4, 0.4, 0.4, 1.0),
+                    background: Color::hsla(270.0, 0.08, 0.10, 1.0),
+                    border: Color::hsla(270.0, 0.35, 0.35, 1.0),
                 },
                 SeedRandomButton,
             ))
@@ -445,107 +445,117 @@ fn spawn_toggle_row(
         (TOGGLE_OFF_BG, TOGGLE_OFF_BORDER)
     };
 
-    // The row itself is a Button so clicking anywhere toggles it
+    // Outer row: [toggle button (grows) | expand arrow button]
     parent
         .spawn((
-            Button,
             Node {
                 width: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                border: UiRect::all(Val::Px(1.0)),
-                padding: UiRect::all(Val::Px(6.0)),
-                row_gap: Val::Px(4.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::FlexStart,
+                column_gap: Val::Px(4.0),
                 ..default()
             },
-            BackgroundColor(bg),
-            BorderColor::all(border),
-            BorderRadius::all(Val::Px(6.0)),
-            crate::ui::components::ButtonColors {
-                background: bg,
-                border,
-            },
-            ToggleRowContainer(toggle),
         ))
-        .with_children(|row_container| {
-            // Header row: [Name ... (Insight cost if locked) ... expand_btn]
-            row_container
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                })
-                .with_children(|header| {
-                    // Toggle name (left)
-                    let name_color = if is_unlocked {
-                        TEXT_COLOR
-                    } else {
-                        TEXT_DISABLED
-                    };
-                    header.spawn((
-                        Text::new(toggle.display_name()),
-                        TextFont::from_font_size(TOGGLE_NAME_FONT_SIZE),
-                        TextColor(name_color),
-                        Node {
-                            flex_grow: 1.0,
-                            ..default()
-                        },
-                    ));
-
-                    // Insight cost (centered, only for locked toggles)
-                    if !is_unlocked {
-                        header.spawn((
-                            Text::new(format!("{} Insight", toggle.insight_cost())),
-                            TextFont::from_font_size(TOGGLE_SMALL_BUTTON_FONT_SIZE),
-                            TextColor(crate::ui::constants::INSIGHT_COLOR),
-                            ToggleUnlockButton(toggle),
-                        ));
-                    }
-
-                    // Expand arrow button
-                    header
-                        .spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(TOGGLE_SMALL_BUTTON_SIZE),
-                                height: Val::Px(TOGGLE_SMALL_BUTTON_SIZE),
-                                border: UiRect::all(Val::Px(1.0)),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BorderColor::all(border),
-                            BorderRadius::all(Val::Px(4.0)),
-                            BackgroundColor(Color::NONE),
-                            crate::ui::components::ButtonColors {
-                                background: Color::NONE,
-                                border,
-                            },
-                            ToggleExpandButton(toggle),
-                        ))
-                        .with_children(|btn| {
-                            btn.spawn((
-                                Text::new("\u{25b8}"),
-                                TextFont::from_font_size(TOGGLE_SMALL_BUTTON_FONT_SIZE),
-                                TextColor(TEXT_MUTED),
-                            ));
-                        });
-                });
-
-            // Description (hidden by default)
-            row_container.spawn((
-                Text::new(toggle.description()),
-                TextFont::from_font_size(TOGGLE_DESC_FONT_SIZE),
-                TextColor(DESCRIPTION_COLOR),
+        .with_children(|row| {
+            // Toggle button (takes remaining space)
+            row.spawn((
+                Button,
                 Node {
-                    display: Display::None,
-                    max_width: Val::Percent(95.0),
-                    padding: UiRect::left(Val::Px(4.0)),
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Column,
+                    border: UiRect::all(Val::Px(1.0)),
+                    padding: UiRect::all(Val::Px(6.0)),
+                    row_gap: Val::Px(4.0),
                     ..default()
                 },
-                ToggleDescriptionNode(toggle),
-            ));
+                BackgroundColor(bg),
+                BorderColor::all(border),
+                BorderRadius::all(Val::Px(6.0)),
+                crate::ui::components::ButtonColors {
+                    background: bg,
+                    border,
+                },
+                ToggleRowContainer(toggle),
+            ))
+            .insert_if(crate::ui::components::ButtonActive, || is_enabled)
+            .with_children(|toggle_btn| {
+                // Header content: [Name ... (Insight cost if locked)]
+                toggle_btn
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(8.0),
+                        ..default()
+                    })
+                    .with_children(|header| {
+                        let name_color = if is_unlocked {
+                            TEXT_COLOR
+                        } else {
+                            TEXT_DISABLED
+                        };
+                        header.spawn((
+                            Text::new(toggle.display_name()),
+                            TextFont::from_font_size(TOGGLE_NAME_FONT_SIZE),
+                            TextColor(name_color),
+                            Node {
+                                flex_grow: 1.0,
+                                ..default()
+                            },
+                        ));
+
+                        if !is_unlocked {
+                            header.spawn((
+                                Text::new(format!("{} Insight", toggle.insight_cost())),
+                                TextFont::from_font_size(TOGGLE_SMALL_BUTTON_FONT_SIZE),
+                                TextColor(crate::ui::constants::INSIGHT_COLOR),
+                                ToggleUnlockButton(toggle),
+                            ));
+                        }
+                    });
+
+                // Description (hidden by default, expands the toggle button)
+                toggle_btn.spawn((
+                    Text::new(toggle.description()),
+                    TextFont::from_font_size(TOGGLE_DESC_FONT_SIZE),
+                    TextColor(DESCRIPTION_COLOR),
+                    Node {
+                        display: Display::None,
+                        max_width: Val::Percent(95.0),
+                        padding: UiRect::left(Val::Px(4.0)),
+                        ..default()
+                    },
+                    ToggleDescriptionNode(toggle),
+                ));
+            });
+
+            // Expand arrow button (separate, to the right)
+            row.spawn((
+                Button,
+                Node {
+                    width: Val::Px(TOGGLE_SMALL_BUTTON_SIZE),
+                    height: Val::Px(TOGGLE_SMALL_BUTTON_SIZE),
+                    border: UiRect::all(Val::Px(1.0)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BorderColor::all(border),
+                BorderRadius::all(Val::Px(4.0)),
+                BackgroundColor(bg),
+                crate::ui::components::ButtonColors {
+                    background: bg,
+                    border,
+                },
+                ToggleExpandButton(toggle),
+            ))
+            .with_children(|btn| {
+                btn.spawn((
+                    Text::new("\u{25b8}"),
+                    TextFont::from_font_size(TOGGLE_SMALL_BUTTON_FONT_SIZE),
+                    TextColor(TEXT_MUTED),
+                ));
+            });
         });
 }
 
@@ -745,6 +755,7 @@ pub(super) fn toggle_row_action(
     expand_buttons: Query<&ToggleExpandButton>,
     mut pending_toggles: ResMut<PendingToggles>,
     mut row_containers: Query<(
+        Entity,
         &ToggleRowContainer,
         &mut BackgroundColor,
         &mut BorderColor,
@@ -782,12 +793,18 @@ pub(super) fn toggle_row_action(
             (TOGGLE_OFF_BG, TOGGLE_OFF_BORDER)
         };
 
-        for (container, mut bg_color, mut border_color, mut btn_colors) in &mut row_containers {
+        for (entity, container, mut bg_color, mut border_color, mut btn_colors) in &mut row_containers {
             if container.0 == toggle {
                 bg_color.0 = bg;
                 *border_color = BorderColor::all(border);
                 btn_colors.background = bg;
                 btn_colors.border = border;
+
+                if now_enabled {
+                    commands.entity(entity).insert(crate::ui::components::ButtonActive);
+                } else {
+                    commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                }
             }
         }
     }
@@ -803,6 +820,7 @@ pub(super) fn handle_unlock_confirmation(
     popup_query: Query<Entity, With<ConfirmUnlockPopup>>,
     mut pending_toggles: ResMut<PendingToggles>,
     mut row_containers: Query<(
+        Entity,
         &ToggleRowContainer,
         &mut BackgroundColor,
         &mut BorderColor,
@@ -822,12 +840,13 @@ pub(super) fn handle_unlock_confirmation(
                     pending_toggles.enabled.push(toggle);
 
                     // Update row visual to enabled state
-                    for (container, mut bg_color, mut border_color, mut btn_colors) in
+                    for (entity, container, mut bg_color, mut border_color, mut btn_colors) in
                         &mut row_containers
                     {
                         if container.0 == toggle {
                             bg_color.0 = TOGGLE_ON_BG;
                             *border_color = BorderColor::all(TOGGLE_ON_BORDER);
+                            commands.entity(entity).insert(crate::ui::components::ButtonActive);
                             btn_colors.background = TOGGLE_ON_BG;
                             btn_colors.border = TOGGLE_ON_BORDER;
                         }
@@ -1066,9 +1085,9 @@ pub(super) fn seed_input_click(
     // Update border color to indicate focus
     for mut border in &mut border_query {
         if seed_state.focused {
-            *border = BorderColor::all(Color::srgba(0.7, 0.7, 1.0, 1.0));
+            *border = BorderColor::all(Color::hsla(270.0, 0.65, 0.55, 1.0));
         } else {
-            *border = BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0));
+            *border = BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0));
         }
     }
 }
@@ -1172,7 +1191,7 @@ pub(super) fn seed_input_keyboard(
             }
         }
         for mut border in &mut border_query {
-            *border = BorderColor::all(Color::srgba(0.4, 0.4, 0.4, 1.0));
+            *border = BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0));
         }
         return;
     }

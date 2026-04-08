@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::ui::constants::{BUTTON_BG, BUTTON_BORDER, TEXT_MUTED, TEXT_PRIMARY};
 
 /// Golden glow color for highlighted elements.
-pub(super) const GLOW_COLOR: Color = Color::hsla(45.0, 1.0, 0.65, 1.0);
+pub(super) const GLOW_COLOR: Color = Color::hsla(270.0, 0.85, 0.65, 1.0);
 
 /// Glow border width in pixels.
 pub(super) const GLOW_BORDER_WIDTH: f32 = 5.0;
@@ -14,10 +14,10 @@ pub(super) const GLOW_BORDER_WIDTH: f32 = 5.0;
 pub(super) const OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.01);
 
 /// Tutorial panel background color.
-pub(super) const PANEL_BG: Color = Color::hsla(220.0, 0.08, 0.08, 1.0);
+pub(super) const PANEL_BG: Color = Color::hsla(20.0, 0.10, 0.07, 1.0);
 
 /// Tutorial panel border color (golden).
-pub(super) const PANEL_BORDER: Color = Color::hsla(45.0, 0.8, 0.5, 1.0);
+pub(super) const PANEL_BORDER: Color = Color::hsla(270.0, 0.65, 0.50, 1.0);
 
 /// Panel border width in pixels.
 pub(super) const PANEL_BORDER_WIDTH: f32 = 2.0;
@@ -50,10 +50,10 @@ pub(super) const BUTTON_HEIGHT: f32 = 36.0;
 pub(super) const BUTTON_BORDER_WIDTH: f32 = 2.0;
 
 /// Next button background color.
-pub(super) const NEXT_BUTTON_BG: Color = Color::hsla(45.0, 0.7, 0.35, 0.75);
+pub(super) const NEXT_BUTTON_BG: Color = Color::hsla(270.0, 0.50, 0.30, 0.75);
 
 /// Next button border color.
-pub(super) const NEXT_BUTTON_BORDER: Color = Color::hsla(45.0, 0.8, 0.5, 1.0);
+pub(super) const NEXT_BUTTON_BORDER: Color = Color::hsla(270.0, 0.65, 0.50, 1.0);
 
 /// Skip button background color.
 pub(super) const SKIP_BUTTON_BG: Color = BUTTON_BG;

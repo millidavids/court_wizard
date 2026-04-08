@@ -160,8 +160,8 @@ pub(super) fn spawn_hud(
                         ..default()
                     })
                     .with_children(|buttons| {
-                        // Hide Spells button for gunslinger (no spells to manage)
-                        if config.wizard_type != WizardType::Warglock {
+                        // Hide Spells button for archetypes that don't manage spells.
+                        if !matches!(config.wizard_type, WizardType::Warglock | WizardType::Randomancer | WizardType::RuneCaster) {
                             spawn_button(
                                 buttons,
                                 "Spells",
@@ -382,7 +382,7 @@ pub(super) fn spawn_hud(
 ///
 /// Like `spawn_hud` but without the Cauldron button, level display, and past victory display
 /// (those are single-player only concepts).
-pub(super) fn spawn_mp_hud(mut commands: Commands) {
+pub(super) fn spawn_mp_hud(mut commands: Commands, config: Res<GameConfig>) {
     commands
         .spawn((
             Node {
@@ -414,12 +414,14 @@ pub(super) fn spawn_mp_hud(mut commands: Commands) {
                         ..default()
                     })
                     .with_children(|buttons| {
-                        spawn_button(
-                            buttons,
-                            "Spells",
-                            HudButtonAction::OpenSpellBook,
-                            &BUTTON_STYLE,
-                        );
+                        if !matches!(config.wizard_type, WizardType::Warglock | WizardType::Randomancer | WizardType::RuneCaster) {
+                            spawn_button(
+                                buttons,
+                                "Spells",
+                                HudButtonAction::OpenSpellBook,
+                                &BUTTON_STYLE,
+                            );
+                        }
                     });
                 });
 

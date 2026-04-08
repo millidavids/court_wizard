@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use crate::state::PauseMenuState;
 use crate::ui::main_menu::settings::components::SettingsContentContainer;
 use crate::ui::main_menu::settings::systems::{
-    button_hover, button_press, capture_key_input, handle_confirmation_popup,
+    capture_key_input, handle_confirmation_popup,
     handle_settings_tab_click, key_binding_button_action, key_capture_inactive,
     option_button_action, pause_settings_button_action, rebuild_settings_content,
     resolution_button_action, setup_pause_menu, slider_button_action, slider_interaction,
@@ -52,8 +52,6 @@ impl Plugin for PauseSettingsPlugin {
                 (
                     escape_to_pause_main.run_if(key_capture_inactive),
                     handle_scroll::<SettingsContentContainer>,
-                    button_hover,
-                    button_press,
                     slider_interaction,
                     update_slider_text,
                     update_sliders,
