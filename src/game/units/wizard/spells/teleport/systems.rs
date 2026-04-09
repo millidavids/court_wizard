@@ -220,6 +220,7 @@ pub fn handle_teleport_casting(
         primed_spell,
         &mut caster,
         &mut commands,
+        &visual_assets,
         &units_query,
         &source_query,
         &talent_params,
@@ -436,6 +437,7 @@ fn teleport_casting_logic(
     _primed_spell: &PrimedSpell,
     caster: &mut TeleportCaster,
     commands: &mut Commands,
+    visual_assets: &SpellVisualAssets,
     units_query: &Query<
         (Entity, &Transform, Option<&Team>),
         (
@@ -524,6 +526,24 @@ fn teleport_casting_logic(
                 mana.consume(effective_mana_cost);
 
                 if let Some(dest_pos) = caster.destination_position {
+                    // Origin bubble: fades in large and contracts to a point
+                    vfx::systems::spawn_aura_bubble_contracting(
+                        commands,
+                        visual_assets,
+                        visual_assets.teleport_aura_sphere.clone(),
+                        source_pos,
+                        current_radius,
+                        1.0,
+                    );
+                    // Destination bubble: expands out
+                    vfx::systems::spawn_aura_bubble(
+                        commands,
+                        visual_assets,
+                        visual_assets.teleport_aura_sphere.clone(),
+                        dest_pos,
+                        current_radius,
+                        1.5,
+                    );
                     let entities = execute_teleport(
                         source_pos,
                         dest_pos,
@@ -603,6 +623,22 @@ fn teleport_casting_logic(
                     mana.consume(effective_mana_cost);
 
                     if let Some(dest_pos) = caster.destination_position {
+                        vfx::systems::spawn_aura_bubble(
+                            commands,
+                            visual_assets,
+                            visual_assets.teleport_aura_sphere.clone(),
+                            source_pos,
+                            radius,
+                            1.0,
+                        );
+                        vfx::systems::spawn_aura_bubble(
+                            commands,
+                            visual_assets,
+                            visual_assets.teleport_aura_sphere.clone(),
+                            dest_pos,
+                            radius,
+                            1.5,
+                        );
                         let entities = execute_teleport(
                             source_pos,
                             dest_pos,

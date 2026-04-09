@@ -18,3 +18,4 @@ pub struct SpellShield;
 /// Marker component for the spell shield visual sphere (child of King).
 #[derive(Component)]
 pub struct SpellShieldVisual;
+

@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    CastFlare, FireEmber, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, FloatingMote,
-    HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
+    AuraBubbleVfx, CastFlare, FireEmber, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark,
+    FloatingMote, HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
 };
 use super::fire_material::FireParticleMaterial;
 use super::systems;
@@ -24,7 +24,7 @@ impl Plugin for VfxPlugin {
         ));
         app.add_systems(
             Update,
-            update_fire_particle_time.run_if(is_gameplay_running),
+            (update_fire_particle_time, update_aura_sphere_time).run_if(is_gameplay_running),
         );
         app.add_systems(
             Update,
@@ -48,6 +48,7 @@ impl Plugin for VfxPlugin {
                 systems::update_cast_flares.run_if(any_exist::<CastFlare>()),
                 systems::update_floating_motes.run_if(any_exist::<FloatingMote>()),
                 systems::update_smoke_poofs.run_if(any_exist::<SmokePoof>()),
+                systems::update_aura_bubbles.run_if(any_exist::<AuraBubbleVfx>()),
             )
                 .run_if(is_spell_effects_active),
         );
@@ -58,6 +59,17 @@ impl Plugin for VfxPlugin {
 fn update_fire_particle_time(
     time: Res<Time>,
     mut materials: ResMut<Assets<FireParticleMaterial>>,
+) {
+    let t = time.elapsed_secs();
+    for (_id, material) in materials.iter_mut() {
+        material.time = t;
+    }
+}
+
+/// Updates the global time uniform on all aura sphere materials each frame.
+fn update_aura_sphere_time(
+    time: Res<Time>,
+    mut materials: ResMut<Assets<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>>,
 ) {
     let t = time.elapsed_secs();
     for (_id, material) in materials.iter_mut() {

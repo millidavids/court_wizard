@@ -183,7 +183,6 @@ pub fn handle_healing_plume_casting(
                 let zone_entity = spawn_healing_plume_zone(
                     &mut commands,
                     &visual_assets,
-                    &mut materials,
                     indicator.position,
                     radius,
                     primed_spell.empowerment,
@@ -614,14 +613,18 @@ pub fn field_medic_cleanup(
 
 /// Fades healing plume zone visual over the last few seconds.
 pub fn fade_healing_plume_zone(
-    zones: Query<(&HealingPlumeZone, &MeshMaterial3d<StandardMaterial>)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut zones: Query<(&HealingPlumeZone, &mut Transform)>,
 ) {
-    for (zone, material_handle) in &zones {
-        let Some(material) = materials.get_mut(material_handle) else {
-            continue;
-        };
+    const GROW_DURATION: f32 = 1.5;
 
+    for (zone, mut transform) in &mut zones {
+        // Slow growth over the first portion of lifetime
+        let grow_t = (zone.time_alive / GROW_DURATION).min(1.0);
+        // Ease-out curve for smooth deceleration
+        let eased = 1.0 - (1.0 - grow_t) * (1.0 - grow_t);
+        let scale = zone.radius * eased;
+
+        // Fade out at end by shrinking
         let remaining = zone.duration - zone.time_alive;
         let fade = if remaining < constants::FADE_DURATION {
             (remaining / constants::FADE_DURATION).max(0.0)
@@ -629,7 +632,7 @@ pub fn fade_healing_plume_zone(
             1.0
         };
 
-        material.base_color = Color::srgba(0.1, 0.7, 0.2, 0.4 * fade);
+        transform.scale = Vec3::splat(scale * fade);
     }
 }
 
@@ -648,7 +651,6 @@ pub fn cleanup_healing_plume_zone(
 pub(crate) fn spawn_healing_plume_zone(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     radius: f32,
     empowerment: f32,
@@ -661,23 +663,12 @@ pub(crate) fn spawn_healing_plume_zone(
         heal *= constants::HEALING_RAIN_HEAL_MULT;
     }
 
-    let base_mat = materials
-        .get(&assets.healing_plume_zone)
-        .cloned()
-        .unwrap_or_default();
-    let instance_material = materials.add(base_mat);
-
     let zone_entity = commands
         .spawn((
-            Mesh3d(assets.unit_circle.clone()),
-            MeshMaterial3d(instance_material),
-            Transform::from_translation(Vec3::new(
-                position.x,
-                constants::CIRCLE_Y_POSITION,
-                position.z,
-            ))
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(radius)),
+            Mesh3d(assets.explosion_sphere.clone()),
+            MeshMaterial3d(assets.healing_aura_sphere.clone()),
+            Transform::from_translation(Vec3::new(position.x, 0.0, position.z))
+                .with_scale(Vec3::splat(0.1)),
             HealingPlumeZone::new(
                 Vec3::new(position.x, 0.0, position.z),
                 radius,

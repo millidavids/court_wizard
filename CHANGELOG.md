@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.818] - 2026-04-09
+
+### Added
+- **Mystical aura spheres** — the King and attacker commanders now have translucent energy spheres around them with slowly swirling magical patterns, replacing the old flat circles
+- **Aura particles** — small glowing particles radiate outward from the King and commanders toward the edge of their aura, making the buff zone feel alive
+- **Healing Plume aura sphere** — the healing zone is now a green energy sphere that gently grows when cast and shrinks as it fades
+- **Spell cast bubbles** — Guardian Circle, Battle Hymn, Haste, Berserker Rage, Sleep, and Raise the Dead all show a brief magical sphere at the cast location that expands and fades
+- **Dispel energy sphere** — dispel impacts now use the swirling energy sphere instead of flat expanding circles
+- **Arcane Crystal aura** — the crystal's range indicator is now a pink energy sphere instead of a thin ring
+- **Teleport visual effect** — teleporting shows a contracting sphere at the origin (collapsing inward) and an expanding sphere at the destination (arriving outward)
+
+### Changed
+- **Each spell has a unique aura color** — healing is green, guardian circle is cyan, battle hymn is gold, haste is yellow-green, berserker rage is red, sleep is white, raise the dead is purple, teleport is blue, and arcane crystal is pink
+- **Aura spheres are very subtle** — the swirling energy is barely visible so it doesn't obscure the battlefield, with particles doing most of the visual work
+- **Commander aura particles work for all commanders** — attacker commanders now also emit particles, not just the King
+
 ## [v0.5.796] - 2026-04-09
 
 ### Added

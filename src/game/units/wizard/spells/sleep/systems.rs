@@ -236,6 +236,14 @@ fn sleep_casting_logic(
                             game_config,
                             sfx,
                         );
+                        vfx::systems::spawn_aura_bubble(
+                            commands,
+                            assets,
+                            assets.sleep_aura_sphere.clone(),
+                            indicator.position,
+                            effective_radius,
+                            2.5,
+                        );
                         let hit_count = apply_sleep(
                             commands,
                             indicator.position,

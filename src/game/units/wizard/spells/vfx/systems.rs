@@ -3,8 +3,8 @@
 use bevy::prelude::*;
 
 use super::components::{
-    CastFlare, FireEmber, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark, FloatingMote,
-    HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
+    AuraBubbleVfx, CastFlare, FireEmber, FireGlow, FireOrangeSmokePuff, FireSmoke, FireSpark,
+    FloatingMote, HeatShimmer, MissileGlow, MissileSparkle, PlagueSmoke, SmokePoof,
 };
 use super::constants;
 use super::constants::UPWARD_ROTATION;
@@ -1458,5 +1458,98 @@ pub fn spawn_dust_smoke(
             seed,
             None,
         );
+    }
+}
+
+/// Spawns a temporary aura bubble that grows calmly then fades out.
+pub fn spawn_aura_bubble(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    material: Handle<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>,
+    position: Vec3,
+    max_radius: f32,
+    duration: f32,
+) {
+    spawn_aura_bubble_inner(commands, assets, material, position, max_radius, duration, false);
+}
+
+/// Spawns a contracting aura bubble that fades in at full size and shrinks to a point.
+pub fn spawn_aura_bubble_contracting(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    material: Handle<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>,
+    position: Vec3,
+    max_radius: f32,
+    duration: f32,
+) {
+    spawn_aura_bubble_inner(commands, assets, material, position, max_radius, duration, true);
+}
+
+fn spawn_aura_bubble_inner(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    material: Handle<crate::game::units::wizard::spells::visual_assets::AuraSphereMaterial>,
+    position: Vec3,
+    max_radius: f32,
+    duration: f32,
+    contracting: bool,
+) {
+    let initial_scale = if contracting {
+        max_radius
+    } else {
+        0.1
+    };
+    commands.spawn((
+        AuraBubbleVfx {
+            max_radius,
+            duration,
+            time_alive: 0.0,
+            contracting,
+        },
+        Mesh3d(assets.explosion_sphere.clone()),
+        MeshMaterial3d(material),
+        Transform::from_translation(position).with_scale(Vec3::splat(initial_scale)),
+        OnGameplayScreen,
+    ));
+}
+
+/// Updates aura bubble VFX: grows or contracts depending on mode.
+pub fn update_aura_bubbles(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut bubbles: Query<(Entity, &mut AuraBubbleVfx, &mut Transform)>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut bubble, mut transform) in &mut bubbles {
+        bubble.time_alive += delta;
+
+        if bubble.time_alive >= bubble.duration {
+            commands.entity(entity).try_despawn();
+            continue;
+        }
+
+        let t = bubble.time_alive / bubble.duration;
+
+        let scale = if bubble.contracting {
+            // Contracting: start at full size, shrink to zero with ease-in
+            let shrink = 1.0 - t;
+            let eased = shrink * shrink;
+            bubble.max_radius * eased
+        } else {
+            // Expanding: grow with ease-out over first 40%, hold, then shrink over last 30%
+            if t < 0.4 {
+                let grow = t / 0.4;
+                let eased = 1.0 - (1.0 - grow) * (1.0 - grow);
+                bubble.max_radius * eased
+            } else if t > 0.7 {
+                let fade = 1.0 - (t - 0.7) / 0.3;
+                bubble.max_radius * fade
+            } else {
+                bubble.max_radius
+            }
+        };
+
+        transform.scale = Vec3::splat(scale.max(0.1));
     }
 }

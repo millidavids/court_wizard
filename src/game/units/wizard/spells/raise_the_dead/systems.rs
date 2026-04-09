@@ -212,6 +212,7 @@ pub fn handle_raise_the_dead_casting(
         wizard_entity,
         &corpse_query,
         &undead_assets,
+        &visual_assets,
         &mut materials,
         &sfx,
         &game_config,
@@ -245,6 +246,7 @@ fn raise_the_dead_casting_logic(
     wizard_entity: Entity,
     corpse_query: &Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
     undead_assets: &UndeadAssets,
+    visual_assets: &SpellVisualAssets,
     materials: &mut Assets<StandardMaterial>,
     sfx: &SpellSfxAssets,
     game_config: &GameConfig,
@@ -311,6 +313,14 @@ fn raise_the_dead_casting_logic(
                             cursor_pos,
                             game_config,
                             sfx,
+                        );
+                        vfx::systems::spawn_aura_bubble(
+                            commands,
+                            visual_assets,
+                            visual_assets.raise_dead_aura_sphere.clone(),
+                            cursor_pos,
+                            constants::RESURRECTION_RADIUS,
+                            2.0,
                         );
                         resurrect_nearest_corpse(
                             commands,
@@ -569,6 +579,7 @@ pub fn pull_corpses_to_cursor(
 }
 
 /// Tier 3: Undead Detonation — when a raised undead with UndeadDetonation dies, explode.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_undead_detonation(
     time: Res<Time>,
     mut commands: Commands,

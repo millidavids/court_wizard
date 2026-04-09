@@ -218,6 +218,7 @@ pub fn apply_wave_upgrades(
     dispeller_assets: Res<DispellerAssets>,
     healer_assets: Res<HealerAssets>,
     shielder_assets: Res<ShielderAssets>,
+    spell_visual_assets: Res<crate::game::units::wizard::spells::visual_assets::SpellVisualAssets>,
     transform_query: Query<&Transform>,
     hitbox_query: Query<&Hitbox>,
 ) {
@@ -280,6 +281,7 @@ pub fn apply_wave_upgrades(
                 *entity,
                 &mut materials,
                 &mut meshes,
+                &spell_visual_assets,
                 &transform,
                 &hitbox,
             );

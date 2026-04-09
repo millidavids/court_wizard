@@ -200,6 +200,14 @@ pub fn handle_berserker_rage_casting(
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius = base_radius * primed_spell.empowerment;
+                vfx::systems::spawn_aura_bubble(
+                    &mut commands,
+                    &visual_assets,
+                    visual_assets.berserker_aura_sphere.clone(),
+                    indicator.position,
+                    radius,
+                    2.5,
+                );
                 let buffed_count = apply_berserker_rage_buff(
                     &mut commands,
                     indicator.position,

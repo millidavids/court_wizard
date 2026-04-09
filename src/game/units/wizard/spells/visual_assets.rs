@@ -53,6 +53,55 @@ impl Material for FireExplosionSphereMaterial {
     }
 }
 
+/// Animated swirling-energy material for aura spheres.
+/// Uses Fresnel edge glow + procedural noise interior patterns.
+/// All instances share a global `time` uniform updated each frame.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub struct AuraSphereMaterial {
+    #[uniform(0)]
+    pub inner_color: LinearRgba,
+    #[uniform(0)]
+    pub outer_color: LinearRgba,
+    #[uniform(0)]
+    pub opacity: f32,
+    #[uniform(0)]
+    pub time: f32,
+}
+
+impl Material for AuraSphereMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/aura_sphere.wgsl".into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode {
+        AlphaMode::Blend
+    }
+}
+
+// ── Aura color constants ────────────────────────────────────────────────
+const KING_AURA_INNER: LinearRgba = LinearRgba::new(2.0, 1.8, 0.6, 1.0);
+const KING_AURA_OUTER: LinearRgba = LinearRgba::new(0.4, 0.5, 1.5, 1.0);
+const HEALING_AURA_INNER: LinearRgba = LinearRgba::new(0.3, 2.0, 0.5, 1.0);
+const HEALING_AURA_OUTER: LinearRgba = LinearRgba::new(0.1, 1.0, 0.3, 1.0);
+const GUARDIAN_AURA_INNER: LinearRgba = LinearRgba::new(0.5, 2.5, 3.0, 1.0);
+const GUARDIAN_AURA_OUTER: LinearRgba = LinearRgba::new(0.8, 1.5, 2.5, 1.0);
+const BATTLE_HYMN_AURA_INNER: LinearRgba = LinearRgba::new(2.5, 2.0, 0.4, 1.0);
+const BATTLE_HYMN_AURA_OUTER: LinearRgba = LinearRgba::new(2.0, 1.2, 0.2, 1.0);
+const HASTE_AURA_INNER: LinearRgba = LinearRgba::new(1.5, 2.5, 0.5, 1.0);
+const HASTE_AURA_OUTER: LinearRgba = LinearRgba::new(2.0, 2.0, 0.3, 1.0);
+const BERSERKER_AURA_INNER: LinearRgba = LinearRgba::new(2.5, 0.3, 0.2, 1.0);
+const BERSERKER_AURA_OUTER: LinearRgba = LinearRgba::new(2.0, 0.8, 0.1, 1.0);
+const SLEEP_AURA_INNER: LinearRgba = LinearRgba::new(2.5, 2.5, 3.0, 1.0);
+const SLEEP_AURA_OUTER: LinearRgba = LinearRgba::new(1.5, 1.5, 2.0, 1.0);
+const RAISE_DEAD_AURA_INNER: LinearRgba = LinearRgba::new(1.0, 0.3, 2.5, 1.0);
+const RAISE_DEAD_AURA_OUTER: LinearRgba = LinearRgba::new(0.6, 0.2, 1.5, 1.0);
+const COMMANDER_AURA_INNER: LinearRgba = LinearRgba::new(2.0, 1.5, 0.4, 1.0);
+const COMMANDER_AURA_OUTER: LinearRgba = LinearRgba::new(2.0, 1.8, 0.6, 1.0);
+const CRYSTAL_AURA_INNER: LinearRgba = LinearRgba::new(2.5, 0.8, 2.0, 1.0);
+const CRYSTAL_AURA_OUTER: LinearRgba = LinearRgba::new(1.5, 0.3, 1.8, 1.0);
+const TELEPORT_AURA_INNER: LinearRgba = LinearRgba::new(0.5, 1.5, 3.0, 1.0);
+const TELEPORT_AURA_OUTER: LinearRgba = LinearRgba::new(0.3, 0.8, 2.5, 1.0);
+
 /// Clones a sphere explosion material template into a unique per-entity handle.
 pub fn clone_sphere_material(
     materials: &mut Assets<FireExplosionSphereMaterial>,
@@ -103,8 +152,6 @@ pub struct SpellVisualAssets {
     pub shockwave_torus: Handle<Mesh>,
     /// Flat annulus ring for entangle vine arches.
     pub entangle_vine_ring: Handle<Mesh>,
-    /// Unit-scale torus for crystal range ring (thin ring, scaled by Transform).
-    pub crystal_range_torus: Handle<Mesh>,
     // ── Zone materials (semi-transparent ground circles) ──────────────────
     pub spike_growth_zone: Handle<StandardMaterial>,
     pub healing_plume_zone: Handle<StandardMaterial>,
@@ -122,6 +169,19 @@ pub struct SpellVisualAssets {
     pub spike_growth_spike: Handle<StandardMaterial>,
     /// Darker red material for spike storm projectiles.
     pub spike_storm_projectile: Handle<StandardMaterial>,
+
+    // ── Aura sphere materials (animated swirling energy) ──────────────────
+    pub king_aura_sphere: Handle<AuraSphereMaterial>,
+    pub healing_aura_sphere: Handle<AuraSphereMaterial>,
+    pub guardian_aura_sphere: Handle<AuraSphereMaterial>,
+    pub battle_hymn_aura_sphere: Handle<AuraSphereMaterial>,
+    pub haste_aura_sphere: Handle<AuraSphereMaterial>,
+    pub berserker_aura_sphere: Handle<AuraSphereMaterial>,
+    pub sleep_aura_sphere: Handle<AuraSphereMaterial>,
+    pub raise_dead_aura_sphere: Handle<AuraSphereMaterial>,
+    pub commander_aura_sphere: Handle<AuraSphereMaterial>,
+    pub crystal_aura_sphere: Handle<AuraSphereMaterial>,
+    pub teleport_aura_sphere: Handle<AuraSphereMaterial>,
 
     // ── Casting indicator materials (translucent circles shown while aiming) ──
     pub haste_indicator: Handle<StandardMaterial>,
@@ -339,6 +399,7 @@ pub fn init_spell_visual_assets(
     mut fire_particle_materials: ResMut<Assets<super::vfx::fire_material::FireParticleMaterial>>,
     mut smoke_particle_materials: ResMut<Assets<super::vfx::fire_material::SmokeParticleMaterial>>,
     mut wall_of_stone_materials: ResMut<Assets<WallOfStoneMaterial>>,
+    mut aura_sphere_materials: ResMut<Assets<AuraSphereMaterial>>,
     battlefield_assets: Res<BattlefieldAssets>,
 ) {
     let unlit = |color: Color| StandardMaterial {
@@ -506,6 +567,21 @@ pub fn init_spell_visual_assets(
             },
         ),
         ice_explosion: materials.add(unlit(Color::srgb(0.3, 0.8, 1.0))),
+
+        // Aura sphere materials (swirling energy)
+        king_aura_sphere: aura_mat(&mut aura_sphere_materials, KING_AURA_INNER, KING_AURA_OUTER),
+        healing_aura_sphere: aura_mat(&mut aura_sphere_materials, HEALING_AURA_INNER, HEALING_AURA_OUTER),
+        guardian_aura_sphere: aura_mat(&mut aura_sphere_materials, GUARDIAN_AURA_INNER, GUARDIAN_AURA_OUTER),
+        battle_hymn_aura_sphere: aura_mat(&mut aura_sphere_materials, BATTLE_HYMN_AURA_INNER, BATTLE_HYMN_AURA_OUTER),
+        haste_aura_sphere: aura_mat(&mut aura_sphere_materials, HASTE_AURA_INNER, HASTE_AURA_OUTER),
+        berserker_aura_sphere: aura_mat(&mut aura_sphere_materials, BERSERKER_AURA_INNER, BERSERKER_AURA_OUTER),
+        sleep_aura_sphere: aura_mat(&mut aura_sphere_materials, SLEEP_AURA_INNER, SLEEP_AURA_OUTER),
+        raise_dead_aura_sphere: aura_mat(&mut aura_sphere_materials, RAISE_DEAD_AURA_INNER, RAISE_DEAD_AURA_OUTER),
+        commander_aura_sphere: aura_mat(&mut aura_sphere_materials, COMMANDER_AURA_INNER, COMMANDER_AURA_OUTER),
+        crystal_aura_sphere: aura_mat(&mut aura_sphere_materials, CRYSTAL_AURA_INNER, CRYSTAL_AURA_OUTER),
+        teleport_aura_sphere: aura_sphere_materials.add(AuraSphereMaterial {
+            inner_color: TELEPORT_AURA_INNER, outer_color: TELEPORT_AURA_OUTER, opacity: 1.0, time: 0.0,
+        }),
 
         // Projectile materials
         fireball_projectile: materials.add(StandardMaterial {
@@ -854,13 +930,6 @@ pub fn init_spell_visual_assets(
         ),
         // Flat annulus ring for entangle vine arches (inner 0.5, outer 1.0 = 50% ring width)
         entangle_vine_ring: meshes.add(Annulus::new(0.5, 1.0).mesh().resolution(16)),
-        // Thin torus ring for crystal range indicator (unit-scale, scaled by Transform)
-        crystal_range_torus: meshes.add(
-            Torus::new(1.0 - 0.005, 1.0 + 0.005)
-                .mesh()
-                .major_resolution(32)
-                .minor_resolution(6),
-        ),
         // Special meshes (magic missile radius = 5.0)
         magic_missile_mesh: meshes.add(build_cross_plane_sphere(5.0)),
         // Unit square in XY plane (2 tris, double-sided) for pixel-art particle effects.
@@ -1225,6 +1294,20 @@ pub fn refresh_spell_visuals_for_wizard(
 }
 
 /// Converts a color to a brown Excremage variant, preserving alpha.
+/// Creates an AuraSphereMaterial with default opacity and time.
+fn aura_mat(
+    materials: &mut Assets<AuraSphereMaterial>,
+    inner: LinearRgba,
+    outer: LinearRgba,
+) -> Handle<AuraSphereMaterial> {
+    materials.add(AuraSphereMaterial {
+        inner_color: inner,
+        outer_color: outer,
+        opacity: 1.0,
+        time: 0.0,
+    })
+}
+
 fn excremage_color(original: Color) -> Color {
     let alpha = original.to_srgba().alpha;
     let brown = EXCREMAGE_BROWN.to_srgba();

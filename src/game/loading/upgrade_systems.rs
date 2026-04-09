@@ -10,6 +10,7 @@ use crate::game::components::OnGameplayScreen;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::components::{ArcherMovementTimer, AttackRange};
 use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::components::Hitbox;
 use crate::game::units::components::{Health, MovementSpeed, UnitTypeGlow};
 use crate::game::units::constants::{
@@ -99,8 +100,9 @@ pub(in crate::game) fn apply_elite_upgrade(
 pub(in crate::game) fn apply_commander_upgrade(
     commands: &mut Commands,
     entity: Entity,
-    materials: &mut Assets<StandardMaterial>,
-    meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<StandardMaterial>,
+    _meshes: &mut Assets<Mesh>,
+    spell_assets: &SpellVisualAssets,
     current_transform: &Transform,
     current_hitbox: &Hitbox,
 ) {
@@ -109,7 +111,6 @@ pub(in crate::game) fn apply_commander_upgrade(
         Commander {
             aura_radius: ATTACKER_COMMANDER_AURA_RADIUS,
             team_filter: TeamFilter::Attackers,
-            visual_color: ATTACKER_COMMANDER_AURA_COLOR,
         },
         AuraDamageBuff(ATTACKER_COMMANDER_DAMAGE_BUFF),
         AuraSpeedBuff(ATTACKER_COMMANDER_SPEED_BUFF),
@@ -126,51 +127,17 @@ pub(in crate::game) fn apply_commander_upgrade(
         COMMANDER_SIZE_MULTIPLIER,
     );
 
-    // Spawn visual aura ring on ground
-    spawn_aura_ring(commands, entity, current_transform, materials, meshes);
-}
-
-/// Spawns a visible aura ring on the ground beneath a commander.
-///
-/// Creates a flat ring mesh with the aura radius, positioned at ground level,
-/// and parents it to the commander entity so it follows the unit.
-fn spawn_aura_ring(
-    commands: &mut Commands,
-    parent_entity: Entity,
-    parent_transform: &Transform,
-    materials: &mut Assets<StandardMaterial>,
-    meshes: &mut Assets<Mesh>,
-) {
-    // Create filled circle mesh
-    let ring_mesh = meshes.add(Circle::new(ATTACKER_COMMANDER_AURA_RADIUS));
-
-    // Create semi-transparent red material
-    let ring_material = materials.add(StandardMaterial {
-        base_color: ATTACKER_COMMANDER_AURA_COLOR,
-        alpha_mode: AlphaMode::Blend,
-        unlit: true,
-        ..default()
-    });
-
-    // Position ring at ground level relative to parent
-    // Since the ring is parented to the commander, use local coordinates (0, y_offset, 0)
-    // y_offset brings the ring down from the parent's position to ground level
-    let y_offset = 5.0 - parent_transform.translation.y;
-    let ring_position = Vec3::new(0.0, y_offset, 0.0);
-
-    // Spawn ring and parent it to the commander
-    let ring_entity = commands
+    // Spawn visual aura sphere around commander
+    let aura_entity = commands
         .spawn((
-            Mesh3d(ring_mesh),
-            MeshMaterial3d(ring_material),
-            Transform::from_translation(ring_position)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            Mesh3d(spell_assets.explosion_sphere.clone()),
+            MeshMaterial3d(spell_assets.commander_aura_sphere.clone()),
+            Transform::from_xyz(0.0, 0.0, 0.0)
+                .with_scale(Vec3::splat(ATTACKER_COMMANDER_AURA_RADIUS)),
             OnGameplayScreen,
         ))
         .id();
-
-    // Parent the ring to the commander so it follows them
-    commands.entity(parent_entity).add_child(ring_entity);
+    commands.entity(entity).add_child(aura_entity);
 }
 
 /// Applies dispeller upgrade to an archer entity.

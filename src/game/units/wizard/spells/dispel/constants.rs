@@ -36,9 +36,6 @@ pub const IMPACT_DURATION: f32 = 0.5;
 /// How fast the impact sphere expands (units/second in radius).
 pub const IMPACT_EXPAND_SPEED: f32 = 200.0;
 
-/// Starting alpha of the impact sphere.
-pub const IMPACT_INITIAL_ALPHA: f32 = 0.3;
-
 /// Height offset above spell origin for spawning the projectile.
 pub const SPAWN_HEIGHT_OFFSET: f32 = 0.0;
 

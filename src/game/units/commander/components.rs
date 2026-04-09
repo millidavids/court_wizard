@@ -12,9 +12,6 @@ pub struct Commander {
     pub aura_radius: f32,
     /// Which teams are affected by this commander's aura
     pub team_filter: TeamFilter,
-    /// Color of the visual aura sphere (for future use)
-    #[allow(dead_code)]
-    pub visual_color: Color,
 }
 
 /// Team filter for commander auras.
@@ -48,6 +45,14 @@ impl TeamFilter {
 /// Value is a percentage bonus (0.5 = +50% damage).
 #[derive(Component, Clone, Copy)]
 pub struct AuraDamageBuff(pub f32);
+
+/// A particle that travels outward from a commander toward the aura edge.
+#[derive(Component)]
+pub struct CommanderAuraParticle {
+    pub velocity: Vec3,
+    pub time_alive: f32,
+    pub lifetime: f32,
+}
 
 /// Speed buff component for commander auras.
 ///

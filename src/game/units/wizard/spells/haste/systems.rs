@@ -159,6 +159,14 @@ pub fn handle_haste_casting(
                             &game_config,
                             &sfx,
                         );
+                        vfx::systems::spawn_aura_bubble(
+                            &mut commands,
+                            &visual_assets,
+                            visual_assets.haste_aura_sphere.clone(),
+                            indicator.position,
+                            radius,
+                            2.5,
+                        );
                         let buffed_count = apply_haste_buff(
                             &mut commands,
                             indicator.position,

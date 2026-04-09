@@ -3,8 +3,6 @@
 //! This module contains all configuration values for randomly upgrading
 //! attacker units (infantry and archers) into elites and commanders.
 
-use bevy::prelude::*;
-
 use crate::game::constants::{get_tier, get_tier_level};
 
 // ============================================================================
@@ -69,8 +67,6 @@ pub const ATTACKER_COMMANDER_DAMAGE_BUFF: f32 = 0.30;
 /// Speed buff percentage for units within attacker commander aura.
 pub const ATTACKER_COMMANDER_SPEED_BUFF: f32 = 0.15;
 
-/// Color of the attacker commander aura ring (orange-tinted, semi-transparent).
-pub const ATTACKER_COMMANDER_AURA_COLOR: Color = Color::srgba(1.0, 0.6, 0.0, 0.05);
 
 // ============================================================================
 // Visual Differentiation - Elite Units

@@ -5,6 +5,7 @@ use crate::game::run_conditions::any_exist;
 use crate::game::run_conditions::is_gameplay_running;
 
 use super::components::{King, KingSpawned, SpellShield};
+use crate::game::units::commander::{Commander, CommanderAuraParticle};
 use super::resources;
 use super::systems;
 
@@ -25,6 +26,16 @@ impl Plugin for KingPlugin {
                     systems::snap_kings_guard_to_king.in_set(MovementSystemSet),
                 )
                     .run_if(any_exist::<King>())
+                    .run_if(is_gameplay_running),
+            )
+            .add_systems(
+                Update,
+                (
+                    systems::spawn_commander_aura_particles
+                        .run_if(any_with_component::<Commander>),
+                    systems::update_commander_aura_particles
+                        .run_if(any_exist::<CommanderAuraParticle>()),
+                )
                     .run_if(is_gameplay_running),
             )
             .add_systems(

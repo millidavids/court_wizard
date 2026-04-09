@@ -144,14 +144,8 @@ pub fn handle_dispel_casting(
         // Antimagic Pulse: skip projectile, spawn a large impact sphere at the cursor
         let impact_pos = Vec3::new(target_pos.x, 5.0, target_pos.z);
         let mut impact_entity = commands.spawn((
-            Mesh3d(visual_assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: constants::PROJECTILE_COLOR.with_alpha(constants::IMPACT_INITIAL_ALPHA),
-                alpha_mode: AlphaMode::Blend,
-                unlit: true,
-                cull_mode: None,
-                ..default()
-            })),
+            Mesh3d(visual_assets.explosion_sphere.clone()),
+            MeshMaterial3d(visual_assets.guardian_aura_sphere.clone()),
             Transform::from_translation(impact_pos).with_scale(Vec3::ZERO),
             DispelImpact {
                 time_alive: 0.0,
@@ -285,7 +279,6 @@ pub fn move_dispel_projectiles(
     mut commands: Commands,
     time: Res<Time>,
     visual_assets: Res<SpellVisualAssets>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut projectiles: Query<(
         Entity,
         &mut Transform,
@@ -320,15 +313,8 @@ pub fn move_dispel_projectiles(
             let impact_pos = Vec3::new(transform.translation.x, 5.0, transform.translation.z);
 
             let mut impact_entity = commands.spawn((
-                Mesh3d(visual_assets.cross_plane_sphere.clone()),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color:
-                        constants::PROJECTILE_COLOR.with_alpha(constants::IMPACT_INITIAL_ALPHA),
-                    alpha_mode: AlphaMode::Blend,
-                    unlit: true,
-                    cull_mode: None,
-                    ..default()
-                })),
+                Mesh3d(visual_assets.explosion_sphere.clone()),
+                MeshMaterial3d(visual_assets.guardian_aura_sphere.clone()),
                 Transform::from_translation(impact_pos).with_scale(Vec3::ZERO),
                 DispelImpact {
                     time_alive: 0.0,
@@ -366,7 +352,6 @@ pub fn update_dispel_impacts(
         Entity,
         &mut DispelImpact,
         &mut Transform,
-        &MeshMaterial3d<StandardMaterial>,
         Has<BroadSpectrum>,
         Has<ManaDrain>,
         Has<ExplosiveNullification>,
@@ -413,7 +398,6 @@ pub fn update_dispel_impacts(
         entity,
         mut impact,
         mut transform,
-        material_handle,
         has_broad_spectrum,
         has_mana_drain,
         has_explosive,
@@ -438,17 +422,9 @@ pub fn update_dispel_impacts(
             continue;
         }
 
-        let progress_frac = impact.time_alive / impact.duration;
-
         // Expand at constant speed (Counterspell talent makes this faster via expand_speed)
         let radius = impact.expand_speed * impact.time_alive;
         transform.scale = Vec3::splat(radius);
-
-        // Fade alpha
-        let alpha = constants::IMPACT_INITIAL_ALPHA * (1.0 - progress_frac);
-        if let Some(material) = materials.get_mut(material_handle) {
-            material.base_color = constants::PROJECTILE_COLOR.with_alpha(alpha);
-        }
 
         let impact_center = transform.translation;
 

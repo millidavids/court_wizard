@@ -153,6 +153,14 @@ pub fn handle_guardian_circle_casting(
                     &game_config,
                     &sfx,
                 );
+                vfx::systems::spawn_aura_bubble(
+                    &mut commands,
+                    &visual_assets,
+                    visual_assets.guardian_aura_sphere.clone(),
+                    indicator.position,
+                    radius,
+                    2.5,
+                );
                 apply_guardian_circle_buff(
                     &mut commands,
                     indicator.position,

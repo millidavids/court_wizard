@@ -153,6 +153,14 @@ pub fn handle_battle_hymn_casting(
         );
         if chorus_of_valor {
             // Chorus of Valor: no indicator, buff all defenders from wizard position
+            vfx::systems::spawn_aura_bubble(
+                &mut commands,
+                &visual_assets,
+                visual_assets.battle_hymn_aura_sphere.clone(),
+                SPELL_ORIGIN,
+                200.0,
+                2.5,
+            );
             apply_battle_hymn_buff(
                 &mut commands,
                 SPELL_ORIGIN,
@@ -174,6 +182,14 @@ pub fn handle_battle_hymn_casting(
         {
             if let Ok(indicator) = indicator_query.get(indicator_entity) {
                 let radius = constants::CIRCLE_RADIUS * primed_spell.empowerment * radius_mult;
+                vfx::systems::spawn_aura_bubble(
+                    &mut commands,
+                    &visual_assets,
+                    visual_assets.battle_hymn_aura_sphere.clone(),
+                    indicator.position,
+                    radius,
+                    2.5,
+                );
                 apply_battle_hymn_buff(
                     &mut commands,
                     indicator.position,

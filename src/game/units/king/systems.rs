@@ -8,7 +8,9 @@ use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocit
 use crate::game::constants::*;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
 use crate::game::resources::InitialDefenderCount;
-use crate::game::units::commander::{AuraDamageBuff, AuraSpeedBuff, Commander, TeamFilter};
+use crate::game::units::commander::{
+    AuraDamageBuff, AuraSpeedBuff, Commander, CommanderAuraParticle, TeamFilter,
+};
 use crate::game::units::components::{
     AttackTiming, BanishedModifier, CommanderAuraSpeedModifier, Corpse, DamageMultiplier,
     Effectiveness, EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity,
@@ -18,6 +20,7 @@ use crate::game::units::components::{
 };
 use crate::game::units::systems::create_default_sprite_material;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::networking::session::MultiplayerSession;
 
 /// Spawns the King unit at the center of the defender grid.
@@ -27,8 +30,9 @@ use crate::networking::session::MultiplayerSession;
 pub fn spawn_king(
     commands: &mut Commands,
     king_assets: &KingAssets,
-    meshes: &mut Assets<Mesh>,
+    _meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    spell_assets: &SpellVisualAssets,
     king_spawned: &mut KingSpawned,
 ) {
     // King spawns at exact center of defender grid
@@ -78,7 +82,6 @@ pub fn spawn_king(
             Commander {
                 aura_radius: KING_AURA_RADIUS,
                 team_filter: TeamFilter::Defenders,
-                visual_color: KING_AURA_COLOR,
             },
             AuraDamageBuff(KING_AURA_DAMAGE_PERCENTAGE),
             AuraSpeedBuff(KING_AURA_SPEED_PERCENTAGE),
@@ -95,20 +98,13 @@ pub fn spawn_king(
         ))
         .id();
 
-    // Spawn visual aura circle on the ground beneath the King
-    let aura_circle = Circle::new(KING_AURA_RADIUS);
-    let y_offset = 5.0 - spawn_y;
+    // Spawn visual aura sphere around the King
     let aura_entity = commands
         .spawn((
-            Mesh3d(meshes.add(aura_circle)),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: KING_AURA_COLOR,
-                unlit: true,
-                alpha_mode: bevy::prelude::AlphaMode::Blend,
-                ..default()
-            })),
-            Transform::from_xyz(0.0, y_offset, 0.0)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            Mesh3d(spell_assets.explosion_sphere.clone()),
+            MeshMaterial3d(spell_assets.king_aura_sphere.clone()),
+            Transform::from_xyz(0.0, 0.0, 0.0)
+                .with_scale(Vec3::splat(KING_AURA_RADIUS)),
             OnGameplayScreen,
         ))
         .id();
@@ -449,5 +445,87 @@ pub fn update_king_spell_shield(
         for visual_entity in &shield_visuals {
             commands.entity(visual_entity).try_despawn();
         }
+    }
+}
+
+/// Spawns small particles from all commanders that travel outward to the aura edge.
+pub fn spawn_commander_aura_particles(
+    mut commands: Commands,
+    commanders: Query<(&Transform, &Commander)>,
+    spell_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+) {
+    use rand::Rng;
+
+    *timer += time.delta_secs();
+    if *timer < 0.12 {
+        return;
+    }
+    *timer -= 0.12;
+
+    let mut rng = rand::thread_rng();
+
+    for (transform, commander) in &commanders {
+        let pos = transform.translation;
+        let radius = commander.aura_radius;
+
+        for _ in 0..2 {
+            let dir = Vec3::new(
+                rng.gen_range(-1.0..1.0_f32),
+                rng.gen_range(0.0..0.5_f32),
+                rng.gen_range(-1.0..1.0_f32),
+            )
+            .normalize_or(Vec3::Y);
+
+            let speed = rng.gen_range(80.0..150.0_f32);
+            let lifetime = radius / speed;
+
+            commands.spawn((
+                CommanderAuraParticle {
+                    velocity: dir * speed,
+                    time_alive: 0.0,
+                    lifetime,
+                },
+                Mesh3d(spell_assets.particle_quad.clone()),
+                MeshMaterial3d(spell_assets.buff_mote.clone()),
+                Transform::from_translation(pos)
+                    .with_rotation(UPWARD_ROTATION)
+                    .with_scale(Vec3::splat(3.0)),
+                OnGameplayScreen,
+            ));
+        }
+    }
+}
+
+/// Moves commander aura particles outward and fades them over their lifetime.
+pub fn update_commander_aura_particles(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut particles: Query<(Entity, &mut CommanderAuraParticle, &mut Transform)>,
+) {
+    let delta = time.delta_secs();
+
+    for (entity, mut particle, mut transform) in &mut particles {
+        particle.time_alive += delta;
+
+        if particle.time_alive >= particle.lifetime {
+            commands.entity(entity).try_despawn();
+            continue;
+        }
+
+        // Move outward
+        transform.translation += particle.velocity * delta;
+
+        // Fade: grow slightly then shrink at the end
+        let t = particle.time_alive / particle.lifetime;
+        let scale = if t < 0.2 {
+            3.0 * (t / 0.2)
+        } else if t > 0.7 {
+            3.0 * (1.0 - (t - 0.7) / 0.3)
+        } else {
+            3.0
+        };
+        transform.scale = Vec3::splat(scale);
     }
 }

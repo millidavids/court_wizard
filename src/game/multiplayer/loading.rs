@@ -775,7 +775,6 @@ fn spawn_mp_king(
             Commander {
                 aura_radius: KING_AURA_RADIUS,
                 team_filter,
-                visual_color: KING_AURA_COLOR,
             },
             AuraDamageBuff(KING_AURA_DAMAGE_PERCENTAGE),
             AuraSpeedBuff(KING_AURA_SPEED_PERCENTAGE),

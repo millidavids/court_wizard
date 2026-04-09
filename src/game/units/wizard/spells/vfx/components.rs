@@ -150,6 +150,20 @@ pub struct FloatingMote {
     pub phase: f32,
 }
 
+/// Temporary aura bubble that grows calmly then fades out.
+/// Used for instantaneous buff spells (Guardian Circle, Battle Hymn, etc.).
+#[derive(Component)]
+pub struct AuraBubbleVfx {
+    /// Max radius the bubble will reach.
+    pub max_radius: f32,
+    /// Total time the bubble is visible.
+    pub duration: f32,
+    /// Time elapsed since spawn.
+    pub time_alive: f32,
+    /// If true, starts at max radius and contracts to a point.
+    pub contracting: bool,
+}
+
 /// Smoke poof particle for transformation effects (polymorph, banishment).
 /// Expands quickly then fades.
 #[derive(Component)]

@@ -498,11 +498,11 @@ fn spawn_crystal_entity<'a>(
 
     let crystal_entity = entity_commands.id();
 
-    // Spawn glowing pink range ring (torus lies flat on ground by default)
+    // Spawn pink aura sphere as range indicator
     entity_commands.commands().spawn((
-        Mesh3d(assets.crystal_range_torus.clone()),
-        MeshMaterial3d(assets.crystal_range_indicator.clone()),
-        Transform::from_translation(Vec3::new(position.x, RANGE_INDICATOR_Y, position.z))
+        Mesh3d(assets.explosion_sphere.clone()),
+        MeshMaterial3d(assets.crystal_aura_sphere.clone()),
+        Transform::from_translation(Vec3::new(position.x, 0.0, position.z))
             .with_scale(Vec3::splat(range)),
         CrystalRangeIndicator { crystal_entity },
         OnGameplayScreen,

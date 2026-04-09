@@ -538,6 +538,7 @@ pub fn process_spawn_queue(
                     &king_assets,
                     &mut meshes,
                     &mut materials,
+                    &spell_visual_assets,
                     &mut king_spawned,
                 );
             }
@@ -814,6 +815,7 @@ pub fn process_spawn_queue(
                             entity,
                             &mut materials,
                             &mut meshes,
+                            &spell_visual_assets,
                             &transform,
                             &hitbox,
                         );
