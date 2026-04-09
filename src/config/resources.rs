@@ -506,7 +506,7 @@ impl GameConfig {
 
     /// Effective SFX volume (master × sfx slider × global SFX scaling).
     pub fn effective_sfx_volume(&self) -> f32 {
-        self.master_volume * self.sfx_volume * 0.7
+        self.master_volume * self.sfx_volume * 0.4
     }
 }
 

@@ -26,7 +26,9 @@ use crate::game::units::wizard::spells::utils::{
     spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
+};
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use bevy::prelude::*;
 
@@ -581,6 +583,7 @@ pub fn handle_undead_detonation(
         Without<Corpse>,
     >,
     assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
 ) {
@@ -602,9 +605,12 @@ pub fn handle_undead_detonation(
         );
         explosion.skip_growth = false;
 
+        let mat_handle =
+            clone_sphere_material(&mut sphere_materials, &assets.fireball_explosion_sphere);
+
         commands.spawn((
-            Mesh3d(assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(assets.fireball_explosion.clone()),
+            Mesh3d(assets.explosion_sphere.clone()),
+            MeshMaterial3d(mat_handle),
             Transform::from_translation(origin).with_scale(Vec3::splat(0.1)),
             explosion,
             crate::game::components::OnGameplayScreen,

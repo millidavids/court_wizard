@@ -9,7 +9,7 @@ use super::components::{
 };
 use super::components::{
     Airborne, BanishedModifier, Corpse, Effectiveness, ElectricCharge, FALL_DAMAGE_SCALE, FireDoT,
-    FlockingVelocity, FrostEffectMarker, FrozenSolidModifier, Health, InMelee, MindControlled,
+    FlockingVelocity, FrostAccumulation, FrozenSolidModifier, Health, InMelee, MindControlled,
     OriginalMaterial, PendingDamageEffect, PoisonedModifier, RemoteElectricEffect,
     RemoteFireEffect, RemoteFrostEffect, RootedModifier, SickenedModifier, SlowMovementModifier,
     SmellyModifier, Stunned, TargetingVelocity, Team, TemporaryHitPoints, TimedModifier,
@@ -22,8 +22,9 @@ use super::constants::{
     ELECTRIC_EFFECT_MAX_INTENSITY, ELECTRIC_EFFECT_MIN_INTENSITY, ELITE_EFFECT_COLOR,
     ELITE_EFFECT_MAX_INTENSITY, ELITE_EFFECT_MIN_INTENSITY, ELITE_EFFECT_PULSE_SPEED,
     FIRE_EFFECT_COLOR, FIRE_EFFECT_MAX_INTENSITY, FIRE_EFFECT_MIN_INTENSITY,
-    FIRE_EFFECT_PULSE_SPEED, FROST_EFFECT_COLOR, FROST_EFFECT_INTENSITY, FROST_SLOW_DURATION,
-    FROST_SLOW_PER_STACK, MIND_CONTROL_EFFECT_COLOR, MIND_CONTROL_EFFECT_INTENSITY,
+    FIRE_EFFECT_PULSE_SPEED, FROST_ACCUMULATION_PER_HIT, FROST_EFFECT_COLOR,
+    FROST_EFFECT_MAX_INTENSITY, FROST_GENERIC_DECAY_DELAY, MIND_CONTROL_EFFECT_COLOR,
+    MIND_CONTROL_EFFECT_INTENSITY,
     POISON_DURATION, POISON_EFFECT_COLOR, POISON_EFFECT_INTENSITY, POISON_EFFECTIVENESS_CAP,
     POISON_EFFECTIVENESS_PER_STACK, SHIELD_EFFECT_COLOR, SHIELD_EFFECT_MAX_INTENSITY,
     SHIELD_EFFECT_MIN_INTENSITY, SHIELD_EFFECT_PULSE_SPEED, SICKENED_DURATION,
@@ -339,8 +340,7 @@ pub fn process_pending_damage_effects(
         Has<DryModifier>,
     )>,
     mut fire_query: Query<&mut FireDoT>,
-    mut slow_query: Query<&mut SlowMovementModifier>,
-    mut frost_marker_query: Query<&mut FrostEffectMarker>,
+    mut frost_query: Query<&mut FrostAccumulation>,
     mut electric_query: Query<&mut ElectricCharge>,
     mut poison_query: Query<&mut PoisonedModifier>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -410,29 +410,20 @@ pub fn process_pending_damage_effects(
                 }
             }
             DamageType::Frost => {
-                // Blizzard synergy: frost slow is amplified by COLD_FROST_SLOW_MULTIPLIER
-                let slow_strength = if has_cold {
-                    FROST_SLOW_PER_STACK * COLD_FROST_SLOW_MULTIPLIER
+                // Frost damage drives accumulation (progressive slow + freeze)
+                let frost_amount = if has_cold {
+                    FROST_ACCUMULATION_PER_HIT * COLD_FROST_SLOW_MULTIPLIER
                 } else {
-                    FROST_SLOW_PER_STACK
+                    FROST_ACCUMULATION_PER_HIT
                 };
 
-                // Apply slow via unified SlowMovementModifier
-                if let Ok(mut slow) = slow_query.get_mut(entity) {
-                    slow.apply(slow_strength, FROST_SLOW_DURATION);
+                if let Ok(mut frost) = frost_query.get_mut(entity) {
+                    frost.add_frost(frost_amount, FROST_GENERIC_DECAY_DELAY);
                 } else {
-                    commands.entity(entity).insert(SlowMovementModifier::new(
-                        slow_strength,
-                        FROST_SLOW_DURATION,
+                    commands.entity(entity).insert(FrostAccumulation::new(
+                        frost_amount,
+                        FROST_GENERIC_DECAY_DELAY,
                     ));
-                }
-                // Also apply frost visual marker
-                if let Ok(mut marker) = frost_marker_query.get_mut(entity) {
-                    marker.apply(FROST_SLOW_DURATION);
-                } else {
-                    commands
-                        .entity(entity)
-                        .insert(FrostEffectMarker::new(FROST_SLOW_DURATION));
                 }
                 // Blizzard synergy: frost + cold = freeze (brief root)
                 if has_cold {
@@ -477,6 +468,78 @@ pub fn process_pending_damage_effects(
     }
 }
 
+/// Updates frost accumulation: decays over time, applies proportional slow,
+/// and triggers freeze at max level.
+pub fn update_frost_accumulation(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut query: Query<(
+        Entity,
+        &mut FrostAccumulation,
+        Option<&mut SlowMovementModifier>,
+        Has<FireDoT>,
+    )>,
+    storms: Query<&crate::game::units::wizard::spells::squall::components::SquallStorm>,
+) {
+    use crate::game::units::wizard::spells::squall::constants::{
+        FROST_DECAY_RATE, FROST_FREEZE_DURATION, FROST_MAX_SLOW, PERMAFROST_FREEZE_DURATION,
+    };
+
+    /// Rate at which fire melts frost accumulation (per second).
+    const FIRE_MELTS_FROST_RATE: f32 = 0.3;
+
+    let delta = time.delta_secs();
+    let has_permafrost = storms.iter().any(|s| s.talent_params.permafrost);
+    let freeze_duration = if has_permafrost {
+        PERMAFROST_FREEZE_DURATION
+    } else {
+        FROST_FREEZE_DURATION
+    };
+
+    for (entity, mut frost, slow_mod, has_fire) in &mut query {
+        // Fire melts frost
+        if has_fire {
+            frost.level -= FIRE_MELTS_FROST_RATE * delta;
+        }
+
+        // Decay logic
+        frost.decay_delay -= delta;
+        if frost.decay_delay <= 0.0 {
+            frost.level -= FROST_DECAY_RATE * delta;
+        }
+
+        // Remove if fully thawed
+        if frost.level <= 0.0 {
+            commands
+                .entity(entity)
+                .remove::<FrostAccumulation>()
+                .remove::<SlowMovementModifier>();
+            continue;
+        }
+
+        // Freeze at max
+        if frost.level >= 1.0 {
+            commands
+                .entity(entity)
+                .insert(FrozenSolidModifier::new(freeze_duration))
+                .remove::<FrostAccumulation>()
+                .remove::<SlowMovementModifier>();
+            continue;
+        }
+
+        // Update slow proportionally (refreshed each frame)
+        let slow_amount = frost.level * FROST_MAX_SLOW;
+        if let Some(mut slow) = slow_mod {
+            slow.modifier = slow_amount;
+            slow.time_remaining = 0.5; // short refresh window
+        } else {
+            commands
+                .entity(entity)
+                .insert(SlowMovementModifier::new(slow_amount, 0.5));
+        }
+    }
+}
+
 /// Ticks FireDoT damage on affected units and removes expired DoTs.
 ///
 /// DoT damage is applied directly to health (does not trigger more DoT).
@@ -490,11 +553,23 @@ pub fn update_fire_dot(
         Option<&mut TemporaryHitPoints>,
         Has<SpellShield>,
         Has<WetModifier>,
+        Option<&FrostAccumulation>,
     )>,
 ) {
+    /// Rate at which frost quenches fire DPS (DPS reduction per second per frost level).
+    const FROST_QUENCHES_FIRE_RATE: f32 = 5.0;
+
     let delta = time.delta_secs();
 
-    for (entity, mut fire_dot, mut health, temp_hp, has_shield, is_wet) in query.iter_mut() {
+    for (entity, mut fire_dot, mut health, temp_hp, has_shield, is_wet, frost) in query.iter_mut()
+    {
+        // Frost quenches fire — reduce DPS proportional to frost level
+        if let Some(frost) = frost {
+            fire_dot.damage_per_tick =
+                (fire_dot.damage_per_tick - FROST_QUENCHES_FIRE_RATE * frost.level * delta)
+                    .max(0.0);
+        }
+
         let (tick_damage, expired) = fire_dot.update(delta);
 
         if let Some(damage) = tick_damage
@@ -780,7 +855,7 @@ pub fn update_persistent_effect_visuals(
             Entity,
             &MeshMaterial3d<StandardMaterial>,
             Option<&FireDoT>,
-            Option<&FrostEffectMarker>,
+            Option<&FrostAccumulation>,
             Option<&ElectricCharge>,
             Has<RemoteFireEffect>,
             Has<RemoteFrostEffect>,
@@ -801,7 +876,7 @@ pub fn update_persistent_effect_visuals(
         ),
         Or<(
             With<FireDoT>,
-            With<FrostEffectMarker>,
+            With<FrostAccumulation>,
             With<ElectricCharge>,
             With<RemoteFireEffect>,
             With<RemoteFrostEffect>,
@@ -916,7 +991,10 @@ pub fn update_persistent_effect_visuals(
             }
 
             if has_frost {
-                result_linear = result_linear.mix(&frost_linear, FROST_EFFECT_INTENSITY);
+                let frost_intensity = frost
+                    .map(|f| f.level * FROST_EFFECT_MAX_INTENSITY)
+                    .unwrap_or(FROST_EFFECT_MAX_INTENSITY * 0.5);
+                result_linear = result_linear.mix(&frost_linear, frost_intensity);
             }
 
             if has_wet {

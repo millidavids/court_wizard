@@ -170,6 +170,7 @@ pub fn handle_magic_missile_casting(
             },
             ConcentrationSpell {
                 spell_name: "Arcane Barrage",
+                mana_cost: constants::MANA_COST,
             },
             OnGameplayScreen,
         ));

@@ -34,7 +34,7 @@ pub const PROJECTILE_COLLISION_RADIUS: f32 = 15.0;
 pub const EXPLOSION_RADIUS: f32 = 100.0;
 
 /// Duration of the explosion animation in seconds.
-pub const EXPLOSION_DURATION: f32 = 0.4;
+pub const EXPLOSION_DURATION: f32 = 0.6;
 
 /// Interval between damage ticks in seconds.
 pub const DAMAGE_TICK_INTERVAL: f32 = 0.05;
@@ -51,3 +51,14 @@ pub const DAMAGE_PER_TICK: f32 = TOTAL_DAMAGE / (EXPLOSION_DURATION / DAMAGE_TIC
 
 /// Radius of the fireball projectile mesh.
 pub const FIREBALL_RADIUS: f32 = 10.0;
+
+// ── Sub-explosion bubbles (organic sphere breakup) ──────────────────────
+/// Number of sub-explosion bubbles to spawn per fireball explosion.
+pub const EXPLOSION_BUBBLE_COUNT: u32 = 6;
+/// Min distance from center for bubble spawn (fraction of max explosion radius).
+pub const BUBBLE_OFFSET_FRACTION_MIN: f32 = 0.1;
+/// Max distance from center for bubble spawn (fraction of max explosion radius).
+pub const BUBBLE_OFFSET_FRACTION_MAX: f32 = 0.7;
+/// How far past the main explosion edge a bubble can reach (fraction of max radius).
+/// Bubble radius = (BUBBLE_OVERSHOOT - offset_fraction) * max_radius.
+pub const BUBBLE_OVERSHOOT: f32 = 1.2;

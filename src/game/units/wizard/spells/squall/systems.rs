@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use super::components::{
-    AbsoluteZeroSlow, FrozenGround, IceExplosion, IceProjectile, PermafrostTracker, SnowParticle,
+    AbsoluteZeroSlow, FrozenGround, IceExplosion, IceProjectile, SnowParticle,
     SquallStorm, SquallStormRing, SquallTalentParams,
 };
 use super::constants::*;
@@ -17,7 +17,7 @@ use crate::game::input::messages::MouseLeftReleased;
 use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::units::DamageType;
 use crate::game::units::components::{
-    FogEvasionModifier, FrostEffectMarker, FrozenSolidModifier, Health, SlowMovementModifier, Team,
+    FogEvasionModifier, FrostAccumulation, Health, Hitbox, SlowMovementModifier, Team,
     TemporaryHitPoints, apply_spell_damage,
 };
 use crate::game::units::king::components::SpellShield;
@@ -28,10 +28,13 @@ use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
     RETICLE_Y, SpellCircleIndicator, build_wizard_input, clamp_to_spell_range_ground,
     cleanup_spell_caster, get_cursor_world_position, handle_spell_release, indicator_pulse_scale,
-    make_reticle_mesh, spawn_circle_indicator, update_indicator_position, xz_distance,
+    make_reticle_mesh, spawn_circle_indicator, sphere_intersects_cylinder,
+    update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
+};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -53,19 +56,19 @@ fn apply_or_insert_slow(
     }
 }
 
-/// Applies or inserts a [`FrostEffectMarker`] on an entity.
-fn apply_or_insert_frost(
+/// Adds frost accumulation to an entity from an ice hit.
+fn apply_frost_accumulation(
     commands: &mut Commands,
     entity: Entity,
-    existing: Option<Mut<FrostEffectMarker>>,
-    duration: f32,
+    existing: Option<Mut<FrostAccumulation>>,
+    amount: f32,
 ) {
     if let Some(mut frost) = existing {
-        frost.apply(duration);
+        frost.add_frost(amount, FROST_DECAY_DELAY);
     } else {
         commands
             .entity(entity)
-            .insert(FrostEffectMarker::new(duration));
+            .insert(FrostAccumulation::new(amount, FROST_DECAY_DELAY));
     }
 }
 
@@ -295,13 +298,10 @@ fn squall_casting_logic(
                             if !talent_params.absolute_zero {
                                 storm_entity.insert(ConcentrationSpell {
                                     spell_name: "Squall",
+                                    mana_cost: MANA_COST,
                                 });
                             }
 
-                            // Add permafrost tracker if talent is active
-                            if talent_params.permafrost {
-                                storm_entity.insert(PermafrostTracker::default());
-                            }
 
                             // Spawn persistent annulus ring reticle for the storm
                             let ring_mesh = meshes.add(make_reticle_mesh(storm_radius));
@@ -430,6 +430,7 @@ pub(super) fn update_ice_projectiles(
 pub(super) fn check_ice_projectile_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     projectiles: Query<(Entity, &Transform, &IceProjectile)>,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
@@ -448,6 +449,7 @@ pub(super) fn check_ice_projectile_collisions(
                 spawn_ice_explosion(
                     &mut commands,
                     &visual_assets,
+                    &mut sphere_materials,
                     explosion_pos,
                     projectile.explosion_radius,
                     projectile.damage,
@@ -479,6 +481,7 @@ pub(super) fn check_ice_projectile_collisions(
                 spawn_ice_explosion(
                     &mut commands,
                     &visual_assets,
+                    &mut sphere_materials,
                     explosion_pos,
                     projectile.explosion_radius,
                     projectile.damage,
@@ -509,6 +512,7 @@ pub(super) fn check_ice_projectile_collisions(
             spawn_ice_explosion(
                 &mut commands,
                 &visual_assets,
+                &mut sphere_materials,
                 explosion_pos,
                 projectile.explosion_radius,
                 projectile.damage,
@@ -541,20 +545,21 @@ pub(super) fn check_ice_projectile_collisions(
 fn spawn_ice_explosion(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
     position: Vec3,
     max_radius: f32,
     damage: f32,
     empowerment: f32,
 ) {
-    // Position slightly above battlefield (y=1) to avoid z-fighting
     let explosion_pos = Vec3::new(position.x, 1.0, position.z);
 
+    let mat_handle =
+        clone_sphere_material(sphere_materials, &assets.ice_explosion_sphere);
+
     commands.spawn((
-        Mesh3d(assets.unit_circle.clone()),
-        MeshMaterial3d(assets.ice_explosion.clone()),
-        Transform::from_translation(explosion_pos)
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(0.1)),
+        Mesh3d(assets.explosion_sphere.clone()),
+        MeshMaterial3d(mat_handle),
+        Transform::from_translation(explosion_pos).with_scale(Vec3::splat(0.1)),
         IceExplosion::new(position, max_radius, damage, empowerment),
         NetworkedSpellEffect {
             kind: SpellEffectKind::IceExplosion,
@@ -568,21 +573,26 @@ fn spawn_ice_explosion(
 pub(super) fn update_ice_explosions(
     time: Res<Time>,
     mut commands: Commands,
-    mut explosions: Query<(Entity, &mut IceExplosion, &mut Transform)>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
+    visual_assets: Res<SpellVisualAssets>,
+    mut explosions: Query<(
+        Entity,
+        &mut IceExplosion,
+        &mut Transform,
+        Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
+    )>,
     mut units: Query<
         (
             Entity,
             &Transform,
-            &Team,
             &mut Health,
             Option<&mut TemporaryHitPoints>,
             Has<SpellShield>,
-            Option<&mut SlowMovementModifier>,
-            Option<&mut FrostEffectMarker>,
+            Option<&mut FrostAccumulation>,
+            &Hitbox,
         ),
         Without<IceExplosion>,
     >,
-    mut permafrost_trackers: Query<&mut PermafrostTracker>,
     storms: Query<&SquallStorm>,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
@@ -593,36 +603,78 @@ pub(super) fn update_ice_explosions(
         .map(|s| s.talent_params.permafrost)
         .unwrap_or(false);
 
-    for (explosion_entity, mut explosion, mut transform) in explosions.iter_mut() {
+    let time_secs = time.elapsed_secs();
+
+    for (explosion_entity, mut explosion, mut transform, material_handle) in explosions.iter_mut() {
         explosion.time_alive += time.delta_secs();
 
         // Update visual scale (growth animation)
         let current_radius = explosion.current_radius(EXPLOSION_GROWTH_TIME);
         transform.scale = Vec3::splat(current_radius);
 
+        // Fade out over the last portion of lifetime
+        if let Some(handle) = material_handle
+            && let Some(mat) = sphere_materials.get_mut(handle)
+        {
+            mat.opacity =
+                explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
+        }
+
+        // Continuous white smoke from explosion surface (throttled to ~20Hz)
+        let prev_tick = ((explosion.time_alive - time.delta_secs()) / 0.05) as u32;
+        let curr_tick = (explosion.time_alive / 0.05) as u32;
+        if current_radius > 5.0 && curr_tick > prev_tick && explosion.time_alive < EXPLOSION_LIFETIME
+        {
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            let dir = Vec3::new(
+                rng.gen_range(-1.0..1.0_f32),
+                rng.gen_range(0.2..1.0_f32),
+                rng.gen_range(-1.0..1.0_f32),
+            )
+            .normalize_or(Vec3::Y);
+            let surface_pos = explosion.origin + dir * current_radius;
+            vfx::systems::spawn_explosion_smoke_with_material(
+                &mut commands,
+                &visual_assets,
+                surface_pos,
+                time_secs,
+                visual_assets.ice_smoke.clone(),
+                5,
+            );
+        }
+
         // Apply damage once when explosion spawns
         if !explosion.damage_applied {
             explosion.damage_applied = true;
             let mut units_hit: u32 = 0;
 
+            // Permafrost talent doubles frost accumulation per hit
+            let frost_per_hit = if storm_has_permafrost {
+                PERMAFROST_FROST_PER_HIT
+            } else {
+                FROST_PER_HIT
+            };
+
             for (
                 unit_entity,
                 unit_transform,
-                team,
                 mut health,
                 mut temp_hp,
                 has_spell_shield,
-                slow_mod,
-                frost_marker,
+                frost_accum,
+                hitbox,
             ) in units.iter_mut()
             {
-                if *team == Team::Defenders {
-                    continue;
-                }
+                let hit = sphere_intersects_cylinder(
+                    explosion.origin,
+                    explosion.current_radius(EXPLOSION_GROWTH_TIME).max(explosion.max_radius),
+                    Vec3::new(unit_transform.translation.x, 0.0, unit_transform.translation.z),
+                    hitbox.radius,
+                    hitbox.height,
+                );
 
-                let distance = unit_transform.translation.distance(explosion.origin);
-
-                if distance <= explosion.max_radius {
+                if hit {
                     apply_spell_damage(
                         &mut commands,
                         unit_entity,
@@ -634,37 +686,13 @@ pub(super) fn update_ice_explosions(
                     );
                     units_hit += 1;
 
-                    // Apply frost slow + visual
-                    apply_or_insert_slow(
+                    // Progressive frost accumulation (drives slow + tint + eventual freeze)
+                    apply_frost_accumulation(
                         &mut commands,
                         unit_entity,
-                        slow_mod,
-                        FROST_SLOW_MODIFIER,
-                        FROST_SLOW_DURATION,
+                        frost_accum,
+                        frost_per_hit,
                     );
-                    apply_or_insert_frost(
-                        &mut commands,
-                        unit_entity,
-                        frost_marker,
-                        FROST_SLOW_DURATION,
-                    );
-
-                    // Track permafrost hits
-                    if storm_has_permafrost {
-                        for mut tracker in permafrost_trackers.iter_mut() {
-                            let count = tracker.hit_counts.entry(unit_entity).or_insert(0);
-                            *count += 1;
-                            if *count >= PERMAFROST_HIT_THRESHOLD {
-                                // Freeze solid!
-                                commands.entity(unit_entity).insert((
-                                    FrozenSolidModifier::new(PERMAFROST_FREEZE_DURATION),
-                                    FrostEffectMarker::new(PERMAFROST_FREEZE_DURATION),
-                                ));
-                                // Reset counter so they can be frozen again
-                                *count = 0;
-                            }
-                        }
-                    }
                 }
             }
 
@@ -728,7 +756,7 @@ pub(super) fn update_absolute_zero(
         &mut Health,
         Option<&mut AbsoluteZeroSlow>,
         Option<&mut SlowMovementModifier>,
-        Option<&mut FrostEffectMarker>,
+        Option<&mut FrostAccumulation>,
     )>,
     mut commands: Commands,
 ) {
@@ -753,7 +781,7 @@ pub(super) fn update_absolute_zero(
 
         let damage_this_frame = ABSOLUTE_ZERO_DPS * delta;
 
-        for (entity, unit_transform, team, mut health, az_slow, slow_mod, frost_marker) in
+        for (entity, unit_transform, team, mut health, az_slow, slow_mod, frost_accum) in
             units.iter_mut()
         {
             if *team == Team::Defenders {
@@ -766,13 +794,12 @@ pub(super) fn update_absolute_zero(
                 // Apply damage
                 health.take_damage(damage_this_frame);
 
-                // Stack slow
+                // Stack slow (Absolute Zero has its own stacking on top of frost accumulation)
                 if let Some(mut az) = az_slow {
                     az.accumulated_slow = (az.accumulated_slow - ABSOLUTE_ZERO_SLOW_PER_FRAME)
                         .max(-ABSOLUTE_ZERO_MAX_SLOW);
                     az.decay_timer = ABSOLUTE_ZERO_SLOW_DECAY_TIME;
 
-                    // Update the movement modifier to match
                     apply_or_insert_slow(
                         &mut commands,
                         entity,
@@ -781,7 +808,6 @@ pub(super) fn update_absolute_zero(
                         ABSOLUTE_ZERO_SLOW_DECAY_TIME,
                     );
                 } else {
-                    // First frame in zone — create tracker
                     commands.entity(entity).insert(AbsoluteZeroSlow {
                         accumulated_slow: -ABSOLUTE_ZERO_SLOW_PER_FRAME,
                         decay_timer: ABSOLUTE_ZERO_SLOW_DECAY_TIME,
@@ -795,12 +821,12 @@ pub(super) fn update_absolute_zero(
                     );
                 }
 
-                // Apply frost visual
-                apply_or_insert_frost(
+                // Also build frost accumulation (drives blue tint + eventual freeze)
+                apply_frost_accumulation(
                     &mut commands,
                     entity,
-                    frost_marker,
-                    ABSOLUTE_ZERO_SLOW_DECAY_TIME,
+                    frost_accum,
+                    FROST_PER_HIT * delta * 5.0, // continuous accumulation while in zone
                 );
             }
         }

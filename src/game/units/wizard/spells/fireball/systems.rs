@@ -22,7 +22,9 @@ use crate::game::units::wizard::spells::utils::{
     try_start_cast_with_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
+};
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::game::units::wizard::talents::resources::ActiveTalents;
 use crate::networking::snapshot::SpellEffectKind;
@@ -358,6 +360,7 @@ pub fn spawn_fireball_smoke_trail(
 pub fn check_fireball_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
     fireballs: Query<(Entity, &Transform, &Fireball, Option<&CrystalSpawn>)>,
     targets: Query<(&Transform, &Team)>,
@@ -371,24 +374,28 @@ pub fn check_fireball_collisions(
     for (fireball_entity, fireball_transform, fireball, crystal_spawn) in &fireballs {
         let fireball_pos = fireball_transform.translation;
 
-        let explode_at = |commands: &mut Commands, pos: Vec3| {
-            spawn_explosion_with_talents(
-                commands,
-                &visual_assets,
-                pos,
-                fireball,
-                t,
-                &sfx,
-                &game_config,
-                crystal_spawn,
-            );
-        };
+        let explode_at =
+            |commands: &mut Commands,
+             mats: &mut Assets<FireExplosionSphereMaterial>,
+             pos: Vec3| {
+                spawn_explosion_with_talents(
+                    commands,
+                    &visual_assets,
+                    mats,
+                    pos,
+                    fireball,
+                    t,
+                    &sfx,
+                    &game_config,
+                    crystal_spawn,
+                );
+            };
 
         // Check collision with walls
         let mut hit_wall = false;
         for wall in &walls {
             if wall.contains_point_xz(fireball_pos) && fireball_pos.y <= wall.height {
-                explode_at(&mut commands, fireball_pos);
+                explode_at(&mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 hit_wall = true;
                 break;
@@ -402,7 +409,7 @@ pub fn check_fireball_collisions(
         let mut hit_rock = false;
         for rock in &rocks {
             if rock.blocks_projectile(fireball_pos) {
-                explode_at(&mut commands, fireball_pos);
+                explode_at(&mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 hit_rock = true;
                 break;
@@ -415,7 +422,7 @@ pub fn check_fireball_collisions(
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {
             let explosion_pos = Vec3::new(fireball_pos.x, 5.0, fireball_pos.z);
-            explode_at(&mut commands, explosion_pos);
+            explode_at(&mut commands, &mut sphere_materials, explosion_pos);
             commands.entity(fireball_entity).try_despawn();
             continue;
         }
@@ -425,7 +432,7 @@ pub fn check_fireball_collisions(
             let distance = fireball_pos.distance(target_transform.translation);
 
             if distance < fireball.radius {
-                explode_at(&mut commands, fireball_pos);
+                explode_at(&mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 break;
             }
@@ -438,6 +445,7 @@ pub fn check_fireball_collisions(
 fn spawn_explosion_with_talents(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
     position: Vec3,
     fireball: &Fireball,
     _time_secs: f32,
@@ -461,11 +469,42 @@ fn spawn_explosion_with_talents(
     explosion.duration = explosion_duration;
     explosion.chain_ignition = fireball.chain_ignition;
 
+    // Per-entity material clone so each explosion can fade independently
+    let mat_handle =
+        clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
+
+    // Pre-generate all sub-explosion bubbles with distance-based sizes
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let max_r = fireball.explosion_radius;
+    let pending: Vec<PendingBubble> = (0..constants::EXPLOSION_BUBBLE_COUNT)
+        .map(|_| {
+            let direction = Vec3::new(
+                rng.gen_range(-1.0..1.0_f32),
+                rng.gen_range(0.0..1.0_f32),
+                rng.gen_range(-1.0..1.0_f32),
+            )
+            .normalize_or(Vec3::Y);
+            let offset_frac = rng.gen_range(
+                constants::BUBBLE_OFFSET_FRACTION_MIN..constants::BUBBLE_OFFSET_FRACTION_MAX,
+            );
+            let distance = max_r * offset_frac;
+            // Size so bubble never reaches more than 10% past main explosion edge
+            let radius = max_r * (constants::BUBBLE_OVERSHOOT - offset_frac);
+            PendingBubble {
+                direction,
+                distance,
+                radius,
+            }
+        })
+        .collect();
+
     let entity = commands
         .spawn((
-            Mesh3d(assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(assets.fireball_explosion.clone()),
+            Mesh3d(assets.explosion_sphere.clone()),
+            MeshMaterial3d(mat_handle),
             Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
+            ExplosionBubbleSpawner { pending },
             explosion,
             NetworkedSpellEffect {
                 kind: SpellEffectKind::FireballExplosion,
@@ -570,6 +609,7 @@ pub fn update_napalm_trails(
     mut commands: Commands,
     time: Res<Time>,
     visual_assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     mut fireballs: Query<(&Transform, &mut Fireball)>,
 ) {
     for (transform, mut fireball) in &mut fireballs {
@@ -590,9 +630,15 @@ pub fn update_napalm_trails(
             );
             trail_explosion.duration = 1.0;
 
+            let mat = sphere_materials
+                .get(&visual_assets.fireball_explosion_sphere)
+                .expect("sphere material template")
+                .clone();
+            let mat_handle = sphere_materials.add(mat);
+
             commands.spawn((
-                Mesh3d(visual_assets.cross_plane_sphere.clone()),
-                MeshMaterial3d(visual_assets.fireball_explosion.clone()),
+                Mesh3d(visual_assets.explosion_sphere.clone()),
+                MeshMaterial3d(mat_handle),
                 Transform::from_translation(pos)
                     .with_scale(Vec3::splat(30.0 * fireball.empowerment)),
                 trail_explosion,
@@ -602,14 +648,18 @@ pub fn update_napalm_trails(
     }
 }
 
-/// Updates explosion visuals and timing. Spawns sparks+smoke VFX on first frame.
+/// Updates explosion visuals and timing. Spawns VFX burst on first frame and
+/// continuous sparks + smoke throughout the explosion's lifetime.
 pub fn update_explosions(
     mut commands: Commands,
     time: Res<Time>,
     visual_assets: Res<SpellVisualAssets>,
     mut explosions: Query<(&mut FireballExplosion, &mut Transform)>,
 ) {
+    use rand::Rng;
     let time_secs = time.elapsed_secs();
+    let mut rng = rand::thread_rng();
+
     for (mut explosion, mut transform) in &mut explosions {
         explosion.time_alive += time.delta_secs();
         explosion.time_since_last_tick += time.delta_secs();
@@ -637,6 +687,37 @@ pub fn update_explosions(
                 time_secs,
             );
             vfx::systems::spawn_explosion_dark_smoke(&mut commands, &visual_assets, pos, time_secs);
+        }
+
+        // Continuous sparks and smoke from random positions on the explosion surface
+        if explosion.vfx_spawned
+            && !explosion.skip_growth
+            && current_radius > 5.0
+            && explosion.time_since_last_tick >= constants::DAMAGE_TICK_INTERVAL
+        {
+            let dir = Vec3::new(
+                rng.gen_range(-1.0..1.0_f32),
+                rng.gen_range(0.2..1.0_f32),
+                rng.gen_range(-1.0..1.0_f32),
+            )
+            .normalize_or(Vec3::Y);
+            let surface_pos = explosion.origin + dir * current_radius;
+
+            vfx::systems::spawn_fire_sparks(
+                &mut commands,
+                &visual_assets,
+                surface_pos,
+                4,
+                time_secs,
+            );
+            vfx::systems::spawn_explosion_smoke_with_material(
+                &mut commands,
+                &visual_assets,
+                surface_pos,
+                time_secs,
+                visual_assets.fire_smoke.clone(),
+                5,
+            );
         }
     }
 }
@@ -747,6 +828,81 @@ pub fn spawn_scorched_earth_fire_smoke(
             9,
             t,
         );
+    }
+}
+
+/// Spawns sub-explosion spheres when the main explosion's radius reaches their position.
+///
+/// Each pending bubble has a pre-computed trigger distance. When the main explosion
+/// grows past that distance, the bubble spawns — giving an amorphous, erupting look.
+pub(super) fn spawn_explosion_bubbles(
+    mut commands: Commands,
+    visual_assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
+    mut spawners: Query<(
+        &FireballExplosion,
+        &mut ExplosionBubbleSpawner,
+        &Transform,
+    )>,
+) {
+    for (explosion, mut spawner, transform) in &mut spawners {
+        let current_radius = explosion.current_radius();
+
+        for i in (0..spawner.pending.len()).rev() {
+            if current_radius < spawner.pending[i].distance {
+                continue;
+            }
+
+            let bubble = spawner.pending.swap_remove(i);
+            let pos = transform.translation + bubble.direction * bubble.distance;
+
+            // Per-entity material clone for independent fade
+            let mat = sphere_materials
+                .get(&visual_assets.fireball_explosion_sphere)
+                .expect("sphere material template")
+                .clone();
+            let mat_handle = sphere_materials.add(mat);
+
+            // Duration = remaining time so it ends with the main explosion
+            let remaining = (explosion.duration - explosion.time_alive).max(0.1);
+
+            let mut sub = FireballExplosion::new(
+                pos,
+                bubble.radius,
+                0.0, // visual only, no damage
+                constants::DAMAGE_TYPE,
+                explosion.empowerment,
+            );
+            sub.duration = remaining;
+            sub.vfx_spawned = true; // skip sparks/smoke
+
+            commands.spawn((
+                Mesh3d(visual_assets.explosion_sphere.clone()),
+                MeshMaterial3d(mat_handle),
+                Transform::from_translation(pos).with_scale(Vec3::splat(0.1)),
+                sub,
+                OnGameplayScreen,
+            ));
+        }
+    }
+}
+
+/// Fades out explosion spheres that use FireExplosionSphereMaterial over their last portion.
+pub(super) fn fade_explosion_spheres(
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
+    explosions: Query<(
+        &FireballExplosion,
+        &MeshMaterial3d<FireExplosionSphereMaterial>,
+    )>,
+) {
+    for (explosion, material_handle) in &explosions {
+        if explosion.duration <= 0.0 {
+            continue;
+        }
+        let opacity = explosion_fade_opacity(explosion.time_alive / explosion.duration);
+        if let Some(mat) = sphere_materials.get_mut(material_handle) {
+            mat.opacity = opacity;
+        }
     }
 }
 

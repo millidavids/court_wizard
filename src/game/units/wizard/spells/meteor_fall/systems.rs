@@ -28,7 +28,9 @@ use crate::game::units::wizard::spells::utils::{
     spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
+};
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -320,6 +322,7 @@ fn meteor_fall_casting_logic(
                                     storm,
                                     ConcentrationSpell {
                                         spell_name: "Meteor Fall",
+                                        mana_cost: MANA_COST,
                                     },
                                     OnGameplayScreen,
                                 ));
@@ -510,14 +513,18 @@ pub(crate) fn spawn_meteor_projectile_entity(
 fn spawn_explosion_entity(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
+    sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
     pos: Vec3,
     radius: f32,
     damage: f32,
     networked: bool,
 ) {
+    let mat_handle =
+        clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
+
     let mut entity = commands.spawn((
-        Mesh3d(assets.cross_plane_sphere.clone()),
-        MeshMaterial3d(assets.fireball_explosion.clone()),
+        Mesh3d(assets.explosion_sphere.clone()),
+        MeshMaterial3d(mat_handle),
         Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
             .with_scale(Vec3::splat(0.1)),
         MeteorExplosion::new(pos, radius, damage),
@@ -653,6 +660,7 @@ pub(super) fn spawn_meteor_smoke_trail(
 pub(super) fn check_meteor_collisions(
     mut commands: Commands,
     visual_assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     projectiles: Query<(Entity, &Transform, &MeteorProjectile)>,
     mut pathfinding: ResMut<PathfindingGrid>,
     sfx: Res<SpellSfxAssets>,
@@ -683,6 +691,7 @@ pub(super) fn check_meteor_collisions(
             spawn_explosion_entity(
                 &mut commands,
                 &visual_assets,
+                &mut sphere_materials,
                 pos,
                 projectile.explosion_radius,
                 projectile.damage,
@@ -764,6 +773,7 @@ pub(super) fn check_meteor_collisions(
                         spawn_explosion_entity(
                             &mut commands,
                             &visual_assets,
+                            &mut sphere_materials,
                             fire.origin,
                             VOLCANIC_ERUPTION_RADIUS,
                             eruption_damage,
@@ -805,11 +815,9 @@ pub(super) fn check_meteor_collisions(
                 ground_fire.is_extinction = projectile.is_extinction;
 
                 commands.spawn((
-                    Mesh3d(visual_assets.unit_circle.clone()),
-                    MeshMaterial3d(visual_assets.meteor_ground_fire.clone()),
                     Transform::from_translation(Vec3::new(pos.x, 0.5, pos.z))
-                        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
                         .with_scale(Vec3::splat(fire_radius)),
+                    Visibility::default(),
                     ground_fire,
                     NetworkedSpellEffect {
                         kind: SpellEffectKind::MeteorGroundFire,
@@ -878,10 +886,17 @@ pub(super) fn process_extinction_event(
 
 /// Updates explosion visuals and applies one-time impact damage.
 /// Also tracks talent progress.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn update_meteor_explosions(
     time: Res<Time>,
     mut commands: Commands,
-    mut explosions: Query<(Entity, &mut MeteorExplosion, &mut Transform)>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
+    mut explosions: Query<(
+        Entity,
+        &mut MeteorExplosion,
+        &mut Transform,
+        Option<&MeshMaterial3d<FireExplosionSphereMaterial>>,
+    )>,
     mut units: Query<
         (
             Entity,
@@ -894,12 +909,20 @@ pub(super) fn update_meteor_explosions(
     >,
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
-    for (explosion_entity, mut explosion, mut transform) in explosions.iter_mut() {
+    for (explosion_entity, mut explosion, mut transform, material_handle) in explosions.iter_mut() {
         explosion.time_alive += time.delta_secs();
 
         // Update visual scale (growth animation)
         let current_radius = explosion.current_radius(EXPLOSION_GROWTH_TIME);
         transform.scale = Vec3::splat(current_radius);
+
+        // Fade out over the last portion of lifetime
+        if let Some(handle) = material_handle
+            && let Some(mat) = sphere_materials.get_mut(handle)
+        {
+            mat.opacity =
+                explosion_fade_opacity(explosion.time_alive / EXPLOSION_LIFETIME);
+        }
 
         // Apply damage once when explosion spawns
         if !explosion.damage_applied {

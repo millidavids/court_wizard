@@ -195,7 +195,6 @@ macro_rules! impl_timed_modifier {
 
 impl_timed_modifier!(
     SlowMovementModifier,
-    FrostEffectMarker,
     TemporaryHitPoints,
     RootedModifier,
     HasteModifier,
@@ -315,33 +314,31 @@ impl SlowMovementModifier {
     }
 }
 
-/// Marker component for the frost visual tint effect.
+/// Progressive frost accumulation that drives blue tint, movement slow, and eventual freeze.
 ///
-/// Separate from SlowMovementModifier because the frost blue tint should only
-/// appear for frost-sourced slows, not for spike growth or grease slows.
+/// Each frost hit increases `level`. As level rises, the unit turns bluer and moves
+/// slower. At level 1.0 the unit freezes solid (can't move or attack).
+/// Frost decays after a delay when no new hits land.
 #[derive(Component)]
-pub struct FrostEffectMarker {
-    /// Time remaining before the visual effect expires (in seconds).
-    pub time_remaining: f32,
+pub struct FrostAccumulation {
+    /// Current frost level (0.0 = none, 1.0 = frozen).
+    pub level: f32,
+    /// Seconds remaining before frost starts decaying (resets on each hit).
+    pub decay_delay: f32,
 }
 
-impl FrostEffectMarker {
-    pub const fn new(duration: f32) -> Self {
+impl FrostAccumulation {
+    pub fn new(initial_level: f32, decay_delay: f32) -> Self {
         Self {
-            time_remaining: duration,
+            level: initial_level.min(1.0),
+            decay_delay,
         }
     }
 
-    /// Refresh the marker, keeping the longer duration.
-    pub fn apply(&mut self, duration: f32) {
-        if duration > self.time_remaining {
-            self.time_remaining = duration;
-        }
-    }
-
-    pub fn update(&mut self, delta: f32) -> bool {
-        self.time_remaining -= delta;
-        self.time_remaining <= 0.0
+    /// Add frost from a hit. Resets the decay delay.
+    pub fn add_frost(&mut self, amount: f32, decay_delay: f32) {
+        self.level = (self.level + amount).min(1.0);
+        self.decay_delay = decay_delay;
     }
 }
 

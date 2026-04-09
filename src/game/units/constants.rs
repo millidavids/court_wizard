@@ -15,12 +15,12 @@ pub const FIRE_DOT_TICK_INTERVAL: f32 = 0.5;
 /// Maximum DoT damage per tick (prevents runaway damage).
 pub const FIRE_DOT_MAX_DPS: f32 = 30.0;
 
-// ===== Frost Slow =====
+// ===== Frost Accumulation (general frost damage sources) =====
 
-/// Additional slow percentage per frost damage hit.
-pub const FROST_SLOW_PER_STACK: f32 = -0.05;
-/// Seconds before frost slow expires (resets on each frost hit).
-pub const FROST_SLOW_DURATION: f32 = 3.0;
+/// Frost accumulation per generic frost damage hit (non-squall sources).
+pub const FROST_ACCUMULATION_PER_HIT: f32 = 0.1;
+/// Seconds after last hit before frost decay begins (generic sources).
+pub const FROST_GENERIC_DECAY_DELAY: f32 = 1.5;
 
 // ===== Electric Arc =====
 
@@ -63,8 +63,8 @@ pub const ELECTRIC_EFFECT_FLICKER_SPEED: f32 = 12.0;
 pub const FIRE_EFFECT_MAX_INTENSITY: f32 = 0.45;
 /// Minimum blend strength for fire tint.
 pub const FIRE_EFFECT_MIN_INTENSITY: f32 = 0.15;
-/// Blend strength for frost tint (constant, no pulsing).
-pub const FROST_EFFECT_INTENSITY: f32 = 0.35;
+/// Max frost tint intensity at full accumulation (scales with frost level).
+pub const FROST_EFFECT_MAX_INTENSITY: f32 = 0.6;
 /// Maximum blend strength for electric tint.
 pub const ELECTRIC_EFFECT_MAX_INTENSITY: f32 = 0.5;
 /// Minimum blend strength for electric tint.

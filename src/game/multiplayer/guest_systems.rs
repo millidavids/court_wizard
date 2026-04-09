@@ -15,7 +15,7 @@ use crate::game::resources::GameOutcome;
 use crate::game::units::archer::ArcherAssets;
 use crate::game::units::components::OriginalMaterial;
 use crate::game::units::components::{
-    Corpse, ElectricCharge, FireDoT, FrostEffectMarker, Health, RemoteElectricEffect,
+    Corpse, ElectricCharge, FireDoT, FrostAccumulation, Health, RemoteElectricEffect,
     RemoteFireEffect, RemoteFrostEffect,
 };
 use crate::game::units::infantry::resources::InfantryAssets;
@@ -48,7 +48,9 @@ use crate::networking::snapshot::{
 use crate::state::MultiplayerGameState;
 
 use super::components::{GhostArrow, GhostEntity, OnMultiplayerGameScreen};
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
+};
 
 /// Receives the latest unit state snapshot from the host and creates/updates/despawns
 /// ghost entities to match the host's game state.
@@ -357,7 +359,7 @@ pub fn send_crdt_snapshot(
             &NetworkEntityId,
             &CrdtHealth,
             Has<FireDoT>,
-            Has<FrostEffectMarker>,
+            Has<FrostAccumulation>,
             Has<ElectricCharge>,
         ),
         With<GhostEntity>,
@@ -468,6 +470,7 @@ pub(super) fn spawn_spell_effect(
     effect: &SpellEffectSnapshot,
     assets: &SpellVisualAssets,
     materials: &mut Assets<StandardMaterial>,
+    sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
 ) -> Option<Entity> {
     let kind = SpellEffectKind::try_from(effect.kind).ok()?;
     let pos = Vec3::new(effect.x, effect.y, effect.z);
@@ -811,17 +814,18 @@ pub(super) fn spawn_spell_effect(
             )
         }
 
-        // ── Explosions (unit meshes, scale-driven animation) ──
+        // ── Explosions (sphere meshes, scale-driven animation) ──
         SpellEffectKind::FireballExplosion => {
             let max_radius = extra[0];
             let empowerment = extra[1];
-            // Raise slightly above ground so cross-plane sphere is visible
             let explosion_pos = Vec3::new(pos.x, pos.y.max(5.0), pos.z);
+            let mat_handle =
+                clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.cross_plane_sphere.clone()),
-                        MeshMaterial3d(assets.fireball_explosion.clone()),
+                        Mesh3d(assets.explosion_sphere.clone()),
+                        MeshMaterial3d(mat_handle),
                         Transform::from_translation(explosion_pos).with_scale(Vec3::splat(0.1)),
                         FireballExplosion::new(
                             pos,
@@ -838,11 +842,13 @@ pub(super) fn spawn_spell_effect(
 
         SpellEffectKind::MeteorExplosion => {
             let max_radius = extra[0];
+            let mat_handle =
+                clone_sphere_material(sphere_materials, &assets.fireball_explosion_sphere);
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.cross_plane_sphere.clone()),
-                        MeshMaterial3d(assets.fireball_explosion.clone()),
+                        Mesh3d(assets.explosion_sphere.clone()),
+                        MeshMaterial3d(mat_handle),
                         Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
                             .with_scale(Vec3::splat(0.1)),
                         MeteorExplosion::new(pos, max_radius, 0.0),
@@ -855,13 +861,14 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::IceExplosion => {
             let max_radius = extra[0];
             let empowerment = extra[1];
+            let mat_handle =
+                clone_sphere_material(sphere_materials, &assets.ice_explosion_sphere);
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.unit_circle.clone()),
-                        MeshMaterial3d(assets.ice_explosion.clone()),
+                        Mesh3d(assets.explosion_sphere.clone()),
+                        MeshMaterial3d(mat_handle),
                         Transform::from_translation(Vec3::new(pos.x, 1.0, pos.z))
-                            .with_rotation(flat_rotation)
                             .with_scale(Vec3::splat(0.1)),
                         IceExplosion::new(pos, max_radius, 0.0, empowerment),
                         OnMultiplayerGameScreen,

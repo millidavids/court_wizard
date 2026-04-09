@@ -16,7 +16,7 @@ pub const PRIMED_METEOR_FALL: PrimedSpell = PrimedSpell {
 pub const CAST_TIME: f32 = 1.0;
 
 /// Mana cost to cast Meteor Fall.
-pub const MANA_COST: f32 = 60.0;
+pub const MANA_COST: f32 = 50.0;
 
 /// Radius of the storm circle where meteors will rain down.
 pub const STORM_RADIUS: f32 = 300.0;

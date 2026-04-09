@@ -139,6 +139,34 @@ pub fn spawn_fire_smoke_wisps(
     rise_speed: f32,
     spread_speed: f32,
 ) {
+    spawn_smoke_wisps_with_material(
+        commands,
+        assets,
+        position,
+        count,
+        time_secs,
+        lifetime,
+        base_size,
+        rise_speed,
+        spread_speed,
+        assets.fire_smoke.clone(),
+    );
+}
+
+/// Spawns smoke wisps with a custom material handle.
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_smoke_wisps_with_material(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    count: usize,
+    time_secs: f32,
+    lifetime: f32,
+    base_size: f32,
+    rise_speed: f32,
+    spread_speed: f32,
+    material: Handle<StandardMaterial>,
+) {
     for i in 0..count {
         // Use multiple incommensurate frequencies + golden ratio to break uniform patterns
         let seed = i as f32 * 1.618_034 + time_secs * 7.1;
@@ -157,7 +185,7 @@ pub fn spawn_fire_smoke_wisps(
                 base_size,
             },
             Mesh3d(assets.particle_quad.clone()),
-            MeshMaterial3d(assets.fire_smoke.clone()),
+            MeshMaterial3d(material.clone()),
             Transform::from_translation(position)
                 .with_rotation(UPWARD_ROTATION)
                 .with_scale(Vec3::splat(base_size)),
@@ -225,23 +253,43 @@ pub fn spawn_sparks_with_material(
     }
 }
 
-/// Spawns a burst of smoke from an explosion point.
+/// Spawns a burst of smoke from an explosion point (default count and fire material).
 pub fn spawn_explosion_smoke(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     position: Vec3,
     time_secs: f32,
 ) {
-    spawn_fire_smoke_wisps(
+    spawn_explosion_smoke_with_material(
         commands,
         assets,
         position,
+        time_secs,
+        assets.fire_smoke.clone(),
         constants::EXPLOSION_SMOKE_COUNT,
+    );
+}
+
+/// Spawns explosion smoke with a custom material and particle count.
+pub fn spawn_explosion_smoke_with_material(
+    commands: &mut Commands,
+    assets: &SpellVisualAssets,
+    position: Vec3,
+    time_secs: f32,
+    material: Handle<StandardMaterial>,
+    count: usize,
+) {
+    spawn_smoke_wisps_with_material(
+        commands,
+        assets,
+        position,
+        count,
         time_secs,
         constants::EXPLOSION_SMOKE_LIFETIME,
         constants::EXPLOSION_SMOKE_SIZE,
         constants::EXPLOSION_SMOKE_RISE_SPEED,
         constants::EXPLOSION_SMOKE_SPREAD,
+        material,
     );
 }
 

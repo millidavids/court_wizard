@@ -19,6 +19,37 @@ pub(crate) fn xz_distance(a: Vec3, b: Vec3) -> f32 {
     Vec3::new(a.x - b.x, 0.0, a.z - b.z).length()
 }
 
+/// Tests whether a sphere intersects a vertical cylinder (unit hitbox).
+///
+/// The cylinder extends from ground (Y=0) to `cylinder_height` at `cylinder_pos`,
+/// with the given `cylinder_radius`. The sphere is centered at `sphere_center`
+/// with `sphere_radius`.
+///
+/// Algorithm: clamp the sphere center's Y to the cylinder's Y range, then check
+/// whether the 2D (XZ) distance is less than the sum of both radii.
+pub(crate) fn sphere_intersects_cylinder(
+    sphere_center: Vec3,
+    sphere_radius: f32,
+    cylinder_pos: Vec3,
+    cylinder_radius: f32,
+    cylinder_height: f32,
+) -> bool {
+    // Clamp sphere Y to cylinder vertical range
+    let clamped_y = sphere_center.y.clamp(cylinder_pos.y, cylinder_pos.y + cylinder_height);
+    let dy = sphere_center.y - clamped_y;
+
+    // XZ distance between centers
+    let dx = sphere_center.x - cylinder_pos.x;
+    let dz = sphere_center.z - cylinder_pos.z;
+    let xz_dist_sq = dx * dx + dz * dz;
+
+    // Combined horizontal reach
+    let combined_radius = sphere_radius + cylinder_radius;
+
+    // Full distance check: horizontal + vertical
+    xz_dist_sq + dy * dy <= combined_radius * combined_radius
+}
+
 /// Returns the shortest XZ-plane distance from a point to a line segment defined by start/end.
 pub(crate) fn distance_to_line_segment_xz(point: Vec3, start: Vec3, end: Vec3) -> f32 {
     let p = Vec2::new(point.x, point.z);

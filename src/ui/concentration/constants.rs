@@ -9,14 +9,14 @@ pub(super) const CONCENTRATION_UI_HEIGHT: f32 = 40.0;
 /// Font size for "End Concentration" button text.
 pub(super) const BUTTON_FONT_SIZE: f32 = 9.0;
 
-/// Background color for "End Concentration" button.
-pub(super) const BUTTON_BACKGROUND: Color = Color::srgba(0.6, 0.2, 0.2, 0.9);
+/// Background color for concentration button (matches reserved mana bar).
+pub(super) const BUTTON_BACKGROUND: Color = Color::srgba(0.15, 0.1, 0.35, 0.9);
 
-/// Hover background color for "End Concentration" button.
-pub(super) const BUTTON_HOVER: Color = Color::srgba(0.8, 0.3, 0.3, 0.9);
+/// Hover background color for concentration button.
+pub(super) const BUTTON_HOVER: Color = Color::srgba(0.25, 0.15, 0.5, 0.9);
 
-/// Border color for "End Concentration" button.
-pub(super) const BUTTON_BORDER: Color = Color::srgba(0.8, 0.3, 0.3, 1.0);
+/// Border color for concentration button.
+pub(super) const BUTTON_BORDER: Color = Color::srgba(0.3, 0.2, 0.55, 1.0);
 
 /// Text color for "End Concentration" button.
 pub(super) const BUTTON_TEXT_COLOR: Color = Color::WHITE;

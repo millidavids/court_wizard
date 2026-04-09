@@ -65,6 +65,26 @@ impl Fireball {
 #[derive(Component)]
 pub struct ScorchedEarthFire;
 
+/// Pre-generated sub-explosion that triggers when the main explosion reaches its distance.
+pub(super) struct PendingBubble {
+    /// Normalized direction from explosion center.
+    pub direction: Vec3,
+    /// Distance from center at which this bubble triggers.
+    pub distance: f32,
+    /// Max radius of the sub-explosion.
+    pub radius: f32,
+}
+
+/// Spawner for sub-explosion bubbles that break up the main explosion's silhouette.
+///
+/// Attached only to fireball explosions using the sphere mesh. Each pending bubble
+/// triggers when the main explosion's growing radius reaches its offset distance,
+/// giving an amorphous, bubbling eruption look.
+#[derive(Component)]
+pub(super) struct ExplosionBubbleSpawner {
+    pub pending: Vec<PendingBubble>,
+}
+
 /// Fireball explosion component.
 ///
 /// Represents the expanding sphere explosion after a fireball impacts.
@@ -96,6 +116,8 @@ pub struct FireballExplosion {
     pub source_spell: crate::game::units::wizard::components::Spell,
     /// Whether VFX (sparks + smoke) have been spawned for this explosion.
     pub vfx_spawned: bool,
+    /// Growth speed multiplier (1.0 = linear over full duration, higher = reach max sooner).
+    pub growth_speed: f32,
 }
 
 impl FireballExplosion {
@@ -121,6 +143,7 @@ impl FireballExplosion {
             skip_growth: false,
             source_spell: crate::game::units::wizard::components::Spell::Fireball,
             vfx_spawned: false,
+            growth_speed: 1.0,
         }
     }
 
@@ -130,7 +153,7 @@ impl FireballExplosion {
             return self.max_radius;
         }
 
-        let growth_factor = (self.time_alive / self.duration).min(1.0);
+        let growth_factor = (self.time_alive / self.duration * self.growth_speed).min(1.0);
         self.max_radius * growth_factor
     }
 }

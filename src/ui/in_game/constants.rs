@@ -16,6 +16,7 @@ pub const MANA_BAR_HEIGHT: Val = Val::Px(20.0);
 /// Mana bar colors.
 pub const MANA_BAR_BG_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.5); // 50% translucent black background
 pub const MANA_BAR_FILL_COLOR: Color = Color::srgba(0.2, 0.4, 1.0, 0.7); // 70% translucent blue
+pub const MANA_BAR_RESERVED_COLOR: Color = Color::srgba(0.15, 0.1, 0.35, 0.7); // Dark purple for reserved mana
 
 /// Cast bar dimensions.
 pub const CAST_BAR_WIDTH: Val = Val::Vw(33.33); // 1/3 of screen width

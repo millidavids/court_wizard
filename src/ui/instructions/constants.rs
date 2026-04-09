@@ -23,13 +23,16 @@ Different spells have different casting styles:
 - Hold spells: Hold the mouse button to channel (Disintegrate, Finger of Death)
 - Placed spells: Hold to charge, release to place (Guardian Circle, Entangle, Sleep)
 - Drag spells: Click and drag to draw a line (Wall of Dirt, Wall of Fire)
-- Concentration spells: Hold to maintain the effect (Squall, Meteor Fall)
+- Concentration spells: Persist until cancelled (Squall, Meteor Fall)
 
 MANA MANAGEMENT
 - Each spell costs mana to cast
 - Mana regenerates over time
 - Watch your mana bar to ensure you can cast
 - Some powerful spells require full or near-full mana
+
+CONCENTRATION
+Concentration spells remain active until you end them. While concentrating, the spell's mana cost is reserved — your mana won't regenerate past the reserved amount. You can concentrate on multiple spells at once, but each one reserves more mana. Click the cancel buttons on the right side of the screen to end individual concentration spells and free up your mana.
 
 CAULDRON BREWING
 The cauldron lets you brew potions from ingredients dropped by defeated enemies. Click the cauldron icon to open the brewing menu. Toggle ingredients on or off, preview the effects, and click Brew. Your wizard can't cast spells while brewing. Mixing multiple ingredients dilutes each effect.

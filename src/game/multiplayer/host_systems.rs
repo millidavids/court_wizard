@@ -10,7 +10,7 @@ use crate::game::resources::GameOutcome;
 use crate::game::units::archer::Archer;
 use crate::game::units::archer::components::Arrow;
 use crate::game::units::components::{
-    Corpse, ElectricCharge, FireDoT, FrostEffectMarker, Health, KingsGuard, RemoteElectricEffect,
+    Corpse, ElectricCharge, FireDoT, FrostAccumulation, Health, KingsGuard, RemoteElectricEffect,
     RemoteFireEffect, RemoteFrostEffect, Team,
 };
 use crate::game::units::king::components::{King, SpellShield};
@@ -58,7 +58,7 @@ pub fn send_state_snapshots(
         Has<Archer>,
         Has<KingsGuard>,
         Has<FireDoT>,
-        Has<FrostEffectMarker>,
+        Has<FrostAccumulation>,
         Has<ElectricCharge>,
         Has<SpellShield>,
     )>,

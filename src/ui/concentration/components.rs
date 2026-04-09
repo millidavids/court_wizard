@@ -4,10 +4,8 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub(crate) struct ConcentrationUIRoot;
 
-/// Marker component for the concentration spell name text.
+/// A cancel button for a specific concentration spell, storing its game entity.
 #[derive(Component)]
-pub(super) struct ConcentrationSpellNameText;
-
-/// Marker component for the "End Concentration" button.
-#[derive(Component)]
-pub(super) struct EndConcentrationButton;
+pub(super) struct ConcentrationSpellButton {
+    pub spell_entity: Entity,
+}

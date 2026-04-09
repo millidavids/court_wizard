@@ -34,12 +34,14 @@ impl ObstacleHealth {
 
 /// Marker component for spells that require concentration to maintain.
 ///
-/// When a spell with this component is active, the concentration UI will be shown
-/// and the wizard cannot cast other spells without ending concentration.
+/// Multiple concentration spells can be active simultaneously. Each reserves mana
+/// equal to its cost, capping mana regen at `max - total_reserved`.
 #[derive(Component)]
 pub struct ConcentrationSpell {
     /// Name of the spell being concentrated on.
     pub spell_name: &'static str,
+    /// Mana cost reserved while concentrating (caps regen).
+    pub mana_cost: f32,
 }
 
 /// Marker component for entities that should always face the camera (billboard effect).

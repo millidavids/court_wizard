@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.796] - 2026-04-09
+
+### Added
+- **Spherical explosion effects** — all explosions (fireball, meteor, squall, berserker rage, and more) now use 3D spheres with a glowing fire gradient, replacing the old flat intersecting planes for a much more natural look
+- **Organic fireball explosions** — fireball explosions spawn smaller sub-explosions that erupt from the surface as the main blast expands, creating an amorphous, bubbling fireball shape
+- **Explosion fade-out** — all explosions now gradually fade to transparent as they dissipate, rather than abruptly disappearing
+- **Continuous explosion particles** — fire sparks and smoke billow from the surface of explosions throughout their lifetime, not just at the initial burst
+- **Frost-themed ice explosions** — squall ice impacts now have a frosty blue/white explosion sphere with white snow-like smoke particles instead of dark fire smoke
+- **Progressive frost buildup** — enemies hit by ice attacks gradually turn blue and slow down more with each hit, eventually freezing solid when frost reaches maximum
+- **Fire vs. frost interaction** — being on fire melts frost buildup, and frost reduces the intensity of burning, creating a natural elemental tug-of-war
+- **Multi-concentration spells** — you can now concentrate on multiple spells at the same time (e.g., Squall and Meteor Fall together), with each one reserving a portion of your mana bar
+- **Mana reservation display** — the mana bar shows a dark purple section on the right indicating how much mana is reserved by active concentration spells, with "Concentrating" text
+- **Individual concentration cancel** — each active concentration spell gets its own cancel button, so you can end one without affecting the others
+- **Sphere-cylinder collision** — explosion hit detection now properly accounts for unit height and width, making area damage more accurate
+- **Concentration section in instructions** — the How to Play screen now explains how concentration spells work with mana reservation
+
+### Changed
+- **Slower explosion animations** — explosions expand and fade over a longer duration, making them easier to appreciate
+- **Squall mana cost reduced** — from 40 to 30 mana
+- **Meteor Fall mana cost reduced** — from 60 to 50 mana
+- **Quieter spell sound effects** — reduced the volume of spell impacts and casts on the battlefield
+- **Ice explosions hit all units** — squall ice impacts now damage and frost both attackers and defenders, consistent with the game's friendly fire design
+- **Meteor ground fire is invisible** — removed the flat orange circle under meteor fires, leaving just the fire particles and smoke
+- **Updated spell descriptions** — squall and meteor fall descriptions now mention mana reservation instead of the old concentration mechanic
+
+### Fixed
+- **Ice explosions now deal damage** — fixed a bug where squall ice impacts weren't hitting any units due to incorrect collision detection
+
 ## [v0.5.756] - 2026-04-08
 
 ### Added

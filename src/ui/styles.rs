@@ -13,17 +13,6 @@ fn accent_hue(hsla: Hsla) -> f32 {
     if hsla.saturation < 0.10 { ACCENT_HUE } else { hsla.hue }
 }
 
-/// Lightens a color for hover state (+8% lightness, +10% saturation).
-pub fn item_hovered(color: Color) -> Color {
-    let hsla = Hsla::from(color);
-    Color::hsla(
-        accent_hue(hsla),
-        (hsla.saturation + 0.10).min(1.0),
-        (hsla.lightness + 0.08).min(1.0),
-        hsla.alpha,
-    )
-}
-
 /// Brightens border color for hover state (+15% lightness, +15% saturation).
 pub fn border_hovered(color: Color) -> Color {
     let hsla = Hsla::from(color);
@@ -31,28 +20,6 @@ pub fn border_hovered(color: Color) -> Color {
         accent_hue(hsla),
         (hsla.saturation + 0.15).min(1.0),
         (hsla.lightness + 0.15).min(1.0),
-        hsla.alpha,
-    )
-}
-
-/// Darkens a color for pressed state (-5% lightness from base).
-pub fn item_pressed(color: Color) -> Color {
-    let hsla = Hsla::from(color);
-    Color::hsla(
-        hsla.hue,
-        hsla.saturation,
-        (hsla.lightness - 0.05).max(0.0),
-        hsla.alpha,
-    )
-}
-
-/// Dims border color for pressed state (-8% lightness).
-pub fn border_pressed(color: Color) -> Color {
-    let hsla = Hsla::from(color);
-    Color::hsla(
-        hsla.hue,
-        (hsla.saturation - 0.05).max(0.0),
-        (hsla.lightness - 0.08).max(0.0),
         hsla.alpha,
     )
 }

@@ -295,7 +295,7 @@ impl Spell {
                 "Creates a gravitational sphere that pulls units inward in a spiral. Lasts 10 seconds, growing in size and strength over time."
             }
             Spell::Squall => {
-                "Summons a storm that rains ice down on a targeted area, dealing frost damage and slowing enemies. Requires concentration to maintain."
+                "Summons a storm that rains ice down on a targeted area, dealing frost damage and slowing enemies. Concentration spell — reserves mana while active."
             }
             Spell::WallOfFire => {
                 "Drag a line of fire that burns all units walking through it. Lasts 36 seconds."
@@ -314,7 +314,7 @@ impl Spell {
                 "Retrieves ingredients dropped by fallen enemies. Click near a drop to pull it to you."
             }
             Spell::MeteorFall => {
-                "Rains meteors from the sky, each exploding on impact and leaving persistent burning ground. Requires concentration to maintain."
+                "Rains meteors from the sky, each exploding on impact and leaving persistent burning ground. Concentration spell — reserves mana while active."
             }
             Spell::MarkOfDeath => {
                 "Marks a single enemy for death. The marked unit takes heavily increased damage from all sources for 8 seconds."

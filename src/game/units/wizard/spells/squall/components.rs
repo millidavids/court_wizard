@@ -1,7 +1,5 @@
 //! Squall spell components.
 
-use std::collections::HashMap;
-
 use bevy::prelude::*;
 
 use crate::game::units::DamageType;
@@ -182,14 +180,6 @@ impl IceExplosion {
         let growth_factor = (self.time_alive / growth_time).min(1.0);
         self.max_radius * growth_factor
     }
-}
-
-/// Tracks how many times each enemy has been hit by ice explosions from this storm.
-/// Used by the Permafrost talent to trigger freezes after 3 hits.
-#[derive(Component, Default)]
-pub(crate) struct PermafrostTracker {
-    /// Maps entity to number of ice hits received.
-    pub hit_counts: HashMap<Entity, u32>,
 }
 
 /// Frozen ground patch left by the Ice Age talent.

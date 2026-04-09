@@ -26,24 +26,55 @@ use crate::game::constants::{STONE_COLOR_DARK, STONE_COLOR_LIGHT};
 const FIRE_EXPLOSION_INNER_COLOR: LinearRgba = LinearRgba::new(4.0, 2.5, 0.4, 1.0);
 /// Default deep orange-red edge color for fire explosion material.
 const FIRE_EXPLOSION_OUTER_COLOR: LinearRgba = LinearRgba::new(2.5, 0.4, 0.0, 1.0);
+/// Bright white center color for ice explosion material.
+const ICE_EXPLOSION_INNER_COLOR: LinearRgba = LinearRgba::new(3.0, 3.5, 4.0, 1.0);
+/// Cool blue edge color for ice explosion material.
+const ICE_EXPLOSION_OUTER_COLOR: LinearRgba = LinearRgba::new(0.3, 0.6, 2.5, 1.0);
 
-/// Radial-gradient material for explosion cross-plane spheres.
-/// Lerps from `inner_color` at center to `outer_color` at rim using mesh UVs.
+/// Fresnel-based radial-gradient material for sphere explosion meshes.
+/// Uses normal·view_dir instead of UVs for proper 3D sphere gradient.
 #[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
-pub struct FireExplosionMaterial {
+pub struct FireExplosionSphereMaterial {
     #[uniform(0)]
     pub inner_color: LinearRgba,
     #[uniform(0)]
     pub outer_color: LinearRgba,
+    #[uniform(0)]
+    pub opacity: f32,
 }
 
-impl Material for FireExplosionMaterial {
+impl Material for FireExplosionSphereMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/fire_explosion.wgsl".into()
+        "shaders/fire_explosion_sphere.wgsl".into()
     }
 
     fn alpha_mode(&self) -> AlphaMode {
-        AlphaMode::Opaque
+        AlphaMode::Blend
+    }
+}
+
+/// Clones a sphere explosion material template into a unique per-entity handle.
+pub fn clone_sphere_material(
+    materials: &mut Assets<FireExplosionSphereMaterial>,
+    template: &Handle<FireExplosionSphereMaterial>,
+) -> Handle<FireExplosionSphereMaterial> {
+    let mat = materials
+        .get(template)
+        .expect("sphere material template")
+        .clone();
+    materials.add(mat)
+}
+
+/// Shared fade fraction for all explosion sphere fade-out effects.
+pub const EXPLOSION_FADE_FRACTION: f32 = 0.4;
+
+/// Computes opacity for an explosion fade-out (1.0 → 0.0 over the last portion of lifetime).
+pub fn explosion_fade_opacity(progress: f32) -> f32 {
+    let remaining = 1.0 - progress.min(1.0);
+    if remaining < EXPLOSION_FADE_FRACTION {
+        remaining / EXPLOSION_FADE_FRACTION
+    } else {
+        1.0
     }
 }
 
@@ -60,6 +91,8 @@ pub struct SpellVisualAssets {
     pub unit_rect: Handle<Mesh>,
     /// 3-plane cross sphere (XY + XZ + YZ, double-sided). Low-poly sphere for 2D aesthetic.
     pub cross_plane_sphere: Handle<Mesh>,
+    /// Icosphere mesh for spherical explosion effects (Fresnel-shaded).
+    pub explosion_sphere: Handle<Mesh>,
     /// 2-plane cross cylinder (2 quads along Y axis, double-sided). Low-poly cylinder for beams.
     pub cross_plane_cylinder: Handle<Mesh>,
     /// 2-plane cross triangle (tapers from point at Y=0 to full width at Y=height, double-sided).
@@ -132,7 +165,8 @@ pub struct SpellVisualAssets {
     pub wall_of_fire: Handle<StandardMaterial>,
 
     // ── Explosion materials ──────────────────────────────────────────────
-    pub fireball_explosion: Handle<FireExplosionMaterial>,
+    pub fireball_explosion_sphere: Handle<FireExplosionSphereMaterial>,
+    pub ice_explosion_sphere: Handle<FireExplosionSphereMaterial>,
     pub ice_explosion: Handle<StandardMaterial>,
 
     // ── Projectile materials ─────────────────────────────────────────────
@@ -161,6 +195,8 @@ pub struct SpellVisualAssets {
     pub fire_glow: Handle<StandardMaterial>,
     pub fire_spark: Handle<StandardMaterial>,
     pub fire_smoke: Handle<StandardMaterial>,
+    /// White translucent smoke for ice/frost explosion effects.
+    pub ice_smoke: Handle<StandardMaterial>,
     pub fire_black_smoke: Handle<StandardMaterial>,
     pub fire_orange_smoke: Handle<StandardMaterial>,
     /// Lighter, more yellow-orange variant for fire smoke.
@@ -294,11 +330,12 @@ pub struct SpellVisualAssets {
 }
 
 /// Initializes the shared spell visual assets resource.
+#[allow(clippy::too_many_arguments)]
 pub fn init_spell_visual_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut fire_explosion_materials: ResMut<Assets<FireExplosionMaterial>>,
+    mut fire_explosion_sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     mut fire_particle_materials: ResMut<Assets<super::vfx::fire_material::FireParticleMaterial>>,
     mut smoke_particle_materials: ResMut<Assets<super::vfx::fire_material::SmokeParticleMaterial>>,
     mut wall_of_stone_materials: ResMut<Assets<WallOfStoneMaterial>>,
@@ -454,10 +491,20 @@ pub fn init_spell_visual_assets(
         }),
 
         // Explosion materials
-        fireball_explosion: fire_explosion_materials.add(FireExplosionMaterial {
-            inner_color: FIRE_EXPLOSION_INNER_COLOR,
-            outer_color: FIRE_EXPLOSION_OUTER_COLOR,
-        }),
+        fireball_explosion_sphere: fire_explosion_sphere_materials.add(
+            FireExplosionSphereMaterial {
+                inner_color: FIRE_EXPLOSION_INNER_COLOR,
+                outer_color: FIRE_EXPLOSION_OUTER_COLOR,
+                opacity: 1.0,
+            },
+        ),
+        ice_explosion_sphere: fire_explosion_sphere_materials.add(
+            FireExplosionSphereMaterial {
+                inner_color: ICE_EXPLOSION_INNER_COLOR,
+                outer_color: ICE_EXPLOSION_OUTER_COLOR,
+                opacity: 1.0,
+            },
+        ),
         ice_explosion: materials.add(unlit(Color::srgb(0.3, 0.8, 1.0))),
 
         // Projectile materials
@@ -542,6 +589,13 @@ pub fn init_spell_visual_assets(
         }),
         fire_smoke: materials.add(StandardMaterial {
             base_color: Color::srgba(0.05, 0.05, 0.05, 0.2),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        }),
+        ice_smoke: materials.add(StandardMaterial {
+            base_color: Color::srgba(0.9, 0.93, 1.0, 0.25),
             unlit: true,
             alpha_mode: AlphaMode::Blend,
             cull_mode: None,
@@ -778,6 +832,8 @@ pub fn init_spell_visual_assets(
 
         // Cross-plane sphere: 3 intersecting unit circles (XY, XZ, YZ), radius 1.0
         cross_plane_sphere: meshes.add(build_cross_plane_sphere(1.0)),
+        // Icosphere for spherical explosion effects (unit radius, scaled by Transform)
+        explosion_sphere: meshes.add(Sphere::new(1.0).mesh().ico(2).expect("icosphere mesh")),
         // Cross-plane cylinder: 2 intersecting quads along Y axis, radius 0.5, height 1.0
         cross_plane_cylinder: meshes.add(build_cross_plane_cylinder(0.5, 1.0)),
         // Cross-plane triangle: 2 intersecting triangles (point at Y=0, widens to radius at Y=height)
@@ -998,7 +1054,7 @@ impl SpellVisualAssets {
             &self.lightning_rod,
             // Walls (wall_of_stone uses WallOfStoneMaterial, handled separately)
             &self.wall_of_fire,
-            // Explosions (fireball_explosion uses FireExplosionMaterial, handled separately)
+            // Explosions (sphere materials handled separately in refresh_spell_visuals_for_wizard)
             &self.ice_explosion,
             // Projectiles
             &self.fireball_projectile,
@@ -1125,7 +1181,7 @@ pub fn refresh_spell_visuals_for_wizard(
     assets: Res<SpellVisualAssets>,
     mut originals: ResMut<OriginalSpellColors>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut fire_explosion_materials: ResMut<Assets<FireExplosionMaterial>>,
+    mut fire_explosion_sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     config: Res<GameConfig>,
 ) {
     let is_excremage = config.wizard_type == WizardType::Excremage;
@@ -1153,8 +1209,8 @@ pub fn refresh_spell_visuals_for_wizard(
         }
     }
 
-    // Handle fire explosion gradient material separately
-    if let Some(mat) = fire_explosion_materials.get_mut(&assets.fireball_explosion) {
+    // Handle fire explosion sphere material (Excremage override)
+    if let Some(mat) = fire_explosion_sphere_materials.get_mut(&assets.fireball_explosion_sphere) {
         if is_excremage {
             let brown = EXCREMAGE_BROWN.to_linear();
             mat.inner_color =

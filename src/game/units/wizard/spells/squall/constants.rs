@@ -3,7 +3,7 @@
 use crate::game::units::wizard::components::PrimedSpell;
 
 /// Mana cost to cast Squall.
-pub const MANA_COST: f32 = 40.0;
+pub const MANA_COST: f32 = 30.0;
 
 /// Cast time for Squall (seconds) - short cast like Guardian Circle.
 pub const CAST_TIME: f32 = 0.5;
@@ -41,11 +41,19 @@ pub const EXPLOSION_LIFETIME: f32 = 0.4;
 /// Growth time for explosion visual (seconds).
 pub const EXPLOSION_GROWTH_TIME: f32 = 0.15;
 
-/// Slow modifier applied to enemies hit by ice explosions (-0.2 = 20% slow).
-pub const FROST_SLOW_MODIFIER: f32 = -0.2;
-
-/// Duration of the frost slow effect (seconds).
-pub const FROST_SLOW_DURATION: f32 = 2.0;
+// ── Frost accumulation ──────────────────────────────────────────────────
+/// Frost accumulation added per ice hit (0.0–1.0 scale).
+pub const FROST_PER_HIT: f32 = 0.3;
+/// Frost accumulation per hit with Permafrost talent.
+pub const PERMAFROST_FROST_PER_HIT: f32 = 0.6;
+/// Seconds after last hit before frost starts decaying.
+pub const FROST_DECAY_DELAY: f32 = 1.5;
+/// Frost decay rate per second (after delay expires).
+pub const FROST_DECAY_RATE: f32 = 0.15;
+/// Maximum slow at full frost before freeze (-0.5 = 50% slow).
+pub const FROST_MAX_SLOW: f32 = -0.5;
+/// Duration of the freeze when frost reaches 1.0.
+pub const FROST_FREEZE_DURATION: f32 = 2.0;
 
 // === Talent Constants ===
 
@@ -61,10 +69,8 @@ pub const FREEZING_RAIN_SPAWN_MULT: f32 = 0.6;
 pub const FREEZING_RAIN_DAMAGE_MULT: f32 = 0.8;
 
 // Tier 2: Permafrost
-/// Number of ice hits required to trigger a freeze.
-pub const PERMAFROST_HIT_THRESHOLD: u32 = 3;
-/// Duration of the freeze-solid effect (seconds).
-pub const PERMAFROST_FREEZE_DURATION: f32 = 2.0;
+/// Duration of the freeze-solid effect with Permafrost talent (seconds).
+pub const PERMAFROST_FREEZE_DURATION: f32 = 3.0;
 
 // Tier 2: Hailstones
 /// Chance for any given projectile to be a hailstone (0.0–1.0).

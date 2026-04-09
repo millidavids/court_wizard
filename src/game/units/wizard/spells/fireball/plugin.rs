@@ -30,6 +30,8 @@ impl Plugin for FireballPlugin {
                     .run_if(any_exist::<Fireball>()),
                 (
                     systems::update_explosions,
+                    systems::spawn_explosion_bubbles,
+                    systems::fade_explosion_spheres,
                     systems::apply_explosion_damage,
                     systems::cleanup_finished_explosions,
                 )

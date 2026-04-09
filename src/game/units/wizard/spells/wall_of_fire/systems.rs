@@ -28,7 +28,9 @@ use crate::game::units::wizard::spells::utils::{
     UniqueHitTracker, build_wizard_input, clamp_to_spell_range,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material,
+};
 use crate::game::game_mode::components::ActiveToggles;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use crate::networking::snapshot::SpellEffectKind;
@@ -907,6 +909,7 @@ pub fn firestorm_death_explosion(
         ),
     >,
     assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
 ) {
     for (entity, transform, health) in &dead_units {
@@ -933,9 +936,12 @@ pub fn firestorm_death_explosion(
         explosion.duration = constants::FIRESTORM_EXPLOSION_DURATION;
         explosion.source_spell = Spell::WallOfFire;
 
+        let mat_handle =
+            clone_sphere_material(&mut sphere_materials, &assets.fireball_explosion_sphere);
+
         commands.spawn((
-            Mesh3d(assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(assets.fireball_explosion.clone()),
+            Mesh3d(assets.explosion_sphere.clone()),
+            MeshMaterial3d(mat_handle),
             Transform::from_translation(pos).with_scale(Vec3::splat(0.1)),
             explosion,
             OnGameplayScreen,

@@ -736,7 +736,7 @@ pub fn convert_dead_to_corpses(
                 .remove::<Hitbox>()
                 .remove::<super::units::components::CommanderAuraSpeedModifier>()
                 .remove::<super::units::components::SlowMovementModifier>()
-                .remove::<super::units::components::FrostEffectMarker>()
+                .remove::<super::units::components::FrostAccumulation>()
                 .remove::<super::units::components::RootedModifier>()
                 .remove::<super::units::components::HasteModifier>()
                 .remove::<super::units::components::FireDoT>()

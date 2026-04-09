@@ -9,7 +9,7 @@ use crate::config::{GameConfig, WizardType};
 use crate::game::cauldron::brews::BrewEffect;
 use crate::game::cauldron::components::{Cauldron, CauldronState};
 use crate::game::cauldron::resources::CauldronBuffs;
-use crate::game::components::OnGameplayScreen;
+use crate::game::components::{ConcentrationSpell, OnGameplayScreen};
 use crate::game::input::messages::{BlockSpellInput, MouseClicked};
 use crate::game::messages::WaveSpawnedMessage;
 use crate::game::resources::{CurrentLevel, KillStats, WaveState};
@@ -310,12 +310,13 @@ pub(super) fn spawn_hud(
                                 width: MANA_BAR_WIDTH,
                                 height: MANA_BAR_HEIGHT,
                                 border: UiRect::all(Val::Px(2.0)),
-                                justify_content: JustifyContent::FlexEnd,
+                                flex_direction: FlexDirection::Row,
                                 ..default()
                             },
                             BackgroundColor(MANA_BAR_BG_COLOR),
                         ))
                         .with_children(|parent| {
+                            // Current mana fill (blue, grows left to right)
                             parent.spawn((
                                 Node {
                                     width: Val::Percent(100.0),
@@ -325,6 +326,28 @@ pub(super) fn spawn_hud(
                                 BackgroundColor(MANA_BAR_FILL_COLOR),
                                 ManaBarFill,
                             ));
+                            // Reserved mana section (dark purple, right side)
+                            parent
+                                .spawn((
+                                    Node {
+                                        width: Val::Percent(0.0),
+                                        height: Val::Percent(100.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        overflow: Overflow::clip(),
+                                        ..default()
+                                    },
+                                    BackgroundColor(MANA_BAR_RESERVED_COLOR),
+                                    ManaBarReservedFill,
+                                ))
+                                .with_children(|reserved| {
+                                    reserved.spawn((
+                                        Text::new("Concentrating"),
+                                        TextFont::from_font_size(8.0),
+                                        TextColor(Color::srgba(0.7, 0.6, 1.0, 0.8)),
+                                        ManaBarReservedText,
+                                    ));
+                                });
                         });
                     }
 
@@ -522,16 +545,27 @@ pub(super) fn hud_button_action(
     }
 }
 
-/// Updates the mana bar width based on the local wizard's mana.
+/// Updates the mana bar width and reserved section based on current mana and concentration.
 pub(super) fn update_mana_bar(
     wizard_query: Query<&Mana, With<LocalWizard>>,
+    concentration_spells: Query<&ConcentrationSpell>,
     mut mana_bar_query: Query<&mut Node, With<ManaBarFill>>,
+    mut reserved_bar_query: Query<
+        &mut Node,
+        (With<ManaBarReservedFill>, Without<ManaBarFill>),
+    >,
 ) {
-    if let Ok(mana) = wizard_query.single()
-        && let Ok(mut node) = mana_bar_query.single_mut()
-    {
-        let mana_percent = mana.percentage() * 100.0;
-        node.width = Val::Percent(mana_percent);
+    if let Ok(mana) = wizard_query.single() {
+        let reserved: f32 = concentration_spells.iter().map(|c| c.mana_cost).sum();
+        let reserved_pct = (reserved / mana.max).min(1.0) * 100.0;
+        let mana_pct = (mana.percentage() * 100.0).min(100.0 - reserved_pct);
+
+        if let Ok(mut node) = mana_bar_query.single_mut() {
+            node.width = Val::Percent(mana_pct);
+        }
+        if let Ok(mut node) = reserved_bar_query.single_mut() {
+            node.width = Val::Percent(reserved_pct);
+        }
     }
 }
 

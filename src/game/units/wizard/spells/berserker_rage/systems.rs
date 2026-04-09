@@ -22,7 +22,9 @@ use crate::game::units::wizard::spells::utils::{
     handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
-use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
+use crate::game::units::wizard::spells::visual_assets::{
+    FireExplosionSphereMaterial, SpellVisualAssets, clone_sphere_material, explosion_fade_opacity,
+};
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
 use bevy::prelude::*;
 
@@ -483,6 +485,7 @@ pub fn final_stand_explosion(
         Without<Corpse>,
     >,
     visual_assets: Res<SpellVisualAssets>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
 ) {
     for (corpse_entity, final_stand, transform, team, health) in &dead_query {
@@ -510,14 +513,19 @@ pub fn final_stand_explosion(
         }
 
         // Spawn fireball explosion visual
+        let mat_handle = clone_sphere_material(
+            &mut sphere_materials,
+            &visual_assets.fireball_explosion_sphere,
+        );
+
         commands.spawn((
             FinalStandExplosionVfx {
                 time_alive: 0.0,
                 max_radius: final_stand.radius,
                 lifetime: constants::FINAL_STAND_VFX_LIFETIME,
             },
-            Mesh3d(visual_assets.cross_plane_sphere.clone()),
-            MeshMaterial3d(visual_assets.fireball_explosion.clone()),
+            Mesh3d(visual_assets.explosion_sphere.clone()),
+            MeshMaterial3d(mat_handle),
             Transform::from_translation(position).with_scale(Vec3::splat(0.1)),
             OnGameplayScreen,
         ));
@@ -551,13 +559,19 @@ pub fn final_stand_explosion(
     }
 }
 
-/// Updates Final Stand explosion visuals: expand then despawn.
+/// Updates Final Stand explosion visuals: expand, fade, then despawn.
 pub fn update_final_stand_vfx(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut FinalStandExplosionVfx, &mut Transform)>,
+    mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
+    mut query: Query<(
+        Entity,
+        &mut FinalStandExplosionVfx,
+        &mut Transform,
+        &MeshMaterial3d<FireExplosionSphereMaterial>,
+    )>,
 ) {
-    for (entity, mut vfx, mut transform) in &mut query {
+    for (entity, mut vfx, mut transform, material_handle) in &mut query {
         vfx.time_alive += time.delta_secs();
         if vfx.time_alive >= vfx.lifetime {
             commands.entity(entity).try_despawn();
@@ -566,6 +580,11 @@ pub fn update_final_stand_vfx(
         let progress = (vfx.time_alive / vfx.lifetime).min(1.0);
         let current_radius = vfx.max_radius * progress;
         transform.scale = Vec3::splat(current_radius.max(0.1));
+
+        let opacity = explosion_fade_opacity(progress);
+        if let Some(mat) = sphere_materials.get_mut(material_handle) {
+            mat.opacity = opacity;
+        }
     }
 }
 

@@ -8,7 +8,7 @@ use super::messages::*;
 use super::spells::magic_missile_constants;
 use crate::config::{GameConfig, WizardType};
 use crate::game::cauldron::resources::CauldronBuffs;
-use crate::game::components::{Billboard, OnGameplayScreen};
+use crate::game::components::{Billboard, ConcentrationSpell, OnGameplayScreen};
 use crate::game::constants::WIZARD_POSITION;
 use crate::game::input::MouseButtonState;
 use crate::game::units::components::{Health, Hitbox, MovementSpeed, Team};
@@ -128,6 +128,7 @@ pub fn update_wizard_animation(
 }
 
 /// Regenerates wizard mana over time, scaled by cauldron buffs.
+/// Mana is capped at `max - reserved` where reserved = sum of active concentration spell costs.
 /// Skipped entirely when the Mana Drought toggle is active.
 pub fn regenerate_mana(
     time: Res<Time>,
@@ -135,7 +136,10 @@ pub fn regenerate_mana(
     infinite_mana: Res<crate::ui::action_bar::InfiniteMana>,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     mut wizards: Query<(&mut Mana, &ManaRegen), With<Wizard>>,
+    concentration_spells: Query<&ConcentrationSpell>,
 ) {
+    let reserved: f32 = concentration_spells.iter().map(|c| c.mana_cost).sum();
+
     // Mana Drought: no passive regen (mana comes from kills instead)
     if active_toggles.as_ref().is_some_and(|t| {
         t.is_active(crate::game::game_mode::components::ToggleModifier::ManaDrought)
@@ -143,18 +147,21 @@ pub fn regenerate_mana(
         // Still apply infinite mana cheat if active
         if infinite_mana.0 {
             for (mut mana, _) in &mut wizards {
-                mana.current = mana.max;
+                let effective_max = (mana.max - reserved).max(0.0);
+                mana.current = effective_max;
             }
         }
         return;
     }
 
     for (mut mana, regen) in &mut wizards {
+        let effective_max = (mana.max - reserved).max(0.0);
         if infinite_mana.0 {
-            mana.current = mana.max;
+            mana.current = effective_max;
         } else {
             let rate = regen.rate * cauldron_buffs.mana_regen_multiplier();
             mana.regenerate(rate * time.delta_secs());
+            mana.current = mana.current.min(effective_max);
         }
     }
 }
@@ -203,10 +210,11 @@ pub fn track_spell_casts_for_rotation(
 }
 
 /// Mana Drought toggle: restores mana when enemies die.
-/// Each kill restores a fixed amount of mana.
+/// Each kill restores a fixed amount of mana, capped by concentration reservation.
 pub fn mana_on_kill(
     mut kill_events: MessageReader<crate::game::achievements::messages::EnemyKilledMessage>,
     mut wizards: Query<&mut Mana, With<Wizard>>,
+    concentration_spells: Query<&ConcentrationSpell>,
 ) {
     let kill_count = kill_events.read().count();
     if kill_count == 0 {
@@ -215,9 +223,12 @@ pub fn mana_on_kill(
 
     const MANA_PER_KILL: f32 = 3.0;
     let mana_restore = kill_count as f32 * MANA_PER_KILL;
+    let reserved: f32 = concentration_spells.iter().map(|c| c.mana_cost).sum();
 
     for mut mana in &mut wizards {
+        let effective_max = (mana.max - reserved).max(0.0);
         mana.regenerate(mana_restore);
+        mana.current = mana.current.min(effective_max);
     }
 }
 

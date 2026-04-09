@@ -8,6 +8,14 @@ pub(super) struct HudRoot;
 #[derive(Component)]
 pub(crate) struct ManaBarFill;
 
+/// Marker component for the mana bar reserved section (concentration spells).
+#[derive(Component)]
+pub(super) struct ManaBarReservedFill;
+
+/// Marker component for the "Concentrating" text inside the reserved mana section.
+#[derive(Component)]
+pub(super) struct ManaBarReservedText;
+
 /// Marker component for the cast bar fill element.
 #[derive(Component)]
 pub(super) struct CastBarFill;

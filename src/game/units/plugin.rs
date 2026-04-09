@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::components::FrostAccumulation;
 use crate::game::run_conditions::{is_gameplay_running, is_spell_effects_active};
 
 use super::aerialist::AerialistPlugin;
@@ -10,7 +11,7 @@ use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
 use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
-    FacingDirection, FogEvasionModifier, FrostEffectMarker, FrozenSolidModifier, HasteModifier,
+    FacingDirection, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
     Knockback, MarkedForDeathModifier, PoisonedModifier, RootedModifier, SickenedModifier,
     SlowMovementModifier, SmellyModifier, Stunned, TemporaryHitPoints, WalkingAnimation,
 };
@@ -75,7 +76,8 @@ impl Plugin for UnitsPlugin {
                 (
                     systems::update_timed_modifier::<TemporaryHitPoints>,
                     systems::update_timed_modifier::<SlowMovementModifier>,
-                    systems::update_timed_modifier::<FrostEffectMarker>,
+                    systems::update_frost_accumulation
+                        .run_if(any_with_component::<FrostAccumulation>),
                     systems::update_timed_modifier::<RootedModifier>,
                     systems::update_timed_modifier::<HasteModifier>,
                     systems::update_timed_modifier::<Stunned>.run_if(any_with_component::<Stunned>),

@@ -5,7 +5,7 @@ use crate::config::save_data::{AchievementId, load_unified_save};
 use crate::game::cauldron::brews::Ingredient;
 use crate::game::units::UnitType;
 use crate::game::units::wizard::components::{Spell, SpellCategory};
-use crate::ui::components::{ButtonColors, ButtonEdge, ButtonFront};
+use crate::ui::components::{ButtonColors, ButtonFront};
 use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::*;
