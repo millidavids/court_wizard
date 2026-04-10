@@ -15,6 +15,38 @@ pub(super) const LEVEL_FONT_SIZE: f32 = 18.0;
 pub(super) const INSIGHT_FONT_SIZE: f32 = 22.0;
 
 // ---------------------------------------------------------------------------
+// Tab bar
+// ---------------------------------------------------------------------------
+pub(super) const TAB_HEIGHT: f32 = 36.0;
+pub(super) const TAB_PADDING_H: f32 = 14.0;
+pub(super) const TAB_FONT_SIZE: f32 = 16.0;
+pub(super) const ACTIVE_TAB_BG: Color = Color::hsla(25.0, 0.15, 0.14, 0.8);
+pub(super) const INACTIVE_TAB_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.6);
+pub(super) const TAB_BORDER: Color = Color::hsla(270.0, 0.20, 0.25, 0.6);
+pub(super) const ACTIVE_TAB_BORDER: Color = Color::hsla(270.0, 0.60, 0.50, 0.8);
+pub(super) const DISABLED_TAB_TEXT: Color = Color::hsla(0.0, 0.0, 0.45, 0.6);
+
+// ---------------------------------------------------------------------------
+// Dual-panel layout
+// ---------------------------------------------------------------------------
+pub(super) const LEFT_PANEL_PERCENT: f32 = 33.33;
+pub(super) const RIGHT_PANEL_PERCENT: f32 = 66.67;
+pub(super) const COLUMN_GAP: f32 = 12.0;
+pub(super) const SECTION_PADDING: f32 = 12.0;
+pub(super) const MARGIN_SMALL: f32 = 8.0;
+pub(super) const SECTION_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.8);
+pub(super) const DETAIL_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.9);
+pub(super) const DETAIL_BORDER: Color = Color::hsla(270.0, 0.20, 0.22, 0.8);
+
+// ---------------------------------------------------------------------------
+// Endless tab
+// ---------------------------------------------------------------------------
+pub(super) const STAT_LABEL_COLOR: Color = TEXT_DISABLED;
+pub(super) const STAT_SECTION_FONT_SIZE: f32 = 17.0;
+pub(super) const STAT_SECTION_COLOR: Color = Color::hsla(0.0, 0.0, 0.95, 1.0);
+pub(super) const STAT_VALUE_FONT_SIZE: f32 = 14.0;
+
+// ---------------------------------------------------------------------------
 // Shared colors
 // ---------------------------------------------------------------------------
 pub(super) const TITLE_COLOR: Color = TEXT_PRIMARY;
@@ -73,8 +105,6 @@ pub(super) const GRAPH_AREA_BG: Color = Color::srgba(0.04, 0.04, 0.06, 0.8);
 // ---------------------------------------------------------------------------
 pub(super) const DETAIL_PANEL_WIDTH: f32 = 340.0;
 pub(super) const DETAIL_PANEL_PADDING: f32 = 14.0;
-pub(super) const DETAIL_PANEL_BG: Color = Color::srgb(0.1, 0.1, 0.13);
-pub(super) const DETAIL_PANEL_BORDER: Color = Color::srgb(0.3, 0.3, 0.4);
 pub(super) const DETAIL_TITLE_FONT_SIZE: f32 = 20.0;
 pub(super) const DETAIL_TEXT_FONT_SIZE: f32 = 14.0;
 pub(super) const DETAIL_SMALL_FONT_SIZE: f32 = 12.0;
@@ -103,10 +133,12 @@ pub(super) const TALENT_BAR_FILL: Color = Color::srgb(0.6, 0.4, 0.9);
 
 // Talent cards
 pub(super) const TALENT_CARD_WIDTH: f32 = 80.0;
-pub(super) const TALENT_CARD_HEIGHT: f32 = 56.0;
-pub(super) const TALENT_CARD_GAP: f32 = 5.0;
+pub(super) const TALENT_CARD_HEIGHT: f32 = 50.0;
+pub(super) const TALENT_CARD_GAP: f32 = 8.0;
 pub(super) const TALENT_CARD_FONT: f32 = 9.0;
-pub(super) const TALENT_SELECTED_BORDER: Color = Color::srgb(0.9, 0.8, 0.2);
+/// Purple accent for selected/active talents (matches insight constellation theme).
+pub(super) const TALENT_ACTIVE_BG: Color = Color::srgb(0.18, 0.14, 0.25);
+pub(super) const TALENT_ACTIVE_BORDER: Color = Color::srgb(0.6, 0.4, 0.9);
 pub(super) const TALENT_UNLOCKED_BG: Color = Color::srgb(0.14, 0.14, 0.18);
 pub(super) const TALENT_LOCKED_BG: Color = Color::srgb(0.07, 0.07, 0.07);
 pub(super) const TALENT_LOCKED_BORDER: Color = Color::srgb(0.18, 0.18, 0.18);
@@ -167,6 +199,18 @@ pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     background: BUTTON_BG,
     border: BUTTON_BORDER,
     text_color: TEXT_PRIMARY,
+    text_shadow: true,
+};
+
+/// Muted, smaller button for secondary actions like "Switch Wizard".
+pub(super) const SWITCH_WIZARD_BUTTON_STYLE: ButtonStyle = ButtonStyle {
+    width: 200.0,
+    height: 36.0,
+    border_width: 1.0,
+    font_size: 10.0,
+    background: Color::hsla(25.0, 0.15, 0.07, 0.6),
+    border: Color::hsla(270.0, 0.20, 0.25, 0.6),
+    text_color: TEXT_BODY,
     text_shadow: true,
 };
 

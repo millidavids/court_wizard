@@ -790,6 +790,28 @@ pub(crate) struct SavedBoulder {
     pub(crate) sprite_index: u8,
 }
 
+/// Snapshot of all terrain for a specific level, saved on victory.
+/// Used to restore terrain when time traveling in Endless mode.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct SavedLevelTerrain {
+    #[serde(default)]
+    pub(crate) trees: Vec<SavedTree>,
+    #[serde(default)]
+    pub(crate) ponds: Vec<SavedPond>,
+    #[serde(default)]
+    pub(crate) bushes: Vec<SavedBush>,
+    #[serde(default)]
+    pub(crate) boulders: Vec<SavedBoulder>,
+    #[serde(default)]
+    pub(crate) walls: Vec<SavedWall>,
+    #[serde(default)]
+    pub(crate) crystals: Vec<SavedCrystal>,
+    #[serde(default)]
+    pub(crate) flora: Vec<SavedFlora>,
+    #[serde(default)]
+    pub(crate) trampling: SavedTrampling,
+}
+
 fn default_scale() -> f32 {
     1.0
 }
@@ -826,12 +848,34 @@ pub(crate) struct WizardSave {
     /// Best stats achieved per endless level. Added in game mode update.
     #[serde(default)]
     pub(crate) endless_best_stats: HashMap<String, EndlessLevelBest>,
+    /// Per-level terrain snapshots for Endless time travel.
+    /// Key is the level number (as string). Value is the terrain state
+    /// at the END of that level (= start of the next level).
+    #[serde(default)]
+    pub(crate) terrain_per_level: HashMap<String, SavedLevelTerrain>,
 }
 
 /// Per-wizard roguelite data.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct RogueliteData {
     pub(crate) run_history: Vec<RogueliteRun>,
+    /// A dormant roguelite run that can be resumed from the wizard tower.
+    /// Set when the player is between levels. Cleared when the run ends
+    /// (victory at max level, explicit abandon, or exit-to-menu mid-level).
+    #[serde(default)]
+    pub(crate) current_run: Option<SavedRogueliteRun>,
+}
+
+/// A persistable snapshot of an in-progress roguelite run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct SavedRogueliteRun {
+    pub(crate) started_at: u64,
+    pub(crate) current_level: u32,
+    pub(crate) wizard_type: crate::config::WizardType,
+    pub(crate) level_stats: Vec<crate::game::game_mode::components::LevelRunStats>,
+    pub(crate) modifiers: Option<crate::game::game_mode::components::RogueliteModifiers>,
+    pub(crate) seed: Option<u64>,
+    pub(crate) active_toggles: Vec<String>,
 }
 
 /// A completed roguelite run.
@@ -1196,6 +1240,7 @@ pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
         saved_trampling: SavedTrampling::default(),
         roguelite: RogueliteData::default(),
         endless_best_stats: HashMap::new(),
+        terrain_per_level: HashMap::new(),
     };
 
     let id = wizard.id.clone();
@@ -1240,6 +1285,90 @@ pub(crate) fn save_config_to_active_wizard(
     save_unified(&save_file);
 }
 
+/// Saves the current terrain state as a per-level snapshot for Endless time travel.
+/// Called on victory in Endless mode (non-time-travel).
+pub(crate) fn save_level_terrain(
+    active_save: &ActiveSave,
+    level: u32,
+    config: &GameConfig,
+) {
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        wizard.terrain_per_level.insert(
+            level.to_string(),
+            SavedLevelTerrain {
+                trees: config.saved_trees.clone(),
+                ponds: config.saved_ponds.clone(),
+                bushes: config.saved_bushes.clone(),
+                boulders: config.saved_boulders.clone(),
+                walls: config.saved_walls.clone(),
+                crystals: config.saved_crystals.clone(),
+                flora: config.saved_flora.clone(),
+                trampling: config.saved_trampling.clone(),
+            },
+        );
+    }
+
+    save_unified(&save_file);
+}
+
+/// Loads terrain for a specific level from the per-level terrain snapshots.
+/// Used when time traveling in Endless mode. Loads terrain from level-1
+/// (the end of the previous level = start of this level).
+/// Returns true if terrain was found and loaded into config.
+pub(crate) fn load_level_terrain_into_config(
+    active_save: &ActiveSave,
+    level: u32,
+    config: &mut GameConfig,
+) -> bool {
+    let Some(wizard_id) = &active_save.0 else {
+        return false;
+    };
+
+    let save_file = load_unified_save();
+    let Some(save_file) = save_file else {
+        return false;
+    };
+
+    let Some(wizard) = save_file.wizards.iter().find(|w| &w.id == wizard_id) else {
+        return false;
+    };
+
+    // Load terrain from the end of level-1 (= start of this level).
+    // For level 1, there's no previous level, so clear terrain (it will be regenerated).
+    if level <= 1 {
+        config.saved_trees.clear();
+        config.saved_ponds.clear();
+        config.saved_bushes.clear();
+        config.saved_boulders.clear();
+        config.saved_walls.clear();
+        config.saved_crystals.clear();
+        config.saved_flora.clear();
+        config.saved_trampling = SavedTrampling::default();
+        return true;
+    }
+
+    let prev_key = (level - 1).to_string();
+    let Some(terrain) = wizard.terrain_per_level.get(&prev_key) else {
+        return false;
+    };
+
+    config.saved_trees = terrain.trees.clone();
+    config.saved_ponds = terrain.ponds.clone();
+    config.saved_bushes = terrain.bushes.clone();
+    config.saved_boulders = terrain.boulders.clone();
+    config.saved_walls = terrain.walls.clone();
+    config.saved_crystals = terrain.crystals.clone();
+    config.saved_flora = terrain.flora.clone();
+    config.saved_trampling = terrain.trampling.clone();
+    true
+}
+
 /// Save a completed roguelite run to the wizard's run history.
 /// Caps at MAX_ROGUELITE_RUN_HISTORY entries (FIFO).
 pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
@@ -1275,6 +1404,65 @@ pub(crate) fn save_roguelite_run(active_save: &ActiveSave, run: RogueliteRun) {
     }
 
     save_unified(&save_file);
+}
+
+/// Saves the current in-progress roguelite run to disk so it can be resumed later.
+/// Called when returning to the wizard tower between levels.
+pub(crate) fn save_current_roguelite_run(
+    active_save: &ActiveSave,
+    run: &crate::game::game_mode::components::RogueliteRunState,
+    config: &crate::config::GameConfig,
+    modifiers: Option<&crate::game::game_mode::components::RogueliteModifiers>,
+    toggles: Option<&crate::game::game_mode::components::ActiveToggles>,
+    seed: Option<u64>,
+) {
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        wizard.roguelite.current_run = Some(SavedRogueliteRun {
+            started_at: run.started_at,
+            current_level: config.current_level,
+            wizard_type: config.wizard_type,
+            level_stats: run.level_stats.clone(),
+            modifiers: modifiers.cloned(),
+            seed,
+            active_toggles: toggles
+                .map(|t| t.to_ids())
+                .unwrap_or_default(),
+        });
+    }
+
+    save_unified(&save_file);
+}
+
+/// Clears the current in-progress roguelite run from disk.
+/// Called when the run ends (victory, explicit abandon, or exit-to-menu mid-level).
+pub(crate) fn clear_current_roguelite_run(active_save: &ActiveSave) {
+    let Some(wizard_id) = &active_save.0 else {
+        return;
+    };
+
+    let mut save_file = load_unified_save().unwrap_or_else(new_unified_save);
+
+    if let Some(wizard) = save_file.wizards.iter_mut().find(|w| &w.id == wizard_id) {
+        wizard.roguelite.current_run = None;
+    }
+
+    save_unified(&save_file);
+}
+
+/// Loads the current in-progress roguelite run from disk, if one exists.
+pub(crate) fn load_current_roguelite_run(
+    active_save: &ActiveSave,
+) -> Option<SavedRogueliteRun> {
+    let wizard_id = active_save.0.as_ref()?;
+    let save_file = load_unified_save()?;
+    let wizard = save_file.wizards.iter().find(|w| &w.id == wizard_id)?;
+    wizard.roguelite.current_run.clone()
 }
 
 /// Toggle the saved status of a roguelite run identified by its `started_at` timestamp.
@@ -1731,6 +1919,7 @@ pub(crate) fn migrate_legacy_saves(config: &GameConfig) {
             saved_trampling: SavedTrampling::default(),
             roguelite: RogueliteData::default(),
             endless_best_stats: HashMap::new(),
+            terrain_per_level: HashMap::new(),
         };
 
         let dominated = best_by_type

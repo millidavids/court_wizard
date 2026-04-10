@@ -24,15 +24,7 @@ pub(super) struct OnMainScreen;
 /// Actions from hub buttons.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WizardTowerButtonAction {
-    StudySpells,
-    Compendium,
-    StartNextBattle,
     ReturnToMenu,
-    StartTimeTravel,
-    #[cfg(debug_assertions)]
-    DebugLevelUp,
-    #[cfg(debug_assertions)]
-    DebugLevelDown,
 }
 
 // ---------------------------------------------------------------------------
@@ -71,15 +63,10 @@ pub(crate) struct InsightDisplay;
 // Study screen
 // ---------------------------------------------------------------------------
 
-/// Marker for entities on the Study screen (despawned on exit Study).
-#[derive(Component)]
-pub(super) struct OnStudyScreen;
-
 /// Actions from study screen buttons.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StudyButtonAction {
     Commit,
-    Back,
     #[cfg(debug_assertions)]
     DebugGrantInsight,
 }

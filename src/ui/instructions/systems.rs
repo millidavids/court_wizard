@@ -23,17 +23,29 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
     );
 
     commands.entity(content).with_children(|parent| {
-        // Title
-        spawn_title_with_shadow(
-            parent,
-            "Instructions",
-            48.0,
-            TEXT_COLOR,
-            Node {
+        // Header row: title left, Back button right
+        parent
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
                 margin: UiRect::bottom(Val::Px(20.0)),
                 ..default()
-            },
-        );
+            })
+            .with_children(|header| {
+                spawn_title_with_shadow(
+                    header,
+                    "Instructions",
+                    48.0,
+                    TEXT_COLOR,
+                    Node::default(),
+                );
+                header.spawn(Node {
+                    flex_grow: 1.0,
+                    ..default()
+                });
+                crate::ui::systems::spawn_button(header, "Back", BackButton, &BACK_BUTTON_STYLE);
+            });
 
         // Scrollable instructions content
         parent
@@ -43,7 +55,6 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::scroll_y(),
-                    margin: UiRect::bottom(Val::Px(20.0)),
                     border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
@@ -68,9 +79,6 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
                         ));
                     });
             });
-
-        // Back button
-        crate::ui::systems::spawn_button(parent, "Back", BackButton, &BACK_BUTTON_STYLE);
     });
 }
 

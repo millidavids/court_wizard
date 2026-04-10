@@ -28,6 +28,8 @@ impl Plugin for CauldronMenuPlugin {
                     escape_to_running,
                     systems::rebuild_menu_on_brew_state_change,
                     systems::respawn_menu_on_toggle,
+                    systems::update_detail_panel_on_selection_change
+                        .run_if(resource_changed::<IngredientSelection>),
                 )
                     .run_if(in_state(InGameState::CauldronMenu)),
             );

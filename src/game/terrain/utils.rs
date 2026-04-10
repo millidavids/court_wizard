@@ -48,6 +48,7 @@ pub(crate) fn preload_sprite_sheet<const N: usize>(
 ///
 /// Same as [`preload_sprite_sheet`] but creates [`WindSwayMaterial`] instances
 /// with per-variant phase offsets for organic wind animation.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn preload_wind_sway_sprite_sheet<const N: usize>(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<WindSwayMaterial>,
@@ -153,6 +154,7 @@ pub(crate) fn apply_heat_zone_fire_dot(
 }
 
 /// Emits fire smoke and spark VFX at random heights along a burning terrain sprite.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_burning_vfx(
     commands: &mut Commands,
     visual_assets: &SpellVisualAssets,

@@ -253,6 +253,7 @@ pub(super) fn detect_window_resize(
 pub(super) fn detect_window_move(
     mut move_events: MessageReader<WindowMoved>,
     mut config_changed: MessageWriter<ConfigChanged>,
+    mut saved_geometry: ResMut<SavedWindowedGeometry>,
     windows: Query<&BevyWindow, With<PrimaryWindow>>,
 ) {
     if move_events.read().count() == 0 {
@@ -267,15 +268,29 @@ pub(super) fn detect_window_move(
         return;
     }
 
+    // Always track the latest position so it's available at exit time
+    // even if the window is already closing.
+    if let WindowPosition::At(pos) = window.position {
+        saved_geometry.position = Some(pos);
+    }
+
     config_changed.write(ConfigChanged);
 }
 
-/// Extracts the saved window position from the primary window, if set.
-fn get_window_position(windows: &Query<&BevyWindow, With<PrimaryWindow>>) -> Option<IVec2> {
-    windows.single().ok().and_then(|w| match w.position {
-        WindowPosition::At(pos) => Some(pos),
-        _ => None,
-    })
+/// Returns the window position, preferring the saved geometry (which tracks
+/// every move) over the live window (which may be gone at exit time).
+fn get_window_position(
+    windows: &Query<&BevyWindow, With<PrimaryWindow>>,
+    saved_geometry: &SavedWindowedGeometry,
+) -> Option<IVec2> {
+    // Try live window first
+    if let Ok(w) = windows.single()
+        && let WindowPosition::At(pos) = w.position
+    {
+        return Some(pos);
+    }
+    // Fall back to last saved position
+    saved_geometry.position
 }
 
 /// Detects GameConfig changes and triggers config save.
@@ -430,7 +445,7 @@ fn persist_current_state(
         active_save,
         saved_geometry,
         input_bindings,
-        get_window_position(windows),
+        get_window_position(windows, saved_geometry),
         is_roguelite,
     );
 }

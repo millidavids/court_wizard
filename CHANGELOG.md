@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.23] - 2026-04-10
+
+### Added
+- **Wizard Tower central hub** — the main menu now opens to a tabbed "Wizard Tower" screen that serves as your home base, with tabs for Roguelite, Endless, and Study modes all in one place
+- **Roguelite run persistence** — you can now close the game or switch to Endless mode and resume your Roguelite run later from the Wizard Tower, as long as you don't abandon it
+- **Per-level terrain snapshots** — in Endless mode, time traveling to a previous level restores the battlefield terrain exactly as it was when you first played that level
+- **Expandable wizard cards** — when choosing a wizard, cards now smoothly expand to reveal the full description and status, arranged in columns so only the expanded card's column shifts
+- **Spell book header** — the spell book now has a "Spells" title and Back button in the header, matching the style of other menus
+- **Hotkey toggle** — clicking an assigned hotkey slot in the spell book now unassigns the spell from that slot, instead of doing nothing
+- **3D talent buttons** — talent cards in the Study now have the 3D pushable button effect with purple glow when selected
+
+### Changed
+- **Consolidated menus** — the old Game Mode Select, Run Modifiers, and Wizard Select screens have been merged into the Wizard Tower tabs, eliminating several layers of menu navigation
+- **Consistent menu layout** — all menus now share the same layout: title in the top-left header, Back button in the top-right, content filling below
+- **Study renders in panels** — the spell research web now renders inside the right panel of the Wizard Tower instead of taking over the full screen, with spell details in the left panel
+- **Selected ingredients glow purple** — cauldron ingredients now show the pressed purple button effect when selected, matching the rest of the UI
+- **Hotkey buttons glow when assigned** — in the spell book, hotkey slots show a permanent pressed effect when the current spell is assigned to them
+- **Smoother ingredient selection** — toggling cauldron ingredients no longer causes the entire menu to flash and rebuild; only the brew preview panel updates
+- **Abandon Run renamed** — the "End Run" button in Roguelite mode is now called "Abandon Run" for clarity
+- **Smaller landing buttons** — main menu button text is slightly smaller to prevent overflow
+
+### Fixed
+- **Tree growth bug** — certain tree variants were growing larger with each level due to a save/load scaling error
+- **Time travel level display** — the in-game level display now correctly shows the time-traveled level instead of your actual progression level
+- **Time travel terrain** — time traveling no longer permanently changes your current level or overwrites your terrain
+- **Window position saved on close** — the game window position is now reliably saved when closing via the X button or Alt+F4, not just the Exit button
+- **Spell graph edge clipping** — spell web edges in the Study no longer visually leak outside the panel boundaries
+- **Button press on load** — active tab buttons and other pre-selected buttons now correctly show the pressed 3D effect immediately when the screen loads, instead of appearing half-pressed
+
 ## [v0.5.818] - 2026-04-09
 
 ### Added

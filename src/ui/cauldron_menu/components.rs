@@ -17,6 +17,10 @@ pub(crate) enum CauldronMenuButtonAction {
 #[derive(Component)]
 pub(super) struct OnCauldronMenuScreen;
 
+/// Marker for the left detail/preview panel container (rebuilt on selection change).
+#[derive(Component)]
+pub(super) struct CauldronDetailPanel;
+
 /// Resource tracking which ingredients the player has selected.
 #[derive(Resource, Default)]
 pub(super) struct IngredientSelection {

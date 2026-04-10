@@ -16,7 +16,6 @@ use crate::state::{AppState, MenuState};
 use crate::ui::components::ButtonColors;
 use crate::ui::systems::{spawn_button, spawn_page_container};
 
-use super::super::wizard_select::shared::{self};
 use super::components::{
     ActiveConnectionButtons, BackButton, CodeDisplayText, CopyCodeButton, InitialButtons,
     IpDisplayText, LanButtons, LanIpEntryButtons, LobbyPhase, MultiplayerButtonAction,
@@ -24,6 +23,10 @@ use super::components::{
     StatusText, TitleText, WizardSelectScreen,
 };
 use super::constants::*;
+use super::shared::{
+    self, DetailDescription, DetailName, DetailStatus, SelectedWizardPreview, WizardCard,
+    grid_container_node,
+};
 
 /// Parses unlocked wizard types from save data string names.
 fn parse_wizard_types(names: &[String]) -> Vec<WizardType> {

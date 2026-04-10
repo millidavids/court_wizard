@@ -190,19 +190,19 @@ pub fn track_spell_casts_for_rotation(
 
         // Phase 1: Detect mana consumption → mark pending.
         // Any decrease counts (channeled spells drain small amounts per frame).
-        if mana.current < lc.prev_mana - f32::EPSILON {
-            if let Some(primed_spell) = primed {
-                lc.pending_spell = Some(primed_spell.spell);
-                // Mana was spent — clear rune bypass since the spell is now casting
-                lc.bypass_until_cast = false;
-            }
+        if mana.current < lc.prev_mana - f32::EPSILON
+            && let Some(primed_spell) = primed
+        {
+            lc.pending_spell = Some(primed_spell.spell);
+            // Mana was spent — clear rune bypass since the spell is now casting
+            lc.bypass_until_cast = false;
         }
 
         // Phase 2: When wizard returns to Resting, commit pending spell as last cast
-        if matches!(casting_state, CastingState::Resting) {
-            if let Some(pending) = lc.pending_spell.take() {
-                lc.spell = Some(pending);
-            }
+        if matches!(casting_state, CastingState::Resting)
+            && let Some(pending) = lc.pending_spell.take()
+        {
+            lc.spell = Some(pending);
         }
 
         lc.prev_mana = mana.current;
@@ -245,10 +245,10 @@ pub fn handle_prime_spell_messages(
 ) {
     for message in messages.read() {
         // Spell Rotation: block priming the same spell that was just cast
-        if let Some(ref lc) = last_cast {
-            if !lc.bypass_until_cast && lc.spell == Some(message.spell.spell) {
-                continue;
-            }
+        if let Some(ref lc) = last_cast
+            && !lc.bypass_until_cast && lc.spell == Some(message.spell.spell)
+        {
+            continue;
         }
 
         if let Ok(mut primed_spell) = wizard_query.single_mut() {

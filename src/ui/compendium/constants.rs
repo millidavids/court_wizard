@@ -38,7 +38,6 @@ pub(super) const STAT_SECTION_FONT_SIZE: f32 = 17.0;
 pub(super) const STAT_SECTION_COLOR: Color = Color::hsla(0.0, 0.0, 0.95, 1.0);
 
 // Layout
-pub(super) const MARGIN: f32 = 16.0;
 pub(super) const MARGIN_SMALL: f32 = 8.0;
 pub(super) const SECTION_PADDING: f32 = 12.0;
 pub(super) const LEFT_PANEL_PERCENT: f32 = 33.33;

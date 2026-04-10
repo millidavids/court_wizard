@@ -9,7 +9,6 @@ use crate::game::units::wizard::components::{Spell, SpellCategory};
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::networking::session::MultiplayerSession;
 use crate::state::{InGameState, MultiplayerGameState};
-use crate::ui::action_bar::messages::AssignSpellToSlot;
 use crate::ui::components::{ButtonColors, SpellIconAssets};
 use crate::ui::concentration::ConcentrationUIRoot;
 use crate::ui::systems::{spawn_button, spawn_page_container};
@@ -63,20 +62,55 @@ pub(super) fn spawn_spell_book_ui(
 
     commands.insert_resource(SelectedSpellPreview(initial_spell));
 
-    // Page container with shared two-panel layout
+    // Page container with column layout (header + two-panel content)
     let content = spawn_page_container(
         &mut commands,
         OnSpellBookScreen,
         false,
-        crate::ui::systems::two_panel_content_node(),
+        crate::ui::systems::default_content_node(),
     );
 
     commands.entity(content).with_children(|root| {
-        // === Left panel: detail + buttons ===
-        spawn_detail_panel(root, initial_spell, &config);
+        // Header row: title left, Back button right
+        root.spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            margin: UiRect::bottom(Val::Px(8.0)),
+            ..default()
+        })
+        .with_children(|header| {
+            crate::ui::systems::spawn_title_with_shadow(
+                header,
+                "Spells",
+                36.0,
+                crate::ui::constants::TEXT_PRIMARY,
+                Node::default(),
+            );
+            header.spawn(Node { flex_grow: 1.0, ..default() });
+            spawn_button(
+                header,
+                "Back",
+                SpellBookButtonAction::Close,
+                &crate::ui::main_menu::BACK_BUTTON_STYLE,
+            );
+        });
 
-        // === Right panel: categorized spell list ===
-        spawn_spell_list(root, initial_spell, &is_unlocked, &icon_assets);
+        // Two-panel content row
+        root.spawn(Node {
+            width: Val::Percent(100.0),
+            flex_grow: 1.0,
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(crate::ui::constants::TWO_PANEL_GAP),
+            ..default()
+        })
+        .with_children(|panels| {
+            // === Left panel: detail + buttons ===
+            spawn_detail_panel(panels, initial_spell, &config);
+
+            // === Right panel: categorized spell list ===
+            spawn_spell_list(panels, initial_spell, &is_unlocked, &icon_assets);
+        });
     });
 }
 
@@ -157,7 +191,7 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                                         )
                                     };
 
-                                    row.spawn((
+                                    let mut hotkey_btn = row.spawn((
                                         Button,
                                         Node {
                                             width: Val::Px(HOTKEY_BOX_SIZE),
@@ -175,7 +209,11 @@ fn spawn_detail_panel(parent: &mut ChildSpawnerCommands, spell: Spell, config: &
                                             border,
                                         },
                                         HotkeySlotButton(slot),
-                                    ))
+                                    ));
+                                    if is_active {
+                                        hotkey_btn.insert(crate::ui::components::ButtonActive);
+                                    }
+                                    hotkey_btn
                                     .with_children(|btn| {
                                         btn.spawn((
                                             Text::new(format!("{}", slot + 1)),
@@ -487,33 +525,91 @@ pub(super) fn update_detail_panel(
 
 /// Handles clicking a hotkey slot button to assign the selected spell.
 pub(super) fn handle_hotkey_click(
+    mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
-    hotkey_query: Query<&HotkeySlotButton>,
+    hotkey_query: Query<(Entity, &HotkeySlotButton)>,
+    all_hotkey_buttons: Query<(Entity, &HotkeySlotButton), With<Button>>,
     selected: Res<SelectedSpellPreview>,
-    mut assign_spell: MessageWriter<AssignSpellToSlot>,
+    mut config: ResMut<GameConfig>,
+    mut config_changed: MessageWriter<crate::config::ConfigChanged>,
 ) {
     for event in button_clicked.read() {
-        if let Ok(slot_btn) = hotkey_query.get(event.button) {
-            assign_spell.write(AssignSpellToSlot {
-                slot: slot_btn.0,
-                spell: selected.0,
-            });
+        let Ok((_, slot_btn)) = hotkey_query.get(event.button) else {
+            continue;
+        };
+        let slot_idx = slot_btn.0 as usize;
+
+        // Toggle: if already assigned to this slot, unassign; otherwise assign
+        if config.action_bar_slots.get(slot_idx) == Some(&Some(selected.0)) {
+            config.action_bar_slots[slot_idx] = None;
+        } else {
+            config.action_bar_slots[slot_idx] = Some(selected.0);
+        }
+        config_changed.write(crate::config::ConfigChanged);
+
+        // Update ButtonActive on all hotkey buttons to reflect new state
+        for (entity, btn) in &all_hotkey_buttons {
+            let is_active = config.action_bar_slots[btn.0 as usize] == Some(selected.0);
+            if is_active {
+                commands.entity(entity).insert((
+                    crate::ui::components::ButtonActive,
+                    ButtonColors {
+                        background: HOTKEY_ACTIVE_BG,
+                        border: HOTKEY_ACTIVE_BORDER,
+                    },
+                ));
+            } else {
+                commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                commands.entity(entity).insert(ButtonColors {
+                    background: HOTKEY_INACTIVE_BG,
+                    border: HOTKEY_INACTIVE_BORDER,
+                });
+            }
         }
     }
 }
 
-/// Handles number key presses to assign the selected spell to an action bar slot.
+/// Handles number key presses to assign/unassign the selected spell to an action bar slot.
 pub(super) fn handle_number_key_assignment(
+    mut commands: Commands,
     mut action_bar_key: MessageReader<ActionBarKeyPressed>,
+    all_hotkey_buttons: Query<(Entity, &HotkeySlotButton), With<Button>>,
     selected: Res<SelectedSpellPreview>,
-    mut assign_spell: MessageWriter<AssignSpellToSlot>,
+    mut config: ResMut<GameConfig>,
+    mut config_changed: MessageWriter<crate::config::ConfigChanged>,
 ) {
     for event in action_bar_key.read() {
-        if event.slot < 5 {
-            assign_spell.write(AssignSpellToSlot {
-                slot: event.slot,
-                spell: selected.0,
-            });
+        if event.slot >= 5 {
+            continue;
+        }
+        let slot_idx = event.slot as usize;
+
+        // Toggle: if already assigned, unassign; otherwise assign
+        if config.action_bar_slots.get(slot_idx) == Some(&Some(selected.0)) {
+            config.action_bar_slots[slot_idx] = None;
+        } else {
+            config.action_bar_slots[slot_idx] = Some(selected.0);
+        }
+        config_changed.write(crate::config::ConfigChanged);
+
+        // Update ButtonActive on all hotkey buttons
+        for (entity, btn) in &all_hotkey_buttons {
+            let is_active = config.action_bar_slots[btn.0 as usize] == Some(selected.0);
+            if is_active {
+                commands.entity(entity).insert((
+                    crate::ui::components::ButtonActive,
+                    ButtonColors {
+                        background: HOTKEY_ACTIVE_BG,
+                        border: HOTKEY_ACTIVE_BORDER,
+                    },
+                ));
+            } else {
+                commands.entity(entity).remove::<crate::ui::components::ButtonActive>();
+                commands.entity(entity).insert(ButtonColors {
+                    background: HOTKEY_INACTIVE_BG,
+                    border: HOTKEY_INACTIVE_BORDER,
+                });
+            }
         }
     }
 }

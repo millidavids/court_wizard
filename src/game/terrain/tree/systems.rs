@@ -15,6 +15,7 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Spawns a single tree at the given position with a size multiplier.
+#[allow(clippy::too_many_arguments)]
 pub(in crate::game) fn spawn_single_tree(
     commands: &mut Commands,
     assets: &TreeAssets,

@@ -28,23 +28,40 @@ fn setup(mut commands: Commands, pause_menu: bool) {
     );
 
     commands.entity(content).with_children(|parent| {
-        // Title
-        spawn_title_with_shadow(
-            parent,
-            "Compendium",
-            TITLE_FONT_SIZE,
-            TEXT_COLOR,
-            Node {
+        // Header row: title left, Back button right
+        parent
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
                 margin: UiRect::bottom(Val::Px(MARGIN_SMALL)),
                 ..default()
-            },
-        );
+            })
+            .with_children(|header| {
+                spawn_title_with_shadow(
+                    header,
+                    "Compendium",
+                    TITLE_FONT_SIZE,
+                    TEXT_COLOR,
+                    Node::default(),
+                );
+                header.spawn(Node {
+                    flex_grow: 1.0,
+                    ..default()
+                });
+                spawn_button(
+                    header,
+                    "Back",
+                    BackButton,
+                    &crate::ui::main_menu::BACK_BUTTON_STYLE,
+                );
+            });
 
         // Main content: left detail + right tabbed panel
         parent
             .spawn(Node {
                 width: Val::Percent(100.0),
-                height: Val::Percent(80.0),
+                height: Val::Percent(90.0),
                 flex_direction: FlexDirection::Row,
                 column_gap: Val::Px(COLUMN_GAP),
                 ..default()
@@ -55,23 +72,6 @@ fn setup(mut commands: Commands, pause_menu: bool) {
 
                 // Right panel: tabs + content
                 spawn_right_panel(main);
-            });
-
-        // Buttons row
-        parent
-            .spawn(Node {
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(MARGIN),
-                margin: UiRect::top(Val::Px(MARGIN_SMALL)),
-                ..default()
-            })
-            .with_children(|row| {
-                spawn_button(
-                    row,
-                    "Back",
-                    BackButton,
-                    &crate::ui::main_menu::BACK_BUTTON_STYLE,
-                );
             });
     });
 }
@@ -251,10 +251,6 @@ pub(super) fn setup_main_menu(commands: Commands) {
 
 pub(super) fn setup_pause_menu(commands: Commands) {
     setup(commands, true);
-}
-
-pub(super) fn setup_meta_game(commands: Commands) {
-    setup(commands, false);
 }
 
 // ---------------------------------------------------------------------------
@@ -462,30 +458,30 @@ pub(super) fn rebuild_on_state_change(
 
     // Rebuild items list
     // Only rebuild the item list when the tab changes — not on item selection.
-    if tab_changed {
-        if let Ok(container) = items_container.single() {
-            commands.entity(container).despawn_related::<Children>();
-            commands
-                .entity(container)
-                .with_children(|parent| match state.active_tab {
-                    CompendiumTab::Spells => {
-                        spawn_spell_items(parent, &unlocked_content.spells, &research_progress, &state)
-                    }
-                    CompendiumTab::Ingredients => {
-                        spawn_ingredient_items(parent, &unlocked_content.ingredients, &state)
-                    }
-                    CompendiumTab::Units => spawn_unit_items(parent, &unlocked_content.units, &state),
-                    CompendiumTab::Wizards => {
-                        spawn_wizard_items(parent, &unlocked_content.wizard_types, &state)
-                    }
-                    CompendiumTab::Achievements => {
-                        spawn_achievement_items(parent, &unlocked_achievements, &state)
-                    }
-                    CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
-                    CompendiumTab::Endless => spawn_endless_items(parent, save.as_ref(), &state),
-                    CompendiumTab::Roguelite => spawn_roguelite_items(parent, save.as_ref(), &state),
-                });
-        }
+    if tab_changed
+        && let Ok(container) = items_container.single()
+    {
+        commands.entity(container).despawn_related::<Children>();
+        commands
+            .entity(container)
+            .with_children(|parent| match state.active_tab {
+                CompendiumTab::Spells => {
+                    spawn_spell_items(parent, &unlocked_content.spells, &research_progress, &state)
+                }
+                CompendiumTab::Ingredients => {
+                    spawn_ingredient_items(parent, &unlocked_content.ingredients, &state)
+                }
+                CompendiumTab::Units => spawn_unit_items(parent, &unlocked_content.units, &state),
+                CompendiumTab::Wizards => {
+                    spawn_wizard_items(parent, &unlocked_content.wizard_types, &state)
+                }
+                CompendiumTab::Achievements => {
+                    spawn_achievement_items(parent, &unlocked_achievements, &state)
+                }
+                CompendiumTab::Stats => spawn_stats_items(parent, save.as_ref()),
+                CompendiumTab::Endless => spawn_endless_items(parent, save.as_ref(), &state),
+                CompendiumTab::Roguelite => spawn_roguelite_items(parent, save.as_ref(), &state),
+            });
     }
 
     // Update detail panel (including icon)
@@ -1548,18 +1544,7 @@ fn spawn_level_history_rows(
 /// Returns a color for the efficiency value:
 /// - 100%: gold glow
 /// - 0-99%: gradient from red (0%) to green (99%)
-fn efficiency_color(eff: f32) -> Color {
-    if eff >= 1.0 {
-        // Gold glow
-        Color::srgb(1.0, 0.85, 0.3)
-    } else {
-        // Lerp from red (0%) to green (100%)
-        let t = eff.clamp(0.0, 0.99);
-        let r = 1.0 - t;
-        let g = t;
-        Color::srgb(r * 0.9, g * 0.85, 0.15)
-    }
-}
+use crate::ui::constants::efficiency_color;
 
 // ---------------------------------------------------------------------------
 // Detail panel update

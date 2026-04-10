@@ -11,8 +11,41 @@ use crate::ui::constants::{
     SUCCESS_COLOR as GLOBAL_SUCCESS, TEXT_MUTED, WARNING_COLOR as GLOBAL_WARNING,
 };
 
-// Re-export all shared constants for convenience.
-pub(super) use super::super::wizard_select::shared::*;
+// Wizard select constants (previously shared from wizard_select::shared)
+use crate::ui::constants::{DETAIL_BG, DETAIL_BORDER, GOLD_ACCENT, TEXT_PRIMARY};
+
+pub(super) const TITLE_FONT_SIZE: f32 = 29.0;
+pub(super) const SUBTITLE_FONT_SIZE: f32 = 10.0;
+pub(super) const TEXT_COLOR: Color = TEXT_PRIMARY;
+pub(super) const SUBTITLE_COLOR: Color = TEXT_MUTED;
+pub(super) const LEFT_PANEL_WIDTH: f32 = 300.0;
+pub(super) const MARGIN: f32 = 20.0;
+pub(super) const GRID_SLOTS: usize = 16;
+pub(super) const CARD_GAP: f32 = 8.0;
+pub(super) const GRID_COLUMNS: usize = 4;
+pub(super) const CARD_WIDTH: f32 = 210.0;
+pub(super) const CARD_HEIGHT: f32 = 140.0;
+pub(super) const CARD_BORDER_WIDTH: f32 = 1.0;
+pub(super) const CARD_BORDER_RADIUS: f32 = 4.0;
+pub(super) const CARD_NAME_FONT_SIZE: f32 = 14.0;
+pub(super) const CARD_DESC_FONT_SIZE: f32 = 10.0;
+pub(super) const CARD_BG: Color = Color::hsla(220.0, 0.08, 0.11, 0.75);
+pub(super) const CARD_BORDER: Color = Color::hsla(0.0, 0.0, 0.20, 0.6);
+pub(super) const CARD_BORDER_SELECTED: Color = GOLD_ACCENT;
+pub(super) const DESCRIPTION_COLOR: Color = TEXT_MUTED;
+pub(super) const CARD_NAME_COLOR: Color = Color::hsla(40.0, 0.10, 0.85, 1.0);
+pub(super) const DETAIL_BORDER_WIDTH: f32 = 1.0;
+pub(super) const DETAIL_BORDER_RADIUS: f32 = 6.0;
+pub(super) const DETAIL_PANEL_BG: Color = DETAIL_BG;
+pub(super) const DETAIL_PANEL_BORDER: Color = DETAIL_BORDER;
+pub(super) const DETAIL_NAME_FONT_SIZE: f32 = 18.0;
+pub(super) const DETAIL_DESC_FONT_SIZE: f32 = 10.0;
+pub(super) const DETAIL_DESC_COLOR: Color = Color::hsla(0.0, 0.0, 0.58, 1.0);
+pub(super) const DETAIL_STATUS_FONT_SIZE: f32 = 10.0;
+pub(super) const LOCKED_CARD_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.6);
+pub(super) const LOCKED_CARD_BORDER: Color = Color::hsla(25.0, 0.10, 0.12, 0.5);
+pub(super) const LOCKED_TEXT_COLOR: Color = Color::hsla(30.0, 0.06, 0.45, 1.0);
+pub(super) const SEPARATOR_COLOR: Color = Color::hsla(270.0, 0.10, 0.15, 1.0);
 
 // ===== Connection Phase Styling =====
 

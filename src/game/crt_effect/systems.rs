@@ -487,6 +487,7 @@ pub(super) fn update_lensing_positions(
 }
 
 /// Projects active wall of fire positions to viewport-local UV space for heat distortion.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn update_heat_distortion_positions(
     walls: Query<&WallOfFireEffect>,
     explosions: Query<&FireballExplosion>,

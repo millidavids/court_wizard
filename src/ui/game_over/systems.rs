@@ -18,6 +18,7 @@ use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrysta
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
 use crate::state::AppState;
 use crate::ui::systems::{spawn_button, spawn_page_container, spawn_title_with_shadow};
+use crate::ui::wizard_tower::WizardTowerTab;
 
 use super::components::*;
 use super::constants::*;
@@ -149,6 +150,7 @@ pub(super) fn save_crystals_on_victory(
 }
 
 /// Saves all living terrain on victory.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn save_terrain_on_victory(
     game_outcome: Res<GameOutcome>,
     mut config: ResMut<GameConfig>,
@@ -163,6 +165,9 @@ pub(super) fn save_terrain_on_victory(
     >,
     boulders: Query<&crate::game::terrain::boulder::components::Boulder>,
     time_travel: Option<Res<TimeTravelState>>,
+    current_level: Res<CurrentLevel>,
+    active_save: Res<ActiveSave>,
+    game_mode: Option<Res<GameMode>>,
 ) {
     if time_travel.is_some() || *game_outcome != GameOutcome::Victory {
         return;
@@ -173,7 +178,8 @@ pub(super) fn save_terrain_on_victory(
         .map(|t| crate::config::save_data::SavedTree {
             x: t.center.x,
             z: t.center.z,
-            scale: t.radius / crate::game::terrain::tree::constants::TREE_RADIUS,
+            scale: t.radius
+                / crate::game::terrain::tree::constants::tree_radius_for_variant(t.sprite_index),
             sprite_index: t.sprite_index,
         })
         .collect();
@@ -208,6 +214,15 @@ pub(super) fn save_terrain_on_victory(
             sprite_index: b.sprite_index,
         })
         .collect();
+
+    // In Endless mode, also save a per-level terrain snapshot for time travel.
+    if crate::game::game_mode::components::is_endless_mode(game_mode.as_deref()) {
+        crate::config::save_data::save_level_terrain(
+            &active_save,
+            current_level.0,
+            &config,
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -612,6 +627,7 @@ pub(super) fn handle_button_actions(
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
     game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+    game_mode: Option<Res<GameMode>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
 ) {
     for event in button_clicked.read() {
@@ -628,12 +644,19 @@ pub(super) fn handle_button_actions(
                             // Time travel victory: restore real level, return to tower
                             current_level.0 = tt.real_level;
                             commands.remove_resource::<TimeTravelState>();
+                            insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
                             next_app_state.set(AppState::MetaGame);
                         }
                     } else if game_outcome.is_defeat() {
                         kill_stats.reset();
                         next_app_state.set(AppState::Loading);
                     } else {
+                        // Save roguelite run to disk for resume
+                        save_dormant_roguelite_run(
+                            &active_save, &roguelite_run, &config,
+                            &roguelite_modifiers, &active_toggles, &game_seed,
+                        );
+                        insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
                         next_app_state.set(AppState::MetaGame);
                     }
                 }
@@ -643,12 +666,22 @@ pub(super) fn handle_button_actions(
                         current_level.0 = tt.real_level;
                         commands.remove_resource::<TimeTravelState>();
                     }
+                    // Save roguelite run to disk for resume
+                    save_dormant_roguelite_run(
+                        &active_save, &roguelite_run, &config,
+                        &roguelite_modifiers, &active_toggles, &game_seed,
+                    );
+                    insert_wizard_tower_tab(&mut commands, game_mode.as_deref());
                     next_app_state.set(AppState::MetaGame);
                 }
                 GameOverButtonAction::ReturnToMenu => {
                     kill_stats.reset();
                     if time_travel.is_some() {
                         commands.remove_resource::<TimeTravelState>();
+                    }
+                    // Abandon roguelite run if exiting to menu from score screen
+                    if is_roguelite_mode(game_mode.as_deref()) {
+                        crate::config::save_data::clear_current_roguelite_run(&active_save);
                     }
                     active_save.0 = None;
                     next_app_state.set(AppState::MainMenu);
@@ -676,6 +709,8 @@ pub(super) fn handle_button_actions(
                             roguelite_run_data,
                         );
                     }
+                    // Clear the dormant run — it's now in history
+                    crate::config::save_data::clear_current_roguelite_run(&active_save);
                     kill_stats.reset();
                     commands.remove_resource::<RogueliteRunState>();
                     active_save.0 = None;
@@ -728,4 +763,35 @@ pub(super) fn accumulate_mode_level_stats(
         }
         None => {}
     }
+}
+
+/// Persists the current roguelite run to disk so it can be resumed later.
+fn save_dormant_roguelite_run(
+    active_save: &ActiveSave,
+    roguelite_run: &Option<Res<RogueliteRunState>>,
+    config: &GameConfig,
+    roguelite_modifiers: &Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
+    active_toggles: &Option<Res<crate::game::game_mode::components::ActiveToggles>>,
+    game_seed: &Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+) {
+    if let Some(run) = roguelite_run {
+        crate::config::save_data::save_current_roguelite_run(
+            active_save,
+            run,
+            config,
+            roguelite_modifiers.as_deref(),
+            active_toggles.as_deref(),
+            game_seed.as_ref().map(|s| s.0),
+        );
+    }
+}
+
+/// Sets the appropriate wizard tower tab based on the current game mode.
+fn insert_wizard_tower_tab(commands: &mut Commands, game_mode: Option<&GameMode>) {
+    let tab = if is_roguelite_mode(game_mode) {
+        WizardTowerTab::Roguelite
+    } else {
+        WizardTowerTab::Endless
+    };
+    commands.insert_resource(tab);
 }

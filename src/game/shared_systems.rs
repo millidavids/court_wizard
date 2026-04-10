@@ -42,7 +42,17 @@ pub fn tick_elapsed_time(
 ///
 /// This system runs on OnEnter(AppState::InGame) to restore the player's
 /// current level from their last session.
-pub fn init_level_from_config(mut current_level: ResMut<CurrentLevel>, config: Res<GameConfig>) {
+pub fn init_level_from_config(
+    mut current_level: ResMut<CurrentLevel>,
+    config: Res<GameConfig>,
+    time_travel: Option<Res<crate::game::resources::TimeTravelState>>,
+) {
+    // During time travel, CurrentLevel was already set to the target level
+    // by the time travel handler. Don't overwrite it with config.current_level
+    // which tracks actual progression.
+    if time_travel.is_some() {
+        return;
+    }
     current_level.0 = config.current_level;
 }
 

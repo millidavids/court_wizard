@@ -55,7 +55,7 @@ pub enum AppState {
 #[source(AppState = AppState::MainMenu)]
 #[allow(dead_code)] // Variants will be used as menu screens are implemented
 pub enum MenuState {
-    /// Landing screen with Start Game and Settings buttons.
+    /// Landing screen with Wizard Tower, Settings, and other buttons.
     #[default]
     Landing,
 
@@ -70,15 +70,6 @@ pub enum MenuState {
 
     /// Credits screen.
     Credits,
-
-    /// Game mode selection screen (Roguelite, Endless, Multiplayer).
-    GameModeSelect,
-
-    /// Roguelite modifier selection (game speed, enemy effectiveness, enemy count).
-    RogueliteModifiers,
-
-    /// Wizard type selection screen for picking or creating a wizard.
-    WizardSelect,
 
     /// Compendium screen showing achievements, unlockables, and unit tracking.
     Compendium,
@@ -131,15 +122,9 @@ pub enum InGameState {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
 #[source(AppState = AppState::MetaGame)]
 pub enum MetaGameState {
-    /// Wizard's Tower hub screen.
+    /// Wizard's Tower hub screen — tabbed central hub with Roguelite/Endless/Study tabs.
     #[default]
     WizardTower,
-
-    /// Spell research screen with allocation sliders and commit.
-    Study,
-
-    /// Compendium screen accessible from wizard tower.
-    Compendium,
 }
 
 /// Pause menu navigation state.

@@ -571,7 +571,7 @@ pub(super) fn tag_wizard_tower_entities(
     mut commands: Commands,
     level_displays: Query<Entity, (With<LevelDisplay>, Without<TutorialHighlightable>)>,
     insight_displays: Query<Entity, (With<InsightDisplay>, Without<TutorialHighlightable>)>,
-    wt_buttons: Query<(Entity, &WizardTowerButtonAction), Without<TutorialHighlightable>>,
+    _wt_buttons: Query<(Entity, &WizardTowerButtonAction), Without<TutorialHighlightable>>,
     tt_containers: Query<Entity, (With<TimeTravelContainer>, Without<TutorialHighlightable>)>,
 ) {
     for entity in &level_displays {
@@ -583,17 +583,6 @@ pub(super) fn tag_wizard_tower_entities(
         commands.entity(entity).insert(TutorialHighlightable {
             target: HighlightTarget::InsightDisplay,
         });
-    }
-    for (entity, action) in &wt_buttons {
-        let target = match action {
-            WizardTowerButtonAction::StudySpells => HighlightTarget::StudySpellsButton,
-            WizardTowerButtonAction::StartNextBattle => HighlightTarget::StartBattleButton,
-            WizardTowerButtonAction::StartTimeTravel => HighlightTarget::TimeTravelButton,
-            _ => continue,
-        };
-        commands
-            .entity(entity)
-            .insert(TutorialHighlightable { target });
     }
     for entity in &tt_containers {
         commands.entity(entity).insert(TutorialHighlightable {

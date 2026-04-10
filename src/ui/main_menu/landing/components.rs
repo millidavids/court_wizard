@@ -14,8 +14,8 @@ pub(super) struct OnLandingScreen;
 /// a button is pressed.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum MenuButtonAction {
-    /// Go to the wizard select screen to pick or create a wizard.
-    Play,
+    /// Go to the Wizard Tower central hub.
+    WizardTower,
 
     /// Open the settings menu, transitioning to `MenuState::Settings`.
     Settings,

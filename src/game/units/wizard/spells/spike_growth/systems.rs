@@ -643,6 +643,7 @@ pub fn cleanup_spike_growth_zone(
 }
 
 /// Spawns a single spike growth zone with talent parameters.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_spike_growth_zone(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -708,6 +709,7 @@ pub(crate) fn spawn_spike_growth_zone(
 }
 
 /// Nature's Minefield: spawns 3 smaller zones in a triangle pattern.
+#[allow(clippy::too_many_arguments)]
 fn spawn_minefield_zones(
     commands: &mut Commands,
     assets: &SpellVisualAssets,

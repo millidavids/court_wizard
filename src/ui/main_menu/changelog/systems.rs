@@ -19,17 +19,20 @@ pub(super) fn setup(mut commands: Commands) {
     );
 
     commands.entity(content).with_children(|parent| {
-        // Title
-        spawn_title_with_shadow(
-            parent,
-            "Changelog",
-            48.0,
-            TEXT_COLOR,
-            Node {
+        // Header row: title left, Back button right
+        parent
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
                 margin: UiRect::bottom(Val::Px(20.0)),
                 ..default()
-            },
-        );
+            })
+            .with_children(|header| {
+                spawn_title_with_shadow(header, "Changelog", 48.0, TEXT_COLOR, Node::default());
+                header.spawn(Node { flex_grow: 1.0, ..default() });
+                spawn_button(header, "Back", BackButton, &BACK_BUTTON_STYLE);
+            });
 
         // Scrollable changelog content
         parent
@@ -39,7 +42,6 @@ pub(super) fn setup(mut commands: Commands) {
                     flex_grow: 1.0,
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::scroll_y(),
-                    margin: UiRect::bottom(Val::Px(20.0)),
                     border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
@@ -63,8 +65,5 @@ pub(super) fn setup(mut commands: Commands) {
                         ));
                     });
             });
-
-        // Back button
-        spawn_button(parent, "Back", BackButton, &BACK_BUTTON_STYLE);
     });
 }

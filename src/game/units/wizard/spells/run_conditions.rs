@@ -28,10 +28,10 @@ pub fn spell_is_primed(
                     return false;
                 }
                 // Spell Rotation: block if this spell was the last one cast
-                if let Some(ref lc) = last_cast {
-                    if !lc.bypass_until_cast && lc.spell == Some(spell) {
-                        return false;
-                    }
+                if let Some(ref lc) = last_cast
+                    && !lc.bypass_until_cast && lc.spell == Some(spell)
+                {
+                    return false;
                 }
                 true
             })

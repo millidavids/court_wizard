@@ -21,7 +21,7 @@ use super::constants::{
     LIST_BORDER, OVERLAY_BG, PANEL_BORDER_RADIUS, SCROLL_BG, SCROLL_BORDER, SCROLL_SHADOW_COLOR,
     SHADOW_COLOR, SLIDER_BORDER_WIDTH, SLIDER_BUTTON_BG, SLIDER_BUTTON_BORDER_COLOR,
     SLIDER_BUTTON_FONT_SIZE, SLIDER_BUTTON_SIZE, SLIDER_GAP, SLIDER_LABEL_FONT_SIZE,
-    SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR, TWO_PANEL_GAP, TWO_PANEL_PADDING,
+    SLIDER_TRACK_WIDTH, TEXT_PRIMARY, TEXT_SHADOW_COLOR,
 };
 use super::styles::{border_bright, border_hovered};
 use crate::game::crt_effect::ChannelChangeMessage;
@@ -97,6 +97,7 @@ pub fn button_click_detection(
 /// Sets the 3D button animation target based on interaction state.
 ///
 /// Glows BOTH the edge's outline (lower layer) and the front face's border (top layer).
+#[allow(clippy::type_complexity)]
 pub fn button_interaction(
     mut interaction_query: Query<
         (
@@ -210,6 +211,7 @@ pub fn button_interaction(
 /// The front face inherits the original button's layout properties (flex direction,
 /// alignment, padding, gaps) so content renders identically.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn apply_3d_button_structure(
     mut commands: Commands,
     new_buttons: Query<
@@ -220,13 +222,14 @@ pub fn apply_3d_button_structure(
             Option<&BorderRadius>,
             Option<&BorderColor>,
             Option<&Children>,
+            Has<ButtonActive>,
         ),
         (Added<ButtonColors>, With<Button>, Without<ButtonAnimState>),
     >,
 ) {
     let depth = -BUTTON_3D_OFFSET_REST;
 
-    for (entity, colors, node, radius, border_color, children) in &new_buttons {
+    for (entity, colors, node, radius, border_color, children, is_active) in &new_buttons {
         // Skip transparent/utility buttons — the 3D effect doesn't suit them
         // and restructuring breaks click behavior for small nested buttons.
         let bg_hsla = Hsla::from(colors.background);
@@ -251,8 +254,20 @@ pub fn apply_3d_button_structure(
         let existing_children: Vec<Entity> =
             children.map(|c| c.iter().collect()).unwrap_or_default();
 
+        // If the button is already active, start in pressed state
+        let (initial_offset, front_border, edge_outline_color) = if is_active {
+            (
+                BUTTON_3D_OFFSET_PRESSED,
+                BorderColor::all(border_bright(colors.border)),
+                BUTTON_PRESSED_OUTLINE,
+            )
+        } else {
+            (BUTTON_3D_OFFSET_REST, bc, FRAME_OUTLINE_COLOR)
+        };
+
         // Spawn edge — same size as front but offset down and slightly narrower.
         // Outline lives here so it appears to go behind the front face.
+        // Active buttons get the pressed outline immediately.
         let edge = commands
             .spawn((
                 ButtonEdge,
@@ -266,7 +281,7 @@ pub fn apply_3d_button_structure(
                 },
                 BackgroundColor(edge_color(colors.background)),
                 br,
-                Outline::new(Val::Px(1.0), Val::Px(1.0), FRAME_OUTLINE_COLOR),
+                Outline::new(Val::Px(1.0), Val::Px(1.0), edge_outline_color),
             ))
             .id();
 
@@ -285,7 +300,7 @@ pub fn apply_3d_button_structure(
             flex_wrap: node.flex_wrap,
             overflow: node.overflow,
             position_type: PositionType::Relative,
-            top: Val::Px(BUTTON_3D_OFFSET_REST),
+            top: Val::Px(initial_offset),
             ..default()
         };
         if has_fixed_height {
@@ -300,7 +315,7 @@ pub fn apply_3d_button_structure(
                 ButtonFront,
                 front_node,
                 BackgroundColor(opaque(colors.background)),
-                bc,
+                front_border,
                 br,
             ))
             .id();
@@ -316,8 +331,8 @@ pub fn apply_3d_button_structure(
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
             ButtonAnimState {
-                current: BUTTON_3D_OFFSET_REST,
-                target: BUTTON_3D_OFFSET_REST,
+                current: initial_offset,
+                target: initial_offset,
             },
             BoxShadow(vec![ShadowStyle {
                 color: BUTTON_SHADOW_COLOR,
@@ -580,21 +595,6 @@ pub fn default_content_node() -> Node {
         flex_direction: FlexDirection::Column,
         align_items: AlignItems::Center,
         padding: UiRect::all(Val::Px(20.0)),
-        border: UiRect::all(Val::Px(1.0)),
-        overflow: Overflow::clip(),
-        ..default()
-    }
-}
-
-/// Returns the standard content Node for a two-panel page layout (left detail + right list).
-/// Pass this to `spawn_page_container()` as the `content_node`.
-pub fn two_panel_content_node() -> Node {
-    Node {
-        width: Val::Percent(100.0),
-        height: Val::Percent(100.0),
-        flex_direction: FlexDirection::Row,
-        padding: UiRect::all(Val::Px(TWO_PANEL_PADDING)),
-        column_gap: Val::Px(TWO_PANEL_GAP),
         border: UiRect::all(Val::Px(1.0)),
         overflow: Overflow::clip(),
         ..default()

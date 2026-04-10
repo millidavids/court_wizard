@@ -51,17 +51,52 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
         crate::ui::systems::default_content_node(),
     );
     commands.entity(content).with_children(|parent| {
-        // Title
-        spawn_title_with_shadow(
-            parent,
-            "Settings",
-            TITLE_FONT_SIZE,
-            TEXT_COLOR,
-            Node {
+        // Header row: title left, Back button right
+        parent
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
                 margin: UiRect::bottom(Val::Px(MARGIN)),
                 ..default()
-            },
-        );
+            })
+            .with_children(|header| {
+                spawn_title_with_shadow(
+                    header,
+                    "Settings",
+                    TITLE_FONT_SIZE,
+                    TEXT_COLOR,
+                    Node::default(),
+                );
+                header.spawn(Node { flex_grow: 1.0, ..default() });
+                header
+                    .spawn((
+                        Button,
+                        Node {
+                            width: Val::Px(150.0),
+                            height: Val::Px(50.0),
+                            border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BorderColor::all(BUTTON_BORDER),
+                        BorderRadius::all(Val::Px(8.0)),
+                        BackgroundColor(BUTTON_BACKGROUND),
+                        ButtonColors {
+                            background: BUTTON_BACKGROUND,
+                            border: BUTTON_BORDER,
+                        },
+                        SettingsButtonAction::Back,
+                    ))
+                    .with_children(|button| {
+                        button.spawn((
+                            Text::new("Back"),
+                            TextFont::from_font_size(18.0),
+                            TextColor(TEXT_COLOR),
+                        ));
+                    });
+            });
 
         // Tab bar
         parent
@@ -117,7 +152,6 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 overflow: Overflow::scroll_y(),
-                margin: UiRect::bottom(Val::Px(MARGIN)),
                 border: UiRect::all(Val::Px(1.0)),
                 padding: UiRect::all(Val::Px(10.0)),
                 ..default()
@@ -126,35 +160,6 @@ fn setup(mut commands: Commands, mut tab_state: ResMut<SettingsTabState>, pause_
             ScrollPosition::default(),
             SettingsContentContainer,
         ));
-
-        // Back button (outside content area)
-        parent
-            .spawn((
-                Button,
-                Node {
-                    width: Val::Px(150.0),
-                    height: Val::Px(50.0),
-                    border: UiRect::all(Val::Px(BUTTON_BORDER_WIDTH)),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                BorderColor::all(BUTTON_BORDER),
-                BorderRadius::all(Val::Px(8.0)),
-                BackgroundColor(BUTTON_BACKGROUND),
-                ButtonColors {
-                    background: BUTTON_BACKGROUND,
-                    border: BUTTON_BORDER,
-                },
-                SettingsButtonAction::Back,
-            ))
-            .with_children(|button| {
-                button.spawn((
-                    Text::new("Back"),
-                    TextFont::from_font_size(18.0),
-                    TextColor(TEXT_COLOR),
-                ));
-            });
     });
 }
 

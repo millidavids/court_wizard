@@ -13,7 +13,6 @@ use super::achievement_popup::AchievementPopupPlugin;
 use super::action_bar::ActionBarPlugin;
 use super::arcanorouter_display::ArcanoRouterDisplayPlugin;
 use super::cauldron_menu::CauldronMenuPlugin;
-use super::compendium::MetaGameCompendiumPlugin;
 use super::components::{load_spell_icon_assets, set_default_font};
 use super::concentration::ConcentrationUIPlugin;
 use super::game_over::GameOverPlugin;
@@ -64,7 +63,6 @@ impl Plugin for UiPlugin {
         ))
         .add_plugins((
             WizardTowerPlugin,
-            MetaGameCompendiumPlugin,
             VersionPlugin,
             TutorialPlugin,
             WeatherBarPlugin,

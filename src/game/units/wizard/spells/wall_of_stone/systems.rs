@@ -972,10 +972,10 @@ pub fn apply_wall_trampling(
                 } else {
                     (1.0 - (dist / buffer).min(1.0)) * 0.4
                 };
-                if intensity > 0.0 {
-                    if let Some(idx) = grid.world_to_index(x, z) {
-                        grid.values[idx] = (grid.values[idx] + intensity).min(1.0);
-                    }
+                if intensity > 0.0
+                    && let Some(idx) = grid.world_to_index(x, z)
+                {
+                    grid.values[idx] = (grid.values[idx] + intensity).min(1.0);
                 }
                 z += cell_size;
             }

@@ -1,8 +1,9 @@
+//! Study tab systems for the wizard tower.
+
 use bevy::input::mouse::{MouseButton, MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::ActiveSave;
 #[cfg(debug_assertions)]
 use crate::config::save_data::grant_insight;
 use crate::config::save_data::{
@@ -10,16 +11,15 @@ use crate::config::save_data::{
     get_spell_talent_progress, get_spell_talent_selections, load_unified_save,
     set_insight_bonus_levels, spend_insight,
 };
-use crate::game::constants::boss_name_for_level;
-use crate::game::crt_effect::{ChannelChangeMessage, CorrectedCursorPosition};
+use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseClicked;
 use crate::game::messages::SpellResearchedMessage;
-use crate::game::resources::{BattleInsightData, CurrentLevel, KillStats, TimeTravelState};
+use crate::game::resources::BattleInsightData;
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
-use crate::state::{AppState, MetaGameState};
+use crate::ui::components::ButtonColors;
 use crate::ui::main_menu::settings::components::SliderAdjusted;
-use crate::ui::systems::{scale_font_by_text_width, spawn_button, spawn_title_with_shadow};
+use crate::ui::systems::{scale_font_by_text_width, spawn_button};
 
 use super::components::*;
 use super::constants::*;
@@ -111,6 +111,49 @@ fn graph_to_screen(graph_pos: Vec2, view: &GraphViewState, container_center: Vec
     graph_pos * view.scale + view.offset + container_center
 }
 
+/// Clips a line segment to an axis-aligned rectangle using the Liang-Barsky algorithm.
+/// Returns the clipped endpoints, or `None` if the segment is entirely outside.
+fn clip_line_to_rect(
+    a: Vec2,
+    b: Vec2,
+    rect: &std::ops::RangeInclusive<Vec2>,
+) -> Option<(Vec2, Vec2)> {
+    let min = *rect.start();
+    let max = *rect.end();
+    let d = b - a;
+
+    let mut t0: f32 = 0.0;
+    let mut t1: f32 = 1.0;
+
+    let edges = [
+        (-d.x, a.x - min.x),  // left
+        (d.x, max.x - a.x),   // right
+        (-d.y, a.y - min.y),  // top
+        (d.y, max.y - a.y),   // bottom
+    ];
+
+    for (p, q) in edges {
+        if p.abs() < 1e-10 {
+            // Parallel to edge — outside if q < 0
+            if q < 0.0 {
+                return None;
+            }
+        } else {
+            let t = q / p;
+            if p < 0.0 {
+                t0 = t0.max(t);
+            } else {
+                t1 = t1.min(t);
+            }
+            if t0 > t1 {
+                return None;
+            }
+        }
+    }
+
+    Some((a + d * t0, a + d * t1))
+}
+
 /// Computes progress and allocation fractions for the unified slider.
 /// Returns `(progress_frac, alloc_frac, handle_pos)` where handle_pos = progress_frac + alloc_frac.
 fn compute_slider_fracs(progress: u32, alloc: u32, cost: u32) -> (f32, f32, f32) {
@@ -128,406 +171,20 @@ fn compute_slider_fracs(progress: u32, alloc: u32, cost: u32) -> (f32, f32, f32)
 }
 
 // ===========================================================================
-// Hub (MetaGameState::WizardTower) systems
-// ===========================================================================
-
-/// Sets up the wizard tower main hub screen.
-pub(super) fn setup_wizard_tower_main(
-    mut commands: Commands,
-    current_level: Res<CurrentLevel>,
-    config: Res<crate::config::GameConfig>,
-    game_mode: Option<Res<crate::game::game_mode::components::GameMode>>,
-) {
-    let insight_balance = get_insight();
-    commands.insert_resource(SelectedTimeTravelLevel::default());
-
-    let is_roguelite = crate::game::game_mode::components::is_roguelite_mode(game_mode.as_deref());
-    let show_time_travel = config.highest_level_achieved > 1 && !is_roguelite;
-
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                column_gap: Val::Px(60.0),
-                ..default()
-            },
-            BackgroundColor(BACKGROUND_COLOR),
-            OnWizardTowerScreen,
-            OnMainScreen,
-        ))
-        .with_children(|root| {
-            // Left column - main hub content
-            root.spawn(Node {
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                row_gap: Val::Px(20.0),
-                ..default()
-            })
-            .with_children(|left| {
-                // Title
-                spawn_title_with_shadow(
-                    left,
-                    "Wizard's Tower",
-                    TITLE_FONT_SIZE,
-                    TITLE_COLOR,
-                    Node::default(),
-                );
-
-                // Level display
-                left.spawn((
-                    Text::new(format!("Level {}", current_level.0)),
-                    TextFont::from_font_size(LEVEL_FONT_SIZE),
-                    TextColor(TEXT_COLOR),
-                    LevelDisplay,
-                ));
-
-                // Insight balance
-                left.spawn((
-                    Text::new(format!("Arcane Insight: {}", insight_balance)),
-                    TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                    TextColor(INSIGHT_COLOR),
-                    InsightDisplay,
-                ));
-
-                // Buttons
-                left.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: Val::Px(12.0),
-                    margin: UiRect::top(Val::Px(20.0)),
-                    ..default()
-                })
-                .with_children(|buttons| {
-                    spawn_button(
-                        buttons,
-                        "Start Next Battle",
-                        WizardTowerButtonAction::StartNextBattle,
-                        &BUTTON_STYLE,
-                    );
-
-                    spawn_button(
-                        buttons,
-                        "Study",
-                        WizardTowerButtonAction::StudySpells,
-                        &BUTTON_STYLE,
-                    );
-
-                    spawn_button(
-                        buttons,
-                        "Compendium",
-                        WizardTowerButtonAction::Compendium,
-                        &BUTTON_STYLE,
-                    );
-
-                    spawn_button(
-                        buttons,
-                        "Return to Menu",
-                        WizardTowerButtonAction::ReturnToMenu,
-                        &BUTTON_STYLE,
-                    );
-
-                    // Debug level controls
-                    #[cfg(debug_assertions)]
-                    {
-                        buttons
-                            .spawn(Node {
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                column_gap: Val::Px(10.0),
-                                margin: UiRect::top(Val::Px(10.0)),
-                                ..default()
-                            })
-                            .with_children(|row| {
-                                spawn_button(
-                                    row,
-                                    "Level -1",
-                                    WizardTowerButtonAction::DebugLevelDown,
-                                    &DEBUG_BUTTON_STYLE,
-                                );
-                                spawn_button(
-                                    row,
-                                    "Level +1",
-                                    WizardTowerButtonAction::DebugLevelUp,
-                                    &DEBUG_BUTTON_STYLE,
-                                );
-                            });
-                    }
-                });
-            });
-
-            // Right column - Time Travel (only if player has beaten at least level 1)
-            if show_time_travel {
-                root.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    row_gap: Val::Px(10.0),
-                    ..default()
-                })
-                .with_children(|right| {
-                    // Title
-                    right.spawn((
-                        Text::new("Time Travel"),
-                        TextFont::from_font_size(20.0),
-                        TextColor(TIME_TRAVEL_BOSS_COLOR),
-                    ));
-
-                    // Level list container with border
-                    right
-                        .spawn((
-                            Node {
-                                flex_direction: FlexDirection::Column,
-                                align_items: AlignItems::Center,
-                                row_gap: Val::Px(6.0),
-                                padding: UiRect::all(Val::Px(8.0)),
-                                border: UiRect::all(Val::Px(1.0)),
-                                width: Val::Px(240.0),
-                                ..default()
-                            },
-                            BackgroundColor(TIME_TRAVEL_SECTION_BG),
-                            BorderColor::all(TIME_TRAVEL_SECTION_BORDER),
-                            TimeTravelContainer,
-                        ))
-                        .with_children(|section| {
-                            // Scrollable level list
-                            section
-                                .spawn((
-                                    Node {
-                                        flex_direction: FlexDirection::Column,
-                                        align_items: AlignItems::Stretch,
-                                        max_height: Val::Px(TIME_TRAVEL_LIST_MAX_HEIGHT),
-                                        width: Val::Percent(100.0),
-                                        overflow: Overflow::scroll_y(),
-                                        ..default()
-                                    },
-                                    ScrollPosition::default(),
-                                    TimeTravelSection,
-                                ))
-                                .with_children(|list| {
-                                    for level in 1..config.highest_level_achieved {
-                                        let label = if let Some(boss) = boss_name_for_level(level) {
-                                            format!("Level {} ({})", level, boss)
-                                        } else {
-                                            format!("Level {}", level)
-                                        };
-                                        let text_color = if boss_name_for_level(level).is_some() {
-                                            TIME_TRAVEL_BOSS_COLOR
-                                        } else {
-                                            TEXT_COLOR
-                                        };
-
-                                        list.spawn((
-                                            Button,
-                                            Node {
-                                                height: Val::Px(TIME_TRAVEL_LEVEL_HEIGHT),
-                                                padding: UiRect::horizontal(Val::Px(8.0)),
-                                                align_items: AlignItems::Center,
-                                                ..default()
-                                            },
-                                            BackgroundColor(Color::NONE),
-                                            TimeTravelLevelButton(level),
-                                        ))
-                                        .with_child((
-                                            Text::new(label),
-                                            TextFont::from_font_size(TIME_TRAVEL_LEVEL_FONT_SIZE),
-                                            TextColor(text_color),
-                                        ));
-                                    }
-                                });
-
-                            // Selected level display
-                            section.spawn((
-                                Text::new("Select a level..."),
-                                TextFont::from_font_size(TIME_TRAVEL_LEVEL_FONT_SIZE),
-                                TextColor(TEXT_COLOR),
-                                TimeTravelSelectedDisplay,
-                            ));
-
-                            // Start button
-                            spawn_button(
-                                section,
-                                "Start Time Travel",
-                                WizardTowerButtonAction::StartTimeTravel,
-                                &START_TIME_TRAVEL_BUTTON_STYLE,
-                            );
-                        });
-                });
-            }
-        });
-}
-
-/// Handles button actions on the hub screen.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn handle_main_button_actions(
-    mut commands: Commands,
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&WizardTowerButtonAction>,
-    mut next_app_state: ResMut<NextState<AppState>>,
-    mut next_wt_state: ResMut<NextState<MetaGameState>>,
-    mut kill_stats: ResMut<KillStats>,
-    mut current_level: ResMut<CurrentLevel>,
-    mut active_save: ResMut<ActiveSave>,
-    selected_tt_level: Option<Res<SelectedTimeTravelLevel>>,
-    #[cfg(debug_assertions)] mut config: ResMut<crate::config::GameConfig>,
-    #[cfg(debug_assertions)] mut level_texts: Query<&mut Text, With<LevelDisplay>>,
-    mut channel_change: MessageWriter<ChannelChangeMessage>,
-) {
-    for event in button_clicked.read() {
-        if let Ok(action) = button_query.get(event.button) {
-            match action {
-                WizardTowerButtonAction::StudySpells => {
-                    next_wt_state.set(MetaGameState::Study);
-                }
-                WizardTowerButtonAction::Compendium => {
-                    next_wt_state.set(MetaGameState::Compendium);
-                }
-                WizardTowerButtonAction::StartNextBattle => {
-                    channel_change.write(ChannelChangeMessage);
-                    kill_stats.reset();
-                    next_app_state.set(AppState::Loading);
-                }
-                WizardTowerButtonAction::ReturnToMenu => {
-                    channel_change.write(ChannelChangeMessage);
-                    kill_stats.reset();
-                    active_save.0 = None;
-                    next_app_state.set(AppState::MainMenu);
-                }
-                WizardTowerButtonAction::StartTimeTravel => {
-                    if let Some(ref sel) = selected_tt_level
-                        && let Some(level) = sel.0
-                    {
-                        commands.insert_resource(TimeTravelState {
-                            real_level: current_level.0,
-                        });
-                        current_level.0 = level;
-                        channel_change.write(ChannelChangeMessage);
-                        kill_stats.reset();
-                        next_app_state.set(AppState::Loading);
-                    }
-                }
-                #[cfg(debug_assertions)]
-                WizardTowerButtonAction::DebugLevelUp => {
-                    current_level.0 += 1;
-                    config.current_level = current_level.0;
-                    for mut text in &mut level_texts {
-                        text.0 = format!("Level {}", current_level.0);
-                    }
-                }
-                #[cfg(debug_assertions)]
-                WizardTowerButtonAction::DebugLevelDown => {
-                    if current_level.0 > 1 {
-                        current_level.0 -= 1;
-                        config.current_level = current_level.0;
-                        for mut text in &mut level_texts {
-                            text.0 = format!("Level {}", current_level.0);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Handles clicks on time travel level buttons.
-pub(super) fn handle_time_travel_level_clicks(
-    mut button_clicked: MessageReader<MouseClicked>,
-    level_buttons: Query<&TimeTravelLevelButton>,
-    mut selected: ResMut<SelectedTimeTravelLevel>,
-    mut level_button_nodes: Query<(&TimeTravelLevelButton, &mut BackgroundColor, &Children)>,
-    grandchildren_query: Query<&Children>,
-    mut text_queries: ParamSet<(
-        Query<(&mut Text, &mut TextColor), With<TimeTravelSelectedDisplay>>,
-        Query<&mut TextColor>,
-    )>,
-) {
-    for event in button_clicked.read() {
-        if let Ok(btn) = level_buttons.get(event.button) {
-            let selected_level = btn.0;
-            selected.0 = Some(selected_level);
-
-            // Update display text
-            for (mut text, mut color) in &mut text_queries.p0() {
-                text.0 = format!("Selected: Level {}", selected_level);
-                color.0 = TIME_TRAVEL_SELECTED_TEXT;
-            }
-
-            // Collect descendant updates (children + grandchildren for shadow wrappers)
-            let mut updates: Vec<(Entity, Color)> = Vec::new();
-            for (lb, _, children) in &level_button_nodes {
-                let is_selected = lb.0 == selected_level;
-                let color = if is_selected {
-                    TIME_TRAVEL_SELECTED_TEXT
-                } else if boss_name_for_level(lb.0).is_some() {
-                    TIME_TRAVEL_BOSS_COLOR
-                } else {
-                    TEXT_COLOR
-                };
-                for child in children.iter() {
-                    updates.push((child, color));
-                    if let Ok(gcs) = grandchildren_query.get(child) {
-                        for gc in gcs.iter() {
-                            updates.push((gc, color));
-                        }
-                    }
-                }
-            }
-
-            // Apply background highlights
-            for (lb, mut bg, _) in &mut level_button_nodes {
-                bg.0 = if lb.0 == selected_level {
-                    TIME_TRAVEL_SELECTED_BG
-                } else {
-                    Color::NONE
-                };
-            }
-
-            // Apply text color updates
-            let mut text_colors = text_queries.p1();
-            for (entity, color) in updates {
-                if let Ok(mut tc) = text_colors.get_mut(entity) {
-                    tc.0 = color;
-                }
-            }
-        }
-    }
-}
-
-/// Handles hover effects on time travel level buttons.
-pub(super) fn handle_time_travel_level_hover(
-    mut level_buttons: Query<
-        (&Interaction, &TimeTravelLevelButton, &mut BackgroundColor),
-        Changed<Interaction>,
-    >,
-    selected: Option<Res<SelectedTimeTravelLevel>>,
-) {
-    let selected_level = selected.and_then(|s| s.0);
-    for (interaction, btn, mut bg) in &mut level_buttons {
-        let is_selected = selected_level == Some(btn.0);
-        bg.0 = match *interaction {
-            Interaction::Hovered | Interaction::Pressed if !is_selected => TIME_TRAVEL_HOVER_BG,
-            _ if is_selected => TIME_TRAVEL_SELECTED_BG,
-            _ => Color::NONE,
-        };
-    }
-}
-
-// ===========================================================================
 // Study (MetaGameState::Study) systems
 // ===========================================================================
 
-/// Sets up the study screen with the spell graph.
-pub(super) fn setup_study_screen(
-    mut commands: Commands,
-    battle_insight: Res<BattleInsightData>,
-    asset_server: Res<AssetServer>,
-    mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
-    mut ring_materials: ResMut<Assets<ConcentricRingsMaterial>>,
-    mut star_sky_materials: ResMut<Assets<StarSkyMaterial>>,
+/// Builds the study tab content into the wizard tower's left and right panels.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn build_study_panels(
+    commands: &mut Commands,
+    right_panel_entity: Entity,
+    left_panel_entity: Entity,
+    battle_insight: &BattleInsightData,
+    asset_server: &AssetServer,
+    progress_materials: &mut Assets<RadialProgressMaterial>,
+    ring_materials: &mut Assets<ConcentricRingsMaterial>,
+    star_sky_materials: &mut Assets<StarSkyMaterial>,
 ) {
     commands.insert_resource(InsightAllocation::default());
     // Zoom out and offset to show both spell web and insight constellation
@@ -539,13 +196,15 @@ pub(super) fn setup_study_screen(
     commands.insert_resource(SelectedStudySpell::default());
     commands.insert_resource(SelectedInsightBonus::default());
 
-    spawn_study_screen(
-        &mut commands,
-        &battle_insight,
-        &asset_server,
-        &mut progress_materials,
-        &mut ring_materials,
-        &mut star_sky_materials,
+    spawn_study_panels(
+        commands,
+        right_panel_entity,
+        left_panel_entity,
+        battle_insight,
+        asset_server,
+        progress_materials,
+        ring_materials,
+        star_sky_materials,
     );
 }
 
@@ -566,11 +225,11 @@ pub(super) fn handle_study_button_actions(
     mut commands: Commands,
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&StudyButtonAction>,
-    mut next_wt_state: ResMut<NextState<MetaGameState>>,
     allocation: Option<Res<InsightAllocation>>,
     battle_insight: Res<BattleInsightData>,
     mut spell_researched: MessageWriter<SpellResearchedMessage>,
-    screen_query: Query<Entity, With<OnStudyScreen>>,
+    left_panel: Query<Entity, With<super::layout::WizardTowerLeftPanel>>,
+    right_panel: Query<Entity, With<super::layout::WizardTowerRightPanel>>,
     asset_server: Res<AssetServer>,
     mut selected: Option<ResMut<SelectedStudySpell>>,
     mut progress_materials: ResMut<Assets<RadialProgressMaterial>>,
@@ -583,9 +242,6 @@ pub(super) fn handle_study_button_actions(
         };
 
         match action {
-            StudyButtonAction::Back => {
-                next_wt_state.set(MetaGameState::WizardTower);
-            }
             StudyButtonAction::Commit => {
                 let Some(alloc) = &allocation else {
                     continue;
@@ -640,7 +296,8 @@ pub(super) fn handle_study_button_actions(
 
                 rebuild_study_ui(
                     &mut commands,
-                    &screen_query,
+                    &left_panel,
+                    &right_panel,
                     &mut selected,
                     &battle_insight,
                     &asset_server,
@@ -655,7 +312,8 @@ pub(super) fn handle_study_button_actions(
                 grant_insight(10000);
                 rebuild_study_ui(
                     &mut commands,
-                    &screen_query,
+                    &left_panel,
+                    &right_panel,
                     &mut selected,
                     &battle_insight,
                     &asset_server,
@@ -673,7 +331,8 @@ pub(super) fn handle_study_button_actions(
 #[allow(clippy::too_many_arguments)]
 fn rebuild_study_ui(
     commands: &mut Commands,
-    screen_query: &Query<Entity, With<OnStudyScreen>>,
+    left_panel: &Query<Entity, With<super::layout::WizardTowerLeftPanel>>,
+    right_panel: &Query<Entity, With<super::layout::WizardTowerRightPanel>>,
     selected: &mut Option<ResMut<SelectedStudySpell>>,
     battle_insight: &BattleInsightData,
     asset_server: &AssetServer,
@@ -682,9 +341,14 @@ fn rebuild_study_ui(
     star_sky_materials: &mut Assets<StarSkyMaterial>,
     animate_to_default: bool,
 ) {
-    for entity in screen_query {
-        commands.entity(entity).try_despawn();
-    }
+    let Ok(left_entity) = left_panel.single() else {
+        return;
+    };
+    let Ok(right_entity) = right_panel.single() else {
+        return;
+    };
+    commands.entity(left_entity).despawn_related::<Children>();
+    commands.entity(right_entity).despawn_related::<Children>();
     commands.remove_resource::<InsightAllocation>();
     commands.insert_resource(InsightAllocation::default());
     commands.insert_resource(SelectedInsightBonus::default());
@@ -698,8 +362,10 @@ fn rebuild_study_ui(
             speed: GRAPH_ANIMATION_SPEED,
         });
     }
-    spawn_study_screen(
+    spawn_study_panels(
         commands,
+        right_entity,
+        left_entity,
         battle_insight,
         asset_server,
         progress_materials,
@@ -708,9 +374,12 @@ fn rebuild_study_ui(
     );
 }
 
-/// Spawns the study screen graph UI.
-fn spawn_study_screen(
+/// Spawns study tab content into the wizard tower's left and right panels.
+#[allow(clippy::too_many_arguments)]
+fn spawn_study_panels(
     commands: &mut Commands,
+    right_panel_entity: Entity,
+    left_panel_entity: Entity,
     battle_insight: &BattleInsightData,
     asset_server: &AssetServer,
     progress_materials: &mut Assets<RadialProgressMaterial>,
@@ -741,51 +410,194 @@ fn spawn_study_screen(
         max: bounds_max,
     });
 
-    // Root container
+    // -- Right panel: Graph Area with starry sky background --
+    let sky_mat = star_sky_materials.add(StarSkyMaterial {
+        data: StarSkyData {
+            base_color: GRAPH_AREA_BG.to_linear(),
+            time: 0.0,
+            zoom: 1.0,
+            pan_offset: Vec2::ZERO,
+        },
+    });
     commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            BackgroundColor(BACKGROUND_COLOR),
-            OnWizardTowerScreen,
-            OnStudyScreen,
-        ))
-        .with_children(|root| {
-            // -- Graph Area (full size, clipped) with starry sky background --
-            let sky_mat = star_sky_materials.add(StarSkyMaterial {
-                data: StarSkyData {
-                    base_color: GRAPH_AREA_BG.to_linear(),
-                    time: 0.0,
-                    zoom: 1.0,
-                    pan_offset: Vec2::ZERO,
-                },
-            });
-            root.spawn((
-                MaterialNode(sky_mat),
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-                SpellGraphArea,
-            ))
-            .with_children(|graph_area| {
-                // Edges as rotated line segments between waypoints
-                for edge_def in &edge_defs {
-                    let to_unlocked = is_spell_unlocked(edge_def.to_spell);
-                    let to_prereq_met = is_prereq_met(edge_def.to_spell);
-                    let edge_color = if to_unlocked || to_prereq_met {
-                        GRAPH_EDGE_COLOR
-                    } else {
-                        GRAPH_EDGE_LOCKED_COLOR
-                    };
+        .entity(right_panel_entity)
+        .with_children(|right| {
+            right
+                .spawn((
+                    MaterialNode(sky_mat),
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    Interaction::None,
+                    SpellGraphArea,
+                ))
+                .with_children(|graph_area| {
+                    // Edges as rotated line segments between waypoints
+                    for edge_def in &edge_defs {
+                        let to_unlocked = is_spell_unlocked(edge_def.to_spell);
+                        let to_prereq_met = is_prereq_met(edge_def.to_spell);
+                        let edge_color = if to_unlocked || to_prereq_met {
+                            GRAPH_EDGE_COLOR
+                        } else {
+                            GRAPH_EDGE_LOCKED_COLOR
+                        };
 
-                    // One entity per consecutive waypoint pair
-                    for pair in edge_def.waypoints.windows(2) {
+                        // One entity per consecutive waypoint pair
+                        for pair in edge_def.waypoints.windows(2) {
+                            graph_area.spawn((
+                                Node {
+                                    width: Val::Px(0.0),
+                                    height: Val::Px(GRAPH_EDGE_THICKNESS),
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(0.0),
+                                    top: Val::Px(0.0),
+                                    ..default()
+                                },
+                                BackgroundColor(edge_color),
+                                UiTransform::default(),
+                                SpellGraphEdge {
+                                    start: pair[0],
+                                    end: pair[1],
+                                },
+                            ));
+                        }
+                    }
+
+                    // Central "Free" anchor node
+                    graph_area
+                        .spawn((
+                            Node {
+                                width: Val::Px(GRAPH_FREE_NODE_SIZE),
+                                height: Val::Px(GRAPH_FREE_NODE_SIZE),
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                border: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            BackgroundColor(GRAPH_NODE_BG),
+                            BorderColor::all(GRAPH_NODE_FREE_BORDER),
+                            BorderRadius::all(Val::Percent(50.0)),
+                            ZIndex(1),
+                            FreeNode,
+                        ))
+                        .with_children(|node| {
+                            node.spawn((
+                                ImageNode::new(asset_server.load("images/logo.png")),
+                                Node {
+                                    width: Val::Percent(80.0),
+                                    height: Val::Percent(80.0),
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Spell nodes
+                    for node_def in &node_defs {
+                        let Some(spell) = node_def.spell else {
+                            continue; // Skip central anchor (already spawned)
+                        };
+
+                        let unlocked = is_spell_unlocked(spell);
+                        let prereq_met = is_prereq_met(spell);
+                        let has_affinity = affinities.contains(&spell.damage_type());
+                        let progress = get_spell_research_progress(spell);
+                        let cost = spell.research_cost();
+                        let is_free = cost == 0; // MagicMissile, Telekinesis
+
+                        let (bg, border) = if is_free || unlocked {
+                            (GRAPH_NODE_BG, GRAPH_NODE_COMPLETED_BORDER)
+                        } else if has_affinity && prereq_met {
+                            (GRAPH_NODE_BG, AFFINITY_COLOR)
+                        } else if prereq_met {
+                            (GRAPH_NODE_BG, GRAPH_NODE_BORDER)
+                        } else {
+                            (GRAPH_NODE_LOCKED_BG, GRAPH_NODE_LOCKED_BORDER)
+                        };
+
+                        graph_area
+                            .spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(GRAPH_NODE_SIZE),
+                                    height: Val::Px(GRAPH_NODE_SIZE),
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(0.0),
+                                    top: Val::Px(0.0),
+                                    flex_direction: FlexDirection::Column,
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    overflow: Overflow::clip(),
+                                    ..default()
+                                },
+                                BackgroundColor(bg),
+                                BorderColor::all(border),
+                                BorderRadius::all(Val::Percent(50.0)),
+                                ZIndex(1),
+                                SpellGraphNode {
+                                    spell,
+                                    graph_position: node_def.position,
+                                },
+                            ))
+                            .with_children(|node| {
+                                // Radial progress ring (behind icon, covers full node)
+                                if cost > 0 && !unlocked && prereq_met && progress > 0 {
+                                    let fill_frac = (progress as f32 / cost as f32).min(1.0);
+                                    let mat = progress_materials.add(RadialProgressMaterial {
+                                        data: RadialProgressData {
+                                            fill_color: PROGRESS_BAR_FILL.to_linear(),
+                                            bg_color: LinearRgba::new(0.15, 0.15, 0.15, 0.6),
+                                            progress: fill_frac,
+                                            ring_width: 0.14,
+                                        },
+                                    });
+                                    node.spawn((
+                                        MaterialNode(mat),
+                                        Node {
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            position_type: PositionType::Absolute,
+                                            left: Val::Px(0.0),
+                                            top: Val::Px(0.0),
+                                            ..default()
+                                        },
+                                    ));
+                                }
+
+                                if prereq_met || unlocked || is_free {
+                                    if let Some(icon_path) = spell.icon_path() {
+                                        node.spawn((
+                                            ImageNode::new(asset_server.load(icon_path)),
+                                            Node {
+                                                width: Val::Percent(55.0),
+                                                height: Val::Percent(55.0),
+                                                ..default()
+                                            },
+                                        ));
+                                    }
+                                } else {
+                                    node.spawn((
+                                        Text::new("???"),
+                                        TextFont::from_font_size(14.0),
+                                        TextColor(LOCKED_TEXT_COLOR),
+                                        GraphNodeLabel { base_size: 14.0 },
+                                    ));
+                                }
+                            });
+                    }
+
+                    // -------------------------------------------------------
+                    // Insight Bonus Constellation
+                    // -------------------------------------------------------
+
+                    // Constellation edges
+                    for edge_def in &insight_edges {
                         graph_area.spawn((
                             Node {
                                 width: Val::Px(0.0),
@@ -795,22 +607,20 @@ fn spawn_study_screen(
                                 top: Val::Px(0.0),
                                 ..default()
                             },
-                            BackgroundColor(edge_color),
+                            BackgroundColor(INSIGHT_EDGE_COLOR),
                             UiTransform::default(),
-                            SpellGraphEdge {
-                                start: pair[0],
-                                end: pair[1],
+                            InsightConstellationEdge {
+                                start: edge_def.start,
+                                end: edge_def.end,
                             },
                         ));
                     }
-                }
 
-                // Central "Free" anchor node
-                graph_area
-                    .spawn((
+                    // Constellation central anchor
+                    graph_area.spawn((
                         Node {
-                            width: Val::Px(GRAPH_FREE_NODE_SIZE),
-                            height: Val::Px(GRAPH_FREE_NODE_SIZE),
+                            width: Val::Px(INSIGHT_ANCHOR_SIZE),
+                            height: Val::Px(INSIGHT_ANCHOR_SIZE),
                             position_type: PositionType::Absolute,
                             left: Val::Px(0.0),
                             top: Val::Px(0.0),
@@ -819,81 +629,59 @@ fn spawn_study_screen(
                             border: UiRect::all(Val::Px(2.0)),
                             ..default()
                         },
-                        BackgroundColor(GRAPH_NODE_BG),
-                        BorderColor::all(GRAPH_NODE_FREE_BORDER),
+                        BackgroundColor(INSIGHT_NODE_BG),
+                        BorderColor::all(INSIGHT_ANCHOR_BORDER),
                         BorderRadius::all(Val::Percent(50.0)),
                         ZIndex(1),
-                        FreeNode,
-                    ))
-                    .with_children(|node| {
-                        node.spawn((
-                            ImageNode::new(asset_server.load("images/logo.png")),
-                            Node {
-                                width: Val::Percent(80.0),
-                                height: Val::Percent(80.0),
-                                ..default()
-                            },
-                        ));
-                    });
+                        InsightConstellationAnchor,
+                    ));
 
-                // Spell nodes
-                for node_def in &node_defs {
-                    let Some(spell) = node_def.spell else {
-                        continue; // Skip central anchor (already spawned)
-                    };
+                    // Constellation stat nodes
+                    for inode_def in &insight_nodes {
+                        let stat = inode_def.stat;
+                        let level = stat.current_level();
+                        let maxed = level >= InsightBonusStat::max_level();
+                        let border = if maxed {
+                            INSIGHT_NODE_MAXED_BORDER
+                        } else {
+                            INSIGHT_NODE_BORDER
+                        };
 
-                    let unlocked = is_spell_unlocked(spell);
-                    let prereq_met = is_prereq_met(spell);
-                    let has_affinity = affinities.contains(&spell.damage_type());
-                    let progress = get_spell_research_progress(spell);
-                    let cost = spell.research_cost();
-                    let is_free = cost == 0; // MagicMissile, Telekinesis
-
-                    let (bg, border) = if is_free || unlocked {
-                        (GRAPH_NODE_BG, GRAPH_NODE_COMPLETED_BORDER)
-                    } else if has_affinity && prereq_met {
-                        (GRAPH_NODE_BG, AFFINITY_COLOR)
-                    } else if prereq_met {
-                        (GRAPH_NODE_BG, GRAPH_NODE_BORDER)
-                    } else {
-                        (GRAPH_NODE_LOCKED_BG, GRAPH_NODE_LOCKED_BORDER)
-                    };
-
-                    graph_area
-                        .spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(GRAPH_NODE_SIZE),
-                                height: Val::Px(GRAPH_NODE_SIZE),
-                                position_type: PositionType::Absolute,
-                                left: Val::Px(0.0),
-                                top: Val::Px(0.0),
-                                flex_direction: FlexDirection::Column,
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                border: UiRect::all(Val::Px(2.0)),
-                                overflow: Overflow::clip(),
-                                ..default()
-                            },
-                            BackgroundColor(bg),
-                            BorderColor::all(border),
-                            BorderRadius::all(Val::Percent(50.0)),
-                            ZIndex(1),
-                            SpellGraphNode {
-                                spell,
-                                graph_position: node_def.position,
-                            },
-                        ))
-                        .with_children(|node| {
-                            // Radial progress ring (behind icon, covers full node)
-                            if cost > 0 && !unlocked && prereq_met && progress > 0 {
-                                let fill_frac = (progress as f32 / cost as f32).min(1.0);
-                                let mat = progress_materials.add(RadialProgressMaterial {
-                                    data: RadialProgressData {
-                                        fill_color: PROGRESS_BAR_FILL.to_linear(),
-                                        bg_color: LinearRgba::new(0.15, 0.15, 0.15, 0.6),
-                                        progress: fill_frac,
-                                        ring_width: 0.14,
+                        graph_area
+                            .spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(INSIGHT_NODE_SIZE),
+                                    height: Val::Px(INSIGHT_NODE_SIZE),
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(0.0),
+                                    top: Val::Px(0.0),
+                                    flex_direction: FlexDirection::Column,
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    overflow: Overflow::clip(),
+                                    ..default()
+                                },
+                                BackgroundColor(INSIGHT_NODE_BG),
+                                BorderColor::all(border),
+                                BorderRadius::all(Val::Percent(50.0)),
+                                ZIndex(1),
+                                InsightBonusNode {
+                                    stat,
+                                    graph_position: inode_def.position,
+                                },
+                            ))
+                            .with_children(|node| {
+                                // Concentric rings showing level progress
+                                let mat = ring_materials.add(ConcentricRingsMaterial {
+                                    data: ConcentricRingsData {
+                                        fill_color: INSIGHT_PROGRESS_FILL.to_linear(),
+                                        bg_color: LinearRgba::new(0.2, 0.15, 0.3, 0.5),
+                                        pending_color: SLIDER_FILL_COLOR.to_linear(),
+                                        filled: level as f32,
+                                        pending: 0.0,
+                                        total: InsightBonusStat::max_level() as f32,
                                     },
                                 });
                                 node.spawn((
@@ -906,285 +694,172 @@ fn spawn_study_screen(
                                         top: Val::Px(0.0),
                                         ..default()
                                     },
+                                    InsightBonusRings { stat },
                                 ));
-                            }
 
-                            if prereq_met || unlocked || is_free {
-                                if let Some(icon_path) = spell.icon_path() {
-                                    node.spawn((
-                                        ImageNode::new(asset_server.load(icon_path)),
-                                        Node {
-                                            width: Val::Percent(55.0),
-                                            height: Val::Percent(55.0),
-                                            ..default()
-                                        },
-                                    ));
-                                }
-                            } else {
+                                // Stat label -- constrained to node bounds
+                                let label = match stat {
+                                    InsightBonusStat::SpellDamage => "DMG",
+                                    InsightBonusStat::SpellRange => "RNG",
+                                    InsightBonusStat::CastSpeed => "SPD",
+                                    InsightBonusStat::ManaCost => "MP",
+                                };
                                 node.spawn((
-                                    Text::new("???"),
-                                    TextFont::from_font_size(14.0),
-                                    TextColor(LOCKED_TEXT_COLOR),
-                                    GraphNodeLabel { base_size: 14.0 },
+                                    Text::new(label),
+                                    TextFont::from_font_size(11.0),
+                                    TextColor(if maxed {
+                                        INSIGHT_NODE_MAXED_BORDER
+                                    } else {
+                                        Color::srgb(0.8, 0.75, 0.95)
+                                    }),
+                                    GraphNodeLabel { base_size: 11.0 },
                                 ));
-                            }
-                        });
-                }
+                            });
+                    }
+                });
+        });
 
-                // -------------------------------------------------------
-                // Insight Bonus Constellation
-                // -------------------------------------------------------
-
-                // Constellation edges
-                for edge_def in &insight_edges {
-                    graph_area.spawn((
-                        Node {
-                            width: Val::Px(0.0),
-                            height: Val::Px(GRAPH_EDGE_THICKNESS),
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
-                            ..default()
-                        },
-                        BackgroundColor(INSIGHT_EDGE_COLOR),
-                        UiTransform::default(),
-                        InsightConstellationEdge {
-                            start: edge_def.start,
-                            end: edge_def.end,
-                        },
-                    ));
-                }
-
-                // Constellation central anchor
-                graph_area.spawn((
+    // -- Overlay HUD elements on top of the graph area --
+    // These are absolute-positioned inside the SpellGraphArea so they
+    // float over the starry sky.  Text is click-through; buttons capture.
+    // Find the graph area entity we just spawned (last child of right panel).
+    // We build them as additional children of the graph area.
+    // (We can't easily get the entity from the closure above, so we add
+    //  another with_children call on right_panel_entity — the graph area
+    //  is its only child, and these will also be children of right_panel_entity
+    //  but positioned absolutely over the graph.)
+    commands
+        .entity(right_panel_entity)
+        .with_children(|right| {
+            // Top-left: Arcane Insight (with shadow)
+            right
+                .spawn((
                     Node {
-                        width: Val::Px(INSIGHT_ANCHOR_SIZE),
-                        height: Val::Px(INSIGHT_ANCHOR_SIZE),
                         position_type: PositionType::Absolute,
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        border: UiRect::all(Val::Px(2.0)),
+                        top: Val::Px(8.0),
+                        left: Val::Px(12.0),
                         ..default()
                     },
-                    BackgroundColor(INSIGHT_NODE_BG),
-                    BorderColor::all(INSIGHT_ANCHOR_BORDER),
-                    BorderRadius::all(Val::Percent(50.0)),
-                    ZIndex(1),
-                    InsightConstellationAnchor,
-                ));
+                    Pickable::IGNORE,
+                ))
+                .with_children(|container| {
+                    let insight_text = format!("Arcane Insight: {}", insight_balance);
+                    let offset = INSIGHT_FONT_SIZE / 20.0;
+                    // Shadow
+                    container.spawn((
+                        Text::new(insight_text.clone()),
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                        TextColor(crate::ui::constants::TEXT_SHADOW_COLOR),
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(offset),
+                            top: Val::Px(offset),
+                            ..default()
+                        },
+                    ));
+                    // Foreground
+                    container.spawn((
+                        Text::new(insight_text),
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                        TextColor(INSIGHT_COLOR),
+                        StudyInsightDisplay,
+                    ));
+                });
 
-                // Constellation stat nodes
-                for inode_def in &insight_nodes {
-                    let stat = inode_def.stat;
-                    let level = stat.current_level();
-                    let maxed = level >= InsightBonusStat::max_level();
-                    let border = if maxed {
-                        INSIGHT_NODE_MAXED_BORDER
-                    } else {
-                        INSIGHT_NODE_BORDER
-                    };
+            // Top-right: Pending (with shadow)
+            right
+                .spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: Val::Px(8.0),
+                        right: Val::Px(12.0),
+                        ..default()
+                    },
+                    Pickable::IGNORE,
+                ))
+                .with_children(|container| {
+                    let offset = INSIGHT_FONT_SIZE / 20.0;
+                    // Shadow
+                    container.spawn((
+                        Text::new("Pending: 0"),
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                        TextColor(crate::ui::constants::TEXT_SHADOW_COLOR),
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(offset),
+                            top: Val::Px(offset),
+                            ..default()
+                        },
+                    ));
+                    // Foreground
+                    container.spawn((
+                        Text::new("Pending: 0"),
+                        TextFont::from_font_size(INSIGHT_FONT_SIZE),
+                        TextColor(PENDING_COLOR),
+                        PendingInsightDisplay,
+                    ));
+                });
 
-                    graph_area
-                        .spawn((
-                            Button,
-                            Node {
-                                width: Val::Px(INSIGHT_NODE_SIZE),
-                                height: Val::Px(INSIGHT_NODE_SIZE),
-                                position_type: PositionType::Absolute,
-                                left: Val::Px(0.0),
-                                top: Val::Px(0.0),
-                                flex_direction: FlexDirection::Column,
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                border: UiRect::all(Val::Px(2.0)),
-                                overflow: Overflow::clip(),
-                                ..default()
-                            },
-                            BackgroundColor(INSIGHT_NODE_BG),
-                            BorderColor::all(border),
-                            BorderRadius::all(Val::Percent(50.0)),
-                            ZIndex(1),
-                            InsightBonusNode {
-                                stat,
-                                graph_position: inode_def.position,
-                            },
-                        ))
-                        .with_children(|node| {
-                            // Concentric rings showing level progress
-                            let mat = ring_materials.add(ConcentricRingsMaterial {
-                                data: ConcentricRingsData {
-                                    fill_color: INSIGHT_PROGRESS_FILL.to_linear(),
-                                    bg_color: LinearRgba::new(0.2, 0.15, 0.3, 0.5),
-                                    pending_color: SLIDER_FILL_COLOR.to_linear(),
-                                    filled: level as f32,
-                                    pending: 0.0,
-                                    total: InsightBonusStat::max_level() as f32,
-                                },
-                            });
-                            node.spawn((
-                                MaterialNode(mat),
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    position_type: PositionType::Absolute,
-                                    left: Val::Px(0.0),
-                                    top: Val::Px(0.0),
-                                    ..default()
-                                },
-                                InsightBonusRings { stat },
-                            ));
-
-                            // Stat label — constrained to node bounds
-                            let label = match stat {
-                                InsightBonusStat::SpellDamage => "DMG",
-                                InsightBonusStat::SpellRange => "RNG",
-                                InsightBonusStat::CastSpeed => "SPD",
-                                InsightBonusStat::ManaCost => "MP",
-                            };
-                            node.spawn((
-                                Text::new(label),
-                                TextFont::from_font_size(11.0),
-                                TextColor(if maxed {
-                                    INSIGHT_NODE_MAXED_BORDER
-                                } else {
-                                    Color::srgb(0.8, 0.75, 0.95)
-                                }),
-                                GraphNodeLabel { base_size: 11.0 },
-                            ));
-                        });
-                }
-            });
-
-            // -- UI Overlay (above graph, full-screen flex column) --
-            root.spawn((
-                Node {
+            // Bottom-left: Commit button
+            right
+                .spawn(Node {
                     position_type: PositionType::Absolute,
-                    top: Val::Px(0.0),
-                    left: Val::Px(0.0),
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
+                    bottom: Val::Px(8.0),
+                    left: Val::Px(12.0),
+                    ..default()
+                })
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "Commit",
+                        StudyButtonAction::Commit,
+                        &COMMIT_BUTTON_STYLE,
+                    );
+                });
+
+            // Bottom-right: Debug insight button
+            #[cfg(debug_assertions)]
+            right
+                .spawn(Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(8.0),
+                    right: Val::Px(12.0),
+                    ..default()
+                })
+                .with_children(|wrapper| {
+                    spawn_button(
+                        wrapper,
+                        "+10000 Insight",
+                        StudyButtonAction::DebugGrantInsight,
+                        &DEBUG_BUTTON_STYLE,
+                    );
+                });
+        });
+
+    // -- Left panel: Detail panel for selected node --
+    commands
+        .entity(left_panel_entity)
+        .with_children(|left| {
+            // Detail panel (always visible, shows placeholder when nothing selected)
+            left.spawn((
+                Node {
                     flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(8.0),
+                    flex_grow: 1.0,
+                    flex_shrink: 1.0,
+                    min_height: Val::Px(0.0),
+                    overflow: Overflow::clip_y(),
                     ..default()
                 },
-                Pickable::IGNORE,
+                StudyDetailPanel,
             ))
-            .with_children(|overlay| {
-                // -- Header --
-                overlay
-                    .spawn((
-                        Node {
-                            width: Val::Percent(100.0),
-                            flex_shrink: 0.0,
-                            flex_direction: FlexDirection::Row,
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
-                            padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
-                    ))
-                    .with_children(|header| {
-                        spawn_title_with_shadow(
-                            header,
-                            "Study",
-                            TITLE_FONT_SIZE,
-                            TITLE_COLOR,
-                            Node::default(),
-                        );
-
-                        header.spawn((
-                            Text::new(format!("Arcane Insight: {}", insight_balance)),
-                            TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                            TextColor(INSIGHT_COLOR),
-                            StudyInsightDisplay,
-                        ));
-
-                        header.spawn((
-                            Text::new("Pending: 0"),
-                            TextFont::from_font_size(INSIGHT_FONT_SIZE),
-                            TextColor(PENDING_COLOR),
-                            PendingInsightDisplay,
-                        ));
-                    });
-
-                // -- Middle area (fills space between header & footer) --
-                overlay
-                    .spawn((
-                        Node {
-                            flex_grow: 1.0,
-                            flex_shrink: 1.0,
-                            min_height: Val::Px(0.0),
-                            overflow: Overflow::clip_y(),
-                            padding: UiRect::new(
-                                Val::Px(12.0),
-                                Val::Px(0.0),
-                                Val::Px(8.0),
-                                Val::Px(8.0),
-                            ),
-                            ..default()
-                        },
-                        Pickable::IGNORE,
-                    ))
-                    .with_children(|middle| {
-                        // -- Detail Panel (hidden by default) --
-                        middle.spawn((
-                            Node {
-                                width: Val::Px(DETAIL_PANEL_WIDTH),
-                                flex_direction: FlexDirection::Column,
-                                padding: UiRect::all(Val::Px(DETAIL_PANEL_PADDING)),
-                                row_gap: Val::Px(8.0),
-                                border: UiRect::all(Val::Px(2.0)),
-                                overflow: Overflow::clip_y(),
-                                display: Display::None,
-                                ..default()
-                            },
-                            BackgroundColor(DETAIL_PANEL_BG),
-                            BorderColor::all(DETAIL_PANEL_BORDER),
-                            BorderRadius::all(Val::Px(8.0)),
-                            Interaction::None,
-                            Pickable {
-                                should_block_lower: true,
-                                is_hoverable: true,
-                            },
-                            StudyDetailPanel,
-                        ));
-                    });
-
-                // -- Footer --
-                overlay
-                    .spawn((
-                        Node {
-                            width: Val::Percent(100.0),
-                            flex_shrink: 0.0,
-                            flex_direction: FlexDirection::Row,
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            column_gap: Val::Px(20.0),
-                            padding: UiRect::axes(Val::Px(20.0), Val::Px(12.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
-                    ))
-                    .with_children(|footer| {
-                        spawn_button(
-                            footer,
-                            "Commit",
-                            StudyButtonAction::Commit,
-                            &COMMIT_BUTTON_STYLE,
-                        );
-
-                        spawn_button(footer, "Back", StudyButtonAction::Back, &BACK_BUTTON_STYLE);
-
-                        #[cfg(debug_assertions)]
-                        spawn_button(
-                            footer,
-                            "+10000 Insight",
-                            StudyButtonAction::DebugGrantInsight,
-                            &DEBUG_BUTTON_STYLE,
-                        );
-                    });
+            .with_children(|panel| {
+                // Placeholder text shown when nothing is selected
+                panel.spawn((
+                    Text::new("Select a spell or bonus to view details"),
+                    TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                    TextColor(LOCKED_TEXT_COLOR),
+                ));
             });
         });
 }
@@ -1203,16 +878,7 @@ pub(super) fn handle_graph_node_clicks(
     mut selected: ResMut<SelectedStudySpell>,
     mut selected_insight: ResMut<SelectedInsightBonus>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
-    panel_query: Query<(&Interaction, &Node), With<StudyDetailPanel>>,
 ) {
-    // Block node clicks when cursor is interacting with the detail panel
-    let panel_active = panel_query.iter().any(|(interaction, node)| {
-        node.display != Display::None && *interaction != Interaction::None
-    });
-    if panel_active {
-        for _ in button_clicked.read() {}
-        return;
-    }
 
     for event in button_clicked.read() {
         // Check spell nodes first
@@ -1251,9 +917,8 @@ fn animate_to_node(
     if let Ok(computed) = graph_area_query.single() {
         let size = computed.size() * computed.inverse_scale_factor();
         let container_center = size / 2.0;
-        let target_x = DETAIL_PANEL_WIDTH + (size.x - DETAIL_PANEL_WIDTH) / 2.0;
-        let target_y = size.y / 2.0;
-        let target = Vec2::new(target_x, target_y);
+        // Center the node in the graph area (detail panel is in a separate left panel now)
+        let target = container_center;
         let target_scale = GRAPH_ZOOM_MAX;
         let target_offset = target - container_center - graph_position * target_scale;
         commands.insert_resource(GraphViewAnimation {
@@ -1296,7 +961,7 @@ pub(super) fn handle_graph_pan(
     mut selected: ResMut<SelectedStudySpell>,
     mut selected_insight: ResMut<SelectedInsightBonus>,
     node_interactions: Query<&Interaction, Or<(With<SpellGraphNode>, With<InsightBonusNode>)>>,
-    panel_query: Query<(&Interaction, &Node), With<StudyDetailPanel>>,
+    graph_area_interaction: Query<&Interaction, With<SpellGraphArea>>,
     slider_interactions: Query<
         &Interaction,
         Or<(
@@ -1316,16 +981,19 @@ pub(super) fn handle_graph_pan(
     // Convert window-logical cursor to UI space
     let cursor_ui = cursor_pos / ui_scale.0;
 
-    // Check if cursor is over the detail panel using Bevy's Interaction state
-    let cursor_over_panel = panel_query.iter().any(|(interaction, node)| {
-        node.display != Display::None && *interaction != Interaction::None
-    });
+    // Only interact with pan/deselect when cursor is over the graph area.
+    // Clicks on the left panel (detail panel, talents, etc.) must not affect
+    // the right panel's graph state.
+    let cursor_over_graph = graph_area_interaction
+        .iter()
+        .any(|interaction| *interaction != Interaction::None);
 
     if buttons.just_pressed(MouseButton::Left) {
-        // Don't start dragging if a node, the detail panel, or a slider is being pressed
+        // Don't start dragging if a node or slider is being pressed,
+        // or if the cursor isn't over the graph area
         let any_node_pressed = node_interactions.iter().any(|i| *i == Interaction::Pressed);
         let slider_pressed = slider_interactions.iter().any(|i| *i != Interaction::None);
-        if !any_node_pressed && !cursor_over_panel && !slider_pressed {
+        if !any_node_pressed && cursor_over_graph && !slider_pressed {
             drag.dragging = true;
             drag.last_cursor = cursor_ui;
             drag.start_cursor = cursor_ui;
@@ -1335,8 +1003,8 @@ pub(super) fn handle_graph_pan(
 
     if buttons.just_released(MouseButton::Left) && drag.dragging {
         let total_moved = (cursor_ui - drag.start_cursor).length();
-        // Deselect on a click (not a drag) on empty space, but not over the detail panel
-        if total_moved < 4.0 && !cursor_over_panel {
+        // Deselect on a click (not a drag) on empty space within the graph area
+        if total_moved < 4.0 {
             selected.0 = None;
             selected_insight.0 = None;
         }
@@ -1510,30 +1178,37 @@ pub(super) fn update_graph_node_borders(
 pub(super) fn update_graph_edge_positions(
     view: Res<GraphViewState>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
-    mut segments: Query<(&mut Node, &mut UiTransform, &SpellGraphEdge)>,
+    mut segments: Query<(&mut Node, &mut UiTransform, &mut Visibility, &SpellGraphEdge)>,
 ) {
     let Ok(computed) = graph_area_query.single() else {
         return;
     };
-    let container_center = computed.size() * computed.inverse_scale_factor() / 2.0;
+    let container_size = computed.size() * computed.inverse_scale_factor();
+    let container_center = container_size / 2.0;
     let thickness = (GRAPH_EDGE_THICKNESS * view.scale).max(1.0);
 
-    for (mut node, mut ui_transform, edge) in &mut segments {
+    for (mut node, mut ui_transform, mut vis, edge) in &mut segments {
         let screen_a = graph_to_screen(edge.start, &view, container_center);
         let screen_b = graph_to_screen(edge.end, &view, container_center);
 
-        let delta = screen_b - screen_a;
-        let length = delta.length();
-        let angle = delta.y.atan2(delta.x);
-
-        // Position at the midpoint of the segment
-        let midpoint = (screen_a + screen_b) / 2.0;
-        node.left = Val::Px(midpoint.x - length / 2.0);
-        node.top = Val::Px(midpoint.y - thickness / 2.0);
-        node.width = Val::Px(length);
-        node.height = Val::Px(thickness);
-
-        ui_transform.rotation = Rot2::radians(angle);
+        // Clip the line segment to the graph area bounds so the rotated
+        // rectangle stays within the container. UiTransform rotation
+        // bypasses Overflow::clip, so we must clip geometry manually.
+        let clip = Vec2::ZERO..=container_size;
+        if let Some((ca, cb)) = clip_line_to_rect(screen_a, screen_b, &clip) {
+            *vis = Visibility::Inherited;
+            let delta = cb - ca;
+            let length = delta.length();
+            let angle = delta.y.atan2(delta.x);
+            let midpoint = (ca + cb) / 2.0;
+            node.left = Val::Px(midpoint.x - length / 2.0);
+            node.top = Val::Px(midpoint.y - thickness / 2.0);
+            node.width = Val::Px(length);
+            node.height = Val::Px(thickness);
+            ui_transform.rotation = Rot2::radians(angle);
+        } else {
+            *vis = Visibility::Hidden;
+        }
     }
 }
 
@@ -1584,31 +1259,36 @@ pub(super) fn update_insight_edge_positions(
     view: Res<GraphViewState>,
     graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
     mut segments: Query<
-        (&mut Node, &mut UiTransform, &InsightConstellationEdge),
+        (&mut Node, &mut UiTransform, &mut Visibility, &InsightConstellationEdge),
         Without<SpellGraphEdge>,
     >,
 ) {
     let Ok(computed) = graph_area_query.single() else {
         return;
     };
-    let container_center = computed.size() * computed.inverse_scale_factor() / 2.0;
+    let container_size = computed.size() * computed.inverse_scale_factor();
+    let container_center = container_size / 2.0;
     let thickness = (GRAPH_EDGE_THICKNESS * view.scale).max(1.0);
 
-    for (mut node, mut ui_transform, edge) in &mut segments {
+    for (mut node, mut ui_transform, mut vis, edge) in &mut segments {
         let screen_a = graph_to_screen(edge.start, &view, container_center);
         let screen_b = graph_to_screen(edge.end, &view, container_center);
 
-        let delta = screen_b - screen_a;
-        let length = delta.length();
-        let angle = delta.y.atan2(delta.x);
-
-        let midpoint = (screen_a + screen_b) / 2.0;
-        node.left = Val::Px(midpoint.x - length / 2.0);
-        node.top = Val::Px(midpoint.y - thickness / 2.0);
-        node.width = Val::Px(length);
-        node.height = Val::Px(thickness);
-
-        ui_transform.rotation = Rot2::radians(angle);
+        let clip = Vec2::ZERO..=container_size;
+        if let Some((ca, cb)) = clip_line_to_rect(screen_a, screen_b, &clip) {
+            *vis = Visibility::Inherited;
+            let delta = cb - ca;
+            let length = delta.length();
+            let angle = delta.y.atan2(delta.x);
+            let midpoint = (ca + cb) / 2.0;
+            node.left = Val::Px(midpoint.x - length / 2.0);
+            node.top = Val::Px(midpoint.y - thickness / 2.0);
+            node.width = Val::Px(length);
+            node.height = Val::Px(thickness);
+            ui_transform.rotation = Rot2::radians(angle);
+        } else {
+            *vis = Visibility::Hidden;
+        }
     }
 }
 
@@ -1657,7 +1337,7 @@ pub(super) fn update_study_detail_panel(
         return;
     }
 
-    let Ok((panel_entity, mut panel_node)) = panel_query.single_mut() else {
+    let Ok((panel_entity, _panel_node)) = panel_query.single_mut() else {
         return;
     };
 
@@ -1665,11 +1345,16 @@ pub(super) fn update_study_detail_panel(
     commands.entity(panel_entity).despawn_related::<Children>();
 
     let Some(spell) = selected.0 else {
-        panel_node.display = Display::None;
+        // Show placeholder text when nothing is selected
+        commands.entity(panel_entity).with_children(|panel| {
+            panel.spawn((
+                Text::new("Select a spell or bonus to view details"),
+                TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                TextColor(LOCKED_TEXT_COLOR),
+            ));
+        });
         return;
     };
-
-    panel_node.display = Display::Flex;
 
     let unlocked = is_spell_unlocked(spell);
     let prereq_met = is_prereq_met(spell);
@@ -1805,7 +1490,7 @@ pub(super) fn update_study_detail_panel(
                 StudyAllocationText { spell },
             ));
         } else {
-            // Locked — show requirements
+            // Locked -- show requirements
             panel.spawn(Node {
                 height: Val::Px(6.0),
                 ..default()
@@ -1927,7 +1612,7 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
             // Tier cards column
             row.spawn(Node {
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(5.0),
+                row_gap: Val::Px(10.0),
                 ..default()
             })
             .with_children(|tiers_col| {
@@ -1957,11 +1642,17 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                         }),
                     ));
 
-                    // Three cards in a row
+                    // Three cards in a row — padding accommodates 3D button edges
                     tiers_col
                         .spawn(Node {
                             flex_direction: FlexDirection::Row,
                             column_gap: Val::Px(TALENT_CARD_GAP),
+                            padding: UiRect::new(
+                                Val::Px(2.0),
+                                Val::Px(6.0),
+                                Val::Px(0.0),
+                                Val::Px(6.0),
+                            ),
                             ..default()
                         })
                         .with_children(|card_row| {
@@ -1969,47 +1660,47 @@ fn spawn_talent_section(parent: &mut ChildSpawnerCommands, spell: Spell) {
                                 let def = &tier_defs[choice as usize];
                                 let is_selected = current_selection == Some(choice);
 
-                                let bg_color = if tier_unlocked {
-                                    TALENT_UNLOCKED_BG
-                                } else {
-                                    TALENT_LOCKED_BG
-                                };
-                                let border_color = if is_selected {
-                                    TALENT_SELECTED_BORDER
+                                let (bg_color, border_color) = if is_selected {
+                                    (TALENT_ACTIVE_BG, TALENT_ACTIVE_BORDER)
                                 } else if tier_unlocked {
-                                    TALENT_UNLOCKED_BORDER
+                                    (TALENT_UNLOCKED_BG, TALENT_UNLOCKED_BORDER)
                                 } else {
-                                    TALENT_LOCKED_BORDER
+                                    (TALENT_LOCKED_BG, TALENT_LOCKED_BORDER)
                                 };
 
                                 let display_name = if tier_unlocked { def.name } else { "???" };
 
-                                card_row
+                                let mut talent_btn = card_row
                                     .spawn((
                                         Node {
                                             width: Val::Px(TALENT_CARD_WIDTH),
                                             height: Val::Px(TALENT_CARD_HEIGHT),
-                                            border: UiRect::all(Val::Px(if is_selected {
-                                                2.0
-                                            } else {
-                                                1.0
-                                            })),
+                                            border: UiRect::all(Val::Px(1.0)),
                                             padding: UiRect::all(Val::Px(3.0)),
                                             justify_content: JustifyContent::Center,
                                             align_items: AlignItems::Center,
-                                            overflow: Overflow::clip(),
                                             ..default()
                                         },
+                                        Button,
                                         BackgroundColor(bg_color),
                                         BorderColor::all(border_color),
                                         BorderRadius::all(Val::Px(4.0)),
-                                        Interaction::default(),
+                                        ButtonColors {
+                                            background: bg_color,
+                                            border: border_color,
+                                        },
                                         TalentCard {
                                             spell,
                                             tier,
                                             choice,
                                         },
-                                    ))
+                                    ));
+
+                                if is_selected {
+                                    talent_btn.insert(crate::ui::components::ButtonActive);
+                                }
+
+                                talent_btn
                                     .with_children(|card| {
                                         card.spawn((
                                             Text::new(display_name),
@@ -2065,18 +1756,23 @@ pub(super) fn update_insight_detail_panel(
         return;
     }
 
-    let Ok((panel_entity, mut panel_node)) = panel_query.single_mut() else {
+    let Ok((panel_entity, _panel_node)) = panel_query.single_mut() else {
         return;
     };
 
     commands.entity(panel_entity).despawn_related::<Children>();
 
     let Some(stat) = selected_insight.0 else {
-        panel_node.display = Display::None;
+        // Show placeholder text when nothing is selected
+        commands.entity(panel_entity).with_children(|panel| {
+            panel.spawn((
+                Text::new("Select a spell or bonus to view details"),
+                TextFont::from_font_size(DETAIL_SMALL_FONT_SIZE),
+                TextColor(LOCKED_TEXT_COLOR),
+            ));
+        });
         return;
     };
-
-    panel_node.display = Display::Flex;
 
     let level = stat.current_level();
     let max = InsightBonusStat::max_level();
@@ -2261,7 +1957,6 @@ fn spawn_insight_bonus_slider(
         });
 }
 
-/// Spawns a progress bar in the detail panel.
 /// Spawns a unified progress + allocation slider in the detail panel.
 /// Committed progress is shown as a non-reducible filled region on the left.
 /// The slider handle controls the pending allocation region that starts after the
@@ -2737,21 +2432,6 @@ pub(super) fn update_insight_bonus_rings(
 }
 
 // ===========================================================================
-// Top-level cleanup (exiting WizardTower entirely)
-// ===========================================================================
-
-/// Cleans up wizard tower-specific resources when leaving AppState::MetaGame.
-pub(super) fn cleanup_wizard_tower_resources(mut commands: Commands) {
-    commands.remove_resource::<InsightAllocation>();
-    commands.remove_resource::<GraphViewState>();
-    commands.remove_resource::<GraphDragState>();
-    commands.remove_resource::<SelectedStudySpell>();
-    commands.remove_resource::<GraphViewAnimation>();
-    commands.remove_resource::<GraphBounds>();
-    commands.remove_resource::<SelectedTimeTravelLevel>();
-}
-
-// ===========================================================================
 // Star sky time update
 // ===========================================================================
 
@@ -2791,15 +2471,16 @@ pub(super) fn update_star_sky_time(
 /// Handles clicks on talent cards to select/deselect talents.
 pub(super) fn handle_talent_card_clicks(
     mut selected: ResMut<SelectedStudySpell>,
-    interaction_query: Query<(&Interaction, &TalentCard), Changed<Interaction>>,
+    mut button_clicked: MessageReader<MouseClicked>,
+    card_query: Query<&TalentCard>,
 ) {
     use crate::config::save_data::{get_spell_talent_progress, set_spell_talent_selection};
     use crate::game::units::wizard::talents::constants as talent_consts;
 
-    for (interaction, card) in &interaction_query {
-        if *interaction != Interaction::Pressed {
+    for event in button_clicked.read() {
+        let Ok(card) = card_query.get(event.button) else {
             continue;
-        }
+        };
 
         let talent_progress = get_spell_talent_progress(card.spell);
         let thresholds = talent_consts::tier_thresholds(card.spell);

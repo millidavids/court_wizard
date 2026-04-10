@@ -16,9 +16,13 @@ impl Plugin for TutorialPlugin {
         // Trigger tutorials on entering specific states
         app.add_systems(
             OnEnter(MetaGameState::WizardTower),
-            (trigger_wizard_tower_tutorial, trigger_time_travel_tutorial).chain(),
+            (
+                trigger_wizard_tower_tutorial,
+                trigger_time_travel_tutorial,
+                trigger_study_tutorial,
+            )
+                .chain(),
         )
-        .add_systems(OnEnter(MetaGameState::Study), trigger_study_tutorial)
         .add_systems(OnEnter(InGameState::Running), trigger_in_game_tutorial)
         .add_systems(OnEnter(InGameState::SpellBook), trigger_spell_book_tutorial)
         .add_systems(
@@ -56,7 +60,6 @@ impl Plugin for TutorialPlugin {
 
         // Cleanup tutorials when leaving states
         app.add_systems(OnExit(MetaGameState::WizardTower), cleanup_tutorial)
-            .add_systems(OnExit(MetaGameState::Study), cleanup_tutorial)
             .add_systems(OnExit(InGameState::SpellBook), cleanup_tutorial)
             .add_systems(OnExit(InGameState::CauldronMenu), cleanup_tutorial)
             .add_systems(OnExit(InGameState::Tutorial), cleanup_tutorial);

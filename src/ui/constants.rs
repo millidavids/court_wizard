@@ -156,9 +156,6 @@ pub const BUTTON_EDGE_DARKEN: f32 = 0.55;
 
 // ── Two-Panel Layout ─────────────────────────────────────────────────────
 
-/// Padding around the entire two-panel layout.
-pub const TWO_PANEL_PADDING: f32 = 30.0;
-
 /// Gap between left and right panels.
 pub const TWO_PANEL_GAP: f32 = 30.0;
 
@@ -196,3 +193,13 @@ pub const SLIDER_BUTTON_FONT_SIZE: f32 = 13.0;
 
 /// Spacing between slider control elements.
 pub const SLIDER_GAP: f32 = 10.0;
+
+/// Returns a color representing efficiency: red (0%) → green (99%) → gold (100%).
+pub fn efficiency_color(eff: f32) -> Color {
+    if eff >= 1.0 {
+        Color::srgb(1.0, 0.85, 0.3)
+    } else {
+        let t = eff.clamp(0.0, 0.99);
+        Color::srgb((1.0 - t) * 0.9, t * 0.85, 0.15)
+    }
+}

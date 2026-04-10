@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
-use crate::state::MenuState;
+use crate::state::{AppState, MenuState};
 use crate::ui::systems::{spawn_button, spawn_title_with_shadow};
 
 use super::components::{MenuButtonAction, OnLandingScreen};
@@ -35,7 +35,7 @@ pub fn setup(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|buttons| {
-                    spawn_button(buttons, "Play", MenuButtonAction::Play, &BUTTON_STYLE);
+                    spawn_button(buttons, "Wizard Tower", MenuButtonAction::WizardTower, &BUTTON_STYLE);
                     spawn_button(
                         buttons,
                         "Settings",
@@ -89,6 +89,7 @@ pub fn button_action(
     mut button_clicked: MessageReader<MouseClicked>,
     button_query: Query<&MenuButtonAction>,
     mut next_menu_state: ResMut<NextState<MenuState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -96,8 +97,8 @@ pub fn button_action(
         if let Ok(action) = button_query.get(event.button) {
             channel_change.write(ChannelChangeMessage);
             match action {
-                MenuButtonAction::Play => {
-                    next_menu_state.set(MenuState::GameModeSelect);
+                MenuButtonAction::WizardTower => {
+                    next_app_state.set(AppState::MetaGame);
                 }
                 MenuButtonAction::Settings => {
                     next_menu_state.set(MenuState::Settings);
