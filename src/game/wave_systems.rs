@@ -156,7 +156,11 @@ pub fn tick_wave_timer(
             }
             1 => {
                 if let Some(ref assets) = ogre_assets {
-                    boss::ogre::systems::spawn_ogre(commands.reborrow(), Res::clone(assets));
+                    boss::ogre::systems::spawn_ogre(
+                        commands.reborrow(),
+                        Res::clone(assets),
+                        &mut materials,
+                    );
                     1
                 } else {
                     0

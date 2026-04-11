@@ -562,6 +562,7 @@ pub fn process_spawn_queue(
                 crate::game::units::boss::ogre::systems::spawn_ogre(
                     commands.reborrow(),
                     Res::clone(ogre_assets),
+                    &mut materials,
                 );
             }
             SpawnTask::Hags => {

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use bevy::math::Affine2;
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -9,10 +10,10 @@ use super::resources::OgreAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
+use crate::game::units::components::{CombatAnimation, FacingDirection, WalkingAnimation};
+use crate::game::pathfinding::resources::PathfindingGrid;
 use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
-use crate::game::terrain::boulder::constants::{
-    BOULDER_SPRITE_COUNT, ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE,
-};
+use crate::game::terrain::boulder::constants::{ROCK_THROW_COOLDOWN, ROCK_THROW_RANGE};
 use crate::game::terrain::boulder::messages::BoulderThrownMessage;
 use crate::game::units::boss::components::Boss;
 use crate::game::units::boss::lich::Lich;
@@ -28,12 +29,16 @@ use crate::game::units::components::{
 use crate::game::units::random_position_in_cell;
 
 /// Spawns the ogre at one of the tunnel spawn points.
-pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
+pub fn spawn_ogre(
+    mut commands: Commands,
+    ogre_assets: Res<OgreAssets>,
+    materials: &mut Assets<StandardMaterial>,
+) {
     let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
     let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(OGRE_RADIUS, OGRE_HITBOX_HEIGHT);
-    let spawn_y = hitbox.height / 2.0 + (OGRE_ELLIPSE_DEPTH / 2.0) + 1.0;
+    let spawn_y = OGRE_SPRITE_HEIGHT / 2.0 - OGRE_SPRITE_Y_OFFSET;
 
     // Initial velocity toward castle
     let to_center = Vec3::new(
@@ -43,11 +48,26 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
     );
     let initial_velocity = to_center.normalize_or_zero() * OGRE_MOVEMENT_SPEED;
 
+    let anim = WalkingAnimation {
+        current_frame: 0,
+        elapsed: rand::random::<f32>() * 0.125,
+        columns: OGRE_SPRITE_COLUMNS,
+        frame_uv: OGRE_FRAME_UV,
+        direction_rows: OGRE_WALKING_DIRECTION_ROWS,
+    };
+    let material = crate::game::units::systems::create_sprite_material(
+        materials,
+        ogre_assets.walking_texture.clone(),
+        OGRE_COLOR,
+        OGRE_FRAME_UV,
+        anim.uv_offset(FacingDirection::default()),
+    );
+
     commands
         .spawn((
             // Rendering
-            Mesh3d(ogre_assets.mesh.clone()),
-            MeshMaterial3d(ogre_assets.material_phase0.clone()),
+            Mesh3d(ogre_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
             Transform::from_xyz(final_x, spawn_y, final_z),
             // Physics
             Velocity {
@@ -87,7 +107,63 @@ pub fn spawn_ogre(mut commands: Commands, ogre_assets: Res<OgreAssets>) {
             Billboard,
             OnGameplayScreen,
         ))
+        .insert((anim, FacingDirection::default()))
         .insert(RockThrowCooldown::new(8.0));
+}
+
+/// Overrides the ogre's facing direction to strongly prefer forward/backward.
+/// Runs after the shared `update_facing_direction` to correct left/right
+/// picks when the ogre is moving at a slight angle.
+pub fn update_ogre_facing(
+    camera_query: Query<&Transform, (With<Camera3d>, Without<Boss>)>,
+    mut bosses: Query<
+        (
+            &Velocity,
+            &mut FacingDirection,
+            &WalkingAnimation,
+            &MeshMaterial3d<StandardMaterial>,
+        ),
+        (With<Boss>, Without<Corpse>, Without<CombatAnimation>),
+    >,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Ok(camera_transform) = camera_query.single() else {
+        return;
+    };
+    let cam_forward = camera_transform.forward();
+    let cam_forward_xz = Vec3::new(cam_forward.x, 0.0, cam_forward.z).normalize_or_zero();
+    let cam_right = Vec3::new(-cam_forward_xz.z, 0.0, cam_forward_xz.x);
+
+    for (velocity, mut facing, anim, material_handle) in &mut bosses {
+        let vel_xz = Vec3::new(velocity.x, 0.0, velocity.z);
+        if vel_xz.length_squared() < crate::game::units::components::ANIMATION_MOVE_THRESHOLD_SQ {
+            continue;
+        }
+
+        let forward_dot = vel_xz.dot(cam_forward_xz);
+        let right_dot = vel_xz.dot(cam_right);
+
+        // Strong forward/back bias: only use left/right if the lateral component
+        // is more than 3x the forward component
+        let new_facing = if right_dot.abs() > forward_dot.abs() * 3.0 {
+            if right_dot > 0.0 {
+                FacingDirection::Right
+            } else {
+                FacingDirection::Left
+            }
+        } else if forward_dot < 0.0 {
+            FacingDirection::Back
+        } else {
+            FacingDirection::Forward
+        };
+
+        if *facing != new_facing {
+            *facing = new_facing;
+            if let Some(mat) = materials.get_mut(material_handle) {
+                mat.uv_transform = anim.uv_transform(new_facing);
+            }
+        }
+    }
 }
 
 /// Updates ogre targeting velocity toward nearest enemy.
@@ -131,6 +207,8 @@ pub fn update_ogre_targeting(
 pub fn ogre_combat(
     time: Res<Time>,
     mut commands: Commands,
+    ogre_assets: Res<OgreAssets>,
+    game_config: Res<crate::config::GameConfig>,
     mut bosses: Query<
         (
             Entity,
@@ -140,7 +218,12 @@ pub fn ogre_combat(
             &mut OgreAttackCooldown,
             &OgreChargeState,
         ),
-        (With<Boss>, Without<Corpse>),
+        (
+            With<Boss>,
+            Without<Corpse>,
+            Without<CombatAnimation>,
+            Without<OgreThrowWindup>,
+        ),
     >,
     mut targets: Query<
         (
@@ -200,6 +283,22 @@ pub fn ogre_combat(
 
         // Reset cooldown — ogre attacked
         attack_cooldown.reset(OGRE_ATTACK_COOLDOWN);
+
+        // Play swing sound effect
+        crate::game::units::wizard::spells::audio::play_sfx_scaled(
+            &mut commands,
+            &ogre_assets.swing_sfx,
+            boss_pos,
+            &game_config,
+            1.0,
+        );
+
+        // Trigger attack animation
+        commands.entity(boss_entity).insert(ogre_combat_animation(
+            OGRE_ATTACKING_DIRECTION_ROWS,
+            ogre_assets.attacking_texture.clone(),
+            ogre_assets.walking_texture.clone(),
+        ));
 
         // Second pass: apply damage and knockback to all enemies within ogre melee reach
         for (entity, target_transform, target_hitbox, team, mut health, mut temp_hp) in &mut targets
@@ -356,7 +455,7 @@ pub fn ogre_movement(
 }
 
 /// Updates the ogre's enrage state based on HP thresholds.
-/// Swaps material to match the current enrage phase.
+/// Modifies the sprite material's base_color to match the current enrage phase.
 #[allow(clippy::type_complexity)]
 pub fn update_enrage_state(
     mut bosses: Query<
@@ -364,14 +463,14 @@ pub fn update_enrage_state(
             &Health,
             &mut OgreEnrageState,
             &mut DamageMultiplier,
-            &mut MeshMaterial3d<StandardMaterial>,
-            Option<&mut OriginalMaterial>,
+            &MeshMaterial3d<StandardMaterial>,
+            Option<&OriginalMaterial>,
         ),
         With<Boss>,
     >,
-    ogre_assets: Res<OgreAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (health, mut enrage, mut damage_mult, mut mesh_material, original_material) in &mut bosses {
+    for (health, mut enrage, mut damage_mult, mesh_material, original_material) in &mut bosses {
         let hp_ratio = health.current / health.max;
 
         let new_phase = if hp_ratio <= ENRAGE_PHASE_3_THRESHOLD {
@@ -410,22 +509,29 @@ pub fn update_enrage_state(
             // Update damage multiplier (base + enrage bonus)
             damage_mult.0 = OGRE_DAMAGE_MULTIPLIER + enrage.damage_bonus;
 
-            // Pick the phase material
-            let phase_material = match new_phase {
-                1 => ogre_assets.material_phase1.clone(),
-                2 => ogre_assets.material_phase2.clone(),
-                3 => ogre_assets.material_phase3.clone(),
-                _ => ogre_assets.material_phase0.clone(),
-            };
+            let phase_tint = enrage_phase_tint(new_phase);
 
+            // Update base_color on the per-entity sprite material.
             // If OriginalMaterial is present (spell effect active), update that
-            // so the correct enrage color restores when the effect ends.
-            if let Some(mut orig) = original_material {
-                orig.0 = phase_material;
-            } else {
-                mesh_material.0 = phase_material;
+            // so the correct enrage tint restores when the effect ends.
+            if let Some(orig) = original_material {
+                if let Some(orig_mat) = materials.get_mut(&orig.0) {
+                    orig_mat.base_color = phase_tint;
+                }
+            } else if let Some(mat) = materials.get_mut(&mesh_material.0) {
+                mat.base_color = phase_tint;
             }
         }
+    }
+}
+
+/// Returns the sprite tint color for a given enrage phase.
+pub(super) fn enrage_phase_tint(phase: u8) -> Color {
+    match phase {
+        1 => OGRE_ENRAGE_1_COLOR,
+        2 => OGRE_ENRAGE_2_COLOR,
+        3 => OGRE_ENRAGE_3_COLOR,
+        _ => OGRE_COLOR,
     }
 }
 
@@ -435,7 +541,9 @@ pub fn ogre_charge_system(
     time: Res<Time>,
     mut commands: Commands,
     ogre_assets: Res<OgreAssets>,
+    game_config: Res<crate::config::GameConfig>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    pathfinding: Res<PathfindingGrid>,
     mut bosses: Query<
         (
             Entity,
@@ -681,6 +789,16 @@ pub fn ogre_charge_system(
 
                 if *elapsed >= OGRE_CHARGE_TELEGRAPH_DURATION {
                     despawn_indicators(&mut commands, &indicators.all());
+
+                    // Play charge sound effect
+                    crate::game::units::wizard::spells::audio::play_sfx_scaled(
+                        &mut commands,
+                        &ogre_assets.charge_sfx,
+                        boss_transform.translation,
+                        &game_config,
+                        1.0,
+                    );
+
                     *charge_state = OgreChargeState::Charging {
                         direction: dir,
                         distance_traveled: 0.0,
@@ -697,12 +815,26 @@ pub fn ogre_charge_system(
                 hit_entities,
             } => {
                 let move_delta = OGRE_CHARGE_SPEED * delta;
-                boss_transform.translation.x += direction.x * move_delta;
-                boss_transform.translation.z += direction.z * move_delta;
+                let dir = *direction;
+
+                // Check if the next position hits an obstacle (boulder, tree, wall)
+                let next_pos = Vec3::new(
+                    boss_transform.translation.x + dir.x * move_delta,
+                    boss_transform.translation.y,
+                    boss_transform.translation.z + dir.z * move_delta,
+                );
+                if pathfinding.sample_base_cost(next_pos) == f32::INFINITY {
+                    *charge_state = OgreChargeState::Recovery {
+                        timer: OGRE_CHARGE_RECOVERY_DURATION,
+                    };
+                    continue;
+                }
+
+                boss_transform.translation.x += dir.x * move_delta;
+                boss_transform.translation.z += dir.z * move_delta;
                 *distance_traveled += move_delta;
 
                 let boss_pos = boss_transform.translation;
-                let dir = *direction;
 
                 for (entity, target_transform, target_hitbox, target_team, mut health, temp_hp) in
                     &mut charge_targets
@@ -766,14 +898,248 @@ pub fn ogre_charge_system(
     }
 }
 
-/// Ogre rock throw — picks a target enemy within range and throws a rock at them.
-/// Skipped during charge phases.
+/// Updates ogre sprite visuals during charge attack phases.
+/// Swaps to attacking texture, sets the correct frame, applies red flash and vibration.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub fn update_ogre_charge_visuals(
+    time: Res<Time>,
+    ogre_assets: Res<OgreAssets>,
+    mut commands: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    camera_query: Query<&Transform, (With<Camera3d>, Without<Boss>)>,
+    mut bosses: Query<
+        (
+            Entity,
+            &mut Transform,
+            &OgreChargeState,
+            &OgreEnrageState,
+            &MeshMaterial3d<StandardMaterial>,
+            &WalkingAnimation,
+            &mut FacingDirection,
+            Option<&mut OgreChargeVisuals>,
+        ),
+        (With<Boss>, Without<Corpse>, Without<Camera3d>),
+    >,
+) {
+    let cam_forward_xz = camera_query
+        .single()
+        .ok()
+        .map(|cam| {
+            let fwd = cam.forward();
+            Vec3::new(fwd.x, 0.0, fwd.z).normalize_or_zero()
+        })
+        .unwrap_or(Vec3::NEG_Z);
+
+    let delta = time.delta_secs();
+
+    for (
+        entity,
+        mut transform,
+        charge_state,
+        enrage_state,
+        material_handle,
+        walking_anim,
+        mut facing,
+        charge_visuals,
+    ) in &mut bosses
+    {
+        match charge_state {
+            OgreChargeState::Telegraphing {
+                elapsed,
+                direction,
+                ..
+            } => {
+                // Set facing direction from charge direction
+                let new_facing = facing_from_world_direction(*direction, cam_forward_xz);
+                *facing = new_facing;
+
+                if let Some(mut visuals) = charge_visuals {
+                    // Ongoing telegraph — update effects
+                    visuals.elapsed += delta;
+                    let progress =
+                        (*elapsed / OGRE_CHARGE_TELEGRAPH_DURATION).min(1.0);
+
+                    if let Some(mat) = materials.get_mut(&material_handle.0) {
+                        // First frame: swap texture to attacking sheet
+                        if !visuals.texture_swapped {
+                            mat.base_color_texture =
+                                Some(ogre_assets.attacking_texture.clone());
+                            visuals.texture_swapped = true;
+                        }
+
+                        // Show frame 0 (wind-up) in correct direction
+                        let row =
+                            OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
+                        mat.uv_transform = ogre_frame_uv_transform(0, row);
+
+                        // Red flash: pulse between enrage tint and flash color
+                        let flash_t = (visuals.elapsed
+                            * OGRE_CHARGE_FLASH_FREQUENCY
+                            * std::f32::consts::TAU)
+                            .sin()
+                            * 0.5
+                            + 0.5;
+                        let base_tint = enrage_phase_tint(enrage_state.phase);
+                        mat.base_color = Color::LinearRgba(
+                            base_tint.to_linear().mix(
+                                &OGRE_CHARGE_FLASH_COLOR.to_linear(),
+                                flash_t,
+                            ),
+                        );
+                    }
+
+                    // Vibration: sinusoidal offset scaled by progress
+                    let amp = OGRE_CHARGE_VIBRATION_AMPLITUDE * progress;
+                    let vib_x = (visuals.elapsed
+                        * OGRE_CHARGE_VIBRATION_FREQ_X
+                        * std::f32::consts::TAU)
+                        .sin()
+                        * amp;
+                    let vib_z = (visuals.elapsed
+                        * OGRE_CHARGE_VIBRATION_FREQ_Z
+                        * std::f32::consts::TAU)
+                        .sin()
+                        * amp;
+                    transform.translation.x = visuals.base_position.x + vib_x;
+                    transform.translation.z = visuals.base_position.z + vib_z;
+                } else {
+                    // First frame of telegraph — insert visuals component
+                    // and remove any active combat/throw animations
+                    commands
+                        .entity(entity)
+                        .remove::<CombatAnimation>()
+                        .remove::<OgreThrowWindup>()
+                        .insert(OgreChargeVisuals {
+                            texture_swapped: false,
+                            elapsed: 0.0,
+                            base_position: transform.translation,
+                        });
+                }
+            }
+
+            OgreChargeState::Charging { direction, .. } => {
+                if let Some(mut visuals) = charge_visuals {
+                    if let Some(mat) = materials.get_mut(&material_handle.0) {
+                        // Restore base position on first charging frame
+                        // (remove vibration offset before charge movement begins)
+                        if visuals.elapsed > 0.0 {
+                            transform.translation.x = visuals.base_position.x;
+                            transform.translation.z = visuals.base_position.z;
+                            visuals.elapsed = 0.0;
+                        }
+
+                        // Show frame 1 (charge pose)
+                        let new_facing =
+                            facing_from_world_direction(*direction, cam_forward_xz);
+                        *facing = new_facing;
+                        let row =
+                            OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
+                        mat.uv_transform = ogre_frame_uv_transform(1, row);
+
+                        // Restore normal tint (stop red flash)
+                        mat.base_color =
+                            enrage_phase_tint(enrage_state.phase);
+                    }
+                }
+            }
+
+            OgreChargeState::Recovery { .. } => {
+                if let Some(charge_visuals) = charge_visuals {
+                    if let Some(mat) = materials.get_mut(&material_handle.0) {
+                        let row = OGRE_ATTACKING_DIRECTION_ROWS
+                            [*facing as usize];
+                        mat.uv_transform = ogre_frame_uv_transform(2, row);
+                    }
+                }
+            }
+
+            OgreChargeState::Idle { .. } | OgreChargeState::Targeting => {
+                // Cleanup: restore walking texture and remove visuals
+                if let Some(visuals) = charge_visuals {
+                    if visuals.texture_swapped {
+                        if let Some(mat) =
+                            materials.get_mut(&material_handle.0)
+                        {
+                            mat.base_color_texture =
+                                Some(ogre_assets.walking_texture.clone());
+                            mat.base_color =
+                                enrage_phase_tint(enrage_state.phase);
+                            // Reset UV to walking idle frame
+                            mat.uv_transform =
+                                walking_anim.uv_transform(*facing);
+                        }
+                    }
+                    // Only restore base position if vibration was still active
+                    // (CC interruption during telegraph). After charging starts,
+                    // elapsed is reset to 0 and the ogre has moved legitimately.
+                    if visuals.elapsed > 0.0 {
+                        transform.translation.x = visuals.base_position.x;
+                        transform.translation.z = visuals.base_position.z;
+                    }
+                    commands.entity(entity).remove::<OgreChargeVisuals>();
+                }
+            }
+        }
+    }
+}
+
+/// Creates a CombatAnimation configured for the ogre's sprite sheet dimensions.
+fn ogre_combat_animation(
+    direction_rows: [usize; 4],
+    combat_texture: Handle<Image>,
+    walking_texture: Handle<Image>,
+) -> CombatAnimation {
+    CombatAnimation {
+        current_frame: 0,
+        elapsed: 0.0,
+        columns: OGRE_SPRITE_COLUMNS,
+        frame_uv: OGRE_FRAME_UV,
+        direction_rows,
+        combat_texture,
+        walking_texture,
+        started: false,
+    }
+}
+
+/// Returns the UV transform for a specific frame and direction row in the ogre sprite sheet.
+fn ogre_frame_uv_transform(frame: usize, direction_row: usize) -> Affine2 {
+    let uv_offset = Vec2::new(
+        frame as f32 * OGRE_FRAME_UV.x,
+        direction_row as f32 * OGRE_FRAME_UV.y,
+    );
+    Affine2::from_scale_angle_translation(OGRE_FRAME_UV, 0.0, uv_offset)
+}
+
+/// Derives a FacingDirection from a world-space direction vector relative to the camera.
+fn facing_from_world_direction(dir: Vec3, cam_forward_xz: Vec3) -> FacingDirection {
+    let cam_right = Vec3::new(-cam_forward_xz.z, 0.0, cam_forward_xz.x);
+    let forward_dot = dir.dot(cam_forward_xz);
+    let right_dot = dir.dot(cam_right);
+    if forward_dot.abs() > right_dot.abs() {
+        if forward_dot < 0.0 {
+            FacingDirection::Back
+        } else {
+            FacingDirection::Forward
+        }
+    } else if right_dot > 0.0 {
+        FacingDirection::Right
+    } else {
+        FacingDirection::Left
+    }
+}
+
+/// Ogre rock throw — picks a target enemy within range and starts the throwing animation.
+/// The boulder is launched when the animation finishes (see `ogre_throw_release`).
+/// Skipped during charge phases or if already winding up.
 #[allow(clippy::type_complexity)]
 pub fn ogre_rock_throw(
     time: Res<Time>,
-    mut rock_events: MessageWriter<BoulderThrownMessage>,
+    ogre_assets: Res<OgreAssets>,
+    game_config: Res<crate::config::GameConfig>,
+    mut commands: Commands,
     mut bosses: Query<
         (
+            Entity,
             &Transform,
             &Team,
             &OgreChargeState,
@@ -789,7 +1155,12 @@ pub fn ogre_rock_throw(
                 Option<&PolymorphedModifier>,
             ),
         ),
-        (With<Boss>, Without<Corpse>),
+        (
+            With<Boss>,
+            Without<Corpse>,
+            Without<OgreThrowWindup>,
+            Without<CombatAnimation>,
+        ),
     >,
     targets: Query<
         (&Transform, &Team),
@@ -803,6 +1174,7 @@ pub fn ogre_rock_throw(
     let delta = time.delta_secs();
 
     for (
+        entity,
         boss_transform,
         boss_team,
         charge_state,
@@ -837,13 +1209,50 @@ pub fn ogre_rock_throw(
             ROCK_THROW_RANGE,
             &targets,
         ) {
-            rock_events.write(BoulderThrownMessage {
-                origin: boss_transform.translation,
-                target: target_pos,
-                sprite_index: rand::thread_rng().gen_range(0..BOULDER_SPRITE_COUNT as u8),
-            });
+            // Play grunt sound effect
+            crate::game::units::wizard::spells::audio::play_sfx_scaled(
+                &mut commands,
+                &ogre_assets.grunt_sfx,
+                boss_transform.translation,
+                &game_config,
+                1.0,
+            );
+
+            // Start throwing animation and store target for release
+            commands.entity(entity).insert((
+                OgreThrowWindup {
+                    target: target_pos,
+                    sprite_index: 1,
+                },
+                ogre_combat_animation(
+                    OGRE_THROWING_DIRECTION_ROWS,
+                    ogre_assets.throwing_texture.clone(),
+                    ogre_assets.walking_texture.clone(),
+                ),
+            ));
             cooldown.reset(ROCK_THROW_COOLDOWN);
         }
+    }
+}
+
+/// Fires the boulder when the throwing animation finishes.
+/// Detects completion by checking for `OgreThrowWindup` without `CombatAnimation`
+/// (the shared animation system removes `CombatAnimation` when it's done).
+pub fn ogre_throw_release(
+    mut commands: Commands,
+    mut rock_events: MessageWriter<BoulderThrownMessage>,
+    bosses: Query<
+        (Entity, &Transform, &OgreThrowWindup),
+        (With<Boss>, Without<CombatAnimation>, Without<Corpse>),
+    >,
+) {
+    for (entity, boss_transform, windup) in &bosses {
+        rock_events.write(BoulderThrownMessage {
+            origin: boss_transform.translation,
+            target: windup.target,
+            sprite_index: windup.sprite_index,
+        });
+        commands.entity(entity).remove::<OgreThrowWindup>();
     }
 }
 

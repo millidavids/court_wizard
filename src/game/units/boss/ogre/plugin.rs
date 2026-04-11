@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::components::{OgreChargeVisuals, OgreThrowWindup};
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
@@ -20,6 +21,14 @@ impl Plugin for OgrePlugin {
                     ogre_movement.in_set(MovementCalculationSet),
                     ogre_combat.in_set(MovementCalculationSet),
                     ogre_rock_throw,
+                    ogre_throw_release
+                        .after(crate::game::units::systems::update_combat_animation)
+                        .run_if(any_with_component::<OgreThrowWindup>),
+                    update_ogre_charge_visuals
+                        .after(ogre_charge_system)
+                        .after(crate::game::units::systems::update_walking_animation),
+                    update_ogre_facing
+                        .after(crate::game::units::systems::update_facing_direction),
                 )
                     .run_if(is_gameplay_running)
                     .run_if(any_with_component::<Boss>),

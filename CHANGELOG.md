@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.46] - 2026-04-10
+
+### Added
+- **Ogre boss sprite animations** — the Ogre now has full sprite sheet animations for walking, attacking, throwing, and charging instead of a plain colored shape
+- **Ogre charge wind-up effect** — the Ogre flashes red and vibrates while channeling his charge, showing a wind-up pose before rushing forward
+- **Ogre charge attack sprites** — each phase of the charge (wind-up, rushing, impact) shows a different attack pose
+- **Ogre boulder throw animation** — the Ogre now winds up a throwing animation before hurling a boulder, instead of throwing instantly
+- **Ogre sound effects** — the Ogre now grunts when throwing boulders, roars when charging, and swings with impact when attacking in melee
+- **Charge stops on obstacles** — the Ogre's charge now ends early if he runs into a boulder, tree, or wall instead of passing through them
+- **Debug level buttons** — added increase/decrease level buttons to the Endless tab for testing (debug builds only)
+
+### Changed
+- **Ogre is much larger** — the Ogre sprite is significantly bigger on the battlefield, matching his boss status
+- **Ogre moves faster** — the Ogre's base movement speed has been doubled
+- **Ogre charge overshoots** — the Ogre now charges past his target instead of stopping short, making positioning more important
+- **Ogre hitbox is smaller** — the Ogre's collision area is tighter relative to his visual size, since the sprite has empty space around it
+
 ## [v0.6.23] - 2026-04-10
 
 ### Added

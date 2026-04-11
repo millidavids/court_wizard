@@ -109,3 +109,26 @@ impl OgreChargeState {
         )
     }
 }
+
+/// Wind-up state for the ogre's rock throw.
+/// Inserted when a target is found, the throwing animation plays,
+/// and the boulder is launched when the animation finishes.
+#[derive(Component)]
+pub struct OgreThrowWindup {
+    /// Target position for the boulder.
+    pub target: Vec3,
+    /// Boulder sprite index.
+    pub sprite_index: u8,
+}
+
+/// Tracks visual state during the ogre's charge attack.
+/// Inserted when entering Telegraphing, removed when returning to Idle.
+#[derive(Component)]
+pub struct OgreChargeVisuals {
+    /// Whether the attacking texture has been swapped in.
+    pub texture_swapped: bool,
+    /// Accumulated time for vibration/flash effects.
+    pub elapsed: f32,
+    /// Position before telegraph vibration began, to restore afterward.
+    pub base_position: Vec3,
+}

@@ -24,6 +24,10 @@ pub(super) enum EndlessAction {
     ContinuePlay,
     SwitchWizardType,
     StartTimeTravel,
+    #[cfg(debug_assertions)]
+    DebugIncreaseLevel,
+    #[cfg(debug_assertions)]
+    DebugDecreaseLevel,
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +85,22 @@ pub(super) fn build_endless_right_panel(
                             EndlessAction::SwitchWizardType,
                             &SWITCH_WIZARD_BUTTON_STYLE,
                         );
+
+                        #[cfg(debug_assertions)]
+                        {
+                            spawn_button(
+                                left_col,
+                                "Debug: Level +1",
+                                EndlessAction::DebugIncreaseLevel,
+                                &DEBUG_BUTTON_STYLE,
+                            );
+                            spawn_button(
+                                left_col,
+                                "Debug: Level -1",
+                                EndlessAction::DebugDecreaseLevel,
+                                &DEBUG_BUTTON_STYLE,
+                            );
+                        }
                     });
 
                     // Right column: Time Travel
@@ -405,6 +425,7 @@ pub(super) fn handle_endless_actions(
     selected_tt_level: Option<Res<SelectedTimeTravelLevel>>,
     mut channel_change: MessageWriter<ChannelChangeMessage>,
     mut right_panel_view: ResMut<RightPanelView>,
+    #[cfg(debug_assertions)] mut level_display: Query<&mut Text, With<LevelDisplay>>,
 ) {
     for event in button_clicked.read() {
         if let Ok(action) = action_query.get(event.button) {
@@ -439,6 +460,27 @@ pub(super) fn handle_endless_actions(
                         channel_change.write(ChannelChangeMessage);
                         kill_stats.reset();
                         next_app_state.set(AppState::Loading);
+                    }
+                }
+                #[cfg(debug_assertions)]
+                EndlessAction::DebugIncreaseLevel => {
+                    config.current_level += 1;
+                    if config.current_level > config.highest_level_achieved {
+                        config.highest_level_achieved = config.current_level;
+                    }
+                    current_level.0 = config.current_level;
+                    for mut text in &mut level_display {
+                        text.0 = format!("Level {}", config.current_level);
+                    }
+                }
+                #[cfg(debug_assertions)]
+                EndlessAction::DebugDecreaseLevel => {
+                    if config.current_level > 1 {
+                        config.current_level -= 1;
+                        current_level.0 = config.current_level;
+                        for mut text in &mut level_display {
+                            text.0 = format!("Level {}", config.current_level);
+                        }
                     }
                 }
             }

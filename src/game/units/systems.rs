@@ -1323,6 +1323,7 @@ pub fn update_combat_animation(
             &mut CombatAnimation,
             &MeshMaterial3d<StandardMaterial>,
             &FacingDirection,
+            Option<&WalkingAnimation>,
         ),
         Without<Corpse>,
     >,
@@ -1330,7 +1331,7 @@ pub fn update_combat_animation(
 ) {
     let delta = time.delta_secs();
 
-    for (entity, mut anim, material_handle, facing) in &mut anim_query {
+    for (entity, mut anim, material_handle, facing, walking_anim) in &mut anim_query {
         let Some(mat) = materials.get_mut(material_handle) else {
             continue;
         };
@@ -1347,7 +1348,13 @@ pub fn update_combat_animation(
             if anim.finished() {
                 // Restore walking texture and remove component
                 mat.base_color_texture = Some(anim.walking_texture.clone());
-                mat.uv_transform = WalkingAnimation::idle_uv_transform(*facing);
+                // Use the entity's own walking animation UV if available,
+                // falling back to the default for standard infantry-sized sheets.
+                mat.uv_transform = if let Some(walk) = walking_anim {
+                    walk.uv_transform(*facing)
+                } else {
+                    WalkingAnimation::idle_uv_transform(*facing)
+                };
                 commands.entity(entity).remove::<CombatAnimation>();
             } else {
                 mat.uv_transform = anim.uv_transform(*facing);
