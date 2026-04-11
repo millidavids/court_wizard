@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.48] - 2026-04-10
+
+### Changed
+- **Ogre hitbox matches his body** — the Ogre's collision area now extends from the ground to the top of his sprite, so spells and attacks connect more reliably
+- **Ogre has less health** — the Ogre's health pool has been halved, but he's tougher against physical attacks
+- **Ogre shrugs off melee** — defender units deal much less damage to the Ogre (85% physical resistance, up from 70%), making wizard spells the key to taking him down
+
 ## [v0.6.46] - 2026-04-10
 
 ### Added

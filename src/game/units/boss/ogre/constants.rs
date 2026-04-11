@@ -9,13 +9,14 @@ pub const OGRE_ENRAGE_2_COLOR: Color = Color::srgb(1.0, 0.7, 0.7);
 pub const OGRE_ENRAGE_3_COLOR: Color = Color::srgb(1.0, 0.5, 0.5);
 pub const OGRE_ELLIPSE_WIDTH: f32 = 40.0 * UNIT_SCALE;
 pub const OGRE_RADIUS: f32 = 20.0 * UNIT_SCALE;
-pub const OGRE_HITBOX_HEIGHT: f32 = 30.0 * UNIT_SCALE;
+/// Hitbox extends from ground to the top of the ogre sprite.
+pub const OGRE_HITBOX_HEIGHT: f32 = OGRE_SPRITE_HEIGHT - OGRE_SPRITE_Y_OFFSET;
 
 // Movement
 pub const OGRE_MOVEMENT_SPEED: f32 = 320.0;
 
 // Combat
-pub const OGRE_HEALTH: f32 = 12000.0;
+pub const OGRE_HEALTH: f32 = 6000.0;
 pub const OGRE_DAMAGE_MULTIPLIER: f32 = -0.5;
 pub const OGRE_ATTACK_DAMAGE: f32 = 30.0;
 pub const OGRE_ATTACK_COOLDOWN: f32 = 1.0;
@@ -63,8 +64,9 @@ pub const OGRE_CHARGE_PULSE_FREQUENCY: f32 = 2.5;
 /// Peak emissive intensity at full charge (linear RGB scale).
 pub const OGRE_CHARGE_EMISSIVE_MAX: f32 = 8.0;
 
-/// Fraction of melee damage the ogre actually takes (0.3 = 70% reduction).
-pub const OGRE_MELEE_DAMAGE_REDUCTION: f32 = 0.3;
+/// Fraction of melee damage the ogre actually takes (0.15 = 85% reduction).
+/// Spells deal full damage, making magic the primary way to hurt him.
+pub const OGRE_MELEE_DAMAGE_REDUCTION: f32 = 0.15;
 
 // Sprite sheet configuration (all sheets are 512x512, 4 columns x 4 rows, 128px frames)
 pub const OGRE_SPRITE_COLUMNS: usize = 4;
