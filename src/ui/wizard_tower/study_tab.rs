@@ -1032,27 +1032,25 @@ pub(super) fn handle_graph_pan(
 pub(super) fn handle_graph_zoom(
     mut commands: Commands,
     mut mouse_wheel: MessageReader<MouseWheel>,
-    windows: Query<&Window>,
     corrected_cursor: Res<CorrectedCursorPosition>,
     ui_scale: Res<bevy::ui::UiScale>,
     mut view: ResMut<GraphViewState>,
     bounds: Option<Res<GraphBounds>>,
-    graph_area_query: Query<&ComputedNode, With<SpellGraphArea>>,
+    graph_area_query: Query<
+        (&ComputedNode, &bevy::ui::ui_transform::UiGlobalTransform),
+        With<SpellGraphArea>,
+    >,
 ) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
     let Some(cursor_pos) = corrected_cursor.0 else {
         return;
     };
-    // Convert window-logical cursor to UI space (ComputedNode sizes are in UI space)
-    let cursor_ui = cursor_pos / ui_scale.0;
-
-    let container_center = if let Ok(computed) = graph_area_query.single() {
-        computed.size() * computed.inverse_scale_factor() / 2.0
-    } else {
-        Vec2::new(window.width() / 2.0, window.height() / 2.0) / ui_scale.0
+    let Ok((computed, ui_transform)) = graph_area_query.single() else {
+        return;
     };
+    let cursor_ui = cursor_pos / ui_scale.0;
+    let isf = computed.inverse_scale_factor();
+    // Absolute center of the graph area in UI space
+    let container_abs_center = Vec2::new(ui_transform.translation.x, ui_transform.translation.y) * isf;
 
     for event in mouse_wheel.read() {
         let scroll_delta = match event.unit {
@@ -1068,7 +1066,7 @@ pub(super) fn handle_graph_zoom(
             // Cancel any running animation
             commands.remove_resource::<GraphViewAnimation>();
             // Adjust offset to keep point under cursor stationary
-            let cursor_from_center = cursor_ui - container_center;
+            let cursor_from_center = cursor_ui - container_abs_center;
             let graph_point = (cursor_from_center - view.offset) / old_scale;
             view.offset = cursor_from_center - graph_point * new_scale;
             view.scale = new_scale;

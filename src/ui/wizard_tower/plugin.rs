@@ -46,6 +46,7 @@ impl Plugin for WizardTowerPlugin {
                 (
                     super::layout::handle_tab_click.in_set(ButtonActionSet),
                     super::layout::handle_back_button.in_set(ButtonActionSet),
+                    super::layout::escape_to_main_menu,
                     super::layout::rebuild_panels_on_tab_change.run_if(
                         resource_exists::<WizardTowerTab>.and(
                             resource_changed::<WizardTowerTab>

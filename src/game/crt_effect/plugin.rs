@@ -24,8 +24,9 @@ use bevy::{
 };
 
 use super::components::{
-    ChannelChangeTimer, CrtEffectSettings, DesaturationTimer, HeatDistortionSettings,
-    LensingSettings, ScreenFlashTimer, TeleportDistortionSettings, VignettePulseTimer,
+    ChannelChangeTimer, ColorblindCorrectionSettings, CrtEffectSettings, DesaturationTimer,
+    HeatDistortionSettings, LensingSettings, ScreenFlashTimer, TeleportDistortionSettings,
+    VignettePulseTimer,
 };
 use super::messages::{
     ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage,
@@ -37,12 +38,14 @@ use super::systems::{
     handle_screen_flash_message, handle_vignette_pulse_message, update_heat_distortion_positions,
     update_lensing_positions, update_teleport_distortion_positions,
 };
+use crate::config::GameConfig;
 use crate::state::AppState;
 
 const CRT_SHADER_PATH: &str = "shaders/crt_effect.wgsl";
 const LENSING_SHADER_PATH: &str = "shaders/gravitational_lensing.wgsl";
 const HEAT_DISTORTION_SHADER_PATH: &str = "shaders/heat_distortion.wgsl";
 const TELEPORT_DISTORTION_SHADER_PATH: &str = "shaders/teleport_distortion.wgsl";
+const COLORBLIND_SHADER_PATH: &str = "shaders/colorblind_correction.wgsl";
 
 pub(crate) struct CrtEffectPlugin;
 
@@ -57,6 +60,8 @@ impl Plugin for CrtEffectPlugin {
             UniformComponentPlugin::<HeatDistortionSettings>::default(),
             ExtractComponentPlugin::<TeleportDistortionSettings>::default(),
             UniformComponentPlugin::<TeleportDistortionSettings>::default(),
+            ExtractComponentPlugin::<ColorblindCorrectionSettings>::default(),
+            UniformComponentPlugin::<ColorblindCorrectionSettings>::default(),
         ));
 
         app.init_resource::<RawCursorPosition>();
@@ -96,6 +101,10 @@ impl Plugin for CrtEffectPlugin {
             )
                 .run_if(in_state(AppState::InGame)),
         );
+        app.add_systems(
+            Update,
+            sync_colorblind_settings.run_if(resource_changed::<GameConfig>),
+        );
 
         // Correct cursor position for barrel distortion before any game systems read it.
         // Runs in PreUpdate so all downstream systems (spells, UI picking, input)
@@ -126,6 +135,7 @@ impl Plugin for CrtEffectPlugin {
                 init_lensing_pipeline,
                 init_heat_distortion_pipeline,
                 init_teleport_distortion_pipeline,
+                init_colorblind_pipeline,
             ),
         );
 
@@ -140,6 +150,10 @@ impl Plugin for CrtEffectPlugin {
                 HeatDistortionLabel,
             )
             .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(Core3d, CrtEffectLabel)
+            .add_render_graph_node::<ViewNodeRunner<ColorblindCorrectionNode>>(
+                Core3d,
+                ColorblindCorrectionLabel,
+            )
             .add_render_graph_edges(
                 Core3d,
                 (
@@ -148,6 +162,7 @@ impl Plugin for CrtEffectPlugin {
                     TeleportDistortionLabel,
                     HeatDistortionLabel,
                     CrtEffectLabel,
+                    ColorblindCorrectionLabel,
                     Node3d::Upscaling,
                 ),
             );
@@ -651,5 +666,153 @@ fn init_teleport_distortion_pipeline(
 fn update_crt_time(time: Res<Time>, mut query: Query<&mut CrtEffectSettings>) {
     for mut settings in &mut query {
         settings.time = time.elapsed_secs();
+    }
+}
+
+// --- Colorblind Correction render node ---
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+struct ColorblindCorrectionLabel;
+
+#[derive(Default)]
+struct ColorblindCorrectionNode;
+
+impl ViewNode for ColorblindCorrectionNode {
+    type ViewQuery = (
+        &'static ViewTarget,
+        &'static ColorblindCorrectionSettings,
+        &'static DynamicUniformIndex<ColorblindCorrectionSettings>,
+    );
+
+    fn run(
+        &self,
+        _graph: &mut RenderGraphContext,
+        render_context: &mut RenderContext,
+        (view_target, settings, settings_index): QueryItem<Self::ViewQuery>,
+        world: &World,
+    ) -> Result<(), NodeRunError> {
+        // Skip the entire render pass when disabled
+        if settings.enabled < 0.5 {
+            return Ok(());
+        }
+
+        let colorblind_pipeline = world.resource::<ColorblindCorrectionPipeline>();
+        let pipeline_cache = world.resource::<PipelineCache>();
+
+        let Some(pipeline) =
+            pipeline_cache.get_render_pipeline(colorblind_pipeline.pipeline_id)
+        else {
+            return Ok(());
+        };
+
+        let settings_uniforms =
+            world.resource::<ComponentUniforms<ColorblindCorrectionSettings>>();
+        let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
+            return Ok(());
+        };
+
+        let post_process = view_target.post_process_write();
+
+        let bind_group = render_context.render_device().create_bind_group(
+            "colorblind_correction_bind_group",
+            &colorblind_pipeline.layout,
+            &BindGroupEntries::sequential((
+                post_process.source,
+                &colorblind_pipeline.sampler,
+                settings_binding.clone(),
+            )),
+        );
+
+        let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
+            label: Some("colorblind_correction_pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: post_process.destination,
+                depth_slice: None,
+                resolve_target: None,
+                ops: Operations::default(),
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        render_pass.set_render_pipeline(pipeline);
+        render_pass.set_bind_group(0, &bind_group, &[settings_index.index()]);
+        render_pass.draw(0..3, 0..1);
+
+        Ok(())
+    }
+}
+
+#[derive(Resource)]
+struct ColorblindCorrectionPipeline {
+    layout: BindGroupLayout,
+    sampler: Sampler,
+    pipeline_id: CachedRenderPipelineId,
+}
+
+fn init_colorblind_pipeline(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    asset_server: Res<AssetServer>,
+    fullscreen_shader: Res<FullscreenShader>,
+    pipeline_cache: Res<PipelineCache>,
+) {
+    let layout = render_device.create_bind_group_layout(
+        "colorblind_correction_bind_group_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::FRAGMENT,
+            (
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
+                uniform_buffer::<ColorblindCorrectionSettings>(true),
+            ),
+        ),
+    );
+
+    let sampler = render_device.create_sampler(&SamplerDescriptor::default());
+    let shader = asset_server.load(COLORBLIND_SHADER_PATH);
+    let vertex_state = fullscreen_shader.to_vertex_state();
+
+    let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
+        label: Some("colorblind_correction_pipeline".into()),
+        layout: vec![layout.clone()],
+        vertex: vertex_state,
+        fragment: Some(FragmentState {
+            shader,
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::bevy_default(),
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            })],
+            ..default()
+        }),
+        ..default()
+    });
+
+    commands.insert_resource(ColorblindCorrectionPipeline {
+        layout,
+        sampler,
+        pipeline_id,
+    });
+}
+
+/// Syncs GameConfig colorblind settings to the camera's ColorblindCorrectionSettings component.
+/// Uses Local to track previous values and skip no-op updates (avoids unnecessary GPU re-uploads
+/// when unrelated GameConfig fields like volume change).
+fn sync_colorblind_settings(
+    config: Res<GameConfig>,
+    mut query: Query<&mut ColorblindCorrectionSettings>,
+    mut last: Local<(crate::config::ColorblindType, u32)>,
+) {
+    let strength_bits = config.colorblind_strength.to_bits();
+    if last.0 == config.colorblind_type && last.1 == strength_bits {
+        return;
+    }
+    *last = (config.colorblind_type, strength_bits);
+    let new_settings =
+        ColorblindCorrectionSettings::for_type(config.colorblind_type, config.colorblind_strength);
+    for mut settings in &mut query {
+        *settings = new_settings;
     }
 }

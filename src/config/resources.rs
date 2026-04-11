@@ -138,6 +138,22 @@ impl Default for AudioConfig {
     }
 }
 
+/// Colorblind correction mode.
+///
+/// Selects which color vision deficiency correction to apply.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum ColorblindType {
+    /// No correction applied
+    #[default]
+    None,
+    /// Correction for red-blind (L-cone) deficiency
+    Protanopia,
+    /// Correction for green-blind (M-cone) deficiency
+    Deuteranopia,
+    /// Correction for blue-blind (S-cone) deficiency
+    Tritanopia,
+}
+
 /// Game difficulty levels.
 ///
 /// Controls the overall challenge level of the game.
@@ -323,6 +339,11 @@ fn default_efficiency_ratios() -> HashMap<String, f32> {
     HashMap::new()
 }
 
+/// Default colorblind correction strength (full correction).
+fn default_colorblind_strength() -> f32 {
+    1.0
+}
+
 /// Default action bar slots: None for all 5 slots.
 fn default_action_bar_slots() -> [Option<Spell>; 5] {
     [None; 5]
@@ -436,6 +457,12 @@ pub struct GameConfig {
     /// Whether gameplay continues while Spellbook/Cauldron menus are open
     #[serde(default = "default_true")]
     pub urgent_mode: bool,
+    /// Colorblind correction mode (None = disabled)
+    #[serde(default)]
+    pub colorblind_type: ColorblindType,
+    /// Colorblind correction strength (0.0 = no correction, 1.0 = full)
+    #[serde(default = "default_colorblind_strength")]
+    pub colorblind_strength: f32,
     /// Permanent walls saved from previous victories
     #[serde(skip)]
     pub saved_walls: Vec<SavedWall>,
@@ -485,6 +512,8 @@ impl Default for GameConfig {
             tutorials_enabled: true,
             show_level_clock: true,
             urgent_mode: true,
+            colorblind_type: ColorblindType::default(),
+            colorblind_strength: 1.0,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
             saved_flora: Vec::new(),

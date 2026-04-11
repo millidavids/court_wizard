@@ -80,6 +80,8 @@ pub(super) fn load_and_apply_config(
         tutorials_enabled: config_file.game.tutorials_enabled,
         show_level_clock: config_file.game.show_level_clock,
         urgent_mode: config_file.game.urgent_mode,
+        colorblind_type: config_file.game.colorblind_type,
+        colorblind_strength: config_file.game.colorblind_strength,
         saved_walls: Vec::new(),
         saved_crystals: Vec::new(),
         saved_flora: Vec::new(),

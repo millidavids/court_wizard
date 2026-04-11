@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 use crate::config::input_bindings::{BindingAction, BindingContext};
-use crate::config::{DisplayMode, VsyncMode};
+use crate::config::{ColorblindType, DisplayMode, VsyncMode};
 
 /// Marker component for entities that belong to the settings screen.
 ///
@@ -25,6 +25,8 @@ pub enum OptionButtonValue {
     TutorialsEnabled(bool),
     /// Show level clock toggle
     ShowLevelClock(bool),
+    /// Colorblind correction mode
+    ColorblindMode(ColorblindType),
 }
 
 impl OptionButtonValue {
@@ -36,6 +38,7 @@ impl OptionButtonValue {
             OptionButtonValue::SkipSplash(skip) => config.skip_splash == *skip,
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled == *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock == *show,
+            OptionButtonValue::ColorblindMode(mode) => config.colorblind_type == *mode,
         }
     }
 
@@ -47,6 +50,7 @@ impl OptionButtonValue {
             OptionButtonValue::SkipSplash(skip) => config.skip_splash = *skip,
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled = *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock = *show,
+            OptionButtonValue::ColorblindMode(mode) => config.colorblind_type = *mode,
         }
     }
 }
@@ -85,6 +89,8 @@ pub enum SliderValue {
     SfxVolume,
     /// UI brightness (0.1-2.0, minimum 10% to prevent soft-lock)
     UiBrightness,
+    /// Colorblind correction strength (0.0-1.0)
+    ColorblindStrength,
 }
 
 impl SliderValue {
@@ -95,6 +101,7 @@ impl SliderValue {
             SliderValue::MusicVolume => config.music_volume,
             SliderValue::SfxVolume => config.sfx_volume,
             SliderValue::UiBrightness => config.brightness,
+            SliderValue::ColorblindStrength => config.colorblind_strength,
         }
     }
 
@@ -105,6 +112,7 @@ impl SliderValue {
             SliderValue::MusicVolume => config.music_volume = value,
             SliderValue::SfxVolume => config.sfx_volume = value,
             SliderValue::UiBrightness => config.brightness = value,
+            SliderValue::ColorblindStrength => config.colorblind_strength = value,
         }
     }
 
@@ -113,6 +121,7 @@ impl SliderValue {
         match self {
             SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 0.0,
             SliderValue::UiBrightness => 0.1, // 10% minimum to prevent soft-lock
+            SliderValue::ColorblindStrength => 0.0,
         }
     }
 
@@ -121,6 +130,7 @@ impl SliderValue {
         match self {
             SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 1.0,
             SliderValue::UiBrightness => 2.0,
+            SliderValue::ColorblindStrength => 1.0,
         }
     }
 
@@ -129,6 +139,7 @@ impl SliderValue {
         match self {
             SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 0.01,
             SliderValue::UiBrightness => 0.1,
+            SliderValue::ColorblindStrength => 0.1,
         }
     }
 }

@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
-use crate::config::{DisplayMode, GameConfig, VsyncMode};
+use crate::config::{ColorblindType, DisplayMode, GameConfig, VsyncMode};
 use crate::game::crt_effect::ChannelChangeMessage;
 use crate::game::input::messages::MouseClicked;
 use crate::state::{MenuState, PauseMenuState};
@@ -314,6 +314,40 @@ fn spawn_graphics_tab(
             section,
             "Brightness:",
             SliderValue::UiBrightness,
+            game_config,
+        );
+
+        spawn_option_row(section, "Colorblind Mode:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "None",
+                OptionButtonValue::ColorblindMode(ColorblindType::None),
+                game_config.colorblind_type == ColorblindType::None,
+            );
+            spawn_option_button(
+                buttons,
+                "Protanopia",
+                OptionButtonValue::ColorblindMode(ColorblindType::Protanopia),
+                game_config.colorblind_type == ColorblindType::Protanopia,
+            );
+            spawn_option_button(
+                buttons,
+                "Deuteranopia",
+                OptionButtonValue::ColorblindMode(ColorblindType::Deuteranopia),
+                game_config.colorblind_type == ColorblindType::Deuteranopia,
+            );
+            spawn_option_button(
+                buttons,
+                "Tritanopia",
+                OptionButtonValue::ColorblindMode(ColorblindType::Tritanopia),
+                game_config.colorblind_type == ColorblindType::Tritanopia,
+            );
+        });
+
+        spawn_slider_control(
+            section,
+            "Color Correction:",
+            SliderValue::ColorblindStrength,
             game_config,
         );
     });

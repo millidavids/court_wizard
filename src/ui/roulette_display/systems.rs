@@ -32,6 +32,7 @@ pub(crate) fn spawn_roulette_display(mut commands: Commands, asset_server: Res<A
             },
             OnGameplayScreen,
             ArchetypeUI,
+            RouletteDisplayRoot,
         ))
         .with_children(|parent| {
             // Selected spell text (above wheel)

@@ -19,7 +19,8 @@ mod ui;
 use config::{ConfigPlugin, GameConfig};
 use game::GamePlugin;
 use game::crt_effect::{
-    CrtEffectSettings, HeatDistortionSettings, LensingSettings, TeleportDistortionSettings,
+    ColorblindCorrectionSettings, CrtEffectSettings, HeatDistortionSettings, LensingSettings,
+    TeleportDistortionSettings,
 };
 use game::multiplayer::MultiplayerGamePlugin;
 use music::MusicPlugin;
@@ -195,6 +196,7 @@ fn setup(mut commands: Commands) {
         LensingSettings::default(),
         HeatDistortionSettings::default(),
         TeleportDistortionSettings::default(),
+        ColorblindCorrectionSettings::default(),
     ));
 
     // Spawn brightness overlay (a fullscreen node that adjusts screen brightness)

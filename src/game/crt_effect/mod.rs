@@ -4,6 +4,7 @@ mod messages;
 mod plugin;
 mod systems;
 
+pub(crate) use components::ColorblindCorrectionSettings;
 pub(crate) use components::CrtEffectSettings;
 pub(crate) use components::HeatDistortionSettings;
 pub(crate) use components::LensingSettings;

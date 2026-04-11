@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.66] - 2026-04-11
+
+### Added
+- **Colorblind mode** — three color correction options (Protanopia, Deuteranopia, Tritanopia) are now available in Settings > Graphics, with an adjustable strength slider
+- **Escape key on Wizard Tower** — pressing Escape on the Wizard Tower screen now returns you to the main menu
+
+### Fixed
+- **Spell web zoom** — zooming in on the star field spell web in the Study now correctly zooms toward your mouse cursor instead of off to the side
+- **Randomancer roulette after pausing** — the roulette wheel no longer freezes or shows overlapping text after pausing and resuming the game
+
 ## [v0.6.62] - 2026-04-11
 
 ### Added

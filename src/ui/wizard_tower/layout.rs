@@ -351,12 +351,44 @@ pub(super) fn handle_back_button(
 ) {
     for event in button_clicked.read() {
         if let Ok(WizardTowerButtonAction::ReturnToMenu) = button_query.get(event.button) {
-            channel_change.write(ChannelChangeMessage);
-            kill_stats.reset();
-            active_save.0 = None;
-            next_app_state.set(AppState::MainMenu);
+            return_to_main_menu(
+                &mut next_app_state,
+                &mut kill_stats,
+                &mut active_save,
+                &mut channel_change,
+            );
         }
     }
+}
+
+/// Handles Escape key to return to the main menu from the wizard tower.
+pub(super) fn escape_to_main_menu(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut kill_stats: ResMut<KillStats>,
+    mut active_save: ResMut<ActiveSave>,
+    mut channel_change: MessageWriter<ChannelChangeMessage>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        return_to_main_menu(
+            &mut next_app_state,
+            &mut kill_stats,
+            &mut active_save,
+            &mut channel_change,
+        );
+    }
+}
+
+fn return_to_main_menu(
+    next_app_state: &mut ResMut<NextState<AppState>>,
+    kill_stats: &mut ResMut<KillStats>,
+    active_save: &mut ResMut<ActiveSave>,
+    channel_change: &mut MessageWriter<ChannelChangeMessage>,
+) {
+    channel_change.write(ChannelChangeMessage);
+    kill_stats.reset();
+    active_save.0 = None;
+    next_app_state.set(AppState::MainMenu);
 }
 
 // ---------------------------------------------------------------------------

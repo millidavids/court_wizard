@@ -1,5 +1,9 @@
 use bevy::prelude::*;
 
+/// Marker for the roulette display root entity (used for cleanup on pause/unpause).
+#[derive(Component)]
+pub(crate) struct RouletteDisplayRoot;
+
 /// Marker for the spinning wheel mesh/entity that rotates.
 #[derive(Component)]
 pub(super) struct RouletteWheelMesh;

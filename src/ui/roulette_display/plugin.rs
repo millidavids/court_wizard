@@ -12,10 +12,14 @@ pub struct RouletteDisplayPlugin;
 
 impl Plugin for RouletteDisplayPlugin {
     fn build(&self, app: &mut App) {
-        // SP spawn
+        // SP spawn + cleanup (cleanup prevents duplicates on pause/unpause)
         app.add_systems(
             OnEnter(InGameState::Running),
             systems::spawn_roulette_display.run_if(run_conditions::is_randomancer),
+        )
+        .add_systems(
+            OnExit(InGameState::Running),
+            crate::ui::systems::cleanup_screen::<super::components::RouletteDisplayRoot>,
         )
         // MP spawn
         .add_systems(
