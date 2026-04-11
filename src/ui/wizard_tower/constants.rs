@@ -17,13 +17,10 @@ pub(super) const INSIGHT_FONT_SIZE: f32 = 22.0;
 // ---------------------------------------------------------------------------
 // Tab bar
 // ---------------------------------------------------------------------------
-pub(super) const TAB_HEIGHT: f32 = 36.0;
-pub(super) const TAB_PADDING_H: f32 = 14.0;
-pub(super) const TAB_FONT_SIZE: f32 = 16.0;
-pub(super) const ACTIVE_TAB_BG: Color = Color::hsla(25.0, 0.15, 0.14, 0.8);
-pub(super) const INACTIVE_TAB_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.6);
-pub(super) const TAB_BORDER: Color = Color::hsla(270.0, 0.20, 0.25, 0.6);
-pub(super) const ACTIVE_TAB_BORDER: Color = Color::hsla(270.0, 0.60, 0.50, 0.8);
+pub(super) use crate::ui::constants::{
+    ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, INACTIVE_TAB_BG, TAB_BORDER, TAB_FONT_SIZE, TAB_HEIGHT,
+    TAB_PADDING_H,
+};
 pub(super) const DISABLED_TAB_TEXT: Color = Color::hsla(0.0, 0.0, 0.45, 0.6);
 
 // ---------------------------------------------------------------------------
@@ -191,16 +188,7 @@ pub(super) const COMMIT_BUTTON_STYLE: ButtonStyle = ButtonStyle {
     text_shadow: true,
 };
 
-pub(super) const BACK_BUTTON_STYLE: ButtonStyle = ButtonStyle {
-    width: 140.0,
-    height: 50.0,
-    border_width: 3.0,
-    font_size: 16.0,
-    background: BUTTON_BG,
-    border: BUTTON_BORDER,
-    text_color: TEXT_PRIMARY,
-    text_shadow: true,
-};
+pub(super) use crate::ui::constants::BACK_BUTTON_STYLE;
 
 /// Muted, smaller button for secondary actions like "Switch Wizard".
 pub(super) const SWITCH_WIZARD_BUTTON_STYLE: ButtonStyle = ButtonStyle {

@@ -5,11 +5,11 @@ use bevy::prelude::*;
 use super::main::plugin::PauseMainPlugin;
 use super::settings::plugin::PauseSettingsPlugin;
 use crate::ui::compendium::PauseMenuCompendiumPlugin;
-use crate::ui::instructions::PauseMenuInstructionsPlugin;
+use crate::ui::manual::PauseMenuManualPlugin;
 
 /// Plugin that manages all pause menu UI.
 ///
-/// This plugin coordinates the pause menu main screen, settings screen, and instructions screen.
+/// This plugin coordinates the pause menu main screen, settings screen, and manual screen.
 /// The settings screen reuses the main menu settings UI with pause-specific state transitions.
 #[derive(Default)]
 pub struct PauseMenuPlugin;
@@ -19,7 +19,7 @@ impl Plugin for PauseMenuPlugin {
         app.add_plugins((
             PauseMainPlugin,
             PauseSettingsPlugin,
-            PauseMenuInstructionsPlugin,
+            PauseMenuManualPlugin,
             PauseMenuCompendiumPlugin,
         ));
     }

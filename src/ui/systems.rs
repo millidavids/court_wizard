@@ -792,23 +792,6 @@ pub fn spawn_page_container<M: Component>(
 // Shared Escape key handling
 // ---------------------------------------------------------------------------
 
-/// Handles back button click to return to the main menu landing screen.
-///
-/// Shared across all menu sub-screens (changelog, credits, instructions, etc.).
-pub fn handle_back_to_landing(
-    mut button_clicked: MessageReader<MouseClicked>,
-    button_query: Query<&super::components::BackButton>,
-    mut next_state: ResMut<NextState<MenuState>>,
-    mut channel_change: MessageWriter<ChannelChangeMessage>,
-) {
-    for event in button_clicked.read() {
-        if button_query.get(event.button).is_ok() {
-            channel_change.write(ChannelChangeMessage);
-            next_state.set(MenuState::Landing);
-        }
-    }
-}
-
 /// Handles Escape key to return to the main menu landing screen.
 pub fn escape_to_landing(
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -1057,6 +1040,33 @@ fn spawn_shadowed_text(
                 TextColor(text_color),
                 TextLayout::new_with_justify(Justify::Center),
             ));
+        });
+}
+
+/// Spawns a standard page header row: title on the left, spacer, back button on the right.
+pub fn spawn_page_header<B: Component>(
+    parent: &mut ChildSpawnerCommands,
+    title: &str,
+    font_size: f32,
+    title_color: Color,
+    back_action: B,
+    button_style: &ButtonStyle,
+) {
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            margin: UiRect::bottom(Val::Px(8.0)),
+            ..default()
+        })
+        .with_children(|header| {
+            spawn_title_with_shadow(header, title, font_size, title_color, Node::default());
+            header.spawn(Node {
+                flex_grow: 1.0,
+                ..default()
+            });
+            spawn_button(header, "Back", back_action, button_style);
         });
 }
 

@@ -48,19 +48,7 @@ pub fn setup(mut commands: Commands) {
                         MenuButtonAction::Compendium,
                         &BUTTON_STYLE,
                     );
-                    spawn_button(
-                        buttons,
-                        "Changelog",
-                        MenuButtonAction::Changelog,
-                        &BUTTON_STYLE,
-                    );
-                    spawn_button(
-                        buttons,
-                        "Instructions",
-                        MenuButtonAction::Instructions,
-                        &BUTTON_STYLE,
-                    );
-                    spawn_button(buttons, "Credits", MenuButtonAction::Credits, &BUTTON_STYLE);
+                    spawn_button(buttons, "Manual", MenuButtonAction::Manual, &BUTTON_STYLE);
                     spawn_button(buttons, "Exit", MenuButtonAction::Exit, &BUTTON_STYLE);
                 });
 
@@ -103,17 +91,11 @@ pub fn button_action(
                 MenuButtonAction::Settings => {
                     next_menu_state.set(MenuState::Settings);
                 }
-                MenuButtonAction::Changelog => {
-                    next_menu_state.set(MenuState::Changelog);
-                }
-                MenuButtonAction::Instructions => {
-                    next_menu_state.set(MenuState::Instructions);
+                MenuButtonAction::Manual => {
+                    next_menu_state.set(MenuState::Manual);
                 }
                 MenuButtonAction::Compendium => {
                     next_menu_state.set(MenuState::Compendium);
-                }
-                MenuButtonAction::Credits => {
-                    next_menu_state.set(MenuState::Credits);
                 }
                 MenuButtonAction::Exit => {
                     exit.write(AppExit::Success);

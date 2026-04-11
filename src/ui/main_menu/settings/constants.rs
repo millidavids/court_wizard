@@ -58,20 +58,11 @@ pub const POPUP_OVERLAY_BG: Color = OVERLAY_BG;
 /// Confirmation popup box background (warm dark).
 pub const POPUP_BOX_BG: Color = Color::hsla(20.0, 0.10, 0.10, 1.0);
 
-/// Tab button height.
-pub const TAB_HEIGHT: f32 = 36.0;
-/// Tab horizontal padding.
-pub const TAB_PADDING_H: f32 = 14.0;
-/// Tab font size.
-pub const TAB_FONT_SIZE: f32 = 16.0;
-/// Active tab background.
-pub const ACTIVE_TAB_BG: Color = Color::hsla(25.0, 0.15, 0.14, 0.8);
-/// Inactive tab background.
-pub const INACTIVE_TAB_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.6);
-/// Active tab border.
-pub const ACTIVE_TAB_BORDER: Color = Color::hsla(270.0, 0.60, 0.50, 0.8);
-/// Tab border color.
-pub const TAB_BORDER_COLOR: Color = Color::hsla(270.0, 0.20, 0.25, 0.6);
+// Re-export shared tab constants.
+pub use crate::ui::constants::{
+    ACTIVE_TAB_BG, ACTIVE_TAB_BORDER, INACTIVE_TAB_BG, TAB_BORDER as TAB_BORDER_COLOR,
+    TAB_FONT_SIZE, TAB_HEIGHT, TAB_PADDING_H,
+};
 
 /// Locked/unavailable section title color.
 pub const LOCKED_TITLE_COLOR: Color = Color::hsla(0.0, 0.0, 0.5, 1.0);

@@ -58,12 +58,6 @@ pub fn load_spell_icon_assets(mut commands: Commands, asset_server: Res<AssetSer
     commands.insert_resource(SpellIconAssets { icons });
 }
 
-/// Shared marker component for back buttons across menu screens.
-///
-/// Used by `handle_back_to_landing` in `ui::systems` to navigate back to the landing page.
-#[derive(Component)]
-pub struct BackButton;
-
 /// Tracks the 3D push animation state for a button's front face.
 ///
 /// The front face slides up/down relative to the edge layer to create

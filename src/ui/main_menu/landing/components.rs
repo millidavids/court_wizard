@@ -20,14 +20,8 @@ pub(super) enum MenuButtonAction {
     /// Open the settings menu, transitioning to `MenuState::Settings`.
     Settings,
 
-    /// Open the changelog screen, transitioning to `MenuState::Changelog`.
-    Changelog,
-
-    /// Open the instructions screen, transitioning to `MenuState::Instructions`.
-    Instructions,
-
-    /// Open the credits screen, transitioning to `MenuState::Credits`.
-    Credits,
+    /// Open the manual screen, transitioning to `MenuState::Manual`.
+    Manual,
 
     /// Open the compendium screen, transitioning to `MenuState::Compendium`.
     Compendium,

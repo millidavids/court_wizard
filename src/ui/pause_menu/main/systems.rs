@@ -293,8 +293,8 @@ fn spawn_right_panel(
             );
             spawn_button(
                 right,
-                "Instructions",
-                PauseMenuButtonAction::Instructions,
+                "Manual",
+                PauseMenuButtonAction::Manual,
                 &BUTTON_STYLE,
             );
             spawn_button(
@@ -344,8 +344,8 @@ pub fn button_action(
                 PauseMenuButtonAction::Settings => {
                     next_pause_menu_state.set(PauseMenuState::Settings);
                 }
-                PauseMenuButtonAction::Instructions => {
-                    next_pause_menu_state.set(PauseMenuState::Instructions);
+                PauseMenuButtonAction::Manual => {
+                    next_pause_menu_state.set(PauseMenuState::Manual);
                 }
                 PauseMenuButtonAction::Compendium => {
                     next_pause_menu_state.set(PauseMenuState::Compendium);

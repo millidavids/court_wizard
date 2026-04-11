@@ -1,11 +1,9 @@
 //! Main menu module.
 //!
-//! Contains the MainMenuPlugin which aggregates Landing, Settings, Changelog, Instructions,
-//! and WizardSelect screens.
+//! Contains the MainMenuPlugin which aggregates Landing, Settings, Manual,
+//! and other screens.
 
 mod background;
-mod changelog;
-mod credits;
 mod landing;
 mod multiplayer;
 mod plugin;

@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use bevy::asset::{AssetMetaCheck, AssetPlugin};
 use bevy::camera::{ClearColorConfig, Viewport};
 use bevy::log::LogPlugin;

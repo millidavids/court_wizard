@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.62] - 2026-04-11
+
+### Added
+- **Manual screen** — the Instructions, Changelog, Credits, and License pages are now combined into a single "Manual" screen with tabs along the top, accessible from both the main menu and pause menu
+- **Formatted text in the Manual** — headings, bold text, lists, and links in the Manual now display with proper styling instead of showing raw markdown characters
+- **License tab** — the game's license text is now viewable in-game from the Manual
+
+### Changed
+- **Simplified main menu** — the separate Changelog, Instructions, and Credits buttons have been replaced with a single "Manual" button
+- **No console window on Windows** — the release build no longer opens a terminal window alongside the game
+
 ## [v0.6.48] - 2026-04-10
 
 ### Changed

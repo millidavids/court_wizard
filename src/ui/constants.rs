@@ -194,6 +194,46 @@ pub const SLIDER_BUTTON_FONT_SIZE: f32 = 13.0;
 /// Spacing between slider control elements.
 pub const SLIDER_GAP: f32 = 10.0;
 
+// ── Shared Tab Bar ──────────────────────────────────────────────────────────
+
+/// Height of tab buttons.
+pub const TAB_HEIGHT: f32 = 36.0;
+
+/// Horizontal padding inside tab buttons.
+pub const TAB_PADDING_H: f32 = 14.0;
+
+/// Font size for tab button text.
+pub const TAB_FONT_SIZE: f32 = 16.0;
+
+/// Background color for the currently active tab.
+pub const ACTIVE_TAB_BG: Color = Color::hsla(25.0, 0.15, 0.14, 0.8);
+
+/// Background color for inactive tabs.
+pub const INACTIVE_TAB_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.6);
+
+/// Border color for inactive tabs.
+pub const TAB_BORDER: Color = Color::hsla(270.0, 0.20, 0.25, 0.6);
+
+/// Border color for the currently active tab.
+pub const ACTIVE_TAB_BORDER: Color = Color::hsla(270.0, 0.60, 0.50, 0.8);
+
+// ── Shared Back Button ─────────────────────────────────────────────────────
+
+/// Standard back button style used across sub-screens.
+pub const BACK_BUTTON_STYLE: crate::ui::components::ButtonStyle =
+    crate::ui::components::ButtonStyle {
+        width: 140.0,
+        height: 50.0,
+        border_width: 3.0,
+        font_size: 16.0,
+        background: BUTTON_BG,
+        border: BUTTON_BORDER,
+        text_color: TEXT_PRIMARY,
+        text_shadow: true,
+    };
+
+// ── Misc ────────────────────────────────────────────────────────────────────
+
 /// Returns a color representing efficiency: red (0%) → green (99%) → gold (100%).
 pub fn efficiency_color(eff: f32) -> Color {
     if eff >= 1.0 {

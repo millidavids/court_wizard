@@ -62,14 +62,8 @@ pub enum MenuState {
     /// Settings submenu.
     Settings,
 
-    /// Changelog screen.
-    Changelog,
-
-    /// Instructions screen explaining gameplay mechanics.
-    Instructions,
-
-    /// Credits screen.
-    Credits,
+    /// Manual screen (Instructions, Changelog, Credits, License tabs).
+    Manual,
 
     /// Compendium screen showing achievements, unlockables, and unit tracking.
     Compendium,
@@ -147,8 +141,8 @@ pub enum PauseMenuState {
     /// Settings submenu (identical to main menu settings).
     Settings,
 
-    /// Instructions screen explaining gameplay mechanics.
-    Instructions,
+    /// Manual screen (Instructions, Changelog, Credits, License tabs).
+    Manual,
 
     /// Compendium screen showing achievements, unlockables, and unit tracking.
     Compendium,
