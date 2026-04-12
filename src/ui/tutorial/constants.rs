@@ -17,7 +17,7 @@ pub(super) const OVERLAY_BG: Color = Color::srgba(0.0, 0.0, 0.0, 0.01);
 pub(super) const PANEL_BG: Color = Color::hsla(20.0, 0.10, 0.07, 1.0);
 
 /// Tutorial panel border color (golden).
-pub(super) const PANEL_BORDER: Color = Color::hsla(270.0, 0.65, 0.50, 1.0);
+pub(super) const PANEL_BORDER: Color = Color::hsla(42.0, 0.65, 0.45, 1.0);
 
 /// Panel border width in pixels.
 pub(super) const PANEL_BORDER_WIDTH: f32 = 2.0;

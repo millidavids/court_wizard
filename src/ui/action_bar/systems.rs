@@ -443,7 +443,7 @@ pub(super) fn highlight_keyboard_pressed_slots(
                     *bc = BorderColor::all(colors.border);
                 }
                 if let Ok(mut outline) = edge_query.get_mut(child) {
-                    outline.color = FRAME_OUTLINE_COLOR;
+                    outline.color = crate::ui::constants::BUTTON_REST_OUTLINE;
                 }
             }
         }

@@ -11,8 +11,8 @@ pub(super) const FADE_DURATION: f32 = 1.0;
 /// Background color of the popup box.
 pub(super) const BACKGROUND_COLOR: Color = Color::hsla(20.0, 0.12, 0.07, 0.92);
 
-/// Border color (purple).
-pub(super) const BORDER_COLOR: Color = Color::hsla(270.0, 0.65, 0.50, 1.0);
+/// Border color (golden).
+pub(super) const BORDER_COLOR: Color = Color::hsla(42.0, 0.65, 0.45, 1.0);
 
 /// Achievement name text color.
 pub(super) const TITLE_COLOR: Color = Color::hsla(270.0, 0.70, 0.75, 1.0);

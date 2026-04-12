@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.106] - 2026-04-12
+
+### Changed
+- **Golden panel borders** — menu panels, frames, and containers now have warm golden outlines instead of purple, while all buttons keep their purple styling
+- **Active button glow** — selected buttons (like the current settings option) now have a visible purple glow that clearly distinguishes them from unselected buttons
+- **Button glow cleanup** — the purple glow properly fades when a button is deselected instead of lingering
+- **Concentration and weather buttons** — these now use the shared button styling system for consistent hover, press, and glow effects
+
 ## [v0.6.97] - 2026-04-11
 
 ### Changed

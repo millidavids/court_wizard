@@ -48,14 +48,14 @@ pub const OVERLAY_BG: Color = Color::NONE;
 /// Translucent background for page content containers (warm charcoal).
 pub const CONTENT_BG: Color = Color::hsla(20.0, 0.12, 0.07, 0.65);
 
-/// Subtle border for page content containers (purple-tinted).
-pub const CONTENT_BORDER: Color = Color::hsla(270.0, 0.25, 0.22, 0.5);
+/// Border for page content containers (golden).
+pub const CONTENT_BORDER: Color = Color::hsla(42.0, 0.50, 0.35, 0.5);
 
 /// Background for inner scrollable areas within page containers.
 pub const SCROLL_BG: Color = Color::hsla(20.0, 0.08, 0.04, 0.35);
 
-/// Border for inner scrollable areas.
-pub const SCROLL_BORDER: Color = Color::hsla(270.0, 0.15, 0.22, 0.5);
+/// Border for inner scrollable areas (golden).
+pub const SCROLL_BORDER: Color = Color::hsla(42.0, 0.40, 0.30, 0.5);
 
 /// Shadow color for elevated UI panels (warm-tinted).
 pub const SHADOW_COLOR: Color = Color::hsla(25.0, 0.30, 0.05, 0.6);
@@ -85,19 +85,19 @@ pub const BUTTON_BORDER_SUBTLE: Color = Color::hsla(270.0, 0.45, 0.35, 0.6);
 /// Detail panel background (warm dark, semi-transparent).
 pub const DETAIL_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.80);
 
-/// Detail panel border (purple).
-pub const DETAIL_BORDER: Color = Color::hsla(270.0, 0.45, 0.38, 0.9);
+/// Detail panel border (golden).
+pub const DETAIL_BORDER: Color = Color::hsla(42.0, 0.55, 0.40, 0.9);
 
 /// List area background (deepest warm, semi-transparent).
 pub const LIST_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.80);
 
-/// List area border (warm dark bronze).
-pub const LIST_BORDER: Color = Color::hsla(30.0, 0.15, 0.18, 0.8);
+/// List area border (golden).
+pub const LIST_BORDER: Color = Color::hsla(42.0, 0.45, 0.30, 0.8);
 
 // ── Ornate Frame ────────────────────────────────────────────────────────
 
-/// Outline color for ornate panel frames and button edges at rest (purple).
-pub const FRAME_OUTLINE_COLOR: Color = Color::hsla(270.0, 0.50, 0.40, 0.7);
+/// Outline color for ornate panel frames (golden).
+pub const FRAME_OUTLINE_COLOR: Color = Color::hsla(42.0, 0.55, 0.40, 0.7);
 
 /// Outline width for panel frames.
 pub const FRAME_OUTLINE_WIDTH: f32 = 1.0;
@@ -105,8 +105,8 @@ pub const FRAME_OUTLINE_WIDTH: f32 = 1.0;
 /// Gap between border and outline for ornate frames.
 pub const FRAME_OUTLINE_OFFSET: f32 = 2.0;
 
-/// Outer ring color for ornate panel frames (dark purple).
-pub const FRAME_OUTER_RING_COLOR: Color = Color::hsla(270.0, 0.25, 0.15, 0.5);
+/// Outer ring color for ornate panel frames (dark gold).
+pub const FRAME_OUTER_RING_COLOR: Color = Color::hsla(42.0, 0.30, 0.20, 0.5);
 
 /// Outer ring width (BoxShadow spread with zero blur).
 pub const FRAME_OUTER_RING_WIDTH: f32 = 3.0;
@@ -115,6 +115,9 @@ pub const FRAME_OUTER_RING_WIDTH: f32 = 3.0;
 pub const FRAME_SHADOW_SPREAD_BASE: f32 = FRAME_OUTER_RING_WIDTH + FRAME_OUTLINE_WIDTH + FRAME_OUTLINE_OFFSET;
 
 // ── Button Interaction States ───────────────────────────────────────────
+
+/// Button edge outline color at rest (purple, matches button trim).
+pub const BUTTON_REST_OUTLINE: Color = Color::hsla(270.0, 0.50, 0.40, 0.7);
 
 /// Button shadow color (warm dark, shared by normal and pressed states).
 pub const BUTTON_SHADOW_COLOR: Color = Color::hsla(25.0, 0.20, 0.05, 0.3);
@@ -211,10 +214,10 @@ pub const ACTIVE_TAB_BG: Color = Color::hsla(25.0, 0.15, 0.14, 0.8);
 /// Background color for inactive tabs.
 pub const INACTIVE_TAB_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.6);
 
-/// Border color for inactive tabs.
+/// Border color for inactive tabs (purple).
 pub const TAB_BORDER: Color = Color::hsla(270.0, 0.20, 0.25, 0.6);
 
-/// Border color for the currently active tab.
+/// Border color for the currently active tab (purple).
 pub const ACTIVE_TAB_BORDER: Color = Color::hsla(270.0, 0.60, 0.50, 0.8);
 
 // ── Shared Back Button ─────────────────────────────────────────────────────

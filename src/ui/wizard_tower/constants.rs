@@ -33,7 +33,7 @@ pub(super) const SECTION_PADDING: f32 = 12.0;
 pub(super) const MARGIN_SMALL: f32 = 8.0;
 pub(super) const SECTION_BG: Color = Color::hsla(20.0, 0.10, 0.08, 0.8);
 pub(super) const DETAIL_BG: Color = Color::hsla(20.0, 0.08, 0.06, 0.9);
-pub(super) const DETAIL_BORDER: Color = Color::hsla(270.0, 0.20, 0.22, 0.8);
+pub(super) const DETAIL_BORDER: Color = Color::hsla(42.0, 0.45, 0.30, 0.8);
 
 // ---------------------------------------------------------------------------
 // Endless tab

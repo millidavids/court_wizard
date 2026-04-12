@@ -80,13 +80,14 @@ impl Plugin for UiPlugin {
                 update_ui_scale,
                 systems::button_click_detection,
                 systems::button_interaction,
-                systems::enforce_active_button_state,
                 systems::reset_deactivated_buttons,
                 systems::sync_front_face_colors,
                 systems::animate_button_3d,
                 systems::apply_parchment_backgrounds,
                 systems::apply_frosted_glass_overlays,
                 systems::apply_3d_button_structure,
+                systems::enforce_active_button_state
+                    .after(systems::apply_3d_button_structure),
             ),
         );
     }

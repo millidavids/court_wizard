@@ -111,6 +111,10 @@ fn spawn_weather_button(parent: &mut ChildSpawnerCommands, weather: WeatherType)
             },
             BackgroundColor(INACTIVE_BG),
             BorderColor::all(INACTIVE_BORDER),
+            crate::ui::components::ButtonColors {
+                background: INACTIVE_BG,
+                border: INACTIVE_BORDER,
+            },
             WeatherButton { weather },
             Button,
             Interaction::default(),

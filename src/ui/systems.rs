@@ -14,7 +14,7 @@ use super::components::{ButtonActive, ButtonAnimState, ButtonColors, ButtonEdge,
 use super::constants::{
     BUTTON_3D_ANIM_SPEED, BUTTON_3D_OFFSET_HOVER, BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST,
     BUTTON_EDGE_DARKEN, BUTTON_GLOW_INNER, BUTTON_GLOW_OUTER, BUTTON_HOVERED_OUTLINE,
-    BUTTON_PRESSED_OUTLINE, BUTTON_PRESS_GLOW_INNER, BUTTON_PRESS_GLOW_OUTER,
+    BUTTON_PRESSED_OUTLINE, BUTTON_PRESS_GLOW_INNER, BUTTON_PRESS_GLOW_OUTER, BUTTON_REST_OUTLINE,
     BUTTON_SHADOW_COLOR, CONTENT_BG, CONTENT_BORDER, DETAIL_BG,
     DETAIL_BORDER, DETAIL_PADDING, FRAME_OUTER_RING_COLOR, FRAME_OUTLINE_COLOR,
     FRAME_OUTLINE_OFFSET, FRAME_OUTLINE_WIDTH, FRAME_SHADOW_SPREAD_BASE, LEFT_PANEL_WIDTH, LIST_BG,
@@ -123,7 +123,7 @@ pub fn button_interaction(
         let (front_border, edge_outline) = match *interaction {
             Interaction::Pressed => (border_bright(colors.border), BUTTON_PRESSED_OUTLINE),
             Interaction::Hovered => (border_hovered(colors.border), BUTTON_HOVERED_OUTLINE),
-            Interaction::None => (colors.border, FRAME_OUTLINE_COLOR),
+            Interaction::None => (colors.border, BUTTON_REST_OUTLINE),
         };
 
         // Update edge outline (lower layer glow) + front border (top layer glow).
@@ -262,7 +262,7 @@ pub fn apply_3d_button_structure(
                 BUTTON_PRESSED_OUTLINE,
             )
         } else {
-            (BUTTON_3D_OFFSET_REST, bc, FRAME_OUTLINE_COLOR)
+            (BUTTON_3D_OFFSET_REST, bc, BUTTON_REST_OUTLINE)
         };
 
         // Spawn edge — same size as front but offset down and slightly narrower.
@@ -334,13 +334,32 @@ pub fn apply_3d_button_structure(
                 current: initial_offset,
                 target: initial_offset,
             },
-            BoxShadow(vec![ShadowStyle {
-                color: BUTTON_SHADOW_COLOR,
-                x_offset: Val::Px(0.0),
-                y_offset: Val::Px(2.0),
-                spread_radius: Val::Px(0.0),
-                blur_radius: Val::Px(4.0),
-            }]),
+            BoxShadow(if is_active {
+                vec![
+                    ShadowStyle {
+                        color: BUTTON_PRESS_GLOW_INNER,
+                        x_offset: Val::Px(0.0),
+                        y_offset: Val::Px(0.0),
+                        spread_radius: Val::Px(4.0),
+                        blur_radius: Val::Px(12.0),
+                    },
+                    ShadowStyle {
+                        color: BUTTON_PRESS_GLOW_OUTER,
+                        x_offset: Val::Px(0.0),
+                        y_offset: Val::Px(0.0),
+                        spread_radius: Val::Px(8.0),
+                        blur_radius: Val::Px(24.0),
+                    },
+                ]
+            } else {
+                vec![ShadowStyle {
+                    color: BUTTON_SHADOW_COLOR,
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(2.0),
+                    spread_radius: Val::Px(0.0),
+                    blur_radius: Val::Px(4.0),
+                }]
+            }),
         ));
 
         // Increase wrapper height, clear border/padding (those live on front now).
@@ -405,15 +424,38 @@ pub fn animate_button_3d(
 /// Only runs when `ButtonActive` is first added, not every frame.
 pub fn enforce_active_button_state(
     mut active_buttons: Query<
-        (&ButtonColors, Option<&Children>, Option<&mut ButtonAnimState>),
+        (
+            &ButtonColors,
+            Option<&Children>,
+            Option<&mut ButtonAnimState>,
+            Option<&mut BoxShadow>,
+        ),
         (Added<ButtonActive>, With<Button>),
     >,
     mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
     mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
 ) {
-    for (colors, children, anim) in &mut active_buttons {
+    for (colors, children, anim, shadow) in &mut active_buttons {
         if let Some(mut anim) = anim {
             anim.target = BUTTON_3D_OFFSET_PRESSED;
+        }
+        if let Some(mut shadow) = shadow {
+            shadow.0 = vec![
+                ShadowStyle {
+                    color: BUTTON_PRESS_GLOW_INNER,
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(0.0),
+                    spread_radius: Val::Px(4.0),
+                    blur_radius: Val::Px(12.0),
+                },
+                ShadowStyle {
+                    color: BUTTON_PRESS_GLOW_OUTER,
+                    x_offset: Val::Px(0.0),
+                    y_offset: Val::Px(0.0),
+                    spread_radius: Val::Px(8.0),
+                    blur_radius: Val::Px(24.0),
+                },
+            ];
         }
         if let Some(children) = children {
             for child in children.iter() {
@@ -432,18 +474,32 @@ pub fn enforce_active_button_state(
 pub fn reset_deactivated_buttons(
     mut removed: RemovedComponents<ButtonActive>,
     mut buttons: Query<
-        (&ButtonColors, Option<&Children>, Option<&mut ButtonAnimState>),
+        (
+            &ButtonColors,
+            Option<&Children>,
+            Option<&mut ButtonAnimState>,
+            Option<&mut BoxShadow>,
+        ),
         With<Button>,
     >,
     mut front_query: Query<&mut BorderColor, (With<ButtonFront>, Without<ButtonEdge>)>,
     mut edge_query: Query<&mut Outline, With<ButtonEdge>>,
 ) {
     for entity in removed.read() {
-        let Ok((colors, children, anim)) = buttons.get_mut(entity) else {
+        let Ok((colors, children, anim, shadow)) = buttons.get_mut(entity) else {
             continue;
         };
         if let Some(mut anim) = anim {
             anim.target = BUTTON_3D_OFFSET_REST;
+        }
+        if let Some(mut shadow) = shadow {
+            shadow.0 = vec![ShadowStyle {
+                color: BUTTON_SHADOW_COLOR,
+                x_offset: Val::Px(0.0),
+                y_offset: Val::Px(2.0),
+                spread_radius: Val::Px(0.0),
+                blur_radius: Val::Px(4.0),
+            }];
         }
         if let Some(children) = children {
             for child in children.iter() {
@@ -451,7 +507,7 @@ pub fn reset_deactivated_buttons(
                     *bc = BorderColor::all(colors.border);
                 }
                 if let Ok(mut outline) = edge_query.get_mut(child) {
-                    outline.color = FRAME_OUTLINE_COLOR;
+                    outline.color = BUTTON_REST_OUTLINE;
                 }
             }
         }
@@ -480,7 +536,7 @@ pub fn sync_front_face_colors(
                 *border = BorderColor::all(colors.border);
             }
             if let Ok(mut outline) = edge_query.get_mut(child) {
-                outline.color = FRAME_OUTLINE_COLOR;
+                outline.color = BUTTON_REST_OUTLINE;
             }
         }
     }
@@ -961,7 +1017,7 @@ pub fn spawn_button(
                 },
                 BackgroundColor(edge_color(style.background)),
                 BorderRadius::all(Val::Px(8.0)),
-                Outline::new(Val::Px(1.0), Val::Px(1.0), FRAME_OUTLINE_COLOR),
+                Outline::new(Val::Px(1.0), Val::Px(1.0), BUTTON_REST_OUTLINE),
             ));
 
             // Front face — the interactive surface, offset upward.
