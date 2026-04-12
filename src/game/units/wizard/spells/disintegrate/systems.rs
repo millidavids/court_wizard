@@ -545,7 +545,11 @@ pub fn apply_disintegrate_damage(
             for (entity, transform, hitbox, mut health, mut temp_hp, has_spell_shield) in
                 target_query.iter_mut()
             {
-                if beam.contains_point_with_radius(transform.translation, hitbox.radius) {
+                if beam.intersects_hitbox_cylinder(
+                    transform.translation,
+                    hitbox.radius,
+                    hitbox.height,
+                ) {
                     apply_spell_damage(
                         &mut commands,
                         entity,

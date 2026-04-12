@@ -354,8 +354,11 @@ fn cast_single_banishment(
         .filter(|(_, _, team, _)| Team::Defenders.is_enemy(team))
         .filter(|(_, transform, _, _)| is_in_spell_range(transform.translation, spell_range))
         .map(|(entity, transform, _, health)| {
-            let dist_sq = transform.translation.distance_squared(cursor_pos);
-            (entity, dist_sq, transform.translation, health)
+            let xz_dist = crate::game::units::wizard::spells::utils::xz_distance(
+                transform.translation,
+                cursor_pos,
+            );
+            (entity, xz_dist * xz_dist, transform.translation, health)
         })
         .collect();
     candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
@@ -427,8 +430,12 @@ fn cast_mass_banishment(
         if !is_in_spell_range(transform.translation, spell_range) {
             continue;
         }
-        let dist_sq = transform.translation.distance_squared(cursor_pos);
-        if dist_sq > constants::MASS_BANISHMENT_RADIUS * constants::MASS_BANISHMENT_RADIUS {
+        let xz_dist = crate::game::units::wizard::spells::utils::xz_distance(
+            transform.translation,
+            cursor_pos,
+        );
+        if xz_dist * xz_dist > constants::MASS_BANISHMENT_RADIUS * constants::MASS_BANISHMENT_RADIUS
+        {
             continue;
         }
 

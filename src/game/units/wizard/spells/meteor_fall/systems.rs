@@ -936,7 +936,10 @@ pub(super) fn update_meteor_explosions(
             for (unit_entity, unit_transform, mut health, mut temp_hp, has_spell_shield) in
                 units.iter_mut()
             {
-                let distance = unit_transform.translation.distance(explosion.origin);
+                let distance = crate::game::units::wizard::spells::utils::xz_distance(
+                    unit_transform.translation,
+                    explosion.origin,
+                );
 
                 if distance <= explosion.max_radius {
                     apply_spell_damage(

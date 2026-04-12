@@ -107,7 +107,11 @@ pub fn spawn_ogre(
             Billboard,
             OnGameplayScreen,
         ))
-        .insert((anim, FacingDirection::default()))
+        .insert((
+            anim,
+            FacingDirection::default(),
+            crate::game::units::components::MeleeRangeBonus(OGRE_MELEE_RANGE_BONUS),
+        ))
         .insert(RockThrowCooldown::new(8.0));
 }
 

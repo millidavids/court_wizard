@@ -317,7 +317,8 @@ pub(crate) fn apply_berserker_rage_buff(
     let mut buffed_count = 0u32;
 
     for (entity, transform, _team, existing) in targets.iter_mut() {
-        let distance = transform.translation.distance(circle_pos);
+        let distance =
+            crate::game::units::wizard::spells::utils::xz_distance(transform.translation, circle_pos);
         if distance <= radius {
             if let Some(mut buff) = existing {
                 buff.damage_bonus = damage_bonus;
@@ -510,7 +511,11 @@ pub fn final_stand_explosion(
             if *target_team == *team {
                 continue;
             }
-            if target_pos.translation.distance(position) <= final_stand.radius {
+            if crate::game::units::wizard::spells::utils::xz_distance(
+                target_pos.translation,
+                position,
+            ) <= final_stand.radius
+            {
                 apply_spell_damage(
                     &mut commands,
                     target_entity,

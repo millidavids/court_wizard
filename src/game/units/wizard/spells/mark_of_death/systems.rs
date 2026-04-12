@@ -203,7 +203,10 @@ fn mark_of_death_casting_logic(
                                 if *team != Team::Attackers && *team != Team::Undead {
                                     continue;
                                 }
-                                let dist = transform.translation.distance(cursor_pos);
+                                let dist = crate::game::units::wizard::spells::utils::xz_distance(
+                                    transform.translation,
+                                    cursor_pos,
+                                );
                                 if dist <= constants::MASS_MARKING_RADIUS {
                                     commands.entity(entity).insert((
                                         MarkedForDeathModifier::new(amplification, duration),
@@ -221,7 +224,11 @@ fn mark_of_death_casting_logic(
                                     **team == Team::Attackers || **team == Team::Undead
                                 })
                                 .filter_map(|(entity, transform, _)| {
-                                    let dist = transform.translation.distance(cursor_pos);
+                                    let dist =
+                                        crate::game::units::wizard::spells::utils::xz_distance(
+                                            transform.translation,
+                                            cursor_pos,
+                                        );
                                     if dist <= constants::TARGET_SEARCH_RADIUS {
                                         Some((entity, dist))
                                     } else {

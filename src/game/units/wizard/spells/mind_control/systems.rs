@@ -251,8 +251,10 @@ pub(super) fn handle_mind_control_casting(
                                 if !matches!(*team, Team::Attackers | Team::Undead) {
                                     continue;
                                 }
-                                if transform.translation.distance(pos)
-                                    <= constants::MASS_HYSTERIA_RADIUS
+                                if crate::game::units::wizard::spells::utils::xz_distance(
+                                    transform.translation,
+                                    pos,
+                                ) <= constants::MASS_HYSTERIA_RADIUS
                                 {
                                     commands.entity(entity).insert(MassHysteriaTarget {
                                         time_remaining: constants::MASS_HYSTERIA_DURATION
@@ -367,7 +369,10 @@ fn find_nearest_enemy(
                 (dx * dx + dz * dz).sqrt() <= spell_range
             })
             .filter_map(|(entity, transform, _, _)| {
-                let dist = transform.translation.distance(pos);
+                let dist = crate::game::units::wizard::spells::utils::xz_distance(
+                    transform.translation,
+                    pos,
+                );
                 if dist <= constants::TARGET_SEARCH_RADIUS {
                     Some((entity, dist))
                 } else {
@@ -492,8 +497,10 @@ pub(super) fn update_traitors_mark_aura(
 
         // Check if within range of any aura
         let in_aura = aura_query.iter().any(|aura_transform| {
-            aura_transform.translation.distance(transform.translation)
-                <= constants::TRAITORS_MARK_RADIUS
+            crate::game::units::wizard::spells::utils::xz_distance(
+                aura_transform.translation,
+                transform.translation,
+            ) <= constants::TRAITORS_MARK_RADIUS
         });
 
         if in_aura && !has_demoralized {

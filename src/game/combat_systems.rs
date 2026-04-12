@@ -66,6 +66,7 @@ pub fn combat(
                     Has<super::units::archer::Archer>,
                     Has<super::units::infantry::Infantry>,
                     Has<super::units::assassin::Assassin>,
+                    Option<&super::units::components::MeleeRangeBonus>,
                 ),
             ),
         ),
@@ -179,7 +180,7 @@ pub fn combat(
             bloodlust,
             has_contagious_rage,
             elite_attack_speed,
-            (attacker_is_archer, attacker_is_infantry, attacker_is_assassin),
+            (attacker_is_archer, attacker_is_infantry, attacker_is_assassin, melee_range_bonus),
         ),
     ) in &mut all_units
     {
@@ -213,7 +214,8 @@ pub fn combat(
                 let dz = attacker_transform.translation.z - target_pos.z;
                 let distance = (dx * dx + dz * dz).sqrt();
                 let mut attack_range =
-                    (attacker_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER;
+                    (attacker_hitbox.radius + target_hitbox.radius) * ATTACK_RANGE_MULTIPLIER
+                    + melee_range_bonus.map_or(0.0, |b| b.0);
                 // Blinding Mist: halve attack range
                 if let Some(debuff) = blinding_mist_debuff {
                     attack_range *= debuff.range_mult;

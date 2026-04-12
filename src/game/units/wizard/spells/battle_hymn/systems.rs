@@ -327,7 +327,10 @@ pub(crate) fn apply_battle_hymn_buff(
             // Chorus of Valor: only buff defenders, but ignore radius
             *team == Team::Defenders
         } else {
-            let distance = transform.translation.distance(circle_pos);
+            let distance = crate::game::units::wizard::spells::utils::xz_distance(
+                transform.translation,
+                circle_pos,
+            );
             distance <= radius
         };
 

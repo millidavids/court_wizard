@@ -366,7 +366,7 @@ pub fn check_fireball_collisions(
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
     fireballs: Query<(Entity, &Transform, &Fireball, Option<&CrystalSpawn>)>,
-    targets: Query<(&Transform, &Team)>,
+    targets: Query<(&Transform, &Team, &crate::game::units::components::Hitbox)>,
     walls: Query<&WallOfStone>,
     rocks: Query<&crate::game::terrain::boulder::components::Boulder>,
     sfx: Res<SpellSfxAssets>,
@@ -430,11 +430,17 @@ pub fn check_fireball_collisions(
             continue;
         }
 
-        // Check collision with units
-        for (target_transform, _team) in &targets {
-            let distance = fireball_pos.distance(target_transform.translation);
+        // Check collision with units (cylinder hitbox from Y=0)
+        for (target_transform, _team, hitbox) in &targets {
+            let hit = crate::game::units::wizard::spells::utils::sphere_intersects_cylinder(
+                fireball_pos,
+                fireball.radius,
+                Vec3::new(target_transform.translation.x, 0.0, target_transform.translation.z),
+                hitbox.radius,
+                hitbox.height,
+            );
 
-            if distance < fireball.radius {
+            if hit {
                 explode_at(&mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 break;
@@ -756,7 +762,10 @@ pub fn apply_explosion_damage(
             for (entity, transform, mut health, mut temp_hp, has_spell_shield, existing_mark) in
                 &mut targets
             {
-                let distance = explosion.origin.distance(transform.translation);
+                let distance = crate::game::units::wizard::spells::utils::xz_distance(
+                    explosion.origin,
+                    transform.translation,
+                );
 
                 if distance <= current_radius {
                     apply_spell_damage(

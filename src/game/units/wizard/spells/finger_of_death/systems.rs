@@ -842,7 +842,10 @@ pub fn apply_necrotic_explosion_damage(
             if has_spell_shield {
                 continue;
             }
-            let dist = transform.translation.distance(*explosion_pos);
+            let dist = crate::game::units::wizard::spells::utils::xz_distance(
+                transform.translation,
+                *explosion_pos,
+            );
             if dist <= constants::NECROTIC_EXPLOSION_RADIUS {
                 apply_spell_damage(
                     &mut commands,

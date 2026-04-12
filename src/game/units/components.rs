@@ -446,6 +446,10 @@ impl Hitbox {
     }
 }
 
+/// Flat bonus added to a unit's melee attack range (world units).
+#[derive(Component)]
+pub struct MeleeRangeBonus(pub f32);
+
 /// Temporary hit points that absorb damage before real health.
 ///
 /// Expires after a duration and is consumed before health when taking damage.

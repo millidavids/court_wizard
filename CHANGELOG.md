@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.97] - 2026-04-11
+
+### Changed
+- **Spell hitboxes reworked** — all area-of-effect spells (fireball, meteor, chain lightning, sleep, haste, and more) now properly detect units based on their ground position, making spells hit more reliably against all unit sizes
+- **Disintegrate beam collision** — the beam now checks against the full height of each unit's body instead of just a single point, so it hits more consistently when aimed at a unit's torso or feet
+- **Fireball detonation** — fireballs now account for a unit's actual body size when deciding whether to explode on contact, instead of treating every unit as a tiny dot
+- **Ogre hits harder in melee** — the Ogre's melee attack reaches further, matching his massive size
+
+### Added
+- **Debug hitbox visualization** — press F2 during gameplay to toggle semi-transparent cylinders showing each unit's collision area (useful for modding and debugging)
+
 ## [v0.6.82] - 2026-04-11
 
 ### Added

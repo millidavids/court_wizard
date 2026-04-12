@@ -254,7 +254,8 @@ pub(crate) fn apply_haste_buff(
     let mut buffed_count = 0u32;
 
     for (entity, transform, existing_haste) in targets.iter_mut() {
-        let distance = transform.translation.distance(circle_pos);
+        let distance =
+            crate::game::units::wizard::spells::utils::xz_distance(transform.translation, circle_pos);
         if distance <= radius {
             if let Some(mut haste) = existing_haste {
                 // Refresh duration if already hasted
@@ -407,7 +408,10 @@ pub fn tick_haste_slow_zone(
 
         // Apply slow to all non-hasted units within the zone
         for (unit_entity, transform, existing_slow) in units.iter_mut() {
-            let distance = transform.translation.distance(zone.position);
+            let distance = crate::game::units::wizard::spells::utils::xz_distance(
+                transform.translation,
+                zone.position,
+            );
             if distance <= zone.radius {
                 if let Some(mut slow) = existing_slow {
                     slow.apply(zone.slow_amount, 0.5);

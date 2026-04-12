@@ -20,6 +20,8 @@ pub const OGRE_HEALTH: f32 = 6000.0;
 pub const OGRE_DAMAGE_MULTIPLIER: f32 = -0.5;
 pub const OGRE_ATTACK_DAMAGE: f32 = 30.0;
 pub const OGRE_ATTACK_COOLDOWN: f32 = 1.0;
+/// Extra melee attack reach beyond standard hitbox-based range (world units).
+pub const OGRE_MELEE_RANGE_BONUS: f32 = 80.0;
 pub const OGRE_MELEE_KNOCKBACK_SPEED: f32 = 800.0;
 pub const OGRE_MELEE_KNOCKBACK_DURATION: f32 = 1.5;
 

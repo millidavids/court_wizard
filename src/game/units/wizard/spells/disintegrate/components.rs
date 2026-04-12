@@ -242,6 +242,68 @@ impl DisintegrateBeam {
         distance <= self.beam_width() + unit_radius
     }
 
+    /// Checks if the beam cylinder intersects a vertical hitbox cylinder.
+    ///
+    /// Uses separate horizontal (XZ) and vertical (Y) overlap checks:
+    /// - Horizontally: XZ distance between closest approach points <= beam_width + hitbox_radius
+    /// - Vertically: beam's Y range at closest approach overlaps the hitbox [0, hitbox_height]
+    pub fn intersects_hitbox_cylinder(
+        &self,
+        unit_xz: Vec3,
+        hitbox_radius: f32,
+        hitbox_height: f32,
+    ) -> bool {
+        let current_len = self.current_length();
+        if current_len < 0.001 {
+            return false;
+        }
+
+        let beam_end = self.origin + self.direction * current_len;
+        let beam_vec = beam_end - self.origin;
+        let unit_x = unit_xz.x;
+        let unit_z = unit_xz.z;
+
+        // Find the beam parameter t where it's closest to the unit's XZ position.
+        // For near-vertical beams (XZ projection collapses), use 3D closest-point
+        // to the unit's vertical axis midpoint instead.
+        let dx = beam_vec.x;
+        let dz = beam_vec.z;
+        let xz_len_sq = dx * dx + dz * dz;
+
+        let t = if xz_len_sq > 0.001 {
+            // Normal beam: project in XZ plane
+            let to_unit_x = unit_x - self.origin.x;
+            let to_unit_z = unit_z - self.origin.z;
+            ((to_unit_x * dx + to_unit_z * dz) / xz_len_sq).clamp(0.0, 1.0)
+        } else {
+            // Near-vertical beam: find closest point to unit's vertical axis midpoint
+            let mid = Vec3::new(unit_x, hitbox_height * 0.5, unit_z);
+            let to_mid = mid - self.origin;
+            let full_len_sq = beam_vec.dot(beam_vec);
+            if full_len_sq > 0.001 {
+                (to_mid.dot(beam_vec) / full_len_sq).clamp(0.0, 1.0)
+            } else {
+                0.0
+            }
+        };
+
+        // Closest beam point
+        let beam_point = self.origin + beam_vec * t;
+
+        // Horizontal (XZ) distance check
+        let xz_dx = beam_point.x - unit_x;
+        let xz_dz = beam_point.z - unit_z;
+        let xz_dist = (xz_dx * xz_dx + xz_dz * xz_dz).sqrt();
+        let bw = self.beam_width();
+        if xz_dist > bw + hitbox_radius {
+            return false;
+        }
+
+        // Vertical overlap: beam Y ± beam_width must overlap [0, hitbox_height]
+        let beam_y = beam_point.y;
+        beam_y + bw >= 0.0 && beam_y - bw <= hitbox_height
+    }
+
     /// Computes the eclipse ellipse radii at the beam tip, clipped by spell range.
     ///
     /// Returns `None` if the eclipse is entirely outside range, or

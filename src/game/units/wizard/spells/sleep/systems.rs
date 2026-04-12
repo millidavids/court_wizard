@@ -290,7 +290,8 @@ pub(crate) fn apply_sleep(
     let mut hit_count = 0u32;
 
     for (entity, transform, health, team) in targets.iter() {
-        let distance = transform.translation.distance(circle_pos);
+        let distance =
+            crate::game::units::wizard::spells::utils::xz_distance(transform.translation, circle_pos);
         if distance > radius {
             continue;
         }
@@ -453,7 +454,10 @@ pub fn update_narcoleptic_wave(
             if *team == Team::Defenders {
                 continue;
             }
-            let dist = transform.translation.distance(event.position);
+            let dist = crate::game::units::wizard::spells::utils::xz_distance(
+                transform.translation,
+                event.position,
+            );
             if dist <= event.radius {
                 let modifier = SleepModifier::new(event.duration, event.bonus_damage);
                 let mut entity_commands = commands.entity(entity);

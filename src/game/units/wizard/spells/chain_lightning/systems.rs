@@ -610,7 +610,10 @@ pub fn process_chain_lightning_bounces(
                     let mut aoe_targets: Vec<(Entity, Vec3)> = Vec::new();
                     for (e, t, _, _, _, _) in enemies.iter() {
                         if e != *target_entity && !group.hit_entities.contains(&e) {
-                            let dist = target_pos.distance(t.translation);
+                            let dist = crate::game::units::wizard::spells::utils::xz_distance(
+                                *target_pos,
+                                t.translation,
+                            );
                             if dist <= constants::CHAIN_REACTION_AOE_RADIUS {
                                 aoe_targets.push((e, t.translation));
                             }
@@ -797,7 +800,10 @@ fn find_next_bounce_targets(
         // No team filter - spell damages ALL units indiscriminately
         .filter(|(entity, _, _, _, _, _)| !hit_entities.contains(entity))
         .filter_map(|(entity, transform, _, _, _, _)| {
-            let distance = origin.distance(transform.translation);
+            let distance = crate::game::units::wizard::spells::utils::xz_distance(
+                origin,
+                transform.translation,
+            );
             if distance <= bounce_range && !los_blocked(origin, transform.translation) {
                 Some((entity, transform.translation, distance))
             } else {
@@ -811,7 +817,10 @@ fn find_next_bounce_targets(
         if hit_entities.contains(&entity) {
             continue;
         }
-        let distance = origin.distance(transform.translation);
+        let distance = crate::game::units::wizard::spells::utils::xz_distance(
+            origin,
+            transform.translation,
+        );
         if distance <= bounce_range && !los_blocked(origin, transform.translation) {
             candidates.push((entity, transform.translation, distance));
         }
@@ -822,7 +831,10 @@ fn find_next_bounce_targets(
         if hit_entities.contains(&entity) {
             continue;
         }
-        let distance = origin.distance(transform.translation);
+        let distance = crate::game::units::wizard::spells::utils::xz_distance(
+            origin,
+            transform.translation,
+        );
         if distance <= bounce_range && !los_blocked(origin, transform.translation) {
             candidates.push((entity, transform.translation, distance));
         }

@@ -2,7 +2,9 @@ use bevy::prelude::*;
 
 use crate::state::{AppState, InGameState};
 
+use super::components::OnGameplayScreen;
 use super::run_conditions::is_gameplay_running;
+use super::units::components::Hitbox;
 
 use super::achievements::AchievementsPlugin;
 use super::battlefield::BattlefieldPlugin;
@@ -278,6 +280,12 @@ impl Plugin for GamePlugin {
                 win_lose_systems::check_win_lose_conditions
                     .after(PostCombatSet)
                     .run_if(in_state(AppState::InGame)),
+            )
+            // Debug hitbox visualization (F2 toggle)
+            .add_systems(
+                Update,
+                (toggle_debug_hitboxes, update_debug_hitboxes.run_if(resource_exists::<DebugHitboxes>))
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -288,6 +296,92 @@ fn apply_game_speed(
     mut time: ResMut<Time<Virtual>>,
 ) {
     time.set_relative_speed_f64(config.game_speed as f64);
+}
+
+// --- Debug hitbox visualization ---
+
+/// When present, debug hitbox cylinders are shown.
+#[derive(Resource)]
+struct DebugHitboxes {
+    material: Handle<StandardMaterial>,
+    mesh: Handle<Mesh>,
+}
+
+/// Marker linking a debug cylinder to its parent unit entity.
+#[derive(Component)]
+struct DebugHitboxMarker(Entity);
+
+fn toggle_debug_hitboxes(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    existing: Option<Res<DebugHitboxes>>,
+    debug_cylinders: Query<Entity, With<DebugHitboxMarker>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if !keyboard.just_pressed(KeyCode::F2) {
+        return;
+    }
+
+    if existing.is_some() {
+        commands.remove_resource::<DebugHitboxes>();
+        for entity in &debug_cylinders {
+            commands.entity(entity).try_despawn();
+        }
+    } else {
+        let material = materials.add(StandardMaterial {
+            base_color: Color::srgba(0.5, 0.5, 0.5, 0.3),
+            alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            cull_mode: None,
+            ..default()
+        });
+        let mesh = meshes.add(Cylinder::new(1.0, 1.0));
+        commands.insert_resource(DebugHitboxes { material, mesh });
+    }
+}
+
+fn update_debug_hitboxes(
+    mut commands: Commands,
+    debug_res: Res<DebugHitboxes>,
+    units: Query<(Entity, &Transform, &Hitbox)>,
+    mut cylinders: Query<(&DebugHitboxMarker, &mut Transform), Without<Hitbox>>,
+    cylinder_entities: Query<(Entity, &DebugHitboxMarker), Without<Hitbox>>,
+) {
+    // Track which units already have a debug cylinder
+    let mut has_cylinder: std::collections::HashSet<Entity> = std::collections::HashSet::new();
+    for (marker, mut cyl_transform) in &mut cylinders {
+        if let Ok((_, unit_transform, hitbox)) = units.get(marker.0) {
+            has_cylinder.insert(marker.0);
+            // Position cylinder at ground-center, scaled to hitbox.
+            // Cylinder primitive has half_height=1 (total height=2), so Y scale = height/2.
+            cyl_transform.translation =
+                Vec3::new(unit_transform.translation.x, hitbox.height / 2.0, unit_transform.translation.z);
+            cyl_transform.scale = Vec3::new(hitbox.radius, hitbox.height / 2.0, hitbox.radius);
+        } else {
+            // Unit despawned — will be cleaned up below
+        }
+    }
+
+    // Remove orphaned debug cylinders (unit no longer exists)
+    for (entity, marker) in &cylinder_entities {
+        if units.get(marker.0).is_err() {
+            commands.entity(entity).try_despawn();
+        }
+    }
+
+    // Spawn debug cylinders for new units
+    for (entity, _transform, _hitbox) in &units {
+        if !has_cylinder.contains(&entity) {
+            commands.spawn((
+                Mesh3d(debug_res.mesh.clone()),
+                MeshMaterial3d(debug_res.material.clone()),
+                Transform::default(),
+                DebugHitboxMarker(entity),
+                OnGameplayScreen,
+            ));
+        }
+    }
 }
 
 /// Pauses gameplay when the window loses focus.
