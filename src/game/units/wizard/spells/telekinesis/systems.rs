@@ -18,7 +18,8 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    build_wizard_input, cleanup_spell_caster, handle_spell_release,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, cleanup_spell_caster,
+    handle_spell_release,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -85,7 +86,7 @@ pub(super) fn handle_telekinesis_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
     caster_query: Query<&SpellCaster>,
     drops_query: Query<(Entity, &Transform, &IngredientDrop), Without<FlyingToWizard>>,
     indicator_query: Query<&TelekinesisIndicator>,
@@ -104,7 +105,9 @@ pub(super) fn handle_telekinesis_casting(
         Without<IngredientDrop>,
     >,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let (corrected_cursor, target_assist) = cursor_resources;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {

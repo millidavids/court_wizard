@@ -737,7 +737,6 @@ fn spawn_modifier_slider(
             current_value,
             min_value: slider_value.min_value(),
             max_value: slider_value.max_value(),
-            label_width: 200.0,
             text_component: ModifierSliderText {
                 value: slider_value,
             },
@@ -1120,6 +1119,7 @@ pub(super) fn handle_roguelite_action(
                             .as_ref()
                             .map(|t| t.to_ids())
                             .unwrap_or_default(),
+                        accessibility_assists: config.has_accessibility_assists(),
                     };
                     save_data::save_roguelite_run(&active_save, roguelite_run_data);
                 }

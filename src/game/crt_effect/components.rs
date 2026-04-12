@@ -405,6 +405,31 @@ impl ColorblindCorrectionSettings {
     }
 }
 
+/// Settings component that controls the high contrast post-processing effect.
+///
+/// Attach this to the same camera entity as `CrtEffectSettings` to enable
+/// sigmoidal contrast + saturation boost. Runs as a separate render pass after CRT.
+#[derive(Component, Clone, Copy, ExtractComponent, ShaderType)]
+pub struct HighContrastSettings {
+    /// Effect strength (0.0 = off, 1.0 = full).
+    pub strength: f32,
+    /// Master toggle (0.0 = off, 1.0 = on).
+    pub enabled: f32,
+    pub _pad0: f32,
+    pub _pad1: f32,
+}
+
+impl Default for HighContrastSettings {
+    fn default() -> Self {
+        Self {
+            strength: 0.0,
+            enabled: 0.0,
+            _pad0: 0.0,
+            _pad1: 0.0,
+        }
+    }
+}
+
 /// Timer resource that drives the channel-change animation.
 /// Inserted when a `ChannelChangeMessage` is received, removed when finished.
 #[derive(Resource)]

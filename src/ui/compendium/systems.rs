@@ -1140,12 +1140,14 @@ fn spawn_roguelite_run_button(
         Color::srgb(0.8, 0.3, 0.3)
     };
 
+    let assist_marker = if run.accessibility_assists { " *" } else { "" };
     let label = format!(
-        "Run #{} — {} (Lv{}, {})",
+        "Run #{} — {} (Lv{}, {}){}",
         run_number,
         outcome,
         run.levels_completed,
-        run.wizard_type.display_name()
+        run.wizard_type.display_name(),
+        assist_marker,
     );
     spawn_item_button(
         parent,
@@ -1310,6 +1312,10 @@ fn spawn_roguelite_run_detail(
             "Terrain",
             &format!("{}%", (mods.terrain_density * 100.0) as u32),
         );
+    }
+
+    if run.accessibility_assists {
+        spawn_stat_text_row(parent, "Accessibility", "Assists Used");
     }
 
     // Level-by-level breakdown

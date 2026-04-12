@@ -20,8 +20,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, build_wizard_input, clamp_cursor_to_spell_range, cleanup_spell_caster,
-    ground_projected_range, spawn_circle_indicator, update_indicator_position,
+    SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    clamp_cursor_to_spell_range, cleanup_spell_caster, ground_projected_range,
+    spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -105,7 +106,7 @@ pub(super) fn handle_mind_control_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
     enemies_query: Query<
         (Entity, &Transform, &Team, &MeshMaterial3d<StandardMaterial>),
         (
@@ -129,7 +130,9 @@ pub(super) fn handle_mind_control_casting(
     let (ref mut materials, ref mut meshes) = assets;
     let (ref sfx, ref visual_assets, ref game_config) = loaded_assets;
     let (active_talents, mut talent_progress) = talent_resources;
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let (corrected_cursor, target_assist) = cursor_resources;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
     let raw_cursor_pos = input.cursor_pos;
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell, cooldown)) =

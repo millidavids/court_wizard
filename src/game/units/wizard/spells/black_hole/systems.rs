@@ -22,8 +22,9 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    PendingDefenderHeal, SpellCircleIndicator, build_wizard_input, clamp_to_spell_range,
-    cleanup_spell_caster, spawn_circle_indicator, update_indicator_position,
+    PendingDefenderHeal, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist,
+    build_wizard_input, clamp_to_spell_range, cleanup_spell_caster, spawn_circle_indicator,
+    update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -165,8 +166,10 @@ pub(super) fn handle_black_hole_casting(
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
+    target_assist: Res<TargetAssistWorldPos>,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell, wizard)) =
         wizard_query.single_mut()

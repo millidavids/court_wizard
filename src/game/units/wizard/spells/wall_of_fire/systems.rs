@@ -25,7 +25,8 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::utils::{
-    UniqueHitTracker, build_wizard_input, clamp_to_spell_range,
+    TargetAssistWorldPos, UniqueHitTracker, apply_target_assist, build_wizard_input,
+    clamp_to_spell_range,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
@@ -197,7 +198,7 @@ pub fn handle_wall_of_fire_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
     mut caster_query: Query<&mut WallOfFireCaster>,
     mut preview_query: Query<&mut Transform, (With<WallOfFirePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
@@ -207,7 +208,9 @@ pub fn handle_wall_of_fire_casting(
     active_toggles: Option<Res<ActiveToggles>>,
 ) {
     let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let (corrected_cursor, target_assist) = cursor_resources;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

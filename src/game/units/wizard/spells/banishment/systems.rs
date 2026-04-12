@@ -21,7 +21,8 @@ use crate::game::units::components::{
 use crate::game::units::damage::DamageType;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    build_wizard_input, clamp_cursor_to_spell_range, ground_projected_range,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range,
+    ground_projected_range,
 };
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -180,8 +181,10 @@ pub fn handle_banishment_casting(
     active_talents: Option<Res<ActiveTalents>>,
     mut progress: ResMut<BattleTalentProgress>,
     visual_assets: Res<SpellVisualAssets>,
+    target_assist: Res<TargetAssistWorldPos>,
 ) {
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((_wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

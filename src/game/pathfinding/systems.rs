@@ -737,6 +737,7 @@ pub fn manage_staging_speedup(
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
     activated_attackers: Query<&Team, (With<WaveGroup>, Without<StagingAttacker>, Without<Corpse>)>,
     wave_state: Option<Res<crate::game::resources::WaveState>>,
+    config: Res<crate::config::GameConfig>,
 ) {
     let has_staging = !staging_query.is_empty();
 
@@ -754,10 +755,11 @@ pub fn manage_staging_speedup(
     let should_speedup = !has_activated && (has_staging || waves_remaining);
 
     let current_speed = time.relative_speed_f64();
+    let base_speed = config.game_speed as f64;
     let target_speed = if should_speedup {
-        crate::game::constants::STAGING_SPEEDUP
+        crate::game::constants::STAGING_SPEEDUP * base_speed
     } else {
-        1.0
+        base_speed
     };
 
     if (current_speed - target_speed).abs() > 0.01 {

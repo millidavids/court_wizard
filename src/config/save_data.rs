@@ -876,6 +876,9 @@ pub(crate) struct SavedRogueliteRun {
     pub(crate) modifiers: Option<crate::game::game_mode::components::RogueliteModifiers>,
     pub(crate) seed: Option<u64>,
     pub(crate) active_toggles: Vec<String>,
+    /// True if accessibility assists (game speed != 1.0 or aim assist) were active.
+    #[serde(default)]
+    pub(crate) accessibility_assists: bool,
 }
 
 /// A completed roguelite run.
@@ -900,6 +903,9 @@ pub(crate) struct RogueliteRun {
     /// Toggle modifier IDs that were active during this run.
     #[serde(default)]
     pub(crate) active_toggles: Vec<String>,
+    /// True if accessibility assists (game speed != 1.0 or aim assist) were active.
+    #[serde(default)]
+    pub(crate) accessibility_assists: bool,
 }
 
 /// Best stats achieved on a single endless level.
@@ -1433,6 +1439,7 @@ pub(crate) fn save_current_roguelite_run(
             active_toggles: toggles
                 .map(|t| t.to_ids())
                 .unwrap_or_default(),
+            accessibility_assists: config.has_accessibility_assists(),
         });
     }
 

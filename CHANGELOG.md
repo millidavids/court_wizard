@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.82] - 2026-04-11
+
+### Added
+- **Accessibility settings tab** — a new dedicated tab in Settings with all accessibility options in one place
+- **Reduce Flashes** — disables screen flashes, vignette pulses, and CRT flicker for players with photosensitivity
+- **Reduce Motion** — disables screen-warping visual effects like gravitational lensing and heat shimmer
+- **CRT Effect toggle** — lets you turn off the retro CRT TV look entirely (scanlines, screen curvature, vignette)
+- **Game Speed slider** — slow the game down to 50% or speed it up to 200% to match your comfort level
+- **Aim Assist** — when enabled, spell targeting snaps to the nearest unit so you don't need pixel-perfect aim
+- **High Contrast mode** — boosts color contrast and saturation to help units and spells stand out on the battlefield
+- **Auto-pause on alt-tab** — optionally pauses gameplay when you switch away from the game window
+- **Roguelite assist tracking** — runs played with game speed changes or aim assist are marked with an asterisk in the Compendium
+
+### Changed
+- **Settings layout** — all settings rows now show dot leaders between labels and controls for a cleaner look
+- **Accessibility options moved** — colorblind mode, color correction, and game speed moved from Graphics/Game tabs to the new Accessibility tab
+
+### Fixed
+- **Resolution buttons** — the selected resolution now properly highlights like other settings buttons
+
 ## [v0.6.66] - 2026-04-11
 
 ### Added

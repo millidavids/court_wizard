@@ -233,8 +233,7 @@ fn spawn_graphics_tab(
                 Node {
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(MARGIN),
+                    align_items: AlignItems::FlexEnd,
                     ..default()
                 },
                 if game_config.display_mode == DisplayMode::BorderlessFullscreen {
@@ -249,12 +248,14 @@ fn spawn_graphics_tab(
                     TextFont::from_font_size(LABEL_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     Node {
-                        width: Val::Px(200.0),
+                        flex_shrink: 0.0,
                         ..default()
                     },
                 ));
+                spawn_dot_leader(row);
                 row.spawn(Node {
                     flex_direction: FlexDirection::Row,
+                    flex_shrink: 0.0,
                     column_gap: Val::Px(MARGIN_SMALL),
                     ..default()
                 })
@@ -290,7 +291,7 @@ fn spawn_graphics_tab(
                             },
                         ));
                         if is_selected {
-                            entity.insert(SelectedOption);
+                            entity.insert((SelectedOption, crate::ui::components::ButtonActive));
                         }
                         entity.with_children(|button| {
                             let font_size = crate::ui::systems::scale_font_by_text_width(
@@ -317,39 +318,6 @@ fn spawn_graphics_tab(
             game_config,
         );
 
-        spawn_option_row(section, "Colorblind Mode:", |buttons| {
-            spawn_option_button(
-                buttons,
-                "None",
-                OptionButtonValue::ColorblindMode(ColorblindType::None),
-                game_config.colorblind_type == ColorblindType::None,
-            );
-            spawn_option_button(
-                buttons,
-                "Protanopia",
-                OptionButtonValue::ColorblindMode(ColorblindType::Protanopia),
-                game_config.colorblind_type == ColorblindType::Protanopia,
-            );
-            spawn_option_button(
-                buttons,
-                "Deuteranopia",
-                OptionButtonValue::ColorblindMode(ColorblindType::Deuteranopia),
-                game_config.colorblind_type == ColorblindType::Deuteranopia,
-            );
-            spawn_option_button(
-                buttons,
-                "Tritanopia",
-                OptionButtonValue::ColorblindMode(ColorblindType::Tritanopia),
-                game_config.colorblind_type == ColorblindType::Tritanopia,
-            );
-        });
-
-        spawn_slider_control(
-            section,
-            "Color Correction:",
-            SliderValue::ColorblindStrength,
-            game_config,
-        );
     });
 }
 
@@ -432,13 +400,27 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
             );
         });
 
+        spawn_option_row(section, "Pause on Alt-Tab:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::AutoPauseOnFocusLoss(true),
+                game_config.auto_pause_on_focus_loss,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::AutoPauseOnFocusLoss(false),
+                !game_config.auto_pause_on_focus_loss,
+            );
+        });
+
         // Reset Tutorials button
         section
             .spawn(Node {
                 width: Val::Percent(100.0),
                 flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                column_gap: Val::Px(MARGIN),
+                align_items: AlignItems::FlexEnd,
                 ..default()
             })
             .with_children(|row| {
@@ -447,10 +429,11 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                     TextFont::from_font_size(LABEL_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     Node {
-                        width: Val::Px(200.0),
+                        flex_shrink: 0.0,
                         ..default()
                     },
                 ));
+                spawn_dot_leader(row);
 
                 row.spawn((
                     Button,
@@ -485,8 +468,7 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
             .spawn(Node {
                 width: Val::Percent(100.0),
                 flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                column_gap: Val::Px(MARGIN),
+                align_items: AlignItems::FlexEnd,
                 ..default()
             })
             .with_children(|row| {
@@ -495,10 +477,11 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                     TextFont::from_font_size(LABEL_FONT_SIZE),
                     TextColor(TEXT_COLOR),
                     Node {
-                        width: Val::Px(200.0),
+                        flex_shrink: 0.0,
                         ..default()
                     },
                 ));
+                spawn_dot_leader(row);
 
                 row.spawn((
                     Button,
@@ -527,6 +510,120 @@ fn spawn_game_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
                     ));
                 });
             });
+    });
+}
+
+/// Spawns Accessibility tab content: colorblind, high contrast, flash/motion reduction, game speed, aim assist.
+fn spawn_accessibility_tab(parent: &mut ChildSpawnerCommands, game_config: &GameConfig) {
+    let mut wrapper = parent.spawn(Node {
+        width: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        row_gap: Val::Px(MARGIN_SMALL),
+        ..default()
+    });
+    wrapper.with_children(|section| {
+        spawn_option_row(section, "Aim Assist:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::AimAssist(true),
+                game_config.aim_assist,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::AimAssist(false),
+                !game_config.aim_assist,
+            );
+        });
+
+        spawn_option_row(section, "CRT Effect:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::CrtEnabled(true),
+                game_config.crt_enabled,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::CrtEnabled(false),
+                !game_config.crt_enabled,
+            );
+        });
+
+        spawn_option_row(section, "Reduce Flashes:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::ReduceFlashes(true),
+                game_config.reduce_flashes,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::ReduceFlashes(false),
+                !game_config.reduce_flashes,
+            );
+        });
+
+        spawn_option_row(section, "Reduce Motion:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "On",
+                OptionButtonValue::ReduceMotion(true),
+                game_config.reduce_motion,
+            );
+            spawn_option_button(
+                buttons,
+                "Off",
+                OptionButtonValue::ReduceMotion(false),
+                !game_config.reduce_motion,
+            );
+        });
+
+        spawn_option_row(section, "Colorblind Mode:", |buttons| {
+            spawn_option_button(
+                buttons,
+                "None",
+                OptionButtonValue::ColorblindMode(ColorblindType::None),
+                game_config.colorblind_type == ColorblindType::None,
+            );
+            spawn_option_button(
+                buttons,
+                "Protanopia",
+                OptionButtonValue::ColorblindMode(ColorblindType::Protanopia),
+                game_config.colorblind_type == ColorblindType::Protanopia,
+            );
+            spawn_option_button(
+                buttons,
+                "Deuteranopia",
+                OptionButtonValue::ColorblindMode(ColorblindType::Deuteranopia),
+                game_config.colorblind_type == ColorblindType::Deuteranopia,
+            );
+            spawn_option_button(
+                buttons,
+                "Tritanopia",
+                OptionButtonValue::ColorblindMode(ColorblindType::Tritanopia),
+                game_config.colorblind_type == ColorblindType::Tritanopia,
+            );
+        });
+
+        spawn_slider_control(
+            section,
+            "Color Correction:",
+            SliderValue::ColorblindStrength,
+            game_config,
+        );
+
+        spawn_slider_control(
+            section,
+            "High Contrast:",
+            SliderValue::HighContrast,
+            game_config,
+        );
+
+        spawn_slider_control(section, "Game Speed:", SliderValue::GameSpeed, game_config);
     });
 }
 
@@ -744,8 +841,7 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(MARGIN),
+                    align_items: AlignItems::FlexEnd,
                     margin: UiRect::top(Val::Px(MARGIN)),
                     ..default()
                 })
@@ -755,10 +851,11 @@ fn spawn_controls_tab(parent: &mut ChildSpawnerCommands, bindings: &crate::confi
                         TextFont::from_font_size(LABEL_FONT_SIZE),
                         TextColor(TEXT_COLOR),
                         Node {
-                            width: Val::Px(200.0),
+                            flex_shrink: 0.0,
                             ..default()
                         },
                     ));
+                    spawn_dot_leader(row);
                     row.spawn((
                         Button,
                         Node {
@@ -850,8 +947,7 @@ fn spawn_key_binding_row(
         .spawn(Node {
             width: Val::Percent(100.0),
             flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: Val::Px(MARGIN),
+            align_items: AlignItems::FlexEnd,
             ..default()
         })
         .with_children(|row| {
@@ -860,10 +956,11 @@ fn spawn_key_binding_row(
                 TextFont::from_font_size(LABEL_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
-                    width: Val::Px(200.0),
+                    flex_shrink: 0.0,
                     ..default()
                 },
             ));
+            spawn_dot_leader(row);
             row.spawn((
                 Button,
                 Node {
@@ -1125,22 +1222,44 @@ pub fn update_resolution_selection(
         &ResolutionPreset,
         &mut BackgroundColor,
         &mut BorderColor,
+        &mut ButtonColors,
+        Option<&Children>,
     )>,
+    mut front_query: Query<
+        (&mut BackgroundColor, &mut BorderColor),
+        (With<crate::ui::components::ButtonFront>, Without<ResolutionPreset>),
+    >,
 ) {
     if !saved_geometry.is_changed() {
         return;
     }
-    for (entity, preset, mut bg, mut border) in &mut preset_buttons {
+    for (entity, preset, mut bg, mut border, mut colors, children) in &mut preset_buttons {
         let matches = (preset.width - saved_geometry.width).abs() < 1.0
             && (preset.height - saved_geometry.height).abs() < 1.0;
-        if matches {
-            commands.entity(entity).insert(SelectedOption);
-            *bg = BackgroundColor(SELECTED_BACKGROUND);
-            *border = BorderColor::all(SELECTED_BORDER);
+        let (new_bg, new_border) = if matches {
+            commands
+                .entity(entity)
+                .insert((SelectedOption, crate::ui::components::ButtonActive));
+            (SELECTED_BACKGROUND, SELECTED_BORDER)
         } else {
-            commands.entity(entity).remove::<SelectedOption>();
-            *bg = BackgroundColor(BUTTON_BACKGROUND);
-            *border = BorderColor::all(BUTTON_BORDER);
+            commands
+                .entity(entity)
+                .remove::<SelectedOption>()
+                .remove::<crate::ui::components::ButtonActive>();
+            (BUTTON_BACKGROUND, BUTTON_BORDER)
+        };
+        *bg = BackgroundColor(new_bg);
+        *border = BorderColor::all(new_border);
+        colors.background = new_bg;
+        colors.border = new_border;
+
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok((mut front_bg, mut front_border)) = front_query.get_mut(child) {
+                    *front_bg = crate::ui::systems::opaque(new_bg).into();
+                    *front_border = BorderColor::all(new_border);
+                }
+            }
         }
     }
 }
@@ -1241,6 +1360,7 @@ pub fn rebuild_settings_content(
             SettingsTab::Audio => spawn_audio_tab(parent, &game_config),
             SettingsTab::Game => spawn_game_tab(parent, &game_config),
             SettingsTab::Controls => spawn_controls_tab(parent, &bindings),
+            SettingsTab::Accessibility => spawn_accessibility_tab(parent, &game_config),
         });
 }
 
@@ -1254,30 +1374,35 @@ fn spawn_option_row(
         .spawn(Node {
             width: Val::Percent(100.0),
             flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: Val::Px(MARGIN),
+            align_items: AlignItems::FlexEnd,
             ..default()
         })
         .with_children(|row| {
-            // Label
             row.spawn((
                 Text::new(label),
                 TextFont::from_font_size(LABEL_FONT_SIZE),
                 TextColor(TEXT_COLOR),
                 Node {
-                    width: Val::Px(200.0),
+                    flex_shrink: 0.0,
                     ..default()
                 },
             ));
 
-            // Buttons container
+            spawn_dot_leader(row);
+
             row.spawn(Node {
                 flex_direction: FlexDirection::Row,
+                flex_shrink: 0.0,
                 column_gap: Val::Px(MARGIN_SMALL),
                 ..default()
             })
             .with_children(spawn_buttons);
         });
+}
+
+/// Spawns a dot-leader filler that expands to fill available horizontal space.
+fn spawn_dot_leader(parent: &mut ChildSpawnerCommands) {
+    crate::ui::systems::spawn_dot_leader(parent, LABEL_FONT_SIZE);
 }
 
 /// Helper function to spawn an option button.
@@ -1350,7 +1475,6 @@ fn spawn_slider_control(
             current_value,
             min_value: slider_value.min_value(),
             max_value: slider_value.max_value(),
-            label_width: 200.0,
             text_component: SliderText {
                 value: slider_value,
             },

@@ -21,7 +21,9 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::ArcaneCrystal;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::lightning_rod::LightningRod;
-use crate::game::units::wizard::spells::utils::build_wizard_input;
+use crate::game::units::wizard::spells::utils::{
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::spells::wall_of_stone::components::WallOfStone;
@@ -130,7 +132,7 @@ pub fn handle_chain_lightning_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
     enemies_query: Query<(Entity, &Transform, &Team), Without<Corpse>>,
     rods_query: Query<(Entity, &Transform, &mut LightningRod)>,
     crystals_query: Query<(Entity, &Transform), With<ArcaneCrystal>>,
@@ -147,7 +149,9 @@ pub fn handle_chain_lightning_casting(
         MessageWriter<crate::game::crt_effect::ScreenFlashMessage>,
     ),
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let (corrected_cursor, target_assist) = cursor_resources;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {

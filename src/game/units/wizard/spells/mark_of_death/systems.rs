@@ -24,7 +24,9 @@ use crate::game::units::components::{
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::components::Wizard;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::build_wizard_input;
+use crate::game::units::wizard::spells::utils::{
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -58,8 +60,10 @@ pub fn handle_mark_of_death_casting(
     mut talent_progress: Option<
         ResMut<crate::game::units::wizard::talents::resources::BattleTalentProgress>,
     >,
+    target_assist: Res<TargetAssistWorldPos>,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
     let cursor_pos = input.cursor_pos;
 
     let Ok((_wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()

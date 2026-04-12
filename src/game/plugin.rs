@@ -137,11 +137,18 @@ impl Plugin for GamePlugin {
                 (
                     shared_systems::init_level_from_config,
                     shared_systems::reset_resources_for_replay,
+                    apply_game_speed,
                 ),
             )
             .add_systems(
                 OnEnter(InGameState::ScoreScreen),
                 shared_systems::stop_all_sfx,
+            )
+            .add_systems(
+                Update,
+                auto_pause_on_focus_loss
+                    .run_if(in_state(InGameState::Running))
+                    .run_if(|config: Res<crate::config::GameConfig>| config.auto_pause_on_focus_loss),
             )
             .add_systems(OnExit(AppState::InGame), shared_systems::cleanup_game)
             // Also clean up OnGameplayScreen entities when leaving MP
@@ -272,5 +279,25 @@ impl Plugin for GamePlugin {
                     .after(PostCombatSet)
                     .run_if(in_state(AppState::InGame)),
             );
+    }
+}
+
+/// Sets the virtual time speed from the GameConfig game_speed setting.
+fn apply_game_speed(
+    config: Res<crate::config::GameConfig>,
+    mut time: ResMut<Time<Virtual>>,
+) {
+    time.set_relative_speed_f64(config.game_speed as f64);
+}
+
+/// Pauses gameplay when the window loses focus.
+fn auto_pause_on_focus_loss(
+    mut focus_events: MessageReader<bevy::window::WindowFocused>,
+    mut next_state: ResMut<NextState<InGameState>>,
+) {
+    for event in focus_events.read() {
+        if !event.focused {
+            next_state.set(InGameState::Paused);
+        }
     }
 }

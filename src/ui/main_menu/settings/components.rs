@@ -27,6 +27,16 @@ pub enum OptionButtonValue {
     ShowLevelClock(bool),
     /// Colorblind correction mode
     ColorblindMode(ColorblindType),
+    /// Reduce screen flashes toggle
+    ReduceFlashes(bool),
+    /// Reduce motion toggle
+    ReduceMotion(bool),
+    /// CRT effect toggle
+    CrtEnabled(bool),
+    /// Auto-pause on focus loss toggle
+    AutoPauseOnFocusLoss(bool),
+    /// Aim assist toggle
+    AimAssist(bool),
 }
 
 impl OptionButtonValue {
@@ -39,6 +49,11 @@ impl OptionButtonValue {
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled == *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock == *show,
             OptionButtonValue::ColorblindMode(mode) => config.colorblind_type == *mode,
+            OptionButtonValue::ReduceFlashes(v) => config.reduce_flashes == *v,
+            OptionButtonValue::ReduceMotion(v) => config.reduce_motion == *v,
+            OptionButtonValue::CrtEnabled(v) => config.crt_enabled == *v,
+            OptionButtonValue::AutoPauseOnFocusLoss(v) => config.auto_pause_on_focus_loss == *v,
+            OptionButtonValue::AimAssist(v) => config.aim_assist == *v,
         }
     }
 
@@ -51,6 +66,11 @@ impl OptionButtonValue {
             OptionButtonValue::TutorialsEnabled(enabled) => config.tutorials_enabled = *enabled,
             OptionButtonValue::ShowLevelClock(show) => config.show_level_clock = *show,
             OptionButtonValue::ColorblindMode(mode) => config.colorblind_type = *mode,
+            OptionButtonValue::ReduceFlashes(v) => config.reduce_flashes = *v,
+            OptionButtonValue::ReduceMotion(v) => config.reduce_motion = *v,
+            OptionButtonValue::CrtEnabled(v) => config.crt_enabled = *v,
+            OptionButtonValue::AutoPauseOnFocusLoss(v) => config.auto_pause_on_focus_loss = *v,
+            OptionButtonValue::AimAssist(v) => config.aim_assist = *v,
         }
     }
 }
@@ -91,6 +111,10 @@ pub enum SliderValue {
     UiBrightness,
     /// Colorblind correction strength (0.0-1.0)
     ColorblindStrength,
+    /// Game speed multiplier (0.5-2.0)
+    GameSpeed,
+    /// High contrast effect strength (0.0-1.0)
+    HighContrast,
 }
 
 impl SliderValue {
@@ -102,6 +126,8 @@ impl SliderValue {
             SliderValue::SfxVolume => config.sfx_volume,
             SliderValue::UiBrightness => config.brightness,
             SliderValue::ColorblindStrength => config.colorblind_strength,
+            SliderValue::GameSpeed => config.game_speed,
+            SliderValue::HighContrast => config.high_contrast_strength,
         }
     }
 
@@ -113,6 +139,8 @@ impl SliderValue {
             SliderValue::SfxVolume => config.sfx_volume = value,
             SliderValue::UiBrightness => config.brightness = value,
             SliderValue::ColorblindStrength => config.colorblind_strength = value,
+            SliderValue::GameSpeed => config.game_speed = value,
+            SliderValue::HighContrast => config.high_contrast_strength = value,
         }
     }
 
@@ -120,8 +148,9 @@ impl SliderValue {
     pub fn min_value(&self) -> f32 {
         match self {
             SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 0.0,
-            SliderValue::UiBrightness => 0.1, // 10% minimum to prevent soft-lock
-            SliderValue::ColorblindStrength => 0.0,
+            SliderValue::UiBrightness => 0.1,
+            SliderValue::ColorblindStrength | SliderValue::HighContrast => 0.0,
+            SliderValue::GameSpeed => 0.5,
         }
     }
 
@@ -130,7 +159,8 @@ impl SliderValue {
         match self {
             SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 1.0,
             SliderValue::UiBrightness => 2.0,
-            SliderValue::ColorblindStrength => 1.0,
+            SliderValue::ColorblindStrength | SliderValue::HighContrast => 1.0,
+            SliderValue::GameSpeed => 2.0,
         }
     }
 
@@ -139,7 +169,8 @@ impl SliderValue {
         match self {
             SliderValue::MasterVolume | SliderValue::MusicVolume | SliderValue::SfxVolume => 0.01,
             SliderValue::UiBrightness => 0.1,
-            SliderValue::ColorblindStrength => 0.1,
+            SliderValue::ColorblindStrength | SliderValue::HighContrast => 0.1,
+            SliderValue::GameSpeed => 0.25,
         }
     }
 }
@@ -213,6 +244,7 @@ pub(crate) enum SettingsTab {
     Audio,
     Game,
     Controls,
+    Accessibility,
 }
 
 impl SettingsTab {
@@ -222,11 +254,12 @@ impl SettingsTab {
             Self::Audio => "Audio",
             Self::Game => "Game",
             Self::Controls => "Controls",
+            Self::Accessibility => "Accessibility",
         }
     }
 
     pub fn all() -> &'static [SettingsTab] {
-        &[Self::Graphics, Self::Audio, Self::Game, Self::Controls]
+        &[Self::Graphics, Self::Audio, Self::Game, Self::Controls, Self::Accessibility]
     }
 }
 

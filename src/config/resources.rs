@@ -344,6 +344,11 @@ fn default_colorblind_strength() -> f32 {
     1.0
 }
 
+/// Default game speed (normal).
+fn default_game_speed() -> f32 {
+    1.0
+}
+
 /// Default action bar slots: None for all 5 slots.
 fn default_action_bar_slots() -> [Option<Spell>; 5] {
     [None; 5]
@@ -463,6 +468,27 @@ pub struct GameConfig {
     /// Colorblind correction strength (0.0 = no correction, 1.0 = full)
     #[serde(default = "default_colorblind_strength")]
     pub colorblind_strength: f32,
+    /// Disables screen flashes, vignette pulses, channel-change flicker, and CRT flicker
+    #[serde(default)]
+    pub reduce_flashes: bool,
+    /// Disables screen-warping distortion effects (lensing, heat shimmer, teleport ripple)
+    #[serde(default)]
+    pub reduce_motion: bool,
+    /// Whether the CRT TV effect (scanlines, barrel distortion, vignette) is enabled
+    #[serde(default = "default_true")]
+    pub crt_enabled: bool,
+    /// Game speed multiplier (0.5 = half speed, 1.0 = normal, 2.0 = double)
+    #[serde(default = "default_game_speed")]
+    pub game_speed: f32,
+    /// Whether to auto-pause when the game window loses focus
+    #[serde(default)]
+    pub auto_pause_on_focus_loss: bool,
+    /// High contrast effect strength (0.0 = off, 1.0 = full)
+    #[serde(default)]
+    pub high_contrast_strength: f32,
+    /// Aim assist — snaps spell targeting to nearest unit
+    #[serde(default)]
+    pub aim_assist: bool,
     /// Permanent walls saved from previous victories
     #[serde(skip)]
     pub saved_walls: Vec<SavedWall>,
@@ -514,6 +540,13 @@ impl Default for GameConfig {
             urgent_mode: true,
             colorblind_type: ColorblindType::default(),
             colorblind_strength: 1.0,
+            reduce_flashes: false,
+            reduce_motion: false,
+            crt_enabled: true,
+            game_speed: 1.0,
+            auto_pause_on_focus_loss: false,
+            high_contrast_strength: 0.0,
+            aim_assist: false,
             saved_walls: Vec::new(),
             saved_crystals: Vec::new(),
             saved_flora: Vec::new(),
@@ -536,6 +569,16 @@ impl GameConfig {
     /// Effective SFX volume (master × sfx slider × global SFX scaling).
     pub fn effective_sfx_volume(&self) -> f32 {
         self.master_volume * self.sfx_volume * 0.4
+    }
+
+    /// Snap radius for aim assist (0 when off, 150 world units when on).
+    pub fn target_assist_snap_radius(&self) -> f32 {
+        if self.aim_assist { 150.0 } else { 0.0 }
+    }
+
+    /// Returns true if any accessibility assists that affect gameplay are active.
+    pub fn has_accessibility_assists(&self) -> bool {
+        self.game_speed != 1.0 || self.aim_assist
     }
 }
 

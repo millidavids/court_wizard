@@ -703,6 +703,7 @@ pub(super) fn handle_button_actions(
                                 .as_ref()
                                 .map(|t| t.to_ids())
                                 .unwrap_or_default(),
+                            accessibility_assists: config.has_accessibility_assists(),
                         };
                         crate::config::save_data::save_roguelite_run(
                             &active_save,

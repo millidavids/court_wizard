@@ -14,8 +14,8 @@ use crate::game::units::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, handle_spell_release,
-    spawn_circle_indicator, update_indicator_position,
+    SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    cleanup_spell_caster, handle_spell_release, spawn_circle_indicator, update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -94,13 +94,15 @@ pub fn handle_sleep_casting(
     targets_query: Query<(Entity, &Transform, &Health, &Team), Without<Corpse>>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    target_assist: Res<TargetAssistWorldPos>,
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

@@ -1171,7 +1171,6 @@ pub(crate) struct SliderRowConfig<
     pub current_value: f32,
     pub min_value: f32,
     pub max_value: f32,
-    pub label_width: f32,
     pub text_component: TText,
     pub down_button: TDownButton,
     pub up_button: TUpButton,
@@ -1182,6 +1181,24 @@ pub(crate) struct SliderRowConfig<
 
 /// Spawns a slider row with label, decrease/increase buttons, track, fill, handle, and value text.
 /// Shared by settings and roguelite modifier screens.
+/// Spawns a dot-leader filler that expands to fill available horizontal space.
+pub(crate) fn spawn_dot_leader(parent: &mut ChildSpawnerCommands, font_size: f32) {
+    parent
+        .spawn(Node {
+            flex_grow: 1.0,
+            flex_shrink: 1.0,
+            min_width: Val::Px(0.0),
+            overflow: Overflow::clip(),
+            margin: UiRect::horizontal(Val::Px(6.0)),
+            ..default()
+        })
+        .with_child((
+            Text::new("......................................................................"),
+            TextFont::from_font_size(font_size),
+            TextColor(Color::hsla(0.0, 0.0, 0.3, 1.0)),
+        ));
+}
+
 pub(crate) fn spawn_slider_row<
     TText: Component,
     TDownButton: Component,
@@ -1206,7 +1223,6 @@ pub(crate) fn spawn_slider_row<
         current_value,
         min_value,
         max_value,
-        label_width,
         text_component,
         down_button,
         up_button,
@@ -1226,26 +1242,26 @@ pub(crate) fn spawn_slider_row<
         .spawn(Node {
             width: Val::Percent(100.0),
             flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: Val::Px(SLIDER_GAP),
+            align_items: AlignItems::FlexEnd,
             ..default()
         })
         .with_children(|row| {
-            // Label (min_width ensures consistent alignment regardless of text length)
             row.spawn((
                 Text::new(label),
                 TextFont::from_font_size(SLIDER_LABEL_FONT_SIZE),
                 TextColor(TEXT_PRIMARY),
                 Node {
-                    min_width: Val::Px(label_width),
-                    width: Val::Px(label_width),
+                    flex_shrink: 0.0,
                     ..default()
                 },
             ));
 
+            spawn_dot_leader(row, SLIDER_LABEL_FONT_SIZE);
+
             // Controls
             row.spawn(Node {
                 flex_direction: FlexDirection::Row,
+                flex_shrink: 0.0,
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(SLIDER_GAP),
                 ..default()

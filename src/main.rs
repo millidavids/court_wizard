@@ -19,8 +19,8 @@ mod ui;
 use config::{ConfigPlugin, GameConfig};
 use game::GamePlugin;
 use game::crt_effect::{
-    ColorblindCorrectionSettings, CrtEffectSettings, HeatDistortionSettings, LensingSettings,
-    TeleportDistortionSettings,
+    ColorblindCorrectionSettings, CrtEffectSettings, HeatDistortionSettings, HighContrastSettings,
+    LensingSettings, TeleportDistortionSettings,
 };
 use game::multiplayer::MultiplayerGamePlugin;
 use music::MusicPlugin;
@@ -196,6 +196,7 @@ fn setup(mut commands: Commands) {
         LensingSettings::default(),
         HeatDistortionSettings::default(),
         TeleportDistortionSettings::default(),
+        HighContrastSettings::default(),
         ColorblindCorrectionSettings::default(),
     ));
 

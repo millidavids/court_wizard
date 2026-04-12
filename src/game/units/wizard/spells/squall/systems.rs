@@ -26,10 +26,10 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    RETICLE_Y, SpellCircleIndicator, build_wizard_input, clamp_to_spell_range_ground,
-    cleanup_spell_caster, get_cursor_world_position, handle_spell_release, indicator_pulse_scale,
-    make_reticle_mesh, spawn_circle_indicator, sphere_intersects_cylinder,
-    update_indicator_position, xz_distance,
+    RETICLE_Y, SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist,
+    build_wizard_input, clamp_to_spell_range_ground, cleanup_spell_caster,
+    get_cursor_world_position, handle_spell_release, indicator_pulse_scale, make_reticle_mesh,
+    spawn_circle_indicator, sphere_intersects_cylinder, update_indicator_position, xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
@@ -148,8 +148,10 @@ pub(super) fn handle_squall_casting(
     existing_storms: Query<Entity, With<SquallStorm>>,
     existing_rings: Query<Entity, With<SquallStormRing>>,
     active_talents: Option<Res<ActiveTalents>>,
+    target_assist: Res<TargetAssistWorldPos>,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

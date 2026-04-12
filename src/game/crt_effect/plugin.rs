@@ -25,8 +25,8 @@ use bevy::{
 
 use super::components::{
     ChannelChangeTimer, ColorblindCorrectionSettings, CrtEffectSettings, DesaturationTimer,
-    HeatDistortionSettings, LensingSettings, ScreenFlashTimer, TeleportDistortionSettings,
-    VignettePulseTimer,
+    HeatDistortionSettings, HighContrastSettings, LensingSettings, ScreenFlashTimer,
+    TeleportDistortionSettings, VignettePulseTimer,
 };
 use super::messages::{
     ChannelChangeMessage, ScreenDesaturateMessage, ScreenFlashMessage, VignettePulseMessage,
@@ -46,6 +46,7 @@ const LENSING_SHADER_PATH: &str = "shaders/gravitational_lensing.wgsl";
 const HEAT_DISTORTION_SHADER_PATH: &str = "shaders/heat_distortion.wgsl";
 const TELEPORT_DISTORTION_SHADER_PATH: &str = "shaders/teleport_distortion.wgsl";
 const COLORBLIND_SHADER_PATH: &str = "shaders/colorblind_correction.wgsl";
+const HIGH_CONTRAST_SHADER_PATH: &str = "shaders/high_contrast.wgsl";
 
 pub(crate) struct CrtEffectPlugin;
 
@@ -62,6 +63,8 @@ impl Plugin for CrtEffectPlugin {
             UniformComponentPlugin::<TeleportDistortionSettings>::default(),
             ExtractComponentPlugin::<ColorblindCorrectionSettings>::default(),
             UniformComponentPlugin::<ColorblindCorrectionSettings>::default(),
+            ExtractComponentPlugin::<HighContrastSettings>::default(),
+            UniformComponentPlugin::<HighContrastSettings>::default(),
         ));
 
         app.init_resource::<RawCursorPosition>();
@@ -72,26 +75,44 @@ impl Plugin for CrtEffectPlugin {
         app.add_message::<VignettePulseMessage>();
 
         app.add_systems(Update, update_crt_time);
-        app.add_systems(Update, handle_channel_change_message);
+        // Flash/flicker effects — skipped when reduce_flashes is enabled
+        app.add_systems(
+            Update,
+            handle_channel_change_message
+                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+        );
         app.add_systems(
             Update,
             animate_channel_change.run_if(resource_exists::<ChannelChangeTimer>),
         );
-        app.add_systems(Update, handle_desaturation_message);
+        app.add_systems(
+            Update,
+            handle_desaturation_message
+                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+        );
         app.add_systems(
             Update,
             animate_desaturation.run_if(resource_exists::<DesaturationTimer>),
         );
-        app.add_systems(Update, handle_screen_flash_message);
+        app.add_systems(
+            Update,
+            handle_screen_flash_message
+                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+        );
         app.add_systems(
             Update,
             animate_screen_flash.run_if(resource_exists::<ScreenFlashTimer>),
         );
-        app.add_systems(Update, handle_vignette_pulse_message);
+        app.add_systems(
+            Update,
+            handle_vignette_pulse_message
+                .run_if(|config: Res<GameConfig>| !config.reduce_flashes),
+        );
         app.add_systems(
             Update,
             animate_vignette_pulse.run_if(resource_exists::<VignettePulseTimer>),
         );
+        // Screen-warping distortion — skipped when reduce_motion is enabled
         app.add_systems(
             Update,
             (
@@ -99,11 +120,18 @@ impl Plugin for CrtEffectPlugin {
                 update_heat_distortion_positions,
                 update_teleport_distortion_positions,
             )
-                .run_if(in_state(AppState::InGame)),
+                .run_if(in_state(AppState::InGame))
+                .run_if(|config: Res<GameConfig>| !config.reduce_motion),
         );
         app.add_systems(
             Update,
-            sync_colorblind_settings.run_if(resource_changed::<GameConfig>),
+            (
+                sync_colorblind_settings,
+                sync_crt_enabled,
+                sync_flicker_intensity,
+                sync_high_contrast,
+            )
+                .run_if(resource_changed::<GameConfig>),
         );
 
         // Correct cursor position for barrel distortion before any game systems read it.
@@ -136,6 +164,7 @@ impl Plugin for CrtEffectPlugin {
                 init_heat_distortion_pipeline,
                 init_teleport_distortion_pipeline,
                 init_colorblind_pipeline,
+                init_high_contrast_pipeline,
             ),
         );
 
@@ -150,6 +179,10 @@ impl Plugin for CrtEffectPlugin {
                 HeatDistortionLabel,
             )
             .add_render_graph_node::<ViewNodeRunner<CrtEffectNode>>(Core3d, CrtEffectLabel)
+            .add_render_graph_node::<ViewNodeRunner<HighContrastNode>>(
+                Core3d,
+                HighContrastLabel,
+            )
             .add_render_graph_node::<ViewNodeRunner<ColorblindCorrectionNode>>(
                 Core3d,
                 ColorblindCorrectionLabel,
@@ -162,6 +195,7 @@ impl Plugin for CrtEffectPlugin {
                     TeleportDistortionLabel,
                     HeatDistortionLabel,
                     CrtEffectLabel,
+                    HighContrastLabel,
                     ColorblindCorrectionLabel,
                     Node3d::Upscaling,
                 ),
@@ -814,5 +848,194 @@ fn sync_colorblind_settings(
         ColorblindCorrectionSettings::for_type(config.colorblind_type, config.colorblind_strength);
     for mut settings in &mut query {
         *settings = new_settings;
+    }
+}
+
+/// Syncs the CRT effect enabled state from GameConfig to the camera component.
+/// Also zeroes barrel_distortion when disabled so the shader samples undistorted UVs
+/// and cursor correction (which checks `is_barrel_active()`) is skipped.
+fn sync_crt_enabled(
+    config: Res<GameConfig>,
+    mut query: Query<&mut CrtEffectSettings>,
+    mut last: Local<bool>,
+) {
+    if *last == config.crt_enabled {
+        return;
+    }
+    *last = config.crt_enabled;
+    for mut settings in &mut query {
+        if config.crt_enabled {
+            settings.enabled = 1.0;
+            settings.barrel_distortion = super::constants::DEFAULT_BARREL_DISTORTION;
+        } else {
+            settings.enabled = 0.0;
+            settings.barrel_distortion = 0.0;
+        }
+    }
+}
+
+// --- High Contrast render node ---
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+struct HighContrastLabel;
+
+#[derive(Default)]
+struct HighContrastNode;
+
+impl ViewNode for HighContrastNode {
+    type ViewQuery = (
+        &'static ViewTarget,
+        &'static HighContrastSettings,
+        &'static DynamicUniformIndex<HighContrastSettings>,
+    );
+
+    fn run(
+        &self,
+        _graph: &mut RenderGraphContext,
+        render_context: &mut RenderContext,
+        (view_target, settings, settings_index): QueryItem<Self::ViewQuery>,
+        world: &World,
+    ) -> Result<(), NodeRunError> {
+        if settings.enabled < 0.5 {
+            return Ok(());
+        }
+
+        let hc_pipeline = world.resource::<HighContrastPipeline>();
+        let pipeline_cache = world.resource::<PipelineCache>();
+
+        let Some(pipeline) = pipeline_cache.get_render_pipeline(hc_pipeline.pipeline_id) else {
+            return Ok(());
+        };
+
+        let settings_uniforms = world.resource::<ComponentUniforms<HighContrastSettings>>();
+        let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
+            return Ok(());
+        };
+
+        let post_process = view_target.post_process_write();
+
+        let bind_group = render_context.render_device().create_bind_group(
+            "high_contrast_bind_group",
+            &hc_pipeline.layout,
+            &BindGroupEntries::sequential((
+                post_process.source,
+                &hc_pipeline.sampler,
+                settings_binding.clone(),
+            )),
+        );
+
+        let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
+            label: Some("high_contrast_pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: post_process.destination,
+                depth_slice: None,
+                resolve_target: None,
+                ops: Operations::default(),
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        render_pass.set_render_pipeline(pipeline);
+        render_pass.set_bind_group(0, &bind_group, &[settings_index.index()]);
+        render_pass.draw(0..3, 0..1);
+
+        Ok(())
+    }
+}
+
+#[derive(Resource)]
+struct HighContrastPipeline {
+    layout: BindGroupLayout,
+    sampler: Sampler,
+    pipeline_id: CachedRenderPipelineId,
+}
+
+fn init_high_contrast_pipeline(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    asset_server: Res<AssetServer>,
+    fullscreen_shader: Res<FullscreenShader>,
+    pipeline_cache: Res<PipelineCache>,
+) {
+    let layout = render_device.create_bind_group_layout(
+        "high_contrast_bind_group_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::FRAGMENT,
+            (
+                texture_2d(TextureSampleType::Float { filterable: true }),
+                sampler(SamplerBindingType::Filtering),
+                uniform_buffer::<HighContrastSettings>(true),
+            ),
+        ),
+    );
+
+    let sampler = render_device.create_sampler(&SamplerDescriptor::default());
+    let shader = asset_server.load(HIGH_CONTRAST_SHADER_PATH);
+    let vertex_state = fullscreen_shader.to_vertex_state();
+
+    let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
+        label: Some("high_contrast_pipeline".into()),
+        layout: vec![layout.clone()],
+        vertex: vertex_state,
+        fragment: Some(FragmentState {
+            shader,
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::bevy_default(),
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            })],
+            ..default()
+        }),
+        ..default()
+    });
+
+    commands.insert_resource(HighContrastPipeline {
+        layout,
+        sampler,
+        pipeline_id,
+    });
+}
+
+/// Syncs high contrast settings from GameConfig to the camera component.
+fn sync_high_contrast(
+    config: Res<GameConfig>,
+    mut query: Query<&mut HighContrastSettings>,
+    mut last: Local<u32>,
+) {
+    let bits = config.high_contrast_strength.to_bits();
+    if *last == bits {
+        return;
+    }
+    *last = bits;
+    let enabled = if config.high_contrast_strength > 0.01 {
+        1.0
+    } else {
+        0.0
+    };
+    for mut settings in &mut query {
+        settings.strength = config.high_contrast_strength;
+        settings.enabled = enabled;
+    }
+}
+
+/// Sets CRT flicker intensity to zero when reduce_flashes is enabled.
+fn sync_flicker_intensity(
+    config: Res<GameConfig>,
+    mut query: Query<&mut CrtEffectSettings>,
+    mut last: Local<bool>,
+) {
+    if *last == config.reduce_flashes {
+        return;
+    }
+    *last = config.reduce_flashes;
+    let intensity = if config.reduce_flashes {
+        0.0
+    } else {
+        super::constants::DEFAULT_FLICKER_INTENSITY
+    };
+    for mut settings in &mut query {
+        settings.flicker_intensity = intensity;
     }
 }

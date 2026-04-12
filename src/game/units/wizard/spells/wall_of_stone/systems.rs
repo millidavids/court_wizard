@@ -21,7 +21,9 @@ use crate::game::units::components::{
     AttackTiming, Corpse, Hitbox, SlowMovementModifier, TargetingVelocity, Team,
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{build_wizard_input, clamp_to_spell_range};
+use crate::game::units::wizard::spells::utils::{
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_to_spell_range,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -120,6 +122,7 @@ pub fn handle_wall_of_stone_casting(
     mut preview_query: Query<&mut Transform, (With<WallOfStonePreview>, Without<Wizard>)>,
     mut obstacle_events: MessageWriter<ObstacleChanged>,
     mut connection: Option<ResMut<crate::networking::resources::NetworkConnection>>,
+    target_assist: Res<TargetAssistWorldPos>,
     (sfx, game_config, active_talents, mut talent_progress): (
         Res<SpellSfxAssets>,
         Res<GameConfig>,
@@ -127,7 +130,8 @@ pub fn handle_wall_of_stone_casting(
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

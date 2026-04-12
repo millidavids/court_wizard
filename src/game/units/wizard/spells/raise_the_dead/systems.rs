@@ -22,8 +22,9 @@ use crate::game::units::undead::resources::UndeadAssets;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::fireball::components::FireballExplosion;
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, get_cursor_world_position,
-    spawn_circle_indicator, update_indicator_position,
+    SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    cleanup_spell_caster, get_cursor_world_position, spawn_circle_indicator,
+    update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
@@ -132,7 +133,7 @@ pub fn handle_raise_the_dead_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
     caster_query: Query<&SpellCaster>,
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     corpse_query: Query<(Entity, &Transform), (With<Corpse>, Without<PermanentCorpse>)>,
@@ -146,7 +147,9 @@ pub fn handle_raise_the_dead_casting(
     ),
 ) {
     let (active_talents, mut talent_progress) = talents_and_progress;
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let (corrected_cursor, target_assist) = cursor_resources;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {

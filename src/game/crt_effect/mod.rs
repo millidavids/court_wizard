@@ -7,6 +7,7 @@ mod systems;
 pub(crate) use components::ColorblindCorrectionSettings;
 pub(crate) use components::CrtEffectSettings;
 pub(crate) use components::HeatDistortionSettings;
+pub(crate) use components::HighContrastSettings;
 pub(crate) use components::LensingSettings;
 pub(crate) use components::TeleportDistortionSettings;
 pub(crate) use messages::ChannelChangeMessage;

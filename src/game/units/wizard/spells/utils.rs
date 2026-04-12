@@ -426,10 +426,52 @@ impl UniqueHitTracker {
 // --- Shared spell casting helpers ---
 // These functions extract the boilerplate duplicated across 15+ spell casting systems.
 
+/// Pre-computed target-assist snap position, updated once per frame by
+/// [`compute_target_assist`]. Spells read this via [`build_wizard_input`].
+#[derive(Resource, Default)]
+pub(crate) struct TargetAssistWorldPos(pub Option<Vec3>);
+
+/// Each frame, finds the nearest living unit to the cursor and stores its position
+/// if within the configured snap radius. When targeting_assistance is 0, clears the snap.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn compute_target_assist(
+    mut assist: ResMut<TargetAssistWorldPos>,
+    config: Res<crate::config::GameConfig>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    corrected_cursor: Res<CorrectedCursorPosition>,
+    units: Query<&Transform, (With<Health>, Without<super::super::super::components::Corpse>)>,
+) {
+    let snap_radius = config.target_assist_snap_radius();
+    if snap_radius <= 0.0 {
+        assist.0 = None;
+        return;
+    }
+
+    let Some(cursor_world) = get_cursor_world_position(&camera_query, &corrected_cursor) else {
+        assist.0 = None;
+        return;
+    };
+
+    let mut best_dist = snap_radius;
+    let mut best_pos: Option<Vec3> = None;
+
+    for transform in &units {
+        let unit_pos = transform.translation;
+        let dist = xz_distance(cursor_world, unit_pos);
+        if dist < best_dist {
+            best_dist = dist;
+            best_pos = Some(Vec3::new(unit_pos.x, 0.0, unit_pos.z));
+        }
+    }
+
+    assist.0 = best_pos;
+}
+
 /// Builds a `WizardInput` from mouse state and camera raycasting.
 ///
 /// Every spell casting system constructs an identical `WizardInput` — this
-/// centralizes that logic.
+/// centralizes that logic. When targeting assistance is active, snaps the
+/// cursor to the nearest unit via [`TargetAssistWorldPos`].
 pub(crate) fn build_wizard_input(
     mouse_left_released: &mut MessageReader<MouseLeftReleased>,
     camera_query: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -442,6 +484,15 @@ pub(crate) fn build_wizard_input(
         pressed: true,
         just_released: released,
         cursor_pos,
+    }
+}
+
+/// Applies targeting assistance snap to a `WizardInput`. Call after `build_wizard_input`.
+pub(crate) fn apply_target_assist(input: &mut WizardInput, assist: &TargetAssistWorldPos) {
+    if let Some(snap_pos) = assist.0 {
+        if input.cursor_pos.is_some() {
+            input.cursor_pos = Some(snap_pos);
+        }
     }
 }
 

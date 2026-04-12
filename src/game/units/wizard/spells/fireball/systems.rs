@@ -18,8 +18,9 @@ use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::arcane_crystal::components::CrystalSpawn;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, build_wizard_input, cleanup_spell_caster, handle_spell_release,
-    try_start_cast_with_indicator, update_indicator_position,
+    SpellCircleIndicator, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+    cleanup_spell_caster, handle_spell_release, try_start_cast_with_indicator,
+    update_indicator_position,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::{
@@ -47,11 +48,13 @@ pub fn handle_fireball_casting(
     mut indicator_query: Query<&mut SpellCircleIndicator>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     corrected_cursor: Res<CorrectedCursorPosition>,
+    target_assist: Res<TargetAssistWorldPos>,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, mut casting_state, mut mana, primed_spell)) = wizard_query.single_mut()
     else {

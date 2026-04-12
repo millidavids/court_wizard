@@ -24,7 +24,8 @@ use crate::game::units::DamageType;
 use crate::game::units::components::{Airborne, Corpse, Stunned, Team, Teleportable};
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    build_wizard_input, clamp_to_spell_range, xz_distance,
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_to_spell_range,
+    xz_distance,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -174,6 +175,7 @@ pub fn handle_teleport_casting(
             Without<Corpse>,
         ),
     >,
+    target_assist: Res<TargetAssistWorldPos>,
     (mut connection, sfx, game_config, active_talents, mut talent_progress): (
         Option<ResMut<NetworkConnection>>,
         Res<SpellSfxAssets>,
@@ -182,7 +184,8 @@ pub fn handle_teleport_casting(
         Option<ResMut<BattleTalentProgress>>,
     ),
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

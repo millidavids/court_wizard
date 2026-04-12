@@ -21,8 +21,8 @@ use crate::game::units::wizard::components::{
 };
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
 use crate::game::units::wizard::spells::utils::{
-    SpellCircleIndicator, UniqueHitTracker, build_wizard_input, clamp_to_spell_range_ground,
-    spawn_circle_indicator,
+    SpellCircleIndicator, TargetAssistWorldPos, UniqueHitTracker, apply_target_assist,
+    build_wizard_input, clamp_to_spell_range_ground, spawn_circle_indicator,
 };
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -90,7 +90,7 @@ pub fn handle_plague_wind_casting(
         With<LocalWizard>,
     >,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    corrected_cursor: Res<CorrectedCursorPosition>,
+    cursor_resources: (Res<CorrectedCursorPosition>, Res<TargetAssistWorldPos>),
     caster_query: Query<&SpellCaster>,
     circle_indicator_query: Query<&SpellCircleIndicator>,
     indicator_query: Query<&PlagueWindIndicator>,
@@ -99,7 +99,9 @@ pub fn handle_plague_wind_casting(
     game_config: Res<GameConfig>,
     active_talents: Option<Res<ActiveTalents>>,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let (corrected_cursor, target_assist) = cursor_resources;
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

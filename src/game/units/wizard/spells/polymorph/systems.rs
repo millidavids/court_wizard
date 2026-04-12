@@ -17,7 +17,9 @@ use crate::game::units::components::{
 };
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{build_wizard_input, clamp_cursor_to_spell_range};
+use crate::game::units::wizard::spells::utils::{
+    TargetAssistWorldPos, apply_target_assist, build_wizard_input, clamp_cursor_to_spell_range,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::units::wizard::talents::resources::{ActiveTalents, BattleTalentProgress};
@@ -189,6 +191,7 @@ pub fn handle_polymorph_casting(
     >,
     sfx: Res<SpellSfxAssets>,
     game_config: Res<GameConfig>,
+    target_assist: Res<TargetAssistWorldPos>,
     talent_resources: (
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
@@ -196,6 +199,7 @@ pub fn handle_polymorph_casting(
 ) {
     let (active_talents, mut talent_progress) = talent_resources;
     let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((_wizard_entity, wizard, mut casting_state, mut mana, primed_spell)) =
         wizard_query.single_mut()

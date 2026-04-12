@@ -17,7 +17,9 @@ use crate::game::units::constants::{EXCREMAGE_BROWN, EXCREMAGE_BROWN_DARK};
 use crate::game::units::damage::DamageType;
 use crate::game::units::king::components::SpellShield;
 use crate::game::units::wizard::spells::audio::{self, SpellSfxAssets};
-use crate::game::units::wizard::spells::utils::{PendingDefenderHeal, build_wizard_input};
+use crate::game::units::wizard::spells::utils::{
+    PendingDefenderHeal, TargetAssistWorldPos, apply_target_assist, build_wizard_input,
+};
 use crate::game::units::wizard::spells::vfx;
 use crate::game::units::wizard::spells::vfx::constants::UPWARD_ROTATION;
 use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
@@ -146,8 +148,10 @@ pub fn handle_finger_of_death_casting(
     corrected_cursor: Res<CorrectedCursorPosition>,
     mut beams: Query<(Entity, &mut FingerOfDeathBeam)>,
     active_talents: Option<Res<ActiveTalents>>,
+    target_assist: Res<TargetAssistWorldPos>,
 ) {
-    let input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    let mut input = build_wizard_input(&mut mouse_left_released, &camera_query, &corrected_cursor);
+    apply_target_assist(&mut input, &target_assist);
 
     let Ok((wizard_entity, mut casting_state, mana, primed_spell, wizard)) =
         wizard_query.single_mut()
