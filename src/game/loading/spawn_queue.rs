@@ -45,6 +45,7 @@ pub enum SpawnTask {
         level: u32,
     },
     Brute,
+    Teleporter,
     Ogre,
     Hags,
     DarkMage,

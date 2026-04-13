@@ -642,29 +642,43 @@ pub fn tag_new_attackers(
     current_level: Res<crate::game::resources::CurrentLevel>,
     mut staging_plan: ResMut<super::staging::WaveStagingPlan>,
     new_attackers: Query<
-        (Entity, &Team, &FlowFieldInfluence, Has<crate::game::units::boss::components::Boss>),
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &FlowFieldInfluence,
+            Has<crate::game::units::boss::components::Boss>,
+        ),
         (Without<WaveGroup>, Without<Corpse>),
     >,
 ) {
     let wave = wave_state.map(|w| w.current_wave).unwrap_or(0);
 
-    // Lazily compute the staging plan for this wave if not yet computed
-    if !staging_plan.wave_points.contains_key(&wave) {
+    if !staging_plan.has_wave(wave) {
         let seed = game_seed.as_ref().map(|s| s.0).unwrap_or(0);
         super::staging::compute_wave_staging(&mut staging_plan, seed, current_level.0, wave);
     }
 
-    for (entity, team, influence, is_boss) in &new_attackers {
+    // Tunnel 0 (upper, z ≈ -375) → Left, tunnel 1 (lower, z ≈ -1575) → Right.
+    let tunnel_z_midpoint = (crate::game::constants::ATTACKER_SPAWN_POINTS[0].1
+        + crate::game::constants::ATTACKER_SPAWN_POINTS[1].1)
+        / 2.0;
+
+    for (entity, transform, team, influence, is_boss) in &new_attackers {
         if *team != Team::Attackers {
             continue;
         }
-        // Tag attackers and assassins (both use flow fields toward King/archers)
         match influence {
             FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin => {
                 let staging_idx = if is_boss {
                     CENTER_STAGING_INDEX as u8
                 } else {
-                    staging_plan.next_staging_point(wave)
+                    let tunnel = if transform.translation.z > tunnel_z_midpoint {
+                        super::staging::SpawnTunnel::Left
+                    } else {
+                        super::staging::SpawnTunnel::Right
+                    };
+                    staging_plan.next_staging_point(wave, tunnel)
                 };
                 commands
                     .entity(entity)

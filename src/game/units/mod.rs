@@ -22,6 +22,7 @@ pub(crate) mod king;
 pub(in crate::game) mod movement;
 pub(crate) mod shielder;
 pub(in crate::game) mod systems;
+pub(in crate::game) mod teleporter;
 pub(crate) mod undead;
 pub(crate) mod wizard;
 

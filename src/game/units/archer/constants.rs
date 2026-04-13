@@ -1,5 +1,5 @@
-// Movement
-pub const ARCHER_MOVEMENT_SPEED: f32 = 170.0;
+// Movement — 98% of infantry base speed.
+pub const ARCHER_MOVEMENT_SPEED: f32 = crate::game::constants::UNIT_MOVEMENT_SPEED * 0.98;
 
 // Attack Range
 pub const ARCHER_MIN_RANGE: f32 = 150.0; // Optimal minimum distance

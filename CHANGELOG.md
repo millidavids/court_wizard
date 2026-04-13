@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.175] - 2026-04-13
+
+### Added
+- **New enemy: the Teleporter** — a fragile spellcaster who slips past your defenders and channels next to your King. If you don't kill her in time, she yanks the 20 closest melee attackers right on top of him and wraps them in a huge burst of temporary shielding, turning a quiet moment into a sudden pileup on your throne. She cools down between casts, so interrupting her with a quick kill buys real time.
+
+### Changed
+- **Faster battlefield pacing** — every unit now moves about 50% faster across the board, so battles flow and waves reach the line sooner
+- **Archers walk slightly slower than infantry** — archers now hang just behind the front line instead of keeping pace with it
+- **Cleaner attack lanes** — the two tunnel spawns each stick to their own side of the battlefield when staging, so the streams of attackers no longer cross over each other on the approach
+
 ## [v0.6.160] - 2026-04-13
 
 ### Added

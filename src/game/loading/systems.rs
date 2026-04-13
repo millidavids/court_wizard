@@ -178,6 +178,7 @@ pub fn init_loading_progress(
     use crate::game::constants::{BOSS_CYCLE_LENGTH, get_tier};
     use crate::game::constants::{is_boss_level, is_lich_level};
     use crate::game::units::brute::constants::BRUTE_START_TIER;
+    use crate::game::units::teleporter::constants::TELEPORTER_START_TIER;
 
     if is_boss_level(level) && !is_lich_level(level) {
         let tier = get_tier(level);
@@ -273,12 +274,18 @@ pub fn init_loading_progress(
             queue.tasks.push_back(SpawnTask::Brute);
         }
 
+        // 9b. Teleporter (rare infiltrator, 1 per level — always spawns for testing)
+        let _ = TELEPORTER_START_TIER;
+        let has_teleporter = true;
+        queue.tasks.push_back(SpawnTask::Teleporter);
+
         // Record total attackers spawned across ALL waves for score screen
         let per_wave = total_attackers
             + total_attacker_archers
             + total_assassins
             + total_aerialists
-            + if has_brute { 1 } else { 0 };
+            + if has_brute { 1 } else { 0 }
+            + if has_teleporter { 1 } else { 0 };
         kill_stats.total_attackers_spawned = per_wave * wave_count;
 
         // Initialize wave state (game_speed modifier scales wave interval)
@@ -368,6 +375,7 @@ pub fn process_spawn_queue(
         Res<crate::game::units::dispeller::resources::DispellerAssets>,
         Res<crate::game::units::shielder::resources::ShielderAssets>,
         Res<crate::game::units::healer::resources::HealerAssets>,
+        Res<crate::game::units::teleporter::resources::TeleporterAssets>,
     ),
     aerialist_assets: Res<AerialistAssets>,
     king_assets: Res<crate::game::units::king::resources::KingAssets>,
@@ -421,6 +429,7 @@ pub fn process_spawn_queue(
         dispeller_assets,
         shielder_assets,
         healer_assets,
+        teleporter_assets,
     ) = &unit_assets;
     let (ogre_assets, hag_assets, dark_mage_assets) = &boss_assets;
     let (mut meshes, mut materials, mut ground_materials, mut stone_materials) = asset_stores;
@@ -566,6 +575,14 @@ pub fn process_spawn_queue(
                     Res::clone(infantry_assets),
                     &mut materials,
                     Res::clone(&current_level),
+                );
+            }
+            SpawnTask::Teleporter => {
+                crate::game::units::teleporter::systems::spawn_single_teleporter(
+                    &mut game_rng.0,
+                    &mut commands,
+                    teleporter_assets,
+                    &mut materials,
                 );
             }
             SpawnTask::Ogre => {

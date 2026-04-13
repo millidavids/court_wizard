@@ -1,0 +1,424 @@
+use bevy::prelude::*;
+use rand::Rng;
+
+use super::components::*;
+use super::constants::*;
+use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
+use crate::game::constants::*;
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
+use crate::game::seeded_rng::resources::GameRng;
+use crate::game::units::brute::components::Brute;
+use crate::game::units::commander::components::Commander;
+use crate::game::units::components::{
+    BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier, Corpse, Effectiveness,
+    EliteSpeedBonus, FacingDirection, FlockingModifier, FlockingVelocity, FrozenSolidModifier,
+    HasteModifier, Health, Hitbox, InMelee, MovementSpeed, PolymorphedModifier, RootedModifier,
+    RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking, SlowMovementModifier,
+    Stunned, TargetingVelocity, Team, Teleportable, TemporaryHitPoints, UnitTypeGlow,
+    WalkingAnimation,
+};
+use crate::game::units::infantry::Infantry;
+use crate::game::units::king::components::King;
+use crate::game::units::random_position_in_cell;
+use crate::game::units::wizard::spells::teleport::vfx_components::TeleportWarpEffect;
+use crate::game::units::wizard::spells::teleport::vfx_systems::spawn_teleport_vfx;
+use super::resources::TeleporterAssets;
+
+/// Spawns a single teleporter attacker.
+pub(in crate::game) fn spawn_single_teleporter(
+    rng: &mut impl Rng,
+    commands: &mut Commands,
+    teleporter_assets: &TeleporterAssets,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
+
+    let hitbox = Hitbox::new(TELEPORTER_RADIUS, TELEPORTER_HITBOX_HEIGHT);
+    let spawn_y = hitbox.height / 2.0 + 1.0;
+
+    let to_center = Vec3::new(
+        WIZARD_POSITION.x - final_x,
+        0.0,
+        WIZARD_POSITION.z - final_z,
+    );
+    let initial_velocity = to_center.normalize_or_zero() * TELEPORTER_MOVEMENT_SPEED;
+
+    let anim = WalkingAnimation::new_staggered(rng);
+    let material = crate::game::units::systems::create_default_sprite_material(
+        materials,
+        teleporter_assets.sprite_texture.clone(),
+        TELEPORTER_SPRITE_TINT,
+    );
+
+    commands
+        .spawn((
+            Mesh3d(teleporter_assets.sprite_mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_xyz(final_x, spawn_y, final_z)
+                .with_scale(Vec3::splat(TELEPORTER_SCALE)),
+            Velocity {
+                x: initial_velocity.x,
+                z: initial_velocity.z,
+                ..default()
+            },
+            Acceleration::new(),
+            hitbox,
+            Health::new(TELEPORTER_HEALTH),
+            MovementSpeed(TELEPORTER_MOVEMENT_SPEED),
+            Effectiveness::new(),
+            Team::Attackers,
+            Teleporter,
+            TargetingVelocity::default(),
+            FlowFieldVelocity::default(),
+            FlowFieldInfluence::Attacker,
+        ))
+        .insert((
+            TeleporterState::default(),
+            anim,
+            FacingDirection::default(),
+            FlockingVelocity::default(),
+            FlockingModifier::new(1.0, 1.0, 1.0),
+            CommanderAuraSpeedModifier(0.0),
+            RoughTerrainModifier(0.0),
+            Teleportable,
+            Billboard,
+            OnGameplayScreen,
+            UnitTypeGlow {
+                color: TELEPORTER_GLOW_COLOR,
+            },
+        ));
+}
+
+/// Targeting: beeline toward the king. Never engages — the teleporter has no
+/// `AttackTiming`, so the combat system ignores her.
+pub(super) fn update_teleporter_targeting(
+    mut commands: Commands,
+    mut teleporters: Query<
+        (Entity, &Transform, &TeleporterState, &mut TargetingVelocity),
+        (With<Teleporter>, Without<Corpse>),
+    >,
+    king_query: Query<(&Transform, &Team), (With<King>, Without<Corpse>)>,
+) {
+    let Some((king_transform, _)) = king_query
+        .iter()
+        .find(|(_, team)| **team == Team::Defenders)
+    else {
+        return;
+    };
+    let king_pos = king_transform.translation;
+
+    for (entity, transform, state, mut targeting) in &mut teleporters {
+        if matches!(state, TeleporterState::Channeling { .. }) {
+            targeting.velocity = Vec3::ZERO;
+            targeting.distance_to_target = 0.0;
+            commands.entity(entity).remove::<InMelee>();
+            continue;
+        }
+
+        let to_king = Vec3::new(
+            king_pos.x - transform.translation.x,
+            0.0,
+            king_pos.z - transform.translation.z,
+        );
+        targeting.velocity = to_king.normalize_or_zero();
+        targeting.distance_to_target = to_king.length();
+        commands.entity(entity).remove::<InMelee>();
+    }
+}
+
+/// Movement: reuses shared weighted movement. Stops when channeling.
+#[allow(clippy::type_complexity)]
+pub(super) fn teleporter_movement(
+    time: Res<Time>,
+    mut teleporters: Query<
+        (
+            &mut Velocity,
+            &mut Acceleration,
+            &MovementSpeed,
+            &TargetingVelocity,
+            &FlockingVelocity,
+            &FlowFieldVelocity,
+            &TeleporterState,
+            Option<&CommanderAuraSpeedModifier>,
+            Option<&RoughTerrainModifier>,
+            Option<&SlowMovementModifier>,
+            (
+                Option<&RootedModifier>,
+                Option<&HasteModifier>,
+                Option<&EliteSpeedBonus>,
+                Has<SleepModifier>,
+                Has<Sleepwalking>,
+                Option<&BanishedModifier>,
+                Option<&PolymorphedModifier>,
+                Option<&SickenedModifier>,
+                Option<&FrozenSolidModifier>,
+                Option<&Stunned>,
+            ),
+        ),
+        (With<Teleporter>, Without<Corpse>),
+    >,
+) {
+    for (
+        mut velocity,
+        mut acceleration,
+        movement_speed,
+        targeting,
+        flocking,
+        flow_field,
+        state,
+        aura_mod,
+        terrain_mod,
+        slow_mod,
+        (rooted, haste, elite_speed, sleeping, sleepwalking, banished, polymorphed, sickened, frozen, stunned),
+    ) in &mut teleporters
+    {
+        if matches!(state, TeleporterState::Channeling { .. }) {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            continue;
+        }
+
+        if crate::game::units::systems::is_cc_immobilized(
+            rooted,
+            sleeping,
+            sleepwalking,
+            banished,
+            sickened,
+            frozen,
+            stunned,
+        ) {
+            velocity.x = 0.0;
+            velocity.z = 0.0;
+            continue;
+        }
+
+        if polymorphed.is_some() {
+            continue;
+        }
+
+        crate::game::units::systems::calculate_weighted_movement(
+            &time,
+            &mut velocity,
+            &mut acceleration,
+            movement_speed.0,
+            targeting,
+            flocking,
+            flow_field,
+            false,
+            aura_mod.map(|m| m.0),
+            terrain_mod.map(|m| m.0),
+            slow_mod.map(|m| m.modifier),
+            None,
+            haste.map(|m| m.modifier),
+            elite_speed.map(|e| e.0),
+        );
+    }
+}
+
+/// Transitions teleporters from Approaching → Channeling when in range of the king,
+/// ticks the channel, and fires the teleport on completion.
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+pub(super) fn update_channel_state(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut game_rng: ResMut<GameRng>,
+    teleporter_assets: Res<TeleporterAssets>,
+    mut teleporters: Query<
+        (Entity, &Transform, &mut TeleporterState),
+        (With<Teleporter>, Without<Corpse>),
+    >,
+    king_query: Query<(&Transform, &Team), (With<King>, Without<Corpse>)>,
+    mut infantry_allies: Query<
+        (Entity, &mut Transform, &Team, &Health),
+        (
+            With<Infantry>,
+            Without<Teleporter>,
+            Without<King>,
+            Without<Corpse>,
+            Without<StagingAttacker>,
+        ),
+    >,
+    mut brute_allies: Query<
+        (Entity, &mut Transform, &Team, &Health),
+        (
+            With<Brute>,
+            Without<Teleporter>,
+            Without<King>,
+            Without<Corpse>,
+            Without<Infantry>,
+            Without<StagingAttacker>,
+        ),
+    >,
+    mut commander_allies: Query<
+        (Entity, &mut Transform, &Team, &Health),
+        (
+            With<Commander>,
+            Without<Teleporter>,
+            Without<King>,
+            Without<Corpse>,
+            Without<Infantry>,
+            Without<Brute>,
+            Without<StagingAttacker>,
+        ),
+    >,
+) {
+    let Some((king_transform, _)) = king_query
+        .iter()
+        .find(|(_, team)| **team == Team::Defenders)
+    else {
+        return;
+    };
+    let king_pos = king_transform.translation;
+
+    let dt = time.delta_secs();
+
+    for (entity, transform, mut state) in &mut teleporters {
+        let pos = transform.translation;
+        let dx = pos.x - king_pos.x;
+        let dz = pos.z - king_pos.z;
+        let dist = (dx * dx + dz * dz).sqrt();
+
+        match &mut *state {
+            TeleporterState::Approaching => {
+                if dist <= CHANNEL_RANGE {
+                    let indicator = commands
+                        .spawn((
+                            TeleportWarpEffect {
+                                position: pos,
+                                radius: TELEPORT_VFX_RADIUS,
+                                time_alive: 0.0,
+                                duration: CHANNEL_DURATION,
+                                intensity: 0.8,
+                                rift_entity: None,
+                            },
+                            OnGameplayScreen,
+                        ))
+                        .id();
+                    commands.entity(entity).insert(CombatAnimation::new_casting(
+                        teleporter_assets.casting_texture.clone(),
+                        teleporter_assets.sprite_texture.clone(),
+                    ));
+                    *state = TeleporterState::Channeling {
+                        elapsed: 0.0,
+                        indicator,
+                    };
+                }
+            }
+            TeleporterState::Cooldown { remaining } => {
+                *remaining -= dt;
+                if *remaining <= 0.0 {
+                    *state = TeleporterState::Approaching;
+                }
+            }
+            TeleporterState::Channeling { elapsed, indicator } => {
+                *elapsed += dt;
+                if *elapsed < CHANNEL_DURATION {
+                    continue;
+                }
+                let indicator_entity = *indicator;
+
+                // Collect candidates in priority order: infantry → brute → commander.
+                // Each candidate is (entity, distance_sq_to_teleporter, max_hp).
+                let mut picks: Vec<(Entity, f32)> = Vec::with_capacity(TELEPORT_GRAB_COUNT);
+
+                let push_sorted = |mut candidates: Vec<(Entity, f32, f32)>,
+                                   picks: &mut Vec<(Entity, f32)>| {
+                    if picks.len() >= TELEPORT_GRAB_COUNT {
+                        return;
+                    }
+                    candidates.sort_by(|a, b| {
+                        a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    for (e, _, max_hp) in candidates {
+                        if picks.len() >= TELEPORT_GRAB_COUNT {
+                            break;
+                        }
+                        picks.push((e, max_hp));
+                    }
+                };
+
+                let infantry_candidates: Vec<(Entity, f32, f32)> = infantry_allies
+                    .iter()
+                    .filter(|(_, _, team, _)| **team == Team::Attackers)
+                    .map(|(e, t, _, h)| {
+                        let ddx = t.translation.x - pos.x;
+                        let ddz = t.translation.z - pos.z;
+                        (e, ddx * ddx + ddz * ddz, h.max)
+                    })
+                    .collect();
+                push_sorted(infantry_candidates, &mut picks);
+
+                let brute_candidates: Vec<(Entity, f32, f32)> = brute_allies
+                    .iter()
+                    .filter(|(_, _, team, _)| **team == Team::Attackers)
+                    .map(|(e, t, _, h)| {
+                        let ddx = t.translation.x - pos.x;
+                        let ddz = t.translation.z - pos.z;
+                        (e, ddx * ddx + ddz * ddz, h.max)
+                    })
+                    .collect();
+                push_sorted(brute_candidates, &mut picks);
+
+                let commander_candidates: Vec<(Entity, f32, f32)> = commander_allies
+                    .iter()
+                    .filter(|(_, _, team, _)| **team == Team::Attackers)
+                    .map(|(e, t, _, h)| {
+                        let ddx = t.translation.x - pos.x;
+                        let ddz = t.translation.z - pos.z;
+                        (e, ddx * ddx + ddz * ddz, h.max)
+                    })
+                    .collect();
+                push_sorted(commander_candidates, &mut picks);
+
+                // Move each picked entity onto the king (preserving y+scale) and grant temp HP.
+                for (ally, max_hp) in &picks {
+                    let angle = game_rng.0.gen_range(0.0..std::f32::consts::TAU);
+                    let r = game_rng.0.gen_range(0.0..DROP_JITTER_RADIUS);
+                    let new_x = king_pos.x + angle.cos() * r;
+                    let new_z = king_pos.z + angle.sin() * r;
+
+                    if let Ok((_, mut t, _, _)) = infantry_allies.get_mut(*ally) {
+                        t.translation.x = new_x;
+                        t.translation.z = new_z;
+                    } else if let Ok((_, mut t, _, _)) = brute_allies.get_mut(*ally) {
+                        t.translation.x = new_x;
+                        t.translation.z = new_z;
+                    } else if let Ok((_, mut t, _, _)) = commander_allies.get_mut(*ally) {
+                        t.translation.x = new_x;
+                        t.translation.z = new_z;
+                    }
+
+                    commands.entity(*ally).insert(TemporaryHitPoints::new(
+                        max_hp * TELEPORT_TEMP_HP_RATIO,
+                        TELEPORT_TEMP_HP_DURATION,
+                    ));
+                }
+
+                // VFX at both endpoints.
+                spawn_teleport_vfx(&mut commands, pos, king_pos, TELEPORT_VFX_RADIUS);
+
+                // Despawn indicator, clear casting animation, enter cooldown.
+                commands.entity(indicator_entity).try_despawn();
+                commands.entity(entity).remove::<CombatAnimation>();
+                *state = TeleporterState::Cooldown {
+                    remaining: CHANNEL_COOLDOWN,
+                };
+            }
+        }
+    }
+}
+
+/// Cleans up channel indicators when a teleporter dies mid-channel.
+pub(super) fn cleanup_dead_teleporter_channels(
+    mut commands: Commands,
+    dead: Query<(Entity, &TeleporterState), (With<Teleporter>, With<Corpse>)>,
+) {
+    for (entity, state) in &dead {
+        if let TeleporterState::Channeling { indicator, .. } = state {
+            commands.entity(*indicator).try_despawn();
+        }
+        commands.entity(entity).remove::<TeleporterState>();
+    }
+}

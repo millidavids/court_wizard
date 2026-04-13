@@ -196,7 +196,7 @@ pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 20.0 * UNIT_SCALE;
 pub const UNIT_HEALTH: f32 = 100.0;
 
 /// Default movement speed for all units (units per second).
-pub const UNIT_MOVEMENT_SPEED: f32 = 115.0;
+pub const UNIT_MOVEMENT_SPEED: f32 = 172.5;
 
 /// Global multiplier applied to all unit movement speeds.
 /// 1.0 = normal speed, 0.8 = 20% slower, etc.
@@ -311,12 +311,6 @@ pub const STAGING_POINTS: [(f32, f32); STAGING_POINT_COUNT] = [
     (-307.0, -833.0), // -20 deg from center
     (-759.0, -983.0), // -30 deg from center
 ];
-
-/// Minimum number of staging points used per wave.
-pub const MIN_WAVE_STAGING_POINTS: usize = 2;
-
-/// Maximum number of staging points used per wave.
-pub const MAX_WAVE_STAGING_POINTS: usize = 4;
 
 /// Index of the center staging point (original position).
 /// Bosses and fallback logic always use this point.

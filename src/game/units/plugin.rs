@@ -23,6 +23,7 @@ use super::king::KingPlugin;
 use super::movement;
 use super::shielder::ShielderPlugin;
 use super::systems;
+use super::teleporter::TeleporterPlugin;
 use super::wizard::WizardPlugin;
 use super::{ApplyTransformsSet, MovementCalculationSet};
 use crate::game::terrain::boulder::BoulderPlugin;
@@ -60,6 +61,7 @@ impl Plugin for UnitsPlugin {
                 HealerPlugin,
                 ShielderPlugin,
                 BrutePlugin,
+                TeleporterPlugin,
                 BoulderPlugin,
                 BossPlugin,
                 KingPlugin,
