@@ -6,6 +6,8 @@
 
 use bevy::prelude::*;
 
+use crate::game::units::wizard::components::SpellCategory;
+
 // ── Text Hierarchy ──────────────────────────────────────────────────────────
 
 /// Primary text color for titles, headings, and important text (warm parchment white).
@@ -30,6 +32,23 @@ pub const INSIGHT_COLOR: Color = Color::srgb(0.6, 0.8, 1.0);
 
 /// Purple accent for active/selected states and highlights.
 pub const GOLD_ACCENT: Color = Color::hsla(270.0, 0.65, 0.55, 1.0);
+
+// ── Spell Category Colors (rectangular harmony from button purple 270) ──────
+
+pub const SPELL_CAT_CONTROL: Color = Color::hsla(270.0, 0.6, 0.55, 1.0);
+pub const SPELL_CAT_OFFENSE: Color = Color::hsla(30.0, 0.6, 0.55, 1.0);
+pub const SPELL_CAT_SUPPORT: Color = Color::hsla(210.0, 0.6, 0.55, 1.0);
+pub const SPELL_CAT_UTILITY: Color = Color::hsla(90.0, 0.6, 0.55, 1.0);
+
+/// Returns the color for a spell category.
+pub fn spell_category_color(category: SpellCategory) -> Color {
+    match category {
+        SpellCategory::Control => SPELL_CAT_CONTROL,
+        SpellCategory::Offense => SPELL_CAT_OFFENSE,
+        SpellCategory::Support => SPELL_CAT_SUPPORT,
+        SpellCategory::Utility => SPELL_CAT_UTILITY,
+    }
+}
 
 /// Success state color (green).
 pub const SUCCESS_COLOR: Color = Color::hsla(120.0, 0.6, 0.5, 1.0);

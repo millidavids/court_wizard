@@ -12,13 +12,16 @@ use super::components::{
 use super::layout::{
     RightPanelView, WizardTowerTab,
 };
-use super::materials::{ConcentricRingsMaterial, RadialProgressMaterial, StarSkyMaterial};
+use super::materials::{
+    ArcaneRuneMaterial, ConcentricRingsMaterial, RadialProgressMaterial, StarSkyMaterial,
+};
 
 pub struct WizardTowerPlugin;
 
 impl Plugin for WizardTowerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(UiMaterialPlugin::<RadialProgressMaterial>::default())
+        app.add_plugins(UiMaterialPlugin::<ArcaneRuneMaterial>::default())
+            .add_plugins(UiMaterialPlugin::<RadialProgressMaterial>::default())
             .add_plugins(UiMaterialPlugin::<ConcentricRingsMaterial>::default())
             .add_plugins(UiMaterialPlugin::<StarSkyMaterial>::default())
             // ----- Top-level cleanup when leaving MetaGame entirely -----
@@ -39,6 +42,16 @@ impl Plugin for WizardTowerPlugin {
             .add_systems(
                 OnExit(MetaGameState::WizardTower),
                 crate::ui::systems::cleanup_screen::<super::components::OnMainScreen>,
+            )
+            // ----- Arcane rune background animation -----
+            .add_systems(
+                Update,
+                (
+                    super::layout::update_arcane_rune_time,
+                    super::layout::update_arcane_rune_text,
+                    super::layout::rebuild_rune_on_spell_unlock,
+                )
+                    .run_if(in_state(MetaGameState::WizardTower)),
             )
             // ----- Tab switching and layout systems -----
             .add_systems(
@@ -206,6 +219,14 @@ impl Plugin for WizardTowerPlugin {
                     .run_if(in_state(MetaGameState::WizardTower))
                     .run_if(endless_tab_active),
             );
+
+        // ----- Debug: F3 to toggle UI visibility -----
+        #[cfg(debug_assertions)]
+        app.add_systems(
+            Update,
+            super::layout::toggle_debug_background
+                .run_if(in_state(MetaGameState::WizardTower)),
+        );
     }
 }
 

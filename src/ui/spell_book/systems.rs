@@ -292,7 +292,7 @@ fn spawn_spell_list(
                     column.spawn((
                         Text::new(category.display_name()),
                         TextFont::from_font_size(CATEGORY_FONT_SIZE),
-                        TextColor(CATEGORY_COLOR),
+                        TextColor(crate::ui::constants::spell_category_color(*category)),
                         TextLayout::new_with_justify(Justify::Center),
                         Node {
                             width: Val::Percent(100.0),

@@ -584,7 +584,7 @@ fn spawn_spell_items(
         parent.spawn((
             Text::new(category.display_name()),
             TextFont::from_font_size(ITEM_NAME_FONT_SIZE),
-            TextColor(DESCRIPTION_COLOR),
+            TextColor(crate::ui::constants::spell_category_color(*category)),
             Node {
                 margin: UiRect::new(Val::Px(0.0), Val::Px(0.0), Val::Px(6.0), Val::Px(2.0)),
                 ..default()
@@ -1674,6 +1674,13 @@ fn update_detail_panel(
                         )
                     } else {
                         String::new()
+                    };
+                }
+                if let Ok(mut c) = cat_color_q.single_mut() {
+                    c.0 = if is_unlocked {
+                        crate::ui::constants::spell_category_color(spell.category())
+                    } else {
+                        DESCRIPTION_COLOR
                     };
                 }
                 if let Ok(mut t) = desc_q.single_mut() {

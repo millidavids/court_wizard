@@ -52,6 +52,29 @@ impl UiMaterial for ConcentricRingsMaterial {
     }
 }
 
+/// Animated arcane rune sigil background for the Wizard Tower.
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub(super) struct ArcaneRuneMaterial {
+    #[uniform(0)]
+    pub data: ArcaneRuneData,
+}
+
+#[derive(ShaderType, Debug, Clone, Copy)]
+pub(super) struct ArcaneRuneData {
+    pub color: LinearRgba,
+    pub time: f32,
+    pub opacity: f32,
+    /// Number of unlocked spells (0-31). Controls progressive layer reveal.
+    pub unlocked_count: f32,
+    pub _padding: f32,
+}
+
+impl UiMaterial for ArcaneRuneMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/arcane_rune.wgsl".into()
+    }
+}
+
 /// Twinkling starry sky background drawn as a UI material on the spell graph area.
 #[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
 pub(super) struct StarSkyMaterial {

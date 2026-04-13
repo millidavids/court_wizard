@@ -13,6 +13,26 @@ use crate::game::units::wizard::components::Spell;
 #[derive(Component)]
 pub(super) struct OnWizardTowerScreen;
 
+/// Marker for the header and content rows (toggled by F3 debug).
+#[cfg(debug_assertions)]
+#[derive(Component)]
+pub(super) struct WizardTowerUiContent;
+
+/// Marker for the arcane rune background MaterialNode.
+#[derive(Component)]
+pub(super) struct ArcaneRuneBackground;
+
+/// Orbiting spell name text around the arcane rune circles.
+#[derive(Component)]
+pub(super) struct ArcaneRuneText {
+    /// Base angle in radians (position on the circle at t=0).
+    pub angle: f32,
+    /// Radius as a fraction of container height (matches shader UV space).
+    pub radius: f32,
+    /// Rotation speed in radians per second (positive = CW).
+    pub speed: f32,
+}
+
 // ---------------------------------------------------------------------------
 // Main hub screen
 // ---------------------------------------------------------------------------

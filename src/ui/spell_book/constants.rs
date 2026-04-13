@@ -73,9 +73,6 @@ pub const LIST_ITEM_GAP: f32 = 16.0;
 /// Font size for category headers.
 pub const CATEGORY_FONT_SIZE: f32 = 9.0;
 
-/// Color for category header text.
-pub const CATEGORY_COLOR: Color = TEXT_MUTED;
-
 /// Height of spell buttons in the list.
 pub const SPELL_BUTTON_HEIGHT: f32 = 40.0;
 

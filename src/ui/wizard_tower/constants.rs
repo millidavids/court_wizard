@@ -10,6 +10,18 @@ use crate::ui::constants::{
 // Shared layout
 // ---------------------------------------------------------------------------
 pub(super) const BACKGROUND_COLOR: Color = Color::srgb(0.08, 0.08, 0.1);
+
+// ---------------------------------------------------------------------------
+// Arcane rune background
+// ---------------------------------------------------------------------------
+/// Dark golden color for the arcane rune geometric pattern lines.
+pub(super) const RUNE_COLOR: Color = Color::hsla(42.0, 0.5, 0.25, 1.0);
+/// Overall opacity of the rune background shader layer (1.0 = fully opaque lines).
+pub(super) const RUNE_OPACITY: f32 = 1.0;
+/// Font size for spell name text orbiting around the rune circles.
+pub(super) const RUNE_TEXT_SIZE: f32 = 30.0;
+/// Alpha for orbiting spell name text.
+pub(super) const RUNE_TEXT_ALPHA: f32 = 0.12;
 pub(super) const TITLE_FONT_SIZE: f32 = 36.0;
 pub(super) const LEVEL_FONT_SIZE: f32 = 18.0;
 pub(super) const INSIGHT_FONT_SIZE: f32 = 22.0;

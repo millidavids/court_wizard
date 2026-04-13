@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.151] - 2026-04-12
+
+### Added
+- **Arcane rune background** — the Wizard Tower menu now features a rotating golden sigil behind the panels, built from concentric rings, geometric patterns, and mathematical curves
+- **Progressive rune complexity** — the arcane sigil grows more elaborate as you unlock spells, adding new shapes and details with each discovery
+- **Spell names orbit the rune** — your unlocked spell names circle the sigil in a mystical runic font, organized by category
+- **Color-coded spell categories** — Offense, Control, Support, and Utility spells each have their own distinct color, visible in the Wizard Tower rune, the Spell Book, and the Compendium
+- **Metatron's Cube** — a sacred geometry pattern of interlocking circles and lines appears within the rune as you unlock more spells, eventually filled with spinning Stars of David
+- **F3 debug toggle** — press F3 on the Wizard Tower screen to hide the UI panels and see the full rune background (debug builds only)
+
 ## [v0.6.106] - 2026-04-12
 
 ### Changed
