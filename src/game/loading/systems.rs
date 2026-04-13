@@ -23,6 +23,7 @@ use crate::game::units::assassin::systems as assassin_systems;
 use crate::game::units::components::{Hitbox, Team};
 use crate::game::units::infantry::Infantry;
 use crate::game::units::infantry::resources::InfantryAssets;
+use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::infantry::systems as infantry_systems;
 use crate::state::AppState;
 
@@ -411,6 +412,7 @@ pub fn process_spawn_queue(
         MessageWriter<ChannelChangeMessage>,
         MessageWriter<crate::game::pathfinding::messages::ObstacleChanged>,
     ),
+    mut game_rng: ResMut<GameRng>,
 ) {
     let (
         infantry_assets,
@@ -458,6 +460,7 @@ pub fn process_spawn_queue(
         match task {
             SpawnTask::DefenderInfantry { unit_index } => {
                 infantry_systems::spawn_single_defender(
+                    &mut game_rng.0,
                     &mut commands,
                     infantry_assets,
                     &mut materials,
@@ -466,6 +469,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::AttackerInfantry { unit_index, level } => {
                 infantry_systems::spawn_single_attacker(
+                    &mut game_rng.0,
                     &mut commands,
                     infantry_assets,
                     &mut materials,
@@ -475,6 +479,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::DefenderArcher { unit_index } => {
                 archer_systems::spawn_single_defender_archer(
+                    &mut game_rng.0,
                     &mut commands,
                     archer_assets,
                     &mut materials,
@@ -483,6 +488,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::AttackerArcher { unit_index, level } => {
                 archer_systems::spawn_single_attacker_archer(
+                    &mut game_rng.0,
                     &mut commands,
                     archer_assets,
                     &mut materials,
@@ -492,6 +498,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::AttackerAssassin { unit_index, level } => {
                 assassin_systems::spawn_single_attacker_assassin(
+                    &mut game_rng.0,
                     &mut commands,
                     assassin_assets,
                     &mut materials,
@@ -501,6 +508,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::AttackerAerialist { unit_index, level } => {
                 aerialist_systems::spawn_single_attacker_aerialist(
+                    &mut game_rng.0,
                     &mut commands,
                     &aerialist_assets,
                     &mut materials,
@@ -544,6 +552,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::KingsGuard { guard_index } => {
                 infantry_systems::spawn_single_kings_guard(
+                    &mut game_rng.0,
                     &mut commands,
                     infantry_assets,
                     &mut materials,
@@ -552,6 +561,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::Brute => {
                 crate::game::units::brute::systems::spawn_brute(
+                    &mut game_rng.0,
                     commands.reborrow(),
                     Res::clone(infantry_assets),
                     &mut materials,
@@ -560,6 +570,7 @@ pub fn process_spawn_queue(
             }
             SpawnTask::Ogre => {
                 crate::game::units::boss::ogre::systems::spawn_ogre(
+                    &mut game_rng.0,
                     commands.reborrow(),
                     Res::clone(ogre_assets),
                     &mut materials,
@@ -567,18 +578,21 @@ pub fn process_spawn_queue(
             }
             SpawnTask::Hags => {
                 crate::game::units::boss::hags::systems::spawn_hags(
+                    &mut game_rng.0,
                     commands.reborrow(),
                     Res::clone(hag_assets),
                 );
             }
             SpawnTask::DarkMage => {
                 crate::game::units::boss::dark_mage::systems::spawn_dark_mage(
+                    &mut game_rng.0,
                     commands.reborrow(),
                     Res::clone(dark_mage_assets),
                 );
             }
             SpawnTask::Battlefield => {
                 crate::game::battlefield::systems::setup_battlefield(
+                    &mut game_rng.0,
                     &mut commands,
                     &mut meshes,
                     &mut materials,

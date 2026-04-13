@@ -47,14 +47,14 @@ fn all_rings(p: vec2<f32>, time: f32) -> f32 {
     var intensity = 0.0;
     let rp_outer = rotate2d(p, time * 0.05);
     let dist_outer = length(rp_outer);
-    intensity += glow(ring_sdf(dist_outer, 0.42, 0.001), 0.003);
-    intensity += glow(ring_sdf(dist_outer, 0.44, 0.001), 0.002);
+    intensity += glow(ring_sdf(dist_outer, 0.42, 0.0005), 0.0015);
+    intensity += glow(ring_sdf(dist_outer, 0.44, 0.0005), 0.001);
     let dist_mid = length(rotate2d(p, -time * 0.08));
-    intensity += glow(ring_sdf(dist_mid, 0.32, 0.001), 0.003);
+    intensity += glow(ring_sdf(dist_mid, 0.32, 0.0005), 0.0015);
     let dist_inner = length(rotate2d(p, time * 0.03));
-    intensity += glow(ring_sdf(dist_inner, 0.22, 0.001), 0.003);
+    intensity += glow(ring_sdf(dist_inner, 0.22, 0.0005), 0.0015);
     let dist_core = length(rotate2d(p, -time * 0.12));
-    intensity += glow(ring_sdf(dist_core, 0.06, 0.001), 0.002);
+    intensity += glow(ring_sdf(dist_core, 0.06, 0.0005), 0.001);
     return intensity;
 }
 
@@ -69,7 +69,7 @@ fn middle_ticks(p: vec2<f32>, time: f32, count: f32) -> f32 {
     let tick_frac = fract(norm_tick);
     let tick_dist = min(tick_frac, 1.0 - tick_frac) * TAU / count * dist;
     let tick_radial = smoothstep(0.34, 0.325, dist) * smoothstep(0.295, 0.31, dist);
-    return glow(tick_dist, 0.0016) * tick_radial;
+    return glow(tick_dist, 0.0008) * tick_radial;
 }
 
 // ── Outer ring ticks: count = n, from 1 to 31 ──────────────────────────────
@@ -85,7 +85,7 @@ fn outer_ticks(p: vec2<f32>, time: f32, count: f32) -> f32 {
     let tick_dist = min(tick_frac, 1.0 - tick_frac) * TAU / count * dist;
     let tick_radial = smoothstep(0.44, 0.425, dist) * smoothstep(0.395, 0.41, dist);
 
-    return glow(tick_dist, 0.0016) * tick_radial;
+    return glow(tick_dist, 0.0008) * tick_radial;
 }
 
 // ── Central polygon: grows from 2 vertices (line) to 5 (pentagram) ─────────
@@ -105,7 +105,7 @@ fn central_polygon(p: vec2<f32>, time: f32, sides: i32) -> f32 {
             let a2 = f32((i + 2) % 5) / 5.0 * TAU;
             let p1 = vec2<f32>(cos(a1), sin(a1)) * radius;
             let p2 = vec2<f32>(cos(a2), sin(a2)) * radius;
-            intensity += glow(line_segment_sdf(rp, p1, p2), 0.002);
+            intensity += glow(line_segment_sdf(rp, p1, p2), 0.001);
         }
     } else {
         for (var i: i32 = 0; i < 4; i++) {
@@ -114,7 +114,7 @@ fn central_polygon(p: vec2<f32>, time: f32, sides: i32) -> f32 {
             let a2 = f32((i + 1) % sides) / f32(sides) * TAU;
             let p1 = vec2<f32>(cos(a1), sin(a1)) * radius;
             let p2 = vec2<f32>(cos(a2), sin(a2)) * radius;
-            intensity += glow(line_segment_sdf(rp, p1, p2), 0.002);
+            intensity += glow(line_segment_sdf(rp, p1, p2), 0.001);
         }
     }
 
@@ -140,14 +140,14 @@ fn metatron_cube(p: vec2<f32>, time: f32, n: f32) -> f32 {
     let outer_count = clamp(n - 16.0, 0.0, 6.0);
 
     // Center circle (always, since n >= 10)
-    intensity += glow(ring_sdf(length(rp), r_circle, 0.001), 0.003);
+    intensity += glow(ring_sdf(length(rp), r_circle, 0.0005), 0.0015);
 
     // Inner ring circles + lines from center
     for (var i: i32 = 0; i < 6; i++) {
         if f32(i) >= inner_count { break; }
         let a = f32(i) / 6.0 * TAU;
         let center = vec2<f32>(cos(a), sin(a)) * inner_r;
-        intensity += glow(abs(length(rp - center) - r_circle), 0.003);
+        intensity += glow(abs(length(rp - center) - r_circle), 0.0015);
         intensity += glow(line_segment_sdf(rp, origin, center), 0.002);
     }
 
@@ -156,7 +156,7 @@ fn metatron_cube(p: vec2<f32>, time: f32, n: f32) -> f32 {
         if f32(i) >= outer_count { break; }
         let a_out = f32(i) / 6.0 * TAU + PI / 6.0;
         let c_out = vec2<f32>(cos(a_out), sin(a_out)) * outer_r;
-        intensity += glow(abs(length(rp - c_out) - r_circle), 0.003);
+        intensity += glow(abs(length(rp - c_out) - r_circle), 0.0015);
         intensity += glow(line_segment_sdf(rp, origin, c_out), 0.002);
 
         // Lines from the two adjacent inner circles (if they exist)
@@ -207,7 +207,7 @@ fn runic_spiral(p: vec2<f32>, time: f32, arm_count: i32) -> f32 {
         let arc_dist = abs(wrapped) * dist;
         let wobble = mod_amp * sin(mod_freq * spiral_theta);
         let d = abs(arc_dist - wobble);
-        intensity += glow(d, 0.002);
+        intensity += glow(d, 0.001);
     }
 
     let mask = smoothstep(0.30, 0.32, dist) * smoothstep(0.44, 0.42, dist);
@@ -246,7 +246,7 @@ fn hypotrochoid(p: vec2<f32>, time: f32, cusps: f32) -> f32 {
     }
 
     let mask = smoothstep(0.28, 0.30, dist) * smoothstep(0.46, 0.44, dist);
-    return glow(min_d, 0.003) * mask;
+    return glow(min_d, 0.0015) * mask;
 }
 
 // ── Polygon inside a circle: 2=line, 3=tri, 4=sq, 5=star, 6=Star of David ──
@@ -262,14 +262,14 @@ fn polygon_at(p: vec2<f32>, center: vec2<f32>, radius: f32, spin: f32, sides: i3
             let a2 = f32((i + 1) % 3) / 3.0 * TAU;
             let p1 = vec2<f32>(cos(a1), sin(a1)) * radius;
             let p2 = vec2<f32>(cos(a2), sin(a2)) * radius;
-            intensity += glow(line_segment_sdf(local, p1, p2), 0.002);
+            intensity += glow(line_segment_sdf(local, p1, p2), 0.001);
         }
         for (var i: i32 = 0; i < 3; i++) {
             let a1 = f32(i) / 3.0 * TAU + PI / 3.0;
             let a2 = f32((i + 1) % 3) / 3.0 * TAU + PI / 3.0;
             let p1 = vec2<f32>(cos(a1), sin(a1)) * radius;
             let p2 = vec2<f32>(cos(a2), sin(a2)) * radius;
-            intensity += glow(line_segment_sdf(local, p1, p2), 0.002);
+            intensity += glow(line_segment_sdf(local, p1, p2), 0.001);
         }
     } else if sides == 5 {
         // Pentagram: connect every 2nd vertex
@@ -278,7 +278,7 @@ fn polygon_at(p: vec2<f32>, center: vec2<f32>, radius: f32, spin: f32, sides: i3
             let a2 = f32((i + 2) % 5) / 5.0 * TAU;
             let p1 = vec2<f32>(cos(a1), sin(a1)) * radius;
             let p2 = vec2<f32>(cos(a2), sin(a2)) * radius;
-            intensity += glow(line_segment_sdf(local, p1, p2), 0.002);
+            intensity += glow(line_segment_sdf(local, p1, p2), 0.001);
         }
     } else {
         // Regular polygon: 2, 3, or 4 sides
@@ -288,7 +288,7 @@ fn polygon_at(p: vec2<f32>, center: vec2<f32>, radius: f32, spin: f32, sides: i3
             let a2 = f32((i + 1) % sides) / f32(sides) * TAU;
             let p1 = vec2<f32>(cos(a1), sin(a1)) * radius;
             let p2 = vec2<f32>(cos(a2), sin(a2)) * radius;
-            intensity += glow(line_segment_sdf(local, p1, p2), 0.002);
+            intensity += glow(line_segment_sdf(local, p1, p2), 0.001);
         }
     }
 

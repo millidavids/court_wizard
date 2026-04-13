@@ -93,9 +93,8 @@ fn scaled_count(base: usize, count_mult: f32) -> usize {
 }
 
 /// Returns 2 if Spell Echo triggers (30% chance), 1 otherwise.
-fn spell_echo_multiplier(spell_echo: bool) -> usize {
+fn spell_echo_multiplier(rng: &mut impl Rng, spell_echo: bool) -> usize {
     if spell_echo {
-        let mut rng = rand::thread_rng();
         if rng.r#gen::<f32>() < SPELL_ECHO_CHANCE {
             return 2;
         }
@@ -140,12 +139,12 @@ fn crystal_beam_geometry(origin: Vec3, target: Vec3, max_range: f32) -> (Vec3, f
 /// Finds random targets within range of a position.
 /// Returns up to `count` random targets from any team (spells are indiscriminate).
 fn find_random_targets_in_range(
+    rng: &mut impl Rng,
     crystal_pos: Vec3,
     range: f32,
     count: usize,
     units: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) -> Vec<(Entity, Vec3)> {
-    let mut rng = rand::thread_rng();
 
     let mut candidates: Vec<(Entity, Vec3)> = units
         .iter()
@@ -166,12 +165,12 @@ fn find_random_targets_in_range(
 /// Finds random enemy targets (Attackers/Undead only) within range.
 /// Used for magic missiles which should not target defenders.
 fn find_random_enemies_in_range(
+    rng: &mut impl Rng,
     crystal_pos: Vec3,
     range: f32,
     count: usize,
     units: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
 ) -> Vec<(Entity, Vec3)> {
-    let mut rng = rand::thread_rng();
 
     let mut candidates: Vec<(Entity, Vec3)> = units
         .iter()
@@ -745,6 +744,7 @@ pub(super) fn cleanup_expired_crystal_beams(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_fireball_hits(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
     explosions: Query<(Entity, &FireballExplosion), Without<CrystalSpawn>>,
@@ -769,12 +769,13 @@ pub(super) fn detect_fireball_hits(
                 crystal.auto_cast_timer = 0.0;
 
                 // Spell Echo: chance to double the emission
-                let echo_mult = spell_echo_multiplier(crystal.spell_echo);
+                let rng = &mut game_rng.0;
+                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
 
                 // Emit mini fireballs at random targets
                 let count = scaled_count(MINI_FB_COUNT, crystal.count_mult) * echo_mult;
                 let enemies =
-                    find_random_targets_in_range(crystal.position, crystal.range, count, &targets);
+                    find_random_targets_in_range(rng, crystal.position, crystal.range, count, &targets);
 
                 let mini_radius =
                     fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
@@ -825,6 +826,7 @@ pub(super) fn detect_fireball_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_beam_hits(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
     disintegrate_beams: Query<&DisintegrateBeam, Without<CrystalSpawn>>,
@@ -903,7 +905,7 @@ pub(super) fn detect_beam_hits(
                     .map(|(entity, transform)| (entity, transform.translation))
                     .collect();
 
-                let mut rng = rand::thread_rng();
+                let rng = &mut game_rng.0;
                 let len = candidates.len();
                 for i in (1..len).rev() {
                     let j = rng.gen_range(0..=i);
@@ -959,7 +961,7 @@ pub(super) fn detect_beam_hits(
                     .map(|(entity, transform)| (entity, transform.translation))
                     .collect();
 
-                let mut rng = rand::thread_rng();
+                let rng = &mut game_rng.0;
                 let len = candidates.len();
                 for i in (1..len).rev() {
                     let j = rng.gen_range(0..=i);
@@ -1002,13 +1004,11 @@ pub(super) fn detect_beam_hits(
                 crystal.remembered_spell = Some(RememberedSpell::FingerOfDeath);
                 crystal.auto_cast_timer = 0.0;
 
-                let echo_mult = spell_echo_multiplier(crystal.spell_echo);
+                let rng = &mut game_rng.0;
+                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
                 let fod_beam_count = scaled_count(BEAM_COUNT, crystal.count_mult) * echo_mult;
-                let enemies = find_random_targets_in_range(
-                    crystal.position,
-                    crystal.range,
-                    fod_beam_count,
-                    &targets,
+                let enemies = find_random_targets_in_range(rng,
+                    crystal.position, crystal.range, fod_beam_count, &targets,
                 );
                 let damage_scale = BEAM_DAMAGE_SCALE * crystal.damage_mult;
                 let fod_damage_per_tick = finger_of_death_constants::DAMAGE * damage_scale
@@ -1064,6 +1064,7 @@ pub(super) fn detect_beam_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_meteor_hits(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
     meteors: Query<(Entity, &Transform, &MeteorProjectile)>,
@@ -1090,13 +1091,14 @@ pub(super) fn detect_meteor_hits(
                 crystal.remembered_spell = Some(RememberedSpell::Meteor);
                 crystal.auto_cast_timer = 0.0;
 
-                let echo_mult = spell_echo_multiplier(crystal.spell_echo);
+                let rng = &mut game_rng.0;
+                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
                 let count = scaled_count(2, crystal.count_mult) * echo_mult;
                 let damage_scale = DAMAGE_SCALE * crystal.damage_mult;
 
                 // Emit mini meteors at random targets
                 let enemies =
-                    find_random_targets_in_range(crystal.position, crystal.range, count, &targets);
+                    find_random_targets_in_range(rng, crystal.position, crystal.range, count, &targets);
 
                 for (_, target_pos) in &enemies {
                     let spawn_pos = Vec3::new(target_pos.x, MINI_METEOR_SPAWN_HEIGHT, target_pos.z);
@@ -1139,6 +1141,7 @@ pub(super) fn detect_meteor_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_magic_missile_hits(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(&mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
     missiles: Query<(Entity, &Transform, &MagicMissile), Without<CrystalSpawn>>,
@@ -1159,12 +1162,13 @@ pub(super) fn detect_magic_missile_hits(
                 crystal.remembered_spell = Some(RememberedSpell::MagicMissile);
                 crystal.auto_cast_timer = 0.0;
 
-                let echo_mult = spell_echo_multiplier(crystal.spell_echo);
+                let rng = &mut game_rng.0;
+                let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
                 let count = scaled_count(MINI_MISSILE_COUNT, crystal.count_mult) * echo_mult;
 
                 // Emit mini missiles at random enemy targets (not defenders)
                 let targets =
-                    find_random_enemies_in_range(crystal.position, crystal.range, count, &enemies);
+                    find_random_enemies_in_range(rng, crystal.position, crystal.range, count, &enemies);
 
                 let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
@@ -1173,7 +1177,7 @@ pub(super) fn detect_magic_missile_hits(
                     let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
                     let initial_velocity = direction * speed;
 
-                    let mut rng = rand::thread_rng();
+                    let rng = &mut game_rng.0;
                     let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
                     spawn_crystal_mini_missile(
@@ -1209,6 +1213,7 @@ pub(super) fn detect_magic_missile_hits(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn detect_chain_lightning_hits(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(Entity, &mut ArcaneCrystal, Option<&mut ResonanceCascade>)>,
     bolts: Query<
@@ -1251,12 +1256,13 @@ pub(super) fn detect_chain_lightning_hits(
             crystal.remembered_spell = Some(RememberedSpell::ChainLightning);
             crystal.auto_cast_timer = 0.0;
 
-            let echo_mult = spell_echo_multiplier(crystal.spell_echo);
+            let rng = &mut game_rng.0;
+            let echo_mult = spell_echo_multiplier(rng, crystal.spell_echo);
             let count = scaled_count(LIGHTNING_ARC_COUNT, crystal.count_mult) * echo_mult;
 
             // Emit arcs to random targets
             let enemies =
-                find_random_targets_in_range(crystal.position, crystal.range, count, &targets);
+                find_random_targets_in_range(rng, crystal.position, crystal.range, count, &targets);
 
             let damage = bolt.current_damage * DAMAGE_SCALE * crystal.damage_mult;
 
@@ -1309,6 +1315,7 @@ pub(super) fn detect_chain_lightning_hits(
 pub(super) fn auto_cast_remembered_spell(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(Entity, &mut ArcaneCrystal)>,
     mut crystal_beams: Query<(Entity, &mut DisintegrateBeam), With<CrystalSpawn>>,
@@ -1372,6 +1379,7 @@ pub(super) fn auto_cast_remembered_spell(
         // === Special case: Disintegrate = constant single beam ===
         if remembered == RememberedSpell::Disintegrate {
             handle_auto_disintegrate(
+                &mut game_rng.0,
                 entity,
                 position,
                 range,
@@ -1419,13 +1427,14 @@ pub(super) fn auto_cast_remembered_spell(
 
             match remembered {
                 RememberedSpell::MagicMissile => {
-                    auto_cast_magic_missiles(&autocast, &mut commands, &visual_assets, &enemies);
+                    auto_cast_magic_missiles(&mut game_rng.0, &autocast, &mut commands, &visual_assets, &enemies);
                 }
                 RememberedSpell::Fireball => {
-                    auto_cast_fireballs(&autocast, &mut commands, &visual_assets, &targets);
+                    auto_cast_fireballs(&mut game_rng.0, &autocast, &mut commands, &visual_assets, &targets);
                 }
                 RememberedSpell::ChainLightning => {
                     auto_cast_chain_lightning(
+                        &mut game_rng.0,
                         &autocast,
                         &mut commands,
                         &visual_assets,
@@ -1434,10 +1443,11 @@ pub(super) fn auto_cast_remembered_spell(
                     );
                 }
                 RememberedSpell::Meteor => {
-                    auto_cast_meteors(&autocast, &mut commands, &visual_assets, &targets);
+                    auto_cast_meteors(&mut game_rng.0, &autocast, &mut commands, &visual_assets, &targets);
                 }
                 RememberedSpell::FingerOfDeath => {
                     auto_cast_fod_beams(
+                        &mut game_rng.0,
                         &autocast,
                         &mut commands,
                         &visual_assets,
@@ -1463,6 +1473,7 @@ pub(super) fn auto_cast_remembered_spell(
 /// New beams are only spawned when the old target dies/leaves range.
 #[allow(clippy::too_many_arguments)]
 fn handle_auto_disintegrate(
+    rng: &mut impl Rng,
     crystal_entity: Entity,
     position: Vec3,
     range: f32,
@@ -1506,7 +1517,7 @@ fn handle_auto_disintegrate(
         }
         // Despawn old beams and find new target
         despawn_beam_group(commands, &beam_entities);
-        let new_targets = find_random_targets_in_range(position, range, 1, targets);
+        let new_targets = find_random_targets_in_range(rng, position, range, 1, targets);
         if let Some((new_target, new_pos)) = new_targets.first() {
             let new_beams = spawn_crystal_disintegrate_beam(
                 commands,
@@ -1527,7 +1538,7 @@ fn handle_auto_disintegrate(
     }
 
     // No beam exists — try to spawn one
-    let new_targets = find_random_targets_in_range(position, range, 1, targets);
+    let new_targets = find_random_targets_in_range(rng, position, range, 1, targets);
     if let Some((target_entity, target_pos)) = new_targets.first() {
         let beam_entities = spawn_crystal_disintegrate_beam(
             commands,
@@ -1612,12 +1623,14 @@ struct CrystalAutocastParams {
 
 /// Auto-casts mini magic missiles at random enemies (not defenders).
 fn auto_cast_magic_missiles(
+    rng: &mut impl Rng,
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     enemies: &Query<(Entity, &Transform, &Team), Without<Corpse>>,
 ) {
     let targets = find_random_enemies_in_range(
+        rng,
         params.position,
         params.range,
         scaled_count(MINI_MISSILE_COUNT, params.count_mult),
@@ -1630,7 +1643,6 @@ fn auto_cast_magic_missiles(
         let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
         let initial_velocity = direction * speed;
 
-        let mut rng = rand::thread_rng();
         let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
         spawn_crystal_mini_missile(
@@ -1649,12 +1661,14 @@ fn auto_cast_magic_missiles(
 
 /// Auto-casts mini fireballs at random enemies.
 fn auto_cast_fireballs(
+    rng: &mut impl Rng,
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
     let enemies = find_random_targets_in_range(
+        rng,
         params.position,
         params.range,
         scaled_count(MINI_FB_COUNT, params.count_mult),
@@ -1690,6 +1704,7 @@ fn auto_cast_fireballs(
 
 /// Auto-casts chain lightning arcs at random enemies.
 fn auto_cast_chain_lightning(
+    rng: &mut impl Rng,
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -1701,6 +1716,7 @@ fn auto_cast_chain_lightning(
     )>,
 ) {
     let enemies = find_random_targets_in_range(
+        rng,
         params.position,
         params.range,
         scaled_count(LIGHTNING_ARC_COUNT, params.count_mult),
@@ -1737,12 +1753,14 @@ fn auto_cast_chain_lightning(
 
 /// Auto-casts mini meteors at random enemies.
 fn auto_cast_meteors(
+    rng: &mut impl Rng,
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     targets: &Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
 ) {
     let enemies = find_random_targets_in_range(
+        rng,
         params.position,
         params.range,
         scaled_count(2, params.count_mult),
@@ -1776,6 +1794,7 @@ fn auto_cast_meteors(
 
 /// Auto-casts Finger of Death beams at random enemies.
 fn auto_cast_fod_beams(
+    rng: &mut impl Rng,
     params: &CrystalAutocastParams,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -1783,6 +1802,7 @@ fn auto_cast_fod_beams(
     talent_cfg: &disintegrate_systems::TalentConfig,
 ) {
     let enemies = find_random_targets_in_range(
+        rng,
         params.position,
         params.range,
         scaled_count(BEAM_COUNT, params.count_mult),
@@ -1980,6 +2000,7 @@ fn crystal_aoe_burst(
 pub(super) fn auto_crystal_fire(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(
         &ArcaneCrystal,
@@ -2002,7 +2023,7 @@ pub(super) fn auto_crystal_fire(
         timer.timer -= interval;
 
         // Find a random enemy in range
-        let targets = find_random_enemies_in_range(crystal.position, crystal.range, 1, &enemies);
+        let targets = find_random_enemies_in_range(&mut game_rng.0, crystal.position, crystal.range, 1, &enemies);
 
         let Some((target_entity, target_pos)) = targets.first() else {
             continue;
@@ -2013,7 +2034,7 @@ pub(super) fn auto_crystal_fire(
         let initial_velocity = direction * speed;
         let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
 
-        let mut rng = rand::thread_rng();
+        let rng = &mut game_rng.0;
         let wobble_offset = rng.gen_range(0.0..std::f32::consts::TAU);
 
         spawn_crystal_mini_missile(
@@ -2043,6 +2064,7 @@ pub(super) fn auto_crystal_fire(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn crystal_network_chain(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut crystals: Query<(Entity, &mut ArcaneCrystal), With<CrystalNetwork>>,
     targets: Query<(Entity, &Transform), (With<Health>, Without<Corpse>)>,
@@ -2103,17 +2125,14 @@ pub(super) fn crystal_network_chain(
                     RememberedSpell::MagicMissile => {
                         let count =
                             scaled_count(MINI_MISSILE_COUNT / 2 + 1, target_crystal.count_mult);
-                        let mini_targets = find_random_enemies_in_range(
-                            target_crystal.position,
-                            target_crystal.range,
-                            count,
-                            &enemies,
+                        let mini_targets = find_random_enemies_in_range(&mut game_rng.0,
+                            target_crystal.position, target_crystal.range, count, &enemies,
                         );
                         let mini_radius = magic_missile_constants::COLLISION_RADIUS * SIZE_SCALE;
                         for (te, tp) in &mini_targets {
                             let direction = (*tp - target_crystal.position).normalize();
                             let speed = magic_missile_constants::BASE_SPEED * SPEED_SCALE;
-                            let mut rng = rand::thread_rng();
+                            let rng = &mut game_rng.0;
                             let wobble = rng.gen_range(0.0..std::f32::consts::TAU);
                             spawn_crystal_mini_missile(
                                 &mut commands,
@@ -2131,11 +2150,8 @@ pub(super) fn crystal_network_chain(
                     }
                     RememberedSpell::Fireball => {
                         let count = scaled_count(MINI_FB_COUNT / 2 + 1, target_crystal.count_mult);
-                        let fire_targets = find_random_targets_in_range(
-                            target_crystal.position,
-                            target_crystal.range,
-                            count,
-                            &targets,
+                        let fire_targets = find_random_targets_in_range(&mut game_rng.0,
+                            target_crystal.position, target_crystal.range, count, &targets,
                         );
                         let mini_radius =
                             fireball_constants::PROJECTILE_COLLISION_RADIUS * SIZE_SCALE * 0.5;
@@ -2166,11 +2182,8 @@ pub(super) fn crystal_network_chain(
                     }
                     RememberedSpell::Meteor => {
                         let count = scaled_count(1, target_crystal.count_mult);
-                        let meteor_targets = find_random_targets_in_range(
-                            target_crystal.position,
-                            target_crystal.range,
-                            count,
-                            &targets,
+                        let meteor_targets = find_random_targets_in_range(&mut game_rng.0,
+                            target_crystal.position, target_crystal.range, count, &targets,
                         );
                         let mini_radius = meteor_fall_constants::METEOR_MESH_RADIUS * SIZE_SCALE;
                         for (_, tp) in &meteor_targets {

@@ -25,7 +25,7 @@ pub const LICH_HITBOX_HEIGHT: f32 = 55.0 * UNIT_SCALE;
 // ===== Movement =====
 
 /// Movement speed during approach and combat.
-pub const LICH_MOVEMENT_SPEED: f32 = 160.0;
+pub const LICH_MOVEMENT_SPEED: f32 = 185.0;
 
 // ===== Health & Defense =====
 

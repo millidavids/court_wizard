@@ -10,7 +10,7 @@ use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::brute::components::Brute;
 use crate::game::units::commander::components::Commander;
 use crate::game::units::components::{
-    BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
+    BanishedModifier, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
     FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed,
     PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
     Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
@@ -163,7 +163,6 @@ pub fn healer_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -197,7 +196,6 @@ pub fn healer_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -250,7 +248,6 @@ pub fn healer_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,

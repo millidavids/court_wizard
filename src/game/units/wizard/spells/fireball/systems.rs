@@ -362,6 +362,7 @@ pub fn spawn_fireball_smoke_trail(
 #[allow(clippy::too_many_arguments)]
 pub fn check_fireball_collisions(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     time: Res<Time>,
@@ -378,10 +379,12 @@ pub fn check_fireball_collisions(
         let fireball_pos = fireball_transform.translation;
 
         let explode_at =
-            |commands: &mut Commands,
+            |rng: &mut dyn rand::RngCore,
+             commands: &mut Commands,
              mats: &mut Assets<FireExplosionSphereMaterial>,
              pos: Vec3| {
                 spawn_explosion_with_talents(
+                    rng,
                     commands,
                     &visual_assets,
                     mats,
@@ -398,7 +401,7 @@ pub fn check_fireball_collisions(
         let mut hit_wall = false;
         for wall in &walls {
             if wall.contains_point_xz(fireball_pos) && fireball_pos.y <= wall.height {
-                explode_at(&mut commands, &mut sphere_materials, fireball_pos);
+                explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 hit_wall = true;
                 break;
@@ -412,7 +415,7 @@ pub fn check_fireball_collisions(
         let mut hit_rock = false;
         for rock in &rocks {
             if rock.blocks_projectile(fireball_pos) {
-                explode_at(&mut commands, &mut sphere_materials, fireball_pos);
+                explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 hit_rock = true;
                 break;
@@ -425,7 +428,7 @@ pub fn check_fireball_collisions(
         // Check collision with ground (Y <= 0)
         if fireball_pos.y <= 0.0 {
             let explosion_pos = Vec3::new(fireball_pos.x, 5.0, fireball_pos.z);
-            explode_at(&mut commands, &mut sphere_materials, explosion_pos);
+            explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, explosion_pos);
             commands.entity(fireball_entity).try_despawn();
             continue;
         }
@@ -441,7 +444,7 @@ pub fn check_fireball_collisions(
             );
 
             if hit {
-                explode_at(&mut commands, &mut sphere_materials, fireball_pos);
+                explode_at(&mut game_rng.0, &mut commands, &mut sphere_materials, fireball_pos);
                 commands.entity(fireball_entity).try_despawn();
                 break;
             }
@@ -452,6 +455,7 @@ pub fn check_fireball_collisions(
 /// Spawns a fireball explosion with talent effects at the given position.
 #[allow(clippy::too_many_arguments)]
 fn spawn_explosion_with_talents(
+    rng: &mut dyn rand::RngCore,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     sphere_materials: &mut Assets<FireExplosionSphereMaterial>,
@@ -484,7 +488,6 @@ fn spawn_explosion_with_talents(
 
     // Pre-generate all sub-explosion bubbles with distance-based sizes
     use rand::Rng;
-    let mut rng = rand::thread_rng();
     let max_r = fireball.explosion_radius;
     let pending: Vec<PendingBubble> = (0..constants::EXPLOSION_BUBBLE_COUNT)
         .map(|_| {
@@ -537,7 +540,7 @@ fn spawn_explosion_with_talents(
 
     // Cluster Bomb: spawn 3 mini-fireballs in random directions
     if fireball.cluster_bomb {
-        spawn_cluster_bombs(commands, assets, position, fireball);
+        spawn_cluster_bombs(rng, commands, assets, position, fireball);
     }
 
     // Scorched Earth: spawn persistent burning ground circle
@@ -566,13 +569,13 @@ fn spawn_explosion_with_talents(
 
 /// Spawns 3 mini-fireballs for the Cluster Bomb talent.
 fn spawn_cluster_bombs(
+    rng: &mut dyn rand::RngCore,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     origin: Vec3,
     parent_fireball: &Fireball,
 ) {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
 
     for _ in 0..3 {
         let angle = rng.gen_range(0.0..std::f32::consts::TAU);
@@ -662,12 +665,13 @@ pub fn update_napalm_trails(
 pub fn update_explosions(
     mut commands: Commands,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut explosions: Query<(&mut FireballExplosion, &mut Transform)>,
 ) {
     use rand::Rng;
     let time_secs = time.elapsed_secs();
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
 
     for (mut explosion, mut transform) in &mut explosions {
         explosion.time_alive += time.delta_secs();

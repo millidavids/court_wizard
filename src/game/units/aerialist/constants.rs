@@ -1,7 +1,7 @@
 use crate::game::constants::UNIT_SCALE;
 
 // Movement
-pub const AERIALIST_MOVEMENT_SPEED: f32 = 200.0;
+pub const AERIALIST_MOVEMENT_SPEED: f32 = 230.0;
 
 // Momentum — aerialists never stop and turn in wide arcs
 /// Minimum speed an aerialist will ever fly at (even with no target).

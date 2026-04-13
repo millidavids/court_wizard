@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use crate::game::constants::UNIT_SCALE;
 
-/// Movement speed for the battlemage avatar (twice normal infantry speed).
-pub(super) const AVATAR_MOVEMENT_SPEED: f32 = 800.0;
+/// Movement speed for the battlemage avatar (8x normal infantry speed).
+pub(super) const AVATAR_MOVEMENT_SPEED: f32 = 920.0;
 
 /// Health of the battlemage avatar on the field.
 pub(super) const AVATAR_HEALTH: f32 = 150.0;

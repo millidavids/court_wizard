@@ -187,7 +187,6 @@ pub fn king_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -219,7 +218,6 @@ pub fn king_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -252,7 +250,6 @@ pub fn king_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,
@@ -454,6 +451,7 @@ pub fn spawn_commander_aura_particles(
     commanders: Query<(&Transform, &Commander)>,
     spell_assets: Res<SpellVisualAssets>,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut timer: Local<f32>,
 ) {
     use rand::Rng;
@@ -464,21 +462,19 @@ pub fn spawn_commander_aura_particles(
     }
     *timer -= 0.12;
 
-    let mut rng = rand::thread_rng();
-
     for (transform, commander) in &commanders {
         let pos = transform.translation;
         let radius = commander.aura_radius;
 
         for _ in 0..2 {
             let dir = Vec3::new(
-                rng.gen_range(-1.0..1.0_f32),
-                rng.gen_range(0.0..0.5_f32),
-                rng.gen_range(-1.0..1.0_f32),
+                game_rng.0.gen_range(-1.0..1.0_f32),
+                game_rng.0.gen_range(0.0..0.5_f32),
+                game_rng.0.gen_range(-1.0..1.0_f32),
             )
             .normalize_or(Vec3::Y);
 
-            let speed = rng.gen_range(80.0..150.0_f32);
+            let speed = game_rng.0.gen_range(80.0..150.0_f32);
             let lifetime = radius / speed;
 
             commands.spawn((

@@ -365,11 +365,12 @@ fn meteor_fall_casting_logic(
 pub(super) fn spawn_meteor_projectiles(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut storms: Query<(Entity, &mut MeteorFallStorm)>,
     enemies: Query<(&Transform, &Team)>,
 ) {
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
 
     for (storm_entity, mut storm) in storms.iter_mut() {
         storm.update_timers(time.delta_secs());

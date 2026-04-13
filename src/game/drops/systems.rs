@@ -36,6 +36,7 @@ pub(super) fn init_locked_ingredients(mut locked: ResMut<LockedIngredients>) {
 /// Listens for enemy death messages and randomly spawns ingredient drops.
 pub(super) fn spawn_ingredient_drops(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut drop_events: MessageReader<SpawnIngredientDropMessage>,
@@ -60,16 +61,14 @@ pub(super) fn spawn_ingredient_drops(
         &locked.locked
     };
 
-    let mut rng = rand::thread_rng();
-
     for event in drop_events.read() {
         // Roll for drop chance
-        if rng.r#gen::<f64>() > drop_chance {
+        if game_rng.0.r#gen::<f64>() > drop_chance {
             continue;
         }
 
         // Pick a random ingredient from the pool
-        let Some(ingredient) = ingredient_pool.choose(&mut rng).copied() else {
+        let Some(ingredient) = ingredient_pool.choose(&mut game_rng.0).copied() else {
             continue;
         };
 

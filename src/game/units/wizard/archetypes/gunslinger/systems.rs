@@ -139,6 +139,7 @@ fn apply_cone_spread(dir: Vec3, max_spread: f32, rng: &mut impl rand::Rng) -> Ve
 pub fn fire_machine_gun(
     mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -160,7 +161,7 @@ pub fn fire_machine_gun(
         return;
     };
 
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
     let spread = rng.gen_range(-constants::MACHINE_GUN_SPREAD..constants::MACHINE_GUN_SPREAD);
     let shot_dir = apply_spread(dir, spread);
 
@@ -309,6 +310,7 @@ pub fn fire_rocket(
 pub fn fire_shotgun(
     mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -330,10 +332,10 @@ pub fn fire_shotgun(
         return;
     };
 
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
 
     for _ in 0..constants::SHOTGUN_PELLET_COUNT {
-        let pellet_dir = apply_cone_spread(dir, constants::SHOTGUN_SPREAD, &mut rng);
+        let pellet_dir = apply_cone_spread(dir, constants::SHOTGUN_SPREAD, rng);
 
         spawn_hitscan_ray(
             &mut commands,
@@ -371,6 +373,7 @@ pub fn fire_shotgun(
 pub fn fire_flamethrower(
     mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut gun_state: ResMut<GunState>,
     visual_assets: Res<SpellVisualAssets>,
     camera_query: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -414,8 +417,8 @@ pub fn fire_flamethrower(
     };
 
     // Aim toward cursor with cone spread, gravity will arc it down
-    let mut rng = rand::thread_rng();
-    let spread_dir = apply_cone_spread(dir, constants::FLAMETHROWER_SPREAD, &mut rng);
+    let rng = &mut game_rng.0;
+    let spread_dir = apply_cone_spread(dir, constants::FLAMETHROWER_SPREAD, rng);
     let velocity = spread_dir * constants::FLAMETHROWER_SPEED;
 
     commands.spawn((

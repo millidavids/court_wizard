@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::Assassin;
 use super::constants::*;
@@ -90,7 +91,6 @@ pub fn assassin_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -120,7 +120,6 @@ pub fn assassin_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -161,7 +160,6 @@ pub fn assassin_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,
@@ -179,6 +177,7 @@ pub fn assassin_movement(
 /// Spawns a single attacker assassin at a specific index.
 /// Assassins spawn behind infantry rows (further from defenders).
 pub(in crate::game) fn spawn_single_attacker_assassin(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     assassin_assets: &AssassinAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -186,12 +185,12 @@ pub(in crate::game) fn spawn_single_attacker_assassin(
     _level: u32,
 ) {
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ASSASSIN_SPAWN_DEPTH_OFFSET);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(ASSASSIN_RADIUS, ATTACKER_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    let anim = WalkingAnimation::default();
+    let anim = WalkingAnimation::new_staggered(rng);
 
     let material = crate::game::units::systems::create_default_sprite_material(
         materials,

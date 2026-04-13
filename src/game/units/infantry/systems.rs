@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use rand::Rng;
+
 use super::components::*;
 use super::constants::*;
 use crate::game::cauldron::components::CauldronSpeedModifier;
@@ -247,7 +249,6 @@ pub fn infantry_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -279,7 +280,6 @@ pub fn infantry_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -321,7 +321,6 @@ pub fn infantry_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,
@@ -339,6 +338,7 @@ pub fn infantry_movement(
 /// Spawns a single defender infantry unit at a specific index.
 /// Used for progressive loading.
 pub(in crate::game) fn spawn_single_defender(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -368,13 +368,13 @@ pub(in crate::game) fn spawn_single_defender(
         if unit_index < units_counted + units_in_this_cell {
             // This unit goes in this cell
             let (spawn_x, spawn_z) = calculate_defender_grid_position(*row, *col);
-            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+            let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
             let hitbox = Hitbox::new(UNIT_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
             let spawn_pos = Vec2::new(spawn_x, spawn_z);
 
-            let anim = WalkingAnimation::default();
+            let anim = WalkingAnimation::new_staggered(rng);
             let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
                 infantry_assets.sprite_texture.clone(),
@@ -416,6 +416,7 @@ pub(in crate::game) fn spawn_single_defender(
 /// Spawns a single attacker infantry unit at a specific index.
 /// Used for progressive loading.
 pub(in crate::game) fn spawn_single_attacker(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -423,12 +424,12 @@ pub(in crate::game) fn spawn_single_attacker(
     _level: u32,
 ) -> Entity {
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, 0.0);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(UNIT_RADIUS, ATTACKER_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    let anim = WalkingAnimation::default();
+    let anim = WalkingAnimation::new_staggered(rng);
     let material = crate::game::units::systems::create_default_sprite_material(
         materials,
         infantry_assets.sprite_texture.clone(),
@@ -467,6 +468,7 @@ pub(in crate::game) fn spawn_single_attacker(
 /// Spawns a single king's guard unit at a specific index.
 /// Used for progressive loading.
 pub(in crate::game) fn spawn_single_kings_guard(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     infantry_assets: &InfantryAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -486,7 +488,7 @@ pub(in crate::game) fn spawn_single_kings_guard(
     let final_x = spawn_x + KINGS_GUARD_ORBIT_RADIUS * angle.cos();
     let final_z = spawn_z + KINGS_GUARD_ORBIT_RADIUS * angle.sin();
 
-    let anim = WalkingAnimation::default();
+    let anim = WalkingAnimation::new_staggered(rng);
     let material = crate::game::units::systems::create_default_sprite_material(
         materials,
         infantry_assets.sprite_texture.clone(),

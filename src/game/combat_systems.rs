@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::cauldron::components::{
     CauldronDamageBonus, CauldronDamageResistance, CauldronSpeedModifier,
@@ -28,6 +29,7 @@ use crate::game::achievements::resources::AchievementResource;
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn combat(
     attack_cycle: Res<GlobalAttackCycle>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     cauldron_buffs: Res<CauldronBuffs>,
     mut commands: Commands,
     mut all_units: Query<
@@ -264,7 +266,7 @@ pub fn combat(
                     use super::units::wizard::spells::fog_cloud::systems::is_in_fog_zone;
                     let attacker_pos = attacker_transform.translation;
                     if is_in_fog_zone(attacker_pos, &disorienting_snapshot)
-                        && rand::random::<f32>() < super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
+                        && game_rng.0.r#gen::<f32>() < super::units::wizard::spells::fog_cloud::constants::DISORIENTING_VAPORS_CHANCE
                     {
                         // Find a random same-team unit to attack instead
                         let count = units_snapshot
@@ -272,7 +274,7 @@ pub fn combat(
                             .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
                             .count();
                         if count > 0 {
-                            let idx = rand::random::<usize>() % count;
+                            let idx = game_rng.0.gen_range(0..count);
                             if let Some((e, _, _, _)) = units_snapshot
                                 .iter()
                                 .filter(|(e, _, _, t)| *e != attacker_entity && *t == *attacker_team)
@@ -303,7 +305,7 @@ pub fn combat(
                 {
                     // Check fog evasion
                     if let Some(evasion) = fog_evasion {
-                        let roll = rand::random::<f32>();
+                        let roll = game_rng.0.r#gen::<f32>();
                         if roll < evasion.evasion_chance {
                             // Attack evaded - still record the attack timing
                             attack_timing.record_attack(current_time);
@@ -529,6 +531,7 @@ pub fn enforce_invulnerability(
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn convert_dead_to_corpses(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut kill_stats: ResMut<super::resources::KillStats>,
     mut spell_kill_events: MessageWriter<DefenderKilledBySpellMessage>,
     mut enemy_kill_events: MessageWriter<EnemyKilledMessage>,
@@ -695,7 +698,7 @@ pub fn convert_dead_to_corpses(
                 // Billboard stays so sprite faces camera during death animation
             } else {
                 // No death animation: instant corpse swap (king, boss, fallback)
-                let idx = rand::random::<usize>() % CORPSE_MATERIAL_VARIANTS;
+                let idx = game_rng.0.gen_range(0..CORPSE_MATERIAL_VARIANTS);
 
                 let (mat, mesh) = if is_king.is_some() {
                     (

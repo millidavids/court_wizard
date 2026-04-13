@@ -3,8 +3,8 @@ use bevy::prelude::*;
 
 // ===== Movement =====
 
-/// Assassin movement speed — 200% of infantry speed (200).
-pub const ASSASSIN_MOVEMENT_SPEED: f32 = 400.0;
+/// Assassin movement speed — 4x infantry speed.
+pub const ASSASSIN_MOVEMENT_SPEED: f32 = 460.0;
 
 // ===== Combat =====
 

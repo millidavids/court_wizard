@@ -30,12 +30,13 @@ use crate::game::units::random_position_in_cell;
 
 /// Spawns the ogre at one of the tunnel spawn points.
 pub fn spawn_ogre(
+    rng: &mut impl Rng,
     mut commands: Commands,
     ogre_assets: Res<OgreAssets>,
     materials: &mut Assets<StandardMaterial>,
 ) {
     let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(OGRE_RADIUS, OGRE_HITBOX_HEIGHT);
     let spawn_y = OGRE_SPRITE_HEIGHT / 2.0 - OGRE_SPRITE_Y_OFFSET;
@@ -50,7 +51,7 @@ pub fn spawn_ogre(
 
     let anim = WalkingAnimation {
         current_frame: 0,
-        elapsed: rand::random::<f32>() * 0.125,
+        elapsed: rng.r#gen::<f32>() * 0.125,
         columns: OGRE_SPRITE_COLUMNS,
         frame_uv: OGRE_FRAME_UV,
         direction_rows: OGRE_WALKING_DIRECTION_ROWS,
@@ -353,7 +354,6 @@ pub fn ogre_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -386,7 +386,6 @@ pub fn ogre_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -443,7 +442,6 @@ pub fn ogre_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,

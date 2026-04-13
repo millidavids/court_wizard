@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, SpellCaster, Wizard,
 };
@@ -591,6 +593,7 @@ pub fn update_spike_storm_projectiles(
 pub fn emit_spike_growth_rings(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut zones: Query<&mut SpikeGrowthZone>,
 ) {
@@ -607,13 +610,14 @@ pub fn emit_spike_growth_rings(
         zone.ring_timer -= utils::RING_SPAWN_INTERVAL;
 
         // Alternate between green vine rings and red spike rings
-        let material = if rand::random::<f32>() < 0.35 {
+        let material = if game_rng.0.r#gen::<f32>() < 0.35 {
             visual_assets.spike_growth_spike.clone()
         } else {
             visual_assets.spike_growth_vine.clone()
         };
 
         utils::spawn_ring_particle(
+            &mut game_rng.0,
             &mut commands,
             visual_assets.entangle_vine_ring.clone(),
             material,

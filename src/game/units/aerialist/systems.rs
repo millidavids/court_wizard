@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::Aerialist;
 use super::constants::*;
@@ -79,6 +80,7 @@ pub fn update_aerialist_targeting(
 #[allow(clippy::type_complexity)]
 pub fn aerialist_combat(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     attack_cycle: Res<GlobalAttackCycle>,
     archer_assets: Res<crate::game::units::archer::resources::ArcherAssets>,
     mut aerialists: Query<
@@ -137,6 +139,7 @@ pub fn aerialist_combat(
 
             // Spawn an arrow projectile toward the target
             crate::game::units::archer::systems::spawn_arrow(
+                &mut game_rng.0,
                 &mut commands,
                 &archer_assets,
                 aerialist_transform.translation,
@@ -155,11 +158,11 @@ pub fn aerialist_combat(
 #[allow(clippy::type_complexity)]
 pub fn aerialist_movement(
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut aerialist_units: Query<
         (
             &mut Velocity,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlowFieldVelocity,
             (
@@ -191,7 +194,6 @@ pub fn aerialist_movement(
     for (
         mut velocity,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flow_field_velocity,
         (rooted, haste_modifier, slow_modifier),
@@ -254,9 +256,8 @@ pub fn aerialist_movement(
         };
 
         // Calculate target speed with modifiers
-        let eff_mult = effectiveness.multiplier().max(0.3);
         let mut speed =
-            movement_speed.0 * eff_mult * crate::game::constants::GLOBAL_SPEED_MULTIPLIER;
+            movement_speed.0 * crate::game::constants::GLOBAL_SPEED_MULTIPLIER;
         if let Some(slow) = slow_modifier {
             speed *= slow.modifier;
         }
@@ -275,7 +276,7 @@ pub fn aerialist_movement(
                 desired_dir.normalize()
             } else {
                 // Random initial direction
-                let angle = rand::random::<f32>() * std::f32::consts::TAU;
+                let angle = game_rng.0.r#gen::<f32>() * std::f32::consts::TAU;
                 Vec3::new(angle.cos(), 0.0, angle.sin())
             };
             velocity.x = dir.x * speed;
@@ -334,6 +335,7 @@ pub fn clamp_aerialist_height(
 
 /// Spawns a single attacker aerialist unit at a specific index.
 pub(in crate::game) fn spawn_single_attacker_aerialist(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     aerialist_assets: &AerialistAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -342,7 +344,7 @@ pub(in crate::game) fn spawn_single_attacker_aerialist(
 ) -> Entity {
     // Spawn with archers (same depth offset)
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ARCHER_SPAWN_DEPTH_OFFSET);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(AERIALIST_RADIUS, ATTACKER_HITBOX_HEIGHT);
 
@@ -352,7 +354,7 @@ pub(in crate::game) fn spawn_single_attacker_aerialist(
     };
     let anim = WalkingAnimation {
         current_frame: 0,
-        elapsed: rand::random::<f32>() * 0.125, // stagger start
+        elapsed: rng.r#gen::<f32>() * 0.125, // stagger start
         columns: AERIALIST_FLYING_FRAMES,
         frame_uv: sprite_frame_uv(SPRITE_SHEET_IMAGE_HEIGHT),
         direction_rows: SPRITE_DIRECTION_ROWS,

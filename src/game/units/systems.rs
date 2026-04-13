@@ -158,7 +158,6 @@ pub fn calculate_weighted_movement(
     velocity: &mut Velocity,
     acceleration: &mut Acceleration,
     movement_speed: f32,
-    effectiveness: &Effectiveness,
     targeting_velocity: &TargetingVelocity,
     flocking_velocity: &FlockingVelocity,
     flow_field_velocity: &FlowFieldVelocity,
@@ -257,9 +256,8 @@ pub fn calculate_weighted_movement(
         + elite_speed_percentage;
     let speed_multiplier = (1.0 + total_percentage).max(0.0); // Clamp to prevent negative speed
 
-    // Calculate max speed with effectiveness, modifiers, and melee slowdown
-    let mut max_speed =
-        movement_speed * GLOBAL_SPEED_MULTIPLIER * effectiveness.multiplier() * speed_multiplier;
+    // Calculate max speed with modifiers and melee slowdown
+    let mut max_speed = movement_speed * GLOBAL_SPEED_MULTIPLIER * speed_multiplier;
     if in_melee {
         max_speed *= MELEE_SLOWDOWN_FACTOR;
     }
@@ -330,6 +328,7 @@ pub fn update_timed_modifier<
 #[allow(clippy::too_many_arguments)]
 pub fn process_pending_damage_effects(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     config: Res<GameConfig>,
     pending_query: Query<(
         Entity,
@@ -346,8 +345,6 @@ pub fn process_pending_damage_effects(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let mut rng = rand::thread_rng();
-
     // Shared mesh/material for burning patches (Drought fire synergy), created once if needed
     let mut burning_patch_mesh: Option<Handle<Mesh>> = None;
     let mut burning_patch_material: Option<Handle<StandardMaterial>> = None;
@@ -385,9 +382,9 @@ pub fn process_pending_damage_effects(
                     });
                     for _ in 0..DRY_BURNING_PATCH_COUNT {
                         let offset_x =
-                            rng.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                            game_rng.0.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
                         let offset_z =
-                            rng.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
+                            game_rng.0.gen_range(-DRY_BURNING_PATCH_SCATTER..DRY_BURNING_PATCH_SCATTER);
                         let patch_pos = Vec3::new(
                             impact_pos.x + offset_x,
                             0.5, // Just above ground
@@ -609,6 +606,7 @@ pub struct ElectricArcVisual {
 pub fn update_electric_charge(
     mut commands: Commands,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut charge_query: Query<
@@ -632,7 +630,6 @@ pub fn update_electric_charge(
     >,
 ) {
     let delta = time.delta_secs();
-    let mut rng = rand::thread_rng();
 
     // Collect arc events to process after iteration (avoids borrow conflicts)
     let mut arc_events: Vec<(Vec3, Entity, Vec3)> = Vec::new();
@@ -649,7 +646,7 @@ pub fn update_electric_charge(
         }
 
         // Roll for arc
-        let roll: f32 = rng.r#gen();
+        let roll: f32 = game_rng.0.r#gen();
         if roll >= charge.arc_chance {
             continue;
         }

@@ -311,6 +311,7 @@ fn grease_casting_logic(
 pub fn apply_grease_slow(
     mut commands: Commands,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut zones: Query<(
         Entity,
         &mut GreaseZone,
@@ -331,7 +332,7 @@ pub fn apply_grease_slow(
     mut talent_progress: Option<ResMut<BattleTalentProgress>>,
 ) {
     let delta = time.delta_secs();
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
 
     for (zone_entity, mut zone, is_ignited, is_regenerating) in &mut zones {
         // Only track time_alive for non-ignited zones

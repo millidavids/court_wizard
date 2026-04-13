@@ -9,7 +9,7 @@ pub const HEALER_RADIUS: f32 = 8.0 * UNIT_SCALE;
 pub const HEALER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);
 
 // ===== Movement =====
-pub const HEALER_MOVEMENT_SPEED: f32 = 110.0;
+pub const HEALER_MOVEMENT_SPEED: f32 = 125.0;
 
 // ===== Health =====
 pub const HEALER_HEALTH: f32 = 70.0;

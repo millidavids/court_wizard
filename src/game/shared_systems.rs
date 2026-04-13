@@ -62,9 +62,9 @@ pub fn init_level_from_config(
 /// - Number of allies in melee range (positive effect: +10% per ally)
 /// - Number of enemies in melee range (negative effect: -15% per enemy)
 ///
-/// The effectiveness coefficient is applied to both movement speed and attack damage
-/// in their respective systems. This encourages tactical positioning and rewards
-/// units that fight together while penalizing isolated units.
+/// The effectiveness coefficient is applied to attack damage in the combat system.
+/// This encourages tactical positioning and rewards units that fight together
+/// while penalizing isolated units.
 pub fn calculate_effectiveness(
     mut units: Query<
         (Entity, &Transform, &Hitbox, &Team, &mut Effectiveness),

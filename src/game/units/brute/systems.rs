@@ -27,6 +27,7 @@ use crate::game::units::random_position_in_cell;
 /// Spawns a brute attacker.
 /// Brutes spawn in the archer row alongside archers.
 pub fn spawn_brute(
+    rng: &mut impl Rng,
     mut commands: Commands,
     infantry_assets: Res<InfantryAssets>,
     materials: &mut Assets<StandardMaterial>,
@@ -34,7 +35,7 @@ pub fn spawn_brute(
 ) {
     // Brute spawns at the front with infantry
     let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(BRUTE_RADIUS, BRUTE_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + 1.0;
@@ -47,7 +48,7 @@ pub fn spawn_brute(
     let initial_velocity = to_center.normalize_or_zero() * BRUTE_MOVEMENT_SPEED;
 
     // Use infantry sprite mesh but scaled larger
-    let anim = crate::game::units::components::WalkingAnimation::default();
+    let anim = crate::game::units::components::WalkingAnimation::new_staggered(rng);
     let material = crate::game::units::systems::create_default_sprite_material(
         materials,
         infantry_assets.sprite_texture.clone(),
@@ -150,7 +151,6 @@ pub fn brute_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -181,7 +181,6 @@ pub fn brute_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -222,7 +221,6 @@ pub fn brute_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,
@@ -241,6 +239,7 @@ pub fn brute_movement(
 #[allow(clippy::type_complexity)]
 pub fn brute_rock_throw(
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut rock_events: MessageWriter<BoulderThrownMessage>,
     mut brutes: Query<
         (
@@ -305,7 +304,7 @@ pub fn brute_rock_throw(
             rock_events.write(BoulderThrownMessage {
                 origin: brute_transform.translation,
                 target: target_pos,
-                sprite_index: rand::thread_rng().gen_range(0..BOULDER_SPRITE_COUNT as u8),
+                sprite_index: game_rng.0.gen_range(0..BOULDER_SPRITE_COUNT as u8),
             });
             cooldown.reset(ROCK_THROW_COOLDOWN);
         }

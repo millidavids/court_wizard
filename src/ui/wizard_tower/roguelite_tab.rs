@@ -669,6 +669,7 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
 
             // Input text field
             row.spawn((
+                Button,
                 Node {
                     width: Val::Px(280.0),
                     height: Val::Px(32.0),
@@ -677,7 +678,6 @@ fn spawn_seed_input_row(parent: &mut ChildSpawnerCommands, seed_text: &str) {
                     align_items: AlignItems::Center,
                     ..default()
                 },
-                Interaction::None,
                 BorderColor::all(Color::hsla(270.0, 0.35, 0.35, 1.0)),
                 BorderRadius::all(Val::Px(4.0)),
                 BackgroundColor(Color::hsla(270.0, 0.08, 0.08, 1.0)),

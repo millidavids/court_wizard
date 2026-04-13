@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.160] - 2026-04-13
+
+### Added
+- **Seeded runs** — all randomness during a battle now uses the run's seed, so sharing a seed with someone else gives the exact same experience
+- **Seed text input** — you can now click the seed field in the roguelite menu and type a seed manually, not just randomize it
+
+### Changed
+- **Consistent unit movement speed** — units no longer move faster when packed together; a lone straggler now keeps pace with the group
+- **Slightly faster units** — all units move a bit quicker across the board to keep the action flowing
+- **Thinner arcane rune lines** — the rings, polygons, and geometric patterns in the Wizard Tower background are now more delicate and refined
+
 ## [v0.6.158] - 2026-04-13
 
 ### Added

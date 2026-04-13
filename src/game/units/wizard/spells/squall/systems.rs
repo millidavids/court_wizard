@@ -348,10 +348,11 @@ fn squall_casting_logic(
 pub(super) fn spawn_ice_projectiles(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut storms: Query<&mut SquallStorm>,
 ) {
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
 
     for mut storm in storms.iter_mut() {
         storm.update_timers(time.delta_secs());
@@ -575,6 +576,7 @@ fn spawn_ice_explosion(
 pub(super) fn update_ice_explosions(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut sphere_materials: ResMut<Assets<FireExplosionSphereMaterial>>,
     visual_assets: Res<SpellVisualAssets>,
     mut explosions: Query<(
@@ -628,11 +630,10 @@ pub(super) fn update_ice_explosions(
         if current_radius > 5.0 && curr_tick > prev_tick && explosion.time_alive < EXPLOSION_LIFETIME
         {
             use rand::Rng;
-            let mut rng = rand::thread_rng();
             let dir = Vec3::new(
-                rng.gen_range(-1.0..1.0_f32),
-                rng.gen_range(0.2..1.0_f32),
-                rng.gen_range(-1.0..1.0_f32),
+                game_rng.0.gen_range(-1.0..1.0_f32),
+                game_rng.0.gen_range(0.2..1.0_f32),
+                game_rng.0.gen_range(-1.0..1.0_f32),
             )
             .normalize_or(Vec3::Y);
             let surface_pos = explosion.origin + dir * current_radius;
@@ -1020,10 +1021,11 @@ pub(super) fn update_frozen_ground(
 pub(super) fn spawn_snow_particles(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     storms: Query<&SquallStorm>,
 ) {
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
     let time_secs = time.elapsed_secs();
 
     for storm in storms.iter() {

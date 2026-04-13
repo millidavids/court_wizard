@@ -13,7 +13,7 @@ pub const OGRE_RADIUS: f32 = 20.0 * UNIT_SCALE;
 pub const OGRE_HITBOX_HEIGHT: f32 = OGRE_SPRITE_HEIGHT - OGRE_SPRITE_Y_OFFSET;
 
 // Movement
-pub const OGRE_MOVEMENT_SPEED: f32 = 320.0;
+pub const OGRE_MOVEMENT_SPEED: f32 = 370.0;
 
 // Combat
 pub const OGRE_HEALTH: f32 = 6000.0;

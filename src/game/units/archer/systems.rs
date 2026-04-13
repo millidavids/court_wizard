@@ -182,6 +182,7 @@ pub fn archer_melee_combat(
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn archer_ranged_combat(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     archer_assets: Res<ArcherAssets>,
     mut archers: Query<
         (
@@ -348,6 +349,7 @@ pub fn archer_ranged_combat(
         if let Some((_, target_transform, _, _, _, _)) = nearest_enemy {
             // Spawn arrow projectile directly above the archer
             spawn_arrow(
+                &mut game_rng.0,
                 &mut commands,
                 &archer_assets,
                 archer_transform.translation + Vec3::Y * 10.0,
@@ -422,6 +424,7 @@ fn wall_near_approach_path(walls: &[&WallOfStone], from: Vec3, to: Vec3) -> bool
 
 /// Spawns an arrow projectile from archer toward target.
 pub(in crate::game) fn spawn_arrow(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
     origin: Vec3,
@@ -440,7 +443,6 @@ pub(in crate::game) fn spawn_arrow(
     let horizontal_direction = horizontal_diff.normalize();
 
     // Add random variations for realism
-    let mut rng = rand::thread_rng();
 
     // Random power variation (±5%)
     let power_multiplier = 1.0 + rng.gen_range(-ARROW_POWER_VARIATION..ARROW_POWER_VARIATION);
@@ -776,7 +778,6 @@ pub fn archer_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &crate::game::units::components::FlockingVelocity,
             &FlowFieldVelocity,
@@ -811,7 +812,6 @@ pub fn archer_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -864,7 +864,6 @@ pub fn archer_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,
@@ -906,6 +905,7 @@ pub fn archer_movement(
 /// Spawns a single defender archer unit at a specific index.
 /// Used for progressive loading.
 pub(in crate::game) fn spawn_single_defender_archer(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -929,12 +929,12 @@ pub(in crate::game) fn spawn_single_defender_archer(
         if unit_index < units_counted + units_in_this_cell {
             // This unit goes in this cell
             let (spawn_x, spawn_z) = calculate_defender_grid_position(archer_row, cell_idx);
-            let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+            let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
             let hitbox = Hitbox::new(ARCHER_RADIUS, DEFENDER_HITBOX_HEIGHT);
             let spawn_y = hitbox.height / 2.0 + 1.0;
 
-            let anim = WalkingAnimation::default();
+            let anim = WalkingAnimation::new_staggered(rng);
             let material = crate::game::units::systems::create_default_sprite_material(
                 materials,
                 archer_assets.sprite_texture.clone(),
@@ -984,6 +984,7 @@ pub(in crate::game) fn spawn_single_defender_archer(
 /// Spawns a single attacker archer unit at a specific index.
 /// Used for progressive loading.
 pub(in crate::game) fn spawn_single_attacker_archer(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     archer_assets: &ArcherAssets,
     materials: &mut Assets<StandardMaterial>,
@@ -991,12 +992,12 @@ pub(in crate::game) fn spawn_single_attacker_archer(
     _level: u32,
 ) -> Entity {
     let (spawn_x, spawn_z) = attacker_spawn_position(unit_index, ARCHER_SPAWN_DEPTH_OFFSET);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(ARCHER_RADIUS, ATTACKER_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + 1.0;
 
-    let anim = WalkingAnimation::default();
+    let anim = WalkingAnimation::new_staggered(rng);
     let material = crate::game::units::systems::create_default_sprite_material(
         materials,
         archer_assets.sprite_texture.clone(),

@@ -486,12 +486,13 @@ pub(crate) fn detect_spell_cast(
 
 pub(crate) fn check_random_magic_surge(
     mut msg: MessageReader<SpellCastMessage>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut res: ResMut<RandomMagicSurgeAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
 ) {
     use rand::Rng;
     for _ in msg.read() {
-        if rand::thread_rng().gen_range(1..=100) == 1 {
+        if game_rng.0.gen_range(1..=100) == 1 {
             do_unlock(&mut res, &mut events);
             crate::config::save_data::unlock_wizard_type(WizardType::Randomancer);
         }

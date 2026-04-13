@@ -140,6 +140,7 @@ pub fn handle_teleport_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (Entity, &Wizard, &mut CastingState, &mut Mana, &PrimedSpell),
@@ -215,6 +216,7 @@ pub fn handle_teleport_casting(
         .map(|pos| clamp_to_spell_range(pos, SPELL_ORIGIN, wizard.spell_range));
 
     let cast_result = teleport_casting_logic(
+        &mut game_rng.0,
         &input,
         &time,
         clamped_pos,
@@ -432,6 +434,7 @@ pub fn handle_teleport_casting(
 /// With Scatterport talent: scatters enemies to random locations instead of teleporting to dest.
 #[allow(clippy::too_many_arguments)]
 fn teleport_casting_logic(
+    rng: &mut impl Rng,
     input: &WizardInput,
     time: &Time,
     clamped_pos: Option<Vec3>,
@@ -548,6 +551,7 @@ fn teleport_casting_logic(
                         1.5,
                     );
                     let entities = execute_teleport(
+                        rng,
                         source_pos,
                         dest_pos,
                         current_radius,
@@ -643,6 +647,7 @@ fn teleport_casting_logic(
                             1.5,
                         );
                         let entities = execute_teleport(
+                            rng,
                             source_pos,
                             dest_pos,
                             radius,
@@ -680,6 +685,7 @@ fn teleport_casting_logic(
 /// Executes the actual teleportation, handling talent variants.
 /// Returns the list of teleported entities for post-teleport effect application.
 fn execute_teleport(
+    rng: &mut impl Rng,
     source_center: Vec3,
     dest_center: Vec3,
     radius: f32,
@@ -698,13 +704,13 @@ fn execute_teleport(
     if talent_params.teleport_up {
         teleport_units_up(source_center, radius, units_query, commands)
     } else if talent_params.scatterport {
-        scatter_enemies(source_center, radius, units_query, commands)
+        scatter_enemies(rng, source_center, radius, units_query, commands)
     } else if talent_params.swap_mode {
-        swap_units(source_center, dest_center, radius, units_query, commands)
+        swap_units(rng, source_center, dest_center, radius, units_query, commands)
     } else if talent_params.emergency_recall {
-        recall_allies(source_center, dest_center, radius, units_query, commands)
+        recall_allies(rng, source_center, dest_center, radius, units_query, commands)
     } else {
-        teleport_units_with_radius(source_center, dest_center, radius, units_query, commands)
+        teleport_units_with_radius(rng, source_center, dest_center, radius, units_query, commands)
     }
 }
 
@@ -748,6 +754,7 @@ fn teleport_units_up(
 /// within the same radius of the destination center.
 /// Returns the list of teleported entity IDs.
 pub(crate) fn teleport_units_with_radius(
+    rng: &mut impl Rng,
     source_center: Vec3,
     dest_center: Vec3,
     radius: f32,
@@ -762,13 +769,12 @@ pub(crate) fn teleport_units_with_radius(
     >,
     commands: &mut Commands,
 ) -> Vec<Entity> {
-    let mut rng = rand::thread_rng();
     let mut teleported = Vec::new();
 
     for (entity, transform, _team) in units_query.iter() {
         if xz_distance(transform.translation, source_center) <= radius {
             let new_position =
-                random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
+                random_position_in_circle(rng, dest_center, radius, transform.translation.y);
             let mut new_transform = *transform;
             new_transform.translation = new_position;
             commands.entity(entity).insert(new_transform);
@@ -781,6 +787,7 @@ pub(crate) fn teleport_units_with_radius(
 
 /// Scatterport talent: scatters all units to random locations in a large radius.
 fn scatter_enemies(
+    rng: &mut impl Rng,
     source_center: Vec3,
     radius: f32,
     units_query: &Query<
@@ -794,13 +801,12 @@ fn scatter_enemies(
     >,
     commands: &mut Commands,
 ) -> Vec<Entity> {
-    let mut rng = rand::thread_rng();
     let mut teleported = Vec::new();
 
     for (entity, transform, _team) in units_query.iter() {
         if xz_distance(transform.translation, source_center) <= radius {
             let new_position = random_position_in_circle(
-                &mut rng,
+                rng,
                 source_center,
                 SCATTERPORT_RADIUS,
                 transform.translation.y,
@@ -817,6 +823,7 @@ fn scatter_enemies(
 
 /// Swap talent: swaps all units between two circles simultaneously.
 fn swap_units(
+    rng: &mut impl Rng,
     source_center: Vec3,
     dest_center: Vec3,
     radius: f32,
@@ -831,7 +838,6 @@ fn swap_units(
     >,
     commands: &mut Commands,
 ) -> Vec<Entity> {
-    let mut rng = rand::thread_rng();
     let mut teleported = Vec::new();
 
     // Collect units in each circle first (can't modify while iterating)
@@ -848,7 +854,7 @@ fn swap_units(
 
     // Move source units to destination
     for (entity, original_pos) in &source_units {
-        let new_position = random_position_in_circle(&mut rng, dest_center, radius, original_pos.y);
+        let new_position = random_position_in_circle(rng, dest_center, radius, original_pos.y);
         commands
             .entity(*entity)
             .insert(Transform::from_translation(new_position));
@@ -858,7 +864,7 @@ fn swap_units(
     // Move destination units to source
     for (entity, original_pos) in &dest_units {
         let new_position =
-            random_position_in_circle(&mut rng, source_center, radius, original_pos.y);
+            random_position_in_circle(rng, source_center, radius, original_pos.y);
         commands
             .entity(*entity)
             .insert(Transform::from_translation(new_position));
@@ -870,6 +876,7 @@ fn swap_units(
 
 /// Emergency Recall talent: teleports only allied (Defender) units to the King's spawn position.
 fn recall_allies(
+    rng: &mut impl Rng,
     source_center: Vec3,
     dest_center: Vec3,
     radius: f32,
@@ -884,7 +891,6 @@ fn recall_allies(
     >,
     commands: &mut Commands,
 ) -> Vec<Entity> {
-    let mut rng = rand::thread_rng();
     let mut teleported = Vec::new();
 
     for (entity, transform, team) in units_query.iter() {
@@ -895,7 +901,7 @@ fn recall_allies(
 
         if xz_distance(transform.translation, source_center) <= radius {
             let new_position =
-                random_position_in_circle(&mut rng, dest_center, radius, transform.translation.y);
+                random_position_in_circle(rng, dest_center, radius, transform.translation.y);
             let mut new_transform = *transform;
             new_transform.translation = new_position;
             commands.entity(entity).insert(new_transform);
@@ -954,6 +960,7 @@ fn apply_post_teleport_effects(
 pub fn tick_dimensional_rift(
     mut commands: Commands,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut rifts: Query<(Entity, &mut DimensionalRift)>,
     mut units: Query<
         (Entity, &mut Transform, Option<&RiftCooldown>),
@@ -969,7 +976,7 @@ pub fn tick_dimensional_rift(
             continue;
         }
 
-        let mut rng = rand::thread_rng();
+        let rng = &mut game_rng.0;
 
         for (unit_entity, mut transform, cooldown) in units.iter_mut() {
             // Skip units on cooldown from recent rift teleport
@@ -982,7 +989,7 @@ pub fn tick_dimensional_rift(
             if xz_distance(pos, rift.source_pos) <= rift.walk_radius {
                 // Near source portal → teleport to destination
                 let new_pos =
-                    random_position_in_circle(&mut rng, rift.dest_pos, rift.walk_radius, pos.y);
+                    random_position_in_circle(rng, rift.dest_pos, rift.walk_radius, pos.y);
                 transform.translation = new_pos;
                 commands.entity(unit_entity).insert(RiftCooldown {
                     time_remaining: DIMENSIONAL_RIFT_UNIT_COOLDOWN,
@@ -990,7 +997,7 @@ pub fn tick_dimensional_rift(
             } else if rift.two_way && xz_distance(pos, rift.dest_pos) <= rift.walk_radius {
                 // Near destination portal → teleport to source (only with Swap talent)
                 let new_pos =
-                    random_position_in_circle(&mut rng, rift.source_pos, rift.walk_radius, pos.y);
+                    random_position_in_circle(rng, rift.source_pos, rift.walk_radius, pos.y);
                 transform.translation = new_pos;
                 commands.entity(unit_entity).insert(RiftCooldown {
                     time_remaining: DIMENSIONAL_RIFT_UNIT_COOLDOWN,

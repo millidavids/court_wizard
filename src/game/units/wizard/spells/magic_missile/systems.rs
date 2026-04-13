@@ -84,6 +84,7 @@ pub fn handle_magic_missile_casting(
     time: Res<Time>,
     mouse: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut wizard_query: Query<
         (
@@ -193,6 +194,7 @@ pub fn handle_magic_missile_casting(
     // Spawn missiles with modified parameters
     for _ in 0..params.missile_count {
         spawn_magic_missile_with_talents(
+            &mut game_rng.0,
             &mut commands,
             &visual_assets,
             &camera_query,
@@ -226,6 +228,7 @@ pub fn handle_magic_missile_casting(
 pub fn update_arcane_barrage(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut barrage_query: Query<&mut ArcaneBarrage>,
     camera_query_3d: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -264,6 +267,7 @@ pub fn update_arcane_barrage(
 
     for _ in 0..params.missile_count {
         spawn_magic_missile_with_talents(
+            &mut game_rng.0,
             &mut commands,
             &visual_assets,
             &camera_query,
@@ -290,6 +294,7 @@ pub fn update_arcane_barrage(
 /// Spawns a magic missile with talent modifications applied.
 #[allow(clippy::too_many_arguments)]
 fn spawn_magic_missile_with_talents(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     camera_query: &Query<&GlobalTransform, With<Camera>>,
@@ -323,8 +328,6 @@ fn spawn_magic_missile_with_talents(
         }
         closest.map(|(e, _)| e)
     });
-
-    let mut rng = rand::thread_rng();
 
     // Guided missiles don't need a target — they steer toward the cursor
     let target = if params.guided {
@@ -472,6 +475,7 @@ pub fn tick_magic_missile_cooldown(
 pub fn move_magic_missiles(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut missiles: Query<(&mut Transform, &mut MagicMissile)>,
     targets: Query<(Entity, &Transform, &Team), (Without<MagicMissile>, Without<Corpse>)>,
@@ -549,7 +553,7 @@ pub fn move_magic_missiles(
 
         // Retarget if current target despawned
         if !target_exists {
-            let mut rng = rand::thread_rng();
+            let rng = &mut game_rng.0;
 
             let enemies_in_range: Vec<Entity> = targets
                 .iter()
@@ -662,6 +666,7 @@ pub fn move_magic_missiles(
 #[allow(clippy::too_many_arguments)]
 pub fn check_magic_missile_collisions(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut missiles: Query<(Entity, &Transform, &mut MagicMissile)>,
     mut enemies: Query<
         (
@@ -784,7 +789,7 @@ pub fn check_magic_missile_collisions(
 
         // Seeker Swarm: split into 2 half-damage missiles on kill (max 2 generations)
         if should_despawn && target_killed && missile.seeker_swarm && missile.split_generation < 2 {
-            let mut rng = rand::thread_rng();
+            let rng = &mut game_rng.0;
             for _ in 0..2 {
                 let mut split = MagicMissile::new(
                     Vec3::new(

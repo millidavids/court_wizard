@@ -15,6 +15,7 @@ use crate::game::constants::*;
 ///
 /// Spawns the battlefield ground plane, castle wall image, and point light in 3D space.
 pub fn setup_battlefield(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -34,7 +35,7 @@ pub fn setup_battlefield(
     ));
 
     // Spawn battlefield as a grid of textured ground tiles
-    spawn_ground_tiles(commands, meshes, ground_materials, battlefield_assets);
+    spawn_ground_tiles(rng, commands, meshes, ground_materials, battlefield_assets);
 
     // Spawn castle wall as a textured plane the wizard stands on
     spawn_castle_wall(
@@ -318,6 +319,7 @@ fn pick_weighted_tile(rng: &mut impl Rng) -> usize {
 
 /// Spawns a grid of ground tiles covering the battlefield.
 fn spawn_ground_tiles(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<GroundMaterial>,
@@ -342,13 +344,11 @@ fn spawn_ground_tiles(
         base_texture: battlefield_assets.battlefield_tiles.clone(),
     });
 
-    let mut rng = rand::thread_rng();
-
     for row in 0..tiles_per_side {
         for col in 0..tiles_per_side {
             let x = -half + TILE_WORLD_SIZE * (col as f32 + 0.5);
             let z = -half + TILE_WORLD_SIZE * (row as f32 + 0.5);
-            let tile_index = pick_weighted_tile(&mut rng);
+            let tile_index = pick_weighted_tile(rng);
 
             commands.spawn((
                 Mesh3d(tile_meshes[tile_index].clone()),

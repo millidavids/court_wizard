@@ -30,6 +30,7 @@ pub fn tick_wave_timer(
     time: Res<Time>,
     mut wave_state: ResMut<WaveState>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     current_level: Res<CurrentLevel>,
     infantry_assets: Res<InfantryAssets>,
     archer_assets: Res<ArcherAssets>,
@@ -40,10 +41,14 @@ pub fn tick_wave_timer(
     staging_query: Query<(), (With<StagingAttacker>, Without<Corpse>)>,
     roguelite_modifiers: Option<Res<crate::game::game_mode::components::RogueliteModifiers>>,
     active_toggles: Option<Res<crate::game::game_mode::components::ActiveToggles>>,
-    ogre_assets: Option<Res<OgreAssets>>,
-    hag_assets: Option<Res<HagAssets>>,
-    dark_mage_assets: Option<Res<DarkMageAssets>>,
+    boss_assets: (
+        Option<Res<OgreAssets>>,
+        Option<Res<HagAssets>>,
+        Option<Res<DarkMageAssets>>,
+    ),
 ) {
+    let (ogre_assets, hag_assets, dark_mage_assets) = boss_assets;
+
     if wave_state.waves_complete {
         return;
     }
@@ -92,6 +97,7 @@ pub fn tick_wave_timer(
     let mut infantry_entities = Vec::with_capacity(total_infantry as usize);
     for i in 0..total_infantry {
         let entity = infantry::systems::spawn_single_attacker(
+            &mut game_rng.0,
             &mut commands,
             &infantry_assets,
             &mut materials,
@@ -106,6 +112,7 @@ pub fn tick_wave_timer(
     let mut archer_entities = Vec::with_capacity(total_archers as usize);
     for i in 0..total_archers {
         let entity = archer::systems::spawn_single_attacker_archer(
+            &mut game_rng.0,
             &mut commands,
             &archer_assets,
             &mut materials,
@@ -120,6 +127,7 @@ pub fn tick_wave_timer(
     let mut aerialist_entities = Vec::with_capacity(total_aerialists as usize);
     for i in 0..total_aerialists {
         let entity = aerialist::systems::spawn_single_attacker_aerialist(
+            &mut game_rng.0,
             &mut commands,
             &aerialist_assets,
             &mut materials,
@@ -133,6 +141,7 @@ pub fn tick_wave_timer(
     let has_brute = get_tier(level) >= BRUTE_START_TIER;
     if has_brute {
         brute::systems::spawn_brute(
+            &mut game_rng.0,
             commands.reborrow(),
             Res::clone(&infantry_assets),
             &mut materials,
@@ -148,7 +157,7 @@ pub fn tick_wave_timer(
         match (next_wave / 3) % 3 {
             0 => {
                 if let Some(ref assets) = hag_assets {
-                    boss::hags::systems::spawn_hags(commands.reborrow(), Res::clone(assets));
+                    boss::hags::systems::spawn_hags(&mut game_rng.0, commands.reborrow(), Res::clone(assets));
                     3 // hags spawn 3 units
                 } else {
                     0
@@ -157,6 +166,7 @@ pub fn tick_wave_timer(
             1 => {
                 if let Some(ref assets) = ogre_assets {
                     boss::ogre::systems::spawn_ogre(
+                        &mut game_rng.0,
                         commands.reborrow(),
                         Res::clone(assets),
                         &mut materials,
@@ -169,6 +179,7 @@ pub fn tick_wave_timer(
             _ => {
                 if let Some(ref assets) = dark_mage_assets {
                     boss::dark_mage::systems::spawn_dark_mage(
+                        &mut game_rng.0,
                         commands.reborrow(),
                         Res::clone(assets),
                     );

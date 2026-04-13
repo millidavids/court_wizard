@@ -13,7 +13,7 @@ pub use crate::game::units::constants::DEFAULT_SPRITE_WIDTH as DISPELLER_SPRITE_
 pub const DISPELLER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);
 
 // ===== Movement =====
-pub const DISPELLER_MOVEMENT_SPEED: f32 = 120.0;
+pub const DISPELLER_MOVEMENT_SPEED: f32 = 140.0;
 
 // ===== Health =====
 pub const DISPELLER_HEALTH: f32 = 80.0;

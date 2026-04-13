@@ -5,6 +5,7 @@
 use std::collections::HashSet;
 
 use bevy::prelude::*;
+use rand::Rng;
 
 use bevy::prelude::Annulus;
 
@@ -341,24 +342,25 @@ pub(crate) struct AnimatedRingParticle {
 
 /// Spawns a single animated ring particle at a random position within a circle.
 pub(crate) fn spawn_ring_particle(
+    rng: &mut impl Rng,
     commands: &mut Commands,
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
     center: Vec3,
     radius: f32,
 ) {
-    let angle = rand::random::<f32>() * std::f32::consts::TAU;
-    let dist = radius * rand::random::<f32>().sqrt() * 0.9;
+    let angle = rng.r#gen::<f32>() * std::f32::consts::TAU;
+    let dist = radius * rng.r#gen::<f32>().sqrt() * 0.9;
     let x = center.x + angle.cos() * dist;
     let z = center.z + angle.sin() * dist;
 
-    let yaw = rand::random::<f32>() * std::f32::consts::TAU;
-    let tilt = 0.3 + rand::random::<f32>() * RING_MAX_TILT;
+    let yaw = rng.r#gen::<f32>() * std::f32::consts::TAU;
+    let tilt = 0.3 + rng.r#gen::<f32>() * RING_MAX_TILT;
     let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(tilt);
 
-    let max_scale = RING_MIN_SCALE + rand::random::<f32>() * (RING_MAX_SCALE - RING_MIN_SCALE);
+    let max_scale = RING_MIN_SCALE + rng.r#gen::<f32>() * (RING_MAX_SCALE - RING_MIN_SCALE);
     let y = -max_scale * 0.3 * tilt.sin();
-    let lifetime = RING_LIFETIME * (0.7 + rand::random::<f32>() * 0.6);
+    let lifetime = RING_LIFETIME * (0.7 + rng.r#gen::<f32>() * 0.6);
 
     commands.spawn((
         Mesh3d(mesh),

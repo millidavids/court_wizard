@@ -11,7 +11,7 @@ use crate::game::multiplayer::components::NetworkedSpellEffect;
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::components::{
-    BanishedModifier, CommanderAuraSpeedModifier, Corpse, Effectiveness, EliteSpeedBonus,
+    BanishedModifier, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
     FlockingVelocity, FrozenSolidModifier, HasteModifier, Health, Hitbox, MovementSpeed,
     PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
     Sleepwalking, SlowMovementModifier, TargetingVelocity, Team, TemporaryHitPoints,
@@ -184,7 +184,6 @@ pub fn dispeller_movement(
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -218,7 +217,6 @@ pub fn dispeller_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -271,7 +269,6 @@ pub fn dispeller_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,

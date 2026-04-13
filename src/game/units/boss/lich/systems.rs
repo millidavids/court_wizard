@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::components::*;
 use super::constants::*;
@@ -37,6 +38,7 @@ type LichBeamTargetFilter = (Without<Corpse>, Without<Lich>, Without<Boss>);
 /// and every attacker (including staging) is dead.
 pub fn check_lich_spawn(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     lich_assets: Res<LichAssets>,
     pending: Option<Res<LichSpawnPending>>,
     wave_state: Option<Res<crate::game::resources::WaveState>>,
@@ -60,14 +62,14 @@ pub fn check_lich_spawn(
         return;
     }
 
-    spawn_lich(&mut commands, &lich_assets, wave_state.current_wave);
+    spawn_lich(&mut game_rng.0, &mut commands, &lich_assets, wave_state.current_wave);
     commands.remove_resource::<LichSpawnPending>();
 }
 
 /// Spawns the Lich at one of the tunnel spawn points.
-fn spawn_lich(commands: &mut Commands, lich_assets: &LichAssets, current_wave: u32) {
+fn spawn_lich(rng: &mut impl Rng, commands: &mut Commands, lich_assets: &LichAssets, current_wave: u32) {
     let (spawn_x, spawn_z) = attacker_spawn_position(0, 0.0);
-    let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+    let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
     let hitbox = Hitbox::new(LICH_RADIUS, LICH_HITBOX_HEIGHT);
     let spawn_y = hitbox.height / 2.0 + (LICH_ELLIPSE_DEPTH / 2.0) + 1.0;

@@ -1,9 +1,22 @@
 use bevy::prelude::*;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 
 /// The master seed for the current run. Persisted in GameConfig (in-memory).
 /// A random seed is generated at run start; players can override with a custom seed.
 #[derive(Resource, Debug, Clone)]
 pub struct GameSeed(pub u64);
+
+/// Shared seeded RNG for the current run. All gameplay randomness draws from this
+/// so that identical seeds produce identical runs.
+#[derive(Resource)]
+pub struct GameRng(pub StdRng);
+
+impl GameRng {
+    pub fn new(seed: &GameSeed) -> Self {
+        Self(StdRng::seed_from_u64(seed.0))
+    }
+}
 
 /// Purpose constants for deriving per-system sub-seeds.
 pub const SEED_PURPOSE_TERRAIN: u64 = 7919;

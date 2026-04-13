@@ -1,5 +1,5 @@
 // Movement
-pub const ARCHER_MOVEMENT_SPEED: f32 = 150.0;
+pub const ARCHER_MOVEMENT_SPEED: f32 = 170.0;
 
 // Attack Range
 pub const ARCHER_MIN_RANGE: f32 = 150.0; // Optimal minimum distance

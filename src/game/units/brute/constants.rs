@@ -7,7 +7,7 @@ pub const BRUTE_RADIUS: f32 = 20.0 * UNIT_SCALE; // Horizontal radius for collis
 pub const BRUTE_HITBOX_HEIGHT: f32 = 60.0 * UNIT_SCALE; // Vertical height
 
 // Movement
-pub const BRUTE_MOVEMENT_SPEED: f32 = 100.0;
+pub const BRUTE_MOVEMENT_SPEED: f32 = 115.0;
 
 // Combat
 pub const BRUTE_HEALTH: f32 = 1000.0; // 4x normal unit health doubled

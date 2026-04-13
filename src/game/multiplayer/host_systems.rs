@@ -192,6 +192,7 @@ pub fn receive_teleport_message(
                 let source = Vec3::new(source_x, 0.0, source_z);
                 let dest = Vec3::new(dest_x, 0.0, dest_z);
                 crate::game::units::wizard::spells::teleport::systems::teleport_units_with_radius(
+                    &mut rand::thread_rng(),
                     source,
                     dest,
                     radius,

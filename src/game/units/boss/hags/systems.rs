@@ -40,7 +40,7 @@ type MindControlTargetFilter = (
 );
 
 /// Spawns all 3 hags at their designated grid positions.
-pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
+pub fn spawn_hags(rng: &mut impl Rng, mut commands: Commands, hag_assets: Res<HagAssets>) {
     let hags = [
         (
             HagIdentity::Justina,
@@ -63,7 +63,7 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
 
     for (idx, (identity, _col, material)) in hags.iter().enumerate() {
         let (spawn_x, spawn_z) = attacker_spawn_position(idx as u32, 0.0);
-        let (final_x, final_z) = random_position_in_cell(spawn_x, spawn_z);
+        let (final_x, final_z) = random_position_in_cell(rng, spawn_x, spawn_z);
 
         let hitbox = Hitbox::new(HAG_RADIUS, HAG_HITBOX_HEIGHT);
         let spawn_y = hitbox.height / 2.0 + (HAG_ELLIPSE_DEPTH / 2.0) + 1.0;
@@ -152,7 +152,6 @@ pub fn spawn_hags(mut commands: Commands, hag_assets: Res<HagAssets>) {
     }
 
     // Initialize eye transfer timer
-    let mut rng = rand::thread_rng();
     let initial_interval =
         EYE_TRANSFER_BASE_INTERVAL + rng.gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
     commands.insert_resource(EyeTransferTimer {
@@ -384,12 +383,12 @@ pub fn hag_combat(
 #[allow(clippy::type_complexity)]
 pub fn hag_movement(
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut hags: Query<
         (
             &mut Velocity,
             &mut Acceleration,
             &MovementSpeed,
-            &Effectiveness,
             &TargetingVelocity,
             &FlockingVelocity,
             &FlowFieldVelocity,
@@ -424,7 +423,6 @@ pub fn hag_movement(
         mut velocity,
         mut acceleration,
         movement_speed,
-        effectiveness,
         targeting_velocity,
         flocking_velocity,
         flow_field_velocity,
@@ -468,7 +466,6 @@ pub fn hag_movement(
             &mut velocity,
             &mut acceleration,
             movement_speed.0,
-            effectiveness,
             targeting_velocity,
             flocking_velocity,
             flow_field_velocity,
@@ -486,8 +483,7 @@ pub fn hag_movement(
         if eye_state.is_blind() {
             wander_state.timer -= delta;
             if wander_state.timer <= 0.0 {
-                let mut rng = rand::thread_rng();
-                let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+                let angle = game_rng.0.gen_range(0.0..std::f32::consts::TAU);
                 wander_state.direction_x = angle.cos();
                 wander_state.direction_z = angle.sin();
                 wander_state.timer = BLIND_WANDER_DIRECTION_INTERVAL;
@@ -592,6 +588,7 @@ fn spawn_eye_visual(
 pub fn tick_eye_transfer(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut timer: ResMut<EyeTransferTimer>,
     mut hags: Query<
         (Entity, &Transform, &mut HagEyeState),
@@ -607,9 +604,8 @@ pub fn tick_eye_transfer(
     }
 
     // Reset timer
-    let mut rng = rand::thread_rng();
     timer.time_remaining =
-        EYE_TRANSFER_BASE_INTERVAL + rng.gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
+        EYE_TRANSFER_BASE_INTERVAL + game_rng.0.gen_range(-EYE_TRANSFER_VARIANCE..EYE_TRANSFER_VARIANCE);
 
     let living_hags: Vec<Entity> = hags.iter().map(|(e, _, _)| e).collect();
     if living_hags.len() < 2 {
@@ -642,7 +638,7 @@ pub fn tick_eye_transfer(
         if candidates.is_empty() {
             current_invuln_holder // Only one hag alive, keep it
         } else {
-            Some(candidates[rng.gen_range(0..candidates.len())])
+            Some(candidates[game_rng.0.gen_range(0..candidates.len())])
         }
     } else {
         None
@@ -657,7 +653,7 @@ pub fn tick_eye_transfer(
         if candidates.is_empty() {
             current_ability_holder // No valid candidate, keep it
         } else {
-            Some(candidates[rng.gen_range(0..candidates.len())])
+            Some(candidates[game_rng.0.gen_range(0..candidates.len())])
         }
     } else {
         None
@@ -1086,6 +1082,7 @@ pub fn justina_chain_lightning(
 pub fn justina_fireball(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     death_tracker: Res<HagDeathTracker>,
     mut justina_query: Query<
         (
@@ -1135,10 +1132,9 @@ pub fn justina_fireball(
         }
 
         let hag_pos = transform.translation;
-        let mut rng = rand::thread_rng();
 
         for _ in 0..FIREBALL_COUNT {
-            let idx = rng.gen_range(0..defender_positions.len());
+            let idx = game_rng.0.gen_range(0..defender_positions.len());
             let target_pos = defender_positions[idx];
 
             let direction = (target_pos - hag_pos).normalize_or_zero();
@@ -1168,6 +1164,7 @@ pub fn justina_fireball(
 #[allow(clippy::type_complexity)]
 pub fn josephina_leap(
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     death_tracker: Res<HagDeathTracker>,
     mut josephina_query: Query<
         (
@@ -1234,8 +1231,7 @@ pub fn josephina_leap(
                     continue;
                 }
 
-                let mut rng = rand::thread_rng();
-                let idx = rng.gen_range(0..defender_positions.len());
+                let idx = game_rng.0.gen_range(0..defender_positions.len());
                 let target = defender_positions[idx];
 
                 *leap = LeapState::InAir {
@@ -1462,6 +1458,7 @@ pub fn josephina_corpse_consume(
 #[allow(clippy::type_complexity)]
 pub fn martina_teleport_pull(
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     death_tracker: Res<HagDeathTracker>,
     mut martina_query: Query<
         (
@@ -1525,17 +1522,16 @@ pub fn martina_teleport_pull(
             }
         }
 
-        let mut rng = rand::thread_rng();
         let mut pulled = 0u32;
 
         // Pull random regular defenders first
         while pulled < TELEPORT_PULL_COUNT && !regular_defenders.is_empty() {
-            let idx = rng.gen_range(0..regular_defenders.len());
+            let idx = game_rng.0.gen_range(0..regular_defenders.len());
             let entity = regular_defenders.swap_remove(idx);
 
             if let Ok((_, mut def_transform, _, _, _)) = defenders.get_mut(entity) {
-                def_transform.translation.x = pull_pos.x + rng.gen_range(-20.0..20.0);
-                def_transform.translation.z = pull_pos.z + rng.gen_range(-20.0..20.0);
+                def_transform.translation.x = pull_pos.x + game_rng.0.gen_range(-20.0..20.0);
+                def_transform.translation.z = pull_pos.z + game_rng.0.gen_range(-20.0..20.0);
             }
             pulled += 1;
         }
@@ -1545,8 +1541,8 @@ pub fn martina_teleport_pull(
             && let Some(king_e) = king_entity
             && let Ok((_, mut king_transform, _, _, _)) = defenders.get_mut(king_e)
         {
-            king_transform.translation.x = pull_pos.x + rng.gen_range(-20.0..20.0);
-            king_transform.translation.z = pull_pos.z + rng.gen_range(-20.0..20.0);
+            king_transform.translation.x = pull_pos.x + game_rng.0.gen_range(-20.0..20.0);
+            king_transform.translation.z = pull_pos.z + game_rng.0.gen_range(-20.0..20.0);
             // Guards will snap to king via their existing system
         }
     }

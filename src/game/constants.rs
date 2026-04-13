@@ -196,7 +196,7 @@ pub const KINGS_GUARD_ORBIT_RADIUS: f32 = 20.0 * UNIT_SCALE;
 pub const UNIT_HEALTH: f32 = 100.0;
 
 /// Default movement speed for all units (units per second).
-pub const UNIT_MOVEMENT_SPEED: f32 = 100.0;
+pub const UNIT_MOVEMENT_SPEED: f32 = 115.0;
 
 /// Global multiplier applied to all unit movement speeds.
 /// 1.0 = normal speed, 0.8 = 20% slower, etc.

@@ -88,6 +88,7 @@ pub fn handle_entangle_casting(
     mut mouse_state: ResMut<MouseButtonState>,
     mut mouse_left_released: MessageReader<MouseLeftReleased>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mesh_and_materials: (ResMut<Assets<Mesh>>, ResMut<Assets<StandardMaterial>>),
     mut wizard_query: Query<
@@ -103,16 +104,16 @@ pub fn handle_entangle_casting(
         MessageWriter<EntangleHitDefenderMessage>,
         MessageWriter<ObstacleChanged>,
     ),
-    sfx: Res<SpellSfxAssets>,
-    game_config: Res<GameConfig>,
-    talent_resources: (
+    config_and_talents: (
+        Res<SpellSfxAssets>,
+        Res<GameConfig>,
         Option<Res<ActiveTalents>>,
         Option<ResMut<BattleTalentProgress>>,
         Option<Res<ActiveToggles>>,
     ),
 ) {
     let (mut defender_hit_msg, mut obstacle_events) = messages;
-    let (active_talents, mut talent_progress, active_toggles) = talent_resources;
+    let (sfx, game_config, active_talents, mut talent_progress, active_toggles) = config_and_talents;
     let scorched_mult = crate::game::game_mode::components::scorched_earth_mult(active_toggles.as_deref());
     let (mut meshes, mut materials) = mesh_and_materials;
     let (corrected_cursor, target_assist) = cursor_resources;
@@ -209,6 +210,7 @@ pub fn handle_entangle_casting(
                                 &sfx,
                             );
                             let hit_count = apply_entangle(
+                                &mut game_rng.0,
                                 &mut commands,
                                 &visual_assets,
                                 &mut materials,
@@ -501,6 +503,7 @@ fn apply_entangle_to_unit(
 /// Returns the number of enemies hit (for talent progress tracking).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn apply_entangle(
+    rng: &mut impl rand::Rng,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -557,6 +560,7 @@ pub(crate) fn apply_entangle(
 
     // Spawn vine toruses rising from the ground
     spawn_vine_toruses(
+        rng,
         commands,
         assets,
         materials,
@@ -570,6 +574,7 @@ pub(crate) fn apply_entangle(
 
 /// Spawns random flat vine rings within the entangle circle.
 fn spawn_vine_toruses(
+    rng: &mut impl rand::Rng,
     commands: &mut Commands,
     assets: &SpellVisualAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -579,26 +584,26 @@ fn spawn_vine_toruses(
 ) {
     for _ in 0..constants::VINE_COUNT {
         // Random position within circle (uniform distribution via rejection-free polar)
-        let angle = rand::random::<f32>() * std::f32::consts::TAU;
-        let dist = radius * rand::random::<f32>().sqrt() * 0.85; // 0.85 keeps vines slightly inward
+        let angle = rng.r#gen::<f32>() * std::f32::consts::TAU;
+        let dist = radius * rng.r#gen::<f32>().sqrt() * 0.85; // 0.85 keeps vines slightly inward
         let x = center.x + angle.cos() * dist;
         let z = center.z + angle.sin() * dist;
 
         // Random scale
         let scale = constants::VINE_MIN_SCALE
-            + rand::random::<f32>() * (constants::VINE_MAX_SCALE - constants::VINE_MIN_SCALE);
+            + rng.r#gen::<f32>() * (constants::VINE_MAX_SCALE - constants::VINE_MIN_SCALE);
 
         // Random orientation — tilt the ring so it looks like a vine arching out of the ground
         // Annulus lies in XZ plane by default, so we tilt it partially upright
-        let yaw = rand::random::<f32>() * std::f32::consts::TAU;
-        let tilt = 0.4 + rand::random::<f32>() * 0.8; // 0.4..1.2 radians tilt from horizontal
+        let yaw = rng.r#gen::<f32>() * std::f32::consts::TAU;
+        let tilt = 0.4 + rng.r#gen::<f32>() * 0.8; // 0.4..1.2 radians tilt from horizontal
         let rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(tilt);
 
         // Position so at most 75% of the ring is above ground (y=0).
         // The ring's visible height above ground depends on tilt and scale.
         // We set final_y so the center is near or below ground level,
         // leaving only the top arc poking through.
-        let max_above = constants::VINE_MAX_ABOVE_GROUND * (0.3 + rand::random::<f32>() * 0.7);
+        let max_above = constants::VINE_MAX_ABOVE_GROUND * (0.3 + rng.r#gen::<f32>() * 0.7);
         // Center of ring sits below ground so only the top arch is visible
         let final_y = max_above - scale * tilt.sin() * 0.5;
 
@@ -618,7 +623,7 @@ fn spawn_vine_toruses(
             EntangleVine {
                 final_y,
                 rise_elapsed: 0.0,
-                rise_duration: constants::VINE_RISE_DURATION * (0.7 + rand::random::<f32>() * 0.6), // Stagger rise timing
+                rise_duration: constants::VINE_RISE_DURATION * (0.7 + rng.r#gen::<f32>() * 0.6), // Stagger rise timing
                 duration,
                 time_remaining: duration,
             },
@@ -673,6 +678,7 @@ pub fn animate_entangle_vines(
 pub fn emit_animated_vine_rings(
     time: Res<Time>,
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     visual_assets: Res<SpellVisualAssets>,
     mut effects: Query<&mut EntangleGroundEffect>,
 ) {
@@ -689,6 +695,7 @@ pub fn emit_animated_vine_rings(
         effect.animated_vine_timer -= utils::RING_SPAWN_INTERVAL;
 
         utils::spawn_ring_particle(
+            &mut game_rng.0,
             &mut commands,
             visual_assets.entangle_vine_ring.clone(),
             visual_assets.entangle_vine.clone(),

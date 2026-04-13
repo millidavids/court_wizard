@@ -18,7 +18,7 @@ pub const HAG_HITBOX_HEIGHT: f32 = 35.0 * UNIT_SCALE;
 
 // ===== Movement =====
 
-pub const HAG_MOVEMENT_SPEED: f32 = 100.0;
+pub const HAG_MOVEMENT_SPEED: f32 = 115.0;
 /// Minimum distance hags try to maintain from each other (world units).
 pub const HAG_SEPARATION_DISTANCE: f32 = 300.0 * UNIT_SCALE;
 /// Strength of the inter-hag separation force.

@@ -1,5 +1,6 @@
 use bevy::math::Affine2;
 use bevy::prelude::*;
+use rand::Rng;
 
 use super::constants::{
     ELECTRIC_ARC_CHANCE_PER_DAMAGE, ELECTRIC_ARC_CHANCE_PER_HIT, ELECTRIC_ARC_COOLDOWN,
@@ -807,7 +808,7 @@ impl Default for WalkingAnimation {
     fn default() -> Self {
         Self {
             current_frame: 0,
-            elapsed: rand::random::<f32>() * Self::FRAME_DURATION, // stagger
+            elapsed: 0.0,
             columns: SPRITE_COLUMNS,
             frame_uv: sprite_frame_uv(SPRITE_SHEET_IMAGE_HEIGHT),
             direction_rows: SPRITE_DIRECTION_ROWS,
@@ -817,6 +818,14 @@ impl Default for WalkingAnimation {
 
 impl WalkingAnimation {
     const FRAME_DURATION: f32 = 0.125;
+
+    /// Creates a new WalkingAnimation with a random stagger offset.
+    pub fn new_staggered(rng: &mut impl Rng) -> Self {
+        Self {
+            elapsed: rng.r#gen::<f32>() * Self::FRAME_DURATION,
+            ..Default::default()
+        }
+    }
 
     /// Advance animation by `delta` seconds. Returns `true` if the frame changed.
     pub fn tick(&mut self, delta: f32) -> bool {

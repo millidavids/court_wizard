@@ -8,7 +8,7 @@ pub const SHIELDER_RADIUS: f32 = 8.0 * UNIT_SCALE;
 pub const SHIELDER_SPRITE_TINT: Color = Color::srgb(0.75, 0.65, 0.65);
 
 // ===== Movement =====
-pub const SHIELDER_MOVEMENT_SPEED: f32 = 110.0;
+pub const SHIELDER_MOVEMENT_SPEED: f32 = 125.0;
 
 // ===== Health =====
 pub const SHIELDER_HEALTH: f32 = 60.0;

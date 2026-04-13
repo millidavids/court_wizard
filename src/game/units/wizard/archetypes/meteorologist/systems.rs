@@ -260,6 +260,7 @@ pub fn spread_shock_to_wet(
 pub fn storm_lightning(
     mut commands: Commands,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut weather: ResMut<WeatherState>,
     game_config: Res<GameConfig>,
     sfx: Res<SpellSfxAssets>,
@@ -293,7 +294,7 @@ pub fn storm_lightning(
     if target_count == 0 {
         return;
     }
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
     let target_index = rng.gen_range(0..target_count);
 
     let Some((entity, transform, mut health, temp_hp, has_shield)) =
@@ -626,6 +627,7 @@ pub fn update_ground_overlay(
 /// Spawns weather particles each frame based on active weather.
 pub fn spawn_weather_particles(
     mut commands: Commands,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     weather: Res<WeatherState>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -634,7 +636,7 @@ pub fn spawn_weather_particles(
         return;
     };
 
-    let mut rng = rand::thread_rng();
+    let rng = &mut game_rng.0;
     let normalized = ((weather.intensity - 1.0) / 0.5).clamp(0.0, 1.0);
     // Scale particle count with intensity ramp (start with half, ramp to full)
     let intensity_scale = 0.5 + 0.5 * normalized;

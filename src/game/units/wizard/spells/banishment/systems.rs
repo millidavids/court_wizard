@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+use rand::Rng;
+
 use super::super::super::components::{
     CastingState, LocalWizard, Mana, PrimedSpell, Spell, Wizard, WizardInput,
 };
@@ -483,6 +485,7 @@ pub fn update_banishment_vfx(
 pub fn tick_banished_units(
     mut commands: Commands,
     time: Res<Time>,
+    mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut banished: Query<(
         Entity,
         &mut BanishedModifier,
@@ -547,8 +550,8 @@ pub fn tick_banished_units(
         // Displacement: randomize return position, clamped to battlefield
         if let Some(displace) = displacement {
             let half = BATTLEFIELD_SIZE / 2.0;
-            let angle = rand::random::<f32>() * std::f32::consts::TAU;
-            let dist = displace.radius * 0.5 + rand::random::<f32>() * displace.radius * 0.5;
+            let angle = game_rng.0.r#gen::<f32>() * std::f32::consts::TAU;
+            let dist = displace.radius * 0.5 + game_rng.0.r#gen::<f32>() * displace.radius * 0.5;
             transform.translation.x =
                 (transform.translation.x + angle.cos() * dist).clamp(-half, half);
             transform.translation.z =
