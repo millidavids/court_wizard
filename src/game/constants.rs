@@ -293,11 +293,34 @@ pub const GRID_ROW_DEPTH: f32 = 300.0;
 
 // ===== Attacker Spawn Grid Constants =====
 
-// ===== Staging Point =====
+// ===== Staging Points =====
 
-/// The staging point where attackers gather before activating.
-/// Approximately the center of the old attacker spawn grid.
-pub const STAGING_POINT: (f32, f32) = (500.0, -300.0);
+/// Number of staging points around the wizard's range arc.
+pub const STAGING_POINT_COUNT: usize = 7;
+
+/// 7 staging points in an arc around the wizard's spell range.
+/// Computed at radius ~2759 from the wizard position (-1400, 1700) in XZ,
+/// centered on the original staging point angle (~-46.57 deg), spaced 10 deg apart.
+/// Point 3 is the original staging point (500, -300).
+pub const STAGING_POINTS: [(f32, f32); STAGING_POINT_COUNT] = [
+    (1244.0, 913.0),  // +30 deg from center
+    (1067.0, 466.0),  // +20 deg from center
+    (818.0, 59.0),    // +10 deg from center
+    (500.0, -300.0),  // center (original staging point)
+    (117.0, -604.0),  // -10 deg from center
+    (-307.0, -833.0), // -20 deg from center
+    (-759.0, -983.0), // -30 deg from center
+];
+
+/// Minimum number of staging points used per wave.
+pub const MIN_WAVE_STAGING_POINTS: usize = 2;
+
+/// Maximum number of staging points used per wave.
+pub const MAX_WAVE_STAGING_POINTS: usize = 4;
+
+/// Index of the center staging point (original position).
+/// Bosses and fallback logic always use this point.
+pub const CENTER_STAGING_INDEX: usize = 3;
 
 /// Satisfaction radius for the staging flow field (in pathfinding grid cells).
 /// Units within this radius stop receiving flow directions and hold position.

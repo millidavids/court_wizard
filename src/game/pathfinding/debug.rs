@@ -11,7 +11,7 @@ use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 
 use crate::game::components::OnGameplayScreen;
-use crate::game::constants::BATTLEFIELD_SIZE;
+use crate::game::constants::{BATTLEFIELD_SIZE, STAGING_POINTS};
 
 use super::resources::PathfindingGrid;
 
@@ -196,6 +196,10 @@ pub(super) struct DebugBallActive(pub bool);
 #[derive(Component)]
 pub(super) struct DebugBall;
 
+/// Marker component for staging point debug markers (red balls).
+#[derive(Component)]
+pub(super) struct StagingPointMarker;
+
 /// Timer for periodic position logging.
 #[derive(Resource)]
 pub(super) struct DebugBallLogTimer(Timer);
@@ -209,12 +213,14 @@ impl Default for DebugBallLogTimer {
     }
 }
 
-/// Toggles the debug ball on F4. Spawns or despawns the ball entity.
+/// Toggles the debug ball on F4. Spawns or despawns the ball entity
+/// and red staging point markers.
 pub(super) fn toggle_debug_ball(
     keys: Res<ButtonInput<KeyCode>>,
     mut active: ResMut<DebugBallActive>,
     mut commands: Commands,
     ball_query: Query<Entity, With<DebugBall>>,
+    staging_marker_query: Query<Entity, With<StagingPointMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut log_timer: ResMut<DebugBallLogTimer>,
@@ -246,10 +252,30 @@ pub(super) fn toggle_debug_ball(
             OnGameplayScreen,
         ));
 
+        // Spawn red markers at each staging point
+        let staging_mesh = meshes.add(Sphere::new(DEBUG_BALL_RADIUS));
+        let staging_material = materials.add(StandardMaterial {
+            base_color: Color::linear_rgb(1.0, 0.0, 0.0),
+            unlit: true,
+            ..default()
+        });
+        for &(sx, sz) in &STAGING_POINTS {
+            commands.spawn((
+                Mesh3d(staging_mesh.clone()),
+                MeshMaterial3d(staging_material.clone()),
+                Transform::from_xyz(sx, DEBUG_BALL_Y, sz),
+                StagingPointMarker,
+                OnGameplayScreen,
+            ));
+        }
+
         info!("Debug ball position: X=0.0, Z=0.0");
     } else {
         info!("Debug ball: OFF");
         for entity in &ball_query {
+            commands.entity(entity).try_despawn();
+        }
+        for entity in &staging_marker_query {
             commands.entity(entity).try_despawn();
         }
     }

@@ -4,9 +4,9 @@ use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 
 use crate::game::constants::{
-    BATTLEFIELD_SIZE, PATHFINDING_X_EXTENSION, STAGING_ACTIVATION_RADIUS, STAGING_POINT,
-    STAGING_SATISFACTION_RADIUS, WAVE_ACTIVATION_THRESHOLD, WAVE_STAGING_TIMEOUT,
-    defender_spawn_center,
+    BATTLEFIELD_SIZE, CENTER_STAGING_INDEX, PATHFINDING_X_EXTENSION, STAGING_ACTIVATION_RADIUS,
+    STAGING_POINTS, STAGING_POINT_COUNT, STAGING_SATISFACTION_RADIUS, WAVE_ACTIVATION_THRESHOLD,
+    WAVE_STAGING_TIMEOUT, defender_spawn_center,
 };
 use crate::game::units::archer::Archer;
 use crate::game::units::assassin::Assassin;
@@ -53,31 +53,30 @@ pub fn initialize_pathfinding(mut commands: Commands) {
     // since the grid isn't inserted yet — messages would be processed next frame).
     register_static_terrain(&mut pathfinding);
 
-    // Build the staging flow field once (never changes — targets the staging point).
-    build_staging_field(&mut pathfinding);
+    // Build all 7 staging flow fields once (never change — each targets one staging point).
+    build_staging_fields(&mut pathfinding);
 
     commands.insert_resource(pathfinding);
 }
 
-/// Builds the static staging flow field that guides unactivated attackers
-/// from the spawn area to the staging point.
-fn build_staging_field(pathfinding: &mut PathfindingGrid) {
-    let mut field = pathfinding.create_field_with_base_costs();
+/// Builds static staging flow fields for all staging points.
+/// Each field guides unactivated attackers from the spawn area to one staging point.
+fn build_staging_fields(pathfinding: &mut PathfindingGrid) {
     let world_min = pathfinding.world_min;
     let cell_size = pathfinding.cell_size;
 
-    let goal_x = ((STAGING_POINT.0 - world_min.x) / cell_size)
-        .floor()
-        .max(0.0) as usize;
-    let goal_z = ((STAGING_POINT.1 - world_min.y) / cell_size)
-        .floor()
-        .max(0.0) as usize;
+    for (i, &(sx, sz)) in STAGING_POINTS.iter().enumerate() {
+        let mut field = pathfinding.create_field_with_base_costs();
 
-    field.generate(goal_x, goal_z, STAGING_SATISFACTION_RADIUS);
-    pathfinding.staging_field = Some(field);
+        let goal_x = ((sx - world_min.x) / cell_size).floor().max(0.0) as usize;
+        let goal_z = ((sz - world_min.y) / cell_size).floor().max(0.0) as usize;
+
+        field.generate(goal_x, goal_z, STAGING_SATISFACTION_RADIUS);
+        pathfinding.staging_fields[i] = Some(field);
+    }
     info!(
-        "Staging flow field built: goal=({}, {}), satisfaction_radius={}",
-        STAGING_POINT.0, STAGING_POINT.1, STAGING_SATISFACTION_RADIUS
+        "Built {} staging flow fields, satisfaction_radius={}",
+        STAGING_POINT_COUNT, STAGING_SATISFACTION_RADIUS
     );
 }
 
@@ -498,12 +497,12 @@ pub fn sample_flow_fields(
         &Transform,
         &FlowFieldInfluence,
         &mut FlowFieldVelocity,
-        Has<StagingAttacker>,
+        Option<&StagingAttacker>,
         Has<WaveGroup>,
         &Team,
     )>,
 ) {
-    for (transform, influence, mut flow_velocity, has_staging, has_wave_group, team) in
+    for (transform, influence, mut flow_velocity, staging, has_wave_group, team) in
         units_query.iter_mut()
     {
         let world_pos = transform.translation;
@@ -517,14 +516,19 @@ pub fn sample_flow_fields(
         // Attackers use the staging field until activated:
         // - has StagingAttacker component, OR
         // - doesn't have WaveGroup yet (1-frame command delay after spawn)
-        let is_staging =
-            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+        let is_staging = crate::game::units::systems::is_staging_attacker(
+            team,
+            staging.is_some(),
+            has_wave_group,
+        );
 
         match influence {
             FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin if is_staging => {
-                // Staging: follow staging field toward the staging point
-                let (vel, dist) =
-                    sample_field_or_zero(&pathfinding.staging_field, world_pos, wmin, cs);
+                // Staging: follow the staging field for this unit's assigned staging point
+                let field = staging
+                    .map(|s| &pathfinding.staging_fields[s.0 as usize])
+                    .unwrap_or(&pathfinding.staging_fields[CENTER_STAGING_INDEX]);
+                let (vel, dist) = sample_field_or_zero(field, world_pos, wmin, cs);
                 flow_velocity.velocity = vel;
                 flow_velocity.pathfinding_distance = dist;
                 flow_velocity.at_destination = vel == Vec3::ZERO;
@@ -627,26 +631,44 @@ pub fn generate_initial_fields(
 
 /// Auto-tags newly spawned attackers with `StagingAttacker` and `WaveGroup`.
 /// Detects entities with `FlowFieldInfluence::Attacker` that don't yet have a `WaveGroup`.
+/// Assigns staging points from the `WaveStagingPlan` via round-robin.
+/// Bosses always go to the center staging point (index 3).
+/// Lazily computes the staging plan for a wave the first time attackers appear for it.
+#[allow(clippy::too_many_arguments)]
 pub fn tag_new_attackers(
     mut commands: Commands,
     wave_state: Option<Res<crate::game::resources::WaveState>>,
+    game_seed: Option<Res<crate::game::seeded_rng::resources::GameSeed>>,
+    current_level: Res<crate::game::resources::CurrentLevel>,
+    mut staging_plan: ResMut<super::staging::WaveStagingPlan>,
     new_attackers: Query<
-        (Entity, &Team, &FlowFieldInfluence),
+        (Entity, &Team, &FlowFieldInfluence, Has<crate::game::units::boss::components::Boss>),
         (Without<WaveGroup>, Without<Corpse>),
     >,
 ) {
     let wave = wave_state.map(|w| w.current_wave).unwrap_or(0);
 
-    for (entity, team, influence) in &new_attackers {
+    // Lazily compute the staging plan for this wave if not yet computed
+    if !staging_plan.wave_points.contains_key(&wave) {
+        let seed = game_seed.as_ref().map(|s| s.0).unwrap_or(0);
+        super::staging::compute_wave_staging(&mut staging_plan, seed, current_level.0, wave);
+    }
+
+    for (entity, team, influence, is_boss) in &new_attackers {
         if *team != Team::Attackers {
             continue;
         }
         // Tag attackers and assassins (both use flow fields toward King/archers)
         match influence {
             FlowFieldInfluence::Attacker | FlowFieldInfluence::Assassin => {
+                let staging_idx = if is_boss {
+                    CENTER_STAGING_INDEX as u8
+                } else {
+                    staging_plan.next_staging_point(wave)
+                };
                 commands
                     .entity(entity)
-                    .insert((StagingAttacker, WaveGroup(wave)));
+                    .insert((StagingAttacker(staging_idx), WaveGroup(wave)));
             }
             _ => {}
         }
@@ -659,31 +681,34 @@ pub struct WaveStagingTimers {
     timers: std::collections::HashMap<u32, f32>,
 }
 
-/// Checks if 90% of a wave's living staging attackers are within the activation
-/// radius of the staging point. Also force-activates after a timeout to prevent stalling.
+/// Checks if 90% of a wave's living staging attackers have reached their
+/// assigned staging points. Each unit is checked against its own staging point.
+/// Also force-activates after a timeout to prevent stalling.
 /// Dead units (Corpse) are excluded so lava kills don't block activation.
 pub fn check_wave_activation(
     mut commands: Commands,
     time: Res<Time<Real>>,
     mut kill_stats: ResMut<crate::game::resources::KillStats>,
     mut staging_timers: ResMut<WaveStagingTimers>,
+    mut staging_plan: ResMut<super::staging::WaveStagingPlan>,
     staging_query: Query<
-        (Entity, &WaveGroup, &Transform),
-        (With<StagingAttacker>, Without<Corpse>),
+        (Entity, &WaveGroup, &StagingAttacker, &Transform),
+        Without<Corpse>,
     >,
 ) {
     use std::collections::HashMap;
 
-    let staging_pos = Vec2::new(STAGING_POINT.0, STAGING_POINT.1);
     let activation_radius_sq = STAGING_ACTIVATION_RADIUS * STAGING_ACTIVATION_RADIUS;
     // Use real time so 3x speedup doesn't shorten the timeout
     let dt = time.delta_secs();
 
-    // Count total and arrived (within activation radius) per wave
+    // Count total and arrived (within activation radius of their assigned point) per wave
     let mut wave_counts: HashMap<u32, (u32, u32)> = HashMap::new();
-    for (_entity, wave_group, transform) in &staging_query {
+    for (_entity, wave_group, staging, transform) in &staging_query {
         let (total, arrived) = wave_counts.entry(wave_group.0).or_insert((0, 0));
         *total += 1;
+        let point = STAGING_POINTS[staging.0 as usize];
+        let staging_pos = Vec2::new(point.0, point.1);
         let unit_pos = Vec2::new(transform.translation.x, transform.translation.z);
         if unit_pos.distance_squared(staging_pos) <= activation_radius_sq {
             *arrived += 1;
@@ -721,12 +746,13 @@ pub fn check_wave_activation(
                 info!("Battle started — game timer running");
             }
             // Remove StagingAttacker from all units of this wave
-            for (entity, wave_group, _) in &staging_query {
+            for (entity, wave_group, _, _) in &staging_query {
                 if wave_group.0 == *wave {
                     commands.entity(entity).remove::<StagingAttacker>();
                 }
             }
             staging_timers.timers.remove(wave);
+            staging_plan.remove_wave(*wave);
         }
     }
 }

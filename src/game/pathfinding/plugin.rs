@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use super::debug::{self, DebugBallActive, DebugBallLogTimer, FlowFieldDebugMode};
 use super::messages::ObstacleChanged;
 use super::resources::PathfindingGrid;
+use super::staging::WaveStagingPlan;
 use super::systems::*;
 use crate::game::plugin::VelocitySystemSet;
 use crate::game::run_conditions::is_gameplay_running;
@@ -21,6 +22,8 @@ impl Plugin for PathfindingPlugin {
             .init_resource::<FlowFieldDebugMode>()
             // Wave staging timers (timeout-based force activation)
             .init_resource::<WaveStagingTimers>()
+            // Wave staging plan (which staging points each wave uses)
+            .init_resource::<WaveStagingPlan>()
             // Handle obstacle changes (updates base_costs) — runs during loading
             // so terrain spawned via the spawn queue is registered immediately.
             .add_systems(

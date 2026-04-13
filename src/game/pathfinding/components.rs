@@ -39,12 +39,13 @@ impl Default for StuckDetection {
     }
 }
 
-/// Marker component for attackers that are still marching to the staging area.
-/// Removed when the wave activates (90% of wave units reach the staging point).
-/// While present, units follow the staging flow field instead of the attacker field,
-/// and defenders ignore them for activation purposes.
+/// Marker component for attackers that are still marching to a staging area.
+/// The inner `u8` is the index into `STAGING_POINTS` for this unit's assigned point.
+/// Removed when the wave activates (90% of wave units reach their staging points).
+/// While present, units follow the staging flow field for their assigned point
+/// instead of the attacker field, and defenders ignore them for activation purposes.
 #[derive(Component)]
-pub struct StagingAttacker;
+pub struct StagingAttacker(pub u8);
 
 /// Tracks which wave an attacker belongs to.
 #[derive(Component)]

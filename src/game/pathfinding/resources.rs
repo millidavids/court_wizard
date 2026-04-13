@@ -41,9 +41,10 @@ pub struct PathfindingGrid {
     /// Last known assassin target position (archer center of mass).
     pub last_assassin_target_pos: Vec2,
 
-    /// Flow field for staging attackers (flows toward the staging point).
+    /// Flow fields for staging attackers — one per staging point.
     /// Built once at initialization and never rebuilt.
-    pub staging_field: Option<FlowField>,
+    /// Index corresponds to `STAGING_POINTS` array.
+    pub staging_fields: Vec<Option<FlowField>>,
 
     /// Last known King position.
     pub last_king_pos: Vec2,
@@ -93,7 +94,7 @@ impl PathfindingGrid {
             assassin_field: None,
             pending_assassin_rebuild: None,
             last_assassin_target_pos: Vec2::ZERO,
-            staging_field: None,
+            staging_fields: vec![None; crate::game::constants::STAGING_POINT_COUNT],
             last_king_pos: Vec2::ZERO,
             king_current_target: None,
             base_costs,

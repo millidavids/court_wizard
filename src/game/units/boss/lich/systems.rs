@@ -95,7 +95,7 @@ fn spawn_lich(commands: &mut Commands, lich_assets: &LichAssets, current_wave: u
             MeleeDamageReduction {
                 multiplier: LICH_MELEE_DAMAGE_REDUCTION,
             },
-            StagingAttacker,
+            StagingAttacker(CENTER_STAGING_INDEX as u8),
             WaveGroup(current_wave),
             TargetingVelocity::default(),
             FlowFieldVelocity::default(),
@@ -379,7 +379,8 @@ pub fn lich_movement(
                 // flow field because is_staging_attacker is Team::Attackers only).
                 let max_speed = speed.0 * GLOBAL_SPEED_MULTIPLIER;
                 let pos = transform.translation;
-                let to_staging = Vec3::new(STAGING_POINT.0 - pos.x, 0.0, STAGING_POINT.1 - pos.z);
+                let staging = STAGING_POINTS[CENTER_STAGING_INDEX];
+                let to_staging = Vec3::new(staging.0 - pos.x, 0.0, staging.1 - pos.z);
 
                 if to_staging.length_squared() > 1.0 {
                     let target_vel = to_staging.normalize() * max_speed;

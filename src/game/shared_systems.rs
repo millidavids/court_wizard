@@ -258,7 +258,11 @@ const BATTLE_AMBIENCE_MAX_DISTANCE: f32 = 10000.0;
 const CROWD_AMBIENCE_VOLUME_SCALE: f32 = 0.12;
 
 /// Position of the battlefield center for crowd sound attenuation (XZ from staging point).
-const BATTLEFIELD_CENTER: Vec3 = Vec3::new(STAGING_POINT.0, 0.0, STAGING_POINT.1);
+const BATTLEFIELD_CENTER: Vec3 = Vec3::new(
+    STAGING_POINTS[CENTER_STAGING_INDEX].0,
+    0.0,
+    STAGING_POINTS[CENTER_STAGING_INDEX].1,
+);
 
 /// Pre-loaded battle ambience audio.
 #[derive(Resource)]

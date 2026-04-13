@@ -8,6 +8,7 @@ pub struct GameSeed(pub u64);
 /// Purpose constants for deriving per-system sub-seeds.
 pub const SEED_PURPOSE_TERRAIN: u64 = 7919;
 pub const SEED_PURPOSE_FLORA: u64 = 7937;
+pub const SEED_PURPOSE_STAGING: u64 = 7951;
 
 /// Derives a deterministic sub-seed from a master seed, level, and purpose constant.
 /// Ensures different systems get independent RNG streams without order-dependency.

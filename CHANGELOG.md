@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.158] - 2026-04-13
+
+### Added
+- **Varied attack formations** — enemy waves now split into groups and approach from different directions, so no two waves play the same way
+
 ## [v0.6.151] - 2026-04-12
 
 ### Added
