@@ -19,6 +19,8 @@ const INSTRUCTIONS_TEXT: &str = include_str!("../../../INSTRUCTIONS.md");
 const CHANGELOG_TEXT: &str = include_str!("../../../CHANGELOG.md");
 const CREDITS_TEXT: &str = include_str!("../../../CREDITS.md");
 const LICENSE_TEXT: &str = include_str!("../../../LICENSE");
+const HEALTH_WARNING_TEXT: &str = include_str!("../../../HEALTH_WARNING.md");
+const PRIVACY_POLICY_TEXT: &str = include_str!("../../../PRIVACY_POLICY.md");
 
 /// Pre-parsed markdown blocks for each tab, computed once at setup.
 #[derive(Resource)]
@@ -27,6 +29,8 @@ pub(super) struct ParsedManualContent {
     changelog: Vec<MarkdownBlock>,
     credits: Vec<MarkdownBlock>,
     license: Vec<MarkdownBlock>,
+    health: Vec<MarkdownBlock>,
+    privacy: Vec<MarkdownBlock>,
 }
 
 impl ParsedManualContent {
@@ -36,6 +40,8 @@ impl ParsedManualContent {
             ManualTab::Changelog => &self.changelog,
             ManualTab::Credits => &self.credits,
             ManualTab::License => &self.license,
+            ManualTab::Health => &self.health,
+            ManualTab::Privacy => &self.privacy,
         }
     }
 }
@@ -48,6 +54,8 @@ pub(super) fn setup(mut commands: Commands, pause_menu: bool) {
         changelog: parse_markdown(CHANGELOG_TEXT),
         credits: parse_markdown(CREDITS_TEXT),
         license: parse_markdown(LICENSE_TEXT),
+        health: parse_markdown(HEALTH_WARNING_TEXT),
+        privacy: parse_markdown(PRIVACY_POLICY_TEXT),
     });
 
     let content = crate::ui::systems::spawn_page_container(

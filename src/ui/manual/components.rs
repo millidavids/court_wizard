@@ -30,6 +30,8 @@ pub(super) enum ManualTab {
     Changelog,
     Credits,
     License,
+    Health,
+    Privacy,
 }
 
 impl ManualTab {
@@ -39,6 +41,8 @@ impl ManualTab {
             ManualTab::Changelog,
             ManualTab::Credits,
             ManualTab::License,
+            ManualTab::Health,
+            ManualTab::Privacy,
         ]
     }
 
@@ -48,6 +52,8 @@ impl ManualTab {
             ManualTab::Changelog => "Changelog",
             ManualTab::Credits => "Credits",
             ManualTab::License => "License",
+            ManualTab::Health => "Health",
+            ManualTab::Privacy => "Privacy",
         }
     }
 }
