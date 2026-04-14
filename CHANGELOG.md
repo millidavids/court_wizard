@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.179] - 2026-04-14
+
+### Changed
+- **New menu music** — the main menu now plays "Pixel River" by Trevor Lentz, a calmer intro track to set the mood before the chaos begins
+- **New battle music** — in-game battles now play "Sunshine Skirmish" by Trevor Lentz, a brighter and more driving score to match the pace of combat
+- **Updated credits** — the Credits screen now lists music attributions and a new section for sound effect sources
+
 ## [v0.6.176] - 2026-04-14
 
 ### Added

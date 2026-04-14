@@ -6,8 +6,8 @@ use super::systems;
 /// Plugin that manages background music with crossfading between tracks.
 ///
 /// Two music tracks:
-/// - Menu music (citadel-of-frozen-ink.ogg): Splash, MainMenu, MetaGame
-/// - Gameplay music (fireball_dungeon_mix.ogg): Loading, InGame, Multiplayer
+/// - Menu music (pixel_river_loopable.ogg): Splash, MainMenu, MetaGame
+/// - Gameplay music (sunshine_skirmish_loopable.ogg): Loading, InGame, Multiplayer
 ///
 /// Transitions between tracks use smooth fade-in/fade-out crossfades.
 pub struct MusicPlugin;

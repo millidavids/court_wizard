@@ -11,8 +11,8 @@ use super::resources::{
 /// Loads both music track assets at startup.
 pub(super) fn load_music_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(MusicAssets {
-        menu_music: asset_server.load("audio/music/citadel-of-frozen-ink.ogg"),
-        gameplay_music: asset_server.load("audio/music/fireball_dungeon_mix.ogg"),
+        menu_music: asset_server.load("audio/music/pixel_river_loopable.ogg"),
+        gameplay_music: asset_server.load("audio/music/sunshine_skirmish_loopable.ogg"),
     });
     info!("Music assets loading: menu and gameplay tracks");
 }
