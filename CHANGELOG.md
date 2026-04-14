@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.176] - 2026-04-14
+
+### Added
+- **Published hardware requirements** — minimum and recommended system specs are now documented so you know up front whether the game will run well on your machine
+
 ## [v0.6.175] - 2026-04-13
 
 ### Added

@@ -96,6 +96,9 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
+        #[cfg(feature = "benchmarking")]
+        app.add_plugins(super::benchmarking::BenchmarkingPlugin);
+
         app.init_resource::<GlobalAttackCycle>()
             .init_resource::<KillStats>()
             .init_resource::<CurrentLevel>()

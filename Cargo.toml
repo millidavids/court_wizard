@@ -1,9 +1,16 @@
 [package]
 name = "court_wizard"
-version = "0.6.175"
+version = "0.6.176"
 edition = "2024"
 default-run = "court_wizard"
 repository = "https://github.com/millidavids/court_wizard"
+
+[features]
+default = []
+# Enables in-game diagnostics logging and F3 toggle. Used by the
+# `bench-release` profile to measure hardware performance without
+# bloating the regular release binary.
+benchmarking = ["bevy/sysinfo_plugin"]
 
 [dependencies]
 bevy = { version = "0.17.3", default-features = false, features = [
@@ -90,3 +97,9 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = "symbols"
+
+# Identical codegen to release — used with `--features benchmarking` to
+# produce a binary with release performance characteristics plus the
+# diagnostics/debug tooling compiled in.
+[profile.bench-release]
+inherits = "release"

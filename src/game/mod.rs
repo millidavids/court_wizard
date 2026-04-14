@@ -9,6 +9,8 @@
 
 pub(crate) mod achievements;
 mod battlefield;
+#[cfg(feature = "benchmarking")]
+mod benchmarking;
 pub(crate) mod cauldron;
 pub(crate) mod combat_systems;
 pub(crate) mod components;

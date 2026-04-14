@@ -1,4 +1,7 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(
+    all(not(debug_assertions), not(feature = "benchmarking")),
+    windows_subsystem = "windows"
+)]
 
 use bevy::asset::{AssetMetaCheck, AssetPlugin};
 use bevy::camera::{ClearColorConfig, Viewport};

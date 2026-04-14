@@ -9,6 +9,8 @@ set -e
 #   ./build_native.sh macos                 # Build for macOS (Apple Silicon)
 #   ./build_native.sh macos-intel           # Build for macOS (Intel)
 #   ./build_native.sh --no-bump             # Build without bumping version
+#   ./build_native.sh --benchmarking        # bench-release profile w/ diagnostics (host)
+#   ./build_native.sh windows --benchmarking # bench-release for Windows
 #   ./build_native.sh --release             # Release build for host (no bump)
 #   ./build_native.sh windows --release     # Release build for Windows
 #   ./build_native.sh linux --release       # Release build for Linux
@@ -18,18 +20,29 @@ set -e
 TARGET=""
 PROFILE="dev"
 CARGO_PROFILE_FLAG=""
+CARGO_FEATURE_FLAG=""
 NO_BUMP=false
+BENCHMARKING=false
 
 for arg in "$@"; do
     case "$arg" in
-        windows)     TARGET="x86_64-pc-windows-gnu" ;;
-        linux)       TARGET="x86_64-unknown-linux-gnu" ;;
-        macos)       TARGET="aarch64-apple-darwin" ;;
-        macos-intel) TARGET="x86_64-apple-darwin" ;;
-        --release)   PROFILE="release"; CARGO_PROFILE_FLAG="--release"; NO_BUMP=true ;;
-        --no-bump)   NO_BUMP=true ;;
+        windows)        TARGET="x86_64-pc-windows-gnu" ;;
+        linux)          TARGET="x86_64-unknown-linux-gnu" ;;
+        macos)          TARGET="aarch64-apple-darwin" ;;
+        macos-intel)    TARGET="x86_64-apple-darwin" ;;
+        --release)      PROFILE="release"; CARGO_PROFILE_FLAG="--release"; NO_BUMP=true ;;
+        --benchmarking) BENCHMARKING=true; NO_BUMP=true ;;
+        --no-bump)      NO_BUMP=true ;;
     esac
 done
+
+# --benchmarking forces the bench-release profile and benchmarking feature.
+# Overrides --release if both passed. Never bumps version.
+if [ "$BENCHMARKING" = true ]; then
+    PROFILE="bench-release"
+    CARGO_PROFILE_FLAG="--profile bench-release"
+    CARGO_FEATURE_FLAG="--features benchmarking"
+fi
 
 # Bump patch version unless --release or --no-bump
 if [ "$NO_BUMP" = false ]; then
@@ -47,21 +60,20 @@ if [ "$NO_BUMP" = false ]; then
     echo "Version bumped: $CURRENT_VERSION -> $NEW_VERSION"
 fi
 
-# Determine output directory based on target and profile
+# Map cargo profile name to its target subdirectory.
+case "$PROFILE" in
+    dev)           PROFILE_DIR="debug" ;;
+    release)       PROFILE_DIR="release" ;;
+    bench-release) PROFILE_DIR="bench-release" ;;
+    *)             PROFILE_DIR="$PROFILE" ;;
+esac
+
 if [ -n "$TARGET" ]; then
     TARGET_FLAG="--target $TARGET"
-    if [ "$PROFILE" = "release" ]; then
-        BIN_DIR="./target/$TARGET/release"
-    else
-        BIN_DIR="./target/$TARGET/debug"
-    fi
+    BIN_DIR="./target/$TARGET/$PROFILE_DIR"
 else
     TARGET_FLAG=""
-    if [ "$PROFILE" = "release" ]; then
-        BIN_DIR="./target/release"
-    else
-        BIN_DIR="./target/debug"
-    fi
+    BIN_DIR="./target/$PROFILE_DIR"
 fi
 
 # Determine binary name
@@ -73,8 +85,11 @@ esac
 echo "Building native binary..."
 echo "  Target: ${TARGET:-host}"
 echo "  Profile: $PROFILE"
+if [ "$BENCHMARKING" = true ]; then
+    echo "  Features: benchmarking (diagnostics + F4 toggle ON)"
+fi
 
-cargo build $TARGET_FLAG $CARGO_PROFILE_FLAG
+cargo build $TARGET_FLAG $CARGO_PROFILE_FLAG $CARGO_FEATURE_FLAG
 
 echo "Build complete: $BIN_DIR/$BIN_NAME"
 
