@@ -1,5 +1,6 @@
 /target
 /.claude/settings.local.json
+/.claude/worktrees/
 Screenshot*.png
 /**/*.zip
 steam_appid.txt
