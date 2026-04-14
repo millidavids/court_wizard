@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.180] - 2026-04-14
+
+### Added
+- **Health & Safety info in the Manual** — a new tab in the Manual screen covers photosensitive seizure guidance, recommendations for breaks and posture, and notes on which spells produce the brightest effects, so you can play more comfortably
+- **Privacy Policy in the Manual** — a new tab explains exactly what the game stores (everything stays on your own computer), how Steam features interact with your account, and what happens during multiplayer sessions
+
 ## [v0.6.179] - 2026-04-14
 
 ### Changed

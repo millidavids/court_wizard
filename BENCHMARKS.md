@@ -33,23 +33,71 @@ Constrained configurations simulated weaker hardware by pinning CPU affinity and
 
 ### Minimum
 
+#### Windows
+
 | Component | Spec |
 |---|---|
-| **OS** | Windows 10 64-bit (or Linux/macOS equivalent) |
-| **CPU** | Dual-core 2.0 GHz |
+| **OS** | Windows 10 64-bit |
+| **CPU** | Dual-core 2.0 GHz (Intel Core i3-6100, AMD FX-6300, or equivalent) |
 | **RAM** | 2 GB |
-| **GPU** | Integrated graphics with Vulkan or DX12 support (Intel Iris Xe, AMD Vega / Radeon iGPU, or equivalent) |
+| **GPU** | Integrated graphics with DX12 or Vulkan support (Intel UHD 620 / Iris Xe, AMD Vega iGPU, or equivalent) |
+| **Storage** | 500 MB |
+| **Target** | 30 FPS in normal play; may dip under peak roguelite stress |
+
+#### macOS (Apple Silicon only)
+
+| Component | Spec |
+|---|---|
+| **OS** | macOS 11 (Big Sur) or later |
+| **CPU** | Apple M1 or later |
+| **RAM** | 8 GB unified memory |
+| **GPU** | Apple M1 integrated GPU or later |
+| **Storage** | 500 MB |
+| **Target** | 30 FPS in normal play; may dip under peak roguelite stress |
+
+#### Linux
+
+| Component | Spec |
+|---|---|
+| **OS** | Ubuntu 20.04 LTS / Fedora 36 / SteamOS 3 or any modern 64-bit distro with glibc 2.31+ |
+| **CPU** | Dual-core 2.0 GHz (Intel Core i3-6100, AMD FX-6300, or equivalent) |
+| **RAM** | 2 GB |
+| **GPU** | Integrated graphics with Vulkan 1.2 support (Intel UHD 620 / Iris Xe, AMD Vega iGPU, or equivalent). Mesa 21.0+ drivers required |
 | **Storage** | 500 MB |
 | **Target** | 30 FPS in normal play; may dip under peak roguelite stress |
 
 ### Recommended
 
+#### Windows
+
 | Component | Spec |
 |---|---|
 | **OS** | Windows 10/11 64-bit |
-| **CPU** | Quad-core 2.5 GHz |
+| **CPU** | Quad-core 2.5 GHz (Intel Core i5-8400, AMD Ryzen 5 2600, or better) |
 | **RAM** | 4 GB |
-| **GPU** | Any dedicated GPU from the last ~5 years |
+| **GPU** | Any dedicated GPU from the last ~5 years (NVIDIA GTX 1050 / AMD RX 560 or better) |
+| **Storage** | 500 MB |
+| **Target** | Stable 60 FPS under all gameplay conditions |
+
+#### macOS (Apple Silicon only)
+
+| Component | Spec |
+|---|---|
+| **OS** | macOS 12 (Monterey) or later |
+| **CPU** | Apple M1 Pro / M2 / M3 or later |
+| **RAM** | 16 GB unified memory |
+| **GPU** | Apple M1 Pro integrated GPU or later |
+| **Storage** | 500 MB |
+| **Target** | Stable 60 FPS under all gameplay conditions |
+
+#### Linux
+
+| Component | Spec |
+|---|---|
+| **OS** | Ubuntu 22.04 LTS / Fedora 38 / SteamOS 3 or any modern 64-bit distro |
+| **CPU** | Quad-core 2.5 GHz (Intel Core i5-8400, AMD Ryzen 5 2600, or better) |
+| **RAM** | 4 GB |
+| **GPU** | Any dedicated GPU from the last ~5 years with Vulkan 1.2 (NVIDIA GTX 1050 with proprietary drivers, AMD RX 560 with Mesa 22.0+, or better) |
 | **Storage** | 500 MB |
 | **Target** | Stable 60 FPS under all gameplay conditions |
 
