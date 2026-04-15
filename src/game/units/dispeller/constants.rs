@@ -22,6 +22,17 @@ pub const DISPELLER_HEALTH: f32 = 80.0;
 pub const DISPEL_RANGE: f32 = 150.0;
 pub const DISPEL_COOLDOWN: f32 = 1.5;
 
+/// Duration of the dispeller's pre-cast channel, in seconds.
+pub(super) const DISPELLER_CAST_DURATION: f32 = 5.0;
+
+/// Channel VFX — inward-imploding white particles.
+pub(super) const DISPELLER_CHANNEL_PARTICLE_SPAWN_INTERVAL: f32 = 0.05;
+pub(super) const DISPELLER_CHANNEL_PARTICLE_COUNT_PER_SPAWN: usize = 3;
+pub(super) const DISPELLER_CHANNEL_PARTICLE_START_RADIUS: f32 = 18.0;
+pub(super) const DISPELLER_CHANNEL_PARTICLE_MAX_RADIUS: f32 = 140.0;
+pub(super) const DISPELLER_CHANNEL_PARTICLE_SIZE: f32 = 5.0;
+pub(super) const DISPELLER_CHANNEL_PARTICLE_LIFETIME: f32 = 0.8;
+
 // ===== Ranged Attack =====
 pub const BOLT_DAMAGE: f32 = 5.0;
 pub const BOLT_SPEED: f32 = 400.0;

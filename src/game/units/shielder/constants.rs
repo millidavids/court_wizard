@@ -22,6 +22,17 @@ pub const SHIELD_COOLDOWN: f32 = 5.0;
 /// Damage reduction multiplier for shielded units (20% reduction = 0.8x damage).
 pub const SHIELDER_DAMAGE_REDUCTION: f32 = 0.8;
 
+/// Duration of the shielder's pre-cast channel, in seconds.
+pub(super) const SHIELDER_CAST_DURATION: f32 = 5.0;
+
+/// Channel VFX — inward-imploding yellow particles.
+pub(super) const SHIELDER_CHANNEL_PARTICLE_SPAWN_INTERVAL: f32 = 0.05;
+pub(super) const SHIELDER_CHANNEL_PARTICLE_COUNT_PER_SPAWN: usize = 3;
+pub(super) const SHIELDER_CHANNEL_PARTICLE_START_RADIUS: f32 = 18.0;
+pub(super) const SHIELDER_CHANNEL_PARTICLE_MAX_RADIUS: f32 = 140.0;
+pub(super) const SHIELDER_CHANNEL_PARTICLE_SIZE: f32 = 5.0;
+pub(super) const SHIELDER_CHANNEL_PARTICLE_LIFETIME: f32 = 0.8;
+
 // ===== Spawn =====
 
 /// Tier at which attacker shielders start appearing.

@@ -16,7 +16,8 @@ use crate::game::units::components::{Health, MovementSpeed, UnitTypeGlow};
 use crate::game::units::constants::{
     COMMANDER_GLOW_COLOR, DISPELLER_GLOW_COLOR, HEALER_GLOW_COLOR, SHIELDER_GLOW_COLOR,
 };
-use crate::game::units::dispeller::components::{Dispeller, DispellerAttackTimer};
+use crate::game::units::dispeller::components::Dispeller;
+use crate::game::units::ranged_bolt::RangedAttackTimer;
 use crate::game::units::dispeller::constants::{
     DISPELLER_HEALTH, DISPELLER_MOVEMENT_SPEED, DISPELLER_RADIUS,
 };
@@ -159,7 +160,7 @@ pub(in crate::game) fn apply_dispeller_upgrade(
     // Add dispeller components + white glow
     commands.entity(entity).insert((
         Dispeller,
-        DispellerAttackTimer::new(),
+        RangedAttackTimer::new(),
         UnitTypeGlow {
             color: DISPELLER_GLOW_COLOR,
         },

@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.6.185] - 2026-04-15
+## [v0.6.195] - 2026-04-15
+
+### Added
+- **Magic enemies now have real casting animations** — the Healer, Shielder, Dispeller, and Teleporter all wind up their abilities with a visible cast, so you can actually see them preparing their effect before it goes off
+- **Channeled cast visuals** — while these magic units are casting, a growing sphere of glowing particles draws in around them (green for the Healer, yellow for the Shielder, white for the Dispeller, blue for the Teleporter) — a clear "interrupt me now" cue on the battlefield
+- **Longer, more interruptible casts** — the Healer, Shielder, and Dispeller now take a full five seconds to pull off their ability, and the Teleporter's big grab-and-yank on the King takes a full ten seconds, giving you much more time to react and kill them first
+- **Teleporter has a ranged attack** — the Teleporter now fires weak magic bolts at your defenders while she closes on the King, so she's a threat even before she starts her channel
+
+### Changed
+- **Magic enemies hold still while casting** — once a Healer, Shielder, Dispeller, or Teleporter begins a cast, she locks in place for the full channel instead of drifting around, so interrupt timing is predictable
+- **Magic enemies wait for their wave to go live** — none of these casters will begin an ability while they're still staging in the spawn tunnels; they only start casting once their wave has been released
+
+### Fixed
+- **Teleporter no longer turns invisible after her cast** — when the Teleporter finished channeling, her sprite could end up stuck on a broken frame that looked like she had vanished. She now cleanly returns to her walking animation after the teleport fires
+
 
 ### Changed
 - **Black Hole looks like an actual black hole** — the spell now renders as a solid dark sphere instead of a white ring, with a subtle space-warping distortion around its edge so the battlefield bends as you watch

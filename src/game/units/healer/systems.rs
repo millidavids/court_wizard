@@ -5,6 +5,12 @@ use super::constants::*;
 use super::resources::HealerAssets;
 use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
+use crate::game::seeded_rng::resources::GameRng;
+use crate::game::units::wizard::spells::vfx::channel::{
+    ChannelingCast, ChannelParticleSpec, spawn_channel_particle_batch,
+};
+use crate::game::units::components::CombatAnimation;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
 use crate::game::units::brute::components::Brute;
@@ -276,9 +282,9 @@ pub fn healer_movement(
     }
 }
 
-/// Fires a heal bolt at the best hurt ally within range when cooldown is ready.
+/// Starts a 5-second heal channel when cooldown is ready and a valid target is in range.
 #[allow(clippy::type_complexity)]
-pub fn healer_fire_heal_bolt(
+pub fn healer_start_heal_channel(
     mut commands: Commands,
     time: Res<Time>,
     healer_assets: Res<HealerAssets>,
@@ -290,6 +296,7 @@ pub fn healer_fire_heal_bolt(
             &mut HealerAttackTimer,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
+            Has<ChannelingCast>,
             Has<StagingAttacker>,
             Has<WaveGroup>,
         ),
@@ -312,7 +319,6 @@ pub fn healer_fire_heal_bolt(
 ) {
     let delta = time.delta_secs();
 
-    // Snapshot ally data for heal targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, f32, f32, u32)> = potential_targets
         .iter()
         .map(
@@ -343,11 +349,11 @@ pub fn healer_fire_heal_bolt(
         mut attack_timer,
         sleeping,
         banished,
+        is_channeling,
         has_staging,
         has_wave_group,
     ) in &mut healers
     {
-        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
         if crate::game::units::systems::is_staging_attacker(
             healer_team,
             has_staging,
@@ -357,60 +363,202 @@ pub fn healer_fire_heal_bolt(
         }
         attack_timer.time_since_last_attack += delta;
 
-        // Skip if CC'd
-        if sleeping.is_some() || banished.is_some() {
+        if is_channeling || sleeping.is_some() || banished.is_some() {
             continue;
         }
-
-        // Check cooldown
         if attack_timer.time_since_last_attack < HEAL_COOLDOWN {
             continue;
         }
 
-        // Find best heal target within range
         let best_target = find_best_heal_target(
             &ally_snapshot,
             healer_entity,
             healer_transform.translation,
             *healer_team,
         );
-
-        if let Some((target_entity, target_pos, distance)) = best_target {
-            if distance > HEAL_RANGE {
-                continue;
-            }
-
-            // Spawn homing heal bolt toward target
-            let origin = healer_transform.translation + Vec3::Y * 10.0;
-            let diff = target_pos - origin;
-            let direction = Vec3::new(diff.x, 0.0, diff.z).normalize_or_zero();
-
-            commands.spawn((
-                Mesh3d(healer_assets.bolt_mesh.clone()),
-                MeshMaterial3d(healer_assets.bolt_material.clone()),
-                Transform::from_translation(origin)
-                    .with_scale(Vec3::splat(1.0))
-                    .looking_to(direction, Vec3::Y),
-                HealBolt {
-                    target: target_entity,
-                    speed: HEAL_BOLT_SPEED,
-                    source_team: *healer_team,
-                    lifetime: HEAL_BOLT_LIFETIME,
-                },
-                Billboard,
-                OnGameplayScreen,
-            ));
-
-            attack_timer.time_since_last_attack = 0.0;
-
-            // Trigger casting animation
-            commands.entity(healer_entity).insert(
-                crate::game::units::components::CombatAnimation::new_casting(
-                    healer_assets.casting_texture.clone(),
-                    healer_assets.sprite_texture.clone(),
-                ),
-            );
+        let Some((_, _, distance)) = best_target else {
+            continue;
+        };
+        if distance > HEAL_RANGE {
+            continue;
         }
+
+        commands.entity(healer_entity).insert((
+            ChannelingCast { elapsed: 0.0 },
+            CombatAnimation::new_casting(
+                healer_assets.casting_texture.clone(),
+                healer_assets.sprite_texture.clone(),
+            ),
+        ));
+    }
+}
+
+/// Ticks active heal channels. When the channel completes, spawns a heal bolt
+/// at a freshly-picked valid target and starts the cooldown.
+#[allow(clippy::type_complexity)]
+pub fn healer_tick_heal_channel(
+    mut commands: Commands,
+    time: Res<Time>,
+    healer_assets: Res<HealerAssets>,
+    mut healers: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &mut HealerAttackTimer,
+            &mut ChannelingCast,
+        ),
+        (With<Healer>, Without<Corpse>),
+    >,
+    potential_targets: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &Health,
+            Option<&Commander>,
+            Option<&Brute>,
+            Option<&EliteSpeedBonus>,
+            Option<&Dispeller>,
+            Option<&Healer>,
+        ),
+        Without<Corpse>,
+    >,
+) {
+    let delta = time.delta_secs();
+
+    let mut ally_snapshot: Option<Vec<(Entity, Vec3, Team, f32, f32, u32)>> = None;
+
+    for (healer_entity, healer_transform, healer_team, mut attack_timer, mut channel) in
+        &mut healers
+    {
+        channel.elapsed += delta;
+        if channel.elapsed < HEALER_CAST_DURATION {
+            continue;
+        }
+
+        commands.entity(healer_entity).remove::<ChannelingCast>();
+        attack_timer.time_since_last_attack = 0.0;
+
+        let snapshot = ally_snapshot.get_or_insert_with(|| {
+            potential_targets
+                .iter()
+                .map(
+                    |(entity, transform, team, health, commander, brute, elite, dispeller, healer)| {
+                        let priority = find_heal_priority(
+                            commander.is_some(),
+                            brute.is_some(),
+                            elite.is_some(),
+                            dispeller.is_some(),
+                            healer.is_some(),
+                        );
+                        (
+                            entity,
+                            transform.translation,
+                            *team,
+                            health.current,
+                            health.max,
+                            priority,
+                        )
+                    },
+                )
+                .collect()
+        });
+
+        let best_target = find_best_heal_target(
+            snapshot,
+            healer_entity,
+            healer_transform.translation,
+            *healer_team,
+        );
+        let Some((target_entity, target_pos, distance)) = best_target else {
+            continue;
+        };
+        if distance > HEAL_RANGE {
+            continue;
+        }
+
+        let origin = healer_transform.translation + Vec3::Y * 10.0;
+        let diff = target_pos - origin;
+        let direction = Vec3::new(diff.x, 0.0, diff.z).normalize_or_zero();
+
+        commands.spawn((
+            Mesh3d(healer_assets.bolt_mesh.clone()),
+            MeshMaterial3d(healer_assets.bolt_material.clone()),
+            Transform::from_translation(origin)
+                .with_scale(Vec3::splat(1.0))
+                .looking_to(direction, Vec3::Y),
+            HealBolt {
+                target: target_entity,
+                speed: HEAL_BOLT_SPEED,
+                source_team: *healer_team,
+                lifetime: HEAL_BOLT_LIFETIME,
+            },
+            Billboard,
+            OnGameplayScreen,
+        ));
+    }
+}
+
+/// Re-inserts the casting animation on channeling healers whose previous cycle
+/// already ran to completion, producing a continuous loop.
+pub fn healer_refresh_casting_animation(
+    mut commands: Commands,
+    healers: Query<
+        Entity,
+        (
+            With<Healer>,
+            With<ChannelingCast>,
+            Without<CombatAnimation>,
+            Without<Corpse>,
+        ),
+    >,
+    healer_assets: Res<HealerAssets>,
+) {
+    for entity in &healers {
+        commands.entity(entity).insert(CombatAnimation::new_casting(
+            healer_assets.casting_texture.clone(),
+            healer_assets.sprite_texture.clone(),
+        ));
+    }
+}
+
+/// Spawns inward-imploding green particles around each channeling healer.
+pub fn healer_spawn_channel_particles(
+    mut commands: Commands,
+    healers: Query<(&Transform, &ChannelingCast, &Hitbox), (With<Healer>, Without<Corpse>)>,
+    healer_assets: Res<HealerAssets>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+    mut game_rng: ResMut<GameRng>,
+) {
+    *timer += time.delta_secs();
+    if *timer < HEALER_CHANNEL_PARTICLE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= HEALER_CHANNEL_PARTICLE_SPAWN_INTERVAL;
+
+    let spec = ChannelParticleSpec {
+        start_radius: HEALER_CHANNEL_PARTICLE_START_RADIUS,
+        max_radius: HEALER_CHANNEL_PARTICLE_MAX_RADIUS,
+        size: HEALER_CHANNEL_PARTICLE_SIZE,
+        lifetime: HEALER_CHANNEL_PARTICLE_LIFETIME,
+        count_per_spawn: HEALER_CHANNEL_PARTICLE_COUNT_PER_SPAWN,
+    };
+
+    for (transform, channel, hitbox) in &healers {
+        let progress = channel.elapsed / HEALER_CAST_DURATION;
+        let center = transform.translation + Vec3::Y * (hitbox.height * 0.5);
+        spawn_channel_particle_batch(
+            &mut commands,
+            center,
+            progress,
+            &visual_assets.particle_quad,
+            &healer_assets.channel_particle_material,
+            &spec,
+            &mut game_rng.0,
+        );
     }
 }
 

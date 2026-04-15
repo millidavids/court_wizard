@@ -17,6 +17,9 @@ impl Plugin for TeleporterPlugin {
                     systems::update_teleporter_targeting.in_set(VelocitySystemSet),
                     systems::teleporter_movement.in_set(MovementCalculationSet),
                     systems::update_channel_state,
+                    systems::refresh_teleporter_casting_animation,
+                    systems::spawn_channel_particles,
+                    systems::teleporter_ranged_combat,
                     systems::cleanup_dead_teleporter_channels,
                 )
                     .run_if(is_gameplay_running)

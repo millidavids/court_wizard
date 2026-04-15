@@ -20,6 +20,7 @@ pub(crate) mod healer;
 pub(in crate::game) mod infantry;
 pub(crate) mod king;
 pub(in crate::game) mod movement;
+pub(in crate::game) mod ranged_bolt;
 pub(crate) mod shielder;
 pub(in crate::game) mod systems;
 pub(in crate::game) mod teleporter;

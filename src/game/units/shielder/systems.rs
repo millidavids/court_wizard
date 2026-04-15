@@ -6,14 +6,19 @@ use crate::game::cauldron::components::CauldronSpeedModifier;
 use crate::game::components::{Acceleration, Velocity};
 use crate::game::pathfinding::FlowFieldVelocity;
 use crate::game::pathfinding::{StagingAttacker, WaveGroup};
+use crate::game::seeded_rng::resources::GameRng;
+use crate::game::units::wizard::spells::vfx::channel::{
+    ChannelingCast, ChannelParticleSpec, spawn_channel_particle_batch,
+};
 use crate::game::units::components::{
-    BanishedModifier, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
-    FlockingVelocity, FrozenSolidModifier, HasteModifier, MovementSpeed, PolymorphedModifier,
-    RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier, Sleepwalking,
-    SlowMovementModifier, TargetingVelocity, Team,
+    BanishedModifier, CombatAnimation, CommanderAuraSpeedModifier, Corpse, EliteSpeedBonus,
+    FlockingVelocity, FrozenSolidModifier, HasteModifier, Hitbox, MovementSpeed,
+    PolymorphedModifier, RootedModifier, RoughTerrainModifier, SickenedModifier, SleepModifier,
+    Sleepwalking, SlowMovementModifier, TargetingVelocity, Team,
 };
 use crate::game::units::infantry::components::DefendersActivated;
 use crate::game::units::king::components::SpellShield;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 
 /// Updates shielder targeting — seeks nearest same-team ally without a spell shield,
 /// or falls back to following the army toward nearest enemy.
@@ -264,9 +269,31 @@ pub fn shielder_movement(
     }
 }
 
-/// Applies spell shields to nearby same-team allies when cooldown is ready.
+/// Finds the nearest unshielded ally within shield range, if any.
+fn find_shielder_target(
+    ally_snapshot: &[(Entity, Vec3, Team, bool)],
+    self_pos: Vec3,
+    self_team: Team,
+) -> Option<Entity> {
+    ally_snapshot
+        .iter()
+        .filter(|(_, _, ally_team, has_shield)| *ally_team == self_team && !has_shield)
+        .filter_map(|&(ally_entity, ally_pos, _, _)| {
+            let dist = ((self_pos.x - ally_pos.x).powi(2) + (self_pos.z - ally_pos.z).powi(2))
+                .sqrt();
+            if dist <= SHIELD_RANGE {
+                Some((ally_entity, dist))
+            } else {
+                None
+            }
+        })
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(e, _)| e)
+}
+
+/// Starts a 5-second shield channel when cooldown is ready and a target is in range.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn shielder_apply_shield(
+pub fn shielder_start_shield_channel(
     mut commands: Commands,
     time: Res<Time>,
     shielder_assets: Res<super::resources::ShielderAssets>,
@@ -278,6 +305,7 @@ pub fn shielder_apply_shield(
             Option<&mut ShielderShieldCooldown>,
             Option<&SleepModifier>,
             Option<&BanishedModifier>,
+            Has<ChannelingCast>,
             Has<StagingAttacker>,
             Has<WaveGroup>,
         ),
@@ -294,7 +322,6 @@ pub fn shielder_apply_shield(
 ) {
     let delta = time.delta_secs();
 
-    // Snapshot allies for shield targeting
     let ally_snapshot: Vec<(Entity, Vec3, Team, bool)> = potential_targets
         .iter()
         .map(|(entity, transform, team, has_shield)| {
@@ -302,64 +329,157 @@ pub fn shielder_apply_shield(
         })
         .collect();
 
-    for (entity, transform, team, cooldown, sleeping, banished, has_staging, has_wave_group) in
-        &mut shielders
+    for (
+        entity,
+        transform,
+        team,
+        cooldown,
+        sleeping,
+        banished,
+        is_channeling,
+        has_staging,
+        has_wave_group,
+    ) in &mut shielders
     {
-        // Skip staging attackers (includes 1-frame delay before WaveGroup is added)
         if crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group) {
             continue;
         }
-
-        // Tick cooldown if present
         if let Some(mut cd) = cooldown {
             cd.remaining -= delta;
             if cd.remaining > 0.0 {
                 continue;
             }
-            // Cooldown expired — remove it and allow casting
             commands.entity(entity).remove::<ShielderShieldCooldown>();
         }
 
-        // Skip if CC'd
-        if sleeping.is_some() || banished.is_some() {
+        if is_channeling || sleeping.is_some() || banished.is_some() {
             continue;
         }
 
-        // Find nearest unshielded same-team ally within range
-        let nearest = ally_snapshot
-            .iter()
-            .filter(|(_, _, ally_team, has_shield)| *ally_team == *team && !has_shield)
-            .filter_map(|&(ally_entity, ally_pos, _, _)| {
-                let dist = ((transform.translation.x - ally_pos.x).powi(2)
-                    + (transform.translation.z - ally_pos.z).powi(2))
-                .sqrt();
-                if dist <= SHIELD_RANGE {
-                    Some((ally_entity, dist))
-                } else {
-                    None
-                }
-            })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        if find_shielder_target(&ally_snapshot, transform.translation, *team).is_none() {
+            continue;
+        }
 
-        if let Some((target_entity, _)) = nearest {
-            // Apply spell shield and damage reduction to the target
-            // The golden glow is handled by update_persistent_effect_visuals via ShielderDamageReduction
+        commands.entity(entity).insert((
+            ChannelingCast { elapsed: 0.0 },
+            CombatAnimation::new_casting(
+                shielder_assets.casting_texture.clone(),
+                shielder_assets.sprite_texture.clone(),
+            ),
+        ));
+    }
+}
+
+/// Ticks active shield channels. On completion applies the spell shield to a
+/// freshly-picked target and starts the cooldown.
+#[allow(clippy::type_complexity)]
+pub fn shielder_tick_shield_channel(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut shielders: Query<
+        (Entity, &Transform, &Team, &mut ChannelingCast),
+        (With<Shielder>, Without<Corpse>),
+    >,
+    potential_targets: Query<
+        (Entity, &Transform, &Team, Has<SpellShield>),
+        (
+            Without<Corpse>,
+            Without<BanishedModifier>,
+            Without<Shielder>,
+        ),
+    >,
+) {
+    let delta = time.delta_secs();
+
+    let mut ally_snapshot: Option<Vec<(Entity, Vec3, Team, bool)>> = None;
+
+    for (entity, transform, team, mut channel) in &mut shielders {
+        channel.elapsed += delta;
+        if channel.elapsed < SHIELDER_CAST_DURATION {
+            continue;
+        }
+
+        commands
+            .entity(entity)
+            .remove::<ChannelingCast>()
+            .insert(ShielderShieldCooldown {
+                remaining: SHIELD_COOLDOWN,
+            });
+
+        let snapshot = ally_snapshot.get_or_insert_with(|| {
+            potential_targets
+                .iter()
+                .map(|(entity, transform, team, has_shield)| {
+                    (entity, transform.translation, *team, has_shield)
+                })
+                .collect()
+        });
+
+        if let Some(target_entity) = find_shielder_target(snapshot, transform.translation, *team) {
             commands
                 .entity(target_entity)
                 .insert((SpellShield, ShielderDamageReduction));
-
-            // Trigger casting animation
-            commands.entity(entity).insert(
-                crate::game::units::components::CombatAnimation::new_casting(
-                    shielder_assets.casting_texture.clone(),
-                    shielder_assets.sprite_texture.clone(),
-                ),
-            );
-
-            // Set cooldown
-            commands.entity(entity).insert(ShielderShieldCooldown {
-                remaining: SHIELD_COOLDOWN,
-            });
         }
+    }
+}
+
+/// Re-inserts the casting animation on channeling shielders so the animation loops.
+pub fn shielder_refresh_casting_animation(
+    mut commands: Commands,
+    shielders: Query<
+        Entity,
+        (
+            With<Shielder>,
+            With<ChannelingCast>,
+            Without<CombatAnimation>,
+            Without<Corpse>,
+        ),
+    >,
+    shielder_assets: Res<super::resources::ShielderAssets>,
+) {
+    for entity in &shielders {
+        commands.entity(entity).insert(CombatAnimation::new_casting(
+            shielder_assets.casting_texture.clone(),
+            shielder_assets.sprite_texture.clone(),
+        ));
+    }
+}
+
+/// Spawns inward-imploding yellow particles around each channeling shielder.
+pub fn shielder_spawn_channel_particles(
+    mut commands: Commands,
+    shielders: Query<(&Transform, &ChannelingCast, &Hitbox), (With<Shielder>, Without<Corpse>)>,
+    shielder_assets: Res<super::resources::ShielderAssets>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+    mut game_rng: ResMut<GameRng>,
+) {
+    *timer += time.delta_secs();
+    if *timer < SHIELDER_CHANNEL_PARTICLE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= SHIELDER_CHANNEL_PARTICLE_SPAWN_INTERVAL;
+
+    let spec = ChannelParticleSpec {
+        start_radius: SHIELDER_CHANNEL_PARTICLE_START_RADIUS,
+        max_radius: SHIELDER_CHANNEL_PARTICLE_MAX_RADIUS,
+        size: SHIELDER_CHANNEL_PARTICLE_SIZE,
+        lifetime: SHIELDER_CHANNEL_PARTICLE_LIFETIME,
+        count_per_spawn: SHIELDER_CHANNEL_PARTICLE_COUNT_PER_SPAWN,
+    };
+
+    for (transform, channel, hitbox) in &shielders {
+        let progress = channel.elapsed / SHIELDER_CAST_DURATION;
+        let center = transform.translation + Vec3::Y * (hitbox.height * 0.5);
+        spawn_channel_particle_batch(
+            &mut commands,
+            center,
+            progress,
+            &visual_assets.particle_quad,
+            &shielder_assets.channel_particle_material,
+            &spec,
+            &mut game_rng.0,
+        );
     }
 }

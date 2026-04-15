@@ -24,6 +24,17 @@ pub const HEAL_BOLT_COLOR: Color = Color::srgb(0.2, 0.9, 0.3);
 pub const HEAL_RANGE: f32 = 400.0;
 pub const HEAL_COOLDOWN: f32 = 4.0;
 
+/// Duration of the pre-heal channel cast, in seconds.
+pub(super) const HEALER_CAST_DURATION: f32 = 5.0;
+
+/// Channel VFX — inward-imploding green particles.
+pub(super) const HEALER_CHANNEL_PARTICLE_SPAWN_INTERVAL: f32 = 0.05;
+pub(super) const HEALER_CHANNEL_PARTICLE_COUNT_PER_SPAWN: usize = 3;
+pub(super) const HEALER_CHANNEL_PARTICLE_START_RADIUS: f32 = 18.0;
+pub(super) const HEALER_CHANNEL_PARTICLE_MAX_RADIUS: f32 = 140.0;
+pub(super) const HEALER_CHANNEL_PARTICLE_SIZE: f32 = 5.0;
+pub(super) const HEALER_CHANNEL_PARTICLE_LIFETIME: f32 = 0.8;
+
 // ===== Spawn =====
 
 /// Tier at which attacker healers start appearing.

@@ -5,7 +5,7 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::{Acceleration, Billboard, OnGameplayScreen, Velocity};
 use crate::game::constants::*;
-use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker};
+use crate::game::pathfinding::{FlowFieldInfluence, FlowFieldVelocity, StagingAttacker, WaveGroup};
 use crate::game::seeded_rng::resources::GameRng;
 use crate::game::units::brute::components::Brute;
 use crate::game::units::commander::components::Commander;
@@ -17,11 +17,13 @@ use crate::game::units::components::{
     Stunned, TargetingVelocity, Team, Teleportable, TemporaryHitPoints, UnitTypeGlow,
     WalkingAnimation,
 };
+use crate::game::units::ranged_bolt::RangedAttackTimer;
 use crate::game::units::infantry::Infantry;
 use crate::game::units::king::components::King;
 use crate::game::units::random_position_in_cell;
 use crate::game::units::wizard::spells::teleport::vfx_components::TeleportWarpEffect;
 use crate::game::units::wizard::spells::teleport::vfx_systems::spawn_teleport_vfx;
+use crate::game::units::wizard::spells::visual_assets::SpellVisualAssets;
 use super::resources::TeleporterAssets;
 
 /// Spawns a single teleporter attacker.
@@ -75,6 +77,7 @@ pub(in crate::game) fn spawn_single_teleporter(
         ))
         .insert((
             TeleporterState::default(),
+            RangedAttackTimer::new(),
             anim,
             FacingDirection::default(),
             FlockingVelocity::default(),
@@ -226,7 +229,14 @@ pub(super) fn update_channel_state(
     mut game_rng: ResMut<GameRng>,
     teleporter_assets: Res<TeleporterAssets>,
     mut teleporters: Query<
-        (Entity, &Transform, &mut TeleporterState),
+        (
+            Entity,
+            &Transform,
+            &mut TeleporterState,
+            &Team,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
+        ),
         (With<Teleporter>, Without<Corpse>),
     >,
     king_query: Query<(&Transform, &Team), (With<King>, Without<Corpse>)>,
@@ -274,14 +284,20 @@ pub(super) fn update_channel_state(
 
     let dt = time.delta_secs();
 
-    for (entity, transform, mut state) in &mut teleporters {
+    for (entity, transform, mut state, team, has_staging, has_wave_group) in &mut teleporters {
         let pos = transform.translation;
         let dx = pos.x - king_pos.x;
         let dz = pos.z - king_pos.z;
         let dist = (dx * dx + dz * dz).sqrt();
 
+        let is_staging =
+            crate::game::units::systems::is_staging_attacker(team, has_staging, has_wave_group);
+
         match &mut *state {
             TeleporterState::Approaching => {
+                if is_staging {
+                    continue;
+                }
                 if dist <= CHANNEL_RANGE {
                     let indicator = commands
                         .spawn((
@@ -399,14 +415,80 @@ pub(super) fn update_channel_state(
                 // VFX at both endpoints.
                 spawn_teleport_vfx(&mut commands, pos, king_pos, TELEPORT_VFX_RADIUS);
 
-                // Despawn indicator, clear casting animation, enter cooldown.
+                // Despawn indicator and enter cooldown. Let the current casting
+                // animation cycle finish naturally so `update_combat_animation`
+                // restores the walking texture; `refresh_teleporter_casting_animation`
+                // won't re-insert it once state is Cooldown.
                 commands.entity(indicator_entity).try_despawn();
-                commands.entity(entity).remove::<CombatAnimation>();
                 *state = TeleporterState::Cooldown {
                     remaining: CHANNEL_COOLDOWN,
                 };
             }
         }
+    }
+}
+
+/// Re-inserts `CombatAnimation::new_casting` on channeling teleporters that
+/// have finished (and thus had their animation removed) so the cast animation
+/// loops for the full channel duration.
+pub(super) fn refresh_teleporter_casting_animation(
+    mut commands: Commands,
+    teleporters: Query<
+        (Entity, &TeleporterState),
+        (With<Teleporter>, Without<CombatAnimation>, Without<Corpse>),
+    >,
+    teleporter_assets: Res<TeleporterAssets>,
+) {
+    for (entity, state) in &teleporters {
+        if matches!(state, TeleporterState::Channeling { .. }) {
+            commands.entity(entity).insert(CombatAnimation::new_casting(
+                teleporter_assets.casting_texture.clone(),
+                teleporter_assets.sprite_texture.clone(),
+            ));
+        }
+    }
+}
+
+/// Spawns inward-imploding particles on the surface of a growing sphere around
+/// each channeling teleporter.
+pub(super) fn spawn_channel_particles(
+    mut commands: Commands,
+    teleporters: Query<(&Transform, &TeleporterState, &Hitbox), (With<Teleporter>, Without<Corpse>)>,
+    teleporter_assets: Res<TeleporterAssets>,
+    visual_assets: Res<SpellVisualAssets>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+    mut game_rng: ResMut<GameRng>,
+) {
+    *timer += time.delta_secs();
+    if *timer < CHANNEL_PARTICLE_SPAWN_INTERVAL {
+        return;
+    }
+    *timer -= CHANNEL_PARTICLE_SPAWN_INTERVAL;
+
+    let spec = crate::game::units::wizard::spells::vfx::channel::ChannelParticleSpec {
+        start_radius: CHANNEL_PARTICLE_START_RADIUS,
+        max_radius: CHANNEL_PARTICLE_MAX_RADIUS,
+        size: CHANNEL_PARTICLE_SIZE,
+        lifetime: CHANNEL_PARTICLE_LIFETIME,
+        count_per_spawn: CHANNEL_PARTICLE_COUNT_PER_SPAWN,
+    };
+
+    for (transform, state, hitbox) in &teleporters {
+        let TeleporterState::Channeling { elapsed, .. } = state else {
+            continue;
+        };
+        let progress = *elapsed / CHANNEL_DURATION;
+        let center = transform.translation + Vec3::Y * (hitbox.height * 0.5);
+        crate::game::units::wizard::spells::vfx::channel::spawn_channel_particle_batch(
+            &mut commands,
+            center,
+            progress,
+            &visual_assets.particle_quad,
+            &teleporter_assets.channel_particle_material,
+            &spec,
+            &mut game_rng.0,
+        );
     }
 }
 
@@ -420,5 +502,109 @@ pub(super) fn cleanup_dead_teleporter_channels(
             commands.entity(*indicator).try_despawn();
         }
         commands.entity(entity).remove::<TeleporterState>();
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub(super) fn teleporter_ranged_combat(
+    mut commands: Commands,
+    time: Res<Time>,
+    teleporter_assets: Res<TeleporterAssets>,
+    mut teleporters: Query<
+        (
+            Entity,
+            &Transform,
+            &Team,
+            &TeleporterState,
+            &mut RangedAttackTimer,
+            Option<&SleepModifier>,
+            Option<&BanishedModifier>,
+            Has<StagingAttacker>,
+            Has<WaveGroup>,
+        ),
+        (With<Teleporter>, Without<Corpse>),
+    >,
+    targets: Query<(Entity, &Transform, &Team), (Without<Corpse>, Without<BanishedModifier>)>,
+) {
+    let delta = time.delta_secs();
+
+    for (
+        teleporter_entity,
+        teleporter_transform,
+        teleporter_team,
+        state,
+        mut attack_timer,
+        sleeping,
+        banished,
+        has_staging,
+        has_wave_group,
+    ) in &mut teleporters
+    {
+        if crate::game::units::systems::is_staging_attacker(
+            teleporter_team,
+            has_staging,
+            has_wave_group,
+        ) {
+            continue;
+        }
+        attack_timer.time_since_last_attack += delta;
+
+        if matches!(state, TeleporterState::Channeling { .. })
+            || sleeping.is_some()
+            || banished.is_some()
+        {
+            continue;
+        }
+
+        if attack_timer.time_since_last_attack < TELEPORTER_ATTACK_COOLDOWN {
+            continue;
+        }
+
+        let nearest_enemy = targets
+            .iter()
+            .filter(|(entity, _, team)| {
+                *entity != teleporter_entity && teleporter_team.is_enemy(team)
+            })
+            .filter(|(_, transform, _)| {
+                teleporter_transform
+                    .translation
+                    .distance(transform.translation)
+                    <= TELEPORTER_ATTACK_RANGE
+            })
+            .min_by(|a, b| {
+                let dist_a = teleporter_transform.translation.distance(a.1.translation);
+                let dist_b = teleporter_transform.translation.distance(b.1.translation);
+                dist_a
+                    .partial_cmp(&dist_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+        if let Some((_, target_transform, _)) = nearest_enemy {
+            let origin = teleporter_transform.translation + Vec3::Y * 10.0;
+            let diff = target_transform.translation - origin;
+            let direction = Vec3::new(diff.x, 0.0, diff.z).normalize_or_zero();
+
+            crate::game::units::ranged_bolt::spawn_magic_bolt(
+                &mut commands,
+                &teleporter_assets.bolt_mesh,
+                &teleporter_assets.bolt_material,
+                origin,
+                direction,
+                TELEPORTER_BOLT_SPEED,
+                TELEPORTER_BOLT_DAMAGE,
+                TELEPORTER_BOLT_RADIUS,
+                TELEPORTER_BOLT_LIFETIME,
+                *teleporter_team,
+            );
+
+            commands
+                .entity(teleporter_entity)
+                .insert(CombatAnimation::new_casting(
+                    teleporter_assets.casting_texture.clone(),
+                    teleporter_assets.sprite_texture.clone(),
+                ));
+
+            attack_timer.time_since_last_attack = 0.0;
+        }
     }
 }

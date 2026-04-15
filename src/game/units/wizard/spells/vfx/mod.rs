@@ -3,6 +3,7 @@
 //! Provides glow halos, smoke trails, impact spark particles, and sparkle
 //! trails that any spell can spawn as sibling entities.
 
+pub(in crate::game) mod channel;
 pub(crate) mod components;
 pub(crate) mod constants;
 pub(crate) mod fire_material;

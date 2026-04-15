@@ -26,6 +26,8 @@ pub struct HealerAssets {
     pub defender_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    /// Emissive green material used for the pre-heal channel particles.
+    pub channel_particle_material: Handle<StandardMaterial>,
 }
 
 /// System to pre-load healer assets at startup.
@@ -68,6 +70,13 @@ pub(super) fn preload_healer_assets(
         defender_corpse_materials,
         attacker_corpse_materials,
         undead_corpse_materials,
+        channel_particle_material: materials.add(StandardMaterial {
+            base_color: Color::srgb(0.3, 1.2, 0.4),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(0.5, 3.0, 0.8, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        }),
     };
 
     commands.insert_resource(assets);

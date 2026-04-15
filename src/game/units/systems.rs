@@ -1227,7 +1227,7 @@ pub fn resurrect_corpse_as_infantry(
         .remove::<super::archer::components::ArcherMovementTimer>()
         .remove::<super::assassin::Assassin>()
         .remove::<super::dispeller::components::Dispeller>()
-        .remove::<super::dispeller::components::DispellerAttackTimer>()
+        .remove::<super::ranged_bolt::RangedAttackTimer>()
         .remove::<super::dispeller::components::DispellerDispelCooldown>()
         .remove::<super::shielder::components::Shielder>()
         .remove::<super::shielder::components::ShielderShieldCooldown>()

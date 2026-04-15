@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-/// Marker component for teleporter attacker units.
 #[derive(Component)]
 pub(in crate::game) struct Teleporter;
 

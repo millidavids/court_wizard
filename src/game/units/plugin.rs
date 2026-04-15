@@ -9,6 +9,9 @@ use super::assassin::AssassinPlugin;
 use super::boss::BossPlugin;
 use super::brute::BrutePlugin;
 use super::commander::CommanderPlugin;
+use super::wizard::spells::vfx::channel::{
+    self, ChannelParticle, ChannelingCast,
+};
 use super::components::{
     Airborne, BerserkerRageModifier, CombatAnimation, DeathAnimationFinished, DyingAnimation,
     FacingDirection, FogEvasionModifier, FrozenSolidModifier, HasteModifier,
@@ -21,6 +24,7 @@ use super::healer::HealerPlugin;
 use super::infantry::InfantryPlugin;
 use super::king::KingPlugin;
 use super::movement;
+use super::ranged_bolt::{self, MagicBolt};
 use super::shielder::ShielderPlugin;
 use super::systems;
 use super::teleporter::TeleporterPlugin;
@@ -87,6 +91,10 @@ impl Plugin for UnitsPlugin {
                         .after(MovementCalculationSet)
                         .before(ApplyTransformsSet)
                         .run_if(any_with_component::<Stunned>),
+                    movement::zero_channeling_velocity
+                        .after(MovementCalculationSet)
+                        .before(ApplyTransformsSet)
+                        .run_if(any_with_component::<ChannelingCast>),
                     movement::apply_unit_movement.in_set(ApplyTransformsSet),
                     movement::clear_corpse_velocity.after(movement::apply_unit_movement),
                     systems::update_walking_animation
@@ -104,6 +112,11 @@ impl Plugin for UnitsPlugin {
                     systems::update_facing_direction
                         .after(ApplyTransformsSet)
                         .run_if(any_with_component::<FacingDirection>),
+                    channel::update_channel_particles
+                        .run_if(any_with_component::<ChannelParticle>),
+                    (ranged_bolt::move_magic_bolts, ranged_bolt::check_magic_bolt_collisions)
+                        .chain()
+                        .run_if(any_with_component::<MagicBolt>),
                 )
                     .run_if(is_gameplay_running),
             )

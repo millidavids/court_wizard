@@ -25,6 +25,8 @@ pub struct DispellerAssets {
     pub defender_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub attacker_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
     pub undead_corpse_materials: [Handle<StandardMaterial>; CORPSE_MATERIAL_VARIANTS],
+    /// Emissive white material used for the pre-dispel channel particles.
+    pub channel_particle_material: Handle<StandardMaterial>,
 }
 
 /// System to pre-load dispeller assets at startup.
@@ -71,6 +73,13 @@ pub(super) fn preload_dispeller_assets(
         defender_corpse_materials,
         attacker_corpse_materials,
         undead_corpse_materials,
+        channel_particle_material: materials.add(StandardMaterial {
+            base_color: Color::srgb(1.3, 1.3, 1.3),
+            unlit: true,
+            emissive: bevy::color::LinearRgba::new(3.0, 3.0, 3.0, 1.0),
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        }),
     };
 
     commands.insert_resource(assets);
