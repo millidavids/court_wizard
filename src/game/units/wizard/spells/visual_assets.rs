@@ -15,7 +15,6 @@ use bevy::shader::ShaderRef;
 use crate::config::{GameConfig, WizardType};
 use crate::game::units::constants::EXCREMAGE_BROWN;
 
-use super::black_hole::constants::TORUS_MINOR_RADIUS;
 use super::telekinesis::constants::{HARVEST_FLASH_COLOR, SHOCKWAVE_COLOR, SHOCKWAVE_TORUS_MINOR};
 use super::wall_of_stone::wall_material::WallOfStoneMaterial;
 use crate::game::battlefield::components::BattlefieldAssets;
@@ -146,8 +145,8 @@ pub struct SpellVisualAssets {
     pub cross_plane_cylinder: Handle<Mesh>,
     /// 2-plane cross triangle (tapers from point at Y=0 to full width at Y=height, double-sided).
     pub cross_plane_triangle: Handle<Mesh>,
-    /// Low-resolution torus (unit-scale) for black hole rings.
-    pub black_hole_torus: Handle<Mesh>,
+    /// Unit-radius icosphere for the black hole core.
+    pub black_hole_sphere: Handle<Mesh>,
     /// Unit-scale torus for psychic shockwave ring.
     pub shockwave_torus: Handle<Mesh>,
     /// Flat annulus ring for entangle vine arches.
@@ -208,15 +207,8 @@ pub struct SpellVisualAssets {
     pub mind_control_indicator: Handle<StandardMaterial>,
 
     // ── Object materials ─────────────────────────────────────────────────
+    /// Pitch-black unlit material for the black hole core sphere.
     pub black_hole: Handle<StandardMaterial>,
-    /// Pure-black billboard material for the black hole circle.
-    pub black_hole_billboard: Handle<StandardMaterial>,
-    /// White emissive material for the billboard torus ring.
-    pub black_hole_ring: Handle<StandardMaterial>,
-    /// Dark red material for the accretion disk circle.
-    pub black_hole_accretion: Handle<StandardMaterial>,
-    /// Warm-white emissive material for the accretion disk torus ring.
-    pub black_hole_accretion_ring: Handle<StandardMaterial>,
     pub arcane_crystal: Handle<StandardMaterial>,
     pub lightning_rod: Handle<StandardMaterial>,
 
@@ -474,43 +466,11 @@ pub fn init_spell_visual_assets(
 
         // Object materials
         black_hole: materials.add(StandardMaterial {
-            base_color: Color::srgb(0.05, 0.0, 0.1),
-            emissive: bevy::color::LinearRgba::new(0.2, 0.0, 0.4, 1.0),
-            depth_bias: 100.0,
-            ..default()
-        }),
-        black_hole_billboard: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.0, 0.0, 0.0, 0.99),
+            base_color: Color::BLACK,
+            emissive: LinearRgba::BLACK,
             unlit: true,
-            cull_mode: None,
-            alpha_mode: AlphaMode::Blend,
-            depth_bias: 100.0,
-            ..default()
-        }),
-        black_hole_ring: materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 0.85, 0.8, 0.9),
-            unlit: true,
-            emissive: bevy::color::LinearRgba::new(2.5, 1.5, 1.0, 1.0),
-            alpha_mode: AlphaMode::Blend,
-            cull_mode: None,
-            depth_bias: 100.0,
-            ..default()
-        }),
-        black_hole_accretion: materials.add(StandardMaterial {
-            base_color: Color::srgba(0.0, 0.0, 0.0, 0.99),
-            unlit: true,
-            cull_mode: None,
-            alpha_mode: AlphaMode::Blend,
-            depth_bias: 100.0,
-            ..default()
-        }),
-        black_hole_accretion_ring: materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, 0.85, 0.8, 0.9),
-            unlit: true,
-            emissive: bevy::color::LinearRgba::new(2.5, 1.5, 1.0, 1.0),
-            alpha_mode: AlphaMode::Blend,
-            cull_mode: None,
-            depth_bias: 100.0,
+            perceptual_roughness: 1.0,
+            reflectance: 0.0,
             ..default()
         }),
         arcane_crystal: materials.add(StandardMaterial {
@@ -914,12 +874,12 @@ pub fn init_spell_visual_assets(
         cross_plane_cylinder: meshes.add(build_cross_plane_cylinder(0.5, 1.0)),
         // Cross-plane triangle: 2 intersecting triangles (point at Y=0, widens to radius at Y=height)
         cross_plane_triangle: meshes.add(build_cross_plane_triangle(0.5, 1.0)),
-        // Low-poly torus for black hole rings (unit-scale, scaled by Transform)
-        black_hole_torus: meshes.add(
-            Torus::new(1.0 - TORUS_MINOR_RADIUS, 1.0 + TORUS_MINOR_RADIUS)
+        // Icosphere for the black hole core (unit radius, scaled by Transform)
+        black_hole_sphere: meshes.add(
+            Sphere::new(1.0)
                 .mesh()
-                .major_resolution(16)
-                .minor_resolution(8),
+                .ico(3)
+                .expect("black hole icosphere mesh"),
         ),
         // Torus for psychic shockwave ring (thicker tube than black hole)
         shockwave_torus: meshes.add(
@@ -1115,10 +1075,6 @@ impl SpellVisualAssets {
             &self.mind_control_indicator,
             // Objects
             &self.black_hole,
-            &self.black_hole_billboard,
-            &self.black_hole_ring,
-            &self.black_hole_accretion,
-            &self.black_hole_accretion_ring,
             &self.arcane_crystal,
             &self.lightning_rod,
             // Walls (wall_of_stone uses WallOfStoneMaterial, handled separately)

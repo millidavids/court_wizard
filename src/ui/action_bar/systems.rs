@@ -12,7 +12,7 @@ use crate::game::units::wizard::archetypes::gunslinger::GunType;
 use crate::game::units::wizard::archetypes::gunslinger::messages::SelectGunMessage;
 use crate::game::units::wizard::messages::PrimeSpellMessage;
 use crate::ui::components::{ButtonAnimState, ButtonColors, ButtonEdge, ButtonFront, SpellIconAssets};
-use crate::ui::constants::{BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE, FRAME_OUTLINE_COLOR};
+use crate::ui::constants::{BUTTON_3D_OFFSET_PRESSED, BUTTON_3D_OFFSET_REST, BUTTON_PRESSED_OUTLINE};
 use crate::ui::styles::border_bright;
 use crate::ui::systems::scale_font_by_text_width;
 

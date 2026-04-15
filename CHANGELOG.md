@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.185] - 2026-04-15
+
+### Changed
+- **Black Hole looks like an actual black hole** — the spell now renders as a solid dark sphere instead of a white ring, with a subtle space-warping distortion around its edge so the battlefield bends as you watch
+- **Black Hole is more dangerous** — the pull is noticeably stronger, reaches further across the battlefield, and the damage it deals each tick has been bumped up, so it's a more decisive answer to heavy waves
+
 ## [v0.6.180] - 2026-04-14
 
 ### Added

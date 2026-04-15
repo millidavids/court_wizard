@@ -585,6 +585,7 @@ fn spawn_eye_visual(
 
 /// Ticks the eye transfer timer and launches eyes in flight to new hag holders.
 /// Invulnerability is removed immediately when the eye leaves the source hag.
+#[allow(clippy::too_many_arguments)]
 pub fn tick_eye_transfer(
     time: Res<Time>,
     mut commands: Commands,

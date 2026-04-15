@@ -1,9 +1,6 @@
 //! Black Hole spell systems.
 
-use super::components::{
-    BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx, BlackHoleTalentParams,
-    UnitInBlackHole,
-};
+use super::components::{BlackHole, BlackHoleSfx, BlackHoleTalentParams, UnitInBlackHole};
 use super::constants::*;
 use crate::config::GameConfig;
 use crate::game::components::{Acceleration, OnGameplayScreen};
@@ -96,7 +93,7 @@ fn compute_talent_params(active_talents: Option<&ActiveTalents>) -> BlackHoleTal
     params
 }
 
-/// Spawns a black hole entity with billboard circle, torus ring, accretion disk, accretion ring, and looping sound.
+/// Spawns a black hole entity (solid black icosphere) with a looping sound.
 pub(crate) fn spawn_black_hole(
     commands: &mut Commands,
     assets: &SpellVisualAssets,
@@ -109,29 +106,18 @@ pub(crate) fn spawn_black_hole(
     let max_radius = MAX_RADIUS * empowerment * talent_params.radius_mult;
     let spawn_pos = Vec3::new(position.x, BLACK_HOLE_HEIGHT, position.z);
 
-    // Main black hole entity (no mesh — the shader lensing creates the black center)
     let black_hole_entity = commands
         .spawn((
             BlackHole::new(spawn_pos, max_radius, empowerment, talent_params),
-            Transform::from_translation(spawn_pos),
+            Mesh3d(assets.black_hole_sphere.clone()),
+            MeshMaterial3d(assets.black_hole.clone()),
+            Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
             NetworkedSpellEffect {
                 kind: SpellEffectKind::BlackHole,
             },
             OnGameplayScreen,
         ))
         .id();
-
-    // Accretion disk torus ring (warm-white, pulsing)
-    commands.spawn((
-        BlackHoleRing {
-            black_hole_entity,
-            is_accretion: true,
-        },
-        Mesh3d(assets.black_hole_torus.clone()),
-        MeshMaterial3d(assets.black_hole_accretion_ring.clone()),
-        Transform::from_translation(spawn_pos).with_scale(Vec3::ZERO),
-        OnGameplayScreen,
-    ));
 
     // Looping sound effect attenuated by distance from wizard to black hole
     let sfx_entity = audio::play_looping_sfx_at(
@@ -657,7 +643,7 @@ pub(super) fn update_black_hole_visuals(
             (t * 2.3).sin() * VIBRATION_AMPLITUDE,
         );
 
-        // Pulsing scale in sync with torus rings
+        // Pulsing scale
         let pulse = 1.0
             + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
                 * RING_PULSE_AMPLITUDE;
@@ -665,13 +651,6 @@ pub(super) fn update_black_hole_visuals(
         let position = black_hole.position + vibration;
         transform.scale = Vec3::splat(black_hole.max_radius * growth_factor * pulse);
         transform.translation = position;
-
-        // Billboard: face the wizard (camera is near the wizard).
-        // Circle mesh face normal is +Z. Rotate +Z to point toward the wizard.
-        let toward_wizard = (SPELL_ORIGIN - position).normalize_or_zero();
-        if toward_wizard.length_squared() > 0.001 {
-            transform.rotation = Quat::from_rotation_arc(Vec3::Z, toward_wizard);
-        }
     }
 }
 
@@ -715,99 +694,6 @@ pub(super) fn despawn_expired_black_holes(
                 }
             }
 
-            commands.entity(entity).try_despawn();
-        }
-    }
-}
-
-/// Updates billboard torus rings and accretion torus rings to follow their parent black holes.
-pub(super) fn update_black_hole_rings(
-    time: Res<Time>,
-    mut rings: Query<(&BlackHoleRing, &mut Transform)>,
-    black_holes: Query<(&BlackHole, &Transform), Without<BlackHoleRing>>,
-) {
-    for (ring, mut ring_transform) in rings.iter_mut() {
-        let Ok((_black_hole, bh_transform)) = black_holes.get(ring.black_hole_entity) else {
-            continue;
-        };
-
-        let bh_pos = bh_transform.translation;
-        let bh_scale = bh_transform.scale.x; // uniform scale
-
-        // Pulsing scale via sine wave
-        let pulse = 1.0
-            + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
-                * RING_PULSE_AMPLITUDE;
-
-        ring_transform.translation = bh_pos;
-
-        if ring.is_accretion {
-            // Accretion ring: already in XZ plane, just tilt slightly
-            let scale = bh_scale * pulse;
-            ring_transform.scale = Vec3::splat(scale);
-            ring_transform.rotation = Quat::from_rotation_x(ACCRETION_TILT);
-        } else {
-            // Billboard ring: face the wizard, same scale as black hole.
-            // Torus lies in XZ plane with axis along +Y, same as Circle.
-            let scale = bh_scale * pulse;
-            ring_transform.scale = Vec3::splat(scale);
-            let toward_wizard = (SPELL_ORIGIN - bh_pos).normalize_or_zero();
-            if toward_wizard.length_squared() > 0.001 {
-                ring_transform.rotation = Quat::from_rotation_arc(Vec3::Y, toward_wizard);
-            }
-        }
-    }
-}
-
-/// Updates the accretion disk to follow its parent black hole with a tilted rotation and pulsing.
-pub(super) fn update_black_hole_accretion_disk(
-    time: Res<Time>,
-    mut disks: Query<(&BlackHoleAccretionDisk, &mut Transform)>,
-    black_holes: Query<(&BlackHole, &Transform), Without<BlackHoleAccretionDisk>>,
-) {
-    for (disk, mut disk_transform) in disks.iter_mut() {
-        let Ok((_black_hole, bh_transform)) = black_holes.get(disk.black_hole_entity) else {
-            continue;
-        };
-
-        let bh_pos = bh_transform.translation;
-        let bh_scale = bh_transform.scale.x; // uniform scale
-
-        // Pulsing scale in sync with torus rings
-        let pulse = 1.0
-            + (time.elapsed_secs() * RING_PULSE_FREQUENCY * std::f32::consts::TAU).sin()
-                * RING_PULSE_AMPLITUDE;
-
-        disk_transform.translation = bh_pos;
-        disk_transform.scale = Vec3::splat(bh_scale * pulse);
-        // Circle face normal is +Z (vertical). Rotate -90° around X to lay flat,
-        // then add the accretion tilt to match the accretion torus.
-        disk_transform.rotation =
-            Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2 + ACCRETION_TILT);
-    }
-}
-
-/// Despawns orphaned black hole rings whose parent no longer exists.
-pub(super) fn cleanup_black_hole_rings(
-    mut commands: Commands,
-    rings: Query<(Entity, &BlackHoleRing)>,
-    black_holes: Query<&BlackHole>,
-) {
-    for (entity, ring) in rings.iter() {
-        if black_holes.get(ring.black_hole_entity).is_err() {
-            commands.entity(entity).try_despawn();
-        }
-    }
-}
-
-/// Despawns orphaned accretion disks whose parent no longer exists.
-pub(super) fn cleanup_black_hole_accretion_disk(
-    mut commands: Commands,
-    disks: Query<(Entity, &BlackHoleAccretionDisk)>,
-    black_holes: Query<&BlackHole>,
-) {
-    for (entity, disk) in disks.iter() {
-        if black_holes.get(disk.black_hole_entity).is_err() {
             commands.entity(entity).try_despawn();
         }
     }

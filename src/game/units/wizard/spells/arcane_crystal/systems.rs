@@ -94,10 +94,8 @@ fn scaled_count(base: usize, count_mult: f32) -> usize {
 
 /// Returns 2 if Spell Echo triggers (30% chance), 1 otherwise.
 fn spell_echo_multiplier(rng: &mut impl Rng, spell_echo: bool) -> usize {
-    if spell_echo {
-        if rng.r#gen::<f32>() < SPELL_ECHO_CHANCE {
-            return 2;
-        }
+    if spell_echo && rng.r#gen::<f32>() < SPELL_ECHO_CHANCE {
+        return 2;
     }
     1
 }

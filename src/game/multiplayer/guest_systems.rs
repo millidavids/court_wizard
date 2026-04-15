@@ -686,11 +686,11 @@ pub(super) fn spawn_spell_effect(
         SpellEffectKind::BlackHole => {
             let max_radius = extra[0];
             let empowerment = extra[1];
-            // Cross-plane sphere scaled by max_radius * growth_factor in update_black_hole_visuals
+            // Icosphere scaled by max_radius * growth_factor in update_black_hole_visuals
             Some(
                 commands
                     .spawn((
-                        Mesh3d(assets.cross_plane_sphere.clone()),
+                        Mesh3d(assets.black_hole_sphere.clone()),
                         MeshMaterial3d(assets.black_hole.clone()),
                         Transform::from_translation(pos).with_scale(Vec3::ZERO), // Grows from 0 via update_black_hole_visuals
                         BlackHole::new(pos, max_radius, empowerment, Default::default()),

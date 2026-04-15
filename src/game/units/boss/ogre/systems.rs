@@ -209,6 +209,7 @@ pub fn update_ogre_targeting(
 /// Ogre melee combat system — runs on its own cooldown timer (not the global attack cycle).
 /// Finds nearest enemy in melee range, deals flat damage, and applies a tumbling
 /// knockback effect to all nearby enemies.
+#[allow(clippy::type_complexity)]
 pub fn ogre_combat(
     time: Res<Time>,
     mut commands: Commands,
@@ -1020,56 +1021,49 @@ pub fn update_ogre_charge_visuals(
             }
 
             OgreChargeState::Charging { direction, .. } => {
-                if let Some(mut visuals) = charge_visuals {
-                    if let Some(mat) = materials.get_mut(&material_handle.0) {
-                        // Restore base position on first charging frame
-                        // (remove vibration offset before charge movement begins)
-                        if visuals.elapsed > 0.0 {
-                            transform.translation.x = visuals.base_position.x;
-                            transform.translation.z = visuals.base_position.z;
-                            visuals.elapsed = 0.0;
-                        }
-
-                        // Show frame 1 (charge pose)
-                        let new_facing =
-                            facing_from_world_direction(*direction, cam_forward_xz);
-                        *facing = new_facing;
-                        let row =
-                            OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
-                        mat.uv_transform = ogre_frame_uv_transform(1, row);
-
-                        // Restore normal tint (stop red flash)
-                        mat.base_color =
-                            enrage_phase_tint(enrage_state.phase);
+                if let Some(mut visuals) = charge_visuals
+                    && let Some(mat) = materials.get_mut(&material_handle.0)
+                {
+                    // Restore base position on first charging frame
+                    // (remove vibration offset before charge movement begins)
+                    if visuals.elapsed > 0.0 {
+                        transform.translation.x = visuals.base_position.x;
+                        transform.translation.z = visuals.base_position.z;
+                        visuals.elapsed = 0.0;
                     }
+
+                    // Show frame 1 (charge pose)
+                    let new_facing =
+                        facing_from_world_direction(*direction, cam_forward_xz);
+                    *facing = new_facing;
+                    let row = OGRE_ATTACKING_DIRECTION_ROWS[new_facing as usize];
+                    mat.uv_transform = ogre_frame_uv_transform(1, row);
+
+                    // Restore normal tint (stop red flash)
+                    mat.base_color = enrage_phase_tint(enrage_state.phase);
                 }
             }
 
             OgreChargeState::Recovery { .. } => {
-                if let Some(charge_visuals) = charge_visuals {
-                    if let Some(mat) = materials.get_mut(&material_handle.0) {
-                        let row = OGRE_ATTACKING_DIRECTION_ROWS
-                            [*facing as usize];
-                        mat.uv_transform = ogre_frame_uv_transform(2, row);
-                    }
+                if charge_visuals.is_some()
+                    && let Some(mat) = materials.get_mut(&material_handle.0)
+                {
+                    let row = OGRE_ATTACKING_DIRECTION_ROWS[*facing as usize];
+                    mat.uv_transform = ogre_frame_uv_transform(2, row);
                 }
             }
 
             OgreChargeState::Idle { .. } | OgreChargeState::Targeting => {
                 // Cleanup: restore walking texture and remove visuals
                 if let Some(visuals) = charge_visuals {
-                    if visuals.texture_swapped {
-                        if let Some(mat) =
-                            materials.get_mut(&material_handle.0)
-                        {
-                            mat.base_color_texture =
-                                Some(ogre_assets.walking_texture.clone());
-                            mat.base_color =
-                                enrage_phase_tint(enrage_state.phase);
-                            // Reset UV to walking idle frame
-                            mat.uv_transform =
-                                walking_anim.uv_transform(*facing);
-                        }
+                    if visuals.texture_swapped
+                        && let Some(mat) = materials.get_mut(&material_handle.0)
+                    {
+                        mat.base_color_texture =
+                            Some(ogre_assets.walking_texture.clone());
+                        mat.base_color = enrage_phase_tint(enrage_state.phase);
+                        // Reset UV to walking idle frame
+                        mat.uv_transform = walking_anim.uv_transform(*facing);
                     }
                     // Only restore base position if vibration was still active
                     // (CC interruption during telegraph). After charging starts,

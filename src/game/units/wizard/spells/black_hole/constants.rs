@@ -39,24 +39,24 @@ pub const BLACK_HOLE_HEIGHT: f32 = 23.5;
 // ===== Gravitational Physics =====
 
 /// Base gravitational pull strength (units/second² at time=0).
-pub const BASE_GRAVITY_STRENGTH: f32 = 20000000.0;
+pub const BASE_GRAVITY_STRENGTH: f32 = 35000000.0;
 
 /// Maximum gravitational pull strength (units/second² at full ramp).
-pub const MAX_GRAVITY_STRENGTH: f32 = 100000000.0;
+pub const MAX_GRAVITY_STRENGTH: f32 = 175000000.0;
 
 /// Time for gravity to ramp from base to max strength (in seconds).
 pub const GRAVITY_RAMP_TIME: f32 = 5.0;
 
 /// Maximum distance at which gravitational effects apply (in units).
-pub const GRAVITY_RANGE: f32 = 500.0;
+pub const GRAVITY_RANGE: f32 = 750.0;
 
 /// Maximum force clamp to prevent excessive acceleration at close range.
-pub const MAX_FORCE_CLAMP: f32 = 2500.0;
+pub const MAX_FORCE_CLAMP: f32 = 4000.0;
 
 // ===== Damage =====
 
 /// Base damage per tick to units touching the sphere.
-pub const BASE_DAMAGE_PER_TICK: f32 = 8.0;
+pub const BASE_DAMAGE_PER_TICK: f32 = 9.0;
 
 /// Type of damage dealt by black holes.
 pub const DAMAGE_TYPE: DamageType = DamageType::Force;
@@ -78,19 +78,13 @@ pub const VIBRATION_AMPLITUDE: f32 = 2.0;
 /// Frequency of the vibration effect (cycles per second).
 pub const VIBRATION_FREQUENCY: f32 = 8.0;
 
-// ===== Ring & Accretion Disk =====
+// ===== Sphere Pulse =====
 
-/// Pulsing speed for torus rings (cycles per second).
+/// Pulsing speed for the core sphere (cycles per second).
 pub const RING_PULSE_FREQUENCY: f32 = 3.0;
 
-/// Pulsing scale amplitude for torus rings.
+/// Pulsing scale amplitude for the core sphere.
 pub const RING_PULSE_AMPLITUDE: f32 = 0.03;
-
-/// Tilt of the accretion disk from horizontal (~15°).
-pub const ACCRETION_TILT: f32 = 0.26;
-
-/// Torus tube thickness (unit-scale, used in visual_assets.rs mesh creation).
-pub(crate) const TORUS_MINOR_RADIUS: f32 = 0.03;
 
 // ===== Talent Constants =====
 

@@ -373,18 +373,12 @@ pub(super) fn update_lensing_positions(
         return;
     };
 
-    // Slots 0-1: black holes (with center darkening)
+    // Slots 0-1: black holes (lensing distortion only; the black core is the opaque sphere mesh)
     let mut count = 0u32;
-    let mut max_growth: f32 = 0.0;
     for black_hole in &black_holes {
         if count >= 2 {
             break;
         }
-        // Track growth for screen darkening (0→1 over GROWTH_TIME)
-        let growth = (black_hole.time_alive
-            / crate::game::units::wizard::spells::black_hole::constants::GROWTH_TIME)
-            .min(1.0);
-        max_growth = max_growth.max(growth);
 
         // Project black hole center to NDC
         let Some(ndc) = camera.world_to_ndc(camera_transform, black_hole.position) else {
@@ -482,8 +476,6 @@ pub(super) fn update_lensing_positions(
     // for the shader's branchless step() checks to activate those slots.
     let max_slot = if rift_slot > 2 { rift_slot } else { count };
     settings.lensing_count = max_slot as f32;
-    // Gradual screen darkening: 0→0.3 as black hole grows (70% brightness at full size)
-    settings.lensing_darkening = max_growth * 0.3;
 }
 
 /// Projects active wall of fire positions to viewport-local UV space for heat distortion.

@@ -491,10 +491,10 @@ pub(crate) fn build_wizard_input(
 
 /// Applies targeting assistance snap to a `WizardInput`. Call after `build_wizard_input`.
 pub(crate) fn apply_target_assist(input: &mut WizardInput, assist: &TargetAssistWorldPos) {
-    if let Some(snap_pos) = assist.0 {
-        if input.cursor_pos.is_some() {
-            input.cursor_pos = Some(snap_pos);
-        }
+    if let Some(snap_pos) = assist.0
+        && input.cursor_pos.is_some()
+    {
+        input.cursor_pos = Some(snap_pos);
     }
 }
 

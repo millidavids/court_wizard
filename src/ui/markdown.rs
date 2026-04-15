@@ -131,16 +131,18 @@ fn parse_inline_spans(input: &str) -> Vec<MarkdownSpan> {
 
     while i < chars.len() {
         // Bold: **...**
-        if i + 1 < chars.len() && chars[i] == '*' && chars[i + 1] == '*' {
-            if let Some(end) = find_closing_bold(&chars, i + 2) {
-                if !plain_buf.is_empty() {
-                    spans.push(MarkdownSpan::Plain(std::mem::take(&mut plain_buf)));
-                }
-                let bold_text: String = chars[i + 2..end].iter().collect();
-                spans.push(MarkdownSpan::Bold(bold_text));
-                i = end + 2; // skip closing **
-                continue;
+        if i + 1 < chars.len()
+            && chars[i] == '*'
+            && chars[i + 1] == '*'
+            && let Some(end) = find_closing_bold(&chars, i + 2)
+        {
+            if !plain_buf.is_empty() {
+                spans.push(MarkdownSpan::Plain(std::mem::take(&mut plain_buf)));
             }
+            let bold_text: String = chars[i + 2..end].iter().collect();
+            spans.push(MarkdownSpan::Bold(bold_text));
+            i = end + 2; // skip closing **
+            continue;
         }
 
         // Link: [text](url)

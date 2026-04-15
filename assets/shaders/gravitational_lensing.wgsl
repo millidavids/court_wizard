@@ -67,31 +67,9 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // Sample the screen with distorted UVs.
     var color = textureSample(screen_texture, texture_sampler, lensed_uv);
 
-    // --- Post-sample effects (safe to branch) ---
-
-    // Gradually darken screen as black holes grow.
-    if (settings.lensing_darkening > 0.0) {
-        color = vec4<f32>(color.rgb * (1.0 - settings.lensing_darkening), 1.0);
-    }
-
-    // Darken center of black holes to pure black (slots 0-1 only, not rifts).
-    // Check radius > 0 instead of lensing_count to avoid false darkening when
-    // only rift endpoints (slots 2-3) are active and slots 0-1 are empty.
-    if (settings.lensing_0_radius > 0.001) {
-        let bh0_center = vec2<f32>(settings.lensing_0_x, settings.lensing_0_y);
-        let bh0_inner = settings.lensing_0_radius * 0.3;
-        let bh0_dist = length(in.uv - bh0_center);
-        let bh0_dark = smoothstep(0.0, bh0_inner, bh0_dist);
-        color = vec4<f32>(color.rgb * bh0_dark, 1.0);
-    }
-    if (settings.lensing_1_radius > 0.001) {
-        let bh1_center = vec2<f32>(settings.lensing_1_x, settings.lensing_1_y);
-        let bh1_inner = settings.lensing_1_radius * 0.3;
-        let bh1_dist = length(in.uv - bh1_center);
-        let bh1_dark = smoothstep(0.0, bh1_inner, bh1_dist);
-        color = vec4<f32>(color.rgb * bh1_dark, 1.0);
-    }
-    // Slots 2-3 (rifts): lensing only, no center darkening.
+    // The black hole's opaque sphere provides the black core; this pass
+    // only contributes subtle UV distortion around it. Slots 2-3 (rifts)
+    // likewise use lensing only, with no center darkening.
 
     return color;
 }

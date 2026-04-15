@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use super::super::super::components::Spell;
 use super::super::run_conditions::*;
-use super::components::{BlackHole, BlackHoleAccretionDisk, BlackHoleRing, BlackHoleSfx};
+use super::components::{BlackHole, BlackHoleSfx};
 use super::systems;
 use crate::game::run_conditions::is_spell_effects_active;
 use crate::game::units::MovementCalculationSet;
@@ -37,17 +37,6 @@ impl Plugin for BlackHolePlugin {
                 )
                     .chain()
                     .run_if(any_exist::<BlackHole>()),
-                // Ring and accretion disk visual systems
-                (
-                    systems::update_black_hole_rings,
-                    systems::cleanup_black_hole_rings,
-                )
-                    .run_if(any_exist::<BlackHoleRing>()),
-                (
-                    systems::update_black_hole_accretion_disk,
-                    systems::cleanup_black_hole_accretion_disk,
-                )
-                    .run_if(any_exist::<BlackHoleAccretionDisk>()),
                 systems::cleanup_black_hole_sfx.run_if(any_exist::<BlackHoleSfx>()),
                 apply_pending_defender_heal.run_if(resource_exists::<PendingDefenderHeal>),
             )

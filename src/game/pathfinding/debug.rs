@@ -215,6 +215,7 @@ impl Default for DebugBallLogTimer {
 
 /// Toggles the debug ball on F4. Spawns or despawns the ball entity
 /// and red staging point markers.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn toggle_debug_ball(
     keys: Res<ButtonInput<KeyCode>>,
     mut active: ResMut<DebugBallActive>,

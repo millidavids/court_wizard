@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{OgreChargeVisuals, OgreThrowWindup};
+use super::components::OgreThrowWindup;
 use super::resources;
 use super::systems::*;
 use crate::game::plugin::{PostCombatSet, VelocitySystemSet};
