@@ -7,6 +7,7 @@ use super::constants::*;
 use super::resources::TramplingGrid;
 use crate::game::components::OnGameplayScreen;
 use crate::game::constants::BATTLEFIELD_SIZE;
+use crate::game::resources::TimeTravelState;
 use crate::game::units::aerialist::components::Aerialist;
 use crate::game::units::components::{Corpse, Health};
 
@@ -182,18 +183,31 @@ pub fn reset_trampling(mut grid: ResMut<TramplingGrid>) {
 }
 
 /// Saves the current trampling grid to GameConfig before exiting InGame.
+/// Skipped during time-travel replays so the wizard's main-line trampling state
+/// isn't overwritten by the replayed level's grid.
 pub fn save_trampling_to_config(
     grid: Res<TramplingGrid>,
     mut config: ResMut<crate::config::GameConfig>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
+    if time_travel.is_some() {
+        return;
+    }
     config.saved_trampling = grid.to_saved();
 }
 
 /// Restores trampling grid from GameConfig on level load.
+/// During time-travel replays the grid is reset to empty so the replayed level
+/// starts on fresh ground instead of inheriting the main-line mud trails.
 pub fn restore_trampling_from_config(
     mut grid: ResMut<TramplingGrid>,
     config: Res<crate::config::GameConfig>,
+    time_travel: Option<Res<TimeTravelState>>,
 ) {
+    if time_travel.is_some() {
+        grid.reset();
+        return;
+    }
     grid.restore_saved(&config.saved_trampling);
 }
 

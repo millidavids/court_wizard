@@ -133,10 +133,8 @@ pub(super) fn setup_wizard_tower_layout(
     }
     commands.insert_resource(RightPanelView::default());
 
-    // Ensure a wizard save is loaded so config has valid data (level, etc.).
-    // When entering from Landing with no active run, ActiveSave is None.
     if active_save.0.is_none() {
-        crate::config::save_data::load_wizard_type_into_config(
+        crate::config::save_data::load_or_create_wizard(
             config.wizard_type,
             &mut config,
             &mut active_save,

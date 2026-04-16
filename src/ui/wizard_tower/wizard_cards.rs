@@ -316,8 +316,7 @@ pub(super) fn handle_wizard_card_actions(
         match action {
             WizardCardAction::Select(wizard_type) => {
                 selected.0 = *wizard_type;
-                // Load the wizard's full save data (level, progression, walls, etc.)
-                crate::config::save_data::load_wizard_type_into_config(
+                crate::config::save_data::load_or_create_wizard(
                     *wizard_type,
                     &mut config,
                     &mut active_save,

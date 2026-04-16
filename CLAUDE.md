@@ -175,6 +175,12 @@ cargo fmt --check
 ### Code Simplification
 - Always `/simplify` before updating the changelog and before releasing to optimize the codebase from a duplication standpoint.
 
+### Save Data Backwards Compatibility
+- **All changes to types in `src/config/save_data.rs` must be backwards compatible with existing save files on disk.** Players have persistent progress and their saves cannot break across updates.
+- Add new fields with `#[serde(default)]` so older saves without them still deserialize.
+- Never rename or remove an existing field without a read-fallback path (keep the old field with `#[serde(default, skip_serializing_if = ...)]` and migrate its contents on load).
+- When the on-disk format needs to change shape meaningfully, introduce a new field name and support both on read, writing only the new one. Don't rely on wiping player saves.
+
 ### Error Handling
 - Use `Result<T, E>` for fallible operations
 - Use `thiserror` for error types

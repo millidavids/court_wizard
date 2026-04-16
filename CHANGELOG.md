@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.203] - 2026-04-15
+
+### Fixed
+- **Wizard progress now saves properly for brand-new players** — if you started a fresh game and played a wizard you'd never used before, that wizard's level and progression could fail to save between sessions. The wizard tower now creates a save record the first time you visit it.
+- **Time travel stays in its own lane** — replaying a past Endless level used to carry your main progression's trampled ground into the replay, and then any new mud trails you left in the replay could leak back into your real run. Replays now start on completely fresh grass, and nothing that happens during a replay affects your actual Endless progress.
+
+### Changed
+- **Save files are dramatically smaller** — trampled ground used to take up the vast majority of your save file. It's been rewritten to a much more compact format, so saves are a fraction of their previous size, write faster, and use far less of your Steam Cloud quota.
+
 ## [v0.6.195] - 2026-04-15
 
 ### Added

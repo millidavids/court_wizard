@@ -725,13 +725,20 @@ pub(crate) struct SavedCrystal {
     pub(crate) empowerment: f32,
 }
 
-/// Sparse trampling grid data: (cell_index, intensity_0_255) pairs for non-zero cells.
+/// Sparse trampling grid data for non-zero cells.
+///
+/// Stored as base64 of a packed byte stream where each non-zero cell is
+/// 5 bytes (`u32` little-endian index followed by `u8` intensity). This is
+/// ~5.6× smaller in TOML than serializing one line per cell and dramatically
+/// cheaper to write during save flushes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub(crate) struct SavedTrampling {
     /// Grid resolution (cells per side). Used to detect grid size changes.
+    #[serde(default)]
     pub(crate) grid_size: usize,
-    /// Non-zero cells as (flat_index, intensity_u8) pairs.
-    pub(crate) cells: Vec<(u32, u8)>,
+    /// Base64-encoded packed cells.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub(crate) cells_b64: String,
 }
 
 /// Serializable flora placement data for battlefield flowers/plants.
@@ -808,8 +815,6 @@ pub(crate) struct SavedLevelTerrain {
     pub(crate) crystals: Vec<SavedCrystal>,
     #[serde(default)]
     pub(crate) flora: Vec<SavedFlora>,
-    #[serde(default)]
-    pub(crate) trampling: SavedTrampling,
 }
 
 fn default_scale() -> f32 {
@@ -940,9 +945,10 @@ fn deobfuscate(data: &[u8]) -> Vec<u8> {
 }
 
 /// Convert bytes to base64 for storage.
-fn to_base64(data: &[u8]) -> String {
+pub(crate) fn to_base64(data: &[u8]) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut result = String::new();
+    // Base64 emits 4 output chars per 3 input bytes, rounded up with padding.
+    let mut result = String::with_capacity(data.len().div_ceil(3) * 4);
 
     for chunk in data.chunks(3) {
         let b1 = chunk[0];
@@ -967,7 +973,7 @@ fn to_base64(data: &[u8]) -> String {
 }
 
 /// Convert base64 back to bytes.
-fn from_base64(s: &str) -> Option<Vec<u8>> {
+pub(crate) fn from_base64(s: &str) -> Option<Vec<u8>> {
     let chars: Vec<u8> = s.bytes().collect();
     let mut result = Vec::new();
 
@@ -1226,6 +1232,24 @@ pub(crate) fn load_wizard_type_into_config(
     true
 }
 
+/// Loads an existing wizard of the given type into config, or creates a fresh
+/// wizard record if none exists and then loads that. On return, `config` and
+/// `active_save` reflect the wizard's current state (fully reset for new ones).
+pub(crate) fn load_or_create_wizard(
+    wizard_type: WizardType,
+    config: &mut GameConfig,
+    active_save: &mut ActiveSave,
+) {
+    if load_wizard_type_into_config(wizard_type, config, active_save) {
+        return;
+    }
+    create_wizard(wizard_type);
+    // Reload now that the wizard exists so config fully syncs (including fields
+    // like saved_walls/crystals/flora/trampling that would otherwise leak from a
+    // previously-active wizard).
+    load_wizard_type_into_config(wizard_type, config, active_save);
+}
+
 /// Create a new wizard and add it to the save file.
 /// Returns the new wizard's ID.
 pub(crate) fn create_wizard(wizard_type: WizardType) -> String {
@@ -1315,7 +1339,6 @@ pub(crate) fn save_level_terrain(
                 walls: config.saved_walls.clone(),
                 crystals: config.saved_crystals.clone(),
                 flora: config.saved_flora.clone(),
-                trampling: config.saved_trampling.clone(),
             },
         );
     }
@@ -1355,7 +1378,6 @@ pub(crate) fn load_level_terrain_into_config(
         config.saved_walls.clear();
         config.saved_crystals.clear();
         config.saved_flora.clear();
-        config.saved_trampling = SavedTrampling::default();
         return true;
     }
 
@@ -1371,7 +1393,6 @@ pub(crate) fn load_level_terrain_into_config(
     config.saved_walls = terrain.walls.clone();
     config.saved_crystals = terrain.crystals.clone();
     config.saved_flora = terrain.flora.clone();
-    config.saved_trampling = terrain.trampling.clone();
     true
 }
 

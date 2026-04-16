@@ -1060,21 +1060,11 @@ pub(super) fn handle_roguelite_action(
                     .unwrap_or_default();
                 commands.insert_resource(toggles);
 
-                // Load or create wizard save
-                let wizard_type = config.wizard_type;
-                if !save_data::load_wizard_type_into_config(
-                    wizard_type,
+                save_data::load_or_create_wizard(
+                    config.wizard_type,
                     &mut config,
                     &mut active_save,
-                ) {
-                    let wizard_id = save_data::create_wizard(wizard_type);
-                    config.wizard_type = wizard_type;
-                    config.current_level = 1;
-                    config.highest_level_achieved = 1;
-                    config.efficiency_ratios = Default::default();
-                    config.action_bar_slots = [None; 5];
-                    active_save.0 = Some(wizard_id);
-                }
+                );
 
                 // Initialize roguelite run state (normally done by init_roguelite_run
                 // on OnEnter(MetaGame), but we're already in MetaGame)
