@@ -18,6 +18,7 @@ use super::messages::{
     BattleEndedMessage, CloseCallMessage, DefenderKilledBySpellMessage, EnemyKilledMessage,
     EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage, OutOfRangeMessage,
     QwerKeyPressedMessage, ScorchedEarthMessage, SpellCastMessage, StormbringerMessage,
+    WizardTypeUnlockedMessage,
 };
 use super::resources::*;
 
@@ -30,6 +31,14 @@ fn do_unlock<T: AchievementResource>(
     res.unlock();
     unlock_achievement(id);
     achievement_events.write(AchievementUnlockedMessage { id });
+}
+
+fn unlock_and_notify_wizard_type(
+    wizard_type: WizardType,
+    msg: &mut MessageWriter<WizardTypeUnlockedMessage>,
+) {
+    crate::config::save_data::unlock_wizard_type(wizard_type);
+    msg.write(WizardTypeUnlockedMessage);
 }
 
 // ---------------------------------------------------------------------------
@@ -370,11 +379,12 @@ pub(crate) fn check_accidental_regicide(
     mut msg: MessageReader<BattleEndedMessage>,
     mut res: ResMut<AccidentalRegicideAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     for m in msg.read() {
         if m.outcome != GameOutcome::Victory && m.king_killed_by_spell {
             do_unlock(&mut res, &mut events);
-            crate::config::save_data::unlock_wizard_type(WizardType::Psychopath);
+            unlock_and_notify_wizard_type(WizardType::Psychopath, &mut wizard_unlocked);
         }
     }
 }
@@ -447,10 +457,11 @@ pub(crate) fn check_slider_fiddler(
     mut msg: MessageReader<SliderAdjusted>,
     mut res: ResMut<SliderFiddlerAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        crate::config::save_data::unlock_wizard_type(WizardType::Arcanorouter);
+        unlock_and_notify_wizard_type(WizardType::Arcanorouter, &mut wizard_unlocked);
     }
 }
 
@@ -489,12 +500,13 @@ pub(crate) fn check_random_magic_surge(
     mut game_rng: ResMut<crate::game::seeded_rng::resources::GameRng>,
     mut res: ResMut<RandomMagicSurgeAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     use rand::Rng;
     for _ in msg.read() {
         if game_rng.0.gen_range(1..=100) == 1 {
             do_unlock(&mut res, &mut events);
-            crate::config::save_data::unlock_wizard_type(WizardType::Randomancer);
+            unlock_and_notify_wizard_type(WizardType::Randomancer, &mut wizard_unlocked);
         }
     }
 }
@@ -517,10 +529,11 @@ pub(crate) fn check_qwer(
     mut msg: MessageReader<QwerKeyPressedMessage>,
     mut res: ResMut<QwerAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        crate::config::save_data::unlock_wizard_type(WizardType::RuneCaster);
+        unlock_and_notify_wizard_type(WizardType::RuneCaster, &mut wizard_unlocked);
     }
 }
 
@@ -601,7 +614,9 @@ pub(crate) fn check_friendly_thorns(
 // ---------------------------------------------------------------------------
 
 use crate::game::units::UnitType;
+use crate::game::units::boss::dark_mage::components::DarkMage;
 use crate::game::units::boss::hags::components::Hag;
+use crate::game::units::boss::lich::components::Lich;
 use crate::game::units::boss::ogre::components::OgreEnrageState;
 use crate::game::units::brute::components::Brute;
 use crate::game::units::dispeller::components::Dispeller;
@@ -666,6 +681,80 @@ encounter_system!(
     OgreWarlordAchievement,
     UnitType::Ogre
 );
+encounter_system!(
+    check_lich_encounter,
+    Lich,
+    LichEncounterAchievement,
+    UnitType::Lich
+);
+
+pub(crate) fn check_dark_mage_encounter(
+    query: Query<(), With<DarkMage>>,
+    mut res: ResMut<DarkMageEncounterAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if !query.is_empty() {
+        do_unlock(&mut res, &mut events);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Boss mark-seen (tracks presence for defeat achievements)
+// ---------------------------------------------------------------------------
+
+pub(crate) fn mark_bosses_seen(
+    hags: Query<(), With<Hag>>,
+    ogres: Query<(), With<OgreEnrageState>>,
+    liches: Query<(), With<Lich>>,
+    dark_mages: Query<(), With<DarkMage>>,
+    mut seen: ResMut<BossesSeenThisBattle>,
+) {
+    if seen.hag && seen.ogre && seen.lich && seen.dark_mage {
+        return;
+    }
+    if !seen.hag && !hags.is_empty() {
+        seen.hag = true;
+    }
+    if !seen.ogre && !ogres.is_empty() {
+        seen.ogre = true;
+    }
+    if !seen.lich && !liches.is_empty() {
+        seen.lich = true;
+    }
+    if !seen.dark_mage && !dark_mages.is_empty() {
+        seen.dark_mage = true;
+    }
+}
+
+pub(crate) fn reset_bosses_seen(mut seen: ResMut<BossesSeenThisBattle>) {
+    *seen = BossesSeenThisBattle::default();
+}
+
+// ---------------------------------------------------------------------------
+// Boss defeat achievements (victory on a level where boss was present)
+// ---------------------------------------------------------------------------
+
+macro_rules! boss_defeat_system {
+    ($fn_name:ident, $field:ident, $res:ty) => {
+        pub(crate) fn $fn_name(
+            mut msg: MessageReader<BattleEndedMessage>,
+            seen: Res<BossesSeenThisBattle>,
+            mut res: ResMut<$res>,
+            mut events: MessageWriter<AchievementUnlockedMessage>,
+        ) {
+            for m in msg.read() {
+                if m.outcome == GameOutcome::Victory && seen.$field {
+                    do_unlock(&mut res, &mut events);
+                }
+            }
+        }
+    };
+}
+
+boss_defeat_system!(check_hags_defeated, hag, HagsDefeatedAchievement);
+boss_defeat_system!(check_ogre_defeated, ogre, OgreDefeatedAchievement);
+boss_defeat_system!(check_lich_defeated, lich, LichDefeatedAchievement);
+boss_defeat_system!(check_dark_mage_defeated, dark_mage, DarkMageDefeatedAchievement);
 
 // ---------------------------------------------------------------------------
 // Soiled Surprise — triggered by UnitSickenedMessage (first sickened event)
@@ -679,6 +768,7 @@ pub(crate) fn check_master_brewer(
     mut msg: MessageReader<crate::game::messages::IngredientCollectedMessage>,
     mut res: ResMut<MasterBrewerAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     use crate::game::cauldron::brews::Ingredient;
 
@@ -694,7 +784,7 @@ pub(crate) fn check_master_brewer(
 
         if all_collected {
             do_unlock(&mut res, &mut events);
-            crate::config::save_data::unlock_wizard_type(WizardType::Alchemist);
+            unlock_and_notify_wizard_type(WizardType::Alchemist, &mut wizard_unlocked);
         }
     }
 }
@@ -703,10 +793,11 @@ pub(crate) fn check_soiled_surprise(
     mut msg: MessageReader<super::messages::UnitSickenedMessage>,
     mut res: ResMut<SoiledSurpriseAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        crate::config::save_data::unlock_wizard_type(WizardType::Excremage);
+        unlock_and_notify_wizard_type(WizardType::Excremage, &mut wizard_unlocked);
     }
 }
 
@@ -714,10 +805,11 @@ pub(crate) fn check_right_to_bear_arms(
     mut msg: MessageReader<super::messages::MarkedForDeathKillMessage>,
     mut res: ResMut<RightToBearArmsAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        crate::config::save_data::unlock_wizard_type(WizardType::Warglock);
+        unlock_and_notify_wizard_type(WizardType::Warglock, &mut wizard_unlocked);
     }
 }
 
@@ -729,10 +821,11 @@ pub(crate) fn check_close_call(
     mut msg: MessageReader<CloseCallMessage>,
     mut res: ResMut<CloseCallAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        crate::config::save_data::unlock_wizard_type(WizardType::Battlemage);
+        unlock_and_notify_wizard_type(WizardType::Battlemage, &mut wizard_unlocked);
     }
 }
 
@@ -766,10 +859,11 @@ pub(crate) fn check_stormbringer(
     mut msg: MessageReader<StormbringerMessage>,
     mut res: ResMut<StormbringerAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     if msg.read().next().is_some() {
         do_unlock(&mut res, &mut events);
-        crate::config::save_data::unlock_wizard_type(WizardType::Meteorologist);
+        unlock_and_notify_wizard_type(WizardType::Meteorologist, &mut wizard_unlocked);
     }
 }
 
@@ -781,11 +875,12 @@ pub(crate) fn check_pacifist(
     mut msg: MessageReader<BattleEndedMessage>,
     mut res: ResMut<PacifistAchievement>,
     mut events: MessageWriter<AchievementUnlockedMessage>,
+    mut wizard_unlocked: MessageWriter<WizardTypeUnlockedMessage>,
 ) {
     for m in msg.read() {
         if m.outcome == GameOutcome::Victory && !m.wizard_damaged_enemies {
             do_unlock(&mut res, &mut events);
-            crate::config::save_data::unlock_wizard_type(WizardType::Shepherd);
+            unlock_and_notify_wizard_type(WizardType::Shepherd, &mut wizard_unlocked);
         }
     }
 }
@@ -981,5 +1076,70 @@ fn wizard_type_to_context(wizard_type: WizardType) -> Option<BindingContext> {
         // BoringOleMage, Randomancer, Excremage, Shepherd, Psychopath, Alchemist
         // have no archetype-specific keybindings
         _ => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Grand Council — all wizard types unlocked
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_grand_council(
+    mut msg: MessageReader<WizardTypeUnlockedMessage>,
+    mut res: ResMut<GrandCouncilAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_none() {
+        return;
+    }
+    let unlocked_count = crate::config::save_data::load_unified_save()
+        .map(|s| s.player.unlocked_content.wizard_types.len())
+        .unwrap_or(0);
+    if unlocked_count >= WizardType::all().len() {
+        do_unlock(&mut res, &mut events);
+        grant_achievement_insight(GrandCouncilAchievement::achievement_id());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Walking Library — all spells unlocked
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_walking_library(
+    mut msg: MessageReader<crate::game::messages::SpellResearchedMessage>,
+    mut res: ResMut<WalkingLibraryAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_none() {
+        return;
+    }
+    let unlocked_count = crate::config::save_data::load_unified_save()
+        .map(|s| s.player.unlocked_content.spells.len())
+        .unwrap_or(0);
+    use crate::game::units::wizard::components::Spell;
+    if unlocked_count >= Spell::all().len() {
+        do_unlock(&mut res, &mut events);
+        grant_achievement_insight(WalkingLibraryAchievement::achievement_id());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Peak Wizard — all insight bonuses at max level
+// ---------------------------------------------------------------------------
+
+pub(crate) fn check_peak_wizard(
+    mut msg: MessageReader<crate::game::messages::InsightBonusUpgradedMessage>,
+    mut res: ResMut<PeakWizardAchievement>,
+    mut events: MessageWriter<AchievementUnlockedMessage>,
+) {
+    if msg.read().next().is_none() {
+        return;
+    }
+    use crate::game::insight_bonuses::InsightBonusStat;
+    let all_maxed = InsightBonusStat::all()
+        .iter()
+        .all(|stat| stat.current_level() >= InsightBonusStat::max_level());
+    if all_maxed {
+        do_unlock(&mut res, &mut events);
+        grant_achievement_insight(PeakWizardAchievement::achievement_id());
     }
 }

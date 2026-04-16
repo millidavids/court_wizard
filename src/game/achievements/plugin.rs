@@ -10,7 +10,7 @@ use super::messages::{
     BattleEndedMessage, ClearProgressMessage, CloseCallMessage, DefenderKilledBySpellMessage,
     EnemyKilledMessage, EntangleHitDefenderMessage, GuardianCircleHitAttackerMessage,
     MarkedForDeathKillMessage, OutOfRangeMessage, QwerKeyPressedMessage, ScorchedEarthMessage,
-    SpellCastMessage, StormbringerMessage, UnitSickenedMessage,
+    SpellCastMessage, StormbringerMessage, UnitSickenedMessage, WizardTypeUnlockedMessage,
 };
 use super::resources::*;
 use super::systems;
@@ -33,7 +33,9 @@ impl Plugin for AchievementsPlugin {
             .add_message::<MarkedForDeathKillMessage>()
             .add_message::<CloseCallMessage>()
             .add_message::<StormbringerMessage>()
+            .add_message::<WizardTypeUnlockedMessage>()
             .init_resource::<MultiKillTracker>()
+            .init_resource::<BossesSeenThisBattle>()
             // Initialize all achievement resources from save at startup
             .add_systems(Startup, init_achievements)
             // NOTE: send_battle_ended is registered in ScoreScreenPlugin's chain
@@ -202,8 +204,36 @@ impl Plugin for AchievementsPlugin {
                         .run_if(achievement_locked::<TheThreeHagsAchievement>),
                     systems::check_ogre_encounter
                         .run_if(achievement_locked::<OgreWarlordAchievement>),
+                    systems::check_lich_encounter
+                        .run_if(achievement_locked::<LichEncounterAchievement>),
+                    systems::check_dark_mage_encounter
+                        .run_if(achievement_locked::<DarkMageEncounterAchievement>),
+                    systems::mark_bosses_seen,
                 )
                     .run_if(is_gameplay_active),
+            )
+            // Boss defeat achievements
+            .add_systems(
+                Update,
+                (
+                    systems::check_hags_defeated
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<HagsDefeatedAchievement>),
+                    systems::check_ogre_defeated
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<OgreDefeatedAchievement>),
+                    systems::check_lich_defeated
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<LichDefeatedAchievement>),
+                    systems::check_dark_mage_defeated
+                        .run_if(on_message::<BattleEndedMessage>)
+                        .run_if(achievement_locked::<DarkMageDefeatedAchievement>),
+                ),
+            )
+            // Reset boss-seen flags on level load
+            .add_systems(
+                OnEnter(crate::state::AppState::Loading),
+                systems::reset_bosses_seen,
             )
             // Soiled Surprise — triggered by first sickened event (unlocks Excremage)
             .add_systems(
@@ -265,6 +295,27 @@ impl Plugin for AchievementsPlugin {
                 systems::check_clicker
                     .run_if(on_message::<BattleEndedMessage>)
                     .run_if(achievement_locked::<ClickerAchievement>),
+            )
+            // Grand Council — all wizard types unlocked
+            .add_systems(
+                Update,
+                systems::check_grand_council
+                    .run_if(on_message::<WizardTypeUnlockedMessage>)
+                    .run_if(achievement_locked::<GrandCouncilAchievement>),
+            )
+            // Walking Library — all spells researched
+            .add_systems(
+                Update,
+                systems::check_walking_library
+                    .run_if(on_message::<crate::game::messages::SpellResearchedMessage>)
+                    .run_if(achievement_locked::<WalkingLibraryAchievement>),
+            )
+            // Peak Wizard — all insight bonuses maxed
+            .add_systems(
+                Update,
+                systems::check_peak_wizard
+                    .run_if(on_message::<crate::game::messages::InsightBonusUpgradedMessage>)
+                    .run_if(achievement_locked::<PeakWizardAchievement>),
             )
             // Reset all achievements when progress is cleared
             .add_systems(

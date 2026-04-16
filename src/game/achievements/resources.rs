@@ -129,6 +129,28 @@ achievement_resource!(ModAllMaxAch, AchievementId::ModAllMax);
 achievement_resource!(ModMixedExtremesAch, AchievementId::ModMixedExtremes);
 achievement_resource!(ClickerAchievement, AchievementId::Clicker);
 
+// Completionist
+achievement_resource!(GrandCouncilAchievement, AchievementId::GrandCouncil);
+achievement_resource!(WalkingLibraryAchievement, AchievementId::WalkingLibrary);
+achievement_resource!(PeakWizardAchievement, AchievementId::PeakWizard);
+
+// Boss encounters & defeats
+achievement_resource!(LichEncounterAchievement, AchievementId::LichEncounter);
+achievement_resource!(DarkMageEncounterAchievement, AchievementId::DarkMageEncounter);
+achievement_resource!(HagsDefeatedAchievement, AchievementId::HagsDefeated);
+achievement_resource!(OgreDefeatedAchievement, AchievementId::OgreDefeated);
+achievement_resource!(LichDefeatedAchievement, AchievementId::LichDefeated);
+achievement_resource!(DarkMageDefeatedAchievement, AchievementId::DarkMageDefeated);
+
+/// Tracks which bosses appeared during the current battle for defeat achievements.
+#[derive(Resource, Default)]
+pub(crate) struct BossesSeenThisBattle {
+    pub hag: bool,
+    pub ogre: bool,
+    pub lich: bool,
+    pub dark_mage: bool,
+}
+
 /// Run condition: returns true when the achievement resource is still locked.
 pub(crate) fn achievement_locked<T: AchievementResource>(res: Res<T>) -> bool {
     res.is_locked()
@@ -239,6 +261,15 @@ pub(crate) fn reset_all_achievements(
     commands.insert_resource(ModAllMaxAch(false));
     commands.insert_resource(ModMixedExtremesAch(false));
     commands.insert_resource(ClickerAchievement(false));
+    commands.insert_resource(GrandCouncilAchievement(false));
+    commands.insert_resource(WalkingLibraryAchievement(false));
+    commands.insert_resource(PeakWizardAchievement(false));
+    commands.insert_resource(LichEncounterAchievement(false));
+    commands.insert_resource(DarkMageEncounterAchievement(false));
+    commands.insert_resource(HagsDefeatedAchievement(false));
+    commands.insert_resource(OgreDefeatedAchievement(false));
+    commands.insert_resource(LichDefeatedAchievement(false));
+    commands.insert_resource(DarkMageDefeatedAchievement(false));
 }
 
 /// Initializes all achievement resources from the save file at startup.
@@ -316,4 +347,13 @@ pub(crate) fn init_achievements(mut commands: Commands) {
     init!(ModAllMaxAch);
     init!(ModMixedExtremesAch);
     init!(ClickerAchievement);
+    init!(GrandCouncilAchievement);
+    init!(WalkingLibraryAchievement);
+    init!(PeakWizardAchievement);
+    init!(LichEncounterAchievement);
+    init!(DarkMageEncounterAchievement);
+    init!(HagsDefeatedAchievement);
+    init!(OgreDefeatedAchievement);
+    init!(LichDefeatedAchievement);
+    init!(DarkMageDefeatedAchievement);
 }

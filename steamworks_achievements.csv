@@ -1,0 +1,70 @@
+apiname,default_value,displayname,description,hidden
+first_victory,0,First Victory,You won your first battle!,0
+friendly_fire,0,Friendly Fire,"You killed a defender with a spell. Oops!",1
+chain_reaction,0,Chain Reaction,Killed multiple enemies in quick succession.,0
+tactical_retreat,0,Tactical Retreat,A strategic withdrawal to reconsider your options.,1
+the_king_is_dead,0,The King is Dead,You had one job.,1
+total_wipe,0,Total Wipe,"Not a single soldier left standing. Impressive, in a horrible way.",1
+speedrun_wrong_direction,0,Speedrun (Wrong Direction),The battle barely started. What happened?,1
+pyrrhic_defeat,0,Pyrrhic Defeat,"Close, but no cigar.",1
+it_was_going_so_well,0,It Was Going So Well,Everything was fine. And then it wasn't.,1
+friendly_fire_department,0,Friendly Fire Department,Maybe stop casting into your own army?,1
+accidental_regicide,0,Accidental Regicide,The defense has been called off on account of you.,1
+apprentice_wizard,0,Apprentice Wizard,You're getting the hang of this.,0
+court_wizard,0,Court Wizard,The king trusts you. Probably a mistake.,0
+archmage,0,Archmage,Your beard has grown three inches since you started.,0
+legends_speak_your_name,0,Legends Speak Your Name,Bards write songs. Most of them are inaccurate.,0
+immortalized,0,Immortalized,Statues of you line the courtyard. They all look wrong.,0
+the_grind_never_stops,0,The Grind Never Stops,You could have learned a real trade by now.,0
+one_more_level,0,One More Level,"Just one more, you told yourself 9 levels ago.",0
+into_the_deep,0,Into the Deep,The attackers are starting to look... different.,0
+absurdity,0,Absurdity,This many enemies shouldn't fit on one battlefield.,0
+level_100,0,Level 100,You've been doing this longer than some civilizations lasted.,0
+stubborn,0,Stubborn,"Insanity is doing the same thing over and over. But maybe this time...",1
+extremely_stubborn,0,Extremely Stubborn,"At this point, the enemies feel bad for you.",1
+slider_fiddler,0,Slider Fiddler,You adjusted a slider. The Arcanorouter approves.,1
+random_magic_surge,0,Random Magic Surge,"Lol, you're so random.",1
+qwer,0,QWER,Spell-keyboard?,1
+out_of_range,0,Out of Range,A defender wandered beyond your reach.,1
+scorched_earth,0,Scorched Earth,Your own fire claimed a life.,1
+protective_instincts,0,Protective Instincts,You shielded the enemy. On purpose?,1
+friendly_thorns,0,Friendly Thorns,Your vines don't discriminate.,1
+meet_the_brute,0,Meet the Brute,They're bigger than expected.,1
+elite_forces,0,Elite Forces,The enemy brought their best.,1
+commander_on_the_field,0,Commander on the Field,Someone out there is giving orders.,1
+enemy_medic,0,Enemy Medic!,"They have healers now. Great.",1
+magic_nullifier,0,Magic Nullifier,Your spells are being countered.,1
+the_three_hags,0,The Three Hags,Three sisters. One shared grudge.,1
+ogre_warlord,0,Ogre Warlord,The biggest one yet. And it's angry.,1
+soiled_surprise,0,Soiled Surprise,Something terrible happened. And it unlocked a wizard type.,1
+master_brewer,0,Master Brewer,You've collected every ingredient. The cauldron recognizes a true master.,1
+right_to_bear_arms,0,The Right to Bear Arms,Killed an enemy marked by Finger of Death. Guns are now an option.,1
+close_call,0,Close Call,An enemy got dangerously close to the tower. Maybe it's time to get your hands dirty.,1
+stormbringer,0,Stormbringer,Lightning meets wind. The sky bends to your will.,1
+pacifist,0,Pacifist,You won without your spells hurting a single enemy. There is another way.,1
+mod_wave_speed_min,0,Leisurely Pace,Completed a roguelite run at the slowest wave speed.,0
+mod_wave_speed_100,0,Right On Time,Completed a roguelite run at normal wave speed.,0
+mod_wave_speed_200,0,Double Time,Completed a roguelite run at double wave speed.,0
+mod_wave_speed_300,0,Blitz,Completed a roguelite run at maximum wave speed. No breaks!,0
+mod_enemy_strength_min,0,Mercy Rule,Completed a roguelite run with enemies at their weakest.,0
+mod_enemy_strength_100,0,Fair Fight,Completed a roguelite run with normal enemy strength.,0
+mod_enemy_strength_200,0,Battle Hardened,Completed a roguelite run with double-strength enemies.,0
+mod_enemy_strength_300,0,Unstoppable Force,Completed a roguelite run with maximum-strength enemies.,0
+mod_enemy_count_min,0,Skeleton Crew,Completed a roguelite run with a skeleton crew of enemies.,0
+mod_enemy_count_100,0,Standard Forces,Completed a roguelite run with the standard enemy count.,0
+mod_enemy_count_200,0,Double Trouble,Completed a roguelite run with double the enemies.,0
+mod_enemy_count_300,0,Army of Darkness,Completed a roguelite run against the maximum enemy horde.,0
+mod_all_min,0,Minimalist,Completed a roguelite run with every modifier at minimum.,0
+mod_all_200,0,Overachiever,Completed a roguelite run with everything doubled.,0
+mod_all_max,0,Absolute Madness,Completed a roguelite run with every modifier maxed out. You're insane.,0
+mod_mixed_extremes,0,Glass Cannon,Completed a roguelite run with one modifier maxed and another at minimum.,0
+clicker,0,Clicker,"Won a roguelite run using only your mouse, with no option to press a key.",1
+all_wizards,0,Grand Council,"Every wizard in the realm has answered your summons. Whether that's a good thing remains to be seen.",0
+all_spells,0,Walking Library,"Every spell ever catalogued now lives in your memory. Or close enough.",0
+all_bonuses_maxed,0,Peak Wizard,"Every permanent upgrade, fully mastered. The court whispers of a wizard without ceiling.",0
+lich_encounter,0,Beyond the Grave,Death was supposed to be the end. Someone disagrees.,1
+dark_mage_encounter,0,Arcane Rival,A wizard who chose the other side. How embarrassing for them.,1
+hags_defeated,0,Family Reunion Cancelled,Three sisters walked in. None walked out.,1
+ogre_defeated,0,Brought Down to Size,"The bigger they are, the more satisfying the thud.",1
+lich_defeated,0,Final Death,"You'd think dying once would be enough. This time, stay dead.",1
+dark_mage_defeated,0,Tenure Denied,The dark mage's application has been rejected. Permanently.,1

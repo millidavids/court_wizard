@@ -17,8 +17,8 @@ use super::game_mode::GameModePlugin;
 use super::input::InputPlugin;
 use super::loading::LoadingPlugin;
 use super::messages::{
-    AchievementUnlockedMessage, IngredientCollectedMessage, RetreatMessage, SpellResearchedMessage,
-    WaveSpawnedMessage,
+    AchievementUnlockedMessage, IngredientCollectedMessage, InsightBonusUpgradedMessage,
+    RetreatMessage, SpellResearchedMessage, WaveSpawnedMessage,
 };
 use super::movement_systems;
 use super::pathfinding::PathfindingPlugin;
@@ -109,6 +109,7 @@ impl Plugin for GamePlugin {
             .add_message::<AchievementUnlockedMessage>()
             .add_message::<IngredientCollectedMessage>()
             .add_message::<SpellResearchedMessage>()
+            .add_message::<InsightBonusUpgradedMessage>()
             .add_message::<WaveSpawnedMessage>()
             .add_message::<RetreatMessage>()
             .add_plugins((

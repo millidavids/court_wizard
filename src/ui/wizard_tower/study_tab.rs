@@ -13,7 +13,7 @@ use crate::config::save_data::{
 };
 use crate::game::crt_effect::CorrectedCursorPosition;
 use crate::game::input::messages::MouseClicked;
-use crate::game::messages::SpellResearchedMessage;
+use crate::game::messages::{InsightBonusUpgradedMessage, SpellResearchedMessage};
 use crate::game::resources::BattleInsightData;
 use crate::game::units::DamageType;
 use crate::game::units::wizard::components::Spell;
@@ -228,6 +228,7 @@ pub(super) fn handle_study_button_actions(
     allocation: Option<Res<InsightAllocation>>,
     battle_insight: Res<BattleInsightData>,
     mut spell_researched: MessageWriter<SpellResearchedMessage>,
+    mut insight_upgraded: MessageWriter<InsightBonusUpgradedMessage>,
     left_panel: Query<Entity, With<super::layout::WizardTowerLeftPanel>>,
     right_panel: Query<Entity, With<super::layout::WizardTowerRightPanel>>,
     asset_server: Res<AssetServer>,
@@ -289,6 +290,9 @@ pub(super) fn handle_study_button_actions(
                     }
                 }
                 set_insight_bonus_levels(&bonus_updates);
+                if !bonus_updates.is_empty() {
+                    insight_upgraded.write(InsightBonusUpgradedMessage);
+                }
 
                 for spell in newly_unlocked {
                     spell_researched.write(SpellResearchedMessage { spell });

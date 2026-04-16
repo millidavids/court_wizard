@@ -71,3 +71,7 @@ pub(crate) struct CloseCallMessage;
 /// Message sent when a Lightning Rod is placed within a Squall's AoE.
 #[derive(Message)]
 pub(crate) struct StormbringerMessage;
+
+/// Message sent when a wizard type is newly unlocked via `unlock_wizard_type()`.
+#[derive(Message)]
+pub(crate) struct WizardTypeUnlockedMessage;

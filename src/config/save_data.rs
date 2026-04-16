@@ -233,6 +233,17 @@ pub(crate) enum AchievementId {
     ModAllMax,
     ModMixedExtremes,
     Clicker,
+    // Completionist
+    GrandCouncil,
+    WalkingLibrary,
+    PeakWizard,
+    // Boss encounters & defeats
+    LichEncounter,
+    DarkMageEncounter,
+    HagsDefeated,
+    OgreDefeated,
+    LichDefeated,
+    DarkMageDefeated,
 }
 
 impl AchievementId {
@@ -300,6 +311,15 @@ impl AchievementId {
             AchievementId::ModAllMax,
             AchievementId::ModMixedExtremes,
             AchievementId::Clicker,
+            AchievementId::GrandCouncil,
+            AchievementId::WalkingLibrary,
+            AchievementId::PeakWizard,
+            AchievementId::LichEncounter,
+            AchievementId::DarkMageEncounter,
+            AchievementId::HagsDefeated,
+            AchievementId::OgreDefeated,
+            AchievementId::LichDefeated,
+            AchievementId::DarkMageDefeated,
         ]
     }
 
@@ -366,6 +386,15 @@ impl AchievementId {
             AchievementId::ModAllMax => "mod_all_max",
             AchievementId::ModMixedExtremes => "mod_mixed_extremes",
             AchievementId::Clicker => "clicker",
+            AchievementId::GrandCouncil => "all_wizards",
+            AchievementId::WalkingLibrary => "all_spells",
+            AchievementId::PeakWizard => "all_bonuses_maxed",
+            AchievementId::LichEncounter => "lich_encounter",
+            AchievementId::DarkMageEncounter => "dark_mage_encounter",
+            AchievementId::HagsDefeated => "hags_defeated",
+            AchievementId::OgreDefeated => "ogre_defeated",
+            AchievementId::LichDefeated => "lich_defeated",
+            AchievementId::DarkMageDefeated => "dark_mage_defeated",
         }
     }
 
@@ -432,6 +461,15 @@ impl AchievementId {
             AchievementId::ModAllMax => "Absolute Madness",
             AchievementId::ModMixedExtremes => "Glass Cannon",
             AchievementId::Clicker => "Clicker",
+            AchievementId::GrandCouncil => "Grand Council",
+            AchievementId::WalkingLibrary => "Walking Library",
+            AchievementId::PeakWizard => "Peak Wizard",
+            AchievementId::LichEncounter => "Beyond the Grave",
+            AchievementId::DarkMageEncounter => "Arcane Rival",
+            AchievementId::HagsDefeated => "Family Reunion Cancelled",
+            AchievementId::OgreDefeated => "Brought Down to Size",
+            AchievementId::LichDefeated => "Final Death",
+            AchievementId::DarkMageDefeated => "Tenure Denied",
         }
     }
 
@@ -466,6 +504,9 @@ impl AchievementId {
             AchievementId::ModAll200 => Some("Grants: 50 Arcane Insight"),
             AchievementId::ModAllMax => Some("Grants: 100 Arcane Insight"),
             AchievementId::Clicker => Some("Grants: 50 Arcane Insight"),
+            AchievementId::GrandCouncil => Some("Grants: 100 Arcane Insight"),
+            AchievementId::WalkingLibrary => Some("Grants: 100 Arcane Insight"),
+            AchievementId::PeakWizard => Some("Grants: 100 Arcane Insight"),
             _ => None,
         }
     }
@@ -491,6 +532,9 @@ impl AchievementId {
             AchievementId::ModAll200 => 50,
             AchievementId::ModAllMax => 100,
             AchievementId::Clicker => 50,
+            AchievementId::GrandCouncil => 100,
+            AchievementId::WalkingLibrary => 100,
+            AchievementId::PeakWizard => 100,
             _ => 0,
         }
     }
@@ -603,6 +647,31 @@ impl AchievementId {
             }
             AchievementId::Clicker => {
                 "Won a roguelite run using only your mouse, with no option to press a key."
+            }
+            AchievementId::GrandCouncil => {
+                "Every wizard in the realm has answered your summons. Whether that's a good thing remains to be seen."
+            }
+            AchievementId::WalkingLibrary => {
+                "Every spell ever catalogued now lives in your memory. Or close enough."
+            }
+            AchievementId::PeakWizard => {
+                "Every permanent upgrade, fully mastered. The court whispers of a wizard without ceiling."
+            }
+            AchievementId::LichEncounter => {
+                "Death was supposed to be the end. Someone disagrees."
+            }
+            AchievementId::DarkMageEncounter => {
+                "A wizard who chose the other side. How embarrassing for them."
+            }
+            AchievementId::HagsDefeated => "Three sisters walked in. None walked out.",
+            AchievementId::OgreDefeated => {
+                "The bigger they are, the more satisfying the thud."
+            }
+            AchievementId::LichDefeated => {
+                "You'd think dying once would be enough. This time, stay dead."
+            }
+            AchievementId::DarkMageDefeated => {
+                "The dark mage's application has been rejected. Permanently."
             }
         }
     }

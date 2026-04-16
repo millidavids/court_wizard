@@ -81,5 +81,14 @@ pub(super) fn steam_api_name(id: AchievementId) -> &'static str {
         AchievementId::ModAllMax => "ACH_MOD_ALL_MAX",
         AchievementId::ModMixedExtremes => "ACH_MOD_MIXED_EXTREMES",
         AchievementId::Clicker => "ACH_CLICKER",
+        AchievementId::GrandCouncil => "ACH_GRAND_COUNCIL",
+        AchievementId::WalkingLibrary => "ACH_WALKING_LIBRARY",
+        AchievementId::PeakWizard => "ACH_PEAK_WIZARD",
+        AchievementId::LichEncounter => "ACH_LICH_ENCOUNTER",
+        AchievementId::DarkMageEncounter => "ACH_DARK_MAGE_ENCOUNTER",
+        AchievementId::HagsDefeated => "ACH_HAGS_DEFEATED",
+        AchievementId::OgreDefeated => "ACH_OGRE_DEFEATED",
+        AchievementId::LichDefeated => "ACH_LICH_DEFEATED",
+        AchievementId::DarkMageDefeated => "ACH_DARK_MAGE_DEFEATED",
     }
 }

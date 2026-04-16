@@ -33,6 +33,10 @@ pub(crate) struct WaveSpawnedMessage {
 #[derive(Message)]
 pub(crate) struct RetreatMessage;
 
+/// Message sent when insight bonus levels are upgraded via the study tab.
+#[derive(Message)]
+pub(crate) struct InsightBonusUpgradedMessage;
+
 /// Message sent when a hidden ingredient combo is discovered during brewing.
 #[derive(Message)]
 pub(crate) struct ComboDiscoveredMessage {

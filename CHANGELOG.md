@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.207] - 2026-04-15
+
+### Added
+- **9 new achievements** — completionist goals for unlocking all wizards, researching every spell, and maxing out all permanent bonuses, plus encounter and defeat achievements for the Lich and Dark Mage bosses, and defeat achievements for the Hags and Ogre Warlord
+
 ## [v0.6.203] - 2026-04-15
 
 ### Fixed
